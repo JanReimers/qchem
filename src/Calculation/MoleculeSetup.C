@@ -62,8 +62,9 @@ struct CalcOptions
     //! A multiplicity whose parity disagrees with Ne (e.g. a singlet for odd Ne) is rejected.
     int         multiplicity = 0;
     //! Basis construction variants (threaded into BasisSet::Gaussian::Factory).  Defaults reproduce
-    //! today's behaviour (in-house MnD, Cartesian).  angular==Spherical + symmetry is rejected until
-    //! the Spherical SALC track (doc/OldPlans/SphericalSALCPlan.md) lands -- the SALC builder needs Cartesian PGData.
+    //! today's behaviour (in-house MnD, Cartesian).  angular==Spherical + symmetry works with the MnD engine (the SALC builder
+    //! handles spherical shells, doc/OldPlans/SphericalSALCPlan.md S3a/S4); only engine LibCint + Spherical + symmetry is
+    //! refused (S3b: libcint's real-harmonic layout is unwired).
     Engine      engine  = Engine::MnD;
     Angular     angular = Angular::Cartesian;
     //! DFT-only knobs (ignored when model is HF/1-e/Dirac).  xalpha: the Slater exchange parameter, used

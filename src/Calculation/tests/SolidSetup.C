@@ -309,13 +309,9 @@ TEST(SolidSetup, AStatedXCRhoFitOnTheGPWBallIsRefusedByName)
 // core guess with a WARN row, where until 2026-11-12 it threw at seed time (Al has no library entry).  A stated seed is honoured as stated.
 namespace
 {
-std::vector<report::json> AutoSeedRows(const std::string& material, BasisSetData data, ChargeDensity::SeedStrategy seed,
-                                       const std::string& tag, ChargeDensity::SeedStrategy& resolved)
+//! The \a name policy rows a run \a tag filed (anywhere under it).
+std::vector<report::json> PolicyRows(const std::string& tag, const std::string& name)
 {
-    const auto mat=Materials::Get(material);
-    SolidCalcOptions o; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.seed=seed;
-    { report::Run run(tag);
-      resolved=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=data}, o)->opts.seed; }
     const auto& G=report::GlobalReport();
     const report::json* filed=nullptr;
     for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind(tag+"@",0)==0) filed=&it.value();
@@ -327,7 +323,7 @@ std::vector<report::json> AutoSeedRows(const std::string& material, BasisSetData
             for (auto it=x.begin(); it!=x.end(); ++it)
             {
                 if (it.key()=="policy" && it.value().is_array())
-                    for (const auto& r : it.value()) if (r.value("name","")=="AutoSeed") out.push_back(r);
+                    for (const auto& r : it.value()) if (r.value("name","")==name) out.push_back(r);
                 walk(it.value());
             }
         else if (x.is_array()) for (const auto& y : x) walk(y);
@@ -335,7 +331,42 @@ std::vector<report::json> AutoSeedRows(const std::string& material, BasisSetData
     walk(*filed);
     return out;
 }
+
+std::vector<report::json> AutoSeedRows(const std::string& material, BasisSetData data, ChargeDensity::SeedStrategy seed,
+                                       const std::string& tag, ChargeDensity::SeedStrategy& resolved)
+{
+    const auto mat=Materials::Get(material);
+    SolidCalcOptions o; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.seed=seed;
+    { report::Run run(tag);
+      resolved=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=data}, o)->opts.seed; }
+    return PolicyRows(tag, "AutoSeed");
+}
 } // namespace
+
+// ONE SOURCE FOR THE MAGNETIC ORDERING (OpenWork §3, 2026-11-12): a stated siteSpins is what the seed reads (the seed key carries
+// it), and where its flips differ from the structure's -- an inline cell sent without atom spins -- the setup reports the override.
+TEST(SolidSetup, AStatedMagneticOrderingIsTheSeedsAndOverridesTheStructuresSpins)
+{
+    const auto mno=Materials::Get("MnO_AFM2");
+    UnitCell spinless(mno.cell->GetCellMatrix());
+    for (Site s : mno.cell->Sites()) { s.spinFlip=false; spinless.Insert(s); }
+    auto resolve=[](const UnitCell& cell, std::vector<int> spins, const std::string& tag)
+    {
+        SolidCalcOptions o; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+        o.multiplicity=1; o.imposeSymmetry=true; o.siteSpins=std::move(spins);
+        report::Run run(tag);
+        return SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_SR}, o)->seedKey.siteSpins;
+    };
+    const std::vector<int> afm{+1,-1,0,0};
+    EXPECT_EQ(resolve(spinless, afm, "MnO spinless stated"), afm) << "the seed key carries the stated ordering";
+    const auto rows=PolicyRows("MnO spinless stated", "SeedSpins");
+    ASSERT_EQ(rows.size(), 1u) << "a stated ordering whose flips differ from the structure's is reported";
+    EXPECT_NE(rows[0].value("decided","").find("override"), std::string::npos) << rows[0].dump();
+    EXPECT_NE(rows[0].value("decided","").find("Mn2(-)"), std::string::npos) << "it names the site that differs: " << rows[0].dump();
+
+    EXPECT_EQ(resolve(*mno.cell, afm, "MnO named stated"), afm);
+    EXPECT_TRUE(PolicyRows("MnO named stated", "SeedSpins").empty()) << "the material's own spins agree: nothing to report";
+}
 
 TEST(SolidSetup, TheAutoSeedIsIonicOnACoveredLatticeAndTheCoreGuessWithAWarnOnAnUncoveredOne)
 {

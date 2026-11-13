@@ -2652,3 +2652,103 @@ re-convergence iterations (not budgeted)` (38 + 17 = main-fd643121's 55), and Ti
 pilot now show their audit too: β-MnO2 dense-d 25 (59) + 22, MnO AFM-II imposed 14 (18) + 4, MnO AFM-II free 15 (19) + 4.  Sweep: short
 1597/0, long 15/0, panel4t 25/0, RelChecked built; `anchordiff` 0 moved (energy and summed iterations) vs main-2eb32dee short/long and
 main-fd643121_panel4t.
+
+## ✅ Structure-neutral seed and Gaussian angular form (lane B, 2026-11-12, bdeabff3e)
+
+The row as it stood (verbatim):
+
+| **Structure-neutral seed and Gaussian angular form** (user 2026-11-12, GUI feedback 31/32: "we should strive to make seeding and spherical/Cartesian options structure neutral"; on landing per-path molecular binding fields meanwhile: "Wait for neutral") | the same choice is held two ways.  ANGULAR: `MoleculeSetup` `CalcOptions.angular` (enum `Angular`) vs `SolidSetup` `GaussianBasisRecipe.spherical` (a bool, the spherical lattice view).  SEED: one `SeedStrategy`, but two Auto rules (molecule `AutoSeed`: SAD for DFT, else the core guess; solid: IonicSAD), and IonicSAD / Uniform are refused for a molecule -- implementation history (V2.2, the periodic valence form factors), not chemistry: `IonicSADTargets` are per-site formal charges, which a molecule has too.  The binding has two front doors (`qcb_request` fields vs the deck), so the GUI offers both choices on crystals only (qchem-GUI 2eb3e92; a molecule that states one is refused) | **lane B**: ONE basis-recipe angular option both setups share; ONE Auto seed rule; IonicSAD for molecules.  The molecular spherical + point-group refusal STAYS until the SALC builder handles spherical shells (`doc/OldPlans/SphericalSALCPlan.md`).  Then lane G wires both binding front doors and drops the GUI's crystals-only guard · `src/Calculation/MoleculeSetup.C`, `src/Calculation/SolidSetup.C`, `src/ChargeDensity/Seed.C` |
+
+**Landed.**
+- **One angular option.** `BasisSet::Gaussian::Angular {Cartesian, Spherical}` is used by both setups: `MoleculeSetup`'s private
+  enum is gone, and the solid's `GaussianBasisRecipe::angular` replaces `bool spherical`.  The deck key is `basis.angular`; the old
+  `basis.spherical` still reads under `// DECK-ALIAS: basis.spherical -> basis.angular (2026-11-12)` and throws only when it disagrees.
+- **One Auto seed rule**, `qchem.SeedPolicy::ResolveSeed`, called by both setups; it files a `policy` row `AutoSeed`.  A stated seed is
+  honoured; otherwise: no density in the iteration-0 Fock gives the core guess; a species the seed library lacks gives the core guess and
+  a WARN (user ruling (a)); charges stated, or a periodic structure, give IonicSAD; otherwise SAD (user ruling (1), "Derived only if
+  periodic").
+- **IonicSAD for molecules**, on the all-electron library.  Measured against SAD it reaches the same state (within 1e-7) but costs
+  iterations: H₂O 8 → 10, LiF 8 → 10, OH⁻ 9 → 10.  That is why isolated structures default to SAD.
+- No default changed.  A solid with an uncovered species, which threw, now runs on the core guess with a WARN (`GPW_Al`).
+
+**Correction to the row.**  "The molecular spherical + point-group refusal STAYS" was never true of the code: the SALC builder has
+handled the in-house MnD spherical basis since S3a/S4 (`doc/OldPlans/SphericalSALCPlan.md`).  The only refusal is libcint-spherical +
+symmetry (`MoleculeCalculation.C`, S3b).  The claim came from a stale comment on `CalcOptions::angular` in `MoleculeSetup.C`, rewritten
+2026-11-12.  Nor is there a C++ refusal of a Uniform seed for a molecule.
+
+**Remainder (other rows).**  Lane G wires both binding front doors to `Angular` and `SeedStrategy::Default`.  The pseudopotential seed
+library is its own row ("A pseudopotential run seeds from the VALENCE library for its q, on every structure").
+
+
+
+## ✅ A Kerker-preconditioned mixer ERASES the seed's magnetization: a reporting split (lane B, 2026-11-12, bd4169fae)
+
+The row as it stood (verbatim):
+
+· **A Kerker-preconditioned mixer ERASES the seed's magnetization** (lane G 2026-11-12, from the user's NiO report "the magnetic moments are wasting away"; owner lane B, after its seed READY).  NiO_AFM2 VALENCE_LOWQ_VA, Γ, siteSpins +-00, imposed Shubnikov, IonicSAD (Ni²⁺ moment 2 exists).  Seed probe (`siteMoments mu` before iteration 1): `scf.kerkerG0 1.0` + Pulay gives seed mu ±4.1e-6 and iteration-1 m_site +0.076 (XC ρ 'cusp', the ρ̃ path); no kerkerG0 (Pulay on D), smeared or not, gives seed mu ±3.372 and iteration-1 m_site +2.48.  So under Kerker the run starts non-magnetic: imposed it stays near 0 ("0.00000 from the first iteration"), free it regrows from noise.  SUSPECT: the Kerker path's seed/history is built from the TOTAL fitted density, not spin-resolved (pin 5: spin-native).  NEXT: unit-gate the seed → ρ̃ handoff on a two-site spin pair (seed m in = m out under Kerker), then fix; the B5 `MagneticInsulator` recipe (K+P) depends on it.  Repro decks: lane G's notes `laneG-nio-kerker-spin/{nio_ker_nosmear.json, nio_smear_only.json}`, 1 iteration each, ~8 min at QCHEM_OPENMP_THREADS=0.  SMALLER, same report: on the untrimmed VA basis (λmin(S) 5.6e-8) the refused first iterate (+2515 Ha, raster pilot restarts on x=16.7) prints site moments of exactly 0.0000 in its summary; the restart is right, the zero line misleads (print "refused" instead of moments).
+
+**The diagnosis: no erasure.  The `m_site` column meant two different densities.**
+- A D-mixer's row carries the first-order energy E_T, whose breakdown is E[D_in]'s, and its site moments came with it: the MIXED
+  D_in's.  A field mixer (Kerker, Pulay on ρ̃) has no E_T, so its row is E_KS[D_out] and its moments were D_out's.
+- On the row's NiO deck both routes produce the SAME iteration-1 D_out: E_KS -96.99726, site moments 0.0761 (the result lines).
+  D-Pulay's row read D_in (2.48), Kerker's read D_out (0.076).  The "seed mu" row is that same iteration-1 breakdown, root-anchored
+  above the table (and on the refused pilot pass, the broken D_out: 4e-6 vs D_in 3.372).
+- Controls (`~/Code/qchem6-runs/NiO/laneB-kerker-*.json`): without kerkerG0 the split vanishes; smearing changes nothing.
+- Over 8 iterations (`laneB-k8-{kerker,dpulay}.json`) Kerker+Pulay regrows the moment (0.73, 0.77, 0.70, ... 0.58, E settling at
+  -106.281) while D-Pulay oscillates (E_T ±0.4 Ha).  Kerker keeps the magnetization at least as well.
+- The suspect (the Kerker history built from the TOTAL density) was wrong: the polarized mixer is per channel, its star-average uses
+  the σ=None subgroup (fixed 2026-08-11), and the mixer's field carries D's moment.
+
+**Fixed (bd4169fae).**  The row takes its moments from D_out on every driver (free: the residual just sampled D_out on the XC mesh).
+Gate `GPW_Mn2Box.Γ_Becke_Shub_Pol_Smear_RowMomentsAreTheIterates` (Pulay on D and Kerker+Pulay): the last row's moments equal the final
+E_KS[D_out] to 1e-10; it fails with the fix removed.  Iteration 1 of that gate now reads m_site 3.884579 on both mixers.
+
+**The smaller item, fixed too.**  A refused first iterate (UnphysicalStop) printed its broken density's site moments (exactly 0.0000 on
+NiO's untrimmed basis); the result line now says the iterate was refused and its moments are not measured.
+
+**Remainder (a live row).**  The first diagonalization takes D0's 3.37 e to 0.076 e on every mixer and the moment regrows only to ~0.6:
+"NiO AFM-II moment small on VALENCE_LOWQ_VA" in `doc/OpenWork.md` §3.
+
+## ✅ `CheckPPProvenance` resolves a basis named WITHOUT `.bsd` differently from the reader: STALE, one resolution already (lane B, 2026-11-12)
+
+Row verbatim:
+
+| **`CheckPPProvenance` resolves a basis named WITHOUT `.bsd` differently from the reader** (lane B, 2026-10-31) | a SolidSetup UT naming `valence_lowq_sr2_naq9` (no extension) failed the provenance check while the basis itself loaded; with `.bsd` it passes | make the check resolve the name through the reader's own lookup (one resolution, not two) · `src/Calculation/Imp/SolidSetup.C` |
+
+Verdict: not reproducible from the code, so no change was made.
+- Both paths take the stated file through the same `BasisSet::Gaussian::BasisFile(name)`:
+  - the check: `CheckPPProvenance(file, species)` → `DeclaredPPProvenance(BasisFile(file))`;
+  - the build: `FactoryFromFile(file, …)` → `Gaussian94Reader(BasisFile(file))`.
+- `GaussianBasisRecipe::Make` (`src/Calculation/Imp/SolidSetup.C`) hands the same `file` to the check, to `RequireBasisCovers`, and to the factory.
+- The reader's constructor (a plain `ifstream`, no extension added) is unchanged since cfdd1e04d, the commit that wrote the row.
+- So a recipe file named WITHOUT `.bsd` fails to OPEN on both paths. The check runs first, so it is the one that names the missing file.
+- A deck never reaches this: a basis NAME goes to `basis.data`, which `BasisFileOfName` turns into `<stem>.bsd`, and a stated `basis.file` that is not shipped is opened and refused by the deck itself ("cannot be read").
+- The 2026-10-31 observation was most likely the UT expecting the provenance mismatch and meeting the open failure instead. The basis never loaded without its extension.
+
+### Kerker erasure: REOPENED and re-closed by converged runs (lane B, 2026-11-12)
+
+The user, in the GUI: "Kerker G_0=1.0 causes the magnetic moment wither away to nothing".  That is a multi-iteration observation, so the
+controller withdrew the "no erasure" verdict until it was measured to convergence.
+
+The decks:
+- The user's GUI deck as lane G regenerated it (`gui-user-run03{6,7}-kerker.json`): Γ only, the 4-atom NiO AFM-II cell, accuracy 1e-3,
+  spherical VALENCE_LOWQ_VA trimmed at Ni s 0.06 and d 0.18, siteSpins + − 0 0, accelerator Null, Pulay depth 8 at relax 0.45.
+- Each deck was run as `kerkerG0 1.0` + Pulay, and as the SAME deck without `kerkerG0` (Pulay on D), to convergence.  The resolved policy
+  row reads `policy.mixRhoM=on*` on every run: ρ carries G0, m is LINEAR (G0 = 0), and there is ONE joint Pulay history.
+
+| variant | mixer | iterations | Etot (Ha) | final site moment |
+|---|---|---|---|---|
+| Ni s+d trim, free | Kerker+Pulay | 18 | -106.2422879919 | 0.389 e |
+| Ni s+d trim, free | Pulay on D | 22 | -106.2422879929 | 0.389 e |
+| Ni s+d trim, imposed | Kerker+Pulay | 18 | -106.2422217516 | 0.389 e |
+| Ni s+d trim, imposed | Pulay on D | 21 | -106.2422217516 | 0.389 e |
+| Ni s trim only, free (= the user's run041) | Kerker+Pulay | 19 | -106.2820424128 | 0.256 e |
+| Ni s trim only, free (= the user's run041) | Pulay on D | 29 | -106.2820424127 | 0.256 e |
+
+What the table shows:
+- Both mixers reach the same state to 1e-9 Ha on every variant.
+- The Pulay-on-D trace decays as well: 0.78 → 0.39 over iterations 6-22.
+- Kerker does not erase the moment.  This model's converged moment is small, and a run the user stopped mid-way shows that decay.
+
+The open question (why ~0.3 e against LDA's ~1.2 μB: Γ-only k sampling first, then the basis) is the OpenWork §3 row "NiO AFM-II moment
+small on VALENCE_LOWQ_VA, Γ-only".  Outputs: `~/Code/qchem6-runs/NiO/laneB-conv-*.out`.

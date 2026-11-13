@@ -8,6 +8,7 @@
 //   GPW_MnO.Γ_Pol_SeedMirror
 //   GPW_MnO.Γ_Becke_Pol_SeedVxcMirror
 //   GPW_MnO.Γ_Shub_Pol_SeedDecoration
+//   GPW_MnO.Γ_Shub_Pol_SeedReadsTheStatedOrdering
 //   GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Long      (LONG: ~2.5 min; `ctest -L long` -- the converged AFM-II gate)
 //   GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long      (LONG: two ~6 min arms; the shell-averaged DFT+U oracle gate, VA span)
 
@@ -404,6 +405,51 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
     // (d) The TOTAL density is identical through both engines (the even channel is sigma-blind).
     double dTot=0; for (size_t g=0; g<up.size(); g++) dTot=std::max(dTot, std::abs((up[g]+dn[g])-(gup[g]+gdn[g])));
     EXPECT_LT(dTot, 1e-10) << "sigma must not touch the total density";
+}
+
+// ONE SOURCE FOR THE MAGNETIC ORDERING (OpenWork §3 "One magnetic ordering has TWO sources of truth", 2026-11-12).  The user's
+// NiO AFM-II deck sent its cell INLINE without atom spins and stated siteSpins +-00: the imposition read siteSpins, the seed read
+// the structure, so the seed was ferromagnetic and the Shubnikov projector took its moment to 0 ("m_site 0.00000 at iteration 1").
+// The same chain on MnO AFM-II, at the seed level: a SPINLESS copy of the cell, through the run's own imposed engine.  Stated
+// siteSpins (SeedKey::siteSpins, which SolidSetup fills from SolidCalcOptions::siteSpins) must seed exactly the staggering the
+// material's spins seed; unstated, the spinless cell's moment is erased -- the defect, kept as this gate's control.
+TEST(GPW_MnO, Γ_Shub_Pol_SeedReadsTheStatedOrdering)
+{
+    namespace L3=BasisSet::Lattice;
+    using namespace qchem::ChargeDensity;
+    const Material mno=qchem::Materials::Get("MnO_AFM2");
+    const UnitCell& named=*mno.cell;
+    UnitCell spinless(named.GetCellMatrix());
+    for (Site s : named.Sites()) { s.spinFlip=false; spinless.Insert(s); }
+    const std::vector<int> stated{+1,-1,0,0};
+    {
+        std::vector<int> fromNamed; named.ForEachSite([&](int, const rvec3_t&, bool f){ fromNamed.push_back(f ? -1 : +1); });
+        ASSERT_EQ(fromNamed[1], -1) << "the material carries the -m sublattice; the spinless copy must not";
+    }
+    Lattice_3D lat(spinless, ivec3_t(1,1,1));
+    auto st=lat.GetStructure();
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisLowQ(spinless, BasisSetData::VALENCE_LOWQ_SR),
+        L3::GPWParams{.densityEcut=8.0, .imposeSymmetry=true, .siteSpins=stated}));
+    BasisSet::FitQuadrature q = BasisSet::MakeXCQuadrature(*st, qcMesh::BeckeXCParams(20, -1.0, 11), bs->GetImposition());
+    ASSERT_EQ(q.NumSpinOps(), 24u) << "the stated ordering imposes the Shubnikov group whatever the cell's own spins";
+
+    qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&spinless));
+    const std::vector<int> ionic{5,5,8,8};   // Mn2+ Mn2+ O2- O2- (O2- is closed: no moment either way)
+    SeedKey key=kMnQ7; key.siteSpins=stated;
+    auto engine=SinglesEngineOver(q);
+    auto maxM=[&](const tChargeDensity<dcmplx>& seed)
+    {
+        const rvec_t up=engine->RhoPol(&seed, Spin::Up), dn=engine->RhoPol(&seed, Spin::Down);
+        double m=0; for (size_t g=0; g<up.size(); g++) m=std::max(m, std::abs(up[g]-dn[g]));
+        return m;
+    };
+    const double mStated =maxM(PolarizedSeedCD(fb, spinless, key, ionic));
+    const double mNamed  =maxM(PolarizedSeedCD(fb, named, kMnQ7, ionic));
+    const double mUnstated=maxM(PolarizedSeedCD(fb, spinless, kMnQ7, ionic));
+    EXPECT_GT(mStated, 0.1) << "the stated AFM ordering survives the imposed projector";
+    EXPECT_NEAR(mStated, mNamed, 1e-12*mNamed) << "a stated ordering on a spinless cell seeds what the material's spins seed";
+    EXPECT_LT(mUnstated, 1e-10) << "the CONTROL: a seed blind to the stated ordering is ferromagnetic, which the AFM group erases";
 }
 
 // ============================ THE CONVERGED AFM-II GATE (back as a cell, 2026-09-15) ============================
