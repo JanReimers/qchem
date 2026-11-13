@@ -1,8 +1,9 @@
 # Integral-cache ownership: one caching framework, owned locally
 
-**Status: DESIGN NOTE for the user (lane H, 2026-11-12; revised the same day for the user's three follow-ups, relayed by the
-controller: the 3C owner, lifetime, threading, instance identity).  Nothing here is built.**  It changes the protected `BasisSet` hub
-faces, so it needs the user's ruling before stage S3.  Stages S0 to S2 touch no hub and could go first.
+**Status: LIVE PLAN (user rulings 2026-11-12, §8), to be executed by lane H after PADE, stage by stage (S0-S6).**
+Each stage is its own READY, with "no number moves" checked by `scripts/anchordiff` at 1e-10 on short and long, plus panel4t at S4
+(it touches the Hamiltonian terms).  M2 is measured before S4.  Written 2026-11-12 as a design note.  It was revised the same day for
+the user's three follow-ups, relayed by the controller: the 3C owner, lifetime, threading, instance identity.
 
 **Asked by the controller (2026-11-12), relaying the user's direction.**  Build ONE caching framework, owned locally: a cache is an
 object with an owner, and there are no keyed global singletons.  BasisSet and Hamiltonian use it the same way.
@@ -266,16 +267,20 @@ The solid path does the same.  `SolidCalculation`'s geometry session builds each
   explicit hand-over.
 - **The never-freed primitive registry** and the never-clearable Cache2/3: the root of the "trail of dead geometries", gone at S5.
 
-## 8. What the user is asked to rule
+## 8. The user's rulings (2026-11-12, relayed verbatim by the controller)
 
-1. Go ahead with ONE local framework (`SlotMap`, §5 S1) for BasisSet and Hamiltonian alike, with Cache2/3/4 per owner (§4 found no
-   reason to keep them global).
-2. Lifetime is SETTLED (the parent makes the cache; every block's constructor takes it; tests hold one).  Open: the handle type.  I
-   propose a co-owned `shared_ptr`; a raw non-null pointer also works, because a block never outlives its parent in production.
-3. Partner identity: a 64-bit instance serial in a shared token, held by the cache as a `weak_ptr`, with dead-partner entries
-   EVICTED and reported (§3b), not merely warned about.
-4. Threading: per-entry once-init for the slots, serial-resolve-then-immutable for the primitive hot loops, no sharding (§3).
-5. The S3 and S4 hub changes:
-   - `DBCacheClient` / `BasisSetID` retire for a store-client face;
-   - `Orbital_1E_IBS::Nuclear(cl)` and the cached PP accessors leave the basis for the terms.
-6. The ERI4 RAM cap becomes a setup policy (WARN AND RUN / REFUSE ON RESOURCES) instead of a GC that silently rebuilds.
+These are the user's selected answers to the six questions this section posed.
+1. **One local framework, nothing process-global** (Cache2/3/4 per owner): *"Approve all three (Recommended)"* (covers 1, 3, 4).
+2. **The handle**: *"shared_ptr (Recommended)"*.  The parent BasisSet makes the cache; every IBS constructor takes it; tests hold
+   one in the harness.
+3. **Partner identity**: an instance serial in a shared token, held by the cache as a `weak_ptr`; dead-partner entries EVICTED and
+   reported (§3b).  Approved under 1.
+4. **Threading**: once-init for slots, serial-resolve-then-immutable for the primitive hot loops, no sharding (§3).  Approved under 1.
+5. **The S3 and S4 hub changes**: *"Approve S3 and S4 (Recommended)"*.  This is the design-discussion ruling for the `BasisSet`
+   hub, to be cited in the commit that regenerates `scripts/hub-interfaces.snapshot`.
+6. **The ERI4 cap**: *"Setup policy (Recommended)"*: WARN AND RUN / REFUSE ON RESOURCES at setup, not a silent GC.
+
+The §7 findings fall into the stages:
+- S0: the dead mesh-keyed `Get`s, and the `HF_HT` / `PWTerms_PP` string keys.
+- S4: V_nuc's second copy, and the caching `GPW_IBS` `Make*`.
+- T's second copy (½⟨p²⟩ in the Kinetic term beside ⟨p²⟩ on the basis) stays: one N×N matrix per block, accepted.

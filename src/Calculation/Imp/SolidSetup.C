@@ -120,6 +120,9 @@ void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st
 //  before spending).  The words are the deck's (xc.fit, basis.ecut), with the C++ field beside them.
 static void RefuseUnrealizedRoutes(const SolidCalcOptions& o)
 {
+    if (o.model!=Hamiltonian::Model::LDA && o.model!=Hamiltonian::Model::PADE)
+        policy::Refuse("SolidFunctional", "solid.model "+Hamiltonian::Name(o.model)+" on a periodic cell",
+                       "a periodic run is Kohn-Sham LDA with a pseudopotential; its functionals are LDA (Dirac + VWN5) and PADE -- state one");
     if (o.vxcFit==Hamiltonian::VxcFit::Auxiliary)
         policy::Refuse("VxcProductSpace", "xc.fit Auxiliary (the Dunlap auxiliary fit) on a periodic cell",
                        "the auxiliary Vxc fit is a molecular / atom fit with no periodic realization yet, an open cell of the Vxc "
@@ -166,6 +169,11 @@ Lattice_3D SizedForStrain(const Lattice_3D& lat, const SolidCalcOptions& opts)
     policy::Report("SolidSetup.CellStrainAllowance", "sizing box (1+"+std::to_string(s)+") A_ref", policy::Verdict::Choose, why.str());
     return Lattice_3D(cell, lat.GetLimits());
 }
+}
+
+std::vector<Hamiltonian::PPFunctionalCheck> SolidSetup::PPFunctionalChecks() const
+{
+    return Hamiltonian::PPFunctionalChecks(pp, *cell, Hamiltonian::ModelToXC(opts.model));
 }
 
 std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, std::shared_ptr<const BasisSet::Real_BS> mol,

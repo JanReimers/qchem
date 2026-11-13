@@ -188,9 +188,19 @@ static bool NeedsPPQuadrature(const rbs_t* bs, const BasisSet::SpeciesRadialFiel
     return false;
 }
 
+namespace {
+//! The default LDA when a builder is handed no parts: Dirac exchange (alpha 2/3) + VWN5 correlation.
+std::vector<std::shared_ptr<ExFunctional>> OrDefaultLDA(std::vector<std::shared_ptr<ExFunctional>> xc)
+{
+    if (xc.empty()) return {std::make_shared<SlaterExchange>(2.0/3.0), std::make_shared<VWN_Correlation>()};
+    return xc;
+}
+} //anon
+
 Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
                std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb)
+               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb,
+               std::vector<std::shared_ptr<ExFunctional>> xc)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
@@ -211,16 +221,16 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
 
     Add(MolecularHartreeTerm(st, bs, mp, coulomb));
 
-    // LDA: Dirac exchange (alpha = 2/3) + VWN5 correlation, ONE XC term over their sum (see Ham_DFT).
-    Add(MolecularVxcTerm(st, bs, mp, fit, {std::make_shared<SlaterExchange>(2.0/3.0), std::make_shared<VWN_Correlation>()}, g, ResolvedLMax(coulomb, true, mp.angularDegree)));
+    // The run's functional (default LDA: Dirac exchange + VWN5 correlation), ONE XC term over the sum of its parts (see Ham_DFT).
+    Add(MolecularVxcTerm(st, bs, mp, fit, OrDefaultLDA(std::move(xc)), g, ResolvedLMax(coulomb, true, mp.angularDegree)));
 }
 
 Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,
-               const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb)
+               const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb, std::vector<std::shared_ptr<ExFunctional>> xc)
     : Ham_PP(st,
              std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
              std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal),
-             mp, bs, g, fit, coulomb)
+             mp, bs, g, fit, coulomb, std::move(xc))
 {}
 
 namespace {
@@ -236,21 +246,23 @@ BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species, con
 } //anon
 
 Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb)
-    : Ham_PP(st, Pseudopotential::MakeMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, g, fit, coulomb)
+               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb,
+               std::vector<std::shared_ptr<ExFunctional>> xc)
+    : Ham_PP(st, Pseudopotential::MakeMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, g, fit, coulomb,
+             std::move(xc))
 {}
 
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                             const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
-                            VxcFit fit, std::vector<HubbardManifold> hubbard)
+                            VxcFit fit, std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> functional)
 {
     // Build the functionals FIRST: their GridCutoffFactor() sets how dense the fit grid must be (the CP2K
-    // REL_CUTOFF seam).  Exchange and correlation share ONE Vxc fit basis, so it takes the DENSER of the two.
+    // REL_CUTOFF seam).  The parts share ONE Vxc fit basis, so it takes the DENSEST of them.  Default LDA: Dirac + VWN5.
     // The density (CD) fit takes no knob: its ball is the exact difference-set cover of rho[D] (2026-11-11).
-    auto exch=std::make_shared<SlaterExchange>(2.0/3.0);   // Dirac exchange (alpha = 2/3)
-    auto corr=std::make_shared<VWN_Correlation>();         // VWN5 correlation
+    const std::vector<std::shared_ptr<ExFunctional>> parts=OrDefaultLDA(std::move(functional));
     qcMesh::MeshParams mp;
-    mp.relCutoff=max(exch->GridCutoffFactor(), corr->GridCutoffFactor());
+    mp.relCutoff=parts.front()->GridCutoffFactor();
+    for (const auto& f : parts) mp.relCutoff=max(mp.relCutoff, f->GridCutoffFactor());
 
     // The Hartree (CD) fit basis is created ONCE here from the basis's factory (never assuming orbital==fit),
     // exactly as the molecular DFT ctor builds Vee_FitDunlap's fit basis -- rho is cell-periodic so it is
@@ -361,7 +373,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
         // EXCLUSIVE of "setup: XC-mesh Phi tables" (built inside, own bucket) -- so this reads as the term
         // assembly around them.
         qchem::report::Timed timed("setup: XC term assembly (Phi tables are its child)");
-        Add(MakeVxcTerm({exch, corr}, XFitBasis, GetSpinGroup(), std::move(quadrature)).release());
+        Add(MakeVxcTerm(parts, XFitBasis, GetSpinGroup(), std::move(quadrature)).release());
     }
     // DFT+U (programme step 5): one term carrying the whole manifold list, born on the forward/adjoint pair.
     if (!hubbard.empty()) Add(new Hubbard_U(st, std::move(hubbard), GetSpinGroup()));
@@ -401,10 +413,10 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, std::initializer_list<st
 // Multi-species, runtime vector form (LiCoO2 / f-oxides: distinct elements collected at run time).
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
                        const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit, SpinGroup g,
-                       std::vector<HubbardManifold> hubbard)
+                       std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc)
     : cHamiltonianImp(g)
 {
-    BuildFromGTH(st, bs, species, functional, xcMesh, fit, std::move(hubbard));
+    BuildFromGTH(st, bs, species, functional, xcMesh, fit, std::move(hubbard), std::move(xc));
 }
 
 // Look up each (element, valence) from the GTH database and build + OWN a per-Z router model (one
@@ -413,7 +425,7 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::p
 // destroyed after the cHamiltonian base that holds them), so each term's &loc/&nl stays valid for the run.
 void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
                               const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit,
-                              std::vector<HubbardManifold> hubbard)
+                              std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc)
 {
     std::shared_ptr<const Pseudopotential::LocalPotential> loc;   // the ONE builder the GPW facade sizes its ladder from (V-BS-RASTER)
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
@@ -432,7 +444,7 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector
     }
     itsOwnedLocal=loc;
     itsOwnedSep  =sep;
-    BuildTerms(st, bs, loc.get(), sep.get(), xcMesh, fit, std::move(hubbard));
+    BuildTerms(st, bs, loc.get(), sep.get(), xcMesh, fit, std::move(hubbard), std::move(xc));
 }
 
 Ham_DHF_1E::Ham_DHF_1E(const st_t& st)

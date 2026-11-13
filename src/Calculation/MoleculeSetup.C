@@ -21,6 +21,7 @@ import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration gr
 import qchem.ChargeDensity.Seed;   // SeedStrategy
 import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSet::Gaussian::Angular -- the ONE angular option, shared with SolidSetup
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (the resolved accelerator)
+export import qchem.SCFRecipe;         // SCFRecipe (AcceleratorOptions::recipe)
 export import qchem.Pseudopotential.Set;   // PseudopotentialSet -- the setup's resolved choice
 export import qchem.Accuracy;            // AccuracyTarget -- a CalcOptions field
 
@@ -158,6 +159,10 @@ struct AcceleratorOptions
     //! "Ladder" (auto None->DIIS->GDM).  A hard pseudopotential (open-shell atom, diffuse valence) that
     //! limit-cycles under DIIS often converges under GDM or Ladder.
     std::string type = "DIIS";
+    //! The SCF RECIPE by material regime (qchem.SCFRecipe; doc/SCFRobustnessPlan.md R4.1 as ruled for B5, ruling (c)): a molecule takes
+    //! \c Auto or \c Insulator only -- both are today's molecular recipe (\c type above + linear D-mixing), now printed.  MagneticInsulator
+    //! and Metal are REFUSED at \c Resolve: their Kerker+Pulay mixes in G space.
+    SCFRecipe recipe = SCFRecipe::Auto;
 };
 
 //! The json door's keys for \a acc, with \a eMax the RESOLVED DIIS engage gate (the caller's Z-scaled default when \c acc.eMax <= 0).
@@ -201,6 +206,10 @@ struct MoleculeSetup
     //! The structure a geometry point is built over: \a st's atoms, each carrying its VALENCE charge Z - Zion under a
     //! pseudopotential (so the electron count is the valence count), or \a st as is when all-electron.  Deep-copied.
     std::shared_ptr<const Structure> PointStructure(const Structure& st) const;
+    //! THE PRE-RUN PP / FUNCTIONAL CHECK (user 2026-11-12: track, warn and guide, mostly in the GUI): every element's pseudopotential
+    //! against this setup's model: its fit (CP2K label + libxc ids), match yes/no, and the model to state to match it.  What the run will warn about,
+    //! answered without running, so a GUI reads it here and never recomputes it.  Empty for an all-electron or non-DFT setup.  THROWS on a fit with no libxc mapping.
+    std::vector<Hamiltonian::PPFunctionalCheck> PPFunctionalChecks() const;
 };
 
 } // namespace qchem

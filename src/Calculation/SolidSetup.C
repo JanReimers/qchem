@@ -26,6 +26,7 @@ import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKi
 import qchem.Mesh.XCPolicy;                   // qcMesh::XCMeshDefault (the BeckeXCParams recipe under Auto)
 import qchem.RunPolicy;                       // RunPolicySpec
 import qchem.LASolver;                        // qchem::Ortho
+export import qchem.SCFRecipe;                // SCFRecipe (the stage's material regime, beside its accelerator)
 export import qchem.AuditFootprint;           // AuditFootprintCalibration (the audit RSS policy's expert knob)
 export import qchem.Pseudopotential.Set;      // PseudopotentialSet -- the setup's resolved choice
 
@@ -81,6 +82,10 @@ struct SolidCalcOptions
     //! semicore Mn q15 run) or adds it.  Empty (default) = the set as is.  Multi-species is the norm for a compound; a per-Z
     //! router PP is built over the elements of the structure so each atom gets its own GTH entry.
     std::vector<std::pair<std::string,int>> species;
+    //! The XC FUNCTIONAL (deck \c solid.model): LDA (Dirac + VWN5, the default) or PADE (the Goedecker-Teter-Hutter Padé LDA, libxc
+    //! LDA_XC_TETER93 = CP2K's XC_FUNCTIONAL PADE, the functional every GTH-PADE PP was fitted with; user ruling 2026-11-12).  STATED,
+    //! never switched for you: a PP fitted with another functional than this one is a warn-and-run row (\c PPFittedFunctional).
+    Hamiltonian::Model model = Hamiltonian::Model::LDA;
     //!@}
 
     //! \name The orbital basis FAMILY (doc/OpenWork.md §2 PW-1)
@@ -153,6 +158,10 @@ struct SolidCalcOptions
     //! stage (Restart, same Hamiltonian) at kT = 0 -> the Ladder on its GDM rung, a restored smeared one -> \c DIIS, either
     //! beside a linear step capped at 0.3.
     SCFAccelerators::Type accelerator = SCFAccelerators::Type::Auto;
+    //! The SCF RECIPE by material regime (qchem.SCFRecipe; deck key `scf.recipe`, doc/SCFRobustnessPlan.md R4.1 as ruled for B5):
+    //! \c Auto (default) = the policy above, named and printed; \c MagneticInsulator / \c Metal fill Kerker+Pulay on a cold or carried
+    //! stage and REFUSE kT = 0.  A stated accelerator or mixer knob beside it wins (a deviation, printed).
+    SCFRecipe recipe = SCFRecipe::Auto;
     //! A SMEARED run fills each k-block to its OWN chemical potential -- the non-default (D-FERMI-DEFAULT, user 2026-10-05,
     //! landed 2026-10-21; was \c globalFermi, default false).  A k-point is a label, not a reservoir: per-k μ has no physical
     //! counterpart in a crystal ("a very obscure feature for anyone to want"), and it produced SrVO3's wrong-sign χ0(q≠0) and
@@ -361,6 +370,10 @@ struct SolidSetup
     static std::shared_ptr<const SolidSetup> Resolve(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
                                                      const SolidCalcOptions& opts,
                                                      const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+    //! THE PRE-RUN PP / FUNCTIONAL CHECK (user 2026-11-12: track, warn and guide, mostly in the GUI): every element of the reference
+    //! cell, its pseudopotential's fit (CP2K label + libxc ids) against \c opts.model, match yes/no, and the model to state to match it.  What the
+    //! run will warn about, answered without running; a GUI reads it here and never recomputes it.  THROWS on a fit with no libxc mapping.
+    std::vector<Hamiltonian::PPFunctionalCheck> PPFunctionalChecks() const;
 
     SolidCalcOptions                         opts;   //!< as asked, except \c ortho (a plane-wave run's default Cholesky becomes Orthonormal) and a \c Default seed (resolved)
     SCFAccelerators::SolidAcceleratorOptions acc;    //!< as asked; a stage derives its own from it (a restored stage's Ladder rung)

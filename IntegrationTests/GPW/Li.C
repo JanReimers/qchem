@@ -6,12 +6,17 @@
 // Si k311 Fock bit-identity gates (UTResponse) passed through that defect, so this one runs the real thing: the deck, to convergence.
 #include "gtest/gtest.h"
 #include <unistd.h>    // getpid: per-PROCESS temp names (ctest runs each case as its own process, in parallel)
+#include <cstdio>
 #include <filesystem>
+#include <functional>
+#include <stdexcept>
 #include <string>
+#include <utility>
 #include <nlohmann/json.hpp>
 import qchem.Deck;
 import qchem.Parallel;     // ScopedWorkerThreads -- one process runs the same deck at two thread counts
 import qchem.Tests.Panel;  // panel::BasisDataDir (the in-tree VALENCE_LOWQ_VA file)
+import qchem.Reporting;    // the PP / functional policy rows the Li box runs file
 
 namespace
 {
@@ -73,24 +78,78 @@ TEST(GPW_Li, k444_Becke_Imp_Smear_ThreadedRunIsReproducibleAndMatchesSerial_Long
 // Goedecker-Teter-Hutter Padé LDA the GTH-PADE PPs are fitted with), -7.2850821, unchanged to 2e-10 at EPS_PGF_ORB 1e-30 / CUTOFF
 // 3000/300.  With VWN5 on both sides q1 on this basis agrees to 15 μHa too (-0.1840431 vs CP2K -0.1840584).  OpenWork §3 row closed
 // 2026-11-11; decks + outputs ~/Code/cp2k-runs/Li/atom/qs/li_q3_qs_L12{,_tight,_vwn5}.{inp,out}.
-TEST(GPW_LiBox, Γ_M2_CP2K_Long)
+namespace
 {
-    const nlohmann::json deck={
+//! The Li q3 box deck under \a model ("LDA" | "PADE"): the same basis, box and grids for both oracles.
+nlohmann::json LiBoxDeck(const std::string& model)
+{
+    return {
         {"structure",{{"name","Li_atom"},{"lattice",{{"vectors_bohr",{{12.0,0.0,0.0},{0.0,12.0,0.0},{0.0,0.0,12.0}}}}},
                       {"atoms",{{{"el","Li"},{"frac",{0.0,0.0,0.0}}}}}}},
         {"kmesh",{1,1,1}},
         {"basis",{{"data","VALENCE_LOWQ_VA"},{"file",(qchem::panel::BasisDataDir()/"valence_lowq_va_liq3.bsd").string()},{"autoTrim",true}}},
-        {"solid",{{"species",nlohmann::json::array({nlohmann::json::array({"Li",3})})},{"multiplicity",2},
+        {"solid",{{"species",nlohmann::json::array({nlohmann::json::array({"Li",3})})},{"multiplicity",2},{"model",model},
                   {"ortho","CholeskyPivoted"},{"orthoTol",1e-7}}},
         {"scf",{{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7}}}};
-    qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
-    const fs::path dir=fs::temp_directory_path()/("qchem_it_libox_q3_"+std::to_string(::getpid()));
+}
+//! The PPFittedFunctional rows of the LAST filed run whose name starts with \a prefix (the deck files its run under its stem).
+size_t PPFunctionalRows(const std::string& prefix)
+{
+    const auto& G=qchem::report::GlobalReport();
+    const qchem::report::json* last=nullptr;
+    for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind(prefix,0)==0) last=&it.value();
+    if (!last) throw std::logic_error("no filed run "+prefix);
+    size_t n=0;
+    std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& x)
+    {
+        if (x.is_object())
+            for (auto it=x.begin(); it!=x.end(); ++it)
+            {
+                if (it.key()=="policy" && it.value().is_array())
+                    for (const auto& r : it.value()) if (r.contains("name") && r["name"]=="PPFittedFunctional") n++;
+                walk(it.value());
+            }
+        else if (x.is_array()) for (const auto& y : x) walk(y);
+    };
+    walk(*last);
+    return n;
+}
+//! Run the Li q3 box under \a model; returns its outcome and how many PP / functional warnings its run filed.
+std::pair<qchem::deck::RunOutcome,size_t> RunLiBox(const std::string& model)
+{
+    qchem::deck::RunSpec spec; qchem::deck::FromJson(LiBoxDeck(model), spec);
+    const fs::path dir=fs::temp_directory_path()/("qchem_it_libox_q3_"+model+"_"+std::to_string(::getpid()));
     fs::remove_all(dir);
     qchem::deck::Provenance pv; pv.codeVersion="it";
-    const auto out=qchem::deck::Run(spec, pv, dir);
+    auto out=qchem::deck::Run(spec, pv, dir);
     fs::remove_all(dir);
+    return {out, PPFunctionalRows("Li_atom")};
+}
+} // namespace
+
+TEST(GPW_LiBox, Γ_M2_CP2K_Long)
+{
+    const auto [out, warned]=RunLiBox("LDA");
     ASSERT_TRUE(out.converged) << out.summary;
     const double e=out.energy.value_or(0.0);
     EXPECT_GT(e, -7.3007906) << "below CP2K ATOM's complete-basis energy: the q3 local PP is non-variational again (the Hermite3 overrun class)";
     EXPECT_NEAR(e, -7.2857130, 5e-5) << "CP2K QS GPW on the same basis + box + functional (Dirac + VWN5); default grids sit 13 μHa off";
+    // The policy fires once per Hamiltonian BUILD (the solid schedule builds one per SCF stage: two here), so the claim is that the
+    // mismatch is REPORTED, not how many builds the schedule makes (no count pins).
+    EXPECT_GE(warned, 1u) << "a GTH-PADE PP under LDA (Dirac + VWN5) files a PPFittedFunctional warn row (user ruling 2026-11-12)";
+}
+
+// THE PADE TWIN (user ruling 2026-11-12, OpenWork PADE row): the functional the GTH-PADE PPs were fitted with, stated, against the OLD
+// oracle -- CP2K QS GPW, this basis, L=12, XC_FUNCTIONAL PADE: -7.2850821 (unchanged to 2e-10 at EPS_PGF_ORB 1e-30 / CUTOFF 3000/300;
+// ~/Code/cp2k-runs/Li/atom/qs/li_q3_qs_L12{,_tight}.out).  Same grids as the VWN5 gate, so the same ~13 μHa grid offset is expected.
+// And the PP now MATCHES the run's functional, so the run files no PPFittedFunctional row.
+TEST(GPW_LiBox, Γ_PADE_M2_CP2K_Long)
+{
+    const auto [out, warned]=RunLiBox("PADE");
+    ASSERT_TRUE(out.converged) << out.summary;
+    const double e=out.energy.value_or(0.0);
+    std::printf("  [Li q3 PADE] E %.10f  CP2K PADE -7.2850821  diff %+.2e Ha\n", e, e+7.2850821);
+    EXPECT_GT(e, -7.3007906) << "below CP2K ATOM's complete-basis PADE energy: non-variational";
+    EXPECT_NEAR(e, -7.2850821, 5e-5) << "CP2K QS GPW, XC_FUNCTIONAL PADE, on the same basis + box";
+    EXPECT_EQ(warned, 0u) << "a GTH-PADE PP under PADE matches: no PPFittedFunctional row";
 }

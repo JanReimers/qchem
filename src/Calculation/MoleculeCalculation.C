@@ -131,17 +131,14 @@ public:
     size_t           NumOccupied()       const;
     const orbitals_t* Orbitals(const Irrep&) const; //!< the orbital set for one point-group irrep
 
-    //! One molecular orbital of the converged state: what an orbital panel lists and a field view samples.
-    struct Level
+    //! One molecular orbital of the converged state: the structure-neutral \c Calculation::Level (e, occupation, spin, k = Γ, label)
+    //! PLUS the orbital as a field, which a molecule's field view samples.  Deliberately the same name: a molecule's level IS a level.
+    struct Level : Calculation::Level
     {
-        double      e;            //!< eigen-energy (hartree)
-        double      occupation;   //!< electrons in it (0 for a virtual)
-        Spin        spin;         //!< Up / Down for a polarized run, None for an unpolarized one
-        std::string label;        //!< the orbital's QN label (irrep under symmetry)
-        const sf_t* phi;          //!< the orbital as a field.  NEVER null; BORROWED from this MoleculeCalculation
+        const sf_t* phi = nullptr;   //!< the orbital as a field.  NEVER null; BORROWED from this MoleculeCalculation
     };
-    //! \brief EVERY MO, virtuals included, ascending in energy (both spin channels interleaved for a polarized run).
-    //! Cached by each Converge; the vector and every \c Level::phi are valid until the NEXT Converge.
+    //! \brief EVERY MO, virtuals included, in \c MakeLevels' order (ascending in energy, both spin channels interleaved for a polarized
+    //! run), so index i here is index i there.  Cached by each Converge; the vector and every \c Level::phi are valid until the NEXT Converge.
     const std::vector<Level>& GetLevels() const;
     //! \brief m(r) = ρ↑−ρ↓.  An unpolarized run's is the ZERO field (polarized is the general case, unpolarized its
     //! special case), so a caller needs no null branch.  Cached by each Converge; valid until the next.

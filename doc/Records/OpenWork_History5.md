@@ -2565,6 +2565,53 @@ check, so the CLAUDE.md "check the table bound once and throw" rule has nothing 
 - RelChecked: `HamiltonianStress.OnPlaneWaves*`, 4 of 4 green, where they aborted before.
 - Short sweep 1596/0, long 15/0, both 0 moved at 1e-10 against the cache-key state (da67bfd27).
 
+
+## PADE, and the PP / functional check (closed 2026-11-12, lane H)
+
+The row as it stood (verbatim):
+
+| **A GTH-PADE pseudopotential runs under VWN5, not the PADE LDA it was fitted with** (lane H, 2026-11-11, from the Li q3 row) | every GTH-PADE PP (the default table) is fitted with the Goedecker-Teter-Hutter Padé LDA; our `Model::LDA` is Dirac + VWN5.  The two differ by 0.6 mHa on the Li q3 atom (89 μHa on q1, opposite sign), all of it in E_xc.  Not a code defect (pin 31: a model choice), but the code can SEE the mismatch: the PP names its functional, now as a query (`PseudopotentialSet::FittedFunctional(el)` / `GTH_PP::fitted`, "PADE" for every LDA entry; lane H 359d0b497) that nothing reads yet | **USER RULING 2026-11-12: option (a)** (*"I agree a."*): OFFER PADE (libxc `LDA_XC_TETER93`, id 20, through `XCFunctional`'s libxc id) as a functional a run STATES, deck/facade spelled like the others, the GUI-facing name through the library only; and WARN AND RUN when a PP's `FittedFunctional` differs from the run's functional, naming both, into the run report (`report::Set` under the caller's `policy` scope) and the console.  No automatic switch (a silent substitution); VWN5 stays the default LDA, so no anchor moves.  Gates: PADE vs CP2K `XC_FUNCTIONAL PADE` on Li q3 (−7.2850821, μHa); the warning fires for GTH-PADE + LDA and is silent for GTH-PADE + PADE.  Owner lane H, queued after the forward-ρ gates · `IntegrationTests/GPW/Li.C` oracle block |
+
+**What landed** (user ruling 2026-11-12, option a, and the user's follow-ups the same day).
+
+- **PADE is a model a run STATES.**
+  - `Hamiltonian::Model::PADE` is libxc `LDA_XC_TETER93` (id 20), built through `XCFunctional`'s libxc id.
+  - Deck spelling: `"model":"PADE"` (molecule) and the new `solid.model` key.  The key is additive: an existing deck without it
+    stays LDA (the user's backwards-compatibility convention).
+  - `Hamiltonian::Name` / `ModelFromName` give the GUI its name through the library.
+  - The solid, molecule and pseudo-atom paths all build it.
+  - VWN5 stays the default LDA.  No automatic switch.
+- **The comparison is on LIBXC IDS, never names across schemes.**
+  - `Hamiltonian::LibxcIDs(XCFunctional)` gives the run's set: Dirac + VWN5 = {1,7}, PADE = {20}.
+  - `LibxcIDsOfFitted(cp2kName)` maps every fitted name in the GTH table: PADE, PBE, BLYP, BP, OLYP, PBESOL, HCTH120, HCTH407.
+  - An unmapped name THROWS by name, never a silent match.
+  - The CP2K name stays the display label.
+- **The pre-run query.**
+  - `Hamiltonian::PPFunctionalChecks` gives, per element: fitted label, fitted ids, run label, run ids, match yes/no, and the model to
+    state to match it.
+  - `MoleculeSetup::PPFunctionalChecks()` and `SolidSetup::PPFunctionalChecks()` answer it without running, so the GUI reads it.
+    Lane G binds this; it does not re-derive the mapping.
+- **The policy** `policy::PPFittedFunctional(checks)` is WARN AND RUN, and says what to do: "state model PADE to match the GTH-PADE
+  fit, or use pseudopotentials fitted for <run>", or, when no model matches, "use pseudopotentials fitted for <run>".
+  - It writes one row (`report::Set` under the caller's scope, detail per element with label and ids) and one console line.
+  - It fires on the molecule (before the `hamiltonian` scope, which holds meshes and terms only), solid and pseudo-atom paths.
+
+**Gates.**
+- `GPW_LiBox.Γ_PADE_M2_CP2K_Long`: Li q3 PADE −7.2850697 against CP2K `XC_FUNCTIONAL PADE` −7.2850821, so +12 μHa (gate 50 μHa).
+  It files no warn row.
+- `GPW_LiBox.Γ_M2_CP2K_Long` (VWN5) files the row once per Hamiltonian build: the solid schedule builds two, so the gate is ≥ 1, not
+  a count pin.
+- UTCalculation `PPFittedFunctional.*`:
+  - the names round-trip;
+  - the libxc id sets;
+  - an unmapped name is refused;
+  - every table name is mapped;
+  - the advice wording;
+  - a PBE fit warns under PADE;
+  - silent on a match;
+  - the molecule and solid setups answer the query;
+  - the Si pseudo-atom through the facade.
+- `audit-pp-choice` and `HubInterfaceAudit` green.  Short and long sweeps against main-c7716e02: 0 moved (see the landing commit).
 ## ✅ Per-run thread count (lane G, 2026-11-12, b49924e25)
 
 The row, verbatim:
@@ -2590,6 +2637,21 @@ is that solver's own drop count at the floor).  `SolidCalcOptions::SolverTruncat
 the LASolver factory's std::cerr lines (Cholesky, Auto) are removed; the run report files `basis.orthoTol` {value, solverTruncates}.
 The deck key and its meaning are unchanged.  Gate `Deck.OrthoTolIsTheTrimFloorAndReachesTheSolverOnlyWhenItTruncates`.
 
+## ✅ SCF panel iteration budgets predate the raster pilot (C2 step 3): the pilot's re-convergence is now counted apart (lane A, 2026-11-12, 17ef37e6e)
+
+The row (verbatim, from `doc/OpenWork.md`): `GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` ran over its budget of 49
+(55 on main-fd643121, 59 on main-c153c0fb) since the energy-consumer raster pilot landed: the SCF converges, then the pilot finds
+Hartree under-resolved and re-converges.  A budget gates the SCF RECIPE, not the raster audit.
+
+Fix: `qchem::AuditSCF` (`src/Common/SCFCap.C`) scopes the pilot's re-converge in `SolidCalculation`.  Its iterations go to
+`IterationBudget::Audit()`, printed beside the budgeted count and not gated.  `SetupSCF` (atomic seed solves) stays hidden from
+budgets entirely.  Pinned by `SCFCap.ABudgetCountsTheRunsIterationsAndPrintsAnAuditsApart` (UTCommon).
+
+Panel (4 threads, `lane-a-tio2budget_panel4t.log`, the new panel baseline): TiO2 reads `38 SCF iterations (budget 49) + 17 audit
+re-convergence iterations (not budgeted)` (38 + 17 = main-fd643121's 55), and TiO2 left `QCHEM_PANEL_RED`.  The other cases that run the
+pilot now show their audit too: β-MnO2 dense-d 25 (59) + 22, MnO AFM-II imposed 14 (18) + 4, MnO AFM-II free 15 (19) + 4.  Sweep: short
+1597/0, long 15/0, panel4t 25/0, RelChecked built; `anchordiff` 0 moved (energy and summed iterations) vs main-2eb32dee short/long and
+main-fd643121_panel4t.
 
 ## ✅ Structure-neutral seed and Gaussian angular form (lane B, 2026-11-12, bdeabff3e)
 

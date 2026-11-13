@@ -28,6 +28,7 @@ import qchem.WaveFunction;                           // WaveFunction (GetChargeD
 import qchem.Orbitals;                               // Orbital, Orbitals
 import qchem.Reporting;                              // report:: run sink + the scf-section writer
 import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
+import qchem.SCFRecipe;                              // ReportRecipe: the recipe policy's row
 import qchem.DegenerateFillReport;                   // the `choose` row for a kT = 0 fill that shared a degenerate level
 import qchem.BasisSet.Orbital_1E_IBS;                // Real_OIBS -- the per-irrep blocks a carry is re-homed onto
 import qchem.CompositeCD;                            // tComposite_CD (the carried density's shape)
@@ -166,6 +167,11 @@ void MoleculeCalculation::BuildGraph()
     // The unified resolver turns the Model token into the concrete Hamiltonian; the DFT extras (mesh, orbital basis,
     // xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door instead (LSDA valence
     // Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
+    // THE PP / FUNCTIONAL MATCH (user ruling 2026-11-12): warn and run, never switch.  Decided BEFORE the Hamiltonian is built, so its
+    // row sits beside the run's other policies, not inside the "hamiltonian" scope (which holds meshes and terms only).
+    if (itsSetup->pp)
+        policy::PPFittedFunctional(qchem::Hamiltonian::PPFunctionalChecks(*itsSetup->pp, *itsStructure,
+                                                                              qchem::Hamiltonian::ModelToXC(opts.model, opts.xalpha)));
     decltype(itsHam.get()) ham=nullptr;
     {
         rpt::Scope hamiltonian("hamiltonian");
@@ -217,7 +223,7 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
     //     (Boron UHF/dzvp: -24.525932 integer vs -24.40769 shared).  Which of the equivalent orbitals fills is arbitrary among them.
     using qchem::Hamiltonian::Model;
     const Model model=itsSetup->opts.model;
-    const bool isDFT = itsSetup->pp || model==Model::LDA || model==Model::Xalpha;
+    const bool isDFT = itsSetup->pp || qchem::Hamiltonian::IsDFT(model);
     const SCFParams params=ResolveDegenerateLevelFill(asked,
         isDFT ? SCFParams::DegenerateLevelFill::Shared : SCFParams::DegenerateLevelFill::OrbitalByOrbital,
         isDFT ? "a DFT model: a partly filled degenerate level takes the kT -> 0 Fermi limit, so its density does not depend on the "
@@ -230,6 +236,11 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
                               .fallback  = DescribeDeclinedFallback(ResolveMixing(asked, /*gSpace*/false))});
     {   // the "what recipe am I running" header; eps is consumed by the XC mesh wherever there is one (pin 31)
         rpt::Section scf("scf"); ReportSCFRecipe(params, itsSetup->acc.type);
+        // THE RECIPE POLICY'S REPORT (qchem.SCFRecipe): a molecule's Auto / Insulator is its own column -- the stated accelerator (DIIS by
+        // default) beside linear D-mixing (no G space), as before B5.
+        const SCFStageKind kind = !itsRestartedFrom ? SCFStageKind::Cold : itsRestartedFrom->exact ? SCFStageKind::Restored : SCFStageKind::Carried;
+        ReportRecipe("molecule", itsSetup->acc.recipe, kind, itsSetup->accelerator, itsSetup->accelerator, ResolveMixing(params, /*gSpace*/false),
+                     {}, "acc.type (default DIIS)", "the molecular column: acc.type + linear D-mixing");
         ReportAccuracy(itsSetup->opts.accuracy, !HasXCMesh()           ? std::string(kNoAccuracyConsumerYet)
                                               : itsSetup->meshResolved ? std::string("the Becke XC mesh (sized by an earlier pilot)")
                                               : itsSetup->meshStated   ? std::string("the Becke XC mesh (stated: audited, never raised)")
@@ -324,14 +335,13 @@ void MoleculeCalculation::RebuildSampling()
               [](const occ_t& a, const occ_t& b){ return a.first < b.first; });   // ascending energy
 
     itsLevels.clear();
-    for (const Irrep& irr : wf->GetQNs())
-        for (const auto* o : wf->GetOrbitals(irr)->Iterate())
-        {
-            const auto* phi = dynamic_cast<const sf_t*>(o);   // abstract -> abstract, as above
-            assert(phi);
-            itsLevels.push_back({o->GetEigenEnergy(), o->GetOccupation(), irr.ms, o->GetLabel(), phi});
-        }
-    std::stable_sort(itsLevels.begin(), itsLevels.end(), [](const Level& a, const Level& b){ return a.e < b.e; });
+    for (const auto& lo : WalkLevels())   // the neutral walk: this list's index i is MakeLevels' index i
+    {
+        const auto* phi = dynamic_cast<const sf_t*>(lo.orbital);   // abstract -> abstract, as above
+        if (!phi) throw std::logic_error("qchem::MoleculeCalculation: an orbital is not a scalar field");
+        Level L; static_cast<Calculation::Level&>(L)=lo.level; L.phi=phi;
+        itsLevels.push_back(std::move(L));
+    }
 
     if (wf->GetSpinGroup()==SpinGroup::Polarized)
         itsSpinDensity = wf->GetSpinDensity();
@@ -500,7 +510,8 @@ qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const q
 {
     const CalcOptions& opts=itsSetup->opts;
     return itsSetup->pp
-        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, itsBasis, {opts.vxcFit, opts.xcRho}, opts.coulomb)
+        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, itsBasis, {opts.vxcFit, opts.xcRho}, opts.coulomb,
+                                      qchem::Hamiltonian::ModelToXC(opts.model, opts.xalpha))
         : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure, mesh, itsBasis, opts.xalpha, {opts.vxcFit, opts.xcRho}, opts.coulomb);
 }
 
@@ -701,15 +712,7 @@ namespace
 {
 std::string MoleculeModelName(const MoleculeSetup& su)
 {
-    using qchem::Hamiltonian::Model;
-    if (su.pp) return "LDA";   // the PP front door is LSDA (Resolve refuses any other model)
-    switch (su.opts.model)
-    {
-        case Model::HF:     return "HF";     case Model::E1:  return "E1";
-        case Model::DHF:    return "DHF";    case Model::DE1: return "DE1";
-        case Model::Xalpha: return "Xalpha"; case Model::LDA: return "LDA";
-    }
-    return "?";
+    return qchem::Hamiltonian::Name(su.opts.model);   // a PP run's model is LDA or PADE (Resolve refuses any other)
 }
 } //anonymous namespace
 

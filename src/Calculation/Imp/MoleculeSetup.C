@@ -27,12 +27,12 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     s->acc =acc;
     // An open shell (2S>0) is unrestricted: it needs distinct up/down densities, so promote to polarized.
     if (s->opts.multiplicity > 1) s->opts.spin = SpinGroup::Polarized;
-    // The pseudopotential front door builds the LSDA valence Hamiltonian whatever the model says (MoleculeCalculation's PP
-    // Factory takes no Model), so any other model would be a SILENT substitution: refuse it, before anything is built.
-    if (!opts.pp.empty() && opts.model != Model::LDA)
-        policy::Refuse("PseudopotentialIsLDA", "a pseudopotential run with a model other than LDA",
-                       "the molecular pseudopotential route builds the LSDA valence Hamiltonian, so the model asked for would be "
-                       "ignored -- state model LDA, or run all-electron (no pseudopotential)");
+    // The pseudopotential front door builds a valence LDA Hamiltonian with the run's functional, LDA (Dirac + VWN5) or PADE (the
+    // GTH-PADE PPs' own, 2026-11-12); any other model would be ignored, a SILENT substitution: refuse it, before anything is built.
+    if (!opts.pp.empty() && opts.model != Model::LDA && opts.model != Model::PADE)
+        policy::Refuse("PseudopotentialIsLDA", "a pseudopotential run with a model other than LDA or PADE",
+                       "the molecular pseudopotential route builds a valence LDA Hamiltonian, so the model asked for would be "
+                       "ignored -- state model LDA or PADE, or run all-electron (no pseudopotential)");
     if (!opts.pp.empty()) s->pp=Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.ppOverride);
     // An ALL-ELECTRON basis under a pseudopotential keeps core shells for electrons the pseudopotential has removed: the run is
     // computable (the core shells sit high and empty), but it is not the valence calculation the PP was generated for, and the
@@ -123,6 +123,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
         ReportXCRho(opts.vxcFit, opts.xcRho);   // the ρ axis (user ruling 2026-11-09): warns on the Gaussian x δ cell
     }
 
+    AdmitRecipe(acc.recipe, /*kT: not read for a molecule*/0.0, /*molecule*/true);   // Auto | Insulator only (R4.1 ruling (c))
     using AType = qchem::SCFAccelerators::Type;
     s->accelerator = acc.type=="DIIS"   ? AType::DIIS
                    : acc.type=="GDM"    ? AType::GDM
@@ -143,6 +144,12 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
 // the true geometry are intact) but carries net charge Z-Zion(its own element, from the run's chosen set), so GetNumElectrons()
 // reports the total Zion valence count the EC + FittedVee charge constraint consume.  Clone-and-mutate (not rebuild-as-Molecule)
 // so the concrete geometry is preserved: a PP run on a periodic UnitCell stays a UnitCell (Ewald ion-ion, uniform mesh).
+std::vector<Hamiltonian::PPFunctionalCheck> MoleculeSetup::PPFunctionalChecks() const
+{
+    if (!pp || !Hamiltonian::IsDFT(opts.model)) return {};
+    return Hamiltonian::PPFunctionalChecks(*pp, *reference, Hamiltonian::ModelToXC(opts.model, opts.xalpha));
+}
+
 std::shared_ptr<const Structure> MoleculeSetup::PointStructure(const Structure& st) const
 {
     auto point = st.Clone();

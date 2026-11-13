@@ -43,11 +43,13 @@ public:
     IterationBudget(const IterationBudget&)=delete;
     IterationBudget& operator=(const IterationBudget&)=delete;
     std::size_t Used  () const {return itsUsed;}
+    std::size_t Audit () const {return itsAudit;}   //!< iterations run inside an AuditSCF scope: printed, never budgeted
     std::size_t Budget() const {return itsBudget;}
 private:
     friend void ReportSCFIterations(std::size_t);
     std::size_t      itsBudget;
     std::size_t      itsUsed=0;
+    std::size_t      itsAudit=0;
     const char*      itsWhat;
     IterationBudget* itsOuter;   //!< the enclosing budget on this thread (a stack)
 };
@@ -75,6 +77,20 @@ public:
     SetupSCF& operator=(const SetupSCF&)=delete;
 private:
     IterationBudget* itsSaved;   //!< the budget stack, restored on exit
+};
+
+//! \brief AUDIT SCFs, for this scope: the re-convergence an audit runs AFTER the run converged (the raster pilot's, when a raster
+//! rises).  A live IterationBudget counts them APART from the run's own iterations and prints them, but never gates on them: a
+//! budget gates the SCF recipe, and the audit's cost is the grid's question (the pilot reports it under `rasterPilot`).  Earned by
+//! the TiO2 k222 panel case (OpenWork "SCF panel iteration budgets predate the raster pilot"): its SCF converged in 43 of 49, then
+//! the pilot found Hartree under-resolved and its 17 re-convergence iterations failed the case.
+class AuditSCF
+{
+public:
+    AuditSCF();
+    ~AuditSCF();
+    AuditSCF(const AuditSCF&)=delete;
+    AuditSCF& operator=(const AuditSCF&)=delete;
 };
 
 } // namespace
