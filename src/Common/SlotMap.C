@@ -142,4 +142,17 @@ private:
     mutable bool                 itsRefreshing=false;
 };
 
+//! \brief ONE cached value with the same promises as a \c FillOnce \c SlotMap slot (built once on the first ask, whichever thread
+//! asks; a throwing build leaves it unfilled; a copy keeps a filled value).  For an owner's single integrals: a fit basis's metric,
+//! its inverse, its charges (doc/IntegralCacheOwnershipPlan.md S2).
+template <class V> class OnceSlot
+{
+public:
+    template <class F> const V& GetOrFill(F&& make) const {return itsSlot.GetOrFill(0, std::forward<F>(make));}
+    const V* Read() const {return itsSlot.Read(0);}
+    template <class F> size_t Bytes(F&& bytesOf) const {return itsSlot.Bytes(std::forward<F>(bytesOf));}
+private:
+    SlotMap<int,V,SlotDiscipline::FillOnce> itsSlot;
+};
+
 } // namespace qchem

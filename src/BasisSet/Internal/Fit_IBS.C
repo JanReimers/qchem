@@ -25,6 +25,7 @@ export module qchem.BasisSet.Internal.Fit_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;   // FIT_CD_NonOrtho / FIT_SF_NonOrtho -- the faces it implements
 export import qchem.Mesh;                       // qcMesh::Mesh / MeshParams -- a Vxc fit's projection mesh
 import qchem.Structure;                         // Structure (the ctor builds that mesh from it)
+import qchem.SlotMap;                           // OnceSlot: this basis's own integrals (cache-ownership S2)
 
 export namespace qchem::BasisSet
 {
@@ -98,6 +99,12 @@ protected:
 
 private:
     std::optional<qcMesh::Mesh> itsProjectionMesh;   //!< a Vxc fit's projection mesh; EMPTY on a Coulomb fit
+
+    //! THIS BASIS'S OWN INTEGRALS (doc/IntegralCacheOwnershipPlan.md S2): a function of the fit basis alone, so the basis holds
+    //! them, built once on first ask and freed with it.  No key: an owner never keys itself.
+    OnceSlot<rvec_t>  itsCharge, itsNorm;
+    OnceSlot<rsmat_t> itsRepulsion, itsInvOverlap, itsInvRepulsion;
+    OnceSlot<rmat_t>  itsSelfRepulsion;   //!< Repulsion(b) with b this basis (ConstrainedFF's only call)
 };
 
 }//namespace

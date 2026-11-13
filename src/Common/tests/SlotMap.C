@@ -108,3 +108,15 @@ TEST(SlotMap, ACopyHoldsTheFilledValues)
     c.GetOrFill(3, [&]{builds++; return Build(3);});
     EXPECT_EQ(builds, 0) << "the copy's slot is already filled";
 }
+
+TEST(SlotMap, AOnceSlotIsBuiltOnceAndReadsPurely)
+{
+    OnceSlot<std::vector<double>> s;
+    EXPECT_EQ(s.Read(), nullptr) << "a read never builds";
+    int builds=0;
+    const auto& a=s.GetOrFill([&]{builds++; return Build(4);});
+    const auto& b=s.GetOrFill([&]{builds++; return Build(5);});
+    EXPECT_EQ(builds, 1);
+    EXPECT_EQ(&a, &b) << "the same object every time (a reference a caller holds stays valid)";
+    EXPECT_EQ(a, Build(4));
+}
