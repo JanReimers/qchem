@@ -803,6 +803,31 @@ void MoleculeCalculation::RecordState(StateRecord& r, double kT) const
 
 const std::optional<RestartSummary>& MoleculeCalculation::RestartedFrom() const {return itsRestartedFrom;}
 
+namespace
+{
+//! \brief A STATE SIZED FOR THIS TARGET (the solid's raster adoption, for the molecule's XC mesh): a setup whose mesh is neither stated
+//! nor sized adopts the saved state's when the state was made for the same eps -- that mesh is what a pilot settled for this eps, so an
+//! exact resume stays exact (a fresh pilot would start at the entry rung, a warm difference, and climb again), and a VIEW of the run's
+//! own state is exact too.  Null when nothing is adopted; else the adopted setup, and \a why says what and why.
+std::shared_ptr<const MoleculeSetup> SizedBySavedState(const std::shared_ptr<const MoleculeSetup>& setup, const SavedState& saved, std::string& why)
+{
+    if (setup->meshStated || setup->meshResolved || saved.kind!="molecule") return nullptr;
+    const auto& w=saved.fingerprint.warmNum;
+    auto one=[&](const char* k)->std::optional<double>
+    { auto it=w.find(k); return it!=w.end() && it->second.size()==1 ? std::optional<double>(it->second[0]) : std::nullopt; };
+    const auto nR=one("grids.xcMeshRadial"), L=one("grids.xcMeshDegree"), eps=one("accuracy.eps");
+    if (!(nR && L && eps && *eps==setup->opts.accuracy.eps)) return nullptr;
+    auto adopted=std::make_shared<MoleculeSetup>(*setup);
+    adopted->mesh.nRadial=int(*nR);
+    adopted->mesh.angularDegree=int(*L);
+    adopted->meshResolved=true;
+    std::ostringstream os;
+    os<<"the saved state's XC mesh ("<<int(*nR)<<" radial, degree "<<int(*L)<<") was sized for this accuracy (eps "<<*eps<<")";
+    why=os.str();
+    return adopted;
+}
+} //anonymous namespace
+
 Outcome<std::unique_ptr<MoleculeCalculation>, RestartRefusal>
 MoleculeCalculation::Restart(const std::string& path, std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Observer onIteration)
 {
@@ -824,26 +849,14 @@ MoleculeCalculation::PrepareRestart(const std::string& path, std::shared_ptr<con
         std::cout<<tag<<"REFUSED ("<<path<<"): "<<saved.Error().details<<std::endl;
         return O::Fail(saved.Error());
     }
-    // A STATE SIZED FOR THIS TARGET (the solid's raster adoption, for the molecule's XC mesh): a setup whose mesh is neither stated
-    // nor sized adopts the saved state's when the state was made for the same eps -- that mesh is what a pilot settled for this eps,
-    // so an exact resume stays exact (a fresh pilot would start at the entry rung, a warm difference, and climb again).
-    if (!setup->meshStated && !setup->meshResolved && saved->kind=="molecule")
+    // A STATE SIZED FOR THIS TARGET: an unsized setup adopts the saved state's mesh (SizedBySavedState).
     {
-        const auto& w=saved->fingerprint.warmNum;
-        auto one=[&](const char* k)->std::optional<double>
-        { auto it=w.find(k); return it!=w.end() && it->second.size()==1 ? std::optional<double>(it->second[0]) : std::nullopt; };
-        const auto nR=one("grids.xcMeshRadial"), L=one("grids.xcMeshDegree"), eps=one("accuracy.eps");
-        if (nR && L && eps && *eps==setup->opts.accuracy.eps)
+        std::string why;
+        if (auto adopted=SizedBySavedState(setup, *saved, why))
         {
-            auto adopted=std::make_shared<MoleculeSetup>(*setup);
-            adopted->mesh.nRadial=int(*nR);
-            adopted->mesh.angularDegree=int(*L);
-            adopted->meshResolved=true;
-            std::ostringstream why;
-            why<<"the saved state's XC mesh ("<<int(*nR)<<" radial, degree "<<int(*L)<<") was sized for this accuracy (eps "<<*eps<<")";
             qchem::policy::Report("RestartAdoptsMesh", "the restart integrates on the saved state's XC mesh, no pilot",
-                                  qchem::policy::Verdict::Choose, why.str());
-            std::cout<<tag<<"adopting "<<why.str()<<std::endl;
+                                  qchem::policy::Verdict::Choose, why);
+            std::cout<<tag<<"adopting "<<why<<std::endl;
             setup=std::move(adopted);
         }
     }
@@ -879,6 +892,43 @@ MoleculeCalculation::PrepareRestart(const std::string& path, std::shared_ptr<con
     c->BuildGraph();
     c->itsPrepared=true;
     return O::Ok(std::move(c));
+}
+
+Outcome<std::unique_ptr<StateView>, RestartRefusal>
+MoleculeCalculation::ViewState(const std::string& path, std::shared_ptr<const MoleculeSetup> setup)
+{
+    using O=Outcome<std::unique_ptr<StateView>, RestartRefusal>;
+    namespace rpt = qchem::report;
+    auto saved=ReadState(path);
+    if (!saved) return O::Fail(saved.Error());
+    {
+        std::string why;
+        if (auto adopted=SizedBySavedState(setup, *saved, why)) { rpt::Set("adopted", why); setup=std::move(adopted); }   // the mesh is warm: an exact view
+    }
+    const Structure& ref=*setup->reference;
+    std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, setup, ref, nullptr, nullptr));
+    {
+        rpt::Scope basis("basis");
+        c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsStructure, c->itsAoBasis);
+    }
+    auto judged=c->JudgeView(*saved);
+    if (!judged) return O::Fail(judged.Error());
+    std::vector<StateBlock> blocks=c->StateBlocks(false);
+    auto D=CheckedBlockDensities(*saved, blocks);
+    if (!D) return O::Fail(D.Error());
+    Carry carry;   // the saved D as the real blocks it is (CheckedBlockDensities refused a complex one with an imaginary part)
+    for (const mat_t<dcmplx>& M : *D)
+    {
+        const size_t n=M.rows();
+        hmat_t<double> h(n);
+        for (size_t a=0;a<n;a++) for (size_t b=a;b<n;b++) h(a,b)=M(a,b).real();
+        carry.D.push_back(std::move(h));
+    }
+    std::unique_ptr<const qchem::ChargeDensity::rDM_CD> rho=c->MakeCarriedDensity(carry);
+    const auto* up  =qchem::ChargeDensity::ChannelOf<double>(rho.get(), Spin::Up);
+    const auto* down=qchem::ChargeDensity::ChannelOf<double>(rho.get(), Spin::Down);
+    if (!up || !down) up=down=nullptr;   // an unpolarized state resolves no channel: m is the zero field
+    return O::Ok(std::make_unique<StateView>(std::move(c), saved.TakeValue(), judged.TakeValue(), std::move(blocks), std::move(rho), up, down));
 }
 
 //====================================================================================================

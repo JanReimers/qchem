@@ -401,6 +401,36 @@ std::unique_ptr<qchem::ChargeDensity::rDM_CD> AtomCalculation::RestoredDensity()
     return cd;
 }
 
+Outcome<std::unique_ptr<StateView>, RestartRefusal>
+AtomCalculation::ViewState(const std::string& path, int Z, int charge, const AtomCalcOptions& opts, const AcceleratorOptions& acc)
+{
+    using O=Outcome<std::unique_ptr<StateView>, RestartRefusal>;
+    auto saved=ReadState(path);
+    if (!saved) return O::Fail(saved.Error());
+    std::unique_ptr<AtomCalculation> c(new AtomCalculation(BuildOnly{}, Z, charge, opts, acc, nullptr));
+    {
+        qchem::report::Scope basis("basis");
+        c->itsBasis=BuildBasis(c->itsOpts, c->itsZ, *c->itsEC);
+    }
+    auto judged=c->JudgeView(*saved);
+    if (!judged) return O::Fail(judged.Error());
+    std::vector<StateBlock> blocks=c->StateBlocks(false);
+    auto D=CheckedBlockDensities(*saved, blocks);
+    if (!D) return O::Fail(D.Error());
+    for (const mat_t<dcmplx>& M : *D)
+    {
+        const size_t n=M.rows();
+        hmat_t<double> h(n);
+        for (size_t a=0;a<n;a++) for (size_t b=a;b<n;b++) h(a,b)=M(a,b).real();
+        c->itsRestored.push_back(std::move(h));
+    }
+    std::unique_ptr<const qchem::ChargeDensity::rDM_CD> rho=c->RestoredDensity();
+    const auto* up  =qchem::ChargeDensity::ChannelOf<double>(rho.get(), Spin::Up);
+    const auto* down=qchem::ChargeDensity::ChannelOf<double>(rho.get(), Spin::Down);
+    if (!up || !down) up=down=nullptr;   // an unpolarized state resolves no channel: m is the zero field
+    return O::Ok(std::make_unique<StateView>(std::move(c), saved.TakeValue(), judged.TakeValue(), std::move(blocks), std::move(rho), up, down));
+}
+
 Outcome<std::unique_ptr<AtomCalculation>, RestartRefusal>
 AtomCalculation::Restart(const std::string& path, int Z, int charge, const AtomCalcOptions& opts, const SCFParams& params,
                          const AcceleratorOptions& acc, Observer onIteration)

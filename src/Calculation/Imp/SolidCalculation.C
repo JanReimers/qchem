@@ -1349,6 +1349,39 @@ StateSummary SolidCalculation::MakeStateSummary() const
             .recipe=itsImp->lastRecipe, .densityChange=itsImp->lastDensityChange};
 }
 
+namespace
+{
+//! \brief A STATE SIZED FOR THIS TARGET (C2 step 3): on an unresolved setup whose accuracy eps the saved state was made at, its rasters are
+//! the ones a pilot settled for that eps -- adopt them, so an exact resume stays exact (the pilot would otherwise restart on the ball's
+//! own rasters and re-size), and a VIEW of the run's own state is exact too.  The AUTO density ball is pilot-sized too (the ball ladder
+//! doubles cutoffFactor): adopting the rasters skips the pilot, so the ball it settled must come with them -- else the resume runs the
+//! rasters on the starting ball and walks to that ball's fixed point (MnO +U vendored twin, 2026-11-03: saved at cutoffFactor 4,
+//! resumed at 2, 3-4 iterations and 150 uHa off the cold gate).  Any other state (another eps, a stated raster, an older file) leaves
+//! the setup to its own pilot: null.  \a why says what was adopted and why.
+std::shared_ptr<const SolidSetup> SizedBySavedState(const std::shared_ptr<const SolidSetup>& setup, const SavedState& saved, std::string& why)
+{
+    if (setup->rastersResolved) return nullptr;
+    const auto& w=saved.fingerprint.warmNum;
+    auto one=[&](const char* k)->std::optional<double>
+    { auto it=w.find(k); return it!=w.end() && it->second.size()==1 ? std::optional<double>(it->second[0]) : std::nullopt; };
+    const auto eps=one("gpw.accuracyEps"), rx=one("gpw.rasterX"), vx=one("gpw.vlocRasterX"), xx=one("gpw.xcRasterX");
+    const auto cf=one("grids.cutoffFactor");
+    if (!(eps && rx && vx && xx && *eps==setup->opts.accuracy.eps)) return nullptr;
+    auto adopted=std::make_shared<SolidSetup>(*setup);
+    adopted->opts.tolerances.rasterX=*rx; adopted->opts.tolerances.vlocRasterX=*vx; adopted->opts.tolerances.xcRasterX=*xx;
+    const bool adoptBall = cf && !(setup->opts.densityEcut>0.0);  // a STATED densityEcut is the user's, never the pilot's
+    if (adoptBall) adopted->opts.cutoffFactor=*cf;
+    adopted->rastersResolved=true;
+    adopted->rasterSource=SolidSetup::RasterSource::SavedState;
+    std::ostringstream os;
+    os<<"the saved state's rasters x(density, V_long, XC L0)=("<<*rx<<", "<<*vx<<", "<<*xx<<")";
+    if (adoptBall) os<<" and its density ball (cutoffFactor "<<*cf<<")";
+    os<<": it was sized for this accuracy (eps "<<*eps<<")";
+    why=os.str();
+    return adopted;
+}
+} //anonymous namespace
+
 Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
 SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params,
                           Observer onIteration)
@@ -1378,32 +1411,10 @@ SolidCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const 
     auto saved=ReadSolidState(path);
     if (!saved) return refuse(saved.Error());
 
-    // A STATE SIZED FOR THIS TARGET (C2 step 3): on an unresolved setup whose accuracy eps the saved state was made at, its rasters are the
-    // ones a pilot settled for that eps -- adopt them, so an exact resume stays exact (the pilot would otherwise restart on the ball's
-    // own rasters and re-size).  Any other state (another eps, a stated raster, an older file) leaves the setup to its own pilot.
-    // The AUTO density ball is pilot-sized too (the ball ladder doubles cutoffFactor): adopting the rasters skips the pilot, so the
-    // ball it settled must come with them -- else the resume runs the rasters on the starting ball and walks to that ball's fixed
-    // point (MnO +U vendored twin, 2026-11-03: saved at cutoffFactor 4, resumed at 2, 3-4 iterations and 150 uHa off the cold gate).
-    if (!setup->rastersResolved)
+    // A STATE SIZED FOR THIS TARGET (C2 step 3): an unresolved setup adopts the saved state's rasters and ball (SizedBySavedState).
     {
-        const auto& w=saved->fingerprint.warmNum;
-        auto one=[&](const char* k)->std::optional<double>
-        { auto it=w.find(k); return it!=w.end() && it->second.size()==1 ? std::optional<double>(it->second[0]) : std::nullopt; };
-        const auto eps=one("gpw.accuracyEps"), rx=one("gpw.rasterX"), vx=one("gpw.vlocRasterX"), xx=one("gpw.xcRasterX");
-        const auto cf=one("grids.cutoffFactor");
-        if (eps && rx && vx && xx && *eps==setup->opts.accuracy.eps)
-        {
-            auto adopted=std::make_shared<SolidSetup>(*setup);
-            adopted->opts.tolerances.rasterX=*rx; adopted->opts.tolerances.vlocRasterX=*vx; adopted->opts.tolerances.xcRasterX=*xx;
-            const bool adoptBall = cf && !(setup->opts.densityEcut>0.0);  // a STATED densityEcut is the user's, never the pilot's
-            if (adoptBall) adopted->opts.cutoffFactor=*cf;
-            adopted->rastersResolved=true;
-            adopted->rasterSource=SolidSetup::RasterSource::SavedState;
-            std::cout<<tag<<"adopting the saved state's rasters x(density, V_long, XC L0)=("<<*rx<<", "<<*vx<<", "<<*xx<<")";
-            if (adoptBall) std::cout<<" and its density ball (cutoffFactor "<<*cf<<")";
-            std::cout<<": it was sized for this accuracy (eps "<<*eps<<")"<<std::endl;
-            setup=std::move(adopted);
-        }
+        std::string why;
+        if (auto adopted=SizedBySavedState(setup, *saved, why)) { std::cout<<tag<<"adopting "<<why<<std::endl; setup=std::move(adopted); }
     }
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
     c->itsImp->onIteration=std::move(onIteration);
@@ -1430,6 +1441,32 @@ SolidCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const 
     c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->acc.ladderStartOnGDM;
     if (exact) c->itsImp->resumedFrom=state.summary.energy;   // the first Converge reports the resumed energy beside it
     return O::Ok(std::move(c));
+}
+
+Outcome<std::unique_ptr<StateView>, RestartRefusal>
+SolidCalculation::ViewState(const std::string& path, std::shared_ptr<const SolidSetup> setup)
+{
+    using O=Outcome<std::unique_ptr<StateView>, RestartRefusal>;
+    auto saved=ReadSolidState(path);
+    if (!saved) return O::Fail(saved.Error());
+    {
+        std::string why;
+        if (auto adopted=SizedBySavedState(setup, *saved, why)) { qchem::report::Set("adopted", why); setup=std::move(adopted); }   // warm: an exact view
+    }
+    std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
+    const Lattice_3D& reference=setup->reference;
+    auto mol=setup->mol;
+    c->BuildPoint(std::move(setup), reference, std::move(mol));   // the basis the run used; BuildRun (the Hamiltonian) is never called
+    auto judged=c->JudgeView(*saved);
+    if (!judged) return O::Fail(judged.Error());
+    auto cd=RestoreDensity(*saved, *c->itsImp->bs, c->StateSpin());
+    if (!cd) return O::Fail(cd.Error());
+    std::unique_ptr<const qchem::ChargeDensity::cDM_CD> rho=cd.TakeValue();
+    const auto* up  =qchem::ChargeDensity::ChannelOf<dcmplx>(rho.get(), Spin::Up);
+    const auto* down=qchem::ChargeDensity::ChannelOf<dcmplx>(rho.get(), Spin::Down);
+    if (!up || !down) up=down=nullptr;   // an unpolarized state resolves no channel: m is the zero field
+    std::vector<StateBlock> blocks=c->StateBlocks(false);
+    return O::Ok(std::make_unique<StateView>(std::move(c), saved.TakeValue(), judged.TakeValue(), std::move(blocks), std::move(rho), up, down));
 }
 
 Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Result() const {return Outcome_();}

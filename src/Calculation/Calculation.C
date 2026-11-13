@@ -135,6 +135,18 @@ protected:
     //! RESUME / WARM START lines under \a tag.  On success \a saved holds the densities to restore, and the summary says what the
     //! restart is (the facade keeps it for \c RestartedFrom).  A REFUSAL is printed too.
     Outcome<RestartSummary, RestartRefusal> JudgeRestart(SavedState& saved, double kT, const std::string& tag) const;
+
+    //! \brief A VIEW'S JUDGEMENT (\c StateView, lane G 2026-11-13): may \a saved be DRAWN on this run's basis, as it stands?  The
+    //! restart's refusals (another kind, a refuse-class difference) and ONE MORE: ANY moved atom (over \c kViewMoveTol), with no
+    //! carry -- a view draws the state where it was computed, and a saved D on edited positions is a silent wrong picture (the
+    //! carry exists to SEED an SCF, which a view never runs; controller ruling 2026-11-13).  The refusal names the largest move,
+    //! its atom and the remedy.  The warm differences are accepted and listed (\c RestartSummary::warm): drawing
+    //! \f$\rho=\sum D\chi\chi\f$ needs none of them.  Needs only the basis and the setup (\c RecordState without orbitals), so
+    //! a facade answers it before any Hamiltonian exists.  Writes nothing; the caller reports.
+    Outcome<RestartSummary, RestartRefusal> JudgeView(const SavedState& saved) const;
+    //! The largest atom move (bohr) a view accepts: the positions must be the SAME numbers, so this is a round-off guard, not a
+    //! physics tolerance.  A deck -> json -> deck round trip reproduces them bit-exactly (FacadeMatrix ViewMatchesTheLiveState).
+    static constexpr double kViewMoveTol = 1e-10;
 };
 
 } // namespace qchem
