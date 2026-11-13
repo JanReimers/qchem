@@ -718,16 +718,33 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows_Panel)   // PANEL case 9: a c
 // ============================ THE CONVERGENCE PANEL (doc/SCFRobustnessPlan.md §4): the box cases ============================
 
 // PANEL case 15, RED (QCHEM_PANEL_RED; OpenWork §3 "GDM crawls at a near-degenerate frontier"): the Mn-O dimer at kT = 0,
-// multiplicity 6, standalone GDM from the seed -- -30.342242 at iteration 44, a linear tail with the frontier flipping every step,
-// 5.65 mHa above CP2K OT (-30.34790).  User: "GDM should only take 5-10 iterations to hit the noise floor".  Target: 15 iterations
-// at CP2K's lower-energy state (ruling 7, 2026-10-29, PROVISIONAL until our state's moments/occupations are compared with OT's).
+// multiplicity 6, standalone GDM from the seed.  User: "GDM should only take 5-10 iterations to hit the noise floor"; the budget
+// 15 is that TARGET, not a measurement.
+// THE STATE (lane A, 2026-11-13, controller ruling: target = B).  Two states, told apart by the Becke Mn moment:
+//   A  -30.342192, Mn +5.35 / O -0.35: NOT a minimum -- E falls through it, with no barrier, into
+//   B  -30.34914696, Mn +4.948 / O +0.052: the minimum (Δρ 1.7e-6, [F,D] 2.5e-6 at iteration 150, E still moving ~1e-11 per step,
+//      so the energy is good to ~1e-9 Ha; ~/Code/qchem6-runs/MnO_box16/laneA_crawl_ext_pc3.log, PCFloor 1e-3).
+// INDEPENDENT ROUTE (doc/Pins.md pin 10): CP2K OT on the same deck at a MATCHED grid (CUTOFF 1152 Ry = our densityEcut 576 Ha)
+// gives -30.348521, Hirshfeld Mn 4.966 / O +0.034 -- B's state; B - CP2K = -0.63 mHa, the banked one-Mn offset (-0.71 mHa).  CP2K's
+// 144 Ry -30.34790 (the old provisional target) is GRID-LIMITED (doc/Records/CP2Kresults.md, Mn-O dimer box16, 2026-11-13).
+// MEASURED with the parabolic line minimum (1c3ec5b81) at the default PCFloor 0.1: A at iteration 16, then a crawl that never
+// leaves it in 60+; at PCFloor 1e-3, A at 16, out at ~60, B at ~100 (SCFRobustnessPlan B6(b) decides the floor on the whole panel).
 TEST(GPW_MnOBox, Γ_M6_GDM_Converges_Panel_Long)
 {
     const auto o=qchem::panel::Run(qchem::panel::LoadDeck("MnO_box16_GDM.json"), 15,
                                    "Mn-O dimer, kT 0, multiplicity 6, GDM (regime 2'; OpenWork §3 GDM crawls)");
+    // The STATE first: a run that stops on A fails because it is in the wrong state, not merely because it is 7 mHa high.
+    const auto& G=qchem::report::GlobalReport();
+    const qchem::report::json* last=nullptr;
+    for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind("MnO_box16",0)==0) last=&it.value();
+    ASSERT_NE(last, nullptr) << "the deck files its run under its structure's stem";
+    ASSERT_TRUE(last->contains("scf") && (*last)["scf"].contains("siteMoments")) << "a Becke run reports its site moments";
+    const auto& mu=(*last)["scf"]["siteMoments"]["mu"];
+    ASSERT_EQ(mu.size(), 2u) << "one Becke basin per site (Mn, O)";
+    EXPECT_NEAR(mu[0].get<double>(), 4.948, 0.05) << "state B's Mn moment (state A, the slope GDM crawls on, has 5.35)";
     ASSERT_TRUE(o.run.converged) << o.run.summary;
     ASSERT_TRUE(o.run.energy);
-    EXPECT_NEAR(*o.run.energy, -30.34790, 1e-3) << "CP2K OT's state (provisional target)";
+    EXPECT_NEAR(*o.run.energy, -30.34914696, 1e-4) << "state B (CP2K's state; the independent route is in the comment above)";
 }
 
 // PANEL case 8, RED (OpenWork §3 "Na₂ polarized singlet won't converge from AFM seed at α=0.3"): the two-channel singlet of a

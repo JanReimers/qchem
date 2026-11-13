@@ -2865,3 +2865,14 @@ The row (verbatim, from `doc/OpenWork.md`):
 | **Fields from a saved state, cheaply, on the structure-neutral face** (user 2026-11-12: a reopened run must "come back just the way they left it") | BUILT lane G 2026-11-13 (design accepted by the controller the same day): `qchem::StateView` (`src/Calculation/StateView.C`), built by each facade's `ViewState` (atom, molecule, solid; `deck::View` for a deck) from the basis alone and the saved D, C, eps, f -- no Hamiltonian, grids or SCF; judged by `Calculation::JudgeView` (the restart's refusals plus ANY moved atom, named with its remedy); `ReadState` now reads C, eps, f back.  Gate `FacadeMatrix.Cell/<Kind>_ViewMatchesTheLiveState` (rho, m, levels, orbitals equal the live run's; the refusals are Outcomes; an inline deck's positions round-trip bit-exactly).  Binding `qcb_view_*` / `qchem_py.StateView`; the GUI redraws a reopened run from its state file, says so when it is gone, and keeps each run's view (field, representation, iso, slice, camera) in the workspace | REMAINDER: a complex Bloch orbital is refused by the view (the crystal-orbital row above decides what it plots); move this row to History5 at landing · `src/Calculation/StateView.C`, `pybind/` |
 
 Landed with lane B's k-gates: short 1629/0, long 18/0, 0 moved vs main-febe0b1a (new: 3 FacadeMatrix ViewMatchesTheLiveState cells).
+## ✅ `SolidSession.SessionSizesItsRastersOnMatrixElements` out of `knownRed`: the GDM line minimum closes it (lane A, 2026-11-13)
+The second case of OpenWork §3 "GDM's line search runs below the energy's noise floor" (lane B 2026-11-10, verbatim): *at Δρ/N 1e-7: once
+the kinetic screen moved its start (04fc3e043), round 3 of the geometry pilot (cutoffFactor 8 → 16) starts at Δρ 1.0e-6 and crawls 13 GDM
+steps with E flat to 1e-14 and [F,D] contracting 0.81 per step: 21 re-convergence iterations against cap 16 (18 on the ε→0 reference
+build, 9 before), no stall.  Its gate is kept; it leaves `knownRed` when this row's fix lands.*
+
+With the parabolic line minimum (1c3ec5b81, SCFRobustnessPlan B6(a)) the geometry pilot re-converges in 5 + 3 + 3 = **11** (was 5 + 3 + 13 = 21):
+the cap-16 gate passes unchanged.  The same run exposed the energy pilot's cap (line 146, 4) as calibrated on a FALSE convergence: main's
+"2 iterations" met Δρ 7.6e-8 while ‖[F,D]‖ was 4.8e-4, E 5.0e-8 Ha above the minimum; it now converges honestly in **8** ([F,D] 9.4e-8,
+E −7.240056928901), and the cap is 8 (controller ruling 2026-11-13).  The test passes whole and left `knownRed`.  The false stop itself is
+a new OpenWork §3 row, "A Δρ-only stop certifies an unconverged iterate".  The noise-floor row's first case (its user-stated 1e-8 gate) stays open.

@@ -332,6 +332,17 @@ static void ReportImposedGroup(std::optional<double> r, size_t iteration)
               << " from the imposed group (max|f-Pf|/max|rho|, before XC's projector)" << std::endl;
 }
 
+// The vertex of the parabola through (0,E0), (t,Et), (2t,E2t) (see the declaration).  In the scaled variable s = t'/t the
+// parabola is E0 + b s + a s^2 with a = (E2t - 2Et + E0)/2 and b = (4Et - E2t - 3E0)/2; its vertex is s* = -b/(2a).
+LineMinimum ParabolicLineMinimum(double E0, double t, double Et, double E2t)
+{
+    const double a=0.5*(E2t-2.0*Et+E0), b=0.5*(4.0*Et-E2t-3.0*E0);
+    if (!(a>0.0) || !(t>0.0)) return {t,false};          // not convex (or a degenerate bracket): no minimum to name
+    const double s=-b/(2.0*a);
+    if (!(s>0.0 && s<2.0)) return {s*t,false};           // outside the bracket (0, 2t)
+    return {s*t,true};
+}
+
 // R2.7: a live [F,D] gate that reads exactly 0.0 at convergence passed because nothing computed it (see the declaration).
 void RequireLiveGates(double FD, const Gate& minFD, size_t iteration)
 {
@@ -670,7 +681,8 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
                                itsMixer->Tag(), accelerated ? itsAccelerator->Tag() : "----", accelerated ? itsAccelerator->Count() : 0,
                                itsAccelerator->MinSV(),
                                FD, dFD, ChargeDensityChange, dE, idealVirial,
-                               itsIterationCount>1 && AnElectronMoved(config,prevConfig), geodesic,
+                               itsIterationCount>1 && AnElectronMoved(config,prevConfig),
+                               geodesic ? itsLineT : std::numeric_limits<double>::quiet_NaN(), geodesic && itsLineFallback, geodesic,
                                (N!=0.0 ? eb.charge.lost/N : 0.0), itsMixer->HasGFilter(),
                                g.eHomo, g.eLumo, g.gap, g.haveHomo, g.haveLumo, g.metallic, g.hole,
                                hasOrder, order };
@@ -851,6 +863,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     // with a computed step TAKES it there (GDM: OrbitalsAt(1.0,true)).  Both call sites below satisfy that --
     // one because ComputeStep FAILED, the other because an exhausted RejectStep armed a forced diagonalize.
     itsGeodesicTaken=false;   // set only where a geodesic step is committed: every other exit is a mixed fixed-point step
+    itsLineT=std::numeric_limits<double>::quiet_NaN(); itsLineFallback=false;
     auto mixedStep=[&](const char* why)
     {
         // The FALLBACK is a whole fixed-point step taken inside a direct-min iteration, so it must be
@@ -895,22 +908,28 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     if (trace && std::fabs(E0-Ecur)>1e-6)
         std::cout << "[gdm] convention shift: E(t=0) held = " << E0 << " vs previous-iteration E = " << Ecur
                   << " (offset " << (E0-Ecur) << " Ha) -- descending against the HELD reference" << std::endl;
+    // One energy on the geodesic at the trial orbitals just moved to.
+    // ★ THE LINE SEARCH'S OWN PRICE, and it went unmeasured because it does NOT go through the iterator's TotalEnergy() helper --
+    // it calls the Hamiltonian directly, so the "scf: total energy" bucket never saw it.  Up to 12 of these per direct-min
+    // iteration (plus one for the line minimum), each one a full composite-density BUILD plus every energy term
+    // (doc/ParallelAndOraclePlan.md 1.1(a)).  Minimize the FREE energy A=E−TS under smearing (MoveOrbitals refilled, so
+    // GetEntropyTerm is current); GetEntropyTerm()=0 with no smearing => molecular direct-min unchanged.  GPWPlan1 4b.
+    auto lineEnergy=[&]
+    {
+        qchem::report::Timed timed("scf: line-search energy E(t) (density build + all terms)");
+        cd_t cdt(itsWaveFunction->GetChargeDensity());                //std-managed (no freed-address reuse)
+        return itsHamiltonian->At(nullptr, cdt.get()).GetTotalEnergy().GetTotalEnergy()+itsOccPolicy->EntropyTerm();
+    };
     double prevBest=1e300;   // best(E_t) of the PREVIOUS rejected attempt -- the scale-invariance probe
     for (;;)
     {
         double t=1.0, Et=0, best=1e300; int k=0; bool found=false;
+        double E2t=0.0;   // E at the previous, REJECTED trial (= 2t once k > 0): the third point of the parabola below
         for (;k<12;k++)
         {
+            if (k>0) E2t=Et;
             itsWaveFunction->MoveOrbitals(held,t,false,mergeTol);   //trial, ON the geodesic
-            // ★ THE LINE SEARCH'S OWN PRICE, and it went unmeasured because it does NOT go through the
-            // iterator's TotalEnergy() helper -- it calls the Hamiltonian directly, so the "scf: total
-            // energy" bucket never saw it.  Up to 12 of these per direct-min iteration, each one a full
-            // composite-density BUILD plus every energy term (doc/ParallelAndOraclePlan.md 1.1(a)).
-            qchem::report::Timed timed("scf: line-search energy E(t) (density build + all terms)");
-            cd_t cdt(itsWaveFunction->GetChargeDensity());                //std-managed (no freed-address reuse)
-            // Minimize the FREE energy A=E−TS under smearing (MoveOrbitals refilled, so GetEntropyTerm is
-            // current); GetEntropyTerm()=0 with no smearing => molecular direct-min unchanged.  GPWPlan1 4b.
-            Et=itsHamiltonian->At(nullptr, cdt.get()).GetTotalEnergy().GetTotalEnergy()+itsOccPolicy->EntropyTerm();
+            Et=lineEnergy();
             best=std::min(best,Et);
             if (Et<E0) { found=true; break; }
             t*=0.5;
@@ -927,6 +946,36 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
             std::cout << "[gdm] " << (found ? "DESCENT " : "FALLBACK") << " t=" << std::scientific << setprecision(2)
                       << t << " k=" << k << "  best(Et-E0)=" << (best-E0) << std::endl;
         }
+        // THE LINE MINIMUM (lane A 2026-11-13, controller ruling (a); doc/SCFRobustnessPlan.md B6(a)).  Halving alone lands on a
+        // FIXED FRACTION of the model step, never on the line minimum, and Polak-Ribiere CG needs a near-exact line minimum to stay
+        // conjugate: without it CG degrades towards steepest descent and crawls.  MEASURED on the Mn-O dimer (panel #15): 48 of 58
+        // steps rejected t = 1 and took t = 0.5, while the line minimum sat at t* ~ 0.37; the parabola cut the descent onto the
+        // first plateau from ~100 iterations to 16.  When halving had to reject at least once (k > 0), the three energies
+        // E(0) > E(t) < E(2t) BRACKET a minimum, and the parabola through them names t*: one more energy evaluation.
+        // SAFEGUARD: the halving step t is kept (the FALLBACK, reported) when the parabola is not convex, its t* falls outside the
+        // bracket (0, 2t), or E(t*) is not below E(t).  k == 0 (the model step already descends) takes t = 1 as before: an
+        // extension that doubles t while E falls was measured INERT on the dimer's plateau (the direction, not the step, limits it).
+        itsLineT=std::numeric_limits<double>::quiet_NaN(); itsLineFallback=false;
+        if (found && k>0)
+        {
+            const LineMinimum m=ParabolicLineMinimum(E0, t, Et, E2t);
+            bool keep=m.ok;
+            double Es=0.0;
+            if (keep)
+            {
+                itsWaveFunction->MoveOrbitals(held,m.t,false,mergeTol);
+                Es=lineEnergy();
+                keep = Es<Et;
+            }
+            if (trace)
+            {
+                qchem::report::FormatGuard g(std::cout);
+                std::cout << "[gdm] LINE MINIMUM t*=" << std::scientific << setprecision(3) << m.t << (m.ok ? "" : " (parabola refused)")
+                          << (keep ? "  taken, E(t*)-E(t)=" : "  FALLBACK to the halving t, E(t*)-E(t)=") << (m.ok ? Es-Et : 0.0) << std::endl;
+            }
+            if (keep) t=m.t; else itsLineFallback=true;
+        }
+        if (found) itsLineT=t;
         if (found)
         {
             itsWaveFunction->MoveOrbitals(held,t,true,mergeTol);    //commit at t
@@ -1066,7 +1115,7 @@ template <class T> std::optional<EnergyBreakdown> tSCFIterator<T>::TaylorEnergy(
 
 // --- Column-width constants: the header labels and the value rows share these, so they line up exactly
 //     regardless of the UTF-8 label glyphs (Δ, ρ, ε are multi-byte but one display column). --------------
-namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=13, W_ACC=7, W_SV=8, W_CFG=3, W_GAP=9, W_ORD=12, W_XCR=7, W_SAMP=9 }; }
+namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=13, W_ACC=7, W_SV=8, W_LS=6, W_CFG=3, W_GAP=9, W_ORD=12, W_XCR=7, W_SAMP=9 }; }
 
 // Display width of a UTF-8 string (counts leading bytes only, so Δ/ρ/ε each count as one column).
 static size_t VisWidth(const std::string& s)
@@ -1082,9 +1131,10 @@ static std::string Thresh(double t)
 // Header cells matching the row layouts (same widths + separators as WriteRowPrefix / WriteMixAccelCfg).
 static void WriteHeadPrefix(std::ostream& os)          // " #   Etotal   [F,D]"
 { os << PadR("#",W_ITER) << " " << PadR("Etotal",W_E) << " " << PadR("[F,D]",W_FD) << " "; }
-static void WriteHeadMixAccelCfg(std::ostream& os)     // "ρ_mix  accel  svMin  cfg"
-{ os << " " << PadL("ρ_mix",W_MIX) << " " << PadL("accel",W_ACC) << " " << PadL("svMin",W_SV)
-     << " " << PadR("cfg",W_CFG); }
+static void WriteHeadMixAccelCfg(std::ostream& os, bool lineSearch)     // "ρ_mix  accel  svMin  [t_ls]  cfg"
+{ os << " " << PadL("ρ_mix",W_MIX) << " " << PadL("accel",W_ACC) << " " << PadL("svMin",W_SV);
+  if (lineSearch) os << " " << PadL("t_ls",W_LS);
+  os << " " << PadR("cfg",W_CFG); }
 // The threshold sub-line's leading pad (under #, Etotal), so each (thresh) sits under its column.
 static void WriteThreshLead(std::ostream& os)
 { os << PadR("",W_ITER) << " " << PadR("",W_E) << " "; }
@@ -1172,6 +1222,22 @@ ColumnData SvCol()
             [](const IterationTrace& tr){return tr.accelMinSV;}, Scale::Log};
 }
 //! cfg: '*' when the occupied configuration changed since the previous iteration (1, else 0).
+//! t_ls: the committed geodesic step's t, as a fraction of the model (diagonal-Hessian) step -- 1.00 when the model step
+//! descended, the parabola's t* when halving bracketed a line minimum, and the halving t flagged 'h' when the line minimum's
+//! safeguard fired (not convex, outside the bracket, or not lower).  "----" on a row that took no geodesic.  Shown only on a
+//! run whose accelerator may line-search (GDM, a ladder with a GDM rung).
+ColumnData LineCol()
+{
+    return {"t_ls", W_LS, std::nullopt,
+            [](std::ostream& os, const IterationTrace& tr)
+            {
+                std::ostringstream c;
+                if (std::isnan(tr.lineT)) c << "----";
+                else                      c << std::fixed << setprecision(2) << tr.lineT << (tr.lineFallback ? "h" : "");
+                os << " " << PadL(c.str(),W_LS);
+            },
+            [](const IterationTrace& tr){return tr.lineT;}};
+}
 ColumnData CfgCol()
 {
     return {"cfg", W_CFG, std::nullopt,
@@ -1306,7 +1372,7 @@ void tSCFIterator<T>::DisplayColumnHeaders(std::ostream& os, const SCFParams& ip
     os << endl << endl;
     WriteHeadPrefix(os);
     for (const auto& c:cols) os << PadR(c.title,c.width) << " ";
-    WriteHeadMixAccelCfg(os);
+    WriteHeadMixAccelCfg(os, itsAccelerator->MayLineSearch());
     if (GapIsPermanent()) os << " " << PadR("gap",W_GAP) << "  ";  // 2 trailing: the row cell carries h/m
     WriteHeadOrder(os);
     os << endl;
@@ -1348,7 +1414,9 @@ template <class T> std::vector<ColumnData> tSCFIterator<T>::RowColumns(const SCF
     std::vector<ColumnData> var; AccumulateColumns(var, ipar, idealVirial);   // this layout's VARIABLE columns (a subclass edits
     std::vector<ColumnData> cols{EtotalCol(), FDCol(ipar)};                   //  them by POSITION, so they are built on their own)
     cols.insert(cols.end(), var.begin(), var.end());
-    cols.push_back(MixCol()); cols.push_back(AccelCol()); cols.push_back(SvCol()); cols.push_back(CfgCol());
+    cols.push_back(MixCol()); cols.push_back(AccelCol()); cols.push_back(SvCol());
+    if (itsAccelerator->MayLineSearch()) cols.push_back(LineCol());
+    cols.push_back(CfgCol());
     if (GapIsPermanent()) cols.push_back(GapCol());       // solids show it always (folds the old ReportBandGap)
     if (itsHamiltonian->GetSpinGroup()==SpinGroup::Polarized) cols.push_back(OrderCol());
     return cols;

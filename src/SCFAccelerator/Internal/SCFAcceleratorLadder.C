@@ -121,6 +121,8 @@ public:
     virtual double      MinSV() const;
     virtual void   SetEnergy(double E);
     virtual bool   WantsLineSearch() const; //true once the active rung is a direct minimizer
+    virtual bool   MayLineSearch() const //ANY rung: a ladder started on DIIS may hand off to GDM
+    { for (const auto& r : itsRungs) if (r->MayLineSearch()) return true; return false; }
     virtual bool   ExtrapolatesFock() const //ANY rung: a ladder started on GDM can still retreat to DIIS
     { for (const auto& r : itsRungs) if (r->ExtrapolatesFock()) return true; return false; }
     virtual bool   CanLineSearch() const;   //delegates to the active rung's readiness
