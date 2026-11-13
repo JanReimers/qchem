@@ -7,6 +7,7 @@
 import qchem.MoleculeCalculation;
 import qchem.Structure;
 import qchem.Types;
+import qchem.ChargeDensity.Seed;   // SeedStrategy, SeedLibrary (via AtomicDensity)
 
 using namespace qchem;
 
@@ -38,6 +39,23 @@ TEST(MoleculeSetup, APseudopotentialSetGivesTheValenceCountAndTheValenceStructur
     const auto point=s->PointStructure(na);
     EXPECT_EQ(int(point->GetNumElectrons()), s->Ne);
     EXPECT_EQ(int(s->reference->GetNumElectrons()), 11) << "the reference keeps the TRUE charges; only a point is valence-charged";
+}
+
+// A pseudopotential run seeds its OWN pseudo-atoms (OpenWork §3 "A pseudopotential run seeds from the VALENCE library for its q, on every
+// structure", lane B 2026-11-12): the setup keys the seed library by each element's PP q, so a PP molecule reads the VALENCE densities at
+// that q, as a solid does, and an all-electron one stays unkeyed (the all-electron library).  The tell: Si has no ALL-ELECTRON LDA entry,
+// so a Si PP molecule used to take the core guess with a WARN; its q4 VALENCE entry exists, so it now takes SAD.
+TEST(MoleculeSetup, APseudopotentialRunSeedsFromTheValenceLibraryAtItsQ)
+{
+    const Molecule si=OneAtom(14);
+    const auto pp=MoleculeSetup::Resolve(si, {.basis="sipp", .model=Model::LDA, .pp="gth-lda-valence"});
+    EXPECT_EQ(pp->seedKey.Q(14), pp->pp->Valence("Si")) << "the seed key carries the run's own q";
+    EXPECT_EQ(ChargeDensity::SeedLibrary(pp->seedKey, 14), "atomic_valence_densities.json");
+    EXPECT_EQ(pp->seed, ChargeDensity::SeedStrategy::SAD) << "the valence library holds Si q4, so the Auto rule seeds from SAD";
+
+    const auto ae=MoleculeSetup::Resolve(OneAtom(8), {.basis="dzvp", .model=Model::LDA});
+    EXPECT_EQ(ae->seedKey.Q(8), -1) << "an all-electron run is unkeyed";
+    EXPECT_EQ(ChargeDensity::SeedLibrary(ae->seedKey, 8), "atomic_densities.json");
 }
 
 TEST(MoleculeSetup, ABasisWithoutAnElementIsRefusedAtResolveNamingTheBasesThatCoverIt)

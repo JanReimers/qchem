@@ -76,11 +76,13 @@ enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 //! total that collapses to rho/2 in the polarized terms.  Ignored (harmless) on unpolarized runs.
 //!
 //! \a key names the functional and, per Z, the pseudopotential variant q whose seed densities the
-//! plane-wave seeds read (the run setup builds it from its \c PseudopotentialSet); the default is unkeyed LDA.
+//! seeds read (the run setup builds it from its \c PseudopotentialSet; \c SeedLibrary picks the library per Z, the same rule
+//! for a molecule and a solid); the default is unkeyed LDA (an all-electron run).
 //! \a quadrature (molecular): the mesh a matrix-free SAD seed integrates itself on -- a Coulomb fit has no grid of its own
 //! (doc/Pins.md), so the field that is only a function on space brings one; the run passes its XC mesh.
 tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<double>* bs,
-                                        const Structure* st, const ElectronConfiguration* ec, const qcMesh::MeshParams& quadrature);
+                                        const Structure* st, const ElectronConfiguration* ec, const qcMesh::MeshParams& quadrature,
+                                        const SeedKey& key);
 tChargeDensity<dcmplx>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<dcmplx>* bs,
                                         const UnitCell& cell, const ElectronConfiguration* ec,
                                         bool polarized=false, const SeedKey& key=SeedKey{});

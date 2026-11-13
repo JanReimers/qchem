@@ -75,14 +75,15 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     }
 
     // Seed: an explicit opts.seed wins; otherwise THE Auto rule both setups share (qchem.SeedPolicy: a model whose iteration-0 Fock reads a
-    // density -- DFT, or any pseudopotential run -- seeds from the SAD superposition when the all-electron library has every element,
-    // neutral here because the structure does not repeat, ionic on a lattice).  (Measured 2026-11-07: H2O LDA + GTH on dzvp converges in 9
-    // iterations from SAD, 26 from the core guess, although the SAD densities are all-electron; Si has no LDA entry, so its PP runs take
-    // the core guess, with a WARN since 2026-11-12.)
+    // density -- DFT, or any pseudopotential run -- seeds from the SAD superposition when the run's seed library has every element,
+    // neutral here because the structure does not repeat, ionic on a lattice).  The library is the run's own atoms' (SeedKeyOf, as the
+    // solid): a pseudopotential run reads the VALENCE densities at its q, an all-electron run the all-electron ones (before 2026-11-12 a
+    // PP molecule read the all-electron densities, core included, and a species with no all-electron entry, Si, took the core guess).
     using qchem::ChargeDensity::SeedStrategy;
     const bool dft = qchem::Hamiltonian::IsDFT(opts.model);
+    if (s->pp) s->seedKey=SeedKeyOf(*s->pp, *point);
     s->seed = ResolveSeed(opts.seed, *point, {.densityFock = dft || !opts.pp.empty(), .periodic = point->HasTranslationSymmetry(),
-                                             .chargesStated = false, .covered = [](int Z){ return ChargeDensity::HasAtomicDensity(Z); }});
+                                             .chargesStated = false, .covered = [key=s->seedKey](int Z){ return SeedLibraryCovers(key, Z); }});
 
     // THE XC MESH (pin 31; doc/GeometryOptimizationPlan.md §14.1): an axis left at 0 is unstated and takes the entry rung's; a mesh with
     // neither stated climbs from there at the converged D (MoleculeCalculation's pilot), only up.  A stated one is honoured and audited.
