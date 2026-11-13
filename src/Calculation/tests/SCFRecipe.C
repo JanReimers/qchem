@@ -137,8 +137,8 @@ TEST(SCFRecipe, AutoAndInsulatorAreTheOldPolicyInEveryCell)
     EXPECT_GT(cells, 0);
 }
 
-// §3 rows 2 and 3, cold and carried: Null + Kerker(G0 1)-Pulay (0.45, depth 8, start 5), no MOM.  Restored (row 4): DIIS beside linear
-// D-mixing whose start is capped at 0.3 -- the same column as Insulator's (both regimes are always smeared).
+// §3 rows 2 and 3, cold and carried: Null + Kerker(G0 1)-Pulay (0.45, depth 8, start 5), no MOM.  Restored: the SAME Null + K+P with its
+// history from iteration 1 (pulayStart 0) -- Q-R ruling (b), user 2026-11-13 -- not row 4's DIIS beside a linear step (Insulator's).
 TEST(SCFRecipe, NamedRegimesResolveTheirSection3Cells)
 {
     for (SCFRecipe r : {SCFRecipe::MagneticInsulator, SCFRecipe::Metal})
@@ -157,12 +157,29 @@ TEST(SCFRecipe, NamedRegimesResolveTheirSection3Cells)
             EXPECT_FALSE(c.resolved.UseMOM);
             EXPECT_TRUE(FillRecipeKnobs(r, k, p).deviations.empty());
         }
-        const Choice c=NewPolicy(r, T::Auto, SCFStageKind::Restored, p.SmearingkT, 0, p, true);
-        EXPECT_EQ(c.accel, T::DIIS) << NameOf(r) << " restored";
-        ASSERT_FALSE(c.threw);
-        EXPECT_EQ(c.resolved.Mixer, M::Linear);
-        EXPECT_EQ(c.resolved.StartingRelaxRo, 0.3);
-        EXPECT_EQ(c.resolved.MaxRelaxRo,      0.3);   // the CEILING too: "not 1.0!"
+        // THE GOLDEN ROW for this regime's restored stage, at a full and at a partial eigensolve (Null needs no virtuals).
+        for (int numBands : {0, 8})
+        {
+            const std::string where=std::string(NameOf(r))+" restored, numBands "+std::to_string(numBands);
+            const Choice c=NewPolicy(r, T::Auto, SCFStageKind::Restored, p.SmearingkT, numBands, p, true);
+            EXPECT_EQ(c.accel, T::Null) << where;
+            EXPECT_FALSE(c.gdmRung) << where;
+            ASSERT_FALSE(c.threw) << where;
+            EXPECT_EQ(c.resolved.Mixer, M::Pulay) << where;
+            EXPECT_EQ(c.resolved.KerkerG0, 1.0) << where;
+            EXPECT_EQ(c.resolved.PulayDepth, 8) << where;
+            EXPECT_EQ(c.resolved.PulayStart, 0) << where << ": a restored history starts at once";
+            EXPECT_EQ(c.resolved.StartingRelaxRo, 0.45) << where << ": K+P's alpha, not row 4's linear cap";
+            EXPECT_FALSE(c.resolved.UseMOM) << where;
+            EXPECT_TRUE(FillRecipeKnobs(r, SCFStageKind::Restored, p).deviations.empty()) << where;
+        }
+        // A STATED accelerator still wins on a restored stage (the deck's own choice), and a stated priming is a deviation.
+        EXPECT_EQ(NewPolicy(r, T::DIIS, SCFStageKind::Restored, p.SmearingkT, 0, p, true).accel, T::DIIS);
+        SCFParams primed=p; primed.PulayStart=5;
+        const RecipeKnobs k=FillRecipeKnobs(r, SCFStageKind::Restored, primed);
+        EXPECT_EQ(k.params.PulayStart, 5) << "the stated knob wins";
+        ASSERT_EQ(k.deviations.size(), 1u);
+        EXPECT_EQ(k.deviations[0], "pulayStart 5");
     }
 }
 
