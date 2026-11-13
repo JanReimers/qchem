@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+"""gen-ae-seeds -- generate the ALL-ELECTRON SAD seed library (src/ChargeDensity/Data/atomic_densities.json), judged on NIST.
+
+One entry per neutral element: the spherical LDA atom of the atom facade (scfrun --model LDA), in NIST's ground configuration
+(doc/GSData/NIST-dftdata-tar.gz: dftdata/configurations, the same as the periodic table's Saito configurations for Z 1-92).
+An OPEN-SHELL atom runs POLARIZED (the Hund LSD atom) and its entry carries the spin pair rho_up/rho_dn (up-majority) that the
+IonicSAD seed reads; a closed shell runs unpolarized (LSD = LDA there).
+
+Each candidate run is JUDGED before it is written (controller ruling 2026-11-13):
+  * CONFIGURATION: the run's occupied subshells, summed over m and spin from its occupation table, equal NIST's;
+  * ENERGY: |E - E_NIST| / |E_NIST| <= --tol against NIST's LDA (closed) or LSD (open) total energy -- a run that
+    converged to another configuration or a broken basis misses it, which the charge integral cannot see;
+  * the run CONVERGED.
+Two basis routes are tried, Slater High and Gaussian High (the radial atom solver's pools); the passing run closest to NIST is
+written.  Neither passing = the element is REPORTED and skipped, never written.
+
+The chosen entry is written by scfrun --out itself (one writer for the file format) with provenance stamped by --entry:
+config, basis, oracle and its delta.  Prints the record table (Markdown) on stdout.
+
+usage: scripts/gen-ae-seeds [--z 11-92] [--lib src/ChargeDensity/Data/atomic_densities.json] [--scfrun build/Release/CLIapps/scfrun]
+                            [--tol 1e-5] [--dry]
+"""
+import argparse, json, os, re, subprocess, sys, tarfile, tempfile
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+NG = {'He': '1s2', 'Ne': '1s2 2s2 2p6', 'Ar': '1s2 2s2 2p6 3s2 3p6', 'Kr': '1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6',
+      'Xe': '1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6 4d10 5s2 5p6',
+      'Rn': '1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6 4d10 5s2 5p6 4f14 5d10 6s2 6p6'}
+LDEG = {'s': 2, 'p': 6, 'd': 10, 'f': 14}
+MADELUNG = '1s 2s 2p 3s 3p 4s 3d 4p 5s 4d 5p 6s 4f 5d 6p 7s 5f 6d 7p'.split()
+
+
+def aufbau(Z):
+    """The Madelung (n+l, then n) filling of Z electrons: the configuration an anomalous ground state departs from."""
+    d, left = {}, Z
+    for nl in MADELUNG:
+        if left <= 0:
+            break
+        d[nl] = min(left, LDEG[nl[1]])
+        left -= d[nl]
+    return d
+
+
+def expand(s):
+    """'[Ar] 3d^5 4s^1' -> {'1s':2,...,'3d':5,'4s':1}."""
+    d = {}
+    s = s.replace('^', '').replace(' ', '')
+    m = re.match(r'\[(\w+)\](.*)', s)
+    if m:
+        for t in NG[m[1]].split():
+            d[t[:2]] = int(t[2:])
+        s = m[2]
+    for n, l, c in re.findall(r'(\d)([spdf])(\d+?)(?=\d[spdf]|$)', s):
+        d[n + l] = d.get(n + l, 0) + int(c)
+    return d
+
+
+def nist_configurations(tgz):
+    """Z -> (neutral config text, its dict) from the vendored NIST tarball."""
+    with tarfile.open(tgz) as t:
+        text = t.extractfile('dftdata/configurations').read().decode()
+    out = {}
+    for line in text.splitlines():
+        m = re.match(r'\s*(\d+)\s+([A-Z][a-z]?)\s+(.*\S)', line)
+        if not m:
+            continue
+        txt = m[3]
+        parts = re.split(r'\s{2,}', txt)
+        if len(parts) == 1 and txt.startswith('[') and txt.find('[', 1) > 0:
+            parts = [txt[:txt.find('[', 1)], txt[txt.find('[', 1):]]
+        out[int(m[1])] = (parts[0].strip(), expand(parts[0]))
+    return out
+
+
+def open_shell(cfg):
+    return any(c < LDEG[nl[1]] for nl, c in cfg.items())
+
+
+def run_config(stdout):
+    """Sum the occupation table's numerators per subshell (both spin columns when polarized)."""
+    cfg = {}
+    for line in stdout.splitlines():
+        cols = [c.strip() for c in line.strip().strip('|').split('|')]
+        if len(cols) not in (3, 6):
+            continue
+        label = cols[2]
+        m = re.match(r'(\d[spdf])\b', label)
+        occ = [c for c in (cols[0], cols[3] if len(cols) == 6 else None) if c]
+        if not m or not all(re.match(r'^\d+/\d+$', o) for o in occ):
+            continue
+        n = sum(int(o.split('/')[0]) for o in occ)
+        cfg[m[1]] = cfg.get(m[1], 0) + n
+    return {k: v for k, v in cfg.items() if v}
+
+
+def cfg_text(cfg):
+    order = sorted(cfg, key=lambda nl: (int(nl[0]), 'spdf'.index(nl[1])))
+    return ' '.join(f'{nl}^{cfg[nl]}' for nl in order)
+
+
+def scfrun(exe, Z, pol, basis, out=None, tags=()):
+    cmd = [exe, '--Z', str(Z), '--model', 'LDA', '--pol', pol, '--basis', basis, '--acc', 'High', '--maxiter', '300']
+    if out:
+        cmd += ['--out', out]
+        for t in tags:
+            cmd += ['--entry', t]
+    p = subprocess.run(cmd, capture_output=True, text=True, timeout=1200)
+    m = re.search(r'RESULT\s+E=([-0-9.eE+]+)\s+iters=(\d+).*converged=(\w+)', p.stdout)
+    if not m:
+        return None
+    return {'E': float(m[1]), 'iters': int(m[2]), 'converged': m[3] == 'yes', 'cfg': run_config(p.stdout)}
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    ap.add_argument('--z', default='11-92')
+    ap.add_argument('--lib', default=os.path.join(ROOT, 'src/ChargeDensity/Data/atomic_densities.json'))
+    ap.add_argument('--scfrun', default=os.path.join(ROOT, 'build/Release/CLIapps/scfrun'))
+    ap.add_argument('--tol', type=float, default=1e-5)
+    ap.add_argument('--dry', action='store_true', help='judge only, write nothing')
+    a = ap.parse_args()
+    lo, _, hi = a.z.partition('-')
+    Zs = range(int(lo), int(hi or lo) + 1)
+    nist = {k: json.load(open(os.path.join(ROOT, f'src/Common/Data/nist{k}.json'))) for k in ('LDA', 'LSD')}
+    conf = nist_configurations(os.path.join(ROOT, 'doc/GSData/NIST-dftdata-tar.gz'))
+    print('| Z | el | configuration (NIST = run) | spin | basis | E (Ha) | ΔE vs NIST | moment | iters | note |')
+    print('|---|---|---|---|---|---|---|---|---|---|')
+    failed = []
+    for Z in Zs:
+        text, want = conf[Z]
+        pol = 'P' if open_shell(want) else 'U'
+        oracle = 'LSD' if pol == 'P' else 'LDA'
+        Eref = nist[oracle][str(Z)]['Etot']
+        sym = nist['LDA'][str(Z)]['Symbol']
+        tried = []
+        for basis in ('Slater', 'Gaussian'):
+            r = scfrun(a.scfrun, Z, pol, basis)
+            if r is None:
+                tried.append(f'{basis}: no result')
+                continue
+            dE = r['E'] - Eref
+            why = []
+            if not r['converged']:
+                why.append('unconverged')
+            if r['cfg'] != want:
+                why.append('config ' + cfg_text(r['cfg']))
+            if abs(dE) > a.tol * abs(Eref):
+                why.append(f'ΔE {dE:+.2e}')
+            tried.append((basis, r, dE, why))
+        ok = [t for t in tried if isinstance(t, tuple) and not t[3]]
+        notes = '; '.join(f'{t[0]} ' + ', '.join(t[3]) for t in tried if isinstance(t, tuple) and t[3]) \
+            + '; '.join(t for t in tried if isinstance(t, str))
+        flag = f'ANOMALOUS (aufbau: {cfg_text(aufbau(Z))})' if aufbau(Z) != want else ''
+        if not ok:
+            failed.append(Z)
+            print(f'| {Z} | {sym} | {text} | {pol} | -- | -- | -- | -- | -- | **NOT WRITTEN**: {notes} {flag} |')
+            continue
+        basis, r, dE, _ = min(ok, key=lambda t: abs(t[2]))
+        moment = ''
+        if not a.dry:
+            tags = [f'config={text}', f'basis={basis} High (radial atom, scfrun)',
+                    f'oracle=NIST {oracle} {Eref:.6f}', f'deltaE={dE:+.3e}']
+            w = scfrun(a.scfrun, Z, pol, basis, out=a.lib, tags=tags)
+            if w is None or abs(w['E'] - r['E']) > 1e-9:
+                failed.append(Z)
+                print(f'| {Z} | {sym} | {text} | {pol} | {basis} | -- | -- | -- | -- | **WRITE RUN DIFFERED** |')
+                continue
+            e = next(x for x in json.load(open(a.lib)) if x['Z'] == Z and x['functional'] == 'LDA')
+            moment = f"{e['moment']:.4f}" if 'moment' in e else ''
+        print(f"| {Z} | {sym} | {text} | {pol} | {basis} | {r['E']:.6f} | {dE:+.2e} | {moment} | {r['iters']} | "
+              f"{flag}{'; ' if flag and notes else ''}{notes} |", flush=True)
+    if failed:
+        print(f'\nNOT WRITTEN: Z = {failed}', file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -6,6 +6,10 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <cctype>
+#include <algorithm>
+#include <cmath>
+#include "nlohmann/json.hpp"   // the seed gates read the library and NIST's tables directly
 
 import qchem.ChargeDensity.AtomicDensity;   // GetAtomicDensity, RadialDensity, RecentredAtomicDensity
 import qchem.Types;                          // rvec3_t
@@ -134,4 +138,91 @@ TEST(AtomicDensity, TheQKeyPicksTheVariantsOwnEntry)
     const SeedKey key("LDA",{{3,1}});
     EXPECT_EQ(key.Q(3),1);
     EXPECT_EQ(key.Q(8),-1);
+}
+
+// ---------------- THE ALL-ELECTRON LIBRARY, every entry judged (OpenWork §3 "The default SAD seed stops at Ne", lane B 2026-11-13) ----------
+//
+// scripts/gen-ae-seeds writes atomic_densities.json from the atom facade and stamps each generated entry with its Etot, its configuration
+// (NIST's, dftdata/configurations) and the oracle it was judged on.  These gates re-judge the FILE, so a hand edit or a regeneration
+// that drifts fails here: the charge of every entry, the spin pair of every polarized one, and the energy of every stamped one against
+// NIST's own tables, read independently of the generator.
+
+namespace
+{
+nlohmann::json ReadJson(const std::filesystem::path& p)
+{
+    std::ifstream f(p);
+    if (!f) throw std::runtime_error("cannot read "+p.string());
+    nlohmann::json j; f>>j; return j;
+}
+const nlohmann::json& AELibrary()
+{
+    static const nlohmann::json lib=ReadJson(std::filesystem::path(CHARGEDENSITY_DATA_PATH)/"atomic_densities.json");
+    return lib;
+}
+//! Hund's 2S of a configuration text ("[Ar] 3d^5 4s^1"): each partly filled subshell of 2l+1 orbitals holds min(n, 2(2l+1)-n) unpaired
+//! electrons (the noble-gas core is closed, so only the explicit subshells can be open).
+int HundUnpaired(const std::string& config)
+{
+    int unpaired=0;
+    for (size_t i=0;i<config.size();i++)
+    {
+        const char l=config[i];
+        if (!(l=='s'||l=='p'||l=='d'||l=='f') || i==0 || !std::isdigit((unsigned char)config[i-1]) || i+2>=config.size() || config[i+1]!='^') continue;
+        const int deg=2*(2*(std::string("spdf").find(l))+1);
+        const int n=std::stoi(config.substr(i+2));
+        unpaired+=std::min(n, deg-n);
+    }
+    return unpaired;
+}
+} // namespace
+
+// Coverage: every element NIST tabulates (Z 1-92) has a neutral all-electron LDA seed, and the reader returns it at its own charge.
+TEST(AtomicDensity, EveryElementThroughUraniumHasANeutralAllElectronSeed)
+{
+    for (int Z=1; Z<=92; Z++)
+    {
+        ASSERT_TRUE(HasAtomicDensity(Z, "LDA")) << "Z=" << Z;
+        EXPECT_NEAR(GetAtomicDensity(Z, "LDA").Charge(), double(Z), Z*2e-3) << "Z=" << Z;
+    }
+}
+
+// Every entry: the stored charge is its Nelec (the log grid's quadrature error is ~4e-4 relative); every POLARIZED entry: the pair is
+// up-majority, sums to rho, and its moment is the Hund 2S of the configuration it states.
+TEST(AtomicDensity, EveryAllElectronEntryHoldsItsChargeAndItsSpinPairItsHundMoment)
+{
+    for (const auto& e : AELibrary())
+    {
+        const int Z=e.at("Z"), Nelec=e.at("Nelec");
+        EXPECT_NEAR(e.at("charge").get<double>(), double(Nelec), Nelec*1e-3) << "Z=" << Z;
+        if (!e.contains("rho_up")) continue;
+        const auto& rho=e.at("rho"); const auto& up=e.at("rho_up"); const auto& dn=e.at("rho_dn");
+        ASSERT_EQ(up.size(), rho.size()) << "Z=" << Z;
+        ASSERT_EQ(dn.size(), rho.size()) << "Z=" << Z;
+        for (size_t i=0;i<rho.size();i++)
+            EXPECT_NEAR(up[i].get<double>()+dn[i].get<double>(), rho[i].get<double>(), 1e-9*rho[i].get<double>()+1e-15) << "Z=" << Z << " node " << i;
+        ASSERT_TRUE(e.contains("config")) << "Z=" << Z << ": a polarized entry states the configuration its moment is judged on";
+        const double m=e.at("moment");
+        EXPECT_GE(m, 0.0) << "Z=" << Z << ": up-majority";
+        EXPECT_NEAR(m, double(HundUnpaired(e.at("config"))), 1e-2) << "Z=" << Z << " " << e.at("config").get<std::string>();
+        auto [ru,rd]=GetAtomicSpinPair(Z, "LDA", "atomic_densities.json", Nelec);
+        EXPECT_NEAR(ru.Charge()-rd.Charge(), m, Nelec*1e-3) << "Z=" << Z << ": the reader sees the same pair";
+    }
+}
+
+// Every STAMPED entry (Etot): its energy is NIST's for the same functional and spin treatment -- LSD for a polarized entry, LDA for an
+// unpolarized one -- to 1e-5 relative.  This is what catches a generator that converged to another configuration, which the charge cannot.
+TEST(AtomicDensity, EveryStampedAllElectronEntryIsNISTsAtomToTenPpm)
+{
+    const auto common=std::filesystem::path(COMMON_DATA_PATH);
+    const nlohmann::json lda=ReadJson(common/"nistLDA.json"), lsd=ReadJson(common/"nistLSD.json");
+    for (const auto& e : AELibrary())
+    {
+        if (!e.contains("Etot")) continue;
+        const int Z=e.at("Z");
+        const bool pol=e.contains("rho_up");
+        const double E=e.at("Etot"), Eref=(pol ? lsd : lda).at(std::to_string(Z)).at("Etot");
+        EXPECT_LE(std::abs(E-Eref), 1e-5*std::abs(Eref)) << "Z=" << Z << (pol ? " vs NIST LSD " : " vs NIST LDA ") << Eref << ", E " << E;
+        EXPECT_TRUE(e.value("converged", false)) << "Z=" << Z;
+    }
 }
