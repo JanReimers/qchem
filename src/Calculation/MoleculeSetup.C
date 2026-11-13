@@ -19,6 +19,7 @@ import qchem.Hamiltonian.Factory;  // Hamiltonian::Model
 export import qchem.Symmetry.Spin; // SpinGroup -- the imposed spin subgroup, a CalcOptions field
 import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration grid)
 import qchem.ChargeDensity.Seed;   // SeedStrategy
+import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSet::Gaussian::Angular -- the ONE angular option, shared with SolidSetup
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (the resolved accelerator)
 export import qchem.Pseudopotential.Set;   // PseudopotentialSet -- the setup's resolved choice
 export import qchem.Accuracy;            // AccuracyTarget -- a CalcOptions field
@@ -30,8 +31,10 @@ using Hamiltonian::Model;          // {E1, HF, DE1, DHF}
 
 //! Orbital-integral engine: the in-house MnD recursion (default) or the libcint foreign engine.
 enum class Engine  { MnD, LibCint };
-//! Angular basis convention: Cartesian Gaussians (default) or real solid-harmonic (spherical).
-enum class Angular { Cartesian, Spherical };
+//! Angular basis convention: Cartesian Gaussians (default) or real solid-harmonic (spherical).  THE library's own axis, shared by the
+//! molecular \c CalcOptions::angular and the periodic \c GaussianBasisRecipe::angular (user, 2026-11-12: "we should strive to make
+//! seeding and spherical/Cartesian options structure neutral"), so one option means one thing on every structure.
+using BasisSet::Gaussian::Angular;
 
 //! How to set up the calculation.  Designated-initializer friendly:
 //!     MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.basis="dzvp"}));

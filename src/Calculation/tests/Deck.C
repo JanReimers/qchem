@@ -41,7 +41,7 @@ TEST(Deck, DefaultOptionsRoundTripExactlyAndAreComplete)
     SolidCalcOptions back; deck::FromJson(j,back);
     EXPECT_EQ(deck::ToJson(back), j);
     EXPECT_TRUE(j.contains("tolerances")); EXPECT_TRUE(j.at("tolerances").contains("screenEps"));   // a resolved deck lists every field
-    EXPECT_EQ(j.at("seed"), "IonicSAD");
+    EXPECT_EQ(j.at("seed"), "Default") << "the Auto rule, resolved by the setup (a lattice: IonicSAD)";
     SCFParams p; EXPECT_EQ(deck::ToJson([&]{SCFParams q; deck::FromJson(deck::ToJson(p),q); return q;}()), deck::ToJson(p));
 }
 
@@ -371,7 +371,7 @@ TEST(Deck, UIsEvInTheFileAndAtomicUnitsInRamAndTheRecordReproducesTheBits)
 TEST(Deck, BasisTrimVetAndStateRoundTripAndAreValidated)
 {
     deck::RunSpec r;
-    deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_VA"},{"spherical",true},{"trim",{{{"Z",25},{"l",0},{"alpha",0.06}}}}}},
+    deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_VA"},{"angular","spherical"},{"trim",{{{"Z",25},{"l",0},{"alpha",0.06}}}}}},
                         {"state",{{"save","auto"},{"restartFrom","MnO_AFM2.r003"}}}}, r);
     ASSERT_EQ(r.basis.trim.size(),1u); EXPECT_EQ(r.basis.trim[0].Z,25); EXPECT_EQ(r.basis.trim[0].alpha,0.06);
     EXPECT_EQ(r.state.save,"auto"); EXPECT_EQ(r.state.restartFrom,"MnO_AFM2.r003");
@@ -384,11 +384,18 @@ TEST(Deck, BasisTrimVetAndStateRoundTripAndAreValidated)
     EXPECT_THROW(deck::Resolve(noTol), std::runtime_error) << "an autoTrim with no orthoTol would drop nothing";
     deck::RunSpec retired;
     EXPECT_THROW(deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"vet",true}}}}, retired), std::runtime_error) << "basis.vet is retired, not ignored";
-    deck::RunSpec sph; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_SR"},{"spherical",true}}}}, sph);
+    deck::RunSpec sph; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_SR"},{"angular","spherical"}}}}, sph);
     try { deck::Resolve(sph); FAIL() << "spherical + the SR transition-metal block must be refused"; }
     catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("VALENCE_LOWQ_VA"),std::string::npos) << e.what(); }
     deck::RunSpec ok; deck::FromJson(json{{"structure","Si_diamond"},{"basis",{{"data","SIPP_SR"},{"spherical",true}}}}, ok);
     EXPECT_NO_THROW(deck::Resolve(ok)) << "the refusal is specific to a transition metal on the SR block";
+    // The ONE angular option (user, 2026-11-12): written as basis.angular; the old bool spelling still reads, so a record runs.
+    EXPECT_EQ(ok.basis.angular, BasisSet::Gaussian::Angular::Spherical) << "the old basis.spherical spelling reads as basis.angular";
+    EXPECT_EQ(deck::ToJson(ok)["basis"]["angular"], "spherical");
+    EXPECT_FALSE(deck::ToJson(ok)["basis"].contains("spherical")) << "only the new spelling is written";
+    deck::RunSpec clash;
+    EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"basis",{{"angular","cartesian"},{"spherical",true}}}}, clash), std::runtime_error)
+        << "the two spellings disagreeing is refused";
     EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"state",{{"restore","x"}}}}, ok), std::runtime_error);
 }
 

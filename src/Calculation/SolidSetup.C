@@ -190,15 +190,17 @@ struct SolidCalcOptions
     //! (OpenWork, X): a session invariant under the group the WHOLE session keeps (a symmetry-preserving relaxation keeps its space
     //! group), so one mesh serves both.
     bool xcMeshSymmetric = true;
-    //! The SCF seed.  Default \c IonicSAD (V2.2, 2026-09-14): a superposition of the library's per-species
+    //! The SCF seed.  \c Default = THE Auto rule both setups share (\c qchem.SeedPolicy, user 2026-11-12): on a lattice that is
+    //! \c IonicSAD (V2.2, 2026-09-14), a superposition of the library's per-species
     //! valence densities at their formal charges (Na+ F-, Mn2+ O2-; an elemental solid is the neutral SAD).
     //! \c Uniform (\f$\rho=N/V\f$, the old default) is an explicit OPT-IN, because it has a STABLE WRONG
     //! BASIN for electron-sparse systems: the Na-doublet campaign converged a lone-electron doublet 72 mHa
     //! high from it with every health metric green (doc/CleanupCandidates.md V2.2).  The molecular facade
     //! already defaults DFT to SAD for the same reason.
-    //! \note IonicSAD needs every species in \c atomic_valence_densities.json (today: O, F, Na q1, Si, Mn);
-    //! a missing species THROWS at seed time -- state \c Uniform, or generate the entry (CLIapps/valgen).
-    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    //! \note IonicSAD needs every species in \c atomic_valence_densities.json; under \c Default a missing species takes the core guess
+    //! with a WARN (ruling 2026-11-12); a STATED IonicSAD with a missing species still THROWS at seed time.  Resolved into the setup's
+    //! \c opts.seed, so everything downstream reads the seed that runs.
+    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
     qchem::Ortho ortho    = qchem::Cholesky;
     //! THE NEAR-DEPENDENCE FLOOR on S's eigenvalues: what the vet-stage trim trims at (basis autoTrim, and a geometry step's re-vet), and
     //! the floor a TRUNCATING ortho solver drops directions under -- one quantity (the vet's metric is the truncating solver's own drop
@@ -320,7 +322,9 @@ struct GaussianBasisRecipe
     //! stated \c trim.  \c SolidSetup::Resolve runs it once and stores the frozen result (\c autoTrim false, \c trim filled).
     //! Needs an \c orthoTol > 0, which it trims at; \c orthoTol alone never trims (user ruling 2026-11-04).
     bool                              autoTrim = false;
-    bool                              spherical = false;   //!< wrap in the spherical lattice view (contaminant-free d/f)
+    //! The angular form, the SAME option as the molecular \c CalcOptions::angular (user, 2026-11-12, structure-neutral options).
+    //! \c Spherical wraps the MnD Cartesian lattice basis in the spherical lattice view (contaminant-free d/f).
+    BasisSet::Gaussian::Angular       angular = BasisSet::Gaussian::Angular::Cartesian;
     //! The pair-loop tolerances \c Make BINDS on the basis it builds (D-ENV-TOL option A, 2026-10-31): set by \c SolidSetup::Resolve
     //! from \c SolidCalcOptions::tolerances (the one source -- a caller's value here is replaced), frozen with the trim so a geometry
     //! step's basis computes at the same setting.  The GPW evaluator checks them; it no longer sets them.
@@ -364,7 +368,7 @@ struct SolidSetup
     //! run will warn about, answered without running; a GUI reads it here and never recomputes it.  THROWS on a fit with no libxc mapping.
     std::vector<Hamiltonian::PPFunctionalCheck> PPFunctionalChecks() const;
 
-    SolidCalcOptions                         opts;   //!< as asked, except \c ortho: a plane-wave run's default Cholesky becomes Orthonormal
+    SolidCalcOptions                         opts;   //!< as asked, except \c ortho (a plane-wave run's default Cholesky becomes Orthonormal) and a \c Default seed (resolved)
     SCFAccelerators::SolidAcceleratorOptions acc;    //!< as asked; a stage derives its own from it (a restored stage's Ladder rung)
     Pseudopotential::PseudopotentialSet      pp;     //!< \c opts.pp with the \c opts.species overrides applied
     //! The REFERENCE geometry: the lattice the setup was resolved at (the trim vetted, the imposed group detected), and its

@@ -20,7 +20,8 @@ import qchem.BasisSet.Gaussian.Lattice.RasterLadder;   // ExponentAtCutoff, kRes
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH -> HGH local PP -> alpha_pp
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (element symbol -> Z)
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
-import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (GaussianBasisRecipe::spherical)
+import qchem.SeedPolicy;   // ResolveSeed: the ONE Auto seed rule (shared with MoleculeSetup)
+import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (GaussianBasisRecipe::angular)
 import qchem.Policy;                           // policy::Refuse: each refusal files its row where it fires
 import qchem.Reporting;                         // report::Scope: the vet-stage trim files under basisTrim
 import qchem.XCRhoPolicy;                      // ReportSolidXCRho: the XC rho-axis decision
@@ -111,7 +112,7 @@ void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st
     int sum=0; for (int q : o.siteCharges) sum+=q;
     if (sum!=0) throw std::invalid_argument("SolidCalcOptions: siteCharges sum to "+std::to_string(sum)+", not 0 -- formal charges conserve the"
                                             " cell's charge ("+sites+")");
-    if (o.seed!=ChargeDensity::SeedStrategy::IonicSAD)
+    if (o.seed!=ChargeDensity::SeedStrategy::IonicSAD && o.seed!=ChargeDensity::SeedStrategy::Default)   // Default: the Auto rule takes IonicSAD
         throw std::invalid_argument("SolidCalcOptions: siteCharges is stated but the seed is not IonicSAD -- only the ionic seed reads a"
                                     " charge order, so nothing would consume it");
 }
@@ -262,6 +263,11 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     }
     s->seedKey=SeedKeyOf(s->pp, *st);
     s->seedKey.siteCharges=opts.siteCharges;
+    // THE SEED: a stated one is honoured; Default takes THE Auto rule both setups share (qchem.SeedPolicy) -- a lattice seeds from the
+    // valence library's superposition at its formal charges (stated, else derived: its Madelung field holds them), and a species the
+    // library lacks takes the core guess with a WARN (it threw at seed time until 2026-11-12).
+    s->opts.seed=ResolveSeed(opts.seed, *st, {.densityFock = true, .periodic = st->HasTranslationSymmetry(), .chargesStated = !opts.siteCharges.empty(),
+        .covered = [key=s->seedKey](int Z){ return ChargeDensity::HasAtomicDensity(Z, key.functional, "atomic_valence_densities.json", -1, key.Q(Z)); }});
 
     // THE RESOLVED IMPOSITION (doc/OpenWork.md N5, user 2026-08-26).  The caller's flag AND the policy's
     // permission: CP2K parity forbids the capability outright, because CP2K does no symmetry work at all
@@ -384,7 +390,7 @@ std::shared_ptr<const BasisSet::Real_BS> GaussianBasisRecipe::Make(const Structu
     if (!bind) throw std::logic_error("GaussianBasisRecipe::Make: the built basis cannot bind GPW tolerances (not a MnD Cartesian set)");
     bind->BindTolerances(tolerances);
     std::shared_ptr<const BasisSet::Real_BS> b(std::move(built));
-    if (spherical) b=PG_Spherical::MakeSphericalLatticeView(std::move(b));
+    if (angular==Angular::Spherical) b=PG_Spherical::MakeSphericalLatticeView(std::move(b));
     return b;
 }
 

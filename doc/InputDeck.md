@@ -44,7 +44,7 @@ cd build/Release && ninja rundeck                                  # the one CLI
   "kmesh": [2,2,2],
   "basis": { "data": "VALENCE_LOWQ_VA",   // a BasisSetData name: SIPP_SR, VALENCE_LOWQ_{SR,SR2,SPH,VA,VB}, DZVP, ...
              "file": "/path/x.bsd",         // OVERRIDE: a .bsd path used instead of the file "data" names (no registry entry, no rebuild); `--set basis.file=...`
-             "spherical": true,           // the spherical lattice view (contaminant-free d/f); refused with VALENCE_LOWQ_SR on a transition-metal cell
+             "angular": "spherical",      // "cartesian" (default) | "spherical": the spherical lattice view (contaminant-free d/f); refused with VALENCE_LOWQ_SR on a transition-metal cell; the old bool "spherical": true still reads (2026-11-12)
              "trim": [{"Z":28,"l":0,"alpha":0.06}],   // a STATED shell trim (exclusive with autoTrim)
              "autoTrim": true },           // the pin-22 vet-stage trim at solid.orthoTol (needs it > 0; orthoTol alone never trims)
   "solid": {                              // SolidCalcOptions -- every field; Nelec/species/multiplicity default from the material

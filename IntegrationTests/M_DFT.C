@@ -18,6 +18,8 @@
 #include "gtest/gtest.h"
 #include <cmath>
 #include <stdexcept>
+#include <iostream>
+#include <iomanip>
 
 import qchem.MoleculeCalculation;            // MoleculeCalculation, CalcOptions, Model, Angular
 import qchem.SCFCap;                             // IterationBudget: the convergence PANEL's budget (doc/SCFRobustnessPlan.md §4)
@@ -26,6 +28,7 @@ import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geo
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
 import qchem.Hamiltonian.Types;   // VxcFit
+import qchem.ChargeDensity.Seed;   // SeedStrategy (the Ionic SAD gates)
 using namespace qchem;
 
 static Molecule MakeN2()
@@ -323,3 +326,45 @@ TEST(M_DFT, WaterLDA_MultipoleVxc)
     ASSERT_TRUE(calc.Result());
     EXPECT_NEAR(calc.Energy(), -75.87944736, 3e-5) << "the A1 Hartree value (PySCF, exact XC); eps x N_atoms, the run's own target";
 }
+
+// --- Ionic SAD on a molecule (user, 2026-11-12: "we should strive to make seeding ... structure neutral") -------------------------
+// The SAD superposition at each site's formal charge, from the ONE charge rule the periodic seed uses (ChargeDensity::IonicFormalCharges).
+// A seed is a starting point, so the claim is that it reaches the SAME state as the neutral SAD seed: a closed-shell covalent molecule
+// (water: the rule makes it H+ O2-, the hardest case for a seed), an ionic one (LiF: Li+ F-), and a charged one (OH-, whose extra
+// electron only the fit's charge constraint carries).  The iteration counts print, so a seed that converges slower is visible.
+namespace
+{
+Molecule MakeLiF()    // Li-F 1.564 Angstrom = 2.9555 bohr, along z
+{
+    Molecule m;
+    m.Insert(Site{3, Vector3D<double>(0, 0, 0)});
+    m.Insert(Site{9, Vector3D<double>(0, 0, 2.9555)});
+    return m;
+}
+Molecule MakeHydroxide()    // OH-: O-H 0.97 Angstrom = 1.8330 bohr; the anion's extra electron on the O site
+{
+    Molecule m;
+    m.Insert(Site{8, Vector3D<double>(0, 0, 0), -1.0});
+    m.Insert(Site{1, Vector3D<double>(0, 0, 1.8330)});
+    return m;
+}
+void IonicSADReachesTheSADState(const Molecule& mol, const char* what)
+{
+    using qchem::ChargeDensity::SeedStrategy;
+    double E[2]={0,0};
+    const SeedStrategy seeds[2]={SeedStrategy::SAD, SeedStrategy::IonicSAD};
+    for (int i=0;i<2;i++)
+    {
+        MoleculeCalculation calc(MoleculeSetup::Resolve(mol, {.basis = "dzvp", .model = Model::LDA, .seed = seeds[i]}));
+        const auto r=calc.Result();
+        ASSERT_TRUE(r) << what << (i ? " IonicSAD" : " SAD") << " did not converge";
+        E[i]=r->Energy();
+        std::cout << "[ionic seed] " << what << (i ? " IonicSAD: " : " SAD:       ") << r->IterationCount() << " iterations, E = "
+                  << std::setprecision(12) << E[i] << std::endl;
+    }
+    EXPECT_NEAR(E[1], E[0], 1e-7) << what << ": the ionic seed must reach the SAD state";
+}
+}
+TEST(M_DFT, WaterLDA_IonicSADReachesTheSADState)     { IonicSADReachesTheSADState(qchem::StructureData::GetMolecule("H2O"), "H2O"); }
+TEST(M_DFT, LiF_LDA_IonicSADReachesTheSADState)      { IonicSADReachesTheSADState(MakeLiF(), "LiF"); }
+TEST(M_DFT, HydroxideLDA_IonicSADReachesTheSADState) { IonicSADReachesTheSADState(MakeHydroxide(), "OH-"); }
