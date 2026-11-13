@@ -687,7 +687,7 @@ TEST(RealComplexTerms, TheForceWalksARealTRIMBlockThroughItsRealPullbackFace)
 
 // THE GPW ONE-ELECTRON FORCE AND VIRIAL THROUGH BOTH BLOCK SCALARS (GeometryOptimizationPlan §13.2, doc/Records/CellHalf_Design.md §5;
 // lane B 2026-11-10).  The real TRIM block a GPW run builds (tGPW_IBS<double>) now gives the kinetic and overlap pullbacks and virials
-// (libcint per image, gated against the energy's finite difference in UTGaussian_BS M_LatticePullback), so Kinetic and the Pulay sum have
+// (Enzyme over the MnD kernel per image, gated against the energy's finite difference in UTGaussian_BS M_LatticePullback), so Kinetic and the Pulay sum have
 // their force and virial on it, and on the Bloch block, IDENTICALLY (the real block widens its D onto the same walk at a real phase).  The
 // GPW PP terms still have none: they are NAMED (READY 2), never thrown.
 TEST(RealComplexTerms, ARealTRIMGPWBlockGivesKineticAndPulayForceAndVirialAndNamesTheRest)

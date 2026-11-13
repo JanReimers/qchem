@@ -97,8 +97,8 @@ public:
                                 const Gaussian::LatticeSum1E::GaussianFunction& h) const override;
     virtual double  MakeOverlap(const Gaussian::LatticeSum1E::GaussianFunction& g, const Gaussian::LatticeSum1E::GaussianFunction& h) const override;
     virtual chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const override;
-    //! Their derivatives (LatticeSum1E's doc), the gradient and the image virial in one walk.  ⚠ TEMPORARY: through the one MnD/libcint
-    //! seam (Lattice.LibcintPullbackWorkaround, user ruling 2026-11-10) until Enzyme can differentiate the MnD kernel (EnzymeAD/Enzyme#3747).
+    //! Their derivatives (LatticeSum1E's doc), the gradient and the image virial in one walk: Enzyme over the MnD kernel
+    //! (NR_Evaluator::LatticeOneElectronPullback).
     virtual GeometryPullback MakeLatticeOverlapPullback(const chmat_t& Abar, const cellphase_t& phase, const UnitCell& A, const Structure* st) const override;
     virtual GeometryPullback MakeLatticeKineticPullback(const chmat_t& Abar, const cellphase_t& phase, const UnitCell& A, const Structure* st) const override;
     virtual chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const override;
@@ -148,8 +148,6 @@ public:
     virtual mat_t<dcmplx> IntegrateTransition(const std::vector<cvec_t>& v_L, const cellphase_t& ketPhase, const rvec3_t& q,
                                               const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                               const std::vector<double>& ecut_L, double relFieldSharp=-1.0) const override;
-private:
-    GeometryPullback LatticePullback(int which, const chmat_t& Abar, const cellphase_t& phase, const UnitCell& A, const Structure* st) const;
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

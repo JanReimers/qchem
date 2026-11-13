@@ -628,6 +628,71 @@ public:
             if (d.x*d.x+d.y*d.y+d.z*d.z <= rr*rr) cb(n, Roff);
         }
     }
+    //! The site of \a st each function sits on (its centre equals the site's position to 1e-10 bohr).  THROWS on a stray centre.
+    std::vector<size_t> ComponentSites(const Structure* st, const char* who) const
+    {
+        std::vector<rvec3_t> R; st->ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
+        std::vector<size_t> atom(size());
+        for (size_t i=0;i<size();i++)
+        {
+            const rvec3_t c=radials[i]->GetCenter();
+            size_t best=R.size(); double d2=0.0;
+            for (size_t a=0;a<R.size();a++) { const rvec3_t d=R[a]-c; const double e=d*d; if (best==R.size() || e<d2) {best=a; d2=e;} }
+            if (best==R.size() || d2>1e-20)
+                throw std::logic_error(std::string(who)+": function "+std::to_string(i)+" sits on no site of the structure");
+            atom[i]=best;
+        }
+        return atom;
+    }
+    //! \brief THE LATTICE S / T GEOMETRY PULLBACK (LatticeSum1E's doc; GeometryOptimizationPlan §13.2): the gradient and the image virial
+    //! of \f$E=\mathrm{Re\,Tr}(\bar A^\dagger M)\f$, M = \c MakeOverlap(phase,A) (\a K Overlap) or \c MakeKinetic(phase,A) (\a K Kinetic).
+    //!
+    //! The series is \f$M_{ij}=n_in_j\sum_n \varphi(n)K_{ij}(n)\f$, \f$K_{ij}(n)=\langle i|O|j(\cdot-R_n)\rangle\f$, i on site a at
+    //! \f$R_i\f$, j on site b at \f$R_j\f$.  Over the FULL Hermitian matrix \f$E=\sum_{ij}\mathrm{Re}(\bar A_{ij}^*M_{ij})\f$ (the series
+    //! fills the upper triangle; the lower is its conjugate, the ordered pair (j,i) walking −n over its own list).  Per ordered shell pair
+    //! and image, \f$w=\partial_B\sum_{pq}W_{pq}K_{pq}\f$ with \f$W_{pq}=\mathrm{Re}(\bar A_{pq}^*\varphi(n))\,n_pn_q\f$ and B the ket
+    //! centre \f$R_j+R_n\f$ is Enzyme's reverse mode over THIS kernel (\c GaussianRF::KetGradient), the same formula the energy sums.
+    //! K depends on \f$R_i-B\f$ alone, so \f$\partial/\partial R_a=-w\f$: \f$g_a\mathrel{-}=w\f$, \f$g_b\mathrel{+}=w\f$, and the virial over the
+    //! two unfolded centres is \f$-w\otimes R_i+w\otimes(R_j+R_n)=-w\otimes d\f$, \f$d=R_i-R_j-R_n\f$ (no origin; \f$\sum g=0\f$ term by term).
+    //! The images are the energy series' own list (\c ForSeriesImages: one list serves a shell pair, its radials shared), never a second
+    //! screen (doc/Pins.md pin 1).  Gated by tests/M_LatticePullback.C against the central difference of the energy path.
+    //! THROWS on a missing structure, a mis-sized adjoint or a stray centre.
+    Gaussian::LatticeSum1E::GeometryPullback LatticeOneElectronPullback(SeriesKernel K, const chmat_t& Abar, const cellphase_t& phase,
+                                                                        const UnitCell& A, const Structure* st) const
+    {
+        const char* what = K==SeriesKernel::Overlap ? "the lattice overlap pullback" : "the lattice kinetic pullback";
+        if (!st) throw std::invalid_argument(std::string(what)+": needs the structure (the sites the functions sit on)");
+        if (Abar.rows()!=size()) throw std::invalid_argument(std::string(what)+": the adjoint is "+std::to_string(Abar.rows())+
+                                                             " square for "+std::to_string(size())+" functions");
+        const std::vector<size_t> atom=ComponentSites(st, what);
+        const GaussianRF::TwoCentre kernel = K==SeriesKernel::Overlap ? GaussianRF::TwoCentre::Overlap : GaussianRF::TwoCentre::Grad2;
+        Gaussian::LatticeSum1E::GeometryPullback r{rvec3vec_t(st->GetNumAtoms(), rvec3_t(0,0,0)), rmat3d_t(0,0,0, 0,0,0, 0,0,0)};
+        double V[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+        std::vector<double> W;
+        for (const Shell& si : Shells())
+            for (const Shell& sj : Shells())
+            {
+                const size_t i0=si.begin, j0=sj.begin, ni=si.end-si.begin, nj=sj.end-sj.begin;
+                const size_t a=atom[i0], b=atom[j0];
+                const rvec3_t Ri=radials[i0]->GetCenter(), Rj=radials[j0]->GetCenter();
+                W.assign(ni*nj, 0.0);
+                ForSeriesImages(K, i0, j0, A, [&](const ivec3_t& n, const rvec3_t& Roff)
+                {
+                    const dcmplx ph=phase(n);
+                    for (size_t p=0;p<ni;p++)
+                        for (size_t q=0;q<nj;q++)
+                            W[p*nj+q]=std::real(std::conj(dcmplx(Abar(i0+p,j0+q)))*ph)*ns[i0+p]*ns[j0+q];
+                    const rvec3_t w=radials[i0]->KetGradient(kernel, *radials[j0], Rj+Roff, &pols[i0], ni, &pols[j0], nj, W.data());
+                    const rvec3_t d=Ri-Rj-Roff;
+                    r.gradient[a]-=w;
+                    r.gradient[b]+=w;
+                    const double ww[3]={w.x,w.y,w.z}, dd[3]={d.x,d.y,d.z};
+                    for (int u=0;u<3;u++) for (int v=0;v<3;v++) V[u][v]-=ww[u]*dd[v];
+                });
+            }
+        r.virial=rmat3d_t(V[0][0],V[0][1],V[0][2], V[1][0],V[1][1],V[1][2], V[2][0],V[2][1],V[2][2]);
+        return r;
+    }
 
     // ---- THE PER-KERNEL 1E SERIES SCREEN (lane B 2026-11-10; doc/Pins.md pin 1) ---------------------------------------------------------
     // Pin 1: the magnitude screen is the only truncation, and it must answer for the QUANTITY SUMMED.  ForImageOffsets screens on the pair
@@ -742,7 +807,7 @@ public:
     }
     //! The images of the ordered pair (i, j) the \a K series sums: centre separation within SeriesReach (the enumeration as
     //! ForImageOffsets: sphere centred at Roff = 0, keep test at d_ij, bound rr + |d_ij|).  The energy series and its pullback
-    //! (PG_Cart::Orbital_IBS::LatticePullback) walk this ONE list.
+    //! (LatticeOneElectronPullback, below) walk this ONE list.
     template <class F>
     void ForSeriesImages(SeriesKernel K, size_t i, size_t j, const UnitCell& A, F&& cb) const
     {
@@ -2955,17 +3020,8 @@ public:
         if (D.rows()!=nn)
             throw std::invalid_argument("IntegratePotentialPullback: D is "+std::to_string(D.rows())+" square for "+std::to_string(nn)+" functions");
         if (!st) throw std::invalid_argument("IntegratePotentialPullback: the pullback needs the structure (the atoms the functions sit on)");
-        std::vector<rvec3_t> R; st->ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
-        std::vector<size_t> atom(nn);
-        for (size_t i=0;i<nn;i++)
-        {
-            const rvec3_t c=radials[i]->GetCenter();
-            size_t best=R.size(); double d2=0.0;
-            for (size_t a=0;a<R.size();a++) { const rvec3_t d=R[a]-c; const double e=d*d; if (best==R.size() || e<d2) {best=a; d2=e;} }
-            if (best==R.size() || d2>1e-20)
-                throw std::logic_error("IntegratePotentialPullback: function "+std::to_string(i)+" sits on no site of the structure");
-            atom[i]=best;
-        }
+        const std::vector<size_t> atom=ComponentSites(st, "IntegratePotentialPullback");
+        size_t nSites=0; st->ForEachSite([&](int, const rvec3_t&, bool){ nSites++; });   // as ComponentSites counts them
         qchem::report::Timed timer("force: gather pullback (jet walk)");
         const std::vector<ShellPairTasks>& tl=BoxTasks(A);
         const std::vector<Shell>& shells=Shells();
@@ -3021,7 +3077,7 @@ public:
                 }
             }
         };
-        rvec3vec_t G(R.size(), rvec3_t(0,0,0));
+        rvec3vec_t G(nSites, rvec3_t(0,0,0));
 #ifdef QCHEM_OPENMP
         if (const int nthreads=PairThreads(); nthreads>1)
         {
@@ -3029,7 +3085,7 @@ public:
             std::exception_ptr firstEx;
             #pragma omp parallel num_threads(nthreads)
             {
-                rvec3vec_t Gt(R.size(), rvec3_t(0,0,0));
+                rvec3vec_t Gt(nSites, rvec3_t(0,0,0));
                 #pragma omp for schedule(dynamic)
                 for (size_t q=0;q<order.size();q++)
                 {
@@ -3041,7 +3097,7 @@ public:
                     }
                 }
                 #pragma omp critical (gpw_pullback_reduce)
-                for (size_t a=0;a<R.size();a++) G[a]+=Gt[a];
+                for (size_t a=0;a<nSites;a++) G[a]+=Gt[a];
             }
             if (firstEx) std::rethrow_exception(firstEx);
             return G;

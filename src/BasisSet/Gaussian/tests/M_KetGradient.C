@@ -1,0 +1,76 @@
+// File: BasisSet/Gaussian/tests/M_KetGradient.C  THE 2-CENTRE KERNELS' KET-CENTRE DERIVATIVE, Enzyme's (GaussianRF::KetGradient, lane B
+// 2026-11-13), against the central difference of the CACHED kernels it differentiates (GaussianRF::Overlap2C / Grad2 with the ket radial
+// placed at B ± h), per shell pair and weight set, on every Cartesian shell pair through d and on contracted radials.  This is the gate
+// at the kernel itself: the lattice pullback (M_LatticePullback) sums it over images and atoms, where a wrong per-image derivative can
+// cancel in a gradient and show only in the virial.
+#include "gtest/gtest.h"
+#include <cmath>
+#include <cstdio>
+#include <vector>
+
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;     // GaussianRF (a test may cheat: the kernel itself)
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
+import qchem.Types;
+import qchem.Blaze;
+
+using namespace qchem;
+using namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD;
+
+namespace {
+
+std::vector<Polarization> ShellComponents(int L)
+{
+    std::vector<Polarization> p;
+    for (int n=L;n>=0;n--) for (int l=L-n;l>=0;l--) p.push_back(Polarization(n,l,L-n-l));
+    return p;
+}
+
+//! f(B) = Σ_pq W_pq K(ra, pa[p]; rb@B, pb[q]) by the CACHED named kernels.
+double Value(GaussianRF::TwoCentre K, const GaussianRF& ra, const GaussianRF& rb, const rvec3_t& B,
+             const std::vector<Polarization>& pa, const std::vector<Polarization>& pb, const std::vector<double>& W)
+{
+    const GaussianRF rbB=rb.AtCenter(B);
+    double s=0.0;
+    for (size_t p=0;p<pa.size();p++)
+        for (size_t q=0;q<pb.size();q++)
+            s+=W[p*pb.size()+q]*(K==GaussianRF::TwoCentre::Overlap ? ra.Overlap2C(rbB,pa[p],pb[q]) : ra.Grad2(rbB,pa[p],pb[q]));
+    return s;
+}
+
+double Comp(const rvec3_t& v, int c) {return c==0 ? v.x : c==1 ? v.y : v.z;}
+
+} // namespace
+
+TEST(KetGradient, IsTheFiniteDifferenceOfTheCachedKernelForEveryShellPairThroughD)
+{
+    const rvec3_t A(0.13,-0.21,0.34);
+    double worst=0.0;
+    // A generic ket centre, and two where values vanish BY SYMMETRY (on an axis through the bra, and on a coordinate plane through it):
+    // a kernel that branches on a zero value has a zero derivative there that is not zero (the 2026-11-13 lattice-virial failure).
+    for (const rvec3_t& B0 : {rvec3_t(1.07,0.52,-0.61), rvec3_t(A.x+1.3,A.y,A.z), rvec3_t(A.x+0.9,A.y-0.8,A.z)})
+    for (int contracted=0;contracted<2;contracted++)
+        for (int La=0;La<=2;La++)
+            for (int Lb=0;Lb<=2;Lb++)
+            {
+                const GaussianRF ra = contracted ? GaussianRF(rvec_t{0.6,0.4}, rvec_t{1.9,0.45}, A, La) : GaussianRF(0.83, A, La);
+                const GaussianRF rb = contracted ? GaussianRF(rvec_t{0.3,0.7}, rvec_t{2.6,0.38}, B0, Lb) : GaussianRF(0.57, B0, Lb);
+                const std::vector<Polarization> pa=ShellComponents(La), pb=ShellComponents(Lb);
+                std::vector<double> W(pa.size()*pb.size());
+                for (size_t k=0;k<W.size();k++) W[k]=std::sin(1.3*double(k)+0.7*La+0.3*Lb+contracted);   // dense, signed, no zeros
+                for (auto K : {GaussianRF::TwoCentre::Overlap, GaussianRF::TwoCentre::Grad2})
+                {
+                    const rvec3_t g=ra.KetGradient(K, rb, B0, pa.data(), pa.size(), pb.data(), pb.size(), W.data());
+                    for (int c=0;c<3;c++)
+                    {
+                        const double h=1e-4;
+                        auto at=[&](double s){ rvec3_t B=B0; (c==0 ? B.x : c==1 ? B.y : B.z)+=s; return Value(K,ra,rb,B,pa,pb,W); };
+                        const double fd=(4.0*(at(0.5*h)-at(-0.5*h))/h - (at(h)-at(-h))/(2*h))/3.0;   // Richardson on the central difference
+                        const double an=Comp(g,c), err=std::fabs(an-fd), tol=1e-8*std::max(1.0,std::fabs(fd));
+                        worst=std::max(worst,err);
+                        EXPECT_LT(err, tol) << (K==GaussianRF::TwoCentre::Overlap ? "S" : "T") << " La=" << La << " Lb=" << Lb
+                                            << " contracted=" << contracted << " B-A=(" << B0.x-A.x << "," << B0.y-A.y << "," << B0.z-A.z << ") axis " << c << ": AD " << an << " FD " << fd;
+                    }
+                }
+            }
+    std::printf("  [ket gradient] worst |AD - FD| over S and <p^2>, La,Lb <= 2, contracted and not, generic and on-axis/on-plane ket: %.2e\n", worst);
+}

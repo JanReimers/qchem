@@ -1,14 +1,14 @@
 // File: BasisSet/Gaussian/tests/M_LatticePullback.C  THE LATTICE-SUM 1E PULLBACKS AND VIRIALS (GeometryOptimizationPlan §13.2;
-// doc/Records/CellHalf_Design.md §5; lane B 2026-11-10): LatticeSum1E::MakeLatticeOverlapPullback / MakeLatticeKineticPullback, libcint's
-// ip integrals per shell pair and image over the energy series' own image list, against the central finite difference of what they
-// differentiate, E = Re Tr(Ā† M) with M = MakeOverlap(phase,A) or MakeKinetic(phase,A) at a FIXED adjoint Ā and fixed fractional k:
+// doc/Records/CellHalf_Design.md §5; lane B 2026-11-10): LatticeSum1E::MakeLatticeOverlapPullback / MakeLatticeKineticPullback, Enzyme's
+// reverse mode over the MnD kernel per shell pair and image (since 2026-11-13; libcint's ip integrals before) over the energy series' own
+// image list, against the central finite difference of what they differentiate, E = Re Tr(Ā† M) with M = MakeOverlap(phase,A) or MakeKinetic(phase,A) at a FIXED adjoint Ā and fixed fractional k:
 //   - the GRADIENT: each atom moved along each axis, the basis rebuilt;
 //   - the VIRIAL: the homogeneous strain A -> (1+ε)A with the fractional positions held (so every atom AND image rides it), all nine
 //     components.  At fixed Ā the virial is NOT symmetric (a rotation turns the centres but not a p shell's axes), so all nine are gated;
 //     a rotation costing nothing is a property of the converged total energy, gated where the stress is summed, not here.
-//   - ATTRIBUTION (controller condition, 2026-11-10): the energy is MnD's lattice sum and the force is libcint's, two integral codes, so
-//     libcint's VALUE integral is gated against MnD's image by image (an indicator phase makes MakeOverlap return one image's matrix);
-//     a force/energy mismatch then points at the code that is wrong.
+//   - ATTRIBUTION (controller condition, 2026-11-10): libcint's VALUE integral is gated against MnD's image by image (an indicator phase
+//     makes MakeOverlap return one image's matrix).  Since 2026-11-13 the force differentiates MnD's own kernel, so this is now an ORACLE
+//     check on the energy engine; the kernel's own derivative is gated in M_KetGradient.
 //   - TRANSLATION: Σ_A g_A = 0 to roundoff (the image list moves with the atoms, so nothing changes under a rigid shift).
 // The same three fixtures as M_CollocationPullback: uncontracted Cartesian (Si SIPP_SR), CONTRACTED shells (H3 dzvp), and d shells through
 // the SPHERICAL lattice view (MnO), each at a NON-TRIM k (complex phases: a sign or conjugation slip cannot hide).

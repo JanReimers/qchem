@@ -19,6 +19,7 @@ import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Hermite;   // Hermite1/2/3
 import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD;                   // RNLM (Ω self-auxiliary)
 import qchem.BasisSet.Internal.Cache2;                                    // Cacheable2 (Ω is cached)
+import qchem.CMath;                                                        // Pi (the 2-centre kernels below)
 
 import qchem.ScalarFunction;
 import qchem.Streamable;
@@ -58,7 +59,7 @@ struct GaussProduct
     double  Eij;           //!< \f$e^{-\frac{ab}p|AB|^2}\f$
     rvec3_t PA, PB;        //!< \f$P-A\f$ and \f$P-B\f$ -- the Hermite / binomial shifts
 
-    GaussProduct(double aExp, const rvec3_t& A, double bExp, const rvec3_t& B)
+    inline GaussProduct(double aExp, const rvec3_t& A, double bExp, const rvec3_t& B)   // inline: an Enzyme leaf (KetGradient)
         : a(aExp), b(bExp), ab(a*b), p(a+b)
         , AB(A-B), P((a*A + b*B)/p), Eij(std::exp(-ab/p*(AB*AB)))
         , PA(P-A), PB(P-B) {}
@@ -177,6 +178,59 @@ private:
     mutable RNLM* itsSelfRNLM=nullptr;  // lazily built by SelfRNLM()
 };
 
+
+//! \brief THE 2-CENTRE OVERLAP AND \f$\langle p^2\rangle\f$ OF ONE PRIMITIVE PAIR, from its Gaussian product (exponent sum \a p, prefactor
+//! \a Eij) and its Hermite block \a H2: ONE definition each.  Two paths call them: the cached one (\c PrimGaussian::Overlap2C / \c Grad2 on
+//! the Ω of the global cache) and the cache-free one Enzyme differentiates (\c GaussianRF::KetGradient, which builds the product and the
+//! block per primitive pair, so the derivative sees every geometry dependence).  INLINE, so the AD unit sees the bodies.
+inline double PairOverlap(double p, double Eij, const Hermite2& H2, const Polarization& pa, const Polarization& pb)
+{
+    return std::pow(Pi/p,1.5)*Eij*H2(Polarization(0,0,0),pa,pb);
+}
+//  Symmetric "gradient-dot-gradient" form of the kinetic-energy building block for a pair of
+//  Cartesian Gaussians \f$\phi_a,\phi_b\f$.  The (non-relativistic) kinetic-energy operator is
+//  \f$\hat T = -\tfrac12\nabla^2\f$, so the matrix element ultimately wanted is
+//  \f[ T_{ab} = -\tfrac12\,\langle\phi_a|\nabla^2|\phi_b\rangle . \f]
+//  Integrating by parts (the surface term vanishes for localized Gaussians) gives the symmetric,
+//  manifestly positive-definite form returned here:
+//  \f[ \texttt{Grad2}_{ab} \;=\; \langle\phi_a|-\nabla^2|\phi_b\rangle
+//        \;=\; \int \nabla\phi_a\cdot\nabla\phi_b \, d^3r . \f]
+//  So \b Grad2 is the matrix of \f$-\nabla^2\f$ (NOT \f$+\nabla^2\f$) -- the name reads as
+//  \f$\nabla\!\cdot\!\nabla\f$, which is why it is positive.  The factor \f$\tfrac12\f$ is applied
+//  later, at the boundary where the word "Kinetic" is introduced: \f$T = \tfrac12\,\texttt{Grad2}\f$.
+//
+//  Per Cartesian axis (x shown; y,z analogous) with \f$l_a=\f$ p1.n, \f$l_b=\f$ p2.n,
+//  \f$\alpha=\f$ a, \f$\beta=\f$ b, and \f$S(\cdot,\cdot)=\f$ H2(0,\f$\cdot,\cdot\f$) the
+//  overlap building block:
+//  \f[ t_{xx} = l_a l_b\,S(l_a\!-\!1,l_b\!-\!1) - 2\beta l_a\,S(l_a\!-\!1,l_b\!+\!1)
+//             - 2\alpha l_b\,S(l_a\!+\!1,l_b\!-\!1) + 4\alpha\beta\,S(l_a\!+\!1,l_b\!+\!1) , \f]
+//  and \f$\texttt{Grad2}=t_{xx}+t_{yy}+t_{zz}\f$.  \a ab = a*b, passed as the caller holds it.
+inline double PairGrad2(double p, double Eij, double a, double b, double ab, const Hermite2& H2, const Polarization& P1, const Polarization& P2)
+{
+    const Polarization p0(0,0,0), x(1,0,0), y(0,1,0), z(0,0,1);
+
+    double txx =   P1.n * P2.n * H2(p0,P1-x,P2-x)
+                 - 2*P1.n * b * H2(p0,P1-x,P2+x)
+                 - 2*P2.n * a * H2(p0,P1+x,P2-x)
+                 + 4*ab        * H2(p0,P1+x,P2+x);
+
+    double tyy =   P1.l * P2.l * H2(p0,P1-y,P2-y)
+                 - 2*P1.l * b * H2(p0,P1-y,P2+y)
+                 - 2*P2.l * a * H2(p0,P1+y,P2-y)
+                 + 4*ab        * H2(p0,P1+y,P2+y);
+
+    double tzz =   P1.m * P2.m * H2(p0,P1-z,P2-z)
+                 - 2*P1.m * b * H2(p0,P1-z,P2+z)
+                 - 2*P2.m * a * H2(p0,P1+z,P2-z)
+                 + 4*ab        * H2(p0,P1+z,P2+z);
+
+    // NO "h != 0 ? ... : 0" here (the cached kernel had one): the derivative of a branch is the branch's, so where the value vanishes by
+    // symmetry (an image on an axis through the bra) AD read a zero derivative that is not zero -- the 2026-11-13 lattice-virial failure.
+    // The prefactor is finite, so the product is the same 0 there.
+    const double h = txx+tyy+tzz;
+    return std::pow(Pi/p,1.5)*Eij*h;
+}
+
 // Global Cache2/Cache3 access points (the only way the kernels reach Ω / the auxiliaries).
 const Ω&        findΩ   (const GData& a, const GData& b);                          // primitive pair
 const RNLM&     findRNLM(const GData& ab, const GData& c);                         // 3/4-centre RNLM
@@ -270,6 +324,15 @@ public:
     double Overlap2C  (rf_t& rb, po_t& pa, po_t& pb                ) const;
     double Repulsion2C(rf_t& rb, po_t& pa, po_t& pb                ) const;
     double Grad2      (rf_t& rb, po_t& pa, po_t& pb                ) const;   // <p^2> block, no 1/2
+    //! The two 2-centre kernels \c KetGradient differentiates.
+    enum class TwoCentre {Overlap, Grad2};
+    //! \brief The derivative w.r.t. the KET CENTRE \a B of a weighted shell-pair block of the 2-centre kernel \a K:
+    //! \f$\partial_B \sum_{p<n_a,\,q<n_b} W_{pq}\,K(\text{this}, p_a[p];\ rb@B, p_b[q])\f$, \a W row-major \a na x \a nb, the bra at this
+    //! radial's centre and the ket on \a rb's primitives placed at \a B (rb's own centre is not read).  Enzyme's reverse mode over the
+    //! cache-free kernel (Imp/GaussianRF_AD.C): one pass per shell pair and weight set, which is what a pullback contracts.
+    //! CLIENT: the MnD lattice S / T geometry pullback (PG_Cart_MnD NR_Evaluator::LatticeOneElectronPullback).
+    rvec3_t KetGradient(TwoCentre K, rf_t& rb, const rvec3_t& B, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                        const double* W) const;
     double Nuclear    (rf_t& rb, po_t& pa, po_t& pb, const Structure* cl) const;
     double Overlap3C  (rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
     double Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C

@@ -385,22 +385,6 @@ template <class Imp, class Fn> void ShellPairImage(const Imp& m, size_t si, size
     fn(buf.data(), nullptr, shls, atm.data(), 2, bas.data(), 2, env.data(), nullptr, nullptr);
 }
 } // namespace
-std::array<rmat_t,3> NR_Evaluator::ShellPairImageGradient(int which, size_t si, size_t sj, const rvec3_t& R) const
-{
-    const Imp& m=*itsImp;
-    if (m.spherical) throw std::logic_error("PG_LibCint::ShellPairImageGradient: the lattice gradients are Cartesian-only");
-    if (which!=0 && which!=1) throw std::invalid_argument("PG_LibCint::ShellPairImageGradient: which is 0 (overlap) or 1 (kinetic), not "+std::to_string(which));
-    if (si>=m.shells.size() || sj>=m.shells.size()) throw std::out_of_range("PG_LibCint::ShellPairImageGradient: a shell index is past the table");
-    std::vector<double> buf; int di=0, dj=0;
-    ShellPairImage(m, si, sj, R, which==0 ? int1e_ipovlp_cart : int1e_ipkin_cart, 3, buf, di, dj);
-    const double pre = which==1 ? 2.0 : 1.0;   // <-nabla^2> = 2 x libcint's T
-    const auto& P=m.shells[si].lc2pg; const auto& Q=m.shells[sj].lc2pg;
-    std::array<rmat_t,3> X; for (auto& x : X) x=rmat_t(di, dj);
-    for (int c=0;c<3;++c)
-        for (int p=0;p<di;++p) for (int q=0;q<dj;++q)
-            X[c](p,q) = pre * buf[p+di*(q+dj*c)] * m.scale[P[p]]*m.scale[Q[q]];
-    return X;
-}
 rmat_t NR_Evaluator::ShellPairImageValue(int which, size_t si, size_t sj, const rvec3_t& R) const
 {
     const Imp& m=*itsImp;
