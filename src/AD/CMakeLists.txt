@@ -15,13 +15,10 @@ set_property(TARGET qcAD PROPERTY CXX_STANDARD 20)
 target_compile_definitions(qcAD PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_include_directories(qcAD PRIVATE ${QCHEM_BLAZE_DIR})
 target_link_libraries(qcAD PUBLIC qcMath qcCommon)
-# PRIVATE: the plugin changes only how qcAD's own TUs compile; its interface (and so every importer's .pcm) does not see it.
-# -O2 -mprefer-vector-width=128 (after the tree's -O3, so they win): Enzyme 1a87ccc on LLVM 21.1.6 SEGFAULTED at -O2 -march=native
-# (256-bit vectors, AVX2; EnzymeAD/Enzyme#3748, open at the pin) on the spike's blocked kernel, and its loop-cache defect gave a silently
-# wrong dE/dD at -O3 there (fixed by v0.0.308; #3747 is a second such shape, open).  -march itself must stay (a .pcm and its importers
-# agree on target features).  Repros and the record: doc/Records/EnzymeSpike.md.  No flag set makes Enzyme safe: every AD gradient is
-# gated by a finite-difference test.
-target_compile_options(qcAD PRIVATE "-fplugin=${QCHEM_ENZYME_PLUGIN}" -O2 -mprefer-vector-width=128)
-target_include_directories(qcAD PRIVATE "${QCHEM_ENZYME_INCLUDE}")
+# The plugin rides every qcAD TU, per file (qchem_enzyme_sources, root CMakeLists.txt: the plugin and its headers at the tree's codegen
+# flags, and the plugin .so as an OBJECT_DEPENDS so a rebuilt plugin recompiles them).  The spike's per-target -O2
+# -mprefer-vector-width=128 dodged EnzymeAD/Enzyme#3747 and #3748, both fixed at the pin cdd0d1c2 (2026-11-13).  Repros and the record:
+# doc/Records/EnzymeSpike.md.  No flag set makes Enzyme safe: every AD gradient is gated by a finite-difference test.
+qchem_enzyme_sources(qcAD Imp/XCKernel.C AD.C XCKernel.C)
 
 add_subdirectory(tests)

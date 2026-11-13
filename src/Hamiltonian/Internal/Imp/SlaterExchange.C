@@ -2,8 +2,8 @@
 //
 // The functional is written once, as eps_x(rho); the potential d(rho eps_x)/d rho is Enzyme's reverse mode and the kernel
 // forward mode over that (the OpenWork "Enzyme REQUIRED" row, family 2, 2026-11-09).  This unit carries the plugin
-// (qchem_enzyme_sources in ../../CMakeLists.txt).  The FD gates stay while EnzymeAD/Enzyme#3747 is open (tests/LDA_XC.C);
-// its trigger (a loop-local array filled through an inner loop) is absent from this straight-line code.
+// (qchem_enzyme_sources in ../../CMakeLists.txt).  The FD gates stay, as for every Enzyme derivative (tests/LDA_XC.C);
+// EnzymeAD/Enzyme#3747's trigger (a loop-local array filled through an inner loop) is absent from this straight-line code.
 module;
 #include <cmath>
 #include <iostream>
