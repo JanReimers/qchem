@@ -26,6 +26,7 @@ module qchem.Deck;
 import qchem.BasisSet.Lattice.BasisSet;    // CellImages, GPWTolerances
 import qchem.Hamiltonian.Factory;           // VxcFit, HubbardManifold
 import qchem.SCFAccelerator.Factory;        // SCFAccelerators::Type
+import qchem.SCFRecipe;                     // SCFRecipe, AdmitRecipe, FillRecipeKnobs: `scf.recipe` and its admission at --check
 import qchem.SCFParams;                     // ResolveMixing: the mixer's admission, run at resolve so --check refuses it too
 import qchem.ChargeDensity.Seed;            // SeedStrategy
 import qchem.LASolver;                      // qchem::Ortho
@@ -128,6 +129,8 @@ const auto kVxc    = NAMES(Hamiltonian::VxcFit, {"Auto",Hamiltonian::VxcFit::Aut
 const auto kRho    = NAMES(Hamiltonian::XCρ, {"exact",Hamiltonian::XCρ::Exact}, {"fit",Hamiltonian::XCρ::Fit});
 const auto kAcc    = NAMES(AccType, {"DIIS",AccType::DIIS}, {"GDM",AccType::GDM}, {"Ladder",AccType::Ladder}, {"Null",AccType::Null},
                          {"Auto",AccType::Auto});
+const auto kRecipe = NAMES(SCFRecipe, {"Auto",SCFRecipe::Auto}, {"Insulator",SCFRecipe::Insulator},
+                         {"MagneticInsulator",SCFRecipe::MagneticInsulator}, {"Metal",SCFRecipe::Metal});
 const auto kSignal = NAMES(SCFAccelerators::ScheduleSignal, {"Error",SCFAccelerators::ScheduleSignal::Error}, {"EnergyChange",SCFAccelerators::ScheduleSignal::EnergyChange});
 const auto kSeed   = NAMES(SeedStrategy, {"Default",SeedStrategy::Default}, {"CoreGuess",SeedStrategy::CoreGuess}, {"Uniform",SeedStrategy::Uniform},
                                          {"SAD",SeedStrategy::SAD}, {"IonicSAD",SeedStrategy::IonicSAD});
@@ -240,8 +243,21 @@ void FromJson(const json& j, SCFParams& p)
         g.Get("holePersistence",p.Guard.HolePersistence); g.Get("maxReleases",p.Guard.MaxReleases); g.Done();
     }
     else f.At("momGuard");
+    f.At("recipe");   // `scf.recipe`, the stage's material regime: not an SCFParams knob -- the RunSpec reader reads it beside them (RecipeOf)
     f.Done();
 }
+//! A stage's `scf.recipe` (qchem.SCFRecipe; doc/SCFRobustnessPlan.md R4.1 as ruled for B5): Auto when absent, so every older deck reads as
+//! it did (decks stay backward compatible, user convention 2026-11-12).  An unknown name throws, listing the legal ones.
+static SCFRecipe RecipeOf(const json& scf, const std::string& path)
+{
+    SCFRecipe r=SCFRecipe::Auto;
+    if (!scf.contains("recipe")) return r;
+    const json one{{"recipe",scf.at("recipe")}};
+    Fields rf(one,path); rf.GetEnum("recipe",r,kRecipe); rf.Done();
+    return r;
+}
+//! A stage's `scf` block as the record writes it: the knobs and the recipe.
+static json StageScfJson(const SCFParams& p, SCFRecipe r) {json j=ToJson(p); j["recipe"]=NameOf(r,kRecipe); return j;}
 
 //=== SolidAcceleratorOptions ===================================================================================================
 static json DiisJson(const SCFAccelerators::DIISParams& d)
@@ -719,11 +735,11 @@ json ToJson(const RunSpec& r)
     }
     if (!r.postSCF.empty()) { json a=json::array(); for (const auto& x : r.postSCF) a.push_back(PostJson(x)); j["postSCF"]=a; }
     if (r.threads!=ThreadCounts{}) j["threads"]={{"openmp",r.threads.openmp},{"blas",r.threads.blas}};   // stated only: absent = the process's
-    if (r.schedule.empty()) j["scf"]=ToJson(r.scf);                      // one stage: the record says it once
+    if (r.schedule.empty()) j["scf"]=StageScfJson(r.scf,r.scfRecipe);    // one stage: the record says it once
     else
     {
         json st=json::array();
-        for (const auto& s : r.schedule) st.push_back({{"accelerator",NameOf(s.accelerator,kAcc)},{"scf",ToJson(s.scf)}});
+        for (const auto& s : r.schedule) st.push_back({{"accelerator",NameOf(s.accelerator,kAcc)},{"scf",StageScfJson(s.scf,s.recipe)}});
         j["schedule"]=st;
     }
     return j;
@@ -803,7 +819,7 @@ void FromJson(const json& j, RunSpec& r)
     else f.At("postSCF");
     if (j.contains("scf") && j.contains("schedule"))
         throw std::runtime_error("deck: give 'scf' (one stage) OR 'schedule' (an annealed recipe), not both -- which would run?");
-    if (j.contains("scf")) FromJson(f.At("scf"),r.scf); else f.At("scf");
+    if (j.contains("scf")) { FromJson(f.At("scf"),r.scf); r.scfRecipe=RecipeOf(j.at("scf"),"scf"); } else f.At("scf");
     if (j.contains("schedule"))
     {
         r.schedule.clear(); size_t i=0;
@@ -812,7 +828,7 @@ void FromJson(const json& j, RunSpec& r)
             const std::string path="schedule."+std::to_string(i++);
             Fields sf(st,path); RunSpec::Stage stage;
             sf.GetEnum("accelerator",stage.accelerator,kAcc);
-            if (st.contains("scf")) FromJson(sf.At("scf"),stage.scf); else sf.At("scf");
+            if (st.contains("scf")) { FromJson(sf.At("scf"),stage.scf); stage.recipe=RecipeOf(st.at("scf"),path+".scf"); } else sf.At("scf");
             sf.Done();
             r.schedule.push_back(stage);
         }
@@ -992,10 +1008,14 @@ Materials::Material Resolve(RunSpec& spec)
         for (size_t i=0; i<stages.size(); ++i)
         {
             const bool fock = stages[i].accelerator==A::DIIS || stages[i].accelerator==A::Ladder;
-            try { (void)qchem::ResolveMixing(stages[i].scf, /*gSpace*/true, fock); }
+            const std::string where = spec.schedule.empty() ? std::string("scf") : "schedule."+std::to_string(i)+".scf";
+            // THE RECIPE'S ADMISSION (qchem.SCFRecipe): MagneticInsulator / Metal refuse kT = 0.  Then the mixer as the recipe fills it.
+            try { AdmitRecipe(stages[i].recipe, stages[i].scf.SmearingkT, /*molecule*/false); }
+            catch (const std::invalid_argument& e) { throw std::runtime_error("deck: "+where+".recipe -- "+e.what()); }
+            const SCFStageKind kind = i==0 ? SCFStageKind::Cold : SCFStageKind::Carried;
+            try { (void)qchem::ResolveMixing(FillRecipeKnobs(stages[i].recipe, kind, stages[i].scf).params, /*gSpace*/true, fock); }
             catch (const std::invalid_argument& e)
             {
-                const std::string where = spec.schedule.empty() ? std::string("scf") : "schedule."+std::to_string(i)+".scf";
                 throw std::runtime_error("deck: "+where+".mixer -- "+e.what());
             }
         }
@@ -1163,7 +1183,7 @@ static DisplaceResult Displace(const RunSpec& specIn, const std::vector<RunSpec:
     spec.solid.orbitalBasis=spec.basis.family; spec.solid.planeWaveEcut=spec.basis.ecut;
     spec.solid.saveStateTo.clear();
     std::vector<SCFStage> stages;
-    for (const auto& st : spec.Stages()) stages.push_back({st.scf,st.accelerator});   // the whole recipe: the session seeds, it never restarts
+    for (const auto& st : spec.Stages()) stages.push_back({st.scf,st.accelerator,st.recipe});   // the whole recipe: the session seeds, it never restarts
     SolidSession S(SetupOf(spec, mat, stages), stages);
     const PESGeometry ref=S.Reference();
     DisplaceResult out;
@@ -1444,7 +1464,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
 std::vector<SCFStage> ScheduleToRun(const RunSpec& spec)
 {
     std::vector<SCFStage> stages;
-    for (const auto& s : spec.Stages()) stages.push_back({s.scf,s.accelerator});
+    for (const auto& s : spec.Stages()) stages.push_back({s.scf,s.accelerator,s.recipe});
     if (!spec.state.restartFrom.empty()) stages={stages.back()};   // a restart is ONE stage: the schedule's final one
     return stages;
 }
@@ -1455,7 +1475,7 @@ std::vector<SCFStage> ScheduleToRun(const RunSpec& spec)
 static std::shared_ptr<const SolidSetup> SetupOf(const RunSpec& spec, const Materials::Material& mat, const std::vector<SCFStage>& stages)
 {
     Lattice_3D lat(*mat.cell, spec.kmesh);
-    SolidCalcOptions so=spec.solid; so.accelerator=stages.front().accelerator;
+    SolidCalcOptions so=spec.solid; so.accelerator=stages.front().accelerator; so.recipe=stages.front().recipe;
     return SolidSetup::Resolve(lat, RecipeOf(spec.basis), so, spec.accel);
 }
 

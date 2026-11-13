@@ -28,6 +28,7 @@ import qchem.WaveFunction;                           // WaveFunction (GetChargeD
 import qchem.Orbitals;                               // Orbital, Orbitals
 import qchem.Reporting;                              // report:: run sink + the scf-section writer
 import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
+import qchem.SCFRecipe;                              // ReportRecipe: the recipe policy's row
 import qchem.DegenerateFillReport;                   // the `choose` row for a kT = 0 fill that shared a degenerate level
 import qchem.BasisSet.Orbital_1E_IBS;                // Real_OIBS -- the per-irrep blocks a carry is re-homed onto
 import qchem.CompositeCD;                            // tComposite_CD (the carried density's shape)
@@ -235,6 +236,11 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
                               .fallback  = DescribeDeclinedFallback(ResolveMixing(asked, /*gSpace*/false))});
     {   // the "what recipe am I running" header; eps is consumed by the XC mesh wherever there is one (pin 31)
         rpt::Section scf("scf"); ReportSCFRecipe(params, itsSetup->acc.type);
+        // THE RECIPE POLICY'S REPORT (qchem.SCFRecipe): a molecule's Auto / Insulator is its own column -- the stated accelerator (DIIS by
+        // default) beside linear D-mixing (no G space), as before B5.
+        const SCFStageKind kind = !itsRestartedFrom ? SCFStageKind::Cold : itsRestartedFrom->exact ? SCFStageKind::Restored : SCFStageKind::Carried;
+        ReportRecipe("molecule", itsSetup->acc.recipe, kind, itsSetup->accelerator, itsSetup->accelerator, ResolveMixing(params, /*gSpace*/false),
+                     {}, "acc.type (default DIIS)", "the molecular column: acc.type + linear D-mixing");
         ReportAccuracy(itsSetup->opts.accuracy, !HasXCMesh()           ? std::string(kNoAccuracyConsumerYet)
                                               : itsSetup->meshResolved ? std::string("the Becke XC mesh (sized by an earlier pilot)")
                                               : itsSetup->meshStated   ? std::string("the Becke XC mesh (stated: audited, never raised)")

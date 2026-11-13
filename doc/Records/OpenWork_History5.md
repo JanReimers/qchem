@@ -2637,3 +2637,18 @@ is that solver's own drop count at the floor).  `SolidCalcOptions::SolverTruncat
 the LASolver factory's std::cerr lines (Cholesky, Auto) are removed; the run report files `basis.orthoTol` {value, solverTruncates}.
 The deck key and its meaning are unchanged.  Gate `Deck.OrthoTolIsTheTrimFloorAndReachesTheSolverOnlyWhenItTruncates`.
 
+## ✅ SCF panel iteration budgets predate the raster pilot (C2 step 3): the pilot's re-convergence is now counted apart (lane A, 2026-11-12, 17ef37e6e)
+
+The row (verbatim, from `doc/OpenWork.md`): `GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` ran over its budget of 49
+(55 on main-fd643121, 59 on main-c153c0fb) since the energy-consumer raster pilot landed: the SCF converges, then the pilot finds
+Hartree under-resolved and re-converges.  A budget gates the SCF RECIPE, not the raster audit.
+
+Fix: `qchem::AuditSCF` (`src/Common/SCFCap.C`) scopes the pilot's re-converge in `SolidCalculation`.  Its iterations go to
+`IterationBudget::Audit()`, printed beside the budgeted count and not gated.  `SetupSCF` (atomic seed solves) stays hidden from
+budgets entirely.  Pinned by `SCFCap.ABudgetCountsTheRunsIterationsAndPrintsAnAuditsApart` (UTCommon).
+
+Panel (4 threads, `lane-a-tio2budget_panel4t.log`, the new panel baseline): TiO2 reads `38 SCF iterations (budget 49) + 17 audit
+re-convergence iterations (not budgeted)` (38 + 17 = main-fd643121's 55), and TiO2 left `QCHEM_PANEL_RED`.  The other cases that run the
+pilot now show their audit too: β-MnO2 dense-d 25 (59) + 22, MnO AFM-II imposed 14 (18) + 4, MnO AFM-II free 15 (19) + 4.  Sweep: short
+1597/0, long 15/0, panel4t 25/0, RelChecked built; `anchordiff` 0 moved (energy and summed iterations) vs main-2eb32dee short/long and
+main-fd643121_panel4t.

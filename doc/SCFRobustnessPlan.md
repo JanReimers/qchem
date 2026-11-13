@@ -218,6 +218,55 @@ nobody), naming the object that broke it and the iteration.
 - **R4.3 Every recipe change is judged on the whole panel (§4) before it lands**: iteration counts AND fixed points
   (`scripts/anchordiff` on the panel's log against the last panel baseline).
 
+- **R4.1 AS RULED FOR B5** (lane A design 2026-11-12; user rulings 2026-11-12 via the controller: "Approve, build it", and (a), (b),
+  (c) below, each the recommended option).
+  - **A recipe names the MATERIAL REGIME only**: `Insulator` (§3 row 1), `MagneticInsulator` (row 2), `Metal` (row 3), or `Auto`.
+    **(a)** `Restart` / `CarriedStage` are DROPPED as names.  The STAGE KIND (cold / carried / restored) is not the user's to
+    state: the facade knows it, and every regime has its carried and restored variant (rows 5, 4).  A recipe resolves through
+    (regime) × (stage kind):
+
+    | regime \ stage | COLD (seeded) | CARRIED (anneal, U loop, ±α, geometry step) | RESTORED (same Hamiltonian) |
+    |---|---|---|---|
+    | `Insulator` | Null + Pulay-D (α 0.45, depth 8, start 5) | Null + Pulay-D, fresh history | kT 0: Ladder@GDM + linear ≤ 0.3; kT > 0 or a partial eigensolve: DIIS + linear ≤ 0.3 |
+    | `MagneticInsulator` | Null + K+P (G0 1.0, α 0.45, depth 8, start 5), no MOM | Null + K+P, fresh history | DIIS + linear ≤ 0.3 |
+    | `Metal` | Null + K+P (G0 1.0 PROVISIONAL until Q4's Al measurement, α 0.45, depth 8, start 5) | Null + K+P, fresh history | DIIS + linear ≤ 0.3 |
+
+  - The stop gate (`MinΔρPerElectron` + `MinFD`, R4.2) and the cap (`NMaxIter`) are not touched by B5.
+  - `MagneticInsulator` is exactly the banked MnO free recipe (`decks/MnO_AFM2_free.json`).
+  - **No recipe sets kT** (smearing is a model choice).  **(b)** A STATED `MagneticInsulator` or `Metal` REFUSES kT = 0 with a reason
+    (no integer aufbau at a degenerate d frontier, J5 / F4; state kT ≥ the frontier splitting, pin 15a).  That is row 2′'s refusal
+    in B5.  `Auto` keeps today's behaviour until the C1-DEG detector can see the frontier.
+  - **`Auto` in B5 = today's policy, named and printed**: it resolves every regime to the `Insulator` column, which is exactly
+    `MakeAccelerator` + `ResolveMixing` before B5, so no anchor moves.  Later steps, each landing with its own list of moved tests:
+    - `Auto` → `Metal`, after Q4's Al (+ SrVO₃) measurement;
+    - `Auto` → `MagneticInsulator`, after the C1-DEG detector;
+    - row 2′ under `Auto`, once that detector can see it.
+  - **Stated knobs beside a recipe are DEVIATIONS**: they win, and they print.  A deck with knobs and no recipe = `Auto` + deviations.
+    Every existing deck key (`solid.accelerator`, the mixer knobs) keeps reading with its meaning (user convention 2026-11-12: decks
+    and the materials database stay backward compatible; `scf.recipe` is additive).
+  - **Deck key** `scf.recipe` (per stage, beside the stage's `accelerator`).  `deck::Vet` refuses an unknown name and a regime that
+    refuses kT = 0.  The `.rNNN.json` record writes it back.
+  - **(c) The molecule facade** accepts `Auto` | `Insulator` only: its `Auto` is DIIS + linear, as before, now printed.
+    `MagneticInsulator` / `Metal` are refused there (no G-space Kerker).
+  - **Print**: one `[policy] SCFRecipe: <recipe> -> <regime>, <STAGE> stage (§3 row N): <resolved>; why: …` line per stage, plus its
+    json through `policy::Report`, with the deviations listed.  The `[… scf] mixer:` banner stays: it says what was BUILT, the
+    policy line says WHY.
+  - **Code**: `qchem.SCFRecipe` in `src/Calculation` (the policy layer), shared by both facades.  `MakeAccelerator`'s inline Auto
+    branch and `Converge`'s "restored: linear step ≤ 0.3" move into it.  `qchem::ResolveMixing` stays in `SCFIterator` as the
+    mixer's ADMISSION (R1.1, knob checks); its `Auto` branch serves only code that drives an iterator directly.
+  - **Gates**: a resolution table built from the pre-B5 code (every stage kind × kT × numBands × stated-knob combination resolves
+    as before); the short + long + panel4t sweep with `anchordiff` 0 moved; RelChecked.  Any cell where the pre-B5 code is not §3
+    row 1 / 4 / 5 is STOPPED and reported, never fixed inside B5.
+  - The CLAUDE.md recipe paragraphs (restarts; MnO / TMO Kerker+Pulay) become pointers to this table.  That is the user's edit:
+    lane A drafts the text in its READY.
+  - **BUILT 2026-11-12 (lane A, 6634e90c8)**: `src/Calculation/SCFRecipe.C`; gates `UTCalculation` `SCFRecipe.*` (the old-vs-new
+    table over the product space, the named regimes' cells, deviations, the refusals, the deck key); sweep short 1603 / long 15 /
+    panel4t 25 green, `anchordiff` 0 moved, RelChecked built.  Two things the print shows: the raster pilot's restored stage is a
+    STATED Ladder with no 0.3 cap (measured, printed "stated by the raster pilot"); `decks/MnO_AFM2_free.json` states
+    `MagneticInsulator` but KEEPS its knobs, because its pilot restore runs on the stated Null + K+P, not this table's restored
+    column (DIIS + linear) -- whether a named field-mixer regime should restore on its field mixer (row 4's "Pulay from iteration 1")
+    is open, Q-R in lane A's READY.
+
 ### P4a — the regime matrix is the `Auto` spec (§3)
 
 ### P5 — the campaign stop rule
@@ -246,8 +295,8 @@ unless stated.
 | 2′. same, kT = 0 polish | **do NOT** (refuse in Auto) | — | — | — | — | J5: no integer aufbau solution; F4 crawl; F5 refuted |
 | 2″. same, U on a soft direction (β-MnO₂ U(O p_z) 0.5–2 eV) | Null | **plain Kerker α 0.1** where K+P overshoots | Kerker | kT 1e-3 | Δρ/N | K1: holds U = 1; **control U = 2 limit-cycles: NO KNOWN RECIPE** |
 | **3. metal / smeared, kT > 0** (Al, SrVO₃) | Null (GDM forbidden, pin 15b) | K+P | **Kerker** (long-wavelength sloshing ∝ L²) | Fermi, one μ (`perKFermiLevels` false) | free-energy ΔF + Δρ/N | `GPW_Al.Γ_Imp_Anneal_Anchor` (28 iter); SrVO₃ K+P decks.  ⚠ **Auto today gives a metal Pulay-D with NO Kerker: UNMEASURED** on a large metallic cell |
-| **4. restart, same Hamiltonian** (exact resume, no WARM difference) | kT = 0: Ladder@GDM; kT > 0: Null | kT = 0: linear ≤ 0.3; field mixer: Pulay from iteration 1 | as the saved run | the saved run's | as the saved run | NaF 9 → 2 (D2); r015 23 → 4 (A6/D5); Si kT 0.02 `SmearedExactResume` |
-| **5. carried stage, CHANGED Hamiltonian** (U loop, ±α, kT anneal, WARM restart incl. coarse → fine grid, geometry step) | Null; GDM allowed ONLY with R4.2's [F,D] gate | Pulay-D (fresh history, R1.3) or K+P as the parent stage; linear ceiling 0.3 | as the parent stage | the stage's own (refilled under its policy, D1) | Δρ/N + [F,D] | Si U loop K+P 66 iterations; F3 (GDM false-converges, Δρ gate); ±α Kerker-Pulay 0.45 (k211 FD); coarse → fine GDM 2 iterations (NaF, CLAUDE.md).  **Geometry step: UNMEASURED** (the forces note) |
+| **4. restart, same Hamiltonian** (exact resume, no WARM difference) | kT = 0: Ladder@GDM; kT > 0: DIIS (corrected 2026-11-12, B5: the matrix's "Null" was a slip; the code and the cell's own evidence `SolidState.SmearedExactResume_StartsAtTheSavedState` run DIIS) | linear, START ≤ 0.3 (the adaptive step may grow back: OpenWork "unify the linear cap on the ceiling"); field mixer: Pulay from iteration 1 | as the saved run | the saved run's | as the saved run | NaF 9 → 2 (D2); r015 23 → 4 (A6/D5); Si kT 0.02 `SmearedExactResume` |
+| **5. carried stage, CHANGED Hamiltonian** (U loop, ±α, kT anneal, WARM restart incl. coarse → fine grid, geometry step) | Null; GDM allowed ONLY with R4.2's [F,D] gate | Pulay-D (fresh history, R1.3) or K+P as the parent stage; linear START and CEILING 0.3 only where a carried stage resolves to linear, and today only on the ±α FD-LRT stages (corrected 2026-11-12, B5) | as the parent stage | the stage's own (refilled under its policy, D1) | Δρ/N + [F,D] | Si U loop K+P 66 iterations; F3 (GDM false-converges, Δρ gate); ±α Kerker-Pulay 0.45 (k211 FD); coarse → fine GDM 2 iterations (NaF, CLAUDE.md).  **Geometry step: UNMEASURED** (the forces note) |
 
 **Inconsistencies the matrix exposes in today's `Auto`:**
 - A WARM restart (coarse → fine, a changed U) is treated as row 4 (Ladder@GDM at kT = 0) though its Hamiltonian changed — row 5.
@@ -364,7 +413,7 @@ Each step: one commit (or a short series), sweep-green, panel re-run, `anchordif
 | **B2** | **P2 invariants** R2.1–R2.7 (each a throw; R2.1 first — it is E1) | "an IMPOSED polarized run without +U derives its decoration" (S) via R2.5 | each throw has a UT that breaks the invariant on purpose (the `Pin28Throws` pattern); panel unmoved |
 | **B3** | **P1**: R1.1 throw in `ResolveMixing`; R1.3 `HandOff`; R1.4 Kerker as a decorator (D9); ~~R1.5~~ (→ C2, 2026-10-30); delete `DIISParams::FDMin` (D-DIIS-FDMIN); rename `FDMax` → `EngageBelowFD` (V1.24(i)) | D9, V-MIXER-GBALL, D-DIIS-FDMIN, V1.24(i) (S) | bit-identical on the sweep except where a test used an illegal pair (each judged); panel unmoved |
 | **B4** | **R4.2** — a direct-min stage gates on worst-irrep [F,D] | "GDM false-converges" (F) → panel #6 GREEN | #6 within #5's budget at #5's fixed point |
-| **B5** | **P4 / P4a**: the recipe value (R4.1) + `Auto` as the §3 chooser, printed; deck key `scf.recipe`; refuse row 2′ | §2 "`MixingPolicy`" (F); the CLAUDE.md recipe paragraphs become pointers to §3 | panel: every GREEN case ≤ budget under `Auto` |
+| **B5** ✅ 6634e90c8 | **P4 / P4a**: the recipe value (R4.1) + `Auto` as the §3 chooser, printed; deck key `scf.recipe`; refuse row 2′ | §2 "`MixingPolicy`" (F); the CLAUDE.md recipe paragraphs become pointers to §3 | panel: every GREEN case ≤ budget under `Auto` |
 | **B6** | Work the RED cases, one at a time, each judged on the WHOLE panel: (a) GDM crawl — `PCFloor` 1e-2/1e-3 and a line search that extends t (#15); (b) "GDM: should an exhausted line search END the stage?" (after Q3); (c) linear D-mixing re-damp on rising E (#7, G1/G2); (d) K+P overshoot — residual-norm safeguard / Pulay restart on rising E (#16, #18); (e) Na₂ AFM seed (#8); (f) polarized Si jump (#10) | "GDM crawls", "GDM exhausted line search", "Linear D-mixing" remainder, "Kerker+Pulay overshoots", "Na₂ AFM seed", "Polarized Γ Si jumps" (F) | each RED → GREEN with no GREEN case over budget |
 | **B7** | **P3**: `PrecisionNeed` / delivered values, deck pre-flight; fold `kResponseReferenceMinΔρ` and `EigenpairResidual` into it | (prepares C2's raster producer) | the two existing refusals unchanged in behaviour, now pre-flighted |
 | **B8** | Mechanical: D-CALC-DOUBLE-SCF migration; V1.27 `TraceColumns` from what the run IS, with the `ρ_lost/N` dead column (rides V1.27) | D-CALC-DOUBLE-SCF, V1.27, "`ρ_lost/N` dead column" (S) | sweep wall time down (no double SCF), panel unmoved |

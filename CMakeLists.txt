@@ -141,7 +141,6 @@ include(GoogleTest)
 set(QCHEM_PANEL_RED
     "GPW_Na2Box.Γ_Pol_Null_Linear_SpinSeed_Converges_Panel"                # OpenWork §3 "Na₂ polarized singlet won't converge from AFM seed"
     "GPW_MnOBox.Γ_M6_GDM_Converges_Panel_Long"                # OpenWork §3 "GDM crawls at a near-degenerate frontier"
-    "GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long" # OpenWork §3 "SCF panel iteration budgets predate the raster pilot": 59 vs 49 (red on main since c153c0fb)
     "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_Converges_Panel_Long" # OpenWork §3 "Kerker+Pulay overshoots β-MnO₂'s U = 1 eV basin"
     "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_ConvergesAtU2eV_Panel_Long"     # same row: control U = 2 eV limit-cycles under plain Kerker
     "ResponsePolarizability.GPW_Si_Γ_Pol_OneSpinAlpha_KeepsZeroMoment_Panel" # OpenWork §3 "Polarized Γ Si JUMPS" (panel #10)
