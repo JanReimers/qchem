@@ -228,7 +228,7 @@ No number may move.  A moved number is a bug in the stage, not roundoff.
 
 | stage | what | hub? |
 |---|---|---|
-| **S0** | Delete the dead mesh-keyed overloads.  Key `HF_HT`'s J/K blocks and `PWTerms_PP`'s by `Irrep`, not the `BasisSetID` string.  Measure M2 (§7) | no |
+| **S0** ✅ 9f4038061 | Delete the dead mesh-keyed overloads.  Key `HF_HT`'s J/K blocks and `PWTerms_PP`'s by `Irrep`, not the `BasisSetID` string.  Measure M2 (§7) | no |
 | **S1** | The framework: `SlotMap<Key,V>` (Common, beside `LazyLock`).  It holds find-or-create under a lock, a per-slot once-fill, a byte count for the report, and a REFRESH discipline for density-dependent slots (`Clear` + rebuild in `RefreshForDensity`; the block read stays pure, V1.41).  Unit tests: a threaded fill is the serial one, nested fills do not deadlock, a refresh slot is never filled lazily.  Then `tHT_Common::itsCache` moves onto it | no (Hamiltonian internals) |
 | **S2** | `Fit_IBS`'s own entries (Charge, Norm, Repulsion, InvOverlap, InvRepulsion, self fit × fit) become members of the fit basis | no (Internal) |
 | **S3** | **Hub.**  `IrrepBasisSet_IDs : DBCacheClient` becomes a cache-client face: `BasisSetID()` and `CacheDim()` retire, replaced by the block's index in its parent.  Every concrete block constructor DEMANDS a `shared_ptr<BasisCache>`, which the parent's factory makes and a test harness holds (§3).  A partner basis (a fit) owns an `InstanceToken` (§3b).  The bodies of `Overlap()`, `Kinetic()`, `RestMass`, the RKB cross, `Direct`/`Exchange` and `Overlap3C`/`Repulsion3C` switch to the cache.  **The accessors keep their signatures**: only the base face changes.  Gates: the §3b dead-partner and address-reuse gate, and the threaded once-fill.  `HubInterfaceAudit` snapshot in a commit citing the ruling | **YES**: `qchem.BasisSet` (IrrepBasisSet), `Orbital_DFT_IBS` |
@@ -276,7 +276,8 @@ The solid path does the same.  `SolidCalculation`'s geometry session builds each
 - **The string key crosses a PROTECTED hub**: `tChargeDensity<T>::DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&)`
   (`ChargeDensity.C`).  It is how Vee_HF, Vxc_HF and the NL per-l diagnostic take their energy from their own blocks; `IrrepCD` looks
   up its block by `itsBasisSet->BasisSetID()`.  So rekeying `HF_HT` and `PWTerms_PP` (S0) needs that face to take an `Irrep`-keyed
-  map.  That is a ChargeDensity hub change, which ruling 5 does not cover: put to the user 2026-11-12.
+  map.  That is a ChargeDensity hub change, which ruling 5 does not cover: put to the user 2026-11-12, who ruled "Yes, key by Irrep"
+  (ruling 7, §8).  DONE in S0: the map is keyed by each block's `GetIrrep(Spin::None)`.
 - **The never-freed primitive registry** and the never-clearable Cache2/3: the root of the "trail of dead geometries", gone at S5.
 
 ## 8. The user's rulings (2026-11-12, relayed verbatim by the controller)
@@ -291,6 +292,8 @@ These are the user's selected answers to the six questions this section posed.
 5. **The S3 and S4 hub changes**: *"Approve S3 and S4 (Recommended)"*.  This is the design-discussion ruling for the `BasisSet`
    hub, to be cited in the commit that regenerates `scripts/hub-interfaces.snapshot`.
 6. **The ERI4 cap**: *"Setup policy (Recommended)"*: WARN AND RUN / REFUSE ON RESOURCES at setup, not a silent GC.
+7. **The ChargeDensity hub key** (asked during S0): *"Yes, key by Irrep (Recommended)"*: `DM_ContractBlocks` takes
+   `std::map<Irrep,hmat_t<T>>`; no other member of that hub changes.
 
 The §7 findings fall into the stages:
 - S0: the dead mesh-keyed `Get`s, and the `HF_HT` / `PWTerms_PP` string keys.
