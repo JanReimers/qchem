@@ -11,6 +11,7 @@ add_executable(UTCommon gtestmain.C
     Diagnostics.C
     HDF5.C   # the saved-SCF-state carrier (CK-1)
     SCFCap.C   # the convergence panel's IterationBudget / AuditSCF
+    SlotMap.C   # qchem.SlotMap: the owner-held keyed cache (cache-ownership S1)
     PositionJet.C   # qchem.PositionJet (qcMath): the first-order jet in the atom positions
 )
 
