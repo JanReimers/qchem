@@ -43,6 +43,16 @@ struct SeedKey
     int Q(int Z) const {auto it=q.find(Z); return it==q.end() ? -1 : it->second;}   //!< -1 = unkeyed
 };
 
+//! THE SEED LIBRARY a run reads for \a Z, one rule for every structure (OpenWork §3 "A pseudopotential run seeds from the VALENCE
+//! library for its q, on every structure", lane B 2026-11-12): a Z the key gives a pseudopotential \c q is the PSEUDO-atom the
+//! Hamiltonian's terms use, so it reads the VALENCE library at that q (the core the pseudopotential removed is not in the run); an
+//! unkeyed Z (an all-electron run) reads the ALL-ELECTRON library.  Before this a PP molecule seeded from the all-electron densities,
+//! core charge included, which the fit's charge constraint then squeezed to the valence count.
+inline std::string SeedLibrary(const SeedKey& key, int Z)
+{
+    return key.Q(Z)>=0 ? "atomic_valence_densities.json" : "atomic_densities.json";
+}
+
 //! A neutral atom's spherically-averaged radial density rho(r), read from the SAD database.  It lives on a
 //! qcMesh::RadialMesh (a Log mesh: nodes r_i = rmin*q^i, with the r^2 jacobian folded into the weights), so
 //! the integrals below are plain weighted sums.  operator()(r) linearly interpolates between nodes; outside

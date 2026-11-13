@@ -10,6 +10,7 @@ module;
 #include <algorithm>
 #include <map>
 #include <cmath>
+#include <string>
 #include <functional>   // the per-Z valence-count source of the formal-charge rule
 
 module qchem.ChargeDensity.Seed;
@@ -150,7 +151,8 @@ template <class T> static tChargeDensity<T>* UniformSeed(const BasisSet::tBasisS
 }
 
 tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<double>* bs,
-                                        const Structure* st, const ElectronConfiguration* ec, const qcMesh::MeshParams& quadrature)
+                                        const Structure* st, const ElectronConfiguration* ec, const qcMesh::MeshParams& quadrature,
+                                        const SeedKey& key)
 {
     assert(bs);
     assert(ec);
@@ -163,42 +165,50 @@ tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSe
         return UniformSeed<double>(bs, ec);
     case SeedStrategy::SAD:
     {
-        // Superposition of neutral atomic densities.  Drop each atom's recentred radial density (LDA DB) into a NumericCD;
-        // FittedVee/FittedVxc consume it (Coulomb projection + rho(r)).
+        // Superposition of neutral atomic densities.  Drop each atom's recentred radial density into a NumericCD;
+        // FittedVee/FittedVxc consume it (Coulomb projection + rho(r)).  Each atom is the RUN's atom (SeedLibrary): the pseudo-atom at
+        // its q under a pseudopotential, the all-electron atom otherwise.
         if (!st) throw std::logic_error("MakeSeedDensity: the SAD seed needs a Structure (atom Z + positions)");
         // The seed is only a function on space, so it OWNS the points it integrates itself on (a Coulomb fit has none, doc/Pins.md):
         // the run's XC mesh, reported one level into the seed's own context.
         auto mesh=[&]{ qchem::report::Scope here("seedDensity"); return std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(quadrature)); }();
         auto* cd = new NumericCD(st->GetNumElectrons(), std::move(mesh));
-        st->ForEachSite([&cd](int Z, const rvec3_t& R, bool)
+        st->ForEachSite([&cd, &key](int Z, const rvec3_t& R, bool)
         {
-            auto rad = std::make_shared<const RadialDensity>(GetAtomicDensity(Z));
+            auto rad = std::make_shared<const RadialDensity>(GetAtomicDensity(Z, key.functional, SeedLibrary(key,Z), -1, key.Q(Z)));
             cd->Insert(std::make_shared<const RecentredAtomicDensity>(rad, R));
         });
         return cd;
     }
     case SeedStrategy::IonicSAD:
     {
-        // The SAD superposition at each site's FORMAL CHARGE (Li+ F-), the same charge rule as the periodic seed (SiteFormalCharges);
-        // the all-electron library, as the molecular SAD.  A charge state the library lacks is the neutral density amplitude-scaled to
-        // it (SeedCD's fallback); a stripped site (H+) carries nothing.  With every charge zero it IS the SAD seed.  The molecule's own
-        // net charge is not distributed: the fit's charge constraint carries it, as for SAD.
+        // The SAD superposition at each site's FORMAL CHARGE (Li+ F-), the same charge rule as the periodic seed (SiteFormalCharges),
+        // from the run's library (SeedLibrary, as the SAD arm): a site's electron count is its pseudo-atom's (the valence density's
+        // charge at the key's q) under a pseudopotential, Z all-electron.  A charge state the library lacks is the neutral density
+        // amplitude-scaled to it (SeedCD's fallback); a stripped site (H+) carries nothing.  With every charge zero it IS the SAD seed.
+        // The molecule's own net charge is not distributed: the fit's charge constraint carries it, as for SAD.
         if (!st) throw std::logic_error("MakeSeedDensity: the IonicSAD seed needs a Structure (atom Z + positions)");
+        const auto neutral=[&key](int Z){ return GetAtomicDensity(Z, key.functional, SeedLibrary(key,Z), -1, key.Q(Z)); };
+        // The electronegativity rule moves VALENCE electrons, whichever library: a pseudo-atom's whole count, an all-electron atom's
+        // periodic-table valence.  The site's own count (the base its charge is taken from) is the pseudo-atom's, or Z.
+        const auto nvalOf=[&](int Z){ return key.Q(Z)>=0 ? int(std::lround(neutral(Z).Charge())) : PeriodicValence(Z); };
+        const auto baseOf=[&](int Z){ return key.Q(Z)>=0 ? int(std::lround(neutral(Z).Charge())) : Z; };
         std::vector<int> nval;
-        const std::vector<int> q=SiteFormalCharges(st, PeriodicValence, {}, nval);
+        const std::vector<int> q=SiteFormalCharges(st, nvalOf, {}, nval);
         auto mesh=[&]{ qchem::report::Scope here("seedDensity"); return std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(quadrature)); }();
         auto* cd = new NumericCD(st->GetNumElectrons(), std::move(mesh));
         size_t i=0;
         st->ForEachSite([&](int Z, const rvec3_t& R, bool)
         {
-            const int target=Z-q[i++];   // the site's all-electron count in its charge state
+            const int base=baseOf(Z), target=base-q[i++];   // the site's electron count in its charge state
             if (target<=0) return;
-            if (HasAtomicDensity(Z, "LDA", "atomic_densities.json", target))
+            const std::string lib=SeedLibrary(key,Z);
+            if (HasAtomicDensity(Z, key.functional, lib, target, key.Q(Z)))
                 cd->Insert(std::make_shared<const RecentredAtomicDensity>(
-                    std::make_shared<const RadialDensity>(GetAtomicDensity(Z, "LDA", "atomic_densities.json", target)), R));
+                    std::make_shared<const RadialDensity>(GetAtomicDensity(Z, key.functional, lib, target, key.Q(Z))), R));
             else
                 cd->Insert(std::make_shared<const ScaledAtomicDensity>(std::make_shared<const RecentredAtomicDensity>(
-                    std::make_shared<const RadialDensity>(GetAtomicDensity(Z)), R), double(target)/double(Z)));
+                    std::make_shared<const RadialDensity>(neutral(Z)), R), double(target)/double(base)));
         });
         return cd;
     }

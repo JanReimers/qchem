@@ -187,6 +187,7 @@ public:
                  ChargeDensity::SeedStrategy seed,
                  const Structure* st,
                  const qcMesh::MeshParams& seedMesh,
+                 const ChargeDensity::SeedKey& seedKey,   //!< the seed library's key: per Z, the pseudopotential q of the run's pseudo-atom (none all-electron)
                  qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, size_t numBands=0)
         requires std::is_same_v<T,double>;
     //! Grid-continuation / explicit-seed ctor (doc/GPWPlan §0e): seed the SCF from a PRE-BUILT density

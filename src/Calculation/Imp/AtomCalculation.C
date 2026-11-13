@@ -223,7 +223,10 @@ void AtomCalculation::BuildGraph()
         itsHam.reset(ham);
         itsAccel.reset(accel);
         if (itsRestored.empty())
-            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsOpts.mesh, ortho);   // an HF SAD seed's sibling: the run's mesh
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsOpts.mesh,
+                                 // a stated SAD seed reads the run's own atom: the GTH pseudo-atom at its Zion (the valence library), else all-electron
+                                 itsOpts.pseudopotential ? qchem::ChargeDensity::SeedKey("LDA", {{itsZ, PPZion(itsOpts,itsNe)}}) : qchem::ChargeDensity::SeedKey{},
+                                 ortho);   // an HF SAD seed's sibling: the run's mesh
         else
         {
             // A RESTORED state (PrepareRestart), consumed here once: an exact resume drives the first Fock from the saved D.
