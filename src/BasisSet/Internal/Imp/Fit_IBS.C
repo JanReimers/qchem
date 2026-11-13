@@ -31,38 +31,23 @@ Fit_IBS::Fit_IBS(const Structure& st, const qcMesh::MeshParams& mp)
     assert(itsProjectionMesh->size()>0 && "Fit_IBS: the structure produced an empty quadrature mesh");
 }
 
-rvec_t Fit_IBS::Charge() const
+rvec_t         Fit_IBS::Charge      () const {return itsCharge      .GetOrFill([this]{return MakeCharge      ();});}
+const rsmat_t& Fit_IBS::Repulsion   () const {return itsRepulsion   .GetOrFill([this]{return MakeRepulsion   ();});}
+const rsmat_t& Fit_IBS::InvOverlap  () const {return itsInvOverlap  .GetOrFill([this]{return MakeInvOverlap  ();});}
+const rsmat_t& Fit_IBS::InvRepulsion() const {return itsInvRepulsion.GetOrFill([this]{return MakeInvRepulsion();});}
+// Norm() is ANALYTIC (2026-11-11): a property of the functions alone.  It was a mesh quadrature, keyed by the mesh as well after the same
+// fit basis built on a coarse seed mesh served its Norm to a later run on a finer one (a 585 ppm drift).
+const rvec_t&  Fit_IBS::Norm        () const {return itsNorm        .GetOrFill([this]{return MakeNorm        ();});}
+
+// The cross Coulomb against a fit basis \a b.  With itself (the only call today, ConstrainedFF) it is one of this basis's own
+// integrals.  Against ANOTHER fit it is keyed by that partner, which needs the partner's instance token (S3, plan §3b), so it stays
+// in the global cache until then.
+const rmat_t& Fit_IBS::Repulsion(const rFIT_CD_ABS& b) const
 {
-    return theCache<double>().Get(IntegralsCache_Base::I1C::Charge,this,
-        [this]{ return MakeCharge(); });
-}
-const rsmat_t& Fit_IBS::Repulsion() const
-{
-    return theCache<double>().Get(IntegralsCache_Base::I2C::Repulsion,this,
-        [this]{ return MakeRepulsion(); });
-}
-const  rmat_t& Fit_IBS::Repulsion(const rFIT_CD_ABS& b) const
-{
+    if (&b==static_cast<const rFIT_CD_ABS*>(this))
+        return itsSelfRepulsion.GetOrFill([this,&b]{return MakeRepulsion(b);});
     return theCache<double>().Get(IntegralsCache_Base::I2x::Repulsion,this,&b
             ,[this,&b]{ return MakeRepulsion(b); });
-}
-const rsmat_t& Fit_IBS::InvOverlap() const
-{
-    return theCache<double>().Get(IntegralsCache_Base::I2C::InvOverlap,this,
-        [this]{ return MakeInvOverlap(); });
-}
-const rsmat_t& Fit_IBS::InvRepulsion() const
-{
-    return theCache<double>().Get(IntegralsCache_Base::I2C::InvRepulsion,this,
-        [this]{ return MakeInvRepulsion(); });
-}
-
-// Norm() is ANALYTIC (2026-11-11), so it is keyed on the basis alone, like Charge and the metrics.  It was a mesh quadrature, keyed by
-// the mesh as well after the same fit basis built on a coarse seed mesh served its Norm to a later run on a finer one (a 585 ppm drift).
-const rvec_t& Fit_IBS::Norm() const
-{
-    return theCache<double>().Get(IntegralsCache_Base::I1C::Normalization,this,
-        [this]{ return MakeNorm(); });
 }
 
 rvec_t Fit_IBS::OverlapDiagonal() const

@@ -31,6 +31,7 @@ import qchem.Blaze;          // mat_t<dcmplx>
 import qchem.Math;           // Pi
 import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
+import qchem.Hamiltonian.Factory;                   // CoulombFitSlot
 import qchem.Hamiltonian.Internal.Hamiltonians;     // Ham_PW_DFT (the assembled plane-wave LDA KS Hamiltonian)
 import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
 import qchem.Energy;                                // EnergyBreakdown
@@ -75,8 +76,8 @@ TEST(PW_NaF, Γ_Anchor)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     using SS=qchem::ChargeDensity::SeedStrategy;
-    auto mkHam=[&](const BasisSet::Complex_BS* bs)   // multi-species one-call; bs -> the Hartree fit basis
-        { return new Ham_PW_DFT(lat.GetStructure(), bs, {{"Na",1},{"F",7}}, "LDA"); };
+    auto mkHam=[&](const BasisSet::Complex_BS* bs, const qchem::Hamiltonian::CoulombFitSlot<dcmplx>& coulombFit)   // multi-species one-call; bs -> the Hartree fit basis
+        { return new Ham_PW_DFT(lat.GetStructure(), bs, coulombFit, {{"Na",1},{"F",7}}, "LDA"); };
 
     // IonicSAD seed: the electronegativity heuristic assigns Na+ / F-, and the per-species valence densities
     // are scaled to the formal-charge electron counts (0 e- on Na, 8 e- on F) -- the seed pre-bakes the

@@ -36,6 +36,7 @@ import qchem.ChargeDensity.Seed;   // SeedStrategy
 export import qchem.Response.Reference;   // ResponseFailure: StaticPolarizability's failure
 export import qchem.LASolver.Krylov;       // KrylovParams (StaticPolarizability)
 export import qchem.GridAudit;             // GridAuditResult (MeshAudit)
+import qchem.Hamiltonian.Factory;    // CoulombFitSlot (the run's one Coulomb fit, S2b)
 
 export namespace qchem
 {
@@ -217,6 +218,7 @@ private:
     //! The per-term finite difference at FIXED D (doc/GeometryOptimizationPlan.md §6): a term's energy at moved atoms with the carried
     //! density frozen, which needs this point's Hamiltonian and the carried density on its basis -- both private.
     friend class ::ForceFacadeTests;
+    friend class ::GeometryCacheTests;   // S2b's gate reads a point's Coulomb fit and basis blocks
     //! \name THE GEOMETRY POINT a MoleculeSession steps to (step 8)
     //!@{
     friend class MoleculeSession;
@@ -297,6 +299,10 @@ private:
     std::shared_ptr<const Structure>     itsStructure;  //!< the point's structure (valence-charged under a PP); the Hamiltonian shares it
     ElectronConfiguration*               itsEC    = nullptr;  //!< owned
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
+    //! The run's ONE Coulomb (Dunlap) fit on \c itsBasis (doc/IntegralCacheOwnershipPlan.md S2b): the Hartree term of the first Hamiltonian
+    //! fills it and every later one (the pilot ladder's rungs, the final build, an audit reference) reads it, so they share its metric
+    //! and inverse.  It owns no mesh, and this point's structure and basis never change, so it is a pure function of fixed inputs.
+    qchem::Hamiltonian::CoulombFitSlot<double> itsCoulombFit;
     //! A SALC run's UNSYMMETRIZED basis (the adapted one keeps it alive too; null without symmetry): its shells identify a saved
     //! state (RecordState), which a SALC block, a combination of them, cannot report.
     std::shared_ptr<const BasisSet::Real_BS> itsAoBasis;

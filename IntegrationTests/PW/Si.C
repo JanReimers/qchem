@@ -41,6 +41,7 @@ import qchem.Hamiltonian.Internal.PWTerms;          // Ven_PP_Short/Long (dcmplx
 import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
+import qchem.Hamiltonian.Factory;                   // CoulombFitSlot
 import qchem.Hamiltonian.Internal.Hamiltonians;     // Ham_PW_DFT (the assembled plane-wave LDA KS Hamiltonian)
 import qchem.Hamiltonian.Internal.Kinetic;          // Kinetic<dcmplx> (the shared kinetic term)
 import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
@@ -261,7 +262,8 @@ TEST(PW_Si, Γ_Anchor)
         Crystal_EC ec(irr, 8);   // Si insulator: 8 valence electrons (2 atoms x Zion 4)
         // Plane-wave LDA Kohn-Sham Hamiltonian: kinetic + external(pseudo) + Hartree + Dirac X + VWN5
         // (heap; the SCFIterator takes ownership).  Atoms from the lattice; the PP model lives on the term.
-        cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
+        qchem::Hamiltonian::CoulombFitSlot<dcmplx> coulombFit;   // the run's Coulomb-fit slot, beside its basis (S2b)
+        cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), coulombFit, "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
         std::unique_ptr<cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
         // Complex DIIS (Pulay): extrapolate the Fock matrix from the [F,D] history; damps the marginal drift
         // within Si's degenerate Gamma_25' manifold so it converges to a tight |Delta rho|.
@@ -390,7 +392,8 @@ TEST(PW_Si, k222_Anchor)
     const int Nelec=8;
     Crystal_EC ec(irreps, Nelec);                          // Nval per k-block; weights handle the BZ sum
 
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
+    qchem::Hamiltonian::CoulombFitSlot<dcmplx> coulombFit;   // the run's Coulomb-fit slot, beside its basis (S2b)
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), coulombFit, "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
     std::unique_ptr<cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
     using qchem::SCFAccelerators::DIISParams;
     auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{.Nproj=8, .EngageBelowFD=0.5, .SVTol=1e-9});

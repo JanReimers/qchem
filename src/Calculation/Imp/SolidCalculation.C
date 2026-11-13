@@ -66,6 +66,10 @@ struct SolidCalculation::Imp
     Observer                                    onIteration;
     std::shared_ptr<const Structure>            st;
     std::unique_ptr<BasisSet::Complex_BS>       bs;
+    //! The run's ONE Coulomb fit on \c bs (doc/IntegralCacheOwnershipPlan.md S2b, the molecular facade's twin): the Hartree term of the
+    //! first Hamiltonian on this basis fills it, any later BuildRun on the same basis reads it (today a schedule keeps ONE Hamiltonian,
+    //! so that is rare).  Reset with the basis (BuildPoint).
+    qchem::Hamiltonian::CoulombFitSlot<dcmplx>  coulombFit;
     std::unique_ptr<Crystal_EC>                 ec;
     //! OWNED HERE (R2.22).  It used to be a bare pointer handed to the iterator, which deleted it -- so
     //! every anneal stage had to build a fresh one (15.5 s/call).  The Hamiltonian is a pure function of
@@ -471,6 +475,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         itsImp->ladder    =p.ladder;
         itsImp->bs.reset(L3::GPWFactory(lat, mol, p));
     }
+    itsImp->coulombFit={};   // a new basis: its Coulomb fit is built afresh by the first Hamiltonian on it
     // THE RUN REPORTS ITS OWN BASIS AND GRIDS (TE phase 2, 2026-09-15; the reporting rule: each class emits
     // contemporaneously with its own activity).  These two sections used to be emitted by the integration
     // test driver around this same construction; the facade is the orchestrator now.  Order matters and is
@@ -591,7 +596,8 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         }
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), itsImp->setup->pp, xc, opts.vxcFit, hubbard, qchem::Hamiltonian::ModelToXC(opts.model)));
+            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, itsImp->setup->pp, xc, opts.vxcFit, hubbard,
+            qchem::Hamiltonian::ModelToXC(opts.model)));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
@@ -2215,6 +2221,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
 
     const SavedState st=SnapshotState(*itsImp->bs, *wf);
     std::unique_ptr<BasisSet::Complex_BS> bsRef;
+    qchem::Hamiltonian::CoulombFitSlot<dcmplx> coulombFitRef;   // the reference basis's own Coulomb fit (S2b): not the run's, a different basis
     std::shared_ptr<const BasisSet::Gaussian::GpwRasterLadder> ladderRef;
     std::unique_ptr<qchem::Hamiltonian::cHamiltonian> hamRef;
     // FENCED from here to the fold: the reference basis and Hamiltonian report their grids (and grid audits) as they BUILD AND FIRST
@@ -2255,7 +2262,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition);
         }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
-        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), S.pp, xcMesh ? *xcMesh : S.xcMesh, opts.vxcFit, itsImp->hubbard,
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, S.pp, xcMesh ? *xcMesh : S.xcMesh, opts.vxcFit, itsImp->hubbard,
                                                  qchem::Hamiltonian::ModelToXC(opts.model)));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);

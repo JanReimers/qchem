@@ -509,10 +509,12 @@ GridAuditResult MoleculeCalculation::MeshAudit(const qcMesh::MeshParams& referen
 qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const qcMesh::MeshParams& mesh) const
 {
     const CalcOptions& opts=itsSetup->opts;
+    // Every Hamiltonian of this point shares ONE Coulomb fit (S2b): the first one's Hartree term fills the slot.
     return itsSetup->pp
-        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, itsBasis, {opts.vxcFit, opts.xcRho}, opts.coulomb,
-                                      qchem::Hamiltonian::ModelToXC(opts.model, opts.xalpha))
-        : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure, mesh, itsBasis, opts.xalpha, {opts.vxcFit, opts.xcRho}, opts.coulomb);
+        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, itsBasis, itsCoulombFit, {opts.vxcFit, opts.xcRho},
+                                      opts.coulomb, qchem::Hamiltonian::ModelToXC(opts.model, opts.xalpha))
+        : qchem::Hamiltonian::Factory(opts.model, opts.spin, itsStructure, mesh, itsBasis, itsCoulombFit, opts.xalpha,
+                                      {opts.vxcFit, opts.xcRho}, opts.coulomb);
 }
 
 bool MoleculeCalculation::HasXCMesh() const {return qchem::Hamiltonian::IsDFT(itsSetup->opts.model) || itsSetup->pp.has_value();}

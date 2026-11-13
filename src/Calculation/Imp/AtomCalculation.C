@@ -213,10 +213,11 @@ void AtomCalculation::BuildGraph()
         }
         ham = itsOpts.pseudopotential
             ? H::Factory(itsOpts.spin, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis,
-                         H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho), {}, PseudoAtomXC(itsOpts))
+                         itsCoulombFit, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho), {}, PseudoAtomXC(itsOpts))
             : itsOpts.xc.has_value()
-                ? H::Factory(itsOpts.spin, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho))
-                : H::Factory(itsOpts.model, itsOpts.spin, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho));
+                ? H::Factory(itsOpts.spin, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis, itsCoulombFit, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho))
+                : H::Factory(itsOpts.model, itsOpts.spin, itsStructure, itsOpts.mesh, itsBasis, itsCoulombFit, itsOpts.xalpha,
+                             H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho));
     }
     {
         rpt::Section basis("basis");
