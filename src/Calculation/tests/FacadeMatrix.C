@@ -13,6 +13,8 @@
 #include <unistd.h>    // getpid: per-PROCESS temp names (ctest runs each case as its own process, in parallel)
 #include <cmath>
 #include <exception>
+#include <functional>
+#include <algorithm>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -24,6 +26,8 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 import qchem.Calculation;   // Calculation::MakeLevels (the levels cell)
+import qchem.StateView;     // the view cell
+import qchem.ScalarFunction;
 import qchem.MoleculeCalculation;
 import qchem.AtomCalculation;
 import qchem.SolidCalculation;
@@ -54,7 +58,9 @@ enum class Capability
     AcceleratorKnobsArrive,     //!< every accelerator knob (the Ladder's switchAt included) reaches the accelerator built
     SaveRestartRoundTrips,      //!< a saved state restarts as an EXACT resume (the saved energy, in <= 3 iterations)
     DeckRoundTrips,             //!< a deck naming the structure builds the run, and its json reloads to the same deck
-    LevelsAnswerTheState        //!< the structure-neutral levels (Calculation::MakeLevels): ascending, Σ weight·f = N, at the k they belong to
+    LevelsAnswerTheState,       //!< the structure-neutral levels (Calculation::MakeLevels): ascending, Σ weight·f = N, at the k they belong to
+    ViewMatchesTheLiveState     //!< a saved state, DRAWN (StateView): rho, m, the levels and the orbitals equal the live run's; a moved atom,
+                                //!< another basis, another kind and a missing file are REFUSED as Outcomes, never thrown
 };
 
 //! THE EXPECTED FAILURES: the row whose work will make the cell hold; nullptr = the cell must hold now.
@@ -70,6 +76,7 @@ const char* ExpectedFailure(Kind k, Capability c)
         case Capability::SaveRestartRoundTrips:     return nullptr;   // V-FACADE-STATE landed for the atom and the molecule, 2026-11-09
         case Capability::DeckRoundTrips:            return k==Kind::Solid ? nullptr : "V-FACADE-OPTS";
         case Capability::LevelsAnswerTheState:      return nullptr;
+        case Capability::ViewMatchesTheLiveState:   return nullptr;
     }
     return nullptr;
 }
@@ -196,6 +203,7 @@ public:
     virtual std::string SaveRestartRoundTrips()     = 0;
     virtual std::string DeckRoundTrips()            = 0;
     virtual std::string LevelsAnswerTheState()      = 0;
+    virtual std::string ViewMatchesTheLiveState()   = 0;
 
     std::string Check(Capability c)
     {
@@ -207,6 +215,7 @@ public:
             case Capability::SaveRestartRoundTrips:     return SaveRestartRoundTrips();
             case Capability::DeckRoundTrips:            return DeckRoundTrips();
             case Capability::LevelsAnswerTheState:      return LevelsAnswerTheState();
+            case Capability::ViewMatchesTheLiveState:   return ViewMatchesTheLiveState();
         }
         return "unknown capability";
     }
@@ -242,6 +251,96 @@ std::string LevelsHold(const Calculation& c, double N, bool gamma)
     }
     if (std::fabs(sum-N)>1e-8) why << "Σ weight·f = " << std::setprecision(12) << sum << ", the run has " << N << " electrons; ";
     return why.str();
+}
+
+//! m(r) of an unpolarized live run, for the comparison (the facades answer a zero field or null).
+struct ZeroM : public virtual ScalarFunction<double>
+{
+    double  operator()(const rvec3_t&) const override {return 0.0;}
+    rvec3_t Gradient  (const rvec3_t&) const override {return rvec3_t(0.0, 0.0, 0.0);}
+};
+//! Points around the origin, off every symmetry element (a field that vanished on a mirror would compare as 0 = 0).
+const std::vector<rvec3_t>& ProbePoints()
+{
+    static const std::vector<rvec3_t> pts={{0.0,0.0,0.0}, {0.31,0.17,-0.12}, {1.1,0.53,0.21}, {-0.74,0.41,0.93}, {0.05,-1.2,0.6}, {2.3,-0.4,1.7}};
+    return pts;
+}
+std::string Agree(const char* what, const ScalarFunction<double>& live, const ScalarFunction<double>& drawn)
+{
+    std::ostringstream why;
+    for (const rvec3_t& r : ProbePoints())
+    {
+        const double a=live(r), b=drawn(r);
+        if (!(std::fabs(a-b)<=1e-12*std::max(1.0, std::fabs(a))))
+            why << what << " at (" << r.x << "," << r.y << "," << r.z << "): live " << std::setprecision(16) << a << ", drawn " << b << "; ";
+    }
+    return why.str();
+}
+//! THE VIEW'S CLAIM, for every kind: a view of the state \a live saved draws what \a live draws -- rho and m at the probe points to
+//! 1e-12 (relative), the SAME level list (e, occupation, spin, k, weight, label: bit-equal, it is the saved data), and each orbital the
+//! live run samples (\a liveOrbital(i), null = not sampled live) to 1e-12.  Every other level's orbital answers an Outcome, never a throw.
+std::string ViewMatches(const StateView& v, const Calculation& live, const ScalarFunction<double>& rho, const ScalarFunction<double>& m,
+                        const std::function<const ScalarFunction<double>*(size_t)>& liveOrbital)
+{
+    std::ostringstream why;
+    why << Agree("rho", rho, v.Density()) << Agree("m", m, v.SpinDensity());
+    const auto L=live.MakeLevels();
+    const auto& V=v.GetLevels();
+    if (L.size()!=V.size()) return why.str()+"the view has "+std::to_string(V.size())+" levels, the live run "+std::to_string(L.size());
+    for (size_t i=0;i<L.size();i++)
+    {
+        const auto& a=L[i]; const auto& b=V[i];
+        if (a.e!=b.e || a.occupation!=b.occupation || a.spin!=b.spin || a.weight!=b.weight || a.label!=b.label
+            || a.k.x!=b.k.x || a.k.y!=b.k.y || a.k.z!=b.k.z)
+            { why << "level " << i << ": live " << a.label << " e=" << a.e << " f=" << a.occupation << ", drawn " << b.label << " e=" << b.e
+                  << " f=" << b.occupation << "; "; break; }
+        try
+        {
+            auto o=v.Orbital(i);
+            if (const ScalarFunction<double>* phi=liveOrbital(i))
+            {
+                if (!o) why << "level " << i << "'s orbital was refused: " << o.Error().details << "; ";
+                else    why << Agree(("orbital "+std::to_string(i)).c_str(), *phi, **o);
+            }
+        }
+        catch (const std::exception& e) { why << "level " << i << "'s orbital THREW: " << e.what() << "; "; }
+    }
+    try { (void)v.Orbital(L.size()); }   // out of range: an Outcome
+    catch (const std::exception& e) { why << "an out-of-range orbital THREW: " << e.what() << "; "; }
+    if (!v.Judgement().exact) { why << "the view of the run's own state is not exact:"; for (const auto& w : v.Judgement().warm) why << " [" << w << "]"; why << "; "; }
+    return why.str();
+}
+using ViewCall = std::function<Outcome<std::unique_ptr<StateView>, RestartRefusal>()>;
+//! A view that MUST BE REFUSED with \a why (and, when \a mention is not empty, a reason that says it) -- as an Outcome: a throw fails.
+std::string Refused(const std::string& what, const ViewCall& view, RestartRefusal::Why why, const std::string& mention="")
+{
+    try
+    {
+        auto r=view();
+        if (r) return what+" was drawn, not refused; ";
+        if (r.Error().why!=why) return what+" was refused for the wrong reason: "+r.Error().details+"; ";
+        if (!mention.empty() && r.Error().details.find(mention)==std::string::npos)
+            return what+"'s refusal does not say '"+mention+"': "+r.Error().details+"; ";
+        return "";
+    }
+    catch (const std::exception& e) { return what+" THREW instead of refusing: "+e.what()+"; "; }
+}
+//! The view, opened the way a GUI opens it: inside the caller's run, under its "view" section (the view reports one level in).
+Outcome<std::unique_ptr<StateView>, RestartRefusal> Opened(const std::string& run, const ViewCall& view)
+{
+    report::Run r(run);
+    report::Section s("view");
+    return view();
+}
+//! The view's report, filed under the caller's "view" section.
+std::string ViewFiled(const std::string& run)
+{
+    const rjson* f=FiledRun(run+"@");
+    if (!f) return "no filed '"+run+"@' run; filed runs:"+FiledKeys();
+    if (!f->contains("view")) return "the view filed no 'view' section";
+    for (const char* k : {"state", "converged", "energy", "exact", "warm", "electrons", "levels"})
+        if (!(*f)["view"].contains(k)) return std::string("the view section has no ")+k;
+    return "";
 }
 
 class AtomProbe : public FacadeProbe
@@ -290,6 +389,29 @@ public:
         AtomCalculation calc(Z, 0, Options());
         if (!calc.IsConverged()) return "the O atom did not converge";
         return LevelsHold(calc, Z, true);
+    }
+    //! The atom samples no orbital by level index (its Orbital(i) counts occupied orbitals), so rho, m and the levels are compared,
+    //! and every level's orbital must answer.  Refused: another element's spec, a missing file.
+    std::string ViewMatchesTheLiveState() override
+    {
+        const std::string path=TempPath("facade_matrix_view_o_atom.h5");
+        AtomCalculation calc(Z, 0, Options());
+        if (!calc.IsConverged()) return "the O atom did not converge";
+        calc.SaveState(path);
+        auto v=Opened("O view", [&]{ return AtomCalculation::ViewState(path, Z, 0, Options()); });
+        std::string why;
+        if (!v) why="the atom's own state was refused: "+v.Error().details+"; ";
+        else
+        {
+            why+=ViewMatches(**v, calc, calc.Density(), ZeroM(), [](size_t){ return (const ScalarFunction<double>*)nullptr; });
+            for (size_t i=0;i<(*v)->GetLevels().size();i++)
+                if (!(*v)->Orbital(i)) why+="level "+std::to_string(i)+"'s orbital was refused; ";
+            why+=ViewFiled("O view");
+        }
+        why+=Refused("N's spec on O's state", [&]{ return AtomCalculation::ViewState(path, 7, 0, Options()); }, RestartRefusal::Why::Mismatch);
+        std::filesystem::remove(path);
+        why+=Refused("a missing file", [&]{ return AtomCalculation::ViewState(path, Z, 0, Options()); }, RestartRefusal::Why::Unreadable);
+        return why;
     }
 };
 
@@ -347,6 +469,73 @@ public:
         for (size_t i=0;i<fields.size();i++)
             if (fields[i].e!=neutral[i].e || fields[i].label!=neutral[i].label || !fields[i].phi)
                 return why+"GetLevels["+std::to_string(i)+"] is not MakeLevels["+std::to_string(i)+"]";
+        return why;
+    }
+    //! H2O: rho, m and EVERY orbital (the live GetLevels' fields).  O2 triplet: the spin channels (m is not zero).  Refused: one H
+    //! moved by 0.01 bohr (the refusal names the atom and the remedy), the spherical basis, an atom's state, a missing file.
+    std::string ViewMatchesTheLiveState() override
+    {
+        const std::string path=TempPath("facade_matrix_view_h2o.h5"), path2=TempPath("facade_matrix_view_o2.h5"),
+                          atomPath=TempPath("facade_matrix_view_atom.h5");
+        std::string why;
+        {
+            MoleculeCalculation calc(Setup());
+            if (!calc.IsConverged()) return "H2O did not converge";
+            calc.SaveState(path);
+            auto v=Opened("H2O view", [&]{ return MoleculeCalculation::ViewState(path, Setup()); });
+            if (!v) why+="H2O's own state was refused: "+v.Error().details+"; ";
+            else
+            {
+                const auto& fields=calc.GetLevels();
+                why+=ViewMatches(**v, calc, calc.Density(), calc.GetSpinDensity(),
+                                 [&](size_t i){ return i<fields.size() ? fields[i].phi : nullptr; });
+                why+=ViewFiled("H2O view");
+            }
+        }
+        {
+            const auto o2=MoleculeSetup::Resolve(StructureData::GetMolecule("O2"),
+                                                 {.basis="dzvp", .model=Model::LDA, .multiplicity=3, .pp="gth-lda-valence"});
+            MoleculeCalculation calc(o2);
+            if (!calc.IsConverged()) return why+"O2 (triplet) did not converge";
+            calc.SaveState(path2);
+            auto v=MoleculeCalculation::ViewState(path2, o2);
+            if (!v) why+="O2's own state was refused: "+v.Error().details+"; ";
+            else
+            {
+                const auto& fields=calc.GetLevels();
+                why+=ViewMatches(**v, calc, calc.Density(), calc.GetSpinDensity(),
+                                 [&](size_t i){ return i<fields.size() ? fields[i].phi : nullptr; });
+                if (std::fabs((*v)->SpinDensity()(rvec3_t(0.3,0.2,0.1)))<1e-6) why+="O2's drawn m is ~0 near the bond: the channels did not arrive; ";
+            }
+        }
+        {
+            Molecule moved;
+            size_t a=0;
+            const auto h2o=StructureData::GetMolecule("H2O");   // held: Sites() is a VIEW, it must not outlive its structure
+            for (const Site& site : h2o.Sites())
+            {
+                Site m=site;
+                if (a++==1) m.R.x+=0.01;
+                moved.Insert(m);
+            }
+            const auto movedSetup=MoleculeSetup::Resolve(moved, {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"});
+            why+=Refused("H2O with H 1 moved 0.01 bohr", [&]{ return MoleculeCalculation::ViewState(path, movedSetup); },
+                         RestartRefusal::Why::Mismatch, "atom 1 is 0.01 bohr");
+            why+=Refused("H2O with H 1 moved 0.01 bohr", [&]{ return MoleculeCalculation::ViewState(path, movedSetup); },
+                         RestartRefusal::Why::Mismatch, "reopen the run's own spec, or continue from this run");
+        }
+        {
+            const auto spherical=MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"),
+                                                        {.basis="dzvp", .model=Model::LDA, .angular=Angular::Spherical, .pp="gth-lda-valence"});
+            why+=Refused("the spherical basis", [&]{ return MoleculeCalculation::ViewState(path, spherical); }, RestartRefusal::Why::Mismatch);
+        }
+        {
+            AtomCalculation atom(8, 0, {.type=AtomType::Gaussian, .model=Model::LDA});
+            atom.SaveState(atomPath);
+            why+=Refused("an atom's state", [&]{ return MoleculeCalculation::ViewState(atomPath, Setup()); }, RestartRefusal::Why::Kind);
+        }
+        for (const auto& p : {path, path2, atomPath}) std::filesystem::remove(p);
+        why+=Refused("a missing file", [&]{ return MoleculeCalculation::ViewState(path, Setup()); }, RestartRefusal::Why::Unreadable);
         return why;
     }
 };
@@ -421,6 +610,50 @@ public:
         if (!calc.DidConverge()) return "Si Γ did not converge";
         return LevelsHold(calc, 8.0, true);   // two Si, 4 valence each
     }
+    //! Si Γ: rho, m and the levels (the solid samples no orbital live; each level's orbital must answer an Outcome).  THE POSITIONS
+    //! ROUND TRIP (controller condition 2, 2026-11-13): a deck whose structure is INLINE with an off-symmetry fraction runs and saves,
+    //! its json is written and re-read, and the state is drawn on the re-read spec -- an exact resume of the positions, bit for bit.
+    std::string ViewMatchesTheLiveState() override
+    {
+        const std::string path=TempPath("facade_matrix_view_si.h5"), deckPath=TempPath("facade_matrix_view_si_deck.h5");
+        std::string why;
+        {
+            SolidCalculation calc(Setup(), Params());
+            auto r=calc.Result();
+            if (!r) return "Si Γ did not converge: "+r.Error().details;
+            calc.SaveState(path);
+            auto v=Opened("Si view", [&]{ return SolidCalculation::ViewState(path, Setup()); });
+            if (!v) why+="Si's own state was refused: "+v.Error().details+"; ";
+            else
+            {
+                const ScalarFunction<double>* m=r->SpinDensity();
+                ZeroM zero;
+                why+=ViewMatches(**v, calc, r->Density(), m ? *m : zero, [](size_t){ return (const ScalarFunction<double>*)nullptr; });
+                why+=ViewFiled("Si view");
+            }
+            std::filesystem::remove(path);
+        }
+        try
+        {
+            const json inlineSi={{"lattice",{{"type","CubicF"},{"a",10.26}}},
+                                 {"atoms",{{{"el","Si"},{"frac",{0.0,0.0,0.0}}}, {{"el","Si"},{"frac",{0.25,0.2503333333333333,1.0/3.0-0.0833}}}}}};
+            const json payload={{"structure",inlineSi}, {"basis",{{"data","SIPP_SR"}}}, {"solid",{{"densityEcut",20.0}}},
+                                {"state",{{"save",deckPath}}}};
+            deck::RunSpec spec; deck::FromJson(payload, spec);
+            auto calc=deck::Build(spec);
+            auto ok=calc->Converge(deck::ScheduleToRun(spec));
+            if (!ok) return why+"the inline Si deck did not converge";
+            const std::string text=deck::ToJson(spec).dump(2);   // what Run writes as the revision
+            deck::RunSpec again; deck::FromJson(json::parse(text), again);
+            auto v=deck::View(again, deckPath);
+            if (!v) why+="the re-read deck's state was REFUSED (the positions did not round-trip?): "+v.Error().details+"; ";
+            else if ((*v)->Judgement().maxDisplacement!=0.0)
+                why+="the re-read deck's positions moved "+std::to_string((*v)->Judgement().maxDisplacement)+" bohr; ";
+            std::filesystem::remove(deckPath);
+        }
+        catch (const std::exception& e) { why+=std::string("the inline deck round trip threw: ")+e.what()+"; "; }
+        return why;
+    }
 };
 
 std::unique_ptr<FacadeProbe> Probe(Kind k)
@@ -445,6 +678,7 @@ const char* Name(Capability c)
         case Capability::SaveRestartRoundTrips:     return "SaveRestartRoundTrips";
         case Capability::DeckRoundTrips:            return "DeckRoundTrips";
         case Capability::LevelsAnswerTheState:      return "LevelsAnswerTheState";
+        case Capability::ViewMatchesTheLiveState:   return "ViewMatchesTheLiveState";
     }
     return "?";
 }
@@ -460,7 +694,8 @@ std::vector<CellId> AllCells()
     std::vector<CellId> cells;
     for (Kind k : {Kind::Atom, Kind::Molecule, Kind::Solid})
         for (Capability c : {Capability::PrepareFilesTheSetup, Capability::ConvergeFilesTheScfHeader, Capability::AcceleratorKnobsArrive,
-                             Capability::SaveRestartRoundTrips, Capability::DeckRoundTrips, Capability::LevelsAnswerTheState})
+                             Capability::SaveRestartRoundTrips, Capability::DeckRoundTrips, Capability::LevelsAnswerTheState,
+                             Capability::ViewMatchesTheLiveState})
             cells.push_back({k,c});
     return cells;
 }

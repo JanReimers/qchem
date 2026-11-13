@@ -625,6 +625,26 @@ constexpr double CP2K_PlusU_dE=-60.685888159562445-(-61.30332518), CP2K_PlusU_EU
 //! The vendored states of the gate's two arms (decks/states/<name>.h5), written by the cold gate.
 const char* CP2KPlusUState(double U_eV) { return U_eV>0.0 ? "MnO_AFM2_VA_sph_Shub_U4" : "MnO_AFM2_VA_sph_Shub_U0"; }
 
+// THE FIRST k-MESH ORACLE FOR A MAGNETIC d-SHELL CELL (lane B, 2026-11-13; OpenWork §3 NiO row): the +U gate's U = 0 recipe and VA
+// span on a Γ-centred 2x2x2 mesh, against CP2K's own run of the same deck with &KPOINTS SCHEME GENERAL (the 8 points, B_VECTOR units;
+// ~/Code/cp2k-runs/MnO/laneB_mno_afm2_gpw_va_222g.inp, 79 SCF steps): CP2K -61.332954361, ours -61.3325317 DELIVERED (0.42 mHa; Γ:
+// -61.3033252 vs -61.3030146, 0.31).  Delivered = the raster pilot's round 1, whose doubled density ball raises E by 0.12 (k222) /
+// 0.15 (Γ) mHa over the first SCF (-61.3326541 / -61.3031650); Result() reports the delivered one.  So the Γ->k222 step is -29.63
+// (CP2K) vs -29.52 mHa (ours) on the SAME basis -- which is what cleared the NiO
+// "k-step" suspicion (QE's complete-basis step is ~5x larger: the VA basis's own error is k-dependent).  ~20 min wall at 6 threads
+// (~2 h serial): the PERIODIC tier (QCHEM_PERIODIC in the root CMakeLists), not the long one.
+TEST(GPW_MnO, k222_Shub_Pol_Smear_CP2K_Long)
+{
+    const Material mno=qchem::Materials::Get("MnO_AFM2");
+    auto [o,par]=CP2KPlusURecipe(mno, 0.0, "MnO AFM-II VA k222 (CP2K same-basis)");
+    GpwReport report("MnO "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(SolidSetup::Resolve(LatticeOf(mno, ivec3_t(2,2,2)), CP2KPlusUBasis(mno), o), par);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 26.0, 1e-6);
+    EXPECT_NEAR(R->Energy(), -61.332954361, 5e-4) << "ORACLE: CP2K, the same VA basis and deck, Γ-centred 2x2x2 (measured 0.42 mHa apart, delivered energy)";
+}
+
 TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
 {
     const Material mno=qchem::Materials::Get("MnO_AFM2");   // sites 0,1 = Mn (+m, -m); 2,3 = O

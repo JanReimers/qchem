@@ -2858,3 +2858,10 @@ On `Si2_PP_U.LargeSeparation`: the -46 mHa anchordiff move is its deliberately B
 warns anchordiff may flag it).  The dimer now starts from SAD instead of the core guess, and its Enn routing claim holds.
 
 Summed over the movers' converged runs: 170 → 146 iterations (11 tests better, 2 worse, 2 unchanged).
+
+## ✅ Fields from a saved state, cheaply, on the structure-neutral face (lane G, landed 2026-11-13, merge 7c6e7597)
+
+The row (verbatim, from `doc/OpenWork.md`):
+| **Fields from a saved state, cheaply, on the structure-neutral face** (user 2026-11-12: a reopened run must "come back just the way they left it") | BUILT lane G 2026-11-13 (design accepted by the controller the same day): `qchem::StateView` (`src/Calculation/StateView.C`), built by each facade's `ViewState` (atom, molecule, solid; `deck::View` for a deck) from the basis alone and the saved D, C, eps, f -- no Hamiltonian, grids or SCF; judged by `Calculation::JudgeView` (the restart's refusals plus ANY moved atom, named with its remedy); `ReadState` now reads C, eps, f back.  Gate `FacadeMatrix.Cell/<Kind>_ViewMatchesTheLiveState` (rho, m, levels, orbitals equal the live run's; the refusals are Outcomes; an inline deck's positions round-trip bit-exactly).  Binding `qcb_view_*` / `qchem_py.StateView`; the GUI redraws a reopened run from its state file, says so when it is gone, and keeps each run's view (field, representation, iso, slice, camera) in the workspace | REMAINDER: a complex Bloch orbital is refused by the view (the crystal-orbital row above decides what it plots); move this row to History5 at landing · `src/Calculation/StateView.C`, `pybind/` |
+
+Landed with lane B's k-gates: short 1629/0, long 18/0, 0 moved vs main-febe0b1a (new: 3 FacadeMatrix ViewMatchesTheLiveState cells).

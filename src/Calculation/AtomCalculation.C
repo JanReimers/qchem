@@ -30,6 +30,7 @@ import qchem.ElectronConfiguration; // ElectronConfiguration
 import qchem.SCFIterator;           // SCFIterator, SCFParams, IterationRow, EnergyBreakdown
 import qchem.Symmetry.Irrep;        // Irrep
 export import qchem.Calculation;    // the abstract base of the three facades
+export import qchem.StateView;      // ViewState's answer: a saved state, drawn
 export import qchem.Symmetry.Spin;  // Spin (per-spin irrep enumeration), SpinGroup (an AtomCalcOptions field)
 import qchem.Orbitals;              // Orbital, Orbitals
 import qchem.ChargeDensity;         // rDM_CD
@@ -156,6 +157,12 @@ public:
                        const AcceleratorOptions& acc = {}, Observer onIteration = nullptr);
     const std::optional<RestartSummary>& RestartedFrom() const override;   //!< \c PrepareRestart's judgement; empty for a fresh run
     //!@}
+
+    //! \brief A SAVED STATE, DRAWN (\c StateView, lane G 2026-11-13): the state at \a path on the basis these arguments build (as
+    //! \c PrepareRestart builds it), then the saved D, C, eps, f -- no Hamiltonian, no SCF.  REFUSED as \c Calculation::JudgeView
+    //! refuses, never thrown.  Reports one level in, under the scope its caller opened (a \c report::Section "view").
+    static Outcome<std::unique_ptr<StateView>, RestartRefusal>
+        ViewState(const std::string& path, int Z, int charge = 0, const AtomCalcOptions& opts = {}, const AcceleratorOptions& acc = {});
 
     bool Converge(const SCFParams& params = {});
     void OnIteration(Observer obs);
