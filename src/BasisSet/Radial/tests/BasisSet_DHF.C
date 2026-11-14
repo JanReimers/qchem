@@ -47,7 +47,8 @@ public:
             auto& S1=ibs1->Overlap();
             auto& S2=(*ibs2)->Overlap();
             EXPECT_EQ(S1,S2);
-            EXPECT_EQ(&S1,&S2);
+            EXPECT_EQ(&S1,&ibs1->Overlap()) << "the same owner asked twice is a HIT";
+            EXPECT_NE(&S1,&S2) << "each basis set owns its blocks' integrals (doc/IntegralCacheOwnershipPlan.md S3a)";
             ++ibs2;
         }
     }
@@ -61,7 +62,8 @@ public:
             auto& S1=ibs1->Kinetic();
             auto& S2=(*ibs2)->Kinetic();
             EXPECT_EQ(S1,S2);
-            EXPECT_EQ(&S1,&S2);
+            EXPECT_EQ(&S1,&ibs1->Kinetic()) << "the same owner asked twice is a HIT";
+            EXPECT_NE(&S1,&S2) << "each basis set owns its blocks' integrals (doc/IntegralCacheOwnershipPlan.md S3a)";
             ++ibs2;
         }
     }
@@ -91,7 +93,8 @@ public:
             auto& S1=ibs1->RestMass();
             auto& S2=(*ibs2)->RestMass();
             EXPECT_EQ(S1,S2);
-            EXPECT_EQ(&S1,&S2);
+            EXPECT_EQ(&S1,&ibs1->RestMass()) << "the same owner asked twice is a HIT";
+            EXPECT_NE(&S1,&S2) << "each basis set owns its blocks' integrals (doc/IntegralCacheOwnershipPlan.md S3a)";
             ++ibs2;
         }
     }

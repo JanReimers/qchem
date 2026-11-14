@@ -7,6 +7,7 @@ module;
 #include "forward.H"
 
 export module qchem.BasisSet.Radial.IBS;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet.IrrepBasisSet;
@@ -64,7 +65,7 @@ template <isOpr_Evaluator E> class IrrepBasisSetImp
                                                          // the nucleus (D^l acts on the implicit m partners) -- V-BS-SYMMETRY S3
 {
 public:
-    IrrepBasisSetImp(const sym_t& yl) : BasisSet::IrrepBasisSetImp<double>(yl)
+    IrrepBasisSetImp(const std::shared_ptr<BasisSet::BasisCache>& cache, const sym_t& yl) : BasisSet::IrrepBasisSetImp<double>(yl, cache)
         , Symmetry::IdentityRepresentation<double>(Symmetry::Stabiliser::FixingPoint(rvec3_t(0,0,0))) {}
 
     virtual size_t GetNumFunctions() const override {return Cast().size();}
@@ -169,11 +170,11 @@ template <isFit_Evaluator Evaluator> class EFit_IBS
     using IrrepBasisSetImp<Evaluator>::Cast;
 public:
     //! The Coulomb fit: analytic, no mesh.
-    explicit EFit_IBS(const Evaluator& e)
-        : Fit_IBS(), IrrepBasisSetImp<Evaluator>(Symmetry::YFactory()), Evaluator(e) {};
+    EFit_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const Evaluator& e)
+        : Fit_IBS(), IrrepBasisSetImp<Evaluator>(cache, Symmetry::YFactory()), Evaluator(e) {};
     //! The Vxc fit: its projection mesh, built from \a st and \a mp.
-    EFit_IBS(const Evaluator& e, const Structure& st, const qcMesh::MeshParams& mp)
-        : Fit_IBS(st,mp), IrrepBasisSetImp<Evaluator>(Symmetry::YFactory()), Evaluator(e) {};
+    EFit_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const Evaluator& e, const Structure& st, const qcMesh::MeshParams& mp)
+        : Fit_IBS(st,mp), IrrepBasisSetImp<Evaluator>(cache, Symmetry::YFactory()), Evaluator(e) {};
     // d/dR (GeometryOptimizationPlan §13.2): a one-centre (atom) fit has no geometry to move.
     virtual bool CanPullbackRepulsion() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const rsmat_t&, const Structure*) const override

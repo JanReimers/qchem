@@ -25,6 +25,7 @@
 // The old NumPoints/Sample/Integrate trio described the QUADRATURE behind them, and read as correct only
 // because here n_functions == n_points, so the wrong accessor returned the right number.
 module;
+#include <memory>
 #include <mutex>
 #include <cassert>
 #include <map>
@@ -33,6 +34,7 @@ module;
 #include <type_traits> // std::is_same_v (the same-scalar table cache)
 #include <utility>
 export module qchem.BasisSet.DeltaFit_IBS;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary                    // cFIT_SF_ABS + Integrals_Overlap3C + FitQuadrature
 export import qchem.BasisSet.Transition_DFT_IBS;   // Transition_Overlap3C: the (k+q, k) pair on my Φ tables (LinearResponsePlan B2)
@@ -102,8 +104,8 @@ public:
     //! implementation, not a type other code needs to name.
     bool isOrtho() const override {return true;}
     //! \a q is the FINISHED quadrature (mesh + fold + Shubnikov tags) from \c MakeXCQuadrature, and \a sym the irrep the caller's lineage gives a fit block (see the class note).
-    DeltaFit_IBS(FitQuadrature q, const sym_t& sym)
-        : IrrepBasisSetImp<T>(sym)
+    DeltaFit_IBS(const std::shared_ptr<BasisCache>& cache, FitQuadrature q, const sym_t& sym)
+        : IrrepBasisSetImp<T>(sym, cache)
         , itsQuad(std::move(q))
     {
         assert(itsQuad.GetMesh() && itsQuad.GetMesh()->size()>0 && "DeltaFit_IBS: a delta basis IS its mesh -- it cannot be empty");

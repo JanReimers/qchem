@@ -13,6 +13,7 @@
 // value and slope, columns are u and udot.  Phi at r=Rmt is the boundary matrix that solves the matching;
 // the radial integral blocks are Simpson integrals of outer products of its value/slope rows.
 module;
+#include <memory>
 #include <cassert>
 #include <complex>
 #include <cmath>
@@ -128,9 +129,9 @@ RadialTable BuildRadial(int l,double E,double Znuc,const rvec_t& r)
 namespace qchem::BasisSet::Lattice
 {
 
-LAPW_IBS::LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,
+LAPW_IBS::LAPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,
                    double Ecut, double Rmt, size_t lmax, double Elin, double Znuc)
-    : BasisSet::IrrepBasisSetImp<dcmplx>(Symmetry::BlochFactory(N,kIndex))
+    : BasisSet::IrrepBasisSetImp<dcmplx>(Symmetry::BlochFactory(N,kIndex), cache)
     , itsRecip(recip)
     , itsk(kIndex.x/static_cast<double>(N.x),
            kIndex.y/static_cast<double>(N.y),

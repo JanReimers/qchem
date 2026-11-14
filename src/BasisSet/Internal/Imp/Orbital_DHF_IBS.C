@@ -1,8 +1,9 @@
 // File: BasisSet/Imp/Orbital_DHF_IBS.C
 module;
+#include <memory>
 #include <cassert>
 module qchem.BasisSet.Internal.Orbital_DHF_IBS;
-import qchem.BasisSet.Internal.DB_Cache;
+import qchem.BasisSet.BasisCache;
 import qchem.Blaze;
 
 namespace qchem::BasisSet
@@ -12,8 +13,8 @@ namespace qchem::BasisSet
 // BasisSet/Internal/Orbital_DHF_IBS.C re the c_light/2 factors.
 template <class T> const mat_t<T>& Orbital_RKBL_IBS<T>::Kinetic(const Orbital_RKBS_IBS<T>& rkbs) const
 {
-    return theCache<T>().Get(IntegralsCache_Base::I2x::Kinetic,this,&rkbs,
-            [this,&rkbs]{ return MakeKinetic(rkbs); });
+    // Keyed by this (large) block alone: the small-component partner belongs to it (doc/IntegralCacheOwnershipPlan.md §2).
+    return this->Cache().template GetRKBCross<T>(this->CacheIndex(), [this,&rkbs]{ return MakeKinetic(rkbs); });
 }
 
 template class Orbital_RKBL_IBS<double>;

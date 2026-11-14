@@ -68,7 +68,7 @@ TEST_F(BandStructureTests, FreeElectronBandsPlaneWave)
 
     for (const ivec3_t& k : path)
     {
-        PlaneWave_IBS pw(recip,N,k,Ecut);
+        PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), recip,N,k,Ecut);
         std::vector<double> bands=ascending(SolveBands(pw,&cell));   // empty cell -> Nuclear = 0
         std::vector<double> fe=FreeEnergies(a,N,k,2);
         ASSERT_GE(bands.size(),4u);
@@ -89,7 +89,7 @@ TEST_F(BandStructureTests, FreeElectronBandsLAPW)
 
     for (const ivec3_t& k : path)
     {
-        LAPW_IBS b(recip,N,k,Ecut,Rmt,lmax,Elin,0.0);
+        LAPW_IBS b(std::make_shared<::qchem::BasisSet::BasisCache>(), recip,N,k,Ecut,Rmt,lmax,Elin,0.0);
         std::vector<double> bands=ascending(SolveBands(b,&cell));
         std::vector<double> fe=FreeEnergies(a,N,k,2);
         ASSERT_GE(bands.size(),3u);
@@ -107,12 +107,12 @@ TEST_F(BandStructureTests, CosinePotentialOpensZoneBoundaryGap)
     auto recip=lat.Reciprocal();
 
     // Empty lattice: the two lowest bands are degenerate at the zone boundary X.
-    PlaneWave_IBS pw0(recip,N,X,Ecut);
+    PlaneWave_IBS pw0(std::make_shared<::qchem::BasisSet::BasisCache>(), recip,N,X,Ecut);
     std::vector<double> empty=ascending(SolveBands(pw0, pw0.OverlapMatrix(CosineVtilde(0.0))));
     EXPECT_NEAR(empty[1]-empty[0], 0.0, 1e-9);
 
     // Cosine on: a gap of ~V0 opens between them.
-    PlaneWave_IBS pw(recip,N,X,Ecut);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), recip,N,X,Ecut);
     std::vector<double> bands=ascending(SolveBands(pw, pw.OverlapMatrix(CosineVtilde(V0))));
     double gap=bands[1]-bands[0];
     EXPECT_GT(gap, 0.5*V0);                 // a real gap opened

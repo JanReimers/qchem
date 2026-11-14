@@ -123,7 +123,7 @@ TEST(PW_Terms, PWPseudoTermMatchesBasis)
     UnitCell          cell(Amat);
     Lattice_3D        lat(cell, ivec3_t(1,1,1));
     ReciprocalLattice recip(lat.Reciprocal());
-    PlaneWave_IBS     pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    PlaneWave_IBS     pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
 
     auto si=std::make_shared<Molecule>();
     si->Insert(Site{14, rvec3_t(0,0,0)});
@@ -160,7 +160,7 @@ TEST(PW_Terms, LocalPPLongPlusShortEqualsFull)
     Matrix3D<double> Amat(0.0,h,h,  h,0.0,h,  h,h,0.0);
     UnitCell      cell(Amat);
     Lattice_3D    lat(cell, ivec3_t(1,1,1));
-    PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
 
     auto si=std::make_shared<Molecule>();
     si->Insert(Site{14, rvec3_t(0,0,0)});
@@ -317,7 +317,7 @@ TEST(PW_Terms, HartreeFromFourierMatchesPointwise)
     const double a=10.26;
     FCCUnitCell    cell(a);
     Lattice_3D     lat(cell, ivec3_t(1,1,1));
-    PlaneWave_IBS  pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    PlaneWave_IBS  pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     size_t n=pw.GetNumFunctions();
     ASSERT_GT(n, 3u);
     Irrep irr=pw.GetIrrep(Spin::None);
@@ -354,7 +354,7 @@ TEST(PW_Terms, ThePPAndIonIonForcesAtFixedDAreTheirEnergysFiniteDifference)
     cell->AddAtom(14,rvec3_t(0.27,0.24,0.26));
     const ivec3_t N(4,4,4);
     Lattice_3D    lat(*cell, N);
-    PlaneWave_IBS pw(lat.Reciprocal(), N, ivec3_t(1,0,0), 4.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), N, ivec3_t(1,0,0), 4.0);
     const size_t n=pw.GetNumFunctions();
     hmat_t<dcmplx> D(n);
     for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
@@ -417,7 +417,7 @@ TEST(PW_Terms, TheXCMatrixIsItsEnergysDerivative)
     cell->AddAtom(14,rvec3_t(0.25,0.25,0.25));
     const ivec3_t N(4,4,4);
     Lattice_3D    lat(*cell, N);
-    PlaneWave_IBS pw(lat.Reciprocal(), N, ivec3_t(1,0,0), 4.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), N, ivec3_t(1,0,0), 4.0);
     const size_t n=pw.GetNumFunctions();
     const Irrep irr=pw.GetIrrep(Spin::None);
     hmat_t<dcmplx> D(n), Delta(n);

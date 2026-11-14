@@ -4,6 +4,7 @@ module;
 #include <memory>
 #include <functional>
 export module qchem.BasisSet.Gaussian.PG_Cart;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Block;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
@@ -36,9 +37,10 @@ class IrrepBasisSet
     public:
         typedef std::vector<std::unique_ptr<Block>> bv_t;
     
-        IrrepBasisSet(Reader *, const Structure *);
-        IrrepBasisSet(const rvec_t &exponents, size_t L, const Structure *);
-        IrrepBasisSet(const rvec_t &exponents, size_t L);
+        //! \a cache: the parent's (doc/IntegralCacheOwnershipPlan.md S3a), never null.
+        IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, Reader *, const Structure *);
+        IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rvec_t &exponents, size_t L, const Structure *);
+        IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rvec_t &exponents, size_t L);
         virtual ~IrrepBasisSet(); //g++ 15.2 BUG Compiler generated, or inline destructor does instance std::vector templates destructor.
 
         virtual size_t  GetNumFunctions() const {return PGData::size();}
@@ -76,9 +78,9 @@ class Orbital_IBS
     , public IrrepBasisSet
 {
 public:
-    Orbital_IBS(Reader *, const Structure *);
-    Orbital_IBS(const rvec_t& exponents, size_t L, const Structure *);
-    Orbital_IBS(const rvec_t& exponents, size_t L);
+    Orbital_IBS(const std::shared_ptr<BasisCache>& cache, Reader *, const Structure *);
+    Orbital_IBS(const std::shared_ptr<BasisCache>& cache, const rvec_t& exponents, size_t L, const Structure *);
+    Orbital_IBS(const std::shared_ptr<BasisCache>& cache, const rvec_t& exponents, size_t L);
 
     virtual rFIT_CD_ABS* CreateCDFitBasisSet(const Structure *) const override;
     virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure *, const qcMesh::MeshParams&) const override;
@@ -160,8 +162,8 @@ class EFit_IBS
 public:
     // A fit set has no matrix-image client: its representation is the identity at E only, refusing any other op (S3).
     //! \a name = the auxiliary set this was read from ("A1_coul"), a fact only the creating factory knows.
-    EFit_IBS(Reader *, const Structure *, const std::string& name);                            //!< the Coulomb fit: no mesh
-    EFit_IBS(Reader *, const Structure *, const qcMesh::MeshParams&, const std::string& name); //!< the Vxc fit: its projection mesh
+    EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader *, const Structure *, const std::string& name);                            //!< the Coulomb fit: no mesh
+    EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader *, const Structure *, const qcMesh::MeshParams&, const std::string& name); //!< the Vxc fit: its projection mesh
 
     //! The run report's name for this fit.  Not the cache identity: \c BasisSetID stays the shells' own.
     virtual std::string Name() const override {return itsName;}

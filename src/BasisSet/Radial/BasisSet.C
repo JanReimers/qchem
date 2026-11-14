@@ -1,11 +1,13 @@
 // File: BasisSet/Radial/BSpline/NR/BSpline_BS_Evaluator.C BSpline Basis Set for atoms.
 module;
+#include <memory>
 #include <iostream>
 #include <map>
 #include <cassert>
 #include <string>
 #include <stdexcept>
 export module qchem.BasisSet.Radial.BasisSet;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 export import qchem.BasisSet;
 export import qchem.ElectronConfiguration;
 
@@ -40,14 +42,14 @@ public:
         , public Evaluator
     {
     public:
-        EOrbital_HF_IBS(size_t N, double rmin, double rmax, const sym_t& ir)
-        : IrrepBasisSetImp<Evaluator>(ir)
+        EOrbital_HF_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, size_t N, double rmin, double rmax, const sym_t& ir)
+        : IrrepBasisSetImp<Evaluator>(cache, ir)
         , Evaluator(N,rmin,rmax,ir)
         {
             theCache<double>().Register(this); //Can this move to the evaluator level?
         };
-        EOrbital_HF_IBS(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
-        : IrrepBasisSetImp<Evaluator>(ir)
+        EOrbital_HF_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+        : IrrepBasisSetImp<Evaluator>(cache, ir)
         , Evaluator(es,ir,ltrim)
         {
             theCache<double>().Register(this);
@@ -56,11 +58,11 @@ public:
 
         virtual rFIT_CD_ABS* CreateCDFitBasisSet(const Structure*) const
         {
-            return new EFit_IBS(Evaluator::Rescale(2.0, this->GetSymt()));   // the Coulomb fit: no mesh
+            return new EFit_IBS(std::make_shared<BasisSet::BasisCache>(), Evaluator::Rescale(2.0, this->GetSymt()));   // the Coulomb fit: no mesh
         }
         virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
         {
-            return new EFit_IBS(Evaluator::Rescale(2.0/3.0, this->GetSymt()), *cl, mp);
+            return new EFit_IBS(std::make_shared<BasisSet::BasisCache>(), Evaluator::Rescale(2.0/3.0, this->GetSymt()), *cl, mp);
         }
 
         virtual std::ostream&  Write(std::ostream& os) const
@@ -75,13 +77,13 @@ public:
     BasisSet_HF(size_t N, double remin, double remax, const ElectronConfiguration& ec)
     {
         for (auto ir:ec.GetIrreps())
-            Insert(new EOrbital_HF_IBS(N,remin,remax,ir));  
+            Insert(new EOrbital_HF_IBS(BlockCache(),N,remin,remax,ir));  
      
     }
     BasisSet_HF(const rvec_t& es, const ElectronConfiguration& ec, size_t ltrim=0)
     {
         for (auto ir:ec.GetIrreps())
-            Insert(new EOrbital_HF_IBS(es,ir,ltrim));
+            Insert(new EOrbital_HF_IBS(BlockCache(),es,ir,ltrim));
 
     }
     // INDEPENDENT per-l exponent lists: each occupied irrep gets its OWN list \c esByL[l], verbatim (no
@@ -102,7 +104,7 @@ public:
                 throw std::runtime_error("Atom BasisSet_HF: the electron configuration occupies angular "
                     "momentum l=" + std::to_string(l) + " but the basis recipe supplied no exponents for it. "
                     "Add a shell for l=" + std::to_string(l) + ".");
-            Insert(new EOrbital_HF_IBS(it->second,ir,0));   // ltrim=0: this l's full list
+            Insert(new EOrbital_HF_IBS(BlockCache(),it->second,ir,0));   // ltrim=0: this l's full list
         }
     }
 };
@@ -121,14 +123,14 @@ public:
     , public Evaluator
     {
     public:
-        Orbital_1E_HF_IBS(size_t N, double rmin, double rmax, const sym_t& yl)
-        : IrrepBasisSetImp<Evaluator>(yl)
+        Orbital_1E_HF_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, size_t N, double rmin, double rmax, const sym_t& yl)
+        : IrrepBasisSetImp<Evaluator>(cache, yl)
         , Evaluator(N,rmin,rmax,yl)
         {
             theCache<double>().Register(this);
         };
-        Orbital_1E_HF_IBS(const rvec_t& es, const sym_t& yl)
-        : IrrepBasisSetImp<Evaluator>(yl)
+        Orbital_1E_HF_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const rvec_t& es, const sym_t& yl)
+        : IrrepBasisSetImp<Evaluator>(cache, yl)
         , Evaluator(es,yl)
         {
             theCache<double>().Register(this);
@@ -144,13 +146,13 @@ public:
     BasisSet_1E_HF(size_t N, double remin, double remax, const ElectronConfiguration& ec)
     {
         for (auto ir:ec.GetIrreps())
-            Insert(new Orbital_1E_HF_IBS(N,remin,remax,ir));  
+            Insert(new Orbital_1E_HF_IBS(BlockCache(),N,remin,remax,ir));  
      
     }
     BasisSet_1E_HF(const rvec_t& es, const ElectronConfiguration& ec)
     {
         for (auto ir:ec.GetIrreps())
-            Insert(new Orbital_1E_HF_IBS(es,ir));  
+            Insert(new Orbital_1E_HF_IBS(BlockCache(),es,ir));  
      
     }
 
@@ -168,14 +170,14 @@ public:
         , public LEvaluator
     {
     public:
-        EOrbital_RKBL_IBS(size_t N, double emin, double emax, const sym_t& irrep)
-        : IrrepBasisSetImp<LEvaluator>(irrep)
+        EOrbital_RKBL_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, size_t N, double emin, double emax, const sym_t& irrep)
+        : IrrepBasisSetImp<LEvaluator>(cache, irrep)
         , LEvaluator(N,emin,emax,irrep)
         {
             theCache<double>().Register(this); //Can this move to the evaluator level?
         };
-        EOrbital_RKBL_IBS(const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
-        : IrrepBasisSetImp<LEvaluator>(irrep)
+        EOrbital_RKBL_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
+        : IrrepBasisSetImp<LEvaluator>(cache, irrep)
         , LEvaluator(es,irrep,ltrim)
         {
             theCache<double>().Register(this);
@@ -194,14 +196,14 @@ public:
         , public SEvaluator
     {
     public:
-        EOrbital_RKBS_IBS(size_t N, double emin, double emax, const sym_t& irrep)
-        : IrrepBasisSetImp<SEvaluator>(irrep)
+        EOrbital_RKBS_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, size_t N, double emin, double emax, const sym_t& irrep)
+        : IrrepBasisSetImp<SEvaluator>(cache, irrep)
         , SEvaluator(N,emin,emax,irrep) //fix κ=-1, l=0
         {
             theCache<double>().Register(this); //Can this move to the evaluator level?
         };
-        EOrbital_RKBS_IBS(const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
-        : IrrepBasisSetImp<SEvaluator>(irrep)
+        EOrbital_RKBS_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
+        : IrrepBasisSetImp<SEvaluator>(cache, irrep)
         , SEvaluator(es,irrep,ltrim)
         {
             theCache<double>().Register(this);
@@ -223,20 +225,20 @@ public:
         , public Symmetry::IdentityRepresentation<double>   // radial κ block: identity under ops fixing the nucleus (S3)
     {
     public:
-        EOrbital_RKB_IBS(size_t N, double remin, double remax, const sym_t& irrep)
+        EOrbital_RKB_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, size_t N, double remin, double remax, const sym_t& irrep)
         : Orbital_RKB_HF_IBS_Imp(
-                    new EOrbital_RKBL_IBS(N,remin,remax,irrep),
-                    new EOrbital_RKBS_IBS(N,remin,remax,irrep)
+                    new EOrbital_RKBL_IBS(cache,N,remin,remax,irrep),
+                    new EOrbital_RKBS_IBS(cache,N,remin,remax,irrep)
                 )
-        , IrrepBasisSetImp<double>(irrep)
+        , IrrepBasisSetImp<double>(irrep, cache)
         , Symmetry::IdentityRepresentation<double>(Symmetry::Stabiliser::FixingPoint(rvec3_t(0,0,0)))
         {};
-        EOrbital_RKB_IBS(const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
+        EOrbital_RKB_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
         : Orbital_RKB_HF_IBS_Imp(
-                    new EOrbital_RKBL_IBS(es,irrep,ltrim),
-                    new EOrbital_RKBS_IBS(es,irrep,ltrim)
+                    new EOrbital_RKBL_IBS(cache,es,irrep,ltrim),
+                    new EOrbital_RKBS_IBS(cache,es,irrep,ltrim)
                 )
-        , IrrepBasisSetImp<double>(irrep)
+        , IrrepBasisSetImp<double>(irrep, cache)
         , Symmetry::IdentityRepresentation<double>(Symmetry::Stabiliser::FixingPoint(rvec3_t(0,0,0)))
         {};
 
@@ -245,13 +247,13 @@ public:
     BasisSet_RKB(size_t N, double ermin, double ermax, const ElectronConfiguration& ec)
     {
         for (auto irrep:ec.GetIrreps())
-            Insert(new EOrbital_RKB_IBS(N,ermin,ermax,irrep));
+            Insert(new EOrbital_RKB_IBS(BlockCache(),N,ermin,ermax,irrep));
 
     }
     BasisSet_RKB(const rvec_t& es, const ElectronConfiguration& ec, size_t ltrim=0)
     {
         for (auto irrep:ec.GetIrreps())
-            Insert(new EOrbital_RKB_IBS(es,irrep,ltrim));
+            Insert(new EOrbital_RKB_IBS(BlockCache(),es,irrep,ltrim));
     }
 
 };

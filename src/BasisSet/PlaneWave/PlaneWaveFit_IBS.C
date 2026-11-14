@@ -20,6 +20,7 @@ module;
 #include <cmath>
 #include <complex>
 export module qchem.BasisSet.PlaneWave.PlaneWaveFit_IBS;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 export import qchem.BasisSet.Orbital_DFT_IBS;                    // cFIT_CD_ABS (the density-fit face)
 import qchem.BasisSet.PlaneWave.Evaluators;         // PW_Evaluator base -- INTERNAL to qcPlaneWave_BS (not re-exported)
 import qchem.BasisSet.Lattice_IBS;                       // Lattice::Irrep_IBS<E> (the shared evaluation tier of the G=T spec)
@@ -55,8 +56,8 @@ public:
     //! still shows up -- deliberately, so stale grid construction is visible (user ruling 2026-08-16).
     //! \a holdsOrbitalPairs: the creating ORBITAL basis states that this ball holds every one of its pair differences
     //! (\c G_OrbitalPairBall) -- only \c PlaneWave_IBS at >= 4 Ecut does; a GPW block's fit never can.
-    PlaneWaveFit_IBS(const PW_Grid_Evaluator& e, const sym_t& sym, const std::string& role, bool holdsOrbitalPairs=false)
-        : BasisSet::IrrepBasisSetImp<dcmplx>(sym)
+    PlaneWaveFit_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const PW_Grid_Evaluator& e, const sym_t& sym, const std::string& role, bool holdsOrbitalPairs=false)
+        : BasisSet::IrrepBasisSetImp<dcmplx>(sym, cache)
         , PW_Grid_Evaluator(e)
         , itsHoldsOrbitalPairs(holdsOrbitalPairs)
     { AnnounceGrid(role); }

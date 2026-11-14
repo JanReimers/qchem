@@ -23,10 +23,10 @@ import qchem.BasisSet.PlaneWave.PlaneWaveFit_IBS;
 namespace qchem::BasisSet::Gaussian
 {
 
-template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const sym_t& irrep,
+template <class T> tGPW_IBS<T>::tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const sym_t& irrep,
                  std::shared_ptr<const BasisSet::Real_BS> mol, std::shared_ptr<const GpwRasterLadder> ladder, CellImages images,
                  std::vector<Symmetry::Lattice_3D::DirectOp> directOps, const GPWTolerances& tol)
-    : BasisSet::IrrepBasisSetImp<T>(irrep)
+    : BasisSet::IrrepBasisSetImp<T>(irrep, cache)
     , GPW_Evaluator(std::move(mol), cell, std::move(ladder), Symmetry::Lattice_3D::Getk(irrep), irrep->IsReal(),
                     images==CellImages::HomeCellOnly, tol) // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1)
 {
@@ -34,20 +34,20 @@ template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const sym_t& irre
 }
 
 // A bare block: its own ladder from the same builder the factory uses, then the primary constructor.
-template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const sym_t& irrep,
+template <class T> tGPW_IBS<T>::tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const sym_t& irrep,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, double ladderFactor, RasterFields rasterFields, const GPWTolerances& tol)
-    : tGPW_IBS(cell, irrep, mol,
+    : tGPW_IBS(cache, cell, irrep, mol,
               MakeRasterLadder(cell, *mol, {.densityEcut=densityEcut, .cutoffFactor=cutoffFactor, .ladderFactor=ladderFactor,
                                             .rasterFields=rasterFields, .tol=tol}),
               images, {}, tol)
 {}
 
 // Convenience: build the Bloch irrep from BZ-grid indices and delegate to the bare-block constructor.
-template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
+template <class T> tGPW_IBS<T>::tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, double ladderFactor, RasterFields rasterFields, const GPWTolerances& tol)
-    : tGPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor, ladderFactor, rasterFields, tol)
+    : tGPW_IBS(cache, cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor, ladderFactor, rasterFields, tol)
 {}
 
 template <class T> mat_t<T> tGPW_IBS<T>::MakeRepMatrix(const Symmetry::SymOp& g) const
@@ -93,8 +93,8 @@ template <class T> mat_t<dcmplx> tGPW_IBS<T>::OrbitalImage(const Symmetry::SymOp
 template <class T> BasisSet::cFIT_CD_ABS* tGPW_IBS<T>::CreateCDFitBasisSet(const Structure*) const
 {
     // {G}_rho = DensityGrid() (cutoffFactor*alpha_max, resolving the density product); no relCutoff on the CD grid.
-    return new PlaneWave::PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),
-                                "densityFit");
+    return new PlaneWave::PlaneWaveFit_IBS(std::make_shared<BasisSet::BasisCache>(),   // a fit basis gets its OWN cache from its factory (S3a)
+                                GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "densityFit");
 }
 template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
@@ -111,8 +111,8 @@ template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(cons
     // `grids.xcQuadrature kind Becke` from the route and then `grids.xcQuadrature kind Uniform` from here
     // -- the same report key answering the reader's question two different ways on one run.  The route now
     // owns that key exclusively (Hamiltonians.C, both branches).
-    return new PlaneWave::PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),
-                                "vxcFitGrid");
+    return new PlaneWave::PlaneWaveFit_IBS(std::make_shared<BasisSet::BasisCache>(),
+                                GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "vxcFitGrid");
 }
 
 // The species-field integral service.  Both matrices are STATIC across an SCF but rebuilt PER k-BLOCK, so
@@ -202,23 +202,6 @@ template <class T> PairProjection<dcmplx> tGPW_IBS<T>::MakeOverlap3C(const cFIT_
 {
     const auto& grid = dynamic_cast<const PlaneWave::PW_Grid_Evaluator&>(c);
     return GPW_Evaluator::Overlap3CTensor(std::make_shared<const PlaneWave::PW_Grid_Evaluator>(grid));
-}
-
-// The INSTANCE-scoped 3C accessors (declaration doc in GPW_IBS.C): GPW's matrix-free tensor closures
-// capture this evaluator's mutable per-SCF state (CollocMemo D-screen, stream caches), so they must die
-// with the run -- the base class's process-wide DBCache route leaked the D-screen into every later
-// identical run (the 2026-08-18 first-run anomaly).  Same lookup-or-make contract, instance lifetime.
-template <class T> const PairProjection<dcmplx>& tGPW_IBS<T>::Overlap3C(const cFIT_SF_ABS& c) const
-{
-    auto [it,fresh]=its3Cs.try_emplace("O|"+c.BasisSetID());
-    if (fresh) it->second=MakeOverlap3C(c);
-    return it->second;
-}
-template <class T> const PairProjection<dcmplx>& tGPW_IBS<T>::Repulsion3C(const cFIT_CD_ABS& c) const
-{
-    auto [it,fresh]=its3Cs.try_emplace("R|"+c.BasisSetID());
-    if (fresh) it->second=MakeRepulsion3C(c);
-    return it->second;
 }
 
 // THE TRANSITION PAIR (B2): the fit basis IS-A grid evaluator (the MakeRepulsion3C cast), and its content ID keys

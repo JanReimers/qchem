@@ -1,23 +1,25 @@
 // File: BasisSet/Imp/Orbital_DFT_IBS.C
 module;
+#include <memory>
 #include <cassert>
 module qchem.BasisSet.Orbital_DFT_IBS;
-import qchem.BasisSet.Internal.DB_Cache;
+import qchem.BasisSet.BasisCache;
 
 namespace qchem::BasisSet
 {
-// The tensor lives in theCache<TFit>() (NOT <T>): its element type follows the FIT axis, so that is the
-// cache that can store it.  Identical for every T==TFit instantiation; load-bearing for <double,dcmplx>
+// The tensor lives in the PARENT's cache, keyed by (this block's index, the fit's INSTANCE serial) (doc/IntegralCacheOwnershipPlan.md
+// S3a, §3b): never the fit's address (reused after it dies) nor its content ID.  Its element type follows the FIT axis (TFit, NOT T),
+// so it lands in the cache's TFit map.  Identical for every T==TFit instantiation; load-bearing for <double,dcmplx>
 // (a real TRIM block sharing the run's complex G-space fit basis -- doc/RealComplexPlan.md).
 template <class T, class TFit> const PairProjection<TFit>& Orbital_DFT_IBS<T,TFit>::Overlap3C  (const FIT_SF_ABS<TFit>& c) const
 {
-    return theCache<TFit>().Get(IntegralsCache_Base::I3C::Overlap,this,&c,
+    return this->Cache().template Get<TFit>(BasisCache::Three::Overlap, this->CacheIndex(), c.Instance(), c.Name(),
         [this,&c]{ return MakeOverlap3C(c); });
 }
 //! 3 centre repulsion used for DFT \f$\left\langle a\left(1\right)b\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{b}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}f_{c}\left(\vec{r}_{2}\right) \f$
 template <class T, class TFit> const PairProjection<TFit>& Orbital_DFT_IBS<T,TFit>::Repulsion3C(const FIT_CD_ABS<TFit>& c) const
 {
-    return theCache<TFit>().Get(IntegralsCache_Base::I3C::Repulsion,this,&c,
+    return this->Cache().template Get<TFit>(BasisCache::Three::Repulsion, this->CacheIndex(), c.Instance(), c.Name(),
         [this,&c]{ return MakeRepulsion3C(c); });
 }
 

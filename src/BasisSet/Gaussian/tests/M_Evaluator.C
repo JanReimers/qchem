@@ -27,7 +27,7 @@ TEST(M_Evaluator, kernels_match_IBS_integrals)
     h2o.Insert(Site{1, rvec3_t(0,-0.757, -0.467)});
 
     rvec_t exps{1.0, 0.25};
-    Orbital_IBS ibs(exps, 1, &h2o);                          // s + p shells, 2 exponents each
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 1, &h2o);                          // s + p shells, 2 exponents each
 
     const NR_Evaluator& ev = ibs;                            // the IBS IS-A evaluator; structure is per-call
     ASSERT_EQ(ev.size(), ibs.GetNumFunctions());

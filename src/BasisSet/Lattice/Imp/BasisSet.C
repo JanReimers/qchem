@@ -47,7 +47,7 @@ PW_BasisSet::PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut, const std:
     for (const auto& kp : lat.MakeKMesh())
     {
         ivec3_t ik(std::lround(kp.k.x*N.x), std::lround(kp.k.y*N.y), std::lround(kp.k.z*N.z));
-        auto* pw=new PlaneWave::PlaneWave_IBS(recip, Symmetry::BlochFactory(N, ik, kp.weight), Ecut);
+        auto* pw=new PlaneWave::PlaneWave_IBS(BlockCache(), recip, Symmetry::BlochFactory(N, ik, kp.weight), Ecut);
         Insert(pw);                                 // BasisSetImp takes ownership (no PP: the Vpseudo
                                                     // Hamiltonian term owns the pseudopotential model)
     }
@@ -198,7 +198,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         // both alternatives; the typed Insert (Step 3b) files each under its own child slot.
         auto build=[&]<class U>()
         {
-            auto* b=new Gaussian::tGPW_IBS<U>(lat.GetUnitCell(), irrep,
+            auto* b=new Gaussian::tGPW_IBS<U>(BlockCache(), lat.GetUnitCell(), irrep,
                                     mol, ladder, p.images,  // mol and the ladder shared across k-blocks
                                     ops.directDensity,    // {W|τ} = the IBZ raster star ops
                                     p.tol);               // the typed GPW tolerances (D-ENV step 5)

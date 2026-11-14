@@ -119,7 +119,7 @@ TEST(PointJets, TheDensityPullbackIsTheWeightedSumOfTheDensityJets)
 TEST(GeometryDerivatives, PG_CartsPullbacksAreLibcintsGradientsContractedAndTranslationInvariant)
 {
     std::unique_ptr<Molecule> h2o(new Molecule(StructureData::GetMolecule("H2O")));
-    const Orbital_IBS ibs(rvec_t{1.0, 0.25}, 2, h2o.get());
+    const Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{1.0, 0.25}, 2, h2o.get());
     const BasisSet::Orbital_1E_IBS<double>& block=ibs;   // a term holds this face; it asks it, no cast
     ASSERT_TRUE(block.CanPullbackOverlap() && block.CanPullbackKinetic() && block.CanPullbackNuclear());
     const size_t n=block.GetNumFunctions();
@@ -150,10 +150,11 @@ namespace
 std::unique_ptr<Molecule> Water() {return std::make_unique<Molecule>(StructureData::GetMolecule("H2O"));}
 std::vector<rvec3_t> Sites(const Structure& st) {std::vector<rvec3_t> R; st.ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); }); return R;}
 //! The contracted DZVP block of \a st (s, p, d shells, contracted Cartesian Gaussians).
-std::unique_ptr<Orbital_IBS> Dzvp(const Structure* st)
+//! \a cache = the parent's: two blocks an ERI4 pairs must share one (the pair lives in the parent's cache, plan S3a).
+std::unique_ptr<Orbital_IBS> Dzvp(const Structure* st, std::shared_ptr<::qchem::BasisSet::BasisCache> cache=std::make_shared<::qchem::BasisSet::BasisCache>())
 {
     BasisSet::Gaussian::Gaussian94Reader reader(BasisSet::Gaussian::BasisFile("dzvp.bsd"));
-    return std::make_unique<Orbital_IBS>(&reader, st);
+    return std::make_unique<Orbital_IBS>(cache, &reader, st);
 }
 double TrAM(const hmat_t<double>& A, const hmat_t<double>& M)
 { double t=0.0; for (size_t i=0;i<A.rows();i++) for (size_t j=0;j<A.rows();j++) t+=A(i,j)*M(i,j); return t; }
@@ -204,7 +205,7 @@ TEST(GeometryDerivatives, PG_CartsGradientIsTheFiniteDifferenceOfItsValuesForEve
     const auto h2o=Water();
     const auto R=Sites(*h2o);
     std::vector<std::unique_ptr<Orbital_IBS>> blocks;
-    blocks.push_back(std::make_unique<Orbital_IBS>(rvec_t{1.3, 0.35}, 4, h2o.get()));   // s, p, d, f, g
+    blocks.push_back(std::make_unique<Orbital_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{1.3, 0.35}, 4, h2o.get()));   // s, p, d, f, g
     blocks.push_back(Dzvp(h2o.get()));                                                 // contracted s, p, d
     const double h=1e-5;
     for (const auto& b : blocks)
@@ -281,7 +282,7 @@ TEST(GeometryDerivatives, EachCanQueryAgreesWithWhetherItsMethodAnswers)
 {
     const auto h2o=Water();
     BasisSet::Gaussian::Gaussian94Reader reader(BasisSet::Gaussian::BasisFile("dzvp.bsd"));
-    const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(&reader, h2o.get());
+    const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(std::make_shared<::qchem::BasisSet::BasisCache>(), &reader, h2o.get());
     const auto cart=Dzvp(h2o.get());
     for (const BasisSet::Orbital_1E_IBS<double>* b : {static_cast<const BasisSet::Orbital_1E_IBS<double>*>(&sph), static_cast<const BasisSet::Orbital_1E_IBS<double>*>(cart.get())})
     {
@@ -363,7 +364,7 @@ TEST(GeometryDerivatives, EachCoulombFitCanQueryAgreesWithWhetherItsMethodAnswer
 {
     const auto h2o=Water();
     BasisSet::Gaussian::Gaussian94Reader reader(BasisSet::Gaussian::BasisFile("dzvp.bsd"));
-    const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(&reader, h2o.get());
+    const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(std::make_shared<::qchem::BasisSet::BasisCache>(), &reader, h2o.get());
     const auto cart=Dzvp(h2o.get());
     for (const BasisSet::Orbital_DFT_IBS<double>* b : {static_cast<const BasisSet::Orbital_DFT_IBS<double>*>(&sph), static_cast<const BasisSet::Orbital_DFT_IBS<double>*>(cart.get())})
     {
@@ -390,11 +391,13 @@ TEST(GeometryDerivatives, PG_CartsERI4PullbacksAreTheFiniteDifferenceOfItsOwnCon
 {
     const auto h2o=Water();
     const auto R=Sites(*h2o);
-    auto even=[](const Structure* st){ return std::make_unique<Orbital_IBS>(rvec_t{1.0,0.25}, 1, st); };
+    // The two blocks of a cross pair share ONE parent cache (an ERI4 pair of two parents throws, plan S3a).
+    auto even=[](const Structure* st, std::shared_ptr<::qchem::BasisSet::BasisCache> cache){ return std::make_unique<Orbital_IBS>(cache, rvec_t{1.0,0.25}, 1, st); };
     for (bool cross : {false, true})
     {
-        const auto a=Dzvp(h2o.get());
-        const auto bOwn=even(h2o.get());
+        const auto parent=std::make_shared<::qchem::BasisSet::BasisCache>();
+        const auto a=Dzvp(h2o.get(), parent);
+        const auto bOwn=even(h2o.get(), parent);
         const BasisSet::Orbital_HF_IBS<double>& A=*a;
         const BasisSet::Orbital_HF_IBS<double>& B=cross ? static_cast<const BasisSet::Orbital_HF_IBS<double>&>(*bOwn) : A;
         const size_t na=a->GetNumFunctions(), nb=cross ? bOwn->GetNumFunctions() : na;
@@ -407,16 +410,16 @@ TEST(GeometryDerivatives, PG_CartsERI4PullbacksAreTheFiniteDifferenceOfItsOwnCon
         ASSERT_TRUE(FJ && FK);
         auto contractions=[&](const Structure* st)
         {
-            const auto a1=Dzvp(st); const auto b1=even(st);
+            const auto parent1=std::make_shared<::qchem::BasisSet::BasisCache>();
+            const auto a1=Dzvp(st, parent1); const auto b1=even(st, parent1);
             const BasisSet::Orbital_HF_IBS<double>& A1=*a1;
             const BasisSet::Orbital_HF_IBS<double>& B1=cross ? static_cast<const BasisSet::Orbital_HF_IBS<double>&>(*b1) : A1;
             rsmat_t J(na), K(na);
             if (!cross) {A1.AccumulateDirect(J, Db, &B1); A1.AccumulateExchange(K, Db, &B1);}
             else
-            {   // A CROSS PAIR goes through the canonical-pair form, which orders the two blocks by BasisSetID itself (the ERI4 cache
-                // stores only the canonical block).  This test used to call AccumulateDirect(A1,B1) and passed only while the streamed
-                // IDs happened to sort DZVP ("Contracted...") before the even-tempered set ("Primative..."); the exact IDs (2026-11-12)
-                // sort the other way.  Ji += J(A,B)·Db with Di = 0, so the B side collects an exact zero.
+            {   // A CROSS PAIR goes through the canonical-pair form, which orders the two blocks by their index in the parent's cache
+                // itself (the cache stores only the canonical block; S3a, was BasisSetID).  A plain AccumulateDirect(A1,B1) would depend
+                // on which block enrolled first.  Ji += J(A,B)·Db with Di = 0, so the B side collects an exact zero.
                 rsmat_t Jb(nb), Kb(nb); const rsmat_t zero(na);
                 A1.AccumulateDirectBoth(J, Jb, zero, Db, &B1); A1.AccumulateExchangeBoth(K, Kb, zero, Db, &B1);
             }
@@ -441,7 +444,7 @@ TEST(GeometryDerivatives, PG_CartsERI4PullbacksAreTheFiniteDifferenceOfItsOwnCon
         EXPECT_LT(norm(sJ), 1e-8); EXPECT_LT(norm(sK), 1e-8);
     }
     BasisSet::Gaussian::Gaussian94Reader reader(BasisSet::Gaussian::BasisFile("dzvp.bsd"));
-    const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(&reader, h2o.get());
+    const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(std::make_shared<::qchem::BasisSet::BasisCache>(), &reader, h2o.get());
     const BasisSet::Orbital_HF_IBS<double>& S=sph;
     EXPECT_FALSE(S.CanPullbackERI4(&S)) << "PG_Spherical has no geometry derivative yet";
     const auto r=S.MakeDirectPullback(rsmat_t(sph.GetNumFunctions()), rsmat_t(sph.GetNumFunctions()), &S, h2o.get());
@@ -559,13 +562,13 @@ TEST(GeometryDerivatives, EveryPointGaussianFamilysGradientIsTheFiniteDifference
     const auto R=Sites(*h2o);
     BasisSet::Gaussian::Gaussian94Reader reader(BasisSet::Gaussian::BasisFile("dzvp.bsd"));
     std::vector<std::pair<std::string, std::unique_ptr<BasisSet::Orbital_1E_IBS<double>>>> blocks;
-    blocks.emplace_back("PG_Spherical spdfg", std::make_unique<BasisSet::Gaussian::PG_Spherical::Orbital_IBS>(rvec_t{1.3, 0.35}, 4, h2o.get()));
-    blocks.emplace_back("PG_Spherical DZVP",  std::make_unique<BasisSet::Gaussian::PG_Spherical::Orbital_IBS>(&reader, h2o.get()));
+    blocks.emplace_back("PG_Spherical spdfg", std::make_unique<BasisSet::Gaussian::PG_Spherical::Orbital_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{1.3, 0.35}, 4, h2o.get()));
+    blocks.emplace_back("PG_Spherical DZVP",  std::make_unique<BasisSet::Gaussian::PG_Spherical::Orbital_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), &reader, h2o.get()));
     for (bool sph : {false, true})
     {
         const std::string tag=sph ? "PG_LibCint spherical " : "PG_LibCint Cartesian ";
-        blocks.emplace_back(tag+"spdfg", std::make_unique<BasisSet::Gaussian::PG_LibCint::Orbital_IBS>(rvec_t{1.3, 0.35}, 4, h2o.get(), sph));
-        blocks.emplace_back(tag+"DZVP",  std::make_unique<BasisSet::Gaussian::PG_LibCint::Orbital_IBS>(&reader, h2o.get(), sph));
+        blocks.emplace_back(tag+"spdfg", std::make_unique<BasisSet::Gaussian::PG_LibCint::Orbital_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{1.3, 0.35}, 4, h2o.get(), sph));
+        blocks.emplace_back(tag+"DZVP",  std::make_unique<BasisSet::Gaussian::PG_LibCint::Orbital_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), &reader, h2o.get(), sph));
     }
     const auto raw=Dzvp(h2o.get());
     const auto pts=BasisSet::Gaussian::PG_Cart::StructureToSymPoints(*h2o);

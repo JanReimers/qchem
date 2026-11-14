@@ -18,6 +18,7 @@ module;
 #include <vector>
 
 export module qchem.BasisSet.Gaussian.Lattice.GPW_IBS;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;  // GPW_Evaluator (base subobject) -- NOT re-exported (internal)
 import qchem.BasisSet.Lattice_IBS;                // the G=T spec: isLattice_{1E,DFT}_Evaluator + Lattice::Orbital_{1E,DFT}_IBS<E,T> (mixins)
 import qchem.Matrix3D;                             // Matrix3D
@@ -129,7 +130,7 @@ public:
     //! \param mol   the molecular Gaussian orbital basis built over \a cell's atoms (kept alive by the evaluator).
     //! \param ladder  the point's raster ladder (\c MakeRasterLadder), shared by every block: the density grid and its multigrid levels.
     //! \param images  the lattice-image MODE (see \c CellImages; default \c Periodic).
-    tGPW_IBS(const UnitCell& cell, const sym_t& irrep,
+    tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const sym_t& irrep,
             std::shared_ptr<const BasisSet::Real_BS> mol, std::shared_ptr<const GpwRasterLadder> ladder,
             CellImages images = CellImages::Periodic,
             std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {},   //!< crystal direct ops {W|τ} for the T1 {G}-star fold
@@ -138,13 +139,13 @@ public:
     //! \brief A block built BARE (the unit tests): its OWN ladder from \a densityEcut (\f$<0\f$ AUTO floor
     //! \a cutoffFactor\f$\cdot\alpha_{\max}\f$, \f$0\f$ DFT tier off, \f$>0\f$ explicit Ha) and the other grid settings, by the same
     //! builder the factory uses.  No imposed ops.
-    tGPW_IBS(const UnitCell& cell, const sym_t& irrep,
+    tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const sym_t& irrep,
             std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0,
             CellImages images = CellImages::Periodic, double cutoffFactor = 2.0, double ladderFactor = 4.0,
             RasterFields rasterFields = RasterFields::HartreeXC, const GPWTolerances& tol = {});
 
     //! \brief The bare block in BZ-grid indices: builds the Bloch irrep \c BlochFactory(N,kIndex).
-    tGPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
+    tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
             std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0,
             CellImages images = CellImages::Periodic, double cutoffFactor = 2.0, double ladderFactor = 4.0,
             RasterFields rasterFields = RasterFields::HartreeXC, const GPWTolerances& tol = {});
@@ -178,18 +179,11 @@ public:
     virtual std::string Name      () const override {return "GPW";}
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + molecular ID + k + nR)
 
-    //! \brief The DFT 3-centre tensors, memoized PER INSTANCE -- deliberately NOT through the process-wide
-    //! DBCache the base accessors use.  GPW's tensors are MATRIX-FREE closures capturing this evaluator's
-    //! mutable per-SCF state (the CollocMemo D-screen, the collocation streams): value-stable data they are
-    //! not.  Cached process-wide they outlive the run, and a second identical run in one process inherits
-    //! the first run's converged D-screen -- its seed Fock then sweeps the full pair set where a fresh
-    //! process's (screened by the seed's diagonal SAD D) is diagonal-only: the 2026-08-18 first-run anomaly
-    //! (seed s-levels ~0.24 Ha apart, converged E ~5e-6, every run in one process differing from a fresh
-    //! process).  Instance scope = run scope: every run replays fresh-process behaviour bit-for-bit.
-    //! (Within a run nothing changes -- the same instance serves every iteration, and cross-k-block stream
-    //! sharing lives in the SHARED molecular basis, not in these closures.)
-    virtual const PairProjection<dcmplx>& Overlap3C  (const cFIT_SF_ABS& c) const override;
-    virtual const PairProjection<dcmplx>& Repulsion3C(const cFIT_CD_ABS& c) const override;
+    // (The DFT 3-centre tensors are the base accessors' since S3a (doc/IntegralCacheOwnershipPlan.md §7): the PARENT's cache, keyed by
+    //  the fit's instance serial.  GPW's tensors are MATRIX-FREE closures capturing this evaluator's mutable per-SCF state (the
+    //  CollocMemo D-screen, the collocation streams), so they must not outlive the run: the 2026-08-18 first-run anomaly was a process-
+    //  wide cache carrying one run's converged D-screen into the next.  The parent's cache dies with the basis, which is the run's, so
+    //  every run still replays fresh-process behaviour; this class's own instance memo (keyed by the fit's content ID) is retired.)
 
     virtual std::ostream& Write(std::ostream&) const override;
 
@@ -208,9 +202,6 @@ protected:
 private:
     //! THROWS unless \a bra is built over my molecular AOs and \a rows x \a cols is bra x ket (finding 6).
     void CheckTransitionPair(const BasisSet::Transition_DFT_IBS& bra, size_t rows, size_t cols) const;
-    //! The instance-scoped 3C tensor memo (see Overlap3C/Repulsion3C above).  Key = "O|"/"R|" + the fit
-    //! basis's BasisSetID (content identity, never a pointer).
-    mutable std::map<std::string,PairProjection<dcmplx>> its3Cs;
 };
 
 //! Every pre-Step-3 spelling: the general-k complex block.  A TRIM block is tGPW_IBS<double>.

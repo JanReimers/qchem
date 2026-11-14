@@ -98,6 +98,18 @@ public:
         for (const auto& [k,s] : itsSlots) if (s.value) n+=bytesOf(*s.value);
         return n;
     }
+    //! Erase every FILLED slot whose key satisfies \a dead(key), and return how many went.  For an owner that KNOWS such a key can never
+    //! be asked again (an entry keyed by a dead partner's never-reused serial, doc/IntegralCacheOwnershipPlan.md §3b): nobody can be
+    //! building it or holding a reference to it, because any asker would be holding the partner alive.  An unfilled slot is left alone.
+    template <class P> size_t EraseIf(P&& dead) const requires (D==SlotDiscipline::FillOnce)
+    {
+        std::lock_guard<std::mutex> l(itsLock);
+        size_t n=0;
+        for (auto it=itsSlots.begin(); it!=itsSlots.end();)
+            if (it->second.value && dead(it->first)) {it=itsSlots.erase(it); n++;}
+            else ++it;
+        return n;
+    }
     //! The number of FILLED slots.
     size_t Filled() const
     {

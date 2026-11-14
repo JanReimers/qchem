@@ -51,7 +51,7 @@ std::shared_ptr<const Real_BS> Mol(const Structure& st)
 }
 std::unique_ptr<GPW_IBS> Block(const UnitCell& cell)
 {
-    return std::make_unique<GPW_IBS>(cell, kMesh, kIndex, Mol(cell), /*densityEcut*/6.0);
+    return std::make_unique<GPW_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, kMesh, kIndex, Mol(cell), /*densityEcut*/6.0);
 }
 chmat_t RandomHermitian(size_t n)
 {

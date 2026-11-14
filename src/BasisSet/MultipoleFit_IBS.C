@@ -23,6 +23,7 @@ module;
 #include <ostream>
 #include <string>
 export module qchem.BasisSet.MultipoleFit_IBS;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.Mesh.SiteMultipoles;
 export import qchem.BasisSet.CoulombDeltaFit_IBS;   // PointCoulombIntegrals: this basis answers its own Coulomb integrals
@@ -44,8 +45,8 @@ class MultipoleFit_IBS
 {
 public:
     //! \a delta is the \f$\delta\f$ basis on the mesh \a sites was built from, and \a sym the fit lineage's irrep.
-    MultipoleFit_IBS(std::shared_ptr<const rFIT_SF_ABS> delta, std::shared_ptr<const qcMesh::SiteMultipoles> sites, const sym_t& sym)
-        : IrrepBasisSetImp<double>(sym), itsDelta(std::move(delta)), itsSites(std::move(sites))
+    MultipoleFit_IBS(const std::shared_ptr<BasisCache>& cache, std::shared_ptr<const rFIT_SF_ABS> delta, std::shared_ptr<const qcMesh::SiteMultipoles> sites, const sym_t& sym)
+        : IrrepBasisSetImp<double>(sym, cache), itsDelta(std::move(delta)), itsSites(std::move(sites))
         , itsW(itsDelta->Charge()), itsDiagonal(MakeDiagonal())
     {}
     // --- its Coulomb integrals: the multipole solve over its own sites, with its own metric (the shell weights)

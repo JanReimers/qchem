@@ -71,33 +71,34 @@ public:
     void InitGaussian(size_t Z) {Init(Z,Type::Gaussian,Type::Gaussian);}
     void InitSlater  (size_t Z) {Init(Z,Type::Slater  ,Type::Slater);}
 
-    // The ERI4 cache is canonical-only (doc/ERI4Rework.md §5.2): only the a<=b (BasisSetID) block may be
-    // built/stored, and the partner request throws.  So fetch only the canonical block from the cache
-    // (checking cross-element reuse), verify J(a,b)=J(b,a)^T against the UNCACHED MakeDirect of the partner,
-    // and assert the non-canonical cached request is forbidden.
+    // The ERI4 store is canonical-only (doc/ERI4Rework.md §5.2): only the a<=b block (by the block's index in its parent's cache = the
+    // parent's iteration order) is built/stored, and the partner request throws.  So fetch only the canonical block, check the second
+    // basis computes the same numbers (in its OWN cache since S3a: no cross-basis object sharing), verify J(a,b)=J(b,a)^T against the
+    // UNCACHED MakeDirect of the partner, and assert the non-canonical request is forbidden.
     void TestDirect(double eps, bool testTranspose=true)
     {
         using BasisSet::Real_ERI4_OIBS;
         auto ibs21=bs2->Iterate<Real_ERI4_OIBS>().begin();
+        size_t i=0;
         for (auto ibs11:bs1->Iterate<Real_ERI4_OIBS>())
         {
             auto ibs22=bs2->Iterate<Real_ERI4_OIBS>().begin();
+            size_t j=0;
             for (auto ibs12:bs1->Iterate<Real_ERI4_OIBS>())
             {
-                if (ibs11->BasisSetID() <= ibs12->BasisSetID())
+                if (i<=j)
                 {
                     const ERI4& J1=ibs11->Direct(*ibs12);
                     const ERI4& J2=(*ibs21)->Direct(**ibs22);
                     EXPECT_EQ(J1,J2);
-                    EXPECT_EQ(&J1,&J2);
                     if (testTranspose)
                         EXPECT_NEAR(fnorm(J1,ibs12->MakeDirect(*ibs11).Transpose()),0.0,eps);
                 }
                 else
                     EXPECT_ANY_THROW(ibs11->Direct(*ibs12));   // non-canonical request forbidden
-                ++ibs22;
+                ++ibs22; ++j;
             }
-            ++ibs21;
+            ++ibs21; ++i;
         }
 
     }
@@ -105,25 +106,26 @@ public:
     {
         using BasisSet::Real_ERI4_OIBS;
         auto ibs21=bs2->Iterate<Real_ERI4_OIBS>().begin();
+        size_t i=0;
         for (auto ibs11:bs1->Iterate<Real_ERI4_OIBS>())
         {
             auto ibs22=bs2->Iterate<Real_ERI4_OIBS>().begin();
+            size_t j=0;
             for (auto ibs12:bs1->Iterate<Real_ERI4_OIBS>())
             {
-                if (ibs11->BasisSetID() <= ibs12->BasisSetID())
+                if (i<=j)
                 {
                     const ERI4& K1=ibs11->Exchange(*ibs12);
                     const ERI4& K2=(*ibs21)->Exchange(**ibs22);
                     EXPECT_EQ(K1,K2);
-                    EXPECT_EQ(&K1,&K2);
                     if (testTranspose)
                         EXPECT_NEAR(fnorm(K1,ibs12->MakeExchange(*ibs11).Transpose()),0.0,eps);
                 }
                 else
                     EXPECT_ANY_THROW(ibs11->Exchange(*ibs12));   // non-canonical request forbidden
-                ++ibs22;
+                ++ibs22; ++j;
             }
-            ++ibs21;
+            ++ibs21; ++i;
         }
 
     }
@@ -149,13 +151,21 @@ public:
         using BasisSet::Real_ERI4_OIBS;
         // Only the canonical (a<=b) block of each pair may be built (the ERI4 cache is canonical-only); the
         // partner exercises the SAME underlying Rk integrals, so canonical pairs still fully warm the pool.
+        size_t ii=0;
         for (auto i:bs->Iterate<Real_ERI4_OIBS>())
+        {
+            size_t jj=0;
             for (auto j:bs->Iterate<Real_ERI4_OIBS>())
-                if (i->BasisSetID() <= j->BasisSetID())
+            {
+                if (ii<=jj)   // canonical: the parent's iteration order IS the cache-index order
                 {
                     i->Direct  (*j);
                     i->Exchange(*j);
                 }
+                jj++;
+            }
+            ii++;
+        }
         delete bs;
     }
 

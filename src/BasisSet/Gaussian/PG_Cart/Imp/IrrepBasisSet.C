@@ -60,8 +60,8 @@ std::vector<Polarization> MakePolarizations(int L)
 //
 //  Common implementation for orbital and fit basis sets.
 //
-IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
-    : IrrepBasisSetImp<double>(sym_t(new UnitQN))
+IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, Reader* bsr, const Structure* cl)
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN), cache)
 {
     //
     //  Read in all the radial functions (contracted or single Gaussians) and their l-sets (ReadShells: a shared-exponent
@@ -92,8 +92,8 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
     PGData::Init(bls);
 };
 
-IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl)
-    : IrrepBasisSetImp<double>(sym_t(new UnitQN))
+IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rvec_t& es, size_t LMax, const Structure* cl)
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN), cache)
 {
     for (const Site& atom : cl->Sites())
     {
@@ -118,8 +118,8 @@ IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl)
     PGData::Init(bls);
 }
 // Single atom version
-IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t L)
-    : IrrepBasisSetImp<double>(sym_t(new UnitQN))
+IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rvec_t& es, size_t L)
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN), cache)
 {
     std::vector<Polarization> Ps=MakePolarizations(L);
     for (auto e:es)
@@ -246,27 +246,27 @@ std::string IrrepBasisSet::Name() const
 //
 // Orbital PG basis set.
 //
-Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl)
-    : IrrepBasisSet(bsr,cl)
+Orbital_IBS::Orbital_IBS(const std::shared_ptr<BasisCache>& cache, Reader* bsr, const Structure* cl)
+    : IrrepBasisSet(cache,bsr,cl)
 {};
-Orbital_IBS::Orbital_IBS(   const rvec_t& exponents, size_t L, const Structure* cl)
-    : IrrepBasisSet(exponents,L,cl)
+Orbital_IBS::Orbital_IBS(const std::shared_ptr<BasisCache>& cache, const rvec_t& exponents, size_t L, const Structure* cl)
+    : IrrepBasisSet(cache,exponents,L,cl)
 {};
-Orbital_IBS::Orbital_IBS(   const rvec_t& exponents, size_t L)
-    : IrrepBasisSet(exponents,L)
+Orbital_IBS::Orbital_IBS(const std::shared_ptr<BasisCache>& cache, const rvec_t& exponents, size_t L)
+    : IrrepBasisSet(cache,exponents,L)
 {};
     
 rFIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
-    return new EFit_IBS(&reader,cl,"A1_coul");
+    return new EFit_IBS(std::make_shared<BasisCache>(),&reader,cl,"A1_coul");   // a fit basis gets its OWN cache from its factory (S3a)
 }
 rFIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     Gaussian94Reader reader(BasisFile("A1_exch.bsd"));
-    return new EFit_IBS(&reader,cl,mp,"A1_exch");
+    return new EFit_IBS(std::make_shared<BasisCache>(),&reader,cl,mp,"A1_exch");
 }
 // Orbital_1E_IBS::GetAoShells: this orbital IBS IS-A PGData, so it hands its own Cartesian data to the extractor.
 std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const {return ExtractAoShells(*this);}
@@ -403,11 +403,11 @@ size_t Orbital_IBS::StreamFoldOrder() const
 //
 //  Fit PG basis set.
 //
-EFit_IBS::EFit_IBS(Reader* bsr, const Structure* cl, const std::string& name)
-: Fit_IBS(), IrrepBasisSet(bsr,cl), itsName(name)
+EFit_IBS::EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader* bsr, const Structure* cl, const std::string& name)
+: Fit_IBS(), IrrepBasisSet(cache,bsr,cl), itsName(name)
 {};
-EFit_IBS::EFit_IBS(Reader* bsr, const Structure* cl, const qcMesh::MeshParams& mp, const std::string& name)
-: Fit_IBS(*cl,mp), IrrepBasisSet(bsr,cl), itsName(name)
+EFit_IBS::EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader* bsr, const Structure* cl, const qcMesh::MeshParams& mp, const std::string& name)
+: Fit_IBS(*cl,mp), IrrepBasisSet(cache,bsr,cl), itsName(name)
 {};
 
  

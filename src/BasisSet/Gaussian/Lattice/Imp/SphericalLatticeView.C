@@ -20,6 +20,7 @@ import qchem.BasisSet.Orbital_1E_IBS;         // Real_OIBS faces (IDs, 1E integr
 import qchem.BasisSet.Gaussian.Point.IBS;           // Gaussian::Orbital_1E_IBS (GetAoShells -- the inner shell source)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;  // the periodic capability the view answers
 import qchem.BasisSet.Internal.BasisSetImp;   // the one-block Real_BS container
+import qchem.BasisSet.Internal.IrrepBasisSetImp;   // the view block's cache, index and token (S3a)
 import qchem.Symmetry.Molecule.OperationRep;  // AoShell (+ ShellRep::Monomials soft capability)
 import qchem.Symmetry.Molecule.SphericalRep;  // SphericalShellRep -- the view's own shell reps (GetAoShells)
 import qchem.BasisSet.AoShellSource;          // the face the inner block answers and this view forwards
@@ -124,11 +125,13 @@ class SphericalView_IBS
     , public virtual Gaussian::TransitionCollocation   // forwarded through T like the ground-state pair (LinearResponsePlan B1)
     , public virtual BasisSet::BareCoulombSource       // the inner block's bare (ab|cd) through T (ACBN0, 2026-09-21)
     , public         Symmetry::IdentityRepresentation<double>   // identity at E only: no imposed spherical-view run (S3)
+    , public         BasisSet::IrrepBasisSetImp<double>         // its cache (the view set's), index and instance token (S3a)
 {
 public:
-    SphericalView_IBS(std::shared_ptr<const Real_BS> holder, const Gaussian::Orbital_1E_IBS* obs,
+    SphericalView_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, std::shared_ptr<const Real_BS> holder, const Gaussian::Orbital_1E_IBS* obs,
                       const Gaussian::Periodic_Gaussian_IBS* lat, rmat_t T, rvec_t colNorm)
-        : itsHolder(std::move(holder)), itsObs(obs), itsLat(lat), itsT(std::move(T)), itsColNorm(std::move(colNorm))
+        : BasisSet::IrrepBasisSetImp<double>(obs->GetSymt(), cache)
+        , itsHolder(std::move(holder)), itsObs(obs), itsLat(lat), itsT(std::move(T)), itsColNorm(std::move(colNorm))
         , itsTc(itsT.rows(),itsT.columns())
     {
         for (size_t i=0;i<itsT.rows();i++)
@@ -428,7 +431,7 @@ std::shared_ptr<const Real_BS> MakeSphericalLatticeView(std::shared_ptr<const Re
     rvec_t colNorm;
     const rmat_t T=BuildCartToSphere(obs->GetAoShells(), obs->Overlap(), obs->GetNumFunctions(), colNorm);
     auto* bs=new ViewBS;
-    bs->Insert(new SphericalView_IBS(cart, obs, lat, T, colNorm));
+    bs->Insert(new SphericalView_IBS(bs->BlockCache(), cart, obs, lat, T, colNorm));
     return std::shared_ptr<const Real_BS>(bs);
 }
 

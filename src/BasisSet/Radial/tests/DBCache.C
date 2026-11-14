@@ -10,7 +10,6 @@ using std::endl;
 import qchem.BasisSet.Radial.Factory;
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;  // tests may cheat: the ERI4 substrate face
 import qchem.BasisSet.Orbital_DFT_IBS;
-import qchem.BasisSet.Internal.DB_Cache_RAM;  // theCache<double>() + concrete IntegralsCache_RAM (Clear hooks; tests may cheat)
 using namespace qchem;
 
 using namespace qchem::BasisSet::Radial;
@@ -41,43 +40,22 @@ public:
         bs2=Factory(Low,type,Z);
     }
   
+    // THE BASIS'S OWN TABLES ARE THE BASIS'S (doc/IntegralCacheOwnershipPlan.md S3a): a block asked twice returns the SAME stored object
+    // (cached in its parent's cache), and a second, independently built basis computes the EQUAL table into its OWN cache -- no sharing
+    // across owners (the user: sharing between two equal, independently built bases "should be very low priority").
+    template <class M> static void SameOwnerSharesOtherOwnerRecomputes(const M& a1, const M& a1again, const M& a2)
+    {
+        EXPECT_EQ(&a1,&a1again);   // one owner: one stored object
+        EXPECT_EQ(a1,a2);          // another owner: the same numbers...
+        EXPECT_NE(&a1,&a2);        // ...in its own cache
+    }
     void TestOverlap() const
     {
         using OIBS=BasisSet::Real_OIBS;
         auto ibs2=bs2->Iterate<OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
-            auto& S1=ibs1->Overlap();
-            auto& S2=(*ibs2)->Overlap();
-            EXPECT_EQ(S1,S2);
-            EXPECT_EQ(&S1,&S2);
-            ++ibs2;
-        }
-    }
-    // Exercise the concrete cache's troubleshooting Clear() hooks.  Identity (address) semantics make
-    // eviction observable: a cached Get returns a reference to the STORED object, so after Clear() the
-    // same key must yield a freshly-recomputed object whose VALUE matches but whose ADDRESS differs --
-    // proving the entry was evicted, not served stale.  (We copy the value before clearing; the old
-    // reference dangles once its map node is erased, so we never read it post-Clear.)
-    void TestClearOverlap() const
-    {
-        auto& ram = dynamic_cast<BasisSet::IntegralsCache_RAM<double>&>(BasisSet::theCache<double>());
-        using OIBS=BasisSet::Real_OIBS;
-        for (auto ibs1:bs1->Iterate<OIBS>())
-        {
-            const rsmat_t  before = ibs1->Overlap();              // value copy of the cached entry
-            const void*    addr0  = &ibs1->Overlap();             // its stored address (HIT, still valid)
-            ram.Clear(BasisSet::IntegralsCache_Base::I2C::Overlap);
-            const rsmat_t& after  = ibs1->Overlap();             // MISS -> recomputed into a new node
-            EXPECT_EQ(before, after);                            // deterministic; Clear left the cache sound
-            (void)addr0;                                         // address may be reused by malloc -- not asserted
-        }
-        // Clearing one operator leaves the others and the cache machinery intact: bs1 & bs2 (same key)
-        // re-share the refilled Overlap entry.
-        auto ibs2=bs2->Iterate<OIBS>().begin();
-        for (auto ibs1:bs1->Iterate<OIBS>())
-        {
-            EXPECT_EQ(&ibs1->Overlap(), &(*ibs2)->Overlap());
+            SameOwnerSharesOtherOwnerRecomputes(ibs1->Overlap(), ibs1->Overlap(), (*ibs2)->Overlap());
             ++ibs2;
         }
     }
@@ -87,15 +65,12 @@ public:
         auto ibs2=bs2->Iterate<OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
-            // Kinetic() here is just a representative cached 1e matrix (the <p^2> block) used to
-            // check the cache returns the SAME object for the same key -- its physics is incidental.
-            auto& S1=ibs1->Kinetic();
-            auto& S2=(*ibs2)->Kinetic();
-            EXPECT_EQ(S1,S2);
-            EXPECT_EQ(&S1,&S2);
+            // Kinetic() here is just a representative cached 1e matrix (the <p^2> block); its physics is incidental.
+            SameOwnerSharesOtherOwnerRecomputes(ibs1->Kinetic(), ibs1->Kinetic(), (*ibs2)->Kinetic());
             ++ibs2;
         }
     }
+    // Nuclear is still in the process-wide cache (until S4 moves it to the Ven term): equal keys share one object.
     void TestNuclear() const
     {
         using OIBS=BasisSet::Real_OIBS;
@@ -115,6 +90,7 @@ public:
             ++ibs2;
         }
     }
+    // ⟨ab|c⟩ against ONE fit basis: keyed by (the block, the fit's instance serial) in the block's parent's cache.
     void TestOverlap3C(double eps) const
     {
         using BasisSet::Real_DFT_OIBS;
@@ -124,83 +100,83 @@ public:
             auto ff=ibs1->CreateVxcFitBasisSet(cl_hydrogen,qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3});
             const PairProjection<double>& E1=ibs1->Overlap3C(*ff);
             const PairProjection<double>& E2=(*ibs2)->Overlap3C(*ff);
+            EXPECT_EQ(&E1,&ibs1->Overlap3C(*ff));
             EXPECT_EQ(E1.dense,E2.dense);
-            EXPECT_EQ(&E1,&E2);
+            EXPECT_NE(&E1,&E2);
             ++ibs2;
+            delete ff;
         }
-
     }
     void TestRepulsion3C(double eps) const
-        {
-            using BasisSet::Real_DFT_OIBS;
-            auto ibs2=bs2->Iterate<Real_DFT_OIBS>().begin();
-            for (auto ibs1:bs1->Iterate<Real_DFT_OIBS>())
-            {
-                auto ff=ibs1->CreateCDFitBasisSet(cl_hydrogen);
-                const PairProjection<double>& E1=ibs1->Repulsion3C(*ff);
-                const PairProjection<double>& E2=(*ibs2)->Repulsion3C(*ff);
-                EXPECT_EQ(E1.dense,E2.dense);
-                EXPECT_EQ(&E1,&E2);
-                ++ibs2;
-            }
-
-        }
-    // The ERI4 cache is canonical-only (doc/ERI4Rework.md §5.2): only the a<=b (by BasisSetID) block of an
-    // unordered pair may be built/stored, and requesting the partner throws.  So we (1) fetch only the
-    // canonical block via the cache and check cross-basis reuse (same object from bs1 and bs2), (2) verify
-    // the bra-ket symmetry J(a,b)=J(b,a)^T against the UNCACHED MakeDirect of the partner, and (3) assert the
-    // non-canonical cached request is forbidden.
-    void TestDirect(double eps) const
-        {
-            cout << *bs1 << endl;
-            using BasisSet::Real_ERI4_OIBS;
-            auto ibs21=bs2->Iterate<Real_ERI4_OIBS>().begin();
-            for (auto ibs11:bs1->Iterate<Real_ERI4_OIBS>())
-            {
-                auto ibs22=bs2->Iterate<Real_ERI4_OIBS>().begin();
-                for (auto ibs12:bs1->Iterate<Real_ERI4_OIBS>())
-                {
-                    if (ibs11->BasisSetID() <= ibs12->BasisSetID())   // canonical: cache may hold it
-                    {
-                        const ERI4& J1=ibs11->Direct(*ibs12);
-                        const ERI4& J2=(*ibs21)->Direct(**ibs22);
-                        EXPECT_EQ(J1,J2);
-                        EXPECT_EQ(&J1,&J2);                            // cross-basis reuse (one cached object)
-                        ERI4 J1ba=ibs12->MakeDirect(*ibs11);          // partner built UNCACHED (cache forbids it)
-                        EXPECT_NEAR(fnorm(J1,J1ba.Transpose()),0.0,eps);
-                    }
-                    else
-                        EXPECT_ANY_THROW(ibs11->Direct(*ibs12));      // non-canonical request is forbidden
-                    ++ibs22;
-                }
-                ++ibs21;
-            }
-
-        }
-    void TestExchange(double eps) const
     {
-
+        using BasisSet::Real_DFT_OIBS;
+        auto ibs2=bs2->Iterate<Real_DFT_OIBS>().begin();
+        for (auto ibs1:bs1->Iterate<Real_DFT_OIBS>())
+        {
+            auto ff=ibs1->CreateCDFitBasisSet(cl_hydrogen);
+            const PairProjection<double>& E1=ibs1->Repulsion3C(*ff);
+            const PairProjection<double>& E2=(*ibs2)->Repulsion3C(*ff);
+            EXPECT_EQ(&E1,&ibs1->Repulsion3C(*ff));
+            EXPECT_EQ(E1.dense,E2.dense);
+            EXPECT_NE(&E1,&E2);
+            ++ibs2;
+            delete ff;
+        }
+    }
+    // The ERI4 store is canonical-only (doc/ERI4Rework.md §5.2): only the a<=b block of an unordered pair is built and stored, a by the
+    // block's index in its parent's cache, i.e. the parent's insertion (= iteration) order.  So (1) fetch only the canonical block and check
+    // it is stored once per owner, (2) verify the bra-ket symmetry J(a,b)=J(b,a)^T against the UNCACHED MakeDirect of the partner, (3) assert
+    // the non-canonical request is forbidden, and (4) a pair across two parents is refused (it has no single owner).
+    void TestDirect(double eps) const
+    {
+        cout << *bs1 << endl;
         using BasisSet::Real_ERI4_OIBS;
         auto ibs21=bs2->Iterate<Real_ERI4_OIBS>().begin();
+        size_t i=0;
         for (auto ibs11:bs1->Iterate<Real_ERI4_OIBS>())
         {
             auto ibs22=bs2->Iterate<Real_ERI4_OIBS>().begin();
+            size_t j=0;
             for (auto ibs12:bs1->Iterate<Real_ERI4_OIBS>())
             {
-                if (ibs11->BasisSetID() <= ibs12->BasisSetID())       // canonical: cache may hold it
+                if (i<=j)
+                {
+                    const ERI4& J1=ibs11->Direct(*ibs12);
+                    SameOwnerSharesOtherOwnerRecomputes(J1, ibs11->Direct(*ibs12), (*ibs21)->Direct(**ibs22));
+                    ERI4 J1ba=ibs12->MakeDirect(*ibs11);          // partner built UNCACHED (the store forbids it)
+                    EXPECT_NEAR(fnorm(J1,J1ba.Transpose()),0.0,eps);
+                }
+                else
+                    EXPECT_ANY_THROW(ibs11->Direct(*ibs12));      // non-canonical request is forbidden
+                EXPECT_ANY_THROW(ibs11->Direct(**ibs22));         // two parents: refused
+                ++ibs22; ++j;
+            }
+            ++ibs21; ++i;
+        }
+    }
+    void TestExchange(double eps) const
+    {
+        using BasisSet::Real_ERI4_OIBS;
+        auto ibs21=bs2->Iterate<Real_ERI4_OIBS>().begin();
+        size_t i=0;
+        for (auto ibs11:bs1->Iterate<Real_ERI4_OIBS>())
+        {
+            auto ibs22=bs2->Iterate<Real_ERI4_OIBS>().begin();
+            size_t j=0;
+            for (auto ibs12:bs1->Iterate<Real_ERI4_OIBS>())
+            {
+                if (i<=j)
                 {
                     const ERI4& K1=ibs11->Exchange(*ibs12);
-                    const ERI4& K2=(*ibs21)->Exchange(**ibs22);
-                    EXPECT_EQ(K1,K2);
-                    EXPECT_EQ(&K1,&K2);                                // cross-basis reuse (one cached object)
+                    SameOwnerSharesOtherOwnerRecomputes(K1, ibs11->Exchange(*ibs12), (*ibs21)->Exchange(**ibs22));
                     ERI4 K1ba=ibs12->MakeExchange(*ibs11);            // partner built UNCACHED
                     EXPECT_NEAR(fnorm(K1,K1ba.Transpose()),0.0,eps);
                 }
                 else
                     EXPECT_ANY_THROW(ibs11->Exchange(*ibs12));        // non-canonical request is forbidden
-                ++ibs22;
+                ++ibs22; ++j;
             }
-            ++ibs21;
+            ++ibs21; ++i;
         }
     }
     size_t N,Z;
@@ -227,16 +203,6 @@ TEST_F(DBCach1Tests,SlaterOverlap)
     TestOverlap();
 }
 
-TEST_F(DBCach1Tests,GaussianClearOverlap)
-{
-    Init(Gaussian);
-    TestClearOverlap();
-}
-TEST_F(DBCach1Tests,SlaterClearOverlap)
-{
-    Init(Slater);
-    TestClearOverlap();
-}
 
 TEST_F(DBCach1Tests,BSplineKinetic)
 {

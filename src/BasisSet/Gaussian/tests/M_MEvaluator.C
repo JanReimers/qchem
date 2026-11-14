@@ -118,7 +118,7 @@ TEST(M_MEvaluator, matrix_1E_matches_scalar)
 {
     Molecule* h2o = MakeWater();
     rvec_t exps{1.0, 0.25};
-    Orbital_IBS ibs(exps, 1, h2o);                           // scalar PG evaluator (s + p, 2 exponents)
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 1, h2o);                           // scalar PG evaluator (s + p, 2 exponents)
     Matrix_Adapter<NRE> mev(static_cast<const NRE&>(ibs));   // its matrix-delivery view
     ASSERT_EQ(mev.size(), ibs.GetNumFunctions());
 
@@ -137,7 +137,7 @@ TEST(M_MEvaluator, matrix_3C_4C_match_scalar)
 {
     Molecule* h2o = MakeWater();
     rvec_t exps{1.0, 0.25};
-    Orbital_IBS ibs(exps, 1, h2o);
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 1, h2o);
     Matrix_Adapter<NRE> mev(static_cast<const NRE&>(ibs));
 
     // 4-centre (HF): partner = self.  Reference = the public, energy-validated scalar Direct/Exchange.

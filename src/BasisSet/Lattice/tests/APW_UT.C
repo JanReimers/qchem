@@ -53,7 +53,7 @@ TEST_F(APWTests, EmptyLatticeSecularSingularAtFreeElectronEnergies)
     double a=8.0, R=2.0, Ecut=2.0; size_t lmax=8;
     ivec3_t N(4,4,4), k(1,0,0); rvec3_t kf(0.25,0,0);
     UnitCell cell(a); Lattice_3D lat(cell,N);
-    APW_IBS apw(lat.Reciprocal(),N,k,Ecut,R,lmax);
+    APW_IBS apw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,k,Ecut,R,lmax);
     std::vector<double> fe=FreeEnergies(a,kf,2);
 
     EXPECT_LT(MinAbsEig(apw.MakeSecular(fe[0])),1e-9);  // singular at 1/2|k+G|^2 ...
@@ -69,7 +69,7 @@ TEST_F(APWTests, SingularityConvergesWithLmax)
     ivec3_t N(4,4,4), k(1,0,0); rvec3_t kf(0.25,0,0);
     UnitCell cell(a); Lattice_3D lat(cell,N);
     double Es=FreeEnergies(a,kf,2)[1];                 // 2nd level (1st is ~machine-zero already)
-    APW_IBS lo(lat.Reciprocal(),N,k,Ecut,R,4);
-    APW_IBS hi(lat.Reciprocal(),N,k,Ecut,R,8);
+    APW_IBS lo(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,k,Ecut,R,4);
+    APW_IBS hi(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,k,Ecut,R,8);
     EXPECT_LT(MinAbsEig(hi.MakeSecular(Es)),MinAbsEig(lo.MakeSecular(Es)));
 }

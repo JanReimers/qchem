@@ -13,6 +13,7 @@ module;
 #include <stdexcept>
 #include <string>
 export module qchem.BasisSet.CoulombDeltaFit_IBS;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.Mesh.CoulombOperator;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
@@ -41,8 +42,8 @@ class CoulombDeltaFit_IBS
     , public         Symmetry::IdentityRepresentation<double>
 {
 public:
-    CoulombDeltaFit_IBS(std::shared_ptr<const rFIT_SF_ABS> delta, std::unique_ptr<qcMesh::CoulombOperator> op, const sym_t& sym)
-        : IrrepBasisSetImp<double>(sym), itsDelta(std::move(delta)), itsOp(std::move(op))
+    CoulombDeltaFit_IBS(const std::shared_ptr<BasisCache>& cache, std::shared_ptr<const rFIT_SF_ABS> delta, std::unique_ptr<qcMesh::CoulombOperator> op, const sym_t& sym)
+        : IrrepBasisSetImp<double>(sym, cache), itsDelta(std::move(delta)), itsOp(std::move(op))
     {
         if (!itsDelta || !itsOp) throw std::logic_error("CoulombDeltaFit_IBS: needs a δ basis and its Coulomb operator");
     }

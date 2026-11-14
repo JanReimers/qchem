@@ -121,7 +121,7 @@ double MaxDiff(const rsmat_t& a, const rsmat_t& b)
 template <class IBS> void CheckAgainstMesh()
 {
     const auto st=TwoSpecies();
-    const IBS bs(rvec_t{0.45,1.6}, 2, st.get());
+    const IBS bs(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{0.45,1.6}, 2, st.get());
     const qcMesh::Mesh mesh=st->CreateIntegrationMesh(qcMesh::BeckeXCParams(200,-1.0,41));
     const TestField field;
     ASSERT_TRUE(bs.CanAssembleField(field));
@@ -157,7 +157,7 @@ TEST(PP_ClosedForm, RefusesAFieldWithNoClosedForm)
         double CellMeanQ(int, FieldRange) const override {return 0.0;}
     };
     const auto st=TwoSpecies();
-    const BasisSet::Gaussian::PG_Cart::Orbital_IBS bs(rvec_t{0.45}, 0, st.get());
+    const BasisSet::Gaussian::PG_Cart::Orbital_IBS bs(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{0.45}, 0, st.get());
     EXPECT_FALSE(bs.CanAssembleField(Plain()));
 }
 
@@ -172,7 +172,7 @@ TEST(PP_ClosedForm, CartesianPullbacksAreTheFiniteDifferenceOfItsOwnMatricesAndT
 {
     const auto st=TwoSpecies();
     using IBS=BasisSet::Gaussian::PG_Cart::Orbital_IBS;
-    const IBS bs(rvec_t{0.45,1.6}, 2, st.get());
+    const IBS bs(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{0.45,1.6}, 2, st.get());
     const size_t n=bs.GetVectorSize();
     std::mt19937 rng(5); std::uniform_real_distribution<double> U(-1,1);
     hmat_t<double> D(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=U(rng);
@@ -190,7 +190,7 @@ TEST(PP_ClosedForm, CartesianPullbacksAreTheFiniteDifferenceOfItsOwnMatricesAndT
             for (int k=0;k<3;k++)
             {
                 auto at=[&](double s){ auto Rs=R; (k==0 ? Rs[A].x : k==1 ? Rs[A].y : Rs[A].z)+=s; std::shared_ptr<Structure> m=st->Clone(); m->MoveSites(Rs);
-                                       const IBS b(rvec_t{0.45,1.6}, 2, m.get()); return value(b, m.get()); };
+                                       const IBS b(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{0.45,1.6}, 2, m.get()); return value(b, m.get()); };
                 const double fd=(at(h)-at(-h))/(2*h), an = k==0 ? F[A].x : k==1 ? F[A].y : F[A].z;
                 EXPECT_NEAR(an, fd, 2e-6*std::max(1.0,std::fabs(fd))) << what << ", atom " << A << " axis " << k;
                 largest=std::max(largest, std::fabs(fd));
@@ -217,8 +217,8 @@ TEST(PP_ClosedForm, CartesianPullbacksAreTheFiniteDifferenceOfItsOwnMatricesAndT
 TEST(PP_ClosedForm, EachPullbackCanQueryAgreesWithWhetherItsMethodAnswers)
 {
     const auto st=TwoSpecies();
-    const BasisSet::Gaussian::PG_Cart::Orbital_IBS cart(rvec_t{0.45,1.6}, 2, st.get());
-    const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(rvec_t{0.45,1.6}, 2, st.get());
+    const BasisSet::Gaussian::PG_Cart::Orbital_IBS cart(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{0.45,1.6}, 2, st.get());
+    const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{0.45,1.6}, 2, st.get());
     const TestField field; const TestProjectors ps;
     for (const BasisSet::Orbital_PP_IBS<double>* b : {static_cast<const BasisSet::Orbital_PP_IBS<double>*>(&cart), static_cast<const BasisSet::Orbital_PP_IBS<double>*>(&sph)})
     {

@@ -12,7 +12,7 @@ namespace qchem::BasisSet::Gaussian::PG_Spherical
 
 BasisSet::BasisSet(Reader* reader, const Structure* cl)
 {
-    Insert(new ::qchem::BasisSet::Gaussian::PG_Spherical::Orbital_IBS(reader,cl));
+    Insert(new ::qchem::BasisSet::Gaussian::PG_Spherical::Orbital_IBS(BlockCache(),reader,cl));
 }
 
 void BasisSet::Insert(obs_t* bs)

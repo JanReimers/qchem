@@ -202,7 +202,7 @@ TEST(M_SphericalView, sp_null_test)
     mol.Insert(Site{8, Vector3D<double>(0,0,0)});
     mol.Insert(Site{8, Vector3D<double>(0,0,1.8)});
     auto* cart=new qchem::BasisSet::Gaussian::PG_Cart::BasisSet;
-    cart->Insert(new qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.5,1.7}, 1, &mol));
+    cart->Insert(new qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(cart->BlockCache(), rvec_t{0.5,1.7}, 1, &mol));
     std::shared_ptr<const qchem::BasisSet::Real_BS> cbs(cart);
     auto view=qchem::BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(cbs);
 
@@ -233,12 +233,12 @@ static void check_view_matches_native(size_t LMax)
     const rvec_t ex{0.8,2.4};
 
     auto* cart=new qchem::BasisSet::Gaussian::PG_Cart::BasisSet;
-    cart->Insert(new qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(ex, LMax, &mol));
+    cart->Insert(new qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(cart->BlockCache(), ex, LMax, &mol));
     std::shared_ptr<const qchem::BasisSet::Real_BS> cbs(cart);
     auto view=qchem::BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(cbs);
 
     auto* nat=new qchem::BasisSet::Gaussian::PG_Spherical::BasisSet;
-    nat->Insert(new qchem::BasisSet::Gaussian::PG_Spherical::Orbital_IBS(ex, LMax, &mol));
+    nat->Insert(new qchem::BasisSet::Gaussian::PG_Spherical::Orbital_IBS(nat->BlockCache(), ex, LMax, &mol));
     std::shared_ptr<const qchem::BasisSet::Real_BS> nbs(nat);
 
     const qchem::BasisSet::Real_OIBS* vi=nullptr;
@@ -307,7 +307,7 @@ TEST(M_SphericalView, g_shell_keeps_nine_unit_components)
     Molecule mol;
     mol.Insert(Site{22, Vector3D<double>(0,0,0)});
     auto* cart=new qchem::BasisSet::Gaussian::PG_Cart::BasisSet;
-    cart->Insert(new qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{1.2}, 4, &mol));
+    cart->Insert(new qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(cart->BlockCache(), rvec_t{1.2}, 4, &mol));
     std::shared_ptr<const qchem::BasisSet::Real_BS> cbs(cart);
     auto view=qchem::BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(cbs);
     const qchem::BasisSet::Real_OIBS* vi=nullptr;

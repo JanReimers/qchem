@@ -80,7 +80,7 @@ TEST(PW_Mn2Box, Γ_Pol_SeedStaggered)
     auto cellA=mkcell(false,true), cellB=mkcell(true,false);   // B = the globally spin-mirrored pattern
 
     Lattice_3D lat(*cellA, ivec3_t(1,1,1));
-    PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS>  fb (pw.CreateCDFitBasisSet (cellA.get()));
     std::shared_ptr<const BasisSet::cFIT_SF_ABS>  fsf(pw.CreateVxcFitBasisSet(cellA.get(), qcMesh::MeshParams{}));
 

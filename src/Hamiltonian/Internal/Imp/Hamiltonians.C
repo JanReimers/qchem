@@ -108,7 +108,7 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMe
             qchem::report::Set("lMax", lMax);
             return bs->CreateVxcFitBasisSet(st.get(), mp, VxcFit::Delta, &quad);
         });
-        FittedVxc::fbs_t mfb=std::make_shared<BasisSet::MultipoleFit_IBS>(delta, MakeSiteMultipoles(st, *quad.GetMesh(), mp, lMax), sym_t(new UnitQN));
+        FittedVxc::fbs_t mfb=std::make_shared<BasisSet::MultipoleFit_IBS>(std::make_shared<BasisSet::BasisCache>(), delta, MakeSiteMultipoles(st, *quad.GetMesh(), mp, lMax), sym_t(new UnitQN));
         FittedVxc::ex_t  fx(std::make_shared<CompositeExFunctional>(std::move(parts)));
         return new FittedVxc(mfb, fx, g);
     }
@@ -158,12 +158,12 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const 
     const qcMesh::Mesh& mesh=*quad.GetMesh();
     // The δ basis carries its Coulomb integrals (V-ONE-OF-N 3b-ii, ruling (f)): the operator is the BASIS's physics, chosen here.
     auto withCoulomb=[&](std::unique_ptr<qcMesh::CoulombOperator> op)
-        {return std::make_shared<const BasisSet::CoulombDeltaFit_IBS>(fb, std::move(op), sym_t(new UnitQN));};
+        {return std::make_shared<const BasisSet::CoulombDeltaFit_IBS>(std::make_shared<BasisSet::BasisCache>(), fb, std::move(op), sym_t(new UnitQN));};
     if (direct) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(withCoulomb(qcMesh::MakeDirectSumCoulomb(mesh))), st->GetNumElectrons());
     const auto sites=MakeSiteMultipoles(st, mesh, hmp, lMax);
     if (!multipole) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(withCoulomb(qcMesh::MakeRadialPoissonCoulomb(sites))), st->GetNumElectrons());
     // A multipole fit basis owns its own solve (over its sites, in its own metric).
-    const auto mfb=std::make_shared<const BasisSet::MultipoleFit_IBS>(fb, sites, sym_t(new UnitQN));
+    const auto mfb=std::make_shared<const BasisSet::MultipoleFit_IBS>(std::make_shared<BasisSet::BasisCache>(), fb, sites, sym_t(new UnitQN));
     return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(mfb), st->GetNumElectrons());
 }
 

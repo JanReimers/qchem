@@ -62,7 +62,7 @@ using qchem::BasisSet::Gaussian::BasisSetData;
 // The delta fit basis the SINGLES quadrature runs on: it owns the mesh's points, weights and functions.
 std::shared_ptr<const qchem::BasisSet::DeltaFit_IBS<dcmplx>> DeltaFitOver(qchem::BasisSet::FitQuadrature q)
 {
-    return std::make_shared<const qchem::BasisSet::DeltaFit_IBS<dcmplx>>(std::move(q),
+    return std::make_shared<const qchem::BasisSet::DeltaFit_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), std::move(q),
                qchem::Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
 

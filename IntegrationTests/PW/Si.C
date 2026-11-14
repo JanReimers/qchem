@@ -90,7 +90,7 @@ TEST(PW_Si, Γ_Prototype_Converges)
     Lattice_3D        lat(cell, ivec3_t(1,1,1));
     ReciprocalLattice recip(lat.Reciprocal());
     const double      Omega=cell.GetCellVolume();          // = a^3/4
-    PlaneWave_IBS     pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    PlaneWave_IBS     pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
 
     Molecule si;                                           // 2-atom diamond basis
     si.Insert(Site{14, rvec3_t(0,0,0)});
@@ -152,7 +152,7 @@ TEST(PW_Si, Γ_eqPrototype)
     UnitCell          cell(Amat);
     Lattice_3D        lat(cell, ivec3_t(1,1,1));
     ReciprocalLattice recip(lat.Reciprocal());
-    PlaneWave_IBS     pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    PlaneWave_IBS     pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
 
     auto si=std::make_shared<Molecule>();
     si->Insert(Site{14, rvec3_t(0,0,0)});
@@ -353,7 +353,7 @@ TEST(PW_Si, k222_Prototype_Converges)
     auto epsOf=[&](double r){return ex.GetEpsXc(r)+vwn.GetEpsXc(r);};
 
     // grid resolves the difference set: size from the richest (Gamma) basis.
-    PlaneWave_IBS pwGamma(lat.Reciprocal(), ivec3_t(2,2,2), ivec3_t(0,0,0), Ecut);
+    PlaneWave_IBS pwGamma(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(2,2,2), ivec3_t(0,0,0), Ecut);
     int m=MaxGComponent(pwGamma);
     ivec3_t Ng(4*m+1, 4*m+1, 4*m+1);
 

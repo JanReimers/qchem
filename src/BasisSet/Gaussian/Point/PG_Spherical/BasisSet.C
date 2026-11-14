@@ -9,6 +9,7 @@ module;
 #include <vector>
 #include <memory>
 export module qchem.BasisSet.Gaussian.Point.PG_Spherical;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;        // the radial (shared with PG_Cart)
 import qchem.BasisSet.Gaussian.Point.Reader;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Spherical_MnD;              // NR_Evaluator: the IBS IS-A evaluator
@@ -36,8 +37,8 @@ class IrrepBasisSet
           public Sph::NR_Evaluator                 // IS-A spherical evaluator, which IS-A SphData
     {
     public:
-        IrrepBasisSet(Reader*, const Structure*);   //!< \c KeepEachL for an orbital basis
-        IrrepBasisSet(const rvec_t& exponents, size_t L, const Structure*);
+        IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, Reader*, const Structure*);   //!< \c KeepEachL for an orbital basis
+        IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rvec_t& exponents, size_t L, const Structure*);
         virtual ~IrrepBasisSet();
 
         virtual size_t  GetNumFunctions() const {return SphData::size();}
@@ -68,8 +69,8 @@ class Orbital_IBS
     , public IrrepBasisSet
 {
 public:
-    Orbital_IBS(Reader*, const Structure*);
-    Orbital_IBS(const rvec_t& exponents, size_t L, const Structure*);
+    Orbital_IBS(const std::shared_ptr<BasisCache>& cache, Reader*, const Structure*);
+    Orbital_IBS(const std::shared_ptr<BasisCache>& cache, const rvec_t& exponents, size_t L, const Structure*);
 
     virtual rFIT_CD_ABS* CreateCDFitBasisSet (const Structure*) const override;
     virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const override;
@@ -87,8 +88,8 @@ class EFit_IBS
 public:
     // A fit set has no matrix-image client: its representation is the identity at E only, refusing any other op (S3).
     //! \a name = the auxiliary set this was read from ("A1_coul"), a fact only the creating factory knows.
-    EFit_IBS(Reader*, const Structure*, const std::string& name);                            //!< the Coulomb fit: no mesh
-    EFit_IBS(Reader*, const Structure*, const qcMesh::MeshParams&, const std::string& name); //!< the Vxc fit: its projection mesh
+    EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader*, const Structure*, const std::string& name);                            //!< the Coulomb fit: no mesh
+    EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader*, const Structure*, const qcMesh::MeshParams&, const std::string& name); //!< the Vxc fit: its projection mesh
 
     //! The run report's name for this fit.  Not the cache identity: \c BasisSetID stays the shells' own.
     virtual std::string Name() const override {return itsName;}

@@ -18,7 +18,6 @@ import qchem.BasisSet;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.Mesh;
 import qchem.Structure;
-import qchem.BasisSet.Internal.DB_Cache_RAM;   // the concrete cache's Clear(I3C) hook (tests may cheat): rebuild the tensor threaded
 import qchem.Parallel;                         // ScopedWorkerThreads (the serial-vs-threaded bit gate)
 import qchem.Types;
 
@@ -74,7 +73,8 @@ void GroupedIsElementwise(const char* what, const std::string& file, bool expect
 
 //! THE THREADED FILL (OpenWork §3): both fit tensors built at \a workers threads are the serial ones BIT FOR BIT (each group triple
 //! writes its own entries; the workers read Ω from a table built serially and build their RNLM / Hermite3 locally).  The serial tensors
-//! are copied, the cache's I3C entries cleared, and the same tensors rebuilt threaded.
+//! are copied, and the same tensors rebuilt threaded against FRESH fit bases: a new fit instance has a new serial, so its ⟨ab|c⟩ slot in
+//! the orbital parent's cache is a MISS (doc/IntegralCacheOwnershipPlan.md S3a; it used to clear the process-wide cache's I3C entries).
 void ThreadedIsSerial(const char* what, const std::string& file, int workers)
 {
     Molecule mol;
@@ -83,17 +83,14 @@ void ThreadedIsSerial(const char* what, const std::string& file, int workers)
                                                              : FactoryFromFile(file, &mol, Engine::MnD, Angular::Cartesian));
     const qcMesh::MeshParams mesh{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0,
                                   .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3};   // the Vxc fit takes one (and ignores it)
-    auto& ram=dynamic_cast<BasisSet::IntegralsCache_RAM<double>&>(BasisSet::theCache<double>());
-    using I3C=BasisSet::IntegralsCache_Base::I3C;
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*bs).Iterate<BasisSet::Real_DFT_OIBS>())
     {
-        std::unique_ptr<BasisSet::FIT_CD_ABS<double>> cd(ibs->CreateCDFitBasisSet (&mol));
-        std::unique_ptr<BasisSet::FIT_SF_ABS<double>> sf(ibs->CreateVxcFitBasisSet(&mol, mesh));
         auto build=[&](int n, double& sec)
         {
             qchem::ScopedWorkerThreads scope(n);
             EXPECT_EQ(MnD::GroupBlockThreads(), n) << what << ": the fill would not run at " << n << " workers (a vacuous gate)";
-            ram.Clear(I3C::Repulsion); ram.Clear(I3C::Overlap);   // a MISS: the tensors are built in this scope
+            std::unique_ptr<BasisSet::FIT_CD_ABS<double>> cd(ibs->CreateCDFitBasisSet (&mol));   // fresh instances: a MISS, built in this scope
+            std::unique_ptr<BasisSet::FIT_SF_ABS<double>> sf(ibs->CreateVxcFitBasisSet(&mol, mesh));
             const auto t0=std::chrono::steady_clock::now();
             std::pair<std::vector<rsmat_t>,std::vector<rsmat_t>> RO{ibs->Repulsion3C(*cd).dense, ibs->Overlap3C(*sf).dense};   // copies
             sec=std::chrono::duration<double>(std::chrono::steady_clock::now()-t0).count();

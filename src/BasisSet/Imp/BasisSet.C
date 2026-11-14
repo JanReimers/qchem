@@ -78,7 +78,7 @@ template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Struc
     {
         if (!quad) throw std::invalid_argument("tBasisSet::CreateVxcFitBasisSet: VxcFit::Delta is built over a quadrature, and none was "
                                                "handed in (MakeXCQuadrature)");
-        return new DeltaFit_IBS<double>(*quad, sym_t(new UnitQN));
+        return new DeltaFit_IBS<double>(std::make_shared<BasisCache>(), *quad, sym_t(new UnitQN));   // a fit basis gets its OWN cache (S3a)
     }
     if (fit==VxcFit::PlaneWave)
         throw std::logic_error("tBasisSet: VxcFit::PlaneWave has no realization on a non-periodic (molecular / atom) basis -- an open "
@@ -134,7 +134,7 @@ template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const St
             q=*quad;
         }
         qchem::report::Timed timed("setup: DeltaFit_IBS ctor");
-        return new DeltaFit_IBS<dcmplx>(std::move(q),
+        return new DeltaFit_IBS<dcmplx>(std::make_shared<BasisCache>(), std::move(q),
                                 Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     }
     return FirstPeriodicDFT(*this, [&](const auto* dft){return dft->CreateVxcFitBasisSet(cl,mp);});
