@@ -10,6 +10,7 @@
 
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;     // GaussianRF (a test may cheat: the kernel itself)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
+import qchem.Structure;                                               // Molecule, Site (the nuclei)
 import qchem.Types;
 import qchem.Blaze;
 
@@ -74,3 +75,56 @@ TEST(KetGradient, IsTheFiniteDifferenceOfTheCachedKernelForEveryShellPairThrough
             }
     std::printf("  [ket gradient] worst |AD - FD| over S and <p^2>, La,Lb <= 2, contracted and not, generic and on-axis/on-plane ket: %.2e\n", worst);
 }
+
+// THE NUCLEAR TWIN (GaussianRF::NuclearGradient), every centre moving, against the central difference of the CACHED Nuclear: the bra, the
+// ket and each nucleus displaced in turn.  Two nuclei, one on the bra-ket axis (values vanishing by symmetry: the trap a zero-value skip
+// falls into) and one off it; every Cartesian shell pair through d, contracted and not.
+TEST(KetGradient, TheNuclearTwinIsTheFiniteDifferenceOfTheCachedKernelWithEveryCentreMoving)
+{
+    const rvec3_t A0(0.13,-0.21,0.34), B0(A0.x+1.3,A0.y,A0.z);
+    const std::vector<rvec3_t> C0={rvec3_t(A0.x+0.6,A0.y,A0.z), rvec3_t(0.9,0.8,-0.5)};
+    const std::vector<double>  Z ={3.0, 1.0};
+    auto mol=[&](const std::vector<rvec3_t>& C){ Molecule m; for (size_t k=0;k<C.size();k++) m.Insert(Site{int(Z[k]),C[k]}); return m; };
+    double worst=0.0;
+    for (int contracted=0;contracted<2;contracted++)
+        for (int La=0;La<=2;La++)
+            for (int Lb=0;Lb<=2;Lb++)
+            {
+                auto radA=[&](const rvec3_t& A){ return contracted ? GaussianRF(rvec_t{0.6,0.4}, rvec_t{1.9,0.45}, A, La) : GaussianRF(0.83, A, La); };
+                auto radB=[&](const rvec3_t& B){ return contracted ? GaussianRF(rvec_t{0.3,0.7}, rvec_t{2.6,0.38}, B, Lb) : GaussianRF(0.57, B, Lb); };
+                const std::vector<Polarization> pa=ShellComponents(La), pb=ShellComponents(Lb);
+                std::vector<double> W(pa.size()*pb.size());
+                for (size_t k=0;k<W.size();k++) W[k]=std::cos(0.9*double(k)+0.4*La+0.2*Lb+contracted);
+                auto value=[&](const rvec3_t& A, const rvec3_t& B, const std::vector<rvec3_t>& C)
+                {
+                    const GaussianRF ra=radA(A), rb=radB(B); const Molecule m=mol(C);
+                    double v=0.0;
+                    for (size_t p=0;p<pa.size();p++) for (size_t q=0;q<pb.size();q++) v+=W[p*pb.size()+q]*ra.Nuclear(rb,pa[p],pb[q],&m);
+                    return v;
+                };
+                rvec3_t gA, gB; std::vector<rvec3_t> gC;
+                radA(A0).NuclearGradient(radB(B0), pa.data(), pa.size(), pb.data(), pb.size(), W.data(), C0, Z, gA, gB, gC);
+                ASSERT_EQ(gC.size(), C0.size());
+                // centre 0 = A, 1 = B, 2.. = the nuclei
+                for (size_t centre=0;centre<2+C0.size();centre++)
+                    for (int c=0;c<3;c++)
+                    {
+                        const double h=1e-4;
+                        auto at=[&](double s)
+                        {
+                            rvec3_t A=A0, B=B0; std::vector<rvec3_t> C=C0;
+                            rvec3_t& X = centre==0 ? A : centre==1 ? B : C[centre-2];
+                            (c==0 ? X.x : c==1 ? X.y : X.z)+=s;
+                            return value(A,B,C);
+                        };
+                        const double fd=(4.0*(at(0.5*h)-at(-0.5*h))/h - (at(h)-at(-h))/(2*h))/3.0;
+                        const rvec3_t& g = centre==0 ? gA : centre==1 ? gB : gC[centre-2];
+                        const double an=Comp(g,c), err=std::fabs(an-fd), tol=1e-8*std::max(1.0,std::fabs(fd));
+                        worst=std::max(worst,err);
+                        EXPECT_LT(err, tol) << "La=" << La << " Lb=" << Lb << " contracted=" << contracted << " centre " << centre
+                                            << " axis " << c << ": AD " << an << " FD " << fd;
+                    }
+            }
+    std::printf("  [nuclear twin] worst |AD - FD| over bra, ket and two nuclei (one on the axis), La,Lb <= 2: %.2e\n", worst);
+}
+

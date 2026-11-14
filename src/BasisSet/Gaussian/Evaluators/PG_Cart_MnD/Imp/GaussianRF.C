@@ -363,16 +363,7 @@ double PrimGaussian::Nuclear(const PrimGaussian* a, const PrimGaussian* b,
     for (const Site& atom : cl->Sites())
         R.Add(RNLM(ab.Ltotal,ab.αₚ,ab.P-atom.R), -1.0*(atom.Z));
 
-    auto NLMs = Ω::GetNMLs(ab.Ltotal);
-    const Polarization Pab = pa + pb;
-    double s = 0.0;
-    for (auto bNLM:NLMs)
-    {
-        if (bNLM > Pab) continue;
-        if (double h = ab.H2(bNLM,pa,pb); h!=0)
-            s += h*R(bNLM);
-    }
-    return s * 2*Pi/ab.αₚ*ab.Eij;
+    return PairNuclear(ab.αₚ, ab.Eij, ab.H2, pa, pb, Ω::GetNMLs(ab.Ltotal), [&R](const Polarization& n){return R(n);});
 }
 
 // 3-centre overlap <ab|c>: the Hermite block, cached by primitive triple in the global Cache3 (the build

@@ -661,13 +661,77 @@ public:
                                                                         const UnitCell& A, const Structure* st) const
     {
         const char* what = K==SeriesKernel::Overlap ? "the lattice overlap pullback" : "the lattice kinetic pullback";
-        if (!st) throw std::invalid_argument(std::string(what)+": needs the structure (the sites the functions sit on)");
-        if (Abar.rows()!=size()) throw std::invalid_argument(std::string(what)+": the adjoint is "+std::to_string(Abar.rows())+
-                                                             " square for "+std::to_string(size())+" functions");
-        const std::vector<size_t> atom=ComponentSites(st, what);
-        const GaussianRF::TwoCentre kernel = K==SeriesKernel::Overlap ? GaussianRF::TwoCentre::Overlap : GaussianRF::TwoCentre::Grad2;
+        CheckPullbackArgs(what, Abar.rows(), st);
         Gaussian::LatticeSum1E::GeometryPullback r{rvec3vec_t(st->GetNumAtoms(), rvec3_t(0,0,0)), rmat3d_t(0,0,0, 0,0,0, 0,0,0)};
         double V[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+        OneElectronPullbackWalk(K, ComponentSites(st, what),
+            [&](size_t i0, size_t j0, const auto& cb){ ForSeriesImages(K, i0, j0, A, cb); },
+            [&](size_t P, size_t Q, const ivec3_t& n){ return std::real(std::conj(dcmplx(Abar(P,Q)))*phase(n)); },
+            r.gradient, V);
+        r.virial=rmat3d_t(V[0][0],V[0][1],V[0][2], V[1][0],V[1][1],V[1][2], V[2][0],V[2][1],V[2][2]);
+        return r;
+    }
+    //! \brief THE MOLECULAR S / T GEOMETRY PULLBACK: per atom, \f$\sum_{ij}A_{ij}\,\partial M_{ij}/\partial R_{atom}\f$, M = the overlap
+    //! (\a K Overlap) or the \f$\langle p^2\rangle\f$ block (\a K Kinetic) of this molecular block, over the full symmetric adjoint \a A.
+    //! The lattice walk at its one image, n = 0 with phase 1 (\c OneElectronPullbackWalk): Enzyme over the MnD kernel
+    //! (\c GaussianRF::KetGradient), so the force differentiates the formula the energy sums.  CLIENT: Gaussian::EOrbital_1E_IBS (PG_Cart).
+    //! THROWS on a missing structure, a mis-sized adjoint or a stray centre.
+    rvec3vec_t MolecularOneElectronPullback(SeriesKernel K, const hmat_t<double>& Am, const Structure* st) const
+    {
+        const char* what = K==SeriesKernel::Overlap ? "the overlap pullback" : "the kinetic pullback";
+        CheckPullbackArgs(what, Am.rows(), st);
+        rvec3vec_t g(st->GetNumAtoms(), rvec3_t(0,0,0));
+        OneElectronPullbackWalk(K, ComponentSites(st, what),
+            [](size_t, size_t, const auto& cb){ cb(ivec3_t(0,0,0), rvec3_t(0,0,0)); },
+            [&](size_t P, size_t Q, const ivec3_t&){ return double(Am(P,Q)); },
+            g, nullptr);
+        return g;
+    }
+    //! \brief THE MOLECULAR NUCLEAR-ATTRACTION GEOMETRY PULLBACK, every centre moving: per site, \f$\sum_{ij}A_{ij}\,\partial V_{ij}/\partial R\f$,
+    //! V = \c Nuclear(i,j,st) of this block (the attraction of every site of \a st, charge Z), over the full symmetric adjoint \a A.  Per
+    //! ORDERED shell pair, Enzyme over the MnD kernel (\c GaussianRF::NuclearGradient: the bra, the ket and every nucleus in one reverse
+    //! pass), so the force differentiates the formula the energy sums.  CLIENT: Gaussian::EOrbital_1E_IBS (PG_Cart).  THROWS on a missing
+    //! structure, a mis-sized adjoint or a stray centre.
+    rvec3vec_t MolecularNuclearPullback(const hmat_t<double>& Am, const Structure* st) const
+    {
+        const char* what="the nuclear pullback";
+        CheckPullbackArgs(what, Am.rows(), st);
+        const std::vector<size_t> atom=ComponentSites(st, what);
+        std::vector<rvec3_t> C; std::vector<double> Z;
+        for (const Site& s : st->Sites()) { C.push_back(s.R); Z.push_back(double(s.Z)); }
+        rvec3vec_t g(st->GetNumAtoms(), rvec3_t(0,0,0));
+        std::vector<double> W; std::vector<rvec3_t> gC;
+        for (const Shell& si : Shells())
+            for (const Shell& sj : Shells())
+            {
+                const size_t i0=si.begin, j0=sj.begin, ni=si.end-si.begin, nj=sj.end-sj.begin;
+                W.assign(ni*nj, 0.0);
+                for (size_t p=0;p<ni;p++)
+                    for (size_t q=0;q<nj;q++)
+                        W[p*nj+q]=double(Am(i0+p,j0+q))*ns[i0+p]*ns[j0+q];
+                rvec3_t gA, gB;
+                radials[i0]->NuclearGradient(*radials[j0], &pols[i0], ni, &pols[j0], nj, W.data(), C, Z, gA, gB, gC);
+                g[atom[i0]]+=gA;
+                g[atom[j0]]+=gB;
+                for (size_t k=0;k<gC.size();k++) g[k]+=gC[k];
+            }
+        return g;
+    }
+private:
+    void CheckPullbackArgs(const char* what, size_t adjointRows, const Structure* st) const
+    {
+        if (!st) throw std::invalid_argument(std::string(what)+": needs the structure (the sites the functions sit on)");
+        if (adjointRows!=size()) throw std::invalid_argument(std::string(what)+": the adjoint is "+std::to_string(adjointRows)+
+                                                             " square for "+std::to_string(size())+" functions");
+    }
+    //! The one walk both pullbacks share: per ORDERED shell pair (i0, j0) and image (n, R_n) of \a images, the weights
+    //! \f$W_{pq}=\mathrm{weight}(P,Q,n)\,n_Pn_Q\f$, \f$w=\partial_B\sum_{pq}W_{pq}K_{pq}\f$ at the ket centre \f$B=R_j+R_n\f$ (Enzyme,
+    //! \c GaussianRF::KetGradient), then \f$g_a\mathrel{-}=w\f$, \f$g_b\mathrel{+}=w\f$ and, when \a V is given, \f$V\mathrel{-}=w\otimes d\f$ with
+    //! \f$d=R_i-R_j-R_n\f$ (LatticeOneElectronPullback's doc has the derivation).
+    template <class Images, class Weight>
+    void OneElectronPullbackWalk(SeriesKernel K, const std::vector<size_t>& atom, Images images, Weight weight, rvec3vec_t& g, double (*V)[3]) const
+    {
+        const GaussianRF::TwoCentre kernel = K==SeriesKernel::Overlap ? GaussianRF::TwoCentre::Overlap : GaussianRF::TwoCentre::Grad2;
         std::vector<double> W;
         for (const Shell& si : Shells())
             for (const Shell& sj : Shells())
@@ -676,23 +740,24 @@ public:
                 const size_t a=atom[i0], b=atom[j0];
                 const rvec3_t Ri=radials[i0]->GetCenter(), Rj=radials[j0]->GetCenter();
                 W.assign(ni*nj, 0.0);
-                ForSeriesImages(K, i0, j0, A, [&](const ivec3_t& n, const rvec3_t& Roff)
+                images(i0, j0, [&](const ivec3_t& n, const rvec3_t& Roff)
                 {
-                    const dcmplx ph=phase(n);
                     for (size_t p=0;p<ni;p++)
                         for (size_t q=0;q<nj;q++)
-                            W[p*nj+q]=std::real(std::conj(dcmplx(Abar(i0+p,j0+q)))*ph)*ns[i0+p]*ns[j0+q];
+                            W[p*nj+q]=weight(i0+p, j0+q, n)*ns[i0+p]*ns[j0+q];
                     const rvec3_t w=radials[i0]->KetGradient(kernel, *radials[j0], Rj+Roff, &pols[i0], ni, &pols[j0], nj, W.data());
-                    const rvec3_t d=Ri-Rj-Roff;
-                    r.gradient[a]-=w;
-                    r.gradient[b]+=w;
-                    const double ww[3]={w.x,w.y,w.z}, dd[3]={d.x,d.y,d.z};
-                    for (int u=0;u<3;u++) for (int v=0;v<3;v++) V[u][v]-=ww[u]*dd[v];
+                    g[a]-=w;
+                    g[b]+=w;
+                    if (V)
+                    {
+                        const rvec3_t d=Ri-Rj-Roff;
+                        const double ww[3]={w.x,w.y,w.z}, dd[3]={d.x,d.y,d.z};
+                        for (int u=0;u<3;u++) for (int v=0;v<3;v++) V[u][v]-=ww[u]*dd[v];
+                    }
                 });
             }
-        r.virial=rmat3d_t(V[0][0],V[0][1],V[0][2], V[1][0],V[1][1],V[1][2], V[2][0],V[2][1],V[2][2]);
-        return r;
     }
+public:
 
     // ---- THE PER-KERNEL 1E SERIES SCREEN (lane B 2026-11-10; doc/Pins.md pin 1) ---------------------------------------------------------
     // Pin 1: the magnitude screen is the only truncation, and it must answer for the QUANTITY SUMMED.  ForImageOffsets screens on the pair

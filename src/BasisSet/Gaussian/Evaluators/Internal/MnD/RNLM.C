@@ -10,9 +10,37 @@ export module qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.RNLM;
 import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.Triangle3D;
 import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.Index3;
 import qchem.Types;
+import qchem.IntPow;   // uintpow / intpow (the recursion's base layer)
 
 export namespace qchem::BasisSet::Gaussian::Evaluators::Internal::MnD
 {
+//! \brief THE HERMITE-COULOMB RECURSION (McMurchie-Davidson 4.1-4.4), ONE definition: from F_j(T), j = 0..Max, fill the layers
+//! \f$R^{(j)}_{NLM}\f$, N+L+M <= Max-j, top layer first, through \a R(j,N,L,M) -> double&.  \c RNLM::Build runs it on its Triangle3D
+//! scratch; the cache-free nuclear kernel Enzyme differentiates (GaussianRF::NuclearGradient) runs it on a flat local store.  INLINE
+//! (a module's out-of-line body is not importable into the AD unit).  The base layer's powers of -2α are constants of the geometry.
+template <class Fj_t, class R_t>
+inline void HermiteCoulomb(int Max, double α, const rvec3_t& dR, const Fj_t& Fj, R_t&& R)
+{
+    R(Max,0,0,0)=uintpow(-2.0*α,Max)*Fj[Max];
+    for (int j=Max-1; j>=0; j--)
+    {
+        R(j,0,0,0)=intpow(-2.0*α,j)*Fj[j];
+        int n=Max-j;
+        for (int M=0; M<n; M++)
+        {
+            R(j,0,0,M+1)= M>0 ? dR.z*R(j+1,0,0,M)+M*R(j+1,0,0,M-1) : dR.z*R(j+1,0,0,M);
+            for (int L=0; L<n-M; L++)
+            {
+                R(j,0,L+1,M)= L>0 ? dR.y*R(j+1,0,L,M)+L*R(j+1,0,L-1,M) : dR.y*R(j+1,0,L,M);
+                for (int N=0; N<n-M-L; N++)
+                {
+                    R(j,N+1,L,M)= N>0 ? dR.x*R(j+1,N,L,M)+N*R(j+1,N-1,L,M) : dR.x*R(j+1,N,L,M);
+                }
+            }
+        }
+    }
+}
+
 
 class RNLM
 {
