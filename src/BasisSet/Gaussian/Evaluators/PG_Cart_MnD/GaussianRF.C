@@ -249,6 +249,49 @@ inline double PairNuclear(double p, double Eij, const Hermite2& H2, const Polari
     return s * 2*Pi/p*Eij;
 }
 
+//! \brief THE THREE-CENTRE GAUSSIAN PRODUCT of primitives a@A, b@B, c@C: exponent sum, the shifts Q-A, Q-B, Q-C and the prefactor
+//! \f$E_{abc}=(\pi/\alpha_Q)^{3/2}e^{-(ab|AB|^2+ac|AC|^2+bc|BC|^2)/\alpha_Q}\f$.  ONE definition: PrimGaussian::GetH3 (the cached
+//! Hermite3) and the cache-free twin Enzyme differentiates (GaussianRF::ThreeCentreGradient) both build their Hermite3 from it.
+struct ThreeCentreProduct { double alphaQ; rvec3_t QA, QB, QC; double Eabc; };
+inline ThreeCentreProduct MakeThreeCentreProduct(double a, const rvec3_t& A, double b, const rvec3_t& B, double c, const rvec3_t& C)
+{
+    double alphaQ = a+b+c;
+    rvec3_t AB = A-B;
+    rvec3_t AC = A-C;
+    rvec3_t BC = B-C;
+    rvec3_t Q  = (a*A+b*B+c*C)/alphaQ;
+    double Eabc = std::pow(Pi/alphaQ,1.5)*std::exp( -(a*b*AB*AB + a*c*AC*AC + b*c*BC*BC) / alphaQ );
+    return {alphaQ, Q-A, Q-B, Q-C, Eabc};
+}
+//! \brief THE 3-CENTRE COULOMB (ab|c) OF ONE PRIMITIVE TRIPLE, from the pair's Hermite block \a H2 (product exponent \a p, prefactor
+//! \a Eij), c's exponent \a c, its Hermite1 coefficients through \a Hc(NLM'), and the Hermite-Coulomb table through \a R(NLM): ONE
+//! definition, for the cached PrimGaussian::Repulsion3C and the cache-free twin Enzyme differentiates.  NO zero-value skips on \a H2
+//! or on the R sum (the cached kernel had them): a value zero by symmetry has a derivative that is not.
+template <class Hc_t, class R_t>
+inline double PairRepulsion3C(const Hermite2& H2, double p, double Eij, double c, const Polarization& pa, const Polarization& pb,
+                              const Polarization& pc, const std::vector<Polarization>& NLMs, Hc_t&& Hc, R_t&& R)
+{
+    const Polarization Pab = pa+pb;
+    double s = 0.0;
+    for (const Polarization& nlm : NLMs)
+    {
+        if (nlm > Pab) continue;   // an INDEX guard
+        const double hab = H2(nlm,pa,pb);
+        double Rs = 0.0;
+        for (int n=0; n<=pc.n; n++)
+            for (int l=0; l<=pc.l; l++)
+                for (int m=0; m<=pc.m; m++)
+                {
+                    const Polarization NLMp(n,l,m);
+                    Rs += Hc(NLMp)*R(nlm+NLMp);
+                }
+        s += hab*Rs;
+    }
+    double factor = 1.0/(p*c*std::sqrt(p+c));
+    factor = (pc.GetTotalL()%2) ? -factor : factor;
+    return s * 2*Pi52 * Eij*factor;
+}
+
 // Global Cache2/Cache3 access points (the only way the kernels reach Ω / the auxiliaries).
 const Ω&        findΩ   (const GData& a, const GData& b);                          // primitive pair
 const RNLM&     findRNLM(const GData& ab, const GData& c);                         // 3/4-centre RNLM
@@ -357,6 +400,14 @@ public:
     //! twin of \c Nuclear (Imp/GaussianRF_AD.C), one pass.  CLIENT: the molecular nuclear pullback (PG_Cart_MnD NR_Evaluator).
     void NuclearGradient(rf_t& rb, const Polarization* pa, size_t na, const Polarization* pb, size_t nb, const double* W,
                          const std::vector<rvec3_t>& C, const std::vector<double>& Z, rvec3_t& gA, rvec3_t& gB, std::vector<rvec3_t>& gC) const;
+    //! The two 3-centre kernels \c ThreeCentreGradient differentiates (THIS radial is centre C, as in Overlap3C / Repulsion3C).
+    enum class ThreeCentre {Overlap, Repulsion};
+    //! \brief The geometry derivative of a weighted 3-centre block, every centre moving:
+    //! \f$f=\sum_{pq}W_{pq}\sum_t c_t\,K(ra\,p_a[p],\ rb\,p_b[q];\ \text{this}\ p_t[t])\f$, K = Overlap3C or Repulsion3C, the three radials at their own
+    //! centres; \a gA, \a gB, \a gC the derivatives w.r.t. ra's, rb's and this radial's centre.  Enzyme's reverse mode over the cache-free
+    //! twins (Imp/GaussianRF_AD.C).  CLIENT: the molecular PP field pullbacks (PG_Cart_MnD NR_Evaluator).
+    void ThreeCentreGradient(ThreeCentre K, rf_t& ra, rf_t& rb, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                             const Polarization* pt, const double* ct, size_t nt, const double* W, rvec3_t& gA, rvec3_t& gB, rvec3_t& gC) const;
     double Nuclear    (rf_t& rb, po_t& pa, po_t& pb, const Structure* cl) const;
     double Overlap3C  (rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
     double Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C

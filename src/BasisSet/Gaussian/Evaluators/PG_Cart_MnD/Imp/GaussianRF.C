@@ -383,29 +383,9 @@ double PrimGaussian::Repulsion3C(const PrimGaussian* ga, const PrimGaussian* gb,
 double PrimGaussian::Repulsion3C(const Ω& ab, const RNLM& R, const PrimGaussian* gc,
                                  const Polarization& pa, const Polarization& pb, const Polarization& pc)
 {
-    auto NLMs = Ω::GetNMLs(ab.Ltotal);
     const Hermite1& Hc = gc->GetH1();
-    const Polarization Pab = pa+pb;
-    double s = 0.0;
-    for (auto nlm:NLMs)
-    {
-        if (nlm > Pab) continue;
-        double hab = ab.H2(nlm,pa,pb);
-        if (hab==0.0) continue;
-        double Rs = 0.0;
-        for (int n=0; n<=pc.n; n++)
-            for (int l=0; l<=pc.l; l++)
-                for (int m=0; m<=pc.m; m++)
-                {
-                    Polarization NLMp(n,l,m);
-                    if (double h = Hc(NLMp,pc); h!=0.0)
-                        Rs += h*R(nlm+NLMp);
-                }
-        if (Rs!=0) s += hab*Rs;
-    }
-    double factor = 1.0/(ab.αₚ*gc->GetExponent()*sqrt(ab.αₚ+gc->GetExponent()));
-    factor = (pc.GetTotalL()%2) ? -factor : factor;
-    return s * 2*Pi52 * ab.Eij*factor;
+    return PairRepulsion3C(ab.H2, ab.αₚ, ab.Eij, gc->GetExponent(), pa, pb, pc, Ω::GetNMLs(ab.Ltotal),
+                           [&](const Polarization& q){return Hc(q,pc);}, [&R](const Polarization& q){return R(q);});
 }
 
 double PrimGaussian::Lambda4C(const Ω& ab, const Ω& cd)
@@ -467,16 +447,8 @@ Hermite3* PrimGaussian::GetH3(const PrimGaussian& g1, const PrimGaussian& g2) co
     const rvec3_t A = g1.itsCenter,   B = g2.itsCenter,   C = itsCenter;
     const int    La = g1.itsL,       Lb = g2.itsL,       Lc = itsL;
 
-    double alphaQ = a+b+c;
-
-    rvec3_t AB = A-B;
-    rvec3_t AC = A-C;
-    rvec3_t BC = B-C;
-    rvec3_t Q  = (a*A+b*B+c*C)/alphaQ;
-
-    double Eabc = pow(Pi/alphaQ,1.5)*exp( -(a*b*AB*AB + a*c*AC*AC + b*c*BC*BC) / alphaQ );
-
-    return new Hermite3(alphaQ,Q-A,Q-B,Q-C,La,Lb,Lc,Eabc);
+    const ThreeCentreProduct t=MakeThreeCentreProduct(a,A,b,B,c,C);   // the one definition (the module interface)
+    return new Hermite3(t.alphaQ,t.QA,t.QB,t.QC,La,Lb,Lc,t.Eabc);
 }
 
 //

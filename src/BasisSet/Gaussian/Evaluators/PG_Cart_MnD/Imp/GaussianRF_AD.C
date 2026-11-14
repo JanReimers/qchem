@@ -13,6 +13,7 @@
 // filling a loop-local array through an inner loop with a data-dependent trip count, is absent here: both loops accumulate a scalar.
 module;
 #include <enzyme/enzyme>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -175,6 +176,121 @@ void GaussianRF::NuclearGradient(rf_t& rb, const Polarization* pa, size_t na, co
     gA=rvec3_t(g[0],g[1],g[2]); gB=rvec3_t(g[3],g[4],g[5]);
     gC.assign(C.size(), rvec3_t(0,0,0));
     for (size_t k=0;k<C.size();k++) gC[k]=rvec3_t(g[6+3*k],g[7+3*k],g[8+3*k]);
+}
+
+
+// THE 3-CENTRE KERNELS' GEOMETRY DERIVATIVE, every centre moving (lane B 2026-11-13; it replaced libcint's int3c1e_ip / int3c2e_ip1/_ip2
+// for the molecular PP field pullbacks).  The cache-free twins of PrimGaussian::Overlap3C (a Hermite3 built from the shared
+// MakeThreeCentreProduct per primitive triple) and PrimGaussian::Repulsion3C (the pair's Hermite2, the triple's Hermite-Coulomb table on a
+// flat store, the shared PairRepulsion3C).  c's Hermite1 coefficients depend on its exponent alone, so they are tabulated OUTSIDE the
+// differentiated function (hc: per primitive k, term t, a box over NLM' <= p_t) and read as constants.  x = [A, B, C].
+struct ThreeCCtx
+{
+    GaussianRF::ThreeCentre K;
+    const double* ea; const double* ca; size_t nA; int LA;
+    const double* eb; const double* cb; size_t nB; int LB;
+    const double* ec; const double* cc; size_t nCp; int LC;
+    const Polarization* pa; size_t na; const Polarization* pb; size_t nb;
+    const Polarization* pt; const double* ct; size_t nt;
+    const double* W;
+    const std::vector<Polarization>* NLMs; const Internal::Boys::AuxillaryFJ* Fj;
+    const double* hc; const size_t* hcOff;   // hc[hcOff[k*nt+t] + (n*(p_t.l+1)+l)*(p_t.m+1)+m]
+};
+double ThreeCAt(const double* x, const ThreeCCtx* c)
+{
+    using Internal::MnD::Triangle3D;
+    const rvec3_t A(x[0],x[1],x[2]), B(x[3],x[4],x[5]), C(x[6],x[7],x[8]);
+    double s=0.0;
+    if (c->K==GaussianRF::ThreeCentre::Overlap)
+    {
+        for (size_t i=0;i<c->nA;i++)
+            for (size_t j=0;j<c->nB;j++)
+                for (size_t k=0;k<c->nCp;k++)
+                {
+                    const ThreeCentreProduct tp=MakeThreeCentreProduct(c->ea[i],A,c->eb[j],B,c->ec[k],C);
+                    const Hermite3 H3(tp.alphaQ,tp.QA,tp.QB,tp.QC,c->LA,c->LB,c->LC,tp.Eabc);
+                    double t=0.0;
+                    for (size_t p=0;p<c->na;p++)
+                        for (size_t q=0;q<c->nb;q++)
+                        {
+                            const double w=c->W[p*c->nb+q];
+                            if (w==0.0) continue;   // a constant weight
+                            for (size_t u=0;u<c->nt;u++) t += w*c->ct[u]*H3(c->pa[p],c->pb[q],c->pt[u]);
+                        }
+                    s += c->ca[i]*c->cb[j]*c->cc[k]*t;
+                }
+        return s;
+    }
+    const int Lab=c->LA+c->LB, Lr=Lab+c->LC;
+    auto tri=[](int n){return size_t(n+1)*(n+2)*(n+3)/6;};
+    std::vector<size_t> off(Lr+2,0);
+    for (int j=0;j<=Lr;j++) off[j+1]=off[j]+tri(Lr-j);
+    std::vector<double> store(off[Lr+1],0.0), Fj(Lr+1,0.0);
+    auto at=[&](int j, int N, int L, int M) -> double&
+    {   const int n=Lr-j; return store[off[j]+Triangle3D::Layer(n-N)+Triangle3D::Row(n-N-L)+size_t(n-N-L-M)]; };
+    auto Rof=[&](const Polarization& m){ return store[Triangle3D::Layer(Lr-m.n)+Triangle3D::Row(Lr-m.n-m.l)+size_t(Lr-m.n-m.l-m.m)]; };
+    for (size_t i=0;i<c->nA;i++)
+        for (size_t j=0;j<c->nB;j++)
+        {
+            const GaussProduct gp(c->ea[i],A,c->eb[j],B);
+            const Hermite2 H2(gp.p,gp.PA,gp.PB,c->LA+1,c->LB+1);   // as Ω's
+            for (size_t k=0;k<c->nCp;k++)
+            {
+                const double alpha=gp.p*c->ec[k]/(gp.p+c->ec[k]);   // as findRNLM
+                const rvec3_t dR=gp.P-C;
+                c->Fj->GetFjAt(alpha*dR*dR, Fj);
+                Internal::MnD::HermiteCoulomb(Lr, alpha, dR, Fj, at);
+                double t=0.0;
+                for (size_t p=0;p<c->na;p++)
+                    for (size_t q=0;q<c->nb;q++)
+                    {
+                        const double w=c->W[p*c->nb+q];
+                        if (w==0.0) continue;
+                        for (size_t u=0;u<c->nt;u++)
+                        {
+                            const Polarization& pu=c->pt[u];
+                            const double* h=c->hc+c->hcOff[k*c->nt+u];
+                            auto Hc=[&](const Polarization& q3){ return h[(size_t(q3.n)*(pu.l+1)+q3.l)*(pu.m+1)+q3.m]; };
+                            t += w*c->ct[u]*PairRepulsion3C(H2,gp.p,gp.Eij,c->ec[k],c->pa[p],c->pb[q],pu,*c->NLMs,Hc,Rof);
+                        }
+                    }
+                s += c->ca[i]*c->cb[j]*c->cc[k]*t;
+            }
+        }
+    return s;
+}
+
+void GaussianRF::ThreeCentreGradient(ThreeCentre K, rf_t& ra, rf_t& rb, const Polarization* pa, size_t na, const Polarization* pb,
+                                     size_t nb, const Polarization* pt, const double* ct, size_t nt, const double* W,
+                                     rvec3_t& gA, rvec3_t& gB, rvec3_t& gC) const
+{
+    auto exps=[](const GaussianRF& r){ std::vector<double> e(r.itsPrims.size()); for (size_t i=0;i<e.size();i++) e[i]=r.itsPrims[i]->GetExponent(); return e; };
+    const std::vector<double> ea=exps(ra), eb=exps(rb), ec=exps(*this);
+    std::vector<double> hc; std::vector<size_t> hcOff;
+    std::unique_ptr<Internal::Boys::AuxillaryFJ> Fj;
+    if (K==ThreeCentre::Repulsion)
+    {
+        for (size_t k=0;k<itsPrims.size();k++)
+        {
+            const Hermite1& H1=itsPrims[k]->GetH1();
+            for (size_t u=0;u<nt;u++)
+            {
+                hcOff.push_back(hc.size());
+                for (int n=0;n<=pt[u].n;n++) for (int l=0;l<=pt[u].l;l++) for (int m=0;m<=pt[u].m;m++)
+                    hc.push_back(H1(Polarization(n,l,m),pt[u]));
+            }
+        }
+        Fj=std::make_unique<Internal::Boys::AuxillaryFJ>(ra.itsL+rb.itsL+itsL);   // throws past the Boys table, before the AD call
+        if (Ω::theNMLs.size()==0) Ω::MakeNMLs();
+    }
+    else if (Ω::theNMLs.size()==0) Ω::MakeNMLs();
+    const ThreeCCtx c{K, ea.data(), ra.itsCoeff.data(), ea.size(), ra.itsL, eb.data(), rb.itsCoeff.data(), eb.size(), rb.itsL,
+                      ec.data(), itsCoeff.data(), ec.size(), itsL, pa, na, pb, nb, pt, ct, nt, W,
+                      &Ω::GetNMLs(ra.itsL+rb.itsL), Fj.get(), hc.data(), hcOff.data()};
+    double x[9]={ra.itsCenter.x,ra.itsCenter.y,ra.itsCenter.z, rb.itsCenter.x,rb.itsCenter.y,rb.itsCenter.z, itsCenter.x,itsCenter.y,itsCenter.z};
+    double g[9]={0,0,0,0,0,0,0,0,0};
+    __enzyme_autodiff<void>(reinterpret_cast<void*>(ThreeCAt), enzyme_dup, x, g, enzyme_const, &c);
+    gA=rvec3_t(g[0],g[1],g[2]); gB=rvec3_t(g[3],g[4],g[5]); gC=rvec3_t(g[6],g[7],g[8]);
 }
 
 } //namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD

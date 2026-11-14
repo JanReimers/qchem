@@ -128,3 +128,61 @@ TEST(KetGradient, TheNuclearTwinIsTheFiniteDifferenceOfTheCachedKernelWithEveryC
     std::printf("  [nuclear twin] worst |AD - FD| over bra, ket and two nuclei (one on the axis), La,Lb <= 2: %.2e\n", worst);
 }
 
+
+// THE 3-CENTRE TWINS (GaussianRF::ThreeCentreGradient), every centre moving, against the central difference of the CACHED Overlap3C and
+// Repulsion3C (this radial = centre C, as they have it).  C on the A-B axis (Hermite coefficients and RNLM entries vanishing by symmetry:
+// the trap the cached kernels' zero-value skips fall into) and off it; every Cartesian pair through d; the field radial of L 0 and 2 with
+// two terms (a polynomial field, as a GTH local part's r^{2n} terms make).
+TEST(KetGradient, TheThreeCentreTwinsAreTheFiniteDifferenceOfTheCachedKernelsWithEveryCentreMoving)
+{
+    const rvec3_t A0(0.13,-0.21,0.34), B0(A0.x+1.3,A0.y,A0.z);
+    double worst[2]={0.0,0.0};
+    for (const rvec3_t& C0 : {rvec3_t(A0.x+0.5,A0.y,A0.z), rvec3_t(0.9,0.8,-0.5)})
+    for (int Lc : {0,2})
+    for (int La=0;La<=2;La++)
+        for (int Lb=0;Lb<=2;Lb++)
+        {
+            auto radA=[&](const rvec3_t& A){ return GaussianRF(rvec_t{0.6,0.4}, rvec_t{1.9,0.45}, A, La); };
+            auto radB=[&](const rvec3_t& B){ return GaussianRF(0.57, B, Lb); };
+            auto radC=[&](const rvec3_t& C){ return GaussianRF(0.71, C, Lc); };
+            const std::vector<Polarization> pa=ShellComponents(La), pb=ShellComponents(Lb);
+            const std::vector<Polarization> pt = Lc==0 ? std::vector<Polarization>{Polarization(0,0,0)} : std::vector<Polarization>{Polarization(2,0,0), Polarization(0,1,1)};
+            const std::vector<double> ct = Lc==0 ? std::vector<double>{1.0} : std::vector<double>{0.8,-0.3};
+            std::vector<double> W(pa.size()*pb.size());
+            for (size_t k=0;k<W.size();k++) W[k]=std::sin(0.7*double(k)+0.5*La+0.25*Lb+Lc);
+            for (auto K : {GaussianRF::ThreeCentre::Overlap, GaussianRF::ThreeCentre::Repulsion})
+            {
+                auto value=[&](const rvec3_t& A, const rvec3_t& B, const rvec3_t& C)
+                {
+                    const GaussianRF ra=radA(A), rb=radB(B), rc=radC(C);
+                    double v=0.0;
+                    for (size_t p=0;p<pa.size();p++) for (size_t q=0;q<pb.size();q++) for (size_t u=0;u<pt.size();u++)
+                        v+=W[p*pb.size()+q]*ct[u]*(K==GaussianRF::ThreeCentre::Overlap ? rc.Overlap3C(ra,rb,pa[p],pb[q],pt[u])
+                                                                                        : rc.Repulsion3C(ra,rb,pa[p],pb[q],pt[u]));
+                    return v;
+                };
+                rvec3_t gA, gB, gC;
+                radC(C0).ThreeCentreGradient(K, radA(A0), radB(B0), pa.data(), pa.size(), pb.data(), pb.size(), pt.data(), ct.data(), pt.size(), W.data(), gA, gB, gC);
+                for (int centre=0;centre<3;centre++)
+                    for (int c=0;c<3;c++)
+                    {
+                        const double h=1e-4;
+                        auto at=[&](double s)
+                        {
+                            rvec3_t A=A0, B=B0, C=C0;
+                            rvec3_t& X = centre==0 ? A : centre==1 ? B : C;
+                            (c==0 ? X.x : c==1 ? X.y : X.z)+=s;
+                            return value(A,B,C);
+                        };
+                        const double fd=(4.0*(at(0.5*h)-at(-0.5*h))/h - (at(h)-at(-h))/(2*h))/3.0;
+                        const rvec3_t& g = centre==0 ? gA : centre==1 ? gB : gC;
+                        const double an=Comp(g,c), err=std::fabs(an-fd), tol=1e-8*std::max(1.0,std::fabs(fd));
+                        double& wst=worst[K==GaussianRF::ThreeCentre::Overlap ? 0 : 1];
+                        wst=std::max(wst,err);
+                        EXPECT_LT(err, tol) << (K==GaussianRF::ThreeCentre::Overlap ? "<ab|c>" : "(ab|c)") << " La=" << La << " Lb=" << Lb << " Lc=" << Lc
+                                            << " centre " << centre << " axis " << c << ": AD " << an << " FD " << fd;
+                    }
+            }
+        }
+    std::printf("  [3-centre twins] worst |AD - FD|: <ab|c> %.2e, (ab|c) %.2e\n", worst[0], worst[1]);
+}

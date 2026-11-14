@@ -717,12 +717,76 @@ public:
             }
         return g;
     }
+    //! \brief THE PP PULLBACKS (the molecular closed-form species fields; GeometryOptimizationPlan §13.2), Enzyme over the MnD kernels.
+    //! Each returns, per site of \a st, the derivative w.r.t. that site of every centre involved (the basis functions' and the field
+    //! Gaussian's, which sits on site \a gAtom).  CLIENT: Gaussian::EOrbital_PP_IBS (PG_Cart).  THROW on a stray centre or a mis-sized input.
+    //!
+    //! \f$\sum_i w_i\,\partial\langle i|g\rangle/\partial R\f$, \f$\langle i|g\rangle\f$ = \c OverlapWith (the KB projectors).  Per shell, the ket is
+    //! g's radial at g's centre (\c GaussianRF::KetGradient), the bra derivative its negative.
+    rvec3vec_t OverlapWithPullback(const Math::CartGaussian& g, size_t gAtom, const rvec_t& w, const Structure* st) const
+    {
+        const char* what="the projector pullback";
+        CheckPullbackArgs(what, w.size(), st);
+        const std::vector<size_t> atom=ComponentSites(st, what);
+        const GaussianRF gr(g.alpha, g.center, GaussDegree(g));   // as GaussOverlapTerm
+        std::vector<Polarization> pt; std::vector<double> ct;
+        for (const auto& t : g.terms) { pt.push_back(Polarization(t.p)); ct.push_back(t.c); }
+        rvec3vec_t F(st->GetNumAtoms(), rvec3_t(0,0,0));
+        std::vector<double> W;
+        for (const Shell& si : Shells())
+        {
+            const size_t i0=si.begin, ni=si.end-si.begin;
+            W.assign(ni*pt.size(), 0.0);
+            for (size_t p=0;p<ni;p++) for (size_t u=0;u<pt.size();u++) W[p*pt.size()+u]=w[i0+p]*ns[i0+p]*ct[u];
+            const rvec3_t gk=radials[i0]->KetGradient(GaussianRF::TwoCentre::Overlap, gr, g.center, &pols[i0], ni, pt.data(), pt.size(), W.data());
+            F[atom[i0]]-=gk;
+            F[gAtom]+=gk;
+        }
+        return F;
+    }
+    //! \f$\sum_{ij}D_{ij}\,\partial\langle i|g|j\rangle/\partial R\f$, \f$\langle i|g|j\rangle\f$ = \c OperatorThreeC (the local field's short part).
+    rvec3vec_t OperatorThreeCPullback(const Math::CartGaussian& g, size_t gAtom, const rmat_t& D, const Structure* st) const
+    {
+        const GaussianRF gr(g.alpha, g.center, GaussDegree(g));   // as OperatorThreeC
+        std::vector<Polarization> pt; std::vector<double> ct;
+        for (const auto& t : g.terms) { pt.push_back(Polarization(t.p)); ct.push_back(t.c); }
+        return ThreeCentrePullback(GaussianRF::ThreeCentre::Overlap, gr, pt, ct, gAtom, D, st, "the local-field (short) pullback");
+    }
+    //! \f$\sum_{ij}D_{ij}\,\partial(ij|e^{-\alpha|r-R_{gAtom}|^2})/\partial R\f$ = \c RepulsionThreeC (the local field's long part).
+    rvec3vec_t GaussianRepulsionPullback(size_t gAtom, double alpha, const rmat_t& D, const Structure* st) const
+    {
+        if (!st || gAtom>=st->GetNumAtoms()) throw std::invalid_argument("GaussianRepulsionPullback: the Gaussian's site is not in the structure");
+        const GaussianRF gr(alpha, st->Sites()[gAtom].R, 0);   // as RepulsionThreeC
+        return ThreeCentrePullback(GaussianRF::ThreeCentre::Repulsion, gr, {Polarization(0,0,0)}, {1.0}, gAtom, D, st, "the local-field (long) pullback");
+    }
 private:
     void CheckPullbackArgs(const char* what, size_t adjointRows, const Structure* st) const
     {
         if (!st) throw std::invalid_argument(std::string(what)+": needs the structure (the sites the functions sit on)");
         if (adjointRows!=size()) throw std::invalid_argument(std::string(what)+": the adjoint is "+std::to_string(adjointRows)+
                                                              " square for "+std::to_string(size())+" functions");
+    }
+    rvec3vec_t ThreeCentrePullback(GaussianRF::ThreeCentre K, const GaussianRF& gr, const std::vector<Polarization>& pt, const std::vector<double>& ct,
+                                   size_t gAtom, const rmat_t& D, const Structure* st, const char* what) const
+    {
+        CheckPullbackArgs(what, D.rows(), st);
+        if (D.columns()!=size()) throw std::invalid_argument(std::string(what)+": D is not square");
+        const std::vector<size_t> atom=ComponentSites(st, what);
+        rvec3vec_t F(st->GetNumAtoms(), rvec3_t(0,0,0));
+        std::vector<double> W;
+        for (const Shell& si : Shells())
+            for (const Shell& sj : Shells())
+            {
+                const size_t i0=si.begin, j0=sj.begin, ni=si.end-si.begin, nj=sj.end-sj.begin;
+                W.assign(ni*nj, 0.0);
+                for (size_t p=0;p<ni;p++) for (size_t q=0;q<nj;q++) W[p*nj+q]=D(i0+p,j0+q)*ns[i0+p]*ns[j0+q];
+                rvec3_t gA, gB, gC;
+                gr.ThreeCentreGradient(K, *radials[i0], *radials[j0], &pols[i0], ni, &pols[j0], nj, pt.data(), ct.data(), pt.size(), W.data(), gA, gB, gC);
+                F[atom[i0]]+=gA;
+                F[atom[j0]]+=gB;
+                F[gAtom]+=gC;
+            }
+        return F;
     }
     //! The one walk both pullbacks share: per ORDERED shell pair (i0, j0) and image (n, R_n) of \a images, the weights
     //! \f$W_{pq}=\mathrm{weight}(P,Q,n)\,n_Pn_Q\f$, \f$w=\partial_B\sum_{pq}W_{pq}K_{pq}\f$ at the ket centre \f$B=R_j+R_n\f$ (Enzyme,
