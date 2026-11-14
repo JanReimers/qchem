@@ -7,7 +7,6 @@ export module qchem.BasisSet.Internal.DB_Cache;
 export import qchem.BasisSet.DBCacheClient;   // the key contract (public since V1.20d); the mechanism stays here
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.PairProjection;    // PairProjection<T> (the 3-centre tensor, all realizations)
-import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.Cache2;
 import qchem.BasisSet.Internal.Cache3;
 import qchem.Types;
@@ -61,8 +60,6 @@ public:
     virtual const ERI4&      Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()> make)=0; // 4 centre
 
     // 4 center radial Slater integrals, Rk for HF calculations
-    virtual void Register(Cache4_Client* eval)=0;
-    virtual const Cache4* GetCache4(const RadialTypeID_t& type) const=0;
 
     // 2 center charge distributions Omega_ab (molecular Gaussians); analogue of Cache4.
     virtual void Register(Cache2_Client* eval)=0;

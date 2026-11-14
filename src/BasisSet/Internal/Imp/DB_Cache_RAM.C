@@ -111,32 +111,6 @@ template <class T> IntegralsCache_RAM<T>::IntegralsCache_RAM(bool makelog)
 template <class T>  IntegralsCache_RAM<T>::~IntegralsCache_RAM() = default;
 // (The legacy exit-time "IntegralsCache RAM usage report" cout is retired: the run report's per-run `cache`
 //  section -- tiers + reuse, via EmitReport -- now carries the same stats.)
-template <class T> void IntegralsCache_RAM<T>::Register(Cache4_Client* eval)
-{
-    RadialTypeID_t key=eval->RadialType(); //This is really a type
-    auto it=itsCache4s.find(key);
-    if (it==itsCache4s.end())
-    {
-        const auto [iterator, success]=itsCache4s.insert({key,val_t(eval->MakeCache4())});
-        assert(success);
-        it=iterator;
-        std::cout << "Insert Cache4_Client RadialType=" << key << std::endl;
-    }
-    it->second->Register(eval);
-}
-
-template <class T> const Cache4* IntegralsCache_RAM<T>::GetCache4(const RadialTypeID_t& type) const
-{
-    auto it=itsCache4s.find(type);
-    if (it==itsCache4s.end())
-    {
-        std::cerr << "Cache4 error: Cannot find radial type '" << type << "', known types are:" << std::endl;
-        for (auto& i:itsCache4s)
-            std::cerr << i.first << std::endl;
-    }
-    assert(it!=itsCache4s.end());
-    return it->second.get();
-}
 
 template <class T> void IntegralsCache_RAM<T>::Register(Cache2_Client* eval)
 {

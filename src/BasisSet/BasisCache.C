@@ -7,7 +7,9 @@
 //   - a block's own 2-centre tables (Overlap, ⟨p²⟩, RestMass, the RKB L/S cross kinetic): the block's index in this cache;
 //   - ERI4 Direct / Exchange between two blocks of one parent: the UNORDERED pair of indices, stored canonical (i ≤ j);
 //   - ⟨ab|c⟩ Overlap3C / Repulsion3C: (the block's index, the fit basis's INSTANCE serial).  The element type follows the FIT axis, so
-//     there is one typed map per scalar, the way BasisSetImp holds blocks of both scalars.
+//     there is one typed map per scalar, the way BasisSetImp holds blocks of both scalars;
+//   - an atom basis's Rk Slater integrals (Cache4, its exponent grouper inside), one per radial family: S5a.  Its blocks (one per l)
+//     register into it as they are built, so their exponent indices are THIS parent's, and an atom run's tables die with its basis.
 // No key carries geometry: a new geometry is a new BasisSet, so a new cache (§6).
 //
 // A PARTNER can die before this cache (a fit basis rebuilt mid-run).  Its serial is never reused, so its entries can never be hit again:
@@ -34,6 +36,7 @@ export module qchem.BasisSet.BasisCache;
 export import qchem.InstanceToken;
 export import qchem.BasisSet.PairProjection;   // PairProjection<T>, the 3-centre record
 import qchem.BasisSet.Internal.ERI4;           // ERI4, the 4-centre tensor (an Internal module: imported, never re-exported)
+import qchem.BasisSet.Internal.Cache4;         // Cache4 / Cache4_Client: an atom basis's Rk tables (imported, never re-exported)
 export import qchem.Types;
 import qchem.SlotMap;
 import qchem.Reporting;
@@ -86,6 +89,34 @@ public:
             itsPartners.try_emplace(fit.Serial(), Partner{fit.Alive(), fitName});
         }
         return ThreeC<TFit>().GetOrFill(std::make_tuple(op, block, fit.Serial()), std::forward<F>(make));
+    }
+
+    //! S5a: block \a eval of an atom basis joins its radial family's Rk table (made on the first block of that family).  Called by the
+    //! block's constructor, which runs serially inside the parent's factory.
+    void Register4(Cache4_Client* eval) const
+    {
+        Cache4* c=nullptr;
+        {
+            std::lock_guard<std::mutex> l(its4Lock);
+            auto it=its4.find(eval->RadialType());
+            if (it==its4.end())
+            {
+                it=its4.emplace(eval->RadialType(), std::unique_ptr<Cache4>(eval->MakeCache4())).first;
+                std::cout << "Insert Cache4_Client RadialType=" << it->first << std::endl;
+            }
+            c=it->second.get();
+        }
+        c->Register(eval);
+    }
+    //! The Rk table of radial family \a radialType (the ERI4 builders' lookup).  THROWS if no block of that family registered here: an
+    //! ERI4 pair is two blocks of ONE parent, so a missing family is a wiring error.
+    const Cache4& GetCache4(const std::string& radialType) const
+    {
+        std::lock_guard<std::mutex> l(its4Lock);
+        auto it=its4.find(radialType);
+        if (it==its4.end())
+            throw std::logic_error("BasisCache::GetCache4: no block of radial family '"+radialType+"' registered with this basis set");
+        return *it->second;
     }
 
     //! Sweep out every entry keyed by a partner that no longer exists, report each partner and the count, and return the count.
@@ -147,6 +178,8 @@ private:
     once_t<PairProjection<dcmplx>,three_key>  its3C_c;
     mutable std::mutex                        itsPartnerLock;
     mutable std::map<uint64_t,Partner>        itsPartners;
+    mutable std::mutex                                     its4Lock;   //!< its4 only, never held across a Cache4 fill
+    mutable std::map<std::string,std::unique_ptr<Cache4>>  its4;       //!< the atom Rk tables, by radial family (S5a)
 };
 
 } // namespace qchem::BasisSet

@@ -19,7 +19,7 @@ import qchem.BasisSet.Radial.IBS;
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
-import qchem.BasisSet.Internal.DB_Cache;
+import qchem.BasisSet.Internal.Cache4;   // Cache4 / Cacheable4: the parent's Rk table (S5a)
 
 export 
 namespace qchem::BasisSet {
@@ -46,13 +46,13 @@ public:
         : IrrepBasisSetImp<Evaluator>(cache, ir)
         , Evaluator(N,rmin,rmax,ir)
         {
-            theCache<double>().Register(this); //Can this move to the evaluator level?
+            this->Cache().Register4(this);   // the parent's Rk table (S5a)
         };
         EOrbital_HF_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const rvec_t& es, const sym_t& ir, size_t ltrim=0)
         : IrrepBasisSetImp<Evaluator>(cache, ir)
         , Evaluator(es,ir,ltrim)
         {
-            theCache<double>().Register(this);
+            this->Cache().Register4(this);   // the parent's Rk table (S5a)
         };
 
 
@@ -127,13 +127,13 @@ public:
         : IrrepBasisSetImp<Evaluator>(cache, yl)
         , Evaluator(N,rmin,rmax,yl)
         {
-            theCache<double>().Register(this);
+            this->Cache().Register4(this);   // the parent's Rk table (S5a)
         };
         Orbital_1E_HF_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const rvec_t& es, const sym_t& yl)
         : IrrepBasisSetImp<Evaluator>(cache, yl)
         , Evaluator(es,yl)
         {
-            theCache<double>().Register(this);
+            this->Cache().Register4(this);   // the parent's Rk table (S5a)
         };
          virtual std::ostream&  Write(std::ostream& os) const
         {
@@ -174,13 +174,13 @@ public:
         : IrrepBasisSetImp<LEvaluator>(cache, irrep)
         , LEvaluator(N,emin,emax,irrep)
         {
-            theCache<double>().Register(this); //Can this move to the evaluator level?
+            this->Cache().Register4(this);   // the parent's Rk table (S5a)
         };
         EOrbital_RKBL_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
         : IrrepBasisSetImp<LEvaluator>(cache, irrep)
         , LEvaluator(es,irrep,ltrim)
         {
-            theCache<double>().Register(this);
+            this->Cache().Register4(this);   // the parent's Rk table (S5a)
         };
 
         virtual std::ostream&  Write(std::ostream& os) const
@@ -200,13 +200,13 @@ public:
         : IrrepBasisSetImp<SEvaluator>(cache, irrep)
         , SEvaluator(N,emin,emax,irrep) //fix κ=-1, l=0
         {
-            theCache<double>().Register(this); //Can this move to the evaluator level?
+            this->Cache().Register4(this);   // the parent's Rk table (S5a)
         };
         EOrbital_RKBS_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
         : IrrepBasisSetImp<SEvaluator>(cache, irrep)
         , SEvaluator(es,irrep,ltrim)
         {
-            theCache<double>().Register(this);
+            this->Cache().Register4(this);   // the parent's Rk table (S5a)
         };
 
         virtual std::ostream&  Write(std::ostream& os) const
