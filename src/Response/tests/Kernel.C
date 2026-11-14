@@ -225,9 +225,10 @@ TEST(ResponseKernel, MissingCapabilityThrowsAtConstruction)
     auto st=Water();
     std::unique_ptr<BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(
         nlohmann::json{{"basis","dzvp"},{"engine","mnd"},{"angular","cartesian"}}, st.get()));
+    Hamiltonian::CoulombFitSlot<double> coulombFit;   // the run's Coulomb-fit slot, beside its basis (S2b)
     std::unique_ptr<Hamiltonian::rHamiltonian> H(Hamiltonian::Factory(Hamiltonian::Model::LDA, SpinGroup::UnPolarized, st,
         qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=3, .mhl_alpha=2.0,
-                           .angular=qcMesh::AngularKind::Lebedev, .angularDegree=5, .beckeOrder=2}, bs.get(), 0.7));
+                           .angular=qcMesh::AngularKind::Lebedev, .angularDegree=5, .beckeOrder=2}, bs.get(), coulombFit, 0.7));
     try
     {
         (void)H->MakeResponseKernel(bs.get(), nullptr);

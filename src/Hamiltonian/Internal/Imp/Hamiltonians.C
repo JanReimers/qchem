@@ -119,13 +119,23 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMe
     return new FittedVxc(ffb, fx, g);
 }
 
+//! The run's Coulomb fit from its slot (built by \a make on the first ask).
+template <class T, class Make> static std::shared_ptr<const BasisSet::FIT_CD_ABS<T>> OneCoulombFit(const CoulombFitSlot<T>& slot, Make make)
+{
+    using fit_t=std::shared_ptr<const BasisSet::FIT_CD_ABS<T>>;
+    return slot.GetOrFill([&]{return fit_t(make());});
+}
+
 //! THE MOLECULAR / ATOM HARTREE TERM.  This is where a grid route's fit basis and operator are paired, so nothing below knows
 //! which it got.  An unresolved \c Auto is the Gaussian fit; the δ route is one stated choice away (\c CoulombFit::Delta).
-static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp, const CoulombRoute& coulomb)
+//! \a coulombFit: the run's Coulomb-fit slot (S2b): filled here on the first build, read on every later one.
+static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp, const CoulombRoute& coulomb,
+                                         const CoulombFitSlot<double>& coulombFit)
 {
-    if (coulomb.fit!=CoulombFit::Delta && coulomb.fit!=CoulombFit::Multipole)
+    if (UsesCoulombFitBasis(coulomb))
     {
-        Vee_FitDunlap::fbs_t fb=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get());});
+        Vee_FitDunlap::fbs_t fb=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit",
+            [&]{return OneCoulombFit(coulombFit, [&]{return bs->CreateCDFitBasisSet(st.get());});});
         // Dunlap needs a Coulomb METRIC, so a δ basis (none) cannot reach it: the route enum picks the fit, and this branch only
         // ever builds the Gaussian one.  Ruling (g)'s "refuse Dunlap on a δ basis" has no deck path to fire on today.
         return new Vee_FitDunlap(Fitting::MakeDunlapDensityFitter(fb), st->GetNumElectrons());
@@ -157,19 +167,21 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const 
     return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(mfb), st->GetNumElectrons());
 }
 
-Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb)
-    : Ham_DFT(st, {std::make_shared<SlaterExchange>(alpha_ex)}, mp, bs, g, fit, coulomb)
+Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit,
+                 SpinGroup g, XCRoute fit, const CoulombRoute& coulomb)
+    : Ham_DFT(st, {std::make_shared<SlaterExchange>(alpha_ex)}, mp, bs, coulombFit, g, fit, coulomb)
 {};
 
 Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> parts,
-                 const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb)
+                 const qcMesh::MeshParams& mp, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit,
+                 const CoulombRoute& coulomb)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
     Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
     Add(new Ven(st));
 
-    Add(MolecularHartreeTerm(st, bs, mp, coulomb));
+    Add(MolecularHartreeTerm(st, bs, mp, coulomb, coulombFit));
 
     // ONE XC term over the SUM of functionals (the gather is linear, so gather(a+b) is gather(a)+gather(b) for half the
     // work); its energy is the functionals' own eps -- correlation's is NOT the exchange virial.
@@ -199,8 +211,8 @@ std::vector<std::shared_ptr<ExFunctional>> OrDefaultLDA(std::vector<std::shared_
 
 Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
                std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb,
-               std::vector<std::shared_ptr<ExFunctional>> xc)
+               const qcMesh::MeshParams& mp, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit,
+               const CoulombRoute& coulomb, std::vector<std::shared_ptr<ExFunctional>> xc)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
@@ -219,18 +231,19 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     Add(new PP_Local(st, vloc, ppMesh));             // pseudized replacement for Ven (combined model -> _R view)
     if (sep) Add(new PP_NonLocal(st, std::move(sep), mp, ppMesh));   // KB separable projectors (null => local-only)
 
-    Add(MolecularHartreeTerm(st, bs, mp, coulomb));
+    Add(MolecularHartreeTerm(st, bs, mp, coulomb, coulombFit));
 
     // The run's functional (default LDA: Dirac exchange + VWN5 correlation), ONE XC term over the sum of its parts (see Ham_DFT).
     Add(MolecularVxcTerm(st, bs, mp, fit, OrDefaultLDA(std::move(xc)), g, ResolvedLMax(coulomb, true, mp.angularDegree)));
 }
 
 Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,
-               const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb, std::vector<std::shared_ptr<ExFunctional>> xc)
+               const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb,
+               std::vector<std::shared_ptr<ExFunctional>> xc)
     : Ham_PP(st,
              std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
              std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal),
-             mp, bs, g, fit, coulomb, std::move(xc))
+             mp, bs, coulombFit, g, fit, coulomb, std::move(xc))
 {}
 
 namespace {
@@ -246,13 +259,13 @@ BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species, con
 } //anon
 
 Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb,
-               std::vector<std::shared_ptr<ExFunctional>> xc)
-    : Ham_PP(st, Pseudopotential::MakeMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, g, fit, coulomb,
-             std::move(xc))
+               const qcMesh::MeshParams& mp, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit,
+               const CoulombRoute& coulomb, std::vector<std::shared_ptr<ExFunctional>> xc)
+    : Ham_PP(st, Pseudopotential::MakeMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, coulombFit,
+             g, fit, coulomb, std::move(xc))
 {}
 
-void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
+void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const Pseudopotential::LocalPotential* loc,
                             const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
                             VxcFit fit, std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> functional)
 {
@@ -273,7 +286,9 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> CFitBasis;   // filled in the bucket below
     {
         qchem::report::Timed timed("setup: Hartree CD fit basis");
-        CFitBasis=BuildTermFit<BasisSet::cFIT_CD_ABS>("Hartree", "Hartree ρ fit", [&]{return bs->CreateCDFitBasisSet(st.get());});
+        // The run's ONE Coulomb fit (S2b): every Hamiltonian the facade builds on this basis shares it through the slot.
+        CFitBasis=BuildTermFit<BasisSet::cFIT_CD_ABS>("Hartree", "Hartree ρ fit",
+            [&]{return OneCoulombFit(coulombFit, [&]{return bs->CreateCDFitBasisSet(st.get());});});
     }
     qchem::report::Timed terms("setup: hamiltonian term ctors (kinetic, PP, Hartree, Ewald)");
     Add(new Kinetic<dcmplx>);
@@ -387,43 +402,43 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
 }
 
 // Explicit-models ctor: the caller owns the models (itsOwnedLocal/Sep stay null).
-Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const Pseudopotential::LocalPotential* loc,
                        const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh)
     : cHamiltonianImp(SpinGroup::UnPolarized)
 {
-    BuildTerms(st, bs, loc, nl, xcMesh);
+    BuildTerms(st, bs, coulombFit, loc, nl, xcMesh);
 }
 
 // Single-species convenience ctor: the 1-species case of the multi-species build.
-Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::string& element,
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const std::string& element,
                        const std::string& functional, int valence, const qcMesh::MeshParams& xcMesh)
     : cHamiltonianImp(SpinGroup::UnPolarized)
 {
-    BuildFromGTH(st, bs, {{element, valence}}, functional, xcMesh);
+    BuildFromGTH(st, bs, coulombFit, {{element, valence}}, functional, xcMesh);
 }
 
 // Multi-species convenience ctor.
-Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, std::initializer_list<std::pair<std::string,int>> species,
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, std::initializer_list<std::pair<std::string,int>> species,
                        const std::string& functional, const qcMesh::MeshParams& xcMesh)
     : cHamiltonianImp(SpinGroup::UnPolarized)
 {
-    BuildFromGTH(st, bs, std::vector<std::pair<std::string,int>>(species), functional, xcMesh);
+    BuildFromGTH(st, bs, coulombFit, std::vector<std::pair<std::string,int>>(species), functional, xcMesh);
 }
 
 // Multi-species, runtime vector form (LiCoO2 / f-oxides: distinct elements collected at run time).
-Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const std::vector<std::pair<std::string,int>>& species,
                        const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit, SpinGroup g,
                        std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc)
     : cHamiltonianImp(g)
 {
-    BuildFromGTH(st, bs, species, functional, xcMesh, fit, std::move(hubbard), std::move(xc));
+    BuildFromGTH(st, bs, coulombFit, species, functional, xcMesh, fit, std::move(hubbard), std::move(xc));
 }
 
 // Look up each (element, valence) from the GTH database and build + OWN a per-Z router model (one
 // MultiSpecies_Local + one MultiSpecies_Separable, keyed by atomic number so the assembly's per-atom
 // FormFactor(a->itsZ,...) dispatches to the right species).  The owned models outlive the terms (members,
 // destroyed after the cHamiltonian base that holds them), so each term's &loc/&nl stays valid for the run.
-void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
+void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const std::vector<std::pair<std::string,int>>& species,
                               const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit,
                               std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc)
 {
@@ -444,7 +459,7 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector
     }
     itsOwnedLocal=loc;
     itsOwnedSep  =sep;
-    BuildTerms(st, bs, loc.get(), sep.get(), xcMesh, fit, std::move(hubbard), std::move(xc));
+    BuildTerms(st, bs, coulombFit, loc.get(), sep.get(), xcMesh, fit, std::move(hubbard), std::move(xc));
 }
 
 Ham_DHF_1E::Ham_DHF_1E(const st_t& st)

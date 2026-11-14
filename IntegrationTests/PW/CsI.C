@@ -30,6 +30,7 @@ import qchem.Blaze;          // mat_t<dcmplx>
 import qchem.Math;           // Pi
 import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
+import qchem.Hamiltonian.Factory;                   // CoulombFitSlot
 import qchem.Hamiltonian.Internal.Hamiltonians;     // Ham_PW_DFT (the assembled plane-wave LDA KS Hamiltonian)
 import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
 import qchem.Energy;                                // EnergyBreakdown
@@ -75,8 +76,8 @@ TEST(PW_CsI, Γ_Anchor)
     cell.AddAtom(53, {0.5,0.5,0.5});              // I   (true species Z=53; Zion=7 -- s,p,d channels)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
-    auto mkHam=[&](const BasisSet::Complex_BS* bs)   // bs -> the Hartree fit basis (created once in BuildTerms)
-        { return new Ham_PW_DFT(lat.GetStructure(), bs, {{"Cs",1},{"I",7}}, "LDA"); };
+    auto mkHam=[&](const BasisSet::Complex_BS* bs, const qchem::Hamiltonian::CoulombFitSlot<dcmplx>& coulombFit)   // bs -> the Hartree fit basis (created once in BuildTerms)
+        { return new Ham_PW_DFT(lat.GetStructure(), bs, coulombFit, {{"Cs",1},{"I",7}}, "LDA"); };
 
     FwResult R=RunFrameworkGamma(lat, /*Ecut*/4.0, /*Nelec*/8, mkHam, "CsI SCFIterator-Gamma");
 

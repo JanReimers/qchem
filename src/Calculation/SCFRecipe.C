@@ -8,9 +8,17 @@
 //
 //   regime \ stage      COLD (seeded)                  CARRIED (anneal, U loop, +-alpha, geometry)   RESTORED (same Hamiltonian, row 4)
 //   Insulator (row 1)   Null + Pulay-D (0.45, 8, 5)    Null + Pulay-D, fresh history (row 5)          kT 0: Ladder@GDM; kT > 0 or a partial
-//   MagneticInsulator   Null + K+P (G0 1, 0.45, 8, 5)  Null + K+P, fresh history                        eigensolve: DIIS.  Either beside LINEAR
-//     (row 2)                                                                                           D-mixing, step AND ceiling <= 0.3
-//   Metal (row 3)       Null + K+P (G0 1, PROVISIONAL) Null + K+P, fresh history
+//                                                                                                       eigensolve: DIIS.  Either beside LINEAR
+//                                                                                                       D-mixing, step AND ceiling <= 0.3
+//   MagneticInsulator   Null + K+P (G0 1, 0.45, 8, 5)  Null + K+P, fresh history                        Null + K+P, history from iteration 1
+//     (row 2)                                                                                           (pulayStart 0; Q-R ruling (b), user 2026-11-13)
+//   Metal (row 3)       Null + K+P (G0 1, PROVISIONAL) Null + K+P, fresh history                        Null + K+P, pulayStart 0 (as row 2)
+//
+// WHY a named magnetic or metallic regime restores on its OWN mixer (Q-R, user ruling 2026-11-13: "OK b then"): DIIS beside linear
+// D-mixing is the Insulator's restore, and on a smeared, degenerate d frontier the Fock-extrapolating stack fights the frontier where K+P
+// converges it (CLAUDE.md, the TMO note); K+P and Pulay-on-D reach the same NiO state to 1e-9 Ha (lane B, 2026-11-13).  pulayStart 0:
+// a restored density starts AT the fixed point, where priming only hands a soft mode undamped steps (the exact-resume rule in Iterate).
+// Auto and Insulator keep row 4 as it was.
 //
 // AUTO, in B5, IS TODAY'S POLICY NAMED AND PRINTED, and nothing else: it resolves every stage to the Insulator column, which is exactly what
 // SolidCalculation::MakeAccelerator + qchem::ResolveMixing did before (the golden table in tests/SCFRecipe.C holds the old rules verbatim).
@@ -84,6 +92,10 @@ inline constexpr MixingRecipe theKerkerPulayRecipe{.relax=0.45, .G0=1.0, .depth=
 //! (\c SCFParams::MaxRelaxRo): capping the start alone let the adaptive step grow back to 1.0 (OpenWork NEAR-TERM row, landed
 //! 2026-11-12 after B5; the ±α FD-LRT stages already capped both).
 inline constexpr double theRestoredLinearStep=0.3;
+//! A named MagneticInsulator / Metal RESTORED stage's Pulay history starts at iteration 1: plain-Kerker priming is for a start far from
+//! the fixed point, and a restored density starts at it (beta-MnO2 A1AFM r015: 23 iterations with pulayStart 5, 4 with 0; Iterate's
+//! exact-resume rule).  Q-R ruling (b), user 2026-11-13.
+inline constexpr int theRestoredPulayStart=0;
 
 //! The regime the policy RUNS: Auto resolves to Insulator in B5 (see the file comment).
 inline SCFRecipe Resolved(SCFRecipe r) {return r==SCFRecipe::Auto ? SCFRecipe::Insulator : r;}
@@ -119,12 +131,19 @@ struct RecipeAccelerator
 //!   a RESTORED stage at kT = 0 with every virtual built -> the Ladder on its GDM rung (same Hamiltonian, the density IS the answer);
 //!   a RESTORED smeared stage   -> DIIS (GDM would minimise an integer D' and never apply the smearing; `SolidState.SmearedExactResume_
 //!                                 StartsAtTheSavedState`); a RESTORED partial eigensolve (\a numBands > 0) -> DIIS (GDM needs every virtual).
-//! The regime does not enter in B5: every regime's columns name the same accelerators (rows 2 and 3 are always smeared).
-inline RecipeAccelerator ChooseAccelerator(SCFRecipe, SCFStageKind k, SCFAccelerators::Type asked, double kT, int numBands)
+//! A NAMED MagneticInsulator or Metal stage runs Null in EVERY column, its restored one included (Q-R ruling (b), 2026-11-13): its
+//! K+P history is the accelerator.
+inline bool RestoresOnKerkerPulay(SCFRecipe r)
+{
+    const SCFRecipe R=Resolved(r);
+    return R==SCFRecipe::MagneticInsulator || R==SCFRecipe::Metal;
+}
+inline RecipeAccelerator ChooseAccelerator(SCFRecipe r, SCFStageKind k, SCFAccelerators::Type asked, double kT, int numBands)
 {
     using T=SCFAccelerators::Type;
     if (asked!=T::Auto)               return {asked};
     if (k!=SCFStageKind::Restored)    return {T::Null};
+    if (RestoresOnKerkerPulay(r))     return {T::Null};
     if (kT==0.0 && numBands==0)       return {T::Ladder, true};
     return {T::DIIS};
 }
@@ -139,12 +158,13 @@ struct RecipeKnobs
 //! its Pulay-D is \c theAutoMixing, which \c ResolveMixing applies to an Auto mixer with no Fock history.  MagneticInsulator and Metal
 //! fill \c theKerkerPulayRecipe into every knob left at its \c SCFParams default; a knob the caller stated WINS and is a deviation.  The
 //! \c Mixer stays as stated (Auto keeps resolving through \c ResolveMixing, which keeps a hand-set history), so a deck that moves its
-//! K+P knobs into `scf.recipe` runs bit-identically.  A RESTORED stage fills nothing (row 4 is the same for every regime).
+//! K+P knobs into `scf.recipe` runs bit-identically.  A RESTORED stage: Insulator (and Auto) fills nothing (its row 4 is DIIS / the
+//! Ladder beside linear); MagneticInsulator and Metal fill the same K+P with \c theRestoredPulayStart (Q-R ruling (b)).
 inline RecipeKnobs FillRecipeKnobs(SCFRecipe r, SCFStageKind k, const SCFParams& p)
 {
     RecipeKnobs out{p, {}};
     const SCFRecipe R=Resolved(r);
-    if (k==SCFStageKind::Restored || R==SCFRecipe::Insulator) return out;
+    if (R==SCFRecipe::Insulator) return out;
     const SCFParams d{};
     auto num=[](double x){std::ostringstream s; s<<x; return s.str();};
     if (p.Mixer!=SCFParams::Mixing::Auto)
@@ -152,7 +172,8 @@ inline RecipeKnobs FillRecipeKnobs(SCFRecipe r, SCFStageKind k, const SCFParams&
         out.deviations.push_back("mixer stated (the recipe's knobs are not filled)");
         return out;
     }
-    const MixingRecipe& K=theKerkerPulayRecipe;
+    MixingRecipe K=theKerkerPulayRecipe;
+    if (k==SCFStageKind::Restored) K.start=theRestoredPulayStart;
     SCFParams& q=out.params;
     if (q.KerkerG0==d.KerkerG0)               q.KerkerG0=K.G0;           else if (q.KerkerG0!=K.G0)          out.deviations.push_back("kerkerG0 "+num(q.KerkerG0));
     if (q.PulayDepth==d.PulayDepth)           q.PulayDepth=K.depth;      else if (q.PulayDepth!=K.depth)     out.deviations.push_back("pulayDepth "+num(q.PulayDepth));
@@ -179,7 +200,7 @@ inline SCFParams CapRestoredStep(SCFStageKind k, SCFAccelerators::Type asked, co
 //! The §3 row a (regime, stage) cell is.
 inline const char* RowOf(SCFRecipe r, SCFStageKind k)
 {
-    if (k==SCFStageKind::Restored) return "row 4";
+    if (k==SCFStageKind::Restored) return RestoresOnKerkerPulay(r) ? "row 4, the K+P restore" : "row 4";
     if (k==SCFStageKind::Carried)  return "row 5";
     switch (Resolved(r))
     {
@@ -233,6 +254,9 @@ inline void ReportRecipe(const std::string& label, SCFRecipe r, SCFStageKind k, 
     }
     const std::string why = r==SCFRecipe::Auto
         ? "Auto resolves every stage to Insulator until it can detect a metal or a magnetic frontier (R4.1 as ruled for B5)"
+        : k==SCFStageKind::Restored && RestoresOnKerkerPulay(r)
+        ? "the deck's scf.recipe: a named "+std::string(NameOf(R))+" restores on its own K+P history from iteration 1, not row 4's DIIS + linear "
+          "(Q-R ruling (b), user 2026-11-13)"
         : "the deck's scf.recipe";
     std::cout<<"["<<label<<" policy] SCFRecipe: "<<d.str()<<"; why: "<<why<<std::endl;
     report::json detail{{"recipe",NameOf(r)}, {"regime",NameOf(R)}, {"stage",NameOf(k)}, {"row",row},

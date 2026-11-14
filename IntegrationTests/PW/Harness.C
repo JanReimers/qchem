@@ -28,6 +28,7 @@ export import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> phy
 export import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
 export import qchem.Blaze;          // mat_t<dcmplx>
 export import qchem.Math;           // Pi
+import qchem.Hamiltonian.Factory;                  // CoulombFitSlot (the harness holds one beside its basis)
 import qchem.Hamiltonian.Internal.Terms;            // Vee_Fit<dcmplx> (the periodic Hartree term)
 import qchem.Fitting.CoulombOperator;               // MakeGSpaceDensityFitter
 import qchem.Hamiltonian.Internal.PWTerms;          // Ven_PP_Short/Long (dcmplx Hamiltonian terms)
@@ -340,14 +341,16 @@ struct FwResult { bool converged; double charge; qchem::EnergyBreakdown E; size_
 // seam: Ham_PW_DFT now needs the composite basis to create the Hartree density-fit basis (like the
 // molecular Ham DFT ctors take bs for FittedVee).
 FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
-                           std::function<qchem::Hamiltonian::cHamiltonian*(const BasisSet::Complex_BS*)> mkHam,
+                           std::function<qchem::Hamiltonian::cHamiltonian*(const BasisSet::Complex_BS*,
+                                                                          const qchem::Hamiltonian::CoulombFitSlot<dcmplx>&)> mkHam,
                            const char* label,
                            qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform,
                            const qchem::ChargeDensity::SeedKey& seedKey={})   // per-Z PP variant: a species with two in the seed library must name one
 {
     namespace L3=BasisSet::Lattice;
     std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, Ecut));
-    qchem::Hamiltonian::cHamiltonian* ham=mkHam(bs.get());   // build the Ham WITH the basis (fit-basis seam)
+    qchem::Hamiltonian::CoulombFitSlot<dcmplx> coulombFit;   // the run's Coulomb-fit slot lives beside its basis (S2b)
+    qchem::Hamiltonian::cHamiltonian* ham=mkHam(bs.get(), coulombFit);   // build the Ham WITH the basis (fit-basis seam)
     std::unique_ptr<qchem::Hamiltonian::cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
     Irrep  irr=bs->GetIrreps(Spin::None)[0];
     size_t n  =bs->GetNumFunctions();
