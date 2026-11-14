@@ -3045,7 +3045,10 @@ work around while waiting for the Enzyme fix") is now met for the lattice sums: 
 - ONE DEFECT FOUND ON THE WAY, the value branch: the cached ⟨p²⟩ kernel ended `h!=0 ? f*h : 0.0`.  Where the value vanishes by symmetry
   (Si diamond images on an axis through the bra) AD differentiated the branch and read a zero derivative that is not zero: the lattice
   gradients passed and the OFF-DIAGONAL kinetic virial failed by up to 7e-3 (Si) and 2.5e-2 (MnO).  The branch is gone (the prefactor is
-  finite, so the value is the same 0 there).  The overlap had no branch and passed throughout.
+  finite, so the value is the same 0 there).  The overlap had no branch and passed throughout.  **This is an AD-THROUGH-A-BRANCH defect in
+  our code, NOT an Enzyme defect**: Enzyme differentiated exactly the function it was given, and the derivative of `cond ? f*h : 0` on the
+  `0` side is 0 for any AD tool (Polarization::operator()'s comment records the same trap for `intpow`).  A guard on a computed VALUE is
+  unsafe in differentiated code; a guard on an INDEX (Hermite2's negative-component early return) is safe.
 - Gates: `M_LatticePullback` (FD of the energy path: every atom along every axis, all nine virial components, on uncontracted Si SIPP_SR,
   contracted H3 dzvp and MnO d through the spherical view, at a non-TRIM k) passes; the attribution gate (libcint's value vs MnD's per image)
   stays as an ORACLE test.  New: `KetGradient.IsTheFiniteDifferenceOfTheCachedKernelForEveryShellPairThroughD` (Enzyme's derivative vs the
