@@ -397,7 +397,7 @@ TEST(GPW_Si, Γ_TranslationInvariant)   // RE-ENABLED 2026-09-15: 0.3 s, invaria
         Lattice_3D lat(cell, ivec3_t(1,1,1));
         auto st=lat.GetStructure();
         Pseudopotential::GTH_PP pp=Pseudopotential::GetGTH("Si","LDA",4);
-        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), MakeBasisSR(cell), dE);  // eps-complete enumeration
+        GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), MakeBasisSR(cell), dE);  // eps-complete enumeration
         const BasisSet::Complex_OIBS& g=gpw;
         kin =tr(g.Kinetic());
         vloc=tr(gpw.MakeSpeciesFieldMatrix(st.get(), pp.local, qchem::BasisSet::FieldRange::Full));

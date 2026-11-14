@@ -154,7 +154,7 @@ TEST(GPW, HomeCellMatchesFiniteExactly)
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
 
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0,
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0,
                 BasisSet::Gaussian::CellImages::HomeCellOnly); // the finite-molecule mode
     const Complex_OIBS& g = gpw;
 
@@ -178,7 +178,7 @@ TEST(GPW, LatticeSumConvergesToFiniteAsCellGrows)
         UnitCell cell(a);
         cell.AddAtom(14,{0.5,0.5,0.5});
         std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
-        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0); // periodic (images internal)
+        GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0); // periodic (images internal)
         const Complex_OIBS& g = gpw;
         EXPECT_LT(MaxImag(g.Overlap()), 1e-13);          // still real at Gamma
         return RelDiff(g.Overlap(), fin.orb->Overlap());
@@ -223,11 +223,11 @@ TEST(GPW, CollocationOverlapMatchesAnalytic)
     UnitCell cell(a);
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
     // REFERENCE: the analytic collocation always sums the SCREENED cross-cell pair offsets, so the collocated
     // charge is Tr(D S^Bloch) -- the screened-complete Bloch overlap (generous Rcut enumeration; SIPP's diffuse
     // alpha=0.06 reaches several cells even in this box), NOT the home-only overlap.
-    GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0);
+    GPW_IBS gpwRef(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0);
 
     const GPW_Evaluator& ev = gpw;
     PairProjection<dcmplx> ov = ev.Overlap3CTensor();
@@ -259,7 +259,7 @@ TEST(GPW, SharpestPairChargeConservation)
     UnitCell cell(a);
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
                 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, TwiceBallRasters());   // EXACT-QUADRATURE gate (production: sized from eps)
     const GPW_Evaluator& ev = gpw;
     const Complex_OIBS&  g  = gpw;
@@ -315,7 +315,7 @@ TEST(GPW, IllConditionedChargeProbe)   // RE-ENABLED 2026-09-15 (TE phase 5): se
     // NOTE (banish-Rcut): the historical Rcut=2a leg that MEASURED the -2.247 e scheme mismatch is now
     // UNREPRESENTABLE -- enumeration lives inside the seam and no truncated configuration can be built.
     // The probe now reports the complete-enumeration error only (precision floors under extreme loading).
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut);
     const GPW_Evaluator& ev=gpw;
     const Complex_OIBS&  g =gpw;
     const size_t n=g.GetNumFunctions();
@@ -347,10 +347,10 @@ TEST(GPW, OverlapWithConstantFieldEqualsV0Overlap)
     UnitCell cell(a);
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
     // REFERENCE: the analytic integrate-back sums the screened cross-cell offsets, so a constant field gives
     // V0 * S^Bloch (screened-complete Bloch overlap), not V0 * S_home -- see CollocationOverlapMatchesAnalytic.
-    GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0);
+    GPW_IBS gpwRef(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0);
 
     const GPW_Evaluator& ev = gpw;
     const double V0 = 0.7;
@@ -386,10 +386,10 @@ TEST(GPW, AnalyticCollocationConservesCharge)
         UnitCell cell(a);
         cell.AddAtom(14, frac);                                     // Si
         std::shared_ptr<const Real_BS> mol = MakeBasis(cell);       // SIPP Si
-        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0);
+        GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0);
         // REFERENCE: Tr(D S^Bloch) -- the collocation always includes the screened cross-cell pair offsets
         // (SIPP's diffuse alpha=0.06 reaches neighbour cells even at a=12), so the home-only Tr(D S) is ~3% off.
-        GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0);
+        GPW_IBS gpwRef(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0);
         const GPW_Evaluator& ev=gpw;
         const auto* lat=dynamic_cast<const BasisSet::Gaussian::Periodic_Gaussian_IBS*>(OrbitalBlock<Real_OIBS>(*mol));
         EXPECT_TRUE(lat) << "orbital block must realise Periodic_Gaussian_IBS";
@@ -434,7 +434,7 @@ TEST(GPW, AnalyticCollocationCrystalChargeConservation)
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);              // SIPP Si (one orbital block over both atoms)
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0);   // periodic: S^G by construction
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0);   // periodic: S^G by construction
     const GPW_Evaluator& ev=gpw;
     const Complex_OIBS& g=gpw;
     const size_t n=g.GetNumFunctions();
@@ -464,7 +464,7 @@ TEST(GPW, AnalyticIntegrateBackAdjoint)
     UnitCell cell(a);
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0);
     const GPW_Evaluator& ev=gpw;
     const auto* lat=dynamic_cast<const BasisSet::Gaussian::Periodic_Gaussian_IBS*>(OrbitalBlock<Real_OIBS>(*mol));
     EXPECT_TRUE(lat);
@@ -761,7 +761,7 @@ TEST(GPW, GeneralK_HomeCellIsKInvariantAndReal)
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
 
-    GPW_IBS gpw(cell, ivec3_t(4,4,4), ivec3_t(1,0,0), molCell, /*densityEcut=*/0.0,
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(4,4,4), ivec3_t(1,0,0), molCell, /*densityEcut=*/0.0,
                 BasisSet::Gaussian::CellImages::HomeCellOnly); // k=(1/4,0,0), finite mode
     const Complex_OIBS& g = gpw;
     EXPECT_LT(MaxImag(g.Overlap()), 1e-14);                        // phase inert at R=0 -> real
@@ -779,7 +779,7 @@ TEST(GPW, GeneralK_PhaseIsLiveWithImages)
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
 
-    GPW_IBS gpw(cell, ivec3_t(4,4,4), ivec3_t(1,0,0), molCell, /*densityEcut=*/0.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(4,4,4), ivec3_t(1,0,0), molCell, /*densityEcut=*/0.0);
     const Complex_OIBS& g = gpw;
     const auto& S = g.Overlap();
     EXPECT_GT(MaxImag(S),           1e-4) << "k!=0 with images must give a genuinely complex overlap";
@@ -801,7 +801,7 @@ TEST(GPW, GeneralK_BlochTranslationCondition)
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
 
     const ivec3_t N(4,4,4), ik(1,0,0);
-    GPW_IBS gpw(cell, N, ik, molCell, /*densityEcut=*/0.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, N, ik, molCell, /*densityEcut=*/0.0);
     const GPW_Evaluator& ev = gpw;
 
     const rvec3_t r  = cell.ToCartesian(rvec3_t(0.5,0.5,0.5));               // cell centre
@@ -838,7 +838,7 @@ TEST(GPW, TRIM_BlochMatricesAreExactlyReal)
 
     for (const ivec3_t ik : {ivec3_t(1,0,0), ivec3_t(1,1,1)})      // k=(1/2,0,0) and (1/2,1/2,1/2)
     {
-        GPW_IBS gpw(cell, ivec3_t(2,2,2), ik, molCell, /*densityEcut=*/0.0);
+        GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ik, molCell, /*densityEcut=*/0.0);
         const Complex_OIBS& g = gpw;
         EXPECT_EQ(MaxImag(g.Overlap()), 0.0) << "TRIM k=" << ik << ": S must be EXACTLY real";
         EXPECT_EQ(MaxImag(g.Kinetic()), 0.0) << "TRIM k=" << ik << ": T must be EXACTLY real";
@@ -869,8 +869,8 @@ TEST(GPW, TRIM_RealBlockMatchesComplexBitwise)
     using BasisSet::Gaussian::tGPW_IBS;
     for (const ivec3_t ik : {ivec3_t(0,0,0), ivec3_t(1,1,1)})      // Gamma and k=(1/2,1/2,1/2)
     {
-        tGPW_IBS<double> re(cell, ivec3_t(2,2,2), ik, molCell, /*densityEcut=*/0.0);
-        tGPW_IBS<dcmplx> cx(cell, ivec3_t(2,2,2), ik, molCell, /*densityEcut=*/0.0);
+        tGPW_IBS<double> re(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ik, molCell, /*densityEcut=*/0.0);
+        tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ik, molCell, /*densityEcut=*/0.0);
         const Real_OIBS&    gr = re;
         const Complex_OIBS& gc = cx;
         ASSERT_EQ(gr.GetNumFunctions(), gc.GetNumFunctions());
@@ -967,7 +967,7 @@ TEST(GPW, AtomCentredOverlapOfBasisFunctionsIsOverlapColumns)
 
     for (const ivec3_t ik : {ivec3_t(0,0,0), ivec3_t(1,0,0)})      // Gamma and the complex k=(1/4,0,0)
     {
-        tGPW_IBS<dcmplx> cx(cell, ivec3_t(4,4,4), ik, molCell, /*densityEcut=*/0.0);
+        tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(4,4,4), ik, molCell, /*densityEcut=*/0.0);
         const auto shells=cx.GetAoShells();
         std::vector<size_t> picked;
         const auto set=SetFromShells(shells, 1, picked);
@@ -993,8 +993,8 @@ TEST(GPW, AtomCentredOverlapOfBasisFunctionsIsOverlapColumns)
         EXPECT_LT(oworst, 1e-12);
     }
     // The real TRIM block narrows exactly.
-    tGPW_IBS<double> re(cell, ivec3_t(2,2,2), ivec3_t(1,1,1), molCell, 0.0);
-    tGPW_IBS<dcmplx> cx(cell, ivec3_t(2,2,2), ivec3_t(1,1,1), molCell, 0.0);
+    tGPW_IBS<double> re(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ivec3_t(1,1,1), molCell, 0.0);
+    tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ivec3_t(1,1,1), molCell, 0.0);
     std::vector<size_t> picked;
     const auto set=SetFromShells(cx.GetAoShells(), 1, picked);
     const mat_t<double> Br=re.MakeAtomCentredOverlap(set);
@@ -1020,7 +1020,7 @@ TEST(GPW, AtomCentredOverlapDChannelOnSphericalView)
     auto view=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(cart);
     for (const ivec3_t ik : {ivec3_t(0,0,0), ivec3_t(1,0,0)})
     {
-        GPW_IBS gpw(cell, ivec3_t(4,4,4), ik, view, /*densityEcut=*/0.0);
+        GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(4,4,4), ik, view, /*densityEcut=*/0.0);
         const auto shells=gpw.GetAoShells();
         std::vector<size_t> picked;
         const auto set=SetFromShells(shells, 2, picked);
@@ -1052,8 +1052,8 @@ TEST(GPW, GeneralK_ConjugateUnderKtoMinusK)
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
 
     const ivec3_t N(4,4,4);
-    GPW_IBS gk (cell, N, ivec3_t(1,0,0), molCell, 0.0);   //  k = (1/4,0,0)
-    GPW_IBS gmk(cell, N, ivec3_t(3,0,0), molCell, 0.0);   // -k = (3/4,0,0) == -(1/4,0,0) mod 1
+    GPW_IBS gk(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, N, ivec3_t(1,0,0), molCell, 0.0);   //  k = (1/4,0,0)
+    GPW_IBS gmk(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, N, ivec3_t(3,0,0), molCell, 0.0);   // -k = (3/4,0,0) == -(1/4,0,0) mod 1
     const Complex_OIBS& Sk  = gk;
     const Complex_OIBS& Smk = gmk;
     const auto& A = Sk.Overlap();
@@ -1090,7 +1090,7 @@ TEST(GPW, GeneralK_OneElectronMatricesAreContinuousAtQuarterK)
     // k = s(1,1,1) via the shift, so s is EXACT: N=1 makes k = (0+shift)/1 = shift.
     auto norms=[&](double s, double& nS, double& nT, double& nV)
     {
-        GPW_IBS gpw(cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)),
+        GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)),
                     mol, /*densityEcut=*/0.0);
         const Complex_OIBS& g = gpw;
         auto fro=[](const auto& M){ double t=0.0;
@@ -1107,7 +1107,7 @@ TEST(GPW, GeneralK_OneElectronMatricesAreContinuousAtQuarterK)
     // element by element, to O(dk^2).
     auto mats=[&](double s)
     {
-        GPW_IBS gpw(cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)),
+        GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)),
                     mol, /*densityEcut=*/20.0);
         const GPW_Evaluator& ev = gpw;
         const Complex_OIBS& g = gpw;
@@ -1163,7 +1163,7 @@ TEST(GPW, GeneralK_OneElectronMatricesAreContinuousAtQuarterK)
     const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
     auto ppNorms=[&](double s, double& nL, double& nSh, double& nKB)
     {
-        GPW_IBS gpw(cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)),
+        GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)),
                     mol, /*densityEcut=*/20.0);
         const GPW_Evaluator& ev = gpw;
         auto fro=[](const auto& M){ double t=0.0;
@@ -1218,8 +1218,8 @@ TEST(GPW, GeneralK_ConstantFieldEqualsV0OverlapAtQuarterK)
     auto resid=[&](double s)
     {
         auto sym=[&]{ return Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)); };
-        GPW_IBS gpw   (cell, sym(), molCell, /*densityEcut=*/30.0);   // collocation tier on
-        GPW_IBS gpwRef(cell, sym(), molCell, /*densityEcut=*/ 0.0);   // analytic Bloch overlap reference
+        GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, sym(), molCell, /*densityEcut=*/30.0);   // collocation tier on
+        GPW_IBS gpwRef(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, sym(), molCell, /*densityEcut=*/ 0.0);   // analytic Bloch overlap reference
         const GPW_Evaluator& ev = gpw;
         const chmat_t M = ev.OverlapMatrix([V0](const ivec3_t& dm)->dcmplx
             { return (dm.x==0 && dm.y==0 && dm.z==0) ? dcmplx(V0) : dcmplx(0.0); });
@@ -1261,7 +1261,7 @@ TEST(GPW, GeneralK_OneElectronSpectrumIsContinuousAtQuarterK)
 
     auto spectrum=[&](double s)
     {
-        GPW_IBS gpw(cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)),
+        GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)),
                     mol, /*densityEcut=*/20.0);
         const GPW_Evaluator& ev = gpw;
         const Complex_OIBS& g = gpw;
@@ -1325,7 +1325,7 @@ TEST(GPW, AnalyticSeparablePPMatchesMesh)
     std::shared_ptr<const Real_BS> mol(
         BasisSet::Gaussian::Factory(BasisSetData::SIPP_SR, &cell,
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
 
     const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
     MeshOnlyKB meshOnly(gth.nonlocal);
@@ -1373,7 +1373,7 @@ TEST(GPW, AnalyticSeparablePPMatchesMesh_DChannel)
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     // densityEcut=20 is DELIBERATELY below this basis's density floor (2*alpha_max=72; the evaluator warns) --
     // the mesh arm must NOT inherit it.  V2.5's floor lifts the KB mesh to C*alpha_max + alpha_beta = 76.7.
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
 
     const auto gth = Pseudopotential::GetGTH("Mn","LDA",7);
     int maxl=0; for (size_t p=0;p<gth.nonlocal.Count(25);++p)
@@ -1420,7 +1420,7 @@ TEST(GPW, LocalPPKappaSelfConverged)
     // densityEcut=10 keeps the sweeps cheap: the absolute rule's tail bound e^{-kappa/2} references NO grid
     // (that is its point), so kappa-independence is testable at any ladder.  (First measured at Ecut=20:
     // Full 7.6e-9 / Long 1.4e-9 / Short 1.6e-8 between kappa=30 and 60 -- the e^{-15} class on the nose.)
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/10.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/10.0);
     const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
     const GPW_Evaluator& ev = gpw;   // evaluator directly: bypass the framework cache (not model-keyed)
 
@@ -1474,7 +1474,7 @@ TEST(GPW, LocalPPShortAnalyticMatchesGrid_C3C4)
     std::shared_ptr<const Real_BS> mol(
         BasisSet::Gaussian::Factory(BasisSetData::SIPP_SR, &cell,
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/160.0);   // the grid arm converged (40: 1e-3)
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/160.0);   // the grid arm converged (40: 1e-3)
     const GPW_Evaluator& ev = gpw;
     // The cell's one site is Si, so each model is built FOR Z=14: Li's own parameters (C3, C4 are the point), not a Li species.
     using Pseudopotential::HGH_LocalPotential;
@@ -1618,7 +1618,7 @@ TEST(GPW, OverlapDiagonalPerRepresentation)
     UnitCell cell(a);
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
     qcMesh::MeshParams mp;
 
     // (1) The PLANE-WAVE fit representation: ones, one per {G}.
@@ -1629,7 +1629,7 @@ TEST(GPW, OverlapDiagonalPerRepresentation)
 
     // (2) The DELTA representation: the weights themselves, over this cell's own XC quadrature.
     BasisSet::FitQuadrature q=BasisSet::MakeXCQuadrature(cell, mp, nullptr);   // a bare block: no imposition, the plain mesh
-    BasisSet::DeltaFit_IBS<dcmplx> dfit(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    BasisSet::DeltaFit_IBS<dcmplx> dfit(std::make_shared<::qchem::BasisSet::BasisCache>(), q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     const vec_t<dcmplx> dD=dfit.OverlapDiagonal();
     ASSERT_EQ(dD.size(), q.GetMesh()->size()) << "a delta basis has one function per mesh point";
     for (size_t g=0; g<dD.size(); g++)
@@ -1673,7 +1673,7 @@ TEST(GPW, FitProjectionAndIntegralsPerRepresentation)
     UnitCell cell(a);
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
     qcMesh::MeshParams mp;
     const double Omega=cell.GetCellVolume();
 
@@ -1686,7 +1686,7 @@ TEST(GPW, FitProjectionAndIntegralsPerRepresentation)
 
     // (1) DELTA: <delta_g|f> = w_g f(r_g) and <delta_g|1> = w_g, both one entry per FUNCTION.
     BasisSet::FitQuadrature q=BasisSet::MakeXCQuadrature(cell, mp, nullptr);   // a bare block: no imposition, the plain mesh
-    BasisSet::DeltaFit_IBS<dcmplx> dfit(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    BasisSet::DeltaFit_IBS<dcmplx> dfit(std::make_shared<::qchem::BasisSet::BasisCache>(), q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     ASSERT_EQ(dfit.GetNumFunctions(), q.GetMesh()->size()) << "one delta function per mesh point";
     const vec_t<dcmplx> pD=dfit.Overlap(wave), iD=dfit.Charge();
     ASSERT_EQ(pD.size(), dfit.GetNumFunctions());
@@ -1737,9 +1737,9 @@ TEST(GPW, DiffuseDPairVlongOracle)   // RE-ENABLED 2026-09-15 (TE phase 5): seco
     UnitCell cell(Amat);
     cell.AddAtom(25, {0.5,0.5,0.5});                                  // ONE Mn q7, off-corner
     auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
-    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
+    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(cbs->BlockCache(), rvec_t{0.18,0.38,24.0}, 2, &cell));
     std::shared_ptr<const Real_BS> mol(cbs);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
     const GPW_Evaluator& ev=gpw;
     const auto gth=Pseudopotential::GetGTH("Mn","LDA",7);
 
@@ -1864,9 +1864,9 @@ TEST(GPW, DiffuseDVlongSharpFieldOracle)   // RE-ENABLED 2026-09-15 (TE phase 5)
     cell.AddAtom(25, {0.5,0.5,0.5});
     cell.AddAtom( 8, {0.25,0.25,0.25});
     auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
-    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
+    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(cbs->BlockCache(), rvec_t{0.18,0.38,24.0}, 2, &cell));
     std::shared_ptr<const Real_BS> mol(cbs);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
     const GPW_Evaluator& ev=gpw;
     // The MULTI-SPECIES router, as production wires it (Hamiltonians.C BuildMultiSpeciesLocal).  Passing
     // gthMn.local alone here was the 2026-08-13 gate's own defect: HGH_LocalPotential ignores Z, so the
@@ -1978,9 +1978,9 @@ TEST(GPW, DiffuseDVshortMixedSpeciesOracle)
     cell.AddAtom( 8, {0.25,0.25,0.25});
     cell.AddAtom( 8, {0.75,0.75,0.75});
     auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
-    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,1.2}, 1, &cell));   // s+p; shells on every atom
+    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(cbs->BlockCache(), rvec_t{0.18,0.38,1.2}, 1, &cell));   // s+p; shells on every atom
     std::shared_ptr<const Real_BS> mol(cbs);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
     const GPW_Evaluator& ev=gpw;
     const auto gthMn=Pseudopotential::GetGTH("Mn","LDA",7);
     const auto gthO =Pseudopotential::GetGTH("O","LDA",6);
@@ -2093,9 +2093,9 @@ TEST(GPW, VshortIsTranslationInvariant)
         const int Z[4]={25,25,8,8};
         for (int i=0;i<4;i++) cell.AddAtom(Z[i], f[i]+shift);
         auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
-        cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,1.2}, 1, &cell));
+        cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(cbs->BlockCache(), rvec_t{0.18,0.38,1.2}, 1, &cell));
         std::shared_ptr<const Real_BS> mol(cbs);
-        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+        GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
         const GPW_Evaluator& ev=gpw;
         V=ev.MakeLocalPPShort(&cell, loc);
     };
@@ -2132,9 +2132,9 @@ TEST(GPW, LatticeSumsAreTranslationEquivariant)
     cell.AddAtom( 8, {0.25,0.25,0.25});
     cell.AddAtom( 8, {0.75,0.75,0.75});
     auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
-    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.18,0.6,3.0}, 2, &cell));   // s+p+d on every atom
+    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(cbs->BlockCache(), rvec_t{0.18,0.6,3.0}, 2, &cell));   // s+p+d on every atom
     std::shared_ptr<const Real_BS> mol(cbs);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
     const GPW_Evaluator& ev=gpw;
     const auto gthMn=Pseudopotential::GetGTH("Mn","LDA",7);
     const auto gthO =Pseudopotential::GetGTH("O","LDA",6);
@@ -2198,9 +2198,9 @@ TEST(GPW, DiffuseDKBOracle)   // RE-ENABLED 2026-09-15 (TE phase 5): seconds, no
     cell.AddAtom(25, {0.5,0.5,0.5});
     cell.AddAtom( 8, {0.25,0.25,0.25});
     auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
-    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
+    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(cbs->BlockCache(), rvec_t{0.18,0.38,24.0}, 2, &cell));
     std::shared_ptr<const Real_BS> mol(cbs);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
     const GPW_Evaluator& ev=gpw;
     const auto gthMn=Pseudopotential::GetGTH("Mn","LDA",7);
     const auto gthO =Pseudopotential::GetGTH("O","LDA",6);
@@ -2350,8 +2350,8 @@ TEST(GPW, TransitionPair_B2_ExactAdjointsAndQ0Reduction)
     cell.AddAtom(14,{0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
     const ivec3_t N(3,1,1);
-    GPW_IBS ket(cell, N, ivec3_t(1,0,0), mol, /*densityEcut*/6.0);
-    GPW_IBS bra(cell, N, ivec3_t(2,0,0), mol, /*densityEcut*/6.0);
+    GPW_IBS ket(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, N, ivec3_t(1,0,0), mol, /*densityEcut*/6.0);
+    GPW_IBS bra(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, N, ivec3_t(2,0,0), mol, /*densityEcut*/6.0);
     const rvec3_t q(1.0/3.0, 0.0, 0.0);
     qcMesh::MeshParams mp;
     std::unique_ptr<const BasisSet::cFIT_CD_ABS> cd(ket.CreateCDFitBasisSet(&cell));
@@ -2395,7 +2395,7 @@ TEST(GPW, TransitionPair_B2_ExactAdjointsAndQ0Reduction)
 
     // (1c) the δ basis's point pair (on this cell's own XC quadrature)
     BasisSet::FitQuadrature fq=BasisSet::MakeXCQuadrature(cell, mp, nullptr);
-    BasisSet::DeltaFit_IBS<dcmplx> dfit(fq, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    BasisSet::DeltaFit_IBS<dcmplx> dfit(std::make_shared<::qchem::BasisSet::BasisCache>(), fq, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     const cvec_t d=dfit.TransitionForward(bra, ket, dD);
     const mat_t<dcmplx> vd=RandomComplex(d.size(), 1, 17);
     cvec_t vp(d.size());
@@ -2479,7 +2479,7 @@ TEST(GPW, TransitionPair_B2_ExactAdjointsAndQ0Reduction)
     FCCUnitCell cell2(10.5);
     cell2.AddAtom(14,{0,0,0});
     cell2.AddAtom(14,{0.25,0.25,0.25});
-    GPW_IBS foreign(cell2, N, ivec3_t(2,0,0), MakeBasis(cell2), 6.0);
+    GPW_IBS foreign(std::make_shared<::qchem::BasisSet::BasisCache>(), cell2, N, ivec3_t(2,0,0), MakeBasis(cell2), 6.0);
     EXPECT_THROW(ket.TransitionRepulsion(*cd, foreign, dD, q), std::invalid_argument);
 }
 
@@ -2546,19 +2546,19 @@ TEST(GPW, TightPrimitiveVlongOracle)
         for (double alpha : {2.0, 10.0, 36.0, 76.68})
         {
             auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
-            cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{alpha}, l, &cell));
+            cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(cbs->BlockCache(), rvec_t{alpha}, l, &cell));
             std::shared_ptr<const Real_BS> mol(cbs);
             // The ball's own raster (the default) at densityEcut = 6 x the PAIR exponent p = 2 alpha: its measured convergence point.  The
             // ladder (2026-10-25, alpha 36 / 76.68, d x^2 diagonal V/S; oracle -6.59073 / -6.67893): E_cut/p ~ 1 (the AUTO floor 2
             // alpha_max) -8.145 / -8.784 (+-1.5 Ha, the xy partner off the other way); E_cut/p ~ 2.7  -6.598 / -6.718; E_cut/p >= 5.5
             // the oracle to <= 1e-5.  The AUTO floor itself is RIGHT with the twice-ball raster (<= 3e-4 Ha, asserted below): the
             // defect is the the ball's own raster + C = 2 pairing, not C -- OpenWork §3, a decision (anchor-moving).
-            GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0*alpha);
+            GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0*alpha);
             const GPW_Evaluator& ev=gpw;
             const chmat_t Vl=ev.MakeLocalPPLong(&cell, gth.local);
             // ...and the RIGHT PAIRING at the AUTO floor: C = 2 with the twice-ball raster (the ball raster's fold-back is
             // what the auto floor cannot afford; the ball's own raster + C = 2 = the +-1.5 Ha above).
-            GPW_IBS gaf(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*AUTO*/-1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
+            GPW_IBS gaf(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*AUTO*/-1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
                         4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, TwiceBallRasters());
             const chmat_t Vaf=static_cast<const GPW_Evaluator&>(gaf).MakeLocalPPLong(&cell, gth.local);
             const Real_OIBS* obs=nullptr;
@@ -2604,9 +2604,9 @@ TEST(GPW, TightPrimitiveCollocationOracle)
         for (auto [ecut, rp] : {std::pair{-1.0, RP::BallRaster}, std::pair{12.0*alpha, RP::BallRaster}, std::pair{-1.0, RP::TwiceBall}})
         {
             auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
-            cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{alpha}, 2, &cell));
+            cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(cbs->BlockCache(), rvec_t{alpha}, 2, &cell));
             std::shared_ptr<const Real_BS> mol(cbs);
-            GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut, BasisSet::Gaussian::CellImages::Periodic, 2.0,
+            GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut, BasisSet::Gaussian::CellImages::Periodic, 2.0,
                         4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, rp==RP::TwiceBall ? TwiceBallRasters() : GPWTolerances{});
             const GPW_Evaluator& ev=gpw;
             const Complex_OIBS&  g  =gpw;
@@ -2679,7 +2679,7 @@ TEST(GPW, RasterAliasCalibration)
         {
             const double pp=2.0*alpha;
             auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
-            cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{alpha}, 2, &cell));
+            cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(cbs->BlockCache(), rvec_t{alpha}, 2, &cell));
             std::shared_ptr<const Real_BS> mol(cbs);
             rpt::ClearGlobal();
             rpt::Begin("RasterAliasCalibration", "fixed");
@@ -2687,7 +2687,7 @@ TEST(GPW, RasterAliasCalibration)
             // The point's ladder, sized for the local PP as the facade sizes it: its grids (and audit rows) are the ladder's.
             const auto ladder=BasisSet::Gaussian::MakeRasterLadder(cell, *mol, {.densityEcut=c>0 ? c*pp : -1.0, .tol=tolR},
                                                                    BasisSet::Gaussian::LocalPPSharpness(cell, gth.local));
-            GPW_IBS gpw(cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), mol, ladder, BasisSet::Gaussian::CellImages::Periodic,
+            GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), mol, ladder, BasisSet::Gaussian::CellImages::Periodic,
                         {}, tolR);
             const GPW_Evaluator& ev=gpw;
             {
@@ -2787,7 +2787,7 @@ void OrbitalImageGate(const UnitCell& cell, const std::vector<SL3::AtomSite>& si
             m[a]=((m[a]%nn[a])+nn[a])%nn[a];
         }
         auto& b=blocks[m];
-        if (!b) b=std::make_unique<GPW_IBS>(cell, N, ivec3_t(m[0],m[1],m[2]), mol, /*densityEcut=*/0.0);
+        if (!b) b=std::make_unique<GPW_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, N, ivec3_t(m[0],m[1],m[2]), mol, /*densityEcut=*/0.0);
         return *b;
     };
     auto S=[](const GPW_IBS& b){ return mat_t<dcmplx>(static_cast<const Complex_OIBS&>(b).Overlap()); };
@@ -2898,7 +2898,7 @@ TEST(GPW, OrbitalImage_SiDiamond_PPMatricesCarryOver)
         std::array<int,3> m={int(std::lround(k.x*2)), int(std::lround(k.y*2)), int(std::lround(k.z*2))};
         for (int& x : m) x=((x%2)+2)%2;
         auto& b=blocks[m];
-        if (!b) b=std::make_unique<GPW_IBS>(cell, N, ivec3_t(m[0],m[1],m[2]), mol, /*densityEcut=*/0.0);
+        if (!b) b=std::make_unique<GPW_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, N, ivec3_t(m[0],m[1],m[2]), mol, /*densityEcut=*/0.0);
         return *b;
     };
     for (const rvec3_t k : {rvec3_t(0,0,0), rvec3_t(0.5,0,0)})
@@ -2999,7 +2999,7 @@ TEST(GPW, RasterDemandIsDelivered)
         GPWTolerances t; t.rasterX=x; t.vlocRasterX=x+3.0; t.xcRasterX=x+1.0;
         const auto ladder=BasisSet::Gaussian::MakeRasterLadder(cell, *mol, {.densityEcut=-1.0, .tol=t},
                                                                BasisSet::Gaussian::LocalPPSharpness(cell, gth.local));
-        GPW_IBS gpw(cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), mol, ladder, BasisSet::Gaussian::CellImages::Periodic, {}, t);
+        GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), mol, ladder, BasisSet::Gaussian::CellImages::Periodic, {}, t);
         const GPW_Evaluator& ev=gpw;
         (void)ev.MakeLocalPPLong(&cell, gth.local);   // the term runs on the ladder it was sized for (a mismatch throws)
         const auto got=ladder->DeliveredRasterExponents();

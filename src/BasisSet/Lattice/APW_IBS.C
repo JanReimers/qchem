@@ -20,11 +20,13 @@
 // interface does not apply.  Lineage B is a sequence of such IBS types (APW, LAPW, FLAPW, ...), each
 // with its own interface needs.
 module;
+#include <memory>
 #include <iosfwd>
 #include <string>
 #include <vector>
 
 export module qchem.BasisSet.Lattice.APW_IBS;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 import qchem.BasisSet.IrrepBasisSet;                 // IrrepBasisSet<dcmplx>
 import qchem.BasisSet.Internal.IrrepBasisSetImp;     // GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;
@@ -42,7 +44,7 @@ class APW_IBS
 public:
     //! \param Ecut plane-wave cutoff for the interstitial G-set; \param Rmt muffin-tin radius (Bohr);
     //! \param lmax angular-momentum cutoff for the augmentation.
-    APW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,
+    APW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,
             double Ecut, double Rmt, size_t lmax);
 
     virtual size_t GetNumFunctions() const {return itsG.size();}

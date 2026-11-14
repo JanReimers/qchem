@@ -324,7 +324,7 @@ SamplerPair SampleBoth(double densityEcut, double rasterX)
         BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     BasisSet::Gaussian::GPWTolerances tol;
     tol.rasterX=tol.vlocRasterX=tol.xcRasterX=rasterX;
-    BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, densityEcut,
+    BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, densityEcut,
                                             BasisSet::Gaussian::CellImages::Periodic, 2.0, 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, tol);
 
     // Two electrons spread over the block's first two functions: a density with structure, not one Gaussian
@@ -343,7 +343,7 @@ SamplerPair SampleBoth(double densityEcut, double rasterX)
 
     // SINGLES: the δ basis over a uniform cell mesh with the same N per axis, through the production factory
     BasisSet::FitQuadrature q=BasisSet::MakeXCQuadrature(*st, qcMesh::MeshParams{.nUniform=N, .cellKind=UnitCellKind::Uniform}, nullptr);   // a bare block: the plain mesh
-    auto delta=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    auto delta=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     auto singles=MakeDensitySampler(delta, q);
     EXPECT_EQ(pair->NumPoints(), singles->NumPoints()) << "one point count, two point sets (corners vs midpoints)";
 

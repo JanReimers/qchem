@@ -11,7 +11,7 @@ namespace qchem::BasisSet::Gaussian::PG_LibCint
 
 BasisSet::BasisSet(Reader* reader, const Structure* cl, bool spherical)
 {
-    Insert(new Orbital_IBS(reader,cl,spherical));   // a single C1 irrep (no SALC)
+    Insert(new Orbital_IBS(BlockCache(),reader,cl,spherical));   // a single C1 irrep (no SALC)
 }
 
 void BasisSet::Insert(obs_t* bs)

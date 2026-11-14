@@ -114,7 +114,7 @@ TEST(GPW_MnO, Γ_Pol_SeedMirror)
 
     // The seed the run actually uses: PolarizedSeedCD over this cell, with the IonicSAD targets
     // (Mn2+ => 5 of the q7 valence, O2- => 8 of the q6).  Built directly -- no SCF, no Hamiltonian.
-    qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell));
     const std::vector<int> ionic{5,5,8,8};   // per site: Mn2+ Mn2+ O2- O2-
     qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, cell, kMnQ7, ionic);
@@ -221,7 +221,7 @@ TEST(GPW_MnO, Γ_Becke_Pol_SeedVxcMirror)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     // The seed the run uses (identical to GPW_MnO.Γ_Pol_SeedMirror).
-    qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell));
     const std::vector<int> ionic{5,5,8,8};   // per site: Mn2+ Mn2+ O2- O2-
     qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, cell, kMnQ7, ionic);
@@ -364,7 +364,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
     ASSERT_EQ(q.NumFlipFixed(), q.GetMesh()->size());   // (FoldedMesh's ctor now checks this too)
 
     // The seed (the same PolarizedSeedCD the run uses), through the engine's channel-pair projector.
-    qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell));
     const std::vector<int> ionic{5,5,8,8};   // per site: Mn2+ Mn2+ O2- O2-
     PolarizedSeedCD seedCD(fb, cell, kMnQ7, ionic);
@@ -433,7 +433,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedReadsTheStatedOrdering)
     BasisSet::FitQuadrature q = BasisSet::MakeXCQuadrature(*st, qcMesh::BeckeXCParams(20, -1.0, 11), bs->GetImposition());
     ASSERT_EQ(q.NumSpinOps(), 24u) << "the stated ordering imposes the Shubnikov group whatever the cell's own spins";
 
-    qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&spinless));
     const std::vector<int> ionic{5,5,8,8};   // Mn2+ Mn2+ O2- O2- (O2- is closed: no moment either way)
     SeedKey key=kMnQ7; key.siteSpins=stated;

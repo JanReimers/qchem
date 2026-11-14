@@ -111,10 +111,10 @@ TEST(M_Calculation, CacheReportSchema)
         if (it.value().contains("cache")) cache = &it.value()["cache"];
     ASSERT_NE(cache, nullptr) << "no run emitted a cache section";
 
-    ASSERT_TRUE(cache->contains("tiers"));
-    ASSERT_TRUE((*cache)["tiers"].is_array());
-    EXPECT_GE((*cache)["tiers"].size(), 2u);            // Jac, Kab (Cach4 unused by HF -> dropped, not shown)
-    for (const report::json& t : (*cache)["tiers"])
+    // The tiers (Jac/Kab/Cach4) are the GLOBAL ERI4 store, which S3a emptied: an ERI4 pair now lives in its basis set's own cache
+    // (doc/IntegralCacheOwnershipPlan.md), and the owner-held bytes reach the report at S6.  So a tier row is optional; its shape is not.
+    if (cache->contains("tiers")) ASSERT_TRUE((*cache)["tiers"].is_array());
+    if (cache->contains("tiers")) for (const report::json& t : (*cache)["tiers"])
         for (const char* k : { "name", "ramMB", "pct" })
             EXPECT_TRUE(t.contains(k)) << "tier row missing key: " << k;
 

@@ -59,6 +59,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/SymmetryAdapted_IBS.C
   Internal/BasisSetImp.C
   Internal/IrrepBasisSetImp.C
+  BasisCache.C                          # the parent-made cache of a basis's own tables (IntegralCacheOwnershipPlan S3a)
   Internal/Orbital_DHF_IBS.C
   Internal/Orbital_ERI4_IBS.C
   Internal/Cache4.C

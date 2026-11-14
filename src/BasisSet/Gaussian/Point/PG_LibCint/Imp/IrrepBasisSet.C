@@ -52,8 +52,8 @@ static std::vector<Polarization> MakePolarizations(int L)
 //----------------------------------------------------------------
 //  Orbital Cartesian-Gaussian basis set, read identically to PG_Cart.
 //
-IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl, bool spherical)
-    : IrrepBasisSetImp<double>(sym_t(new UnitQN)), itsSpherical(spherical)
+IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, Reader* bsr, const Structure* cl, bool spherical)
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN), cache), itsSpherical(spherical)
 {
     // An ORBITAL basis only (no libcint fit tree): KeepEachL.  (The copy of the loop this replaces also erased-then-inserted
     // through an invalidated iterator and never broke out of its search.)
@@ -76,8 +76,8 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl, bool spherical)
     NR_Evaluator::Init(cl, spherical);   // pack the flattened components into libcint (cart or sph)
 };
 
-IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl, bool spherical)
-    : IrrepBasisSetImp<double>(sym_t(new UnitQN)), itsSpherical(spherical)
+IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rvec_t& es, size_t LMax, const Structure* cl, bool spherical)
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN), cache), itsSpherical(spherical)
 {
     for (const Site& atom:cl->Sites())
         for (size_t L=0;L<=LMax;L++)
@@ -128,8 +128,8 @@ rvec3vec_t IrrepBasisSet::Gradient (const rvec3_t& r) const
 std::ostream& IrrepBasisSet::Write(std::ostream& os) const {return os << BasisSetID();}
 
 //----------------------------------------------------------------
-Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl, bool sph)                : IrrepBasisSet(bsr,cl,sph) {};
-Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Structure* cl, bool sph) : IrrepBasisSet(es,L,cl,sph) {};
+Orbital_IBS::Orbital_IBS(const std::shared_ptr<BasisCache>& cache, Reader* bsr, const Structure* cl, bool sph)                : IrrepBasisSet(cache,bsr,cl,sph) {};
+Orbital_IBS::Orbital_IBS(const std::shared_ptr<BasisCache>& cache, const rvec_t& es, size_t L, const Structure* cl, bool sph) : IrrepBasisSet(cache,es,L,cl,sph) {};
 
 // Orbital_1E_IBS::GetAoShells: libcint-Cartesian shares PG_Cart's Cartesian PGData layout, so it reuses that extractor.
 // Spherical libcint carries libcint's own real-harmonic order/norm (S3b, not convention-matched) yet its

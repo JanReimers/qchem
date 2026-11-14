@@ -59,7 +59,7 @@ TEST_F(LAPWTests, EmptyLatticeBandsMatchFreeElectron)
     double a=8.0, R=2.0, Ecut=2.0; size_t lmax=8; double El=0.2;
     ivec3_t N(4,4,4), k(1,0,0); rvec3_t kf(0.25,0,0);
     UnitCell cell(a); Lattice_3D lat(cell,N);
-    LAPW_IBS b(lat.Reciprocal(),N,k,Ecut,R,lmax,El);
+    LAPW_IBS b(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,k,Ecut,R,lmax,El);
 
     std::vector<double> bands=Bands(b,&cell), fe=FreeEnergies(a,kf,3);
     ASSERT_GE(bands.size(),5u);
@@ -74,7 +74,7 @@ TEST_F(LAPWTests, LinearizationMostAccurateNearElin)
     ivec3_t N(4,4,4), k(1,0,0); rvec3_t kf(0.25,0,0);
     UnitCell cell(a); Lattice_3D lat(cell,N);
     std::vector<double> fe=FreeEnergies(a,kf,3);
-    LAPW_IBS b(lat.Reciprocal(),N,k,Ecut,R,lmax,fe[1]); // E_l on the 2nd level
+    LAPW_IBS b(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,k,Ecut,R,lmax,fe[1]); // E_l on the 2nd level
     std::vector<double> bands=Bands(b,&cell);
 
     double errNear=std::abs(bands[1]-fe[1]);            // at E_l
@@ -92,7 +92,7 @@ TEST_F(LAPWTests, HydrogenGroundStateNearMinusHalf)
     double a=12.0, R=5.0, Ecut=1.0, El=-0.5, Z=1.0; size_t lmax=2;
     ivec3_t N(1,1,1), k(0,0,0);                         // Gamma; 1s is the ground state
     UnitCell cell(a); Lattice_3D lat(cell,N);
-    LAPW_IBS b(lat.Reciprocal(),N,k,Ecut,R,lmax,El,Z);
+    LAPW_IBS b(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,k,Ecut,R,lmax,El,Z);
     double E0=Bands(b,&cell).front();
     EXPECT_NEAR(E0,-0.5,2e-3);                          // muffin-tin truncation + linearization
 }

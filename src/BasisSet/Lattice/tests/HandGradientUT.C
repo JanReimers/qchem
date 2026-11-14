@@ -70,11 +70,11 @@ TEST(HandGradient, EveryLatticeFamilysGradientIsTheFiniteDifferenceOfItsValues)
         for (const ivec3_t k : {ivec3_t(0,0,0), ivec3_t(1,0,0)})
         {
             const std::string at=" k=("+std::to_string(k.x)+","+std::to_string(k.y)+","+std::to_string(k.z)+")";
-            BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), N, k, 4.0);
+            BasisSet::PlaneWave::PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), N, k, 4.0);
             EXPECT_GT(CheckHandGradient<dcmplx>(pw, pts, "PlaneWave_IBS"+at), 0.01);
-            BasisSet::Lattice::LAPW_IBS lapw(lat.Reciprocal(), N, k, 2.0, 2.0, 8, 0.2);
+            BasisSet::Lattice::LAPW_IBS lapw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), N, k, 2.0, 2.0, 8, 0.2);
             EXPECT_GT(CheckHandGradient<dcmplx>(lapw, pts, "LAPW_IBS"+at), 0.01);
-            BasisSet::Lattice::APW_IBS apw(lat.Reciprocal(), N, k, 2.0, 2.0, 8);
+            BasisSet::Lattice::APW_IBS apw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), N, k, 2.0, 2.0, 8);
             EXPECT_GT(CheckHandGradient<dcmplx>(apw, pts, "APW_IBS"+at), 0.01);
         }
     }
@@ -90,7 +90,7 @@ TEST(HandGradient, EveryLatticeFamilysGradientIsTheFiniteDifferenceOfItsValues)
         for (const ivec3_t k : {ivec3_t(0,0,0), ivec3_t(1,0,0)})
             for (const auto& [name, src] : {std::pair<std::string,std::shared_ptr<const BasisSet::Real_BS>>{"Cartesian", cart}, {"spherical view", view}})
             {
-                BasisSet::Gaussian::GPW_IBS gpw(cell, ivec3_t(4,4,4), k, src, /*densityEcut=*/0.0);
+                BasisSet::Gaussian::GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(4,4,4), k, src, /*densityEcut=*/0.0);
                 const BasisSet::Complex_OIBS& g=gpw;
                 EXPECT_GT(CheckHandGradient<dcmplx>(g, pts, "GPW_IBS "+name+" k=("+std::to_string(k.x)+",0,0)"), 0.01);
             }

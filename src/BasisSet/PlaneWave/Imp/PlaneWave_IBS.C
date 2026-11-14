@@ -6,6 +6,7 @@
 // pseudopotential.  Those read the shared grid data through the evaluator accessors (Gs(), Volume(),
 // Recip(), kFrac(), GetGCartesian, MakeOverlap, the FFT-grid helpers).
 module;
+#include <memory>
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -62,15 +63,15 @@ PlaneWave_IBS::Monomial PlaneWave_IBS::MakeMonomial(const Symmetry::SymOp& g) co
 }
 
 
-PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const sym_t& irrep, double Ecut)
-    : BasisSet::IrrepBasisSetImp<dcmplx>(irrep)
+PlaneWave_IBS::PlaneWave_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const ReciprocalLattice& recip, const sym_t& irrep, double Ecut)
+    : BasisSet::IrrepBasisSetImp<dcmplx>(irrep, cache)
     , PW_Evaluator(recip, Symmetry::Lattice_3D::Getk(irrep), Ecut) // the Bloch irrep IS the k-label; pry it out
 {}
 
 // Convenience: build the Bloch irrep from BZ-grid indices and delegate to the primary constructor.
-PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
+PlaneWave_IBS::PlaneWave_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const ReciprocalLattice& recip, const ivec3_t& N,
                              const ivec3_t& kIndex, double Ecut)
-    : PlaneWave_IBS(recip, Symmetry::BlochFactory(N,kIndex), Ecut)
+    : PlaneWave_IBS(cache, recip, Symmetry::BlochFactory(N,kIndex), Ecut)
 {}
 
 // The real-space DFT-integration oracles -- Overlap(f)/Repulsion(rho)/Integral(f) over a ScalarFunction --
@@ -459,7 +460,7 @@ chmat_t PlaneWave_IBS::MakeSetOverlap(const AtomCentredSet& set) const
 BasisSet::cFIT_CD_ABS* PlaneWave_IBS::CreateCDFitBasisSet(const Structure*) const
 {
     PW_Grid_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut()*4.0);
-    return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "densityFit", /*holdsOrbitalPairs*/true);
+    return new PlaneWaveFit_IBS(std::make_shared<BasisSet::BasisCache>(), gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "densityFit", /*holdsOrbitalPairs*/true);
 }
 
 // The overlap-metric (Vxc) sibling: a DISTINCT fit-basis instance (same k=0 Gamma grid as the CD one when
@@ -473,7 +474,7 @@ BasisSet::cFIT_SF_ABS* PlaneWave_IBS::CreateVxcFitBasisSet(const Structure*, con
     // Ecut_fit = 4 Ecut -- the density ball, as the CD fit above and QE's density grid.  At relCutoff 1 (every LDA) this ball was
     // the WAVEFUNCTION ball: XC saw rho[D] with its G_max..2 G_max shell cut off (the PW harness anchors; RequirePin28 caught it).
     PW_Grid_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut()*std::max(4.0, mp.relCutoff));
-    return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "vxcFitGrid", /*holdsOrbitalPairs*/true);
+    return new PlaneWaveFit_IBS(std::make_shared<BasisSet::BasisCache>(), gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "vxcFitGrid", /*holdsOrbitalPairs*/true);
 }
 
 std::string PlaneWave_IBS::BasisSetID() const

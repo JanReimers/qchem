@@ -86,7 +86,7 @@ void CheckKPoint(double a, ivec3_t N, ivec3_t kIndex, double Ecut)
 {
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,kIndex,Ecut);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,kIndex,Ecut);
 
     std::vector<double> ref=FreeElectronReference(a,N,kIndex,Ecut);
     ASSERT_EQ(pw.GetNumFunctions(),ref.size());          // same G-set
@@ -121,7 +121,7 @@ double HydrogenE0(double a, double Ecut, const LocalPotential& v, size_t* npw=nu
     ivec3_t N(1,1,1);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),Ecut);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,ivec3_t(0,0,0),Ecut);
     if (npw) *npw=pw.GetNumFunctions();
     Atom H(1,rvec3_t(0,0,0));
     chmat_t V=pw.MakeSpeciesFieldMatrix(&H, v, qchem::BasisSet::FieldRange::Full);
@@ -148,7 +148,7 @@ TEST_F(PlaneWaveTests, CosineMatrixStructure)
     ivec3_t N(4,4,4);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),8.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,ivec3_t(0,0,0),8.0);
 
     auto Vtilde=CosineVtilde(V0);
     chmat_t V=pw.OverlapMatrix(Vtilde);
@@ -175,7 +175,7 @@ TEST_F(PlaneWaveTests, CosineTraceInvariant)
     ivec3_t N(4,4,4);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(1,0,0),8.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,ivec3_t(1,0,0),8.0);
 
     chmat_t V=pw.OverlapMatrix(CosineVtilde(V0));
     std::vector<double> bands=SolveBands(pw,&V);
@@ -194,7 +194,7 @@ TEST_F(PlaneWaveTests, CosineZeroRecoversEmptyLattice)
     ivec3_t N(4,4,4), k(1,0,0);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,k,Ecut);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,k,Ecut);
 
     chmat_t V=pw.OverlapMatrix(CosineVtilde(0.0));
     std::vector<double> bands=SolveBands(pw,&V);
@@ -211,7 +211,7 @@ TEST_F(PlaneWaveTests, CosineGroundStatePerturbation)
     ivec3_t N(4,4,4);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),8.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,ivec3_t(0,0,0),8.0);
 
     chmat_t V=pw.OverlapMatrix(CosineVtilde(V0));
     std::vector<double> bands=SolveBands(pw,&V);
@@ -230,7 +230,7 @@ TEST_F(PlaneWaveTests, HydrogenPotentialMatrixElement)
     ivec3_t N(1,1,1);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
     chmat_t V=pw.MakeNuclear(&H);
 
@@ -297,7 +297,7 @@ TEST_F(PlaneWaveTests, SmearedZeroRecoversBareCoulomb)
     ivec3_t N(1,1,1);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
 
     chmat_t Vbare    = pw.MakeSpeciesFieldMatrix(&H, BareCoulomb(), qchem::BasisSet::FieldRange::Full);
@@ -337,7 +337,7 @@ TEST_F(PlaneWaveTests, SeparableNonlocalMatrixElement)
     ivec3_t N(1,1,1);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
 
     chmat_t V=pw.MakeProjectorMatrix(&H,GaussianProjector(sigma,D));
@@ -361,7 +361,7 @@ TEST_F(PlaneWaveTests, SeparableNonlocalIsRankOne)
     ivec3_t N(1,1,1);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
 
     chmat_t V=pw.MakeProjectorMatrix(&H,GaussianProjector(1.0,0.7));
@@ -387,7 +387,7 @@ TEST_F(PlaneWaveTests, SeparableNonlocalL1AngularFactor)
     ivec3_t N(1,1,1);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
 
     chmat_t V=pw.MakeProjectorMatrix(&H,GaussianProjector(sigma,D,/*l=*/1));
@@ -414,7 +414,7 @@ TEST_F(PlaneWaveTests, SeparableNonlocalL1IsRankThree)
     ivec3_t N(4,4,4), k(1,0,0);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,k,6.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,k,6.0);
     Atom H(1,rvec3_t(0,0,0));
 
     chmat_t V=pw.MakeProjectorMatrix(&H,GaussianProjector(1.0,0.7,/*l=*/1));
@@ -438,7 +438,7 @@ TEST_F(PlaneWaveTests, LocalPlusNonlocalRaisesGroundState)
     ivec3_t N(1,1,1);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
 
     chmat_t Vloc=pw.MakeSpeciesFieldMatrix(&H, GaussianSmearedNucleus(0.5), qchem::BasisSet::FieldRange::Full);
@@ -488,7 +488,7 @@ TEST_F(PlaneWaveTests, HGHSiliconHamiltonianWellFormed)
     ivec3_t N(1,1,1);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),5.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,ivec3_t(0,0,0),5.0);
     Atom Si(14,rvec3_t(0,0,0));
 
     GTH_PP siPP=GetGTH("Si","LDA",4);
@@ -522,7 +522,7 @@ TEST_F(PlaneWaveTests, FitBasisAnswersPoissonKernelAndVolume)
     const double a=7.0;
     UnitCell cell(a);
     Lattice_3D lat(cell,ivec3_t(1,1,1));
-    PlaneWave_IBS pw(lat.Reciprocal(),ivec3_t(1,1,1),ivec3_t(0,0,0),5.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),ivec3_t(1,1,1),ivec3_t(0,0,0),5.0);
     std::unique_ptr<const BasisSet::cFIT_CD_ABS> fit(pw.CreateCDFitBasisSet(nullptr));
 
     auto* pk=dynamic_cast<const BasisSet::G_PoissonKernel*>(fit.get());
@@ -574,7 +574,7 @@ TEST(PlaneWave_AtomCentredSet, IsolatedManifoldsAreOrthonormal)
 {
     const double a=24.0;
     UnitCell cell(a); Lattice_3D lat(cell, ivec3_t(1,1,1));
-    PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 8.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 8.0);
     BasisSet::GaussianAtomCentredSet s;
     s.Add(rvec3_t(1.0,2.0,3.0), 0, {{1.0,0,0.6},{0.4,0,0.2}});
     s.Add(rvec3_t(1.0,2.0,3.0), 1, {{1.0,0,0.5},{-0.3,1,0.9}});        // an n=1 term exercises the Laguerre factor
@@ -590,7 +590,7 @@ TEST(PlaneWave_AtomCentredSet, TwoCentreOverlapIsAnalytic)
 {
     const double a=22.0, al=0.7, be=0.4, d=1.9;
     UnitCell cell(a); Lattice_3D lat(cell, ivec3_t(1,1,1));
-    PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 6.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 6.0);
     BasisSet::GaussianAtomCentredSet s;
     s.Add(rvec3_t(0.0,0.0,0.0), 0, {{1.0,0,al}});
     s.Add(rvec3_t(0.3,d,0.0)-rvec3_t(0.3,0.0,0.0), 0, {{1.0,0,be}});
@@ -605,7 +605,7 @@ TEST(PlaneWave_AtomCentredSet, PlaneWaveSynthesisReproducesTheFunction)
 {
     const double a=14.0;
     UnitCell cell(a); Lattice_3D lat(cell, ivec3_t(1,1,1));
-    PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 40.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 40.0);
     BasisSet::GaussianAtomCentredSet s;
     s.Add(rvec3_t(0.7,-1.1,2.3), 1, {{1.0,0,0.9}});
     s.Add(rvec3_t(0.7,-1.1,2.3), 2, {{1.0,0,1.1},{0.2,1,0.6}});
@@ -634,7 +634,7 @@ TEST(PlaneWave_AtomCentredSet, CapturedFractionRisesToOne)
     double prev=0.0;
     for (double Ecut : {5.0, 15.0, 45.0})
     {
-        PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), Ecut);
+        PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), Ecut);
         const mat_t<dcmplx> B=pw.MakeAtomCentredOverlap(s);
         const chmat_t O=pw.MakeSetOverlap(s);
         const mat_t<dcmplx> R=blazem::ctrans(B)*B;
@@ -654,7 +654,7 @@ TEST_F(PlaneWaveTests, ThePWOverlapAndKineticPullbacksAreExactZeros)
     UnitCell cell(5.0);
     ivec3_t N(4,4,4);
     Lattice_3D lat(cell,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),8.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,ivec3_t(0,0,0),8.0);
     const BasisSet::Orbital_1E_IBS<dcmplx>& block=pw;
     Molecule three; three.Insert(Site{1,rvec3_t(0,0,0)}); three.Insert(Site{8,rvec3_t(1,0,0)}); three.Insert(Site{1,rvec3_t(0,1,0)});
     const size_t n=block.GetNumFunctions();
@@ -680,7 +680,7 @@ TEST_F(PlaneWaveTests, ThePWStructureFactorPullbacksAreTheFiniteDifferenceOfItsO
     si.AddAtom(14,{0.27,0.24,0.26});
     const ivec3_t N(4,4,4);
     Lattice_3D lat(si,N);
-    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(1,0,0),4.0);   // k = b1/4: not a TRIM
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(),N,ivec3_t(1,0,0),4.0);   // k = b1/4: not a TRIM
     const size_t n=pw.GetNumFunctions();
     hmat_t<dcmplx> D(n);
     for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)

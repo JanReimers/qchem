@@ -14,6 +14,7 @@ module;
 #include <vector>
 #include <memory>
 export module qchem.BasisSet.Gaussian.Point.PG_LibCint;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Block;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Gaussian.Point.Reader;
@@ -39,8 +40,8 @@ class IrrepBasisSet
     public:
         typedef std::vector<std::unique_ptr<Cart::Block>> bv_t;
 
-        IrrepBasisSet(Reader*, const Structure*, bool spherical=false);
-        IrrepBasisSet(const rvec_t& exponents, size_t L, const Structure*, bool spherical=false);
+        IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, Reader*, const Structure*, bool spherical=false);
+        IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rvec_t& exponents, size_t L, const Structure*, bool spherical=false);
         virtual ~IrrepBasisSet();
 
         // The number of functions is the evaluator's delivered count (Cartesian (l+1)(l+2)/2 or spherical
@@ -81,8 +82,8 @@ class Orbital_IBS
     , public IrrepBasisSet
 {
 public:
-    Orbital_IBS(Reader*, const Structure*, bool spherical=false);
-    Orbital_IBS(const rvec_t& exponents, size_t L, const Structure*, bool spherical=false);
+    Orbital_IBS(const std::shared_ptr<BasisCache>& cache, Reader*, const Structure*, bool spherical=false);
+    Orbital_IBS(const std::shared_ptr<BasisCache>& cache, const rvec_t& exponents, size_t L, const Structure*, bool spherical=false);
 
     //! AO shells for SALC.  Cartesian mode delegates to the Cartesian ExtractAoShells (libcint's Cartesian
     //! PGData layout matches PG_Cart's); spherical mode throws -- libcint's own real-harmonic order/norm is

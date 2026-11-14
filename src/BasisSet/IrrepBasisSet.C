@@ -1,5 +1,6 @@
 // File: BasisSet/IrrepBasisSet.C  Interface for an Irrep Basis Set (IBS)
 module;
+#include <memory>
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -12,6 +13,8 @@ export import qchem.Symmetry.Irrep;
 export import qchem.BasisSet.DBCacheClient;         // the cache-key contract this face implements (V1.20d: the cache MECHANISM is Internal and no longer re-exported)
 export import qchem.VectorFunction;   // Evaluatable_IBS's base (NOT IrrepBasisSet's -- see above)
 export import qchem.Symmetry.Representation;   // every block IS a representation of its stabiliser (V-BS-SYMMETRY S3)
+export import qchem.InstanceToken;    // a block's identity as a cache PARTNER (IntegralCacheOwnershipPlan §3b)
+import qchem.BasisSet.BasisCache;   // the parent-made cache the accessors read through (S3a); a block's family wires it, nobody else names it
 import qchem.Streamable;
 
 export namespace qchem::BasisSet
@@ -21,12 +24,25 @@ export namespace qchem::BasisSet
 //  concrete basis supplies it -- an atom composes it from radial|angular (Radial::RadialAngularID, an atom-
 //  only face in BasisSet/Atom), a molecular / solid basis folds in the centres / orientation (see
 //  PGData::BasisSetID).  This structure-neutral layer knows only the single BasisSetID identity.
+//
+//  A CACHE CLIENT (doc/IntegralCacheOwnershipPlan.md S3a; the user's ruling 5, 2026-11-12, "Approve S3 and S4"): every block is built
+//  with its parent's cache (a constructor argument, never null: the parent BasisSet's factory makes it, a unit test holds one), and its
+//  cached accessors (Overlap, Kinetic, RestMass, the RKB cross, ERI4, ⟨ab|c⟩) read through it under the block's index.  BasisSetID
+//  stays for the entries still in the process-wide cache (the Nuclear / PP blocks until S4, the fit-side tables until S3c).
 class IrrepBasisSet_IDs : public virtual DBCacheClient
 {
 public:
     virtual std::string Name     () const=0;
     virtual std::string BasisSetID() const override =0;   // the cache identity; no general default
     virtual std::string GetID() const {return BasisSetID();}
+    //! This block's INSTANCE identity (§3b): a never-reused serial and a weak handle.  CLIENT: an orbital block that keys a table over its
+    //! own functions against THIS block as a partner (⟨ab|c⟩ against a fit basis c), and drops the table when this block dies.
+    virtual const InstanceToken& Instance() const=0;
+protected:
+    //! The parent's cache, given at construction, and this block's index in it: what the cached accessors key on.  Protected: only the
+    //! block's own accessors read through it (an ERI4 pair asks its partner, a block of the same face, for the partner's index).
+    virtual const BasisCache& Cache     () const=0;
+    virtual size_t      CacheIndex() const=0;
 };
 
 //! The one-line refusal of a family with no geometry derivative yet (GeometryOptimizationPlan §13.2): \a family names the block, \a what

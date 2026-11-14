@@ -43,7 +43,7 @@ TEST(GTH_Table, ReproducesSilicon)
     const double a=10.26, h=0.5*a;
     Matrix3D<double> A(0.0,h,h,  h,0.0,h,  h,h,0.0);             // FCC primitive
     Lattice_3D lat(UnitCell(A), ivec3_t(1,1,1));
-    PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
 
     Molecule si;
     si.Insert(Site{14, rvec3_t(0,0,0)});

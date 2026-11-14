@@ -30,8 +30,8 @@ template <class T> T Max(const std::vector<T>& v) {return *std::max_element(v.be
 //
 //  Orbital spherical-Gaussian basis set.
 //
-IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
-    : IrrepBasisSetImp<double>(sym_t(new UnitQN))
+IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, Reader* bsr, const Structure* cl)
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN), cache)
 {
     //
     //  Read in all the radial functions and their l-sets -- the SAME ReadShells as PG_Cart, so the
@@ -58,8 +58,8 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
     SphData::Init();
 };
 
-IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl)
-    : IrrepBasisSetImp<double>(sym_t(new UnitQN))
+IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rvec_t& es, size_t LMax, const Structure* cl)
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN), cache)
 {
     for (const Site& atom:cl->Sites())
         for (size_t L=0;L<=LMax;L++)
@@ -110,19 +110,19 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 //
 // Orbital spherical-Gaussian basis set (1E + HF + DFT 3-centre fit).
 //
-Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl)            : IrrepBasisSet(bsr,cl) {};
-Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Structure* cl) : IrrepBasisSet(es,L,cl) {};
+Orbital_IBS::Orbital_IBS(const std::shared_ptr<BasisCache>& cache, Reader* bsr, const Structure* cl)            : IrrepBasisSet(cache,bsr,cl) {};
+Orbital_IBS::Orbital_IBS(const std::shared_ptr<BasisCache>& cache, const rvec_t& es, size_t L, const Structure* cl) : IrrepBasisSet(cache,es,L,cl) {};
 
 rFIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl) const
 {
     // The A1 files support Z=1-54 (H-Te); A2 only to Zn.  Same auxiliary data as PG_Cart, read spherically.
     Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
-    return new EFit_IBS(&reader,cl,"A1_coul");
+    return new EFit_IBS(std::make_shared<BasisCache>(),&reader,cl,"A1_coul");   // a fit basis gets its OWN cache from its factory (S3a)
 }
 rFIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
     Gaussian94Reader reader(BasisFile("A1_exch.bsd"));
-    return new EFit_IBS(&reader,cl,mp,"A1_exch");
+    return new EFit_IBS(std::make_shared<BasisCache>(),&reader,cl,mp,"A1_exch");
 }
 // Orbital_1E_IBS::GetAoShells: this orbital IBS IS-A SphData, so it hands its own spherical data to the extractor.
 std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const {return ExtractAoShells(*this);}
@@ -131,9 +131,9 @@ std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const {retur
 //
 //  Fit spherical-Gaussian basis set.
 //
-EFit_IBS::EFit_IBS(Reader* bsr, const Structure* cl, const std::string& name)
-    : Fit_IBS(), IrrepBasisSet(bsr,cl), itsName(name) {};
-EFit_IBS::EFit_IBS(Reader* bsr, const Structure* cl, const qcMesh::MeshParams& mp, const std::string& name)
-    : Fit_IBS(*cl,mp), IrrepBasisSet(bsr,cl), itsName(name) {};
+EFit_IBS::EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader* bsr, const Structure* cl, const std::string& name)
+    : Fit_IBS(), IrrepBasisSet(cache,bsr,cl), itsName(name) {};
+EFit_IBS::EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader* bsr, const Structure* cl, const qcMesh::MeshParams& mp, const std::string& name)
+    : Fit_IBS(*cl,mp), IrrepBasisSet(cache,bsr,cl), itsName(name) {};
 
 } //namespace qchem::BasisSet::Gaussian::PG_Spherical

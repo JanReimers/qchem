@@ -42,7 +42,7 @@ TEST(M_LibCint, matrix_1E_matches_scalar)
 {
     Molecule* h2o = MakeWater();
     rvec_t exps{1.0, 0.25};
-    Orbital_IBS ibs(exps, 2, h2o);                           // s + p + d (exercises the d reorder)
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 2, h2o);                           // s + p + d (exercises the d reorder)
     LibCintEval lc(dynamic_cast<const PGData&>(ibs), h2o);
     ASSERT_EQ(lc.size(), ibs.GetNumFunctions());
 
@@ -63,7 +63,7 @@ TEST(M_LibCint, matrix_1E_matches_scalar_g)
 {
     Molecule* h2o = MakeWater();
     rvec_t exps{1.2, 0.4};
-    Orbital_IBS ibs(exps, 4, h2o);                           // s..g
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 4, h2o);                           // s..g
     LibCintEval lc(dynamic_cast<const PGData&>(ibs), h2o);
     ASSERT_EQ(lc.size(), ibs.GetNumFunctions());
 
@@ -83,7 +83,7 @@ TEST(M_LibCint, matrix_3C_4C_match_scalar)
 {
     Molecule* h2o = MakeWater();
     rvec_t exps{1.0, 0.25};
-    Orbital_IBS ibs(exps, 1, h2o);                           // s + p (keeps the dense 4C tensor small)
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 1, h2o);                           // s + p (keeps the dense 4C tensor small)
     LibCintEval lc(dynamic_cast<const PGData&>(ibs), h2o);
 
     // 4-centre (HF): partner = self.  Reference = the public, energy-validated scalar Direct/Exchange.
@@ -115,7 +115,7 @@ TEST(M_LibCint, spherical_grid_eval_matches_matrices)
     Molecule* o = new Molecule;
     o->Insert(Site{8, rvec3_t(0.3, -0.2, 0.5)});     // off the origin: exercises the r - R_A shift
     rvec_t exps{1.0, 0.3};
-    Orbital_IBS ibs(exps, 3, o);                             // s..f
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 3, o);                             // s..f
     LibCintEval lc(dynamic_cast<const PGData&>(ibs), o);
     lc.Init(o, true);                                        // re-pack as libcint-native spherical
     const size_t n=lc.size();
@@ -154,7 +154,7 @@ TEST(M_LibCint, matrix_1E_geometry_gradients_match_finite_differences_of_the_MnD
     Molecule* h2o = MakeWater();
     const rvec_t exps{1.0, 0.25};
     const size_t L=2;                                           // s + p + d (the d reorder and its renormalization)
-    Orbital_IBS ibs(exps, L, h2o);
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, L, h2o);
     LibCintEval lc(dynamic_cast<const PGData&>(ibs), h2o);
     const auto dS=lc.OverlapGradient(), dK=lc.KineticGradient(), dV=lc.NuclearGradient();
     const size_t nAtoms=h2o->GetNumAtoms(), n=lc.size();
@@ -170,7 +170,7 @@ TEST(M_LibCint, matrix_1E_geometry_gradients_match_finite_differences_of_the_MnD
                 auto R=R0;
                 (c==0 ? R[A].x : c==1 ? R[A].y : R[A].z)+=s;
                 std::shared_ptr<Structure> st=h2o->Clone(); st->MoveSites(R);
-                Orbital_IBS b(exps, L, st.get());
+                Orbital_IBS b(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, L, st.get());
                 const BasisSet::Orbital_1E_IBS<double>& b1=b;
                 return std::array<rsmat_t,3>{b1.Overlap(), b1.Kinetic(), b1.Nuclear(st.get())};
             };
@@ -203,7 +203,7 @@ TEST(M_LibCint, coulomb_fit_geometry_gradients_match_finite_differences_of_the_M
     const rvec_t exps{1.0, 0.25};
     auto build=[&](const Structure* st)
     {
-        auto ibs=std::make_unique<Orbital_IBS>(exps, 1, st);                 // s + p
+        auto ibs=std::make_unique<Orbital_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 1, st);                 // s + p
         std::unique_ptr<BasisSet::rFIT_CD_ABS> fit(ibs->CreateCDFitBasisSet(st));
         return std::pair{std::move(ibs), std::move(fit)};
     };

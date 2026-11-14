@@ -456,7 +456,7 @@ struct Fixture
     {
         mol.Insert(Site{25, rvec3_t(7.0, 8.0, 8.0)});
         mol.Insert(Site{8, rvec3_t(11.0, 8.0, 8.0)});   // 4.0 a.u. ~ 2.1 A
-        ibs=std::make_unique<Orbital_IBS>(rvec_t{aExp,bExp}, 2, &mol);
+        ibs=std::make_unique<Orbital_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{aExp,bExp}, 2, &mol);
     }
     const NR_Evaluator& Ev() const {return *ibs;}
 };
@@ -527,7 +527,7 @@ struct SkewFixture
     {
         mol.Insert(Site{25, a0});
         mol.Insert(Site{8, b0});
-        ibs=std::make_unique<Orbital_IBS>(rvec_t{aExp,bExp}, 2, &mol);
+        ibs=std::make_unique<Orbital_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{aExp,bExp}, 2, &mol);
     }
     const NR_Evaluator& Ev() const {return *ibs;}
 };
@@ -972,7 +972,7 @@ TEST(M_PG_BoxWalk, OffsetEnumerationIsNotTheCost)
     mol.Insert(Site{25, rvec3_t(4.20,4.20,4.20)});
     mol.Insert(Site{8, rvec3_t(2.4249,2.4249,2.4249)});
     mol.Insert(Site{8, rvec3_t(6.20,6.20,6.20)});
-    Orbital_IBS ibs(rvec_t{0.38,1.2,4.0}, 2, &mol);
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{0.38,1.2,4.0}, 2, &mol);
     const NR_Evaluator& ev=ibs;
     const std::vector<NR_Evaluator::Shell>& shells=ev.Shells();
     ASSERT_GT(shells.size(), 20u) << "the fixture must have a realistic shell count";
@@ -1031,7 +1031,7 @@ TEST(M_PG_BoxWalk, TaskListIsExactlyTheEnumerationItReplaces)
     mol.Insert(Site{25, rvec3_t(4.20,4.20,4.20)});
     mol.Insert(Site{8, rvec3_t(2.4249,2.4249,2.4249)});
     mol.Insert(Site{8, rvec3_t(6.20,6.20,6.20)});
-    Orbital_IBS ibs(rvec_t{0.38,1.2,4.0}, 2, &mol);
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{0.38,1.2,4.0}, 2, &mol);
     const NR_Evaluator& ev=ibs;
     const std::vector<NR_Evaluator::Shell>& shells=ev.Shells();
     const std::vector<NR_Evaluator::ShellPairTasks>& tl=ev.BoxTasks(cell);

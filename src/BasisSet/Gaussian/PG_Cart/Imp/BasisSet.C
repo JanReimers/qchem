@@ -17,7 +17,7 @@ namespace qchem::BasisSet::Gaussian::PG_Cart
 
 BasisSet::BasisSet( Reader* reader, const Structure* cl)
 {
-    Insert(new ::qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(reader,cl));
+    Insert(new ::qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS(BlockCache(),reader,cl));
 }
 
 void BasisSet::BindTolerances(const GPWTolerances& t)

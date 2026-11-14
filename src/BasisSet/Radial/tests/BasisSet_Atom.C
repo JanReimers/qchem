@@ -299,19 +299,21 @@ TEST_F(BasisSet_SL,AnalyticRepulsion)
 TEST_F(BasisSet_SL,HF_ERIs)
 {
     auto a=evals.begin();
+    size_t ia=0;
     for (auto aibs:bs->Iterate<rohfbs_t>())
     {
         auto c=evals.begin();
+        size_t ic=0;
         for (auto cibs:bs->Iterate<rohfbs_t>())
         {
-            if (aibs->BasisSetID() <= cibs->BasisSetID())   // ERI4 cache is canonical-only (doc/ERI4Rework.md §5.2)
+            if (ia<=ic++)   // ERI4 store is canonical-only (doc/ERI4Rework.md §5.2): the parent's iteration order IS its cache-index order
             {
                 ERI4 J2=aibs->Direct(*cibs);
                 ERI4 K2=aibs->Exchange(*cibs);
             }
             ++c;
         }
-        ++a;
+        ++a; ++ia;
     }
 }
 
@@ -416,19 +418,21 @@ TEST_F(BasisSet_SG,AnalyticRepulsion)
 TEST_F(BasisSet_SG,HF_ERIs)
 {
     auto a=evals.begin();
+    size_t ia=0;
     for (auto aibs:bs->Iterate<rohfbs_t>())
     {
         auto c=evals.begin();
+        size_t ic=0;
         for (auto cibs:bs->Iterate<rohfbs_t>())
         {
-            if (aibs->BasisSetID() <= cibs->BasisSetID())   // ERI4 cache is canonical-only (doc/ERI4Rework.md §5.2)
+            if (ia<=ic++)   // ERI4 store is canonical-only (doc/ERI4Rework.md §5.2): the parent's iteration order IS its cache-index order
             {
                 ERI4 J2=aibs->Direct(*cibs);
                 ERI4 K2=aibs->Exchange(*cibs);
             }
             ++c;
         }
-        ++a;
+        ++a; ++ia;
     }
 }
 

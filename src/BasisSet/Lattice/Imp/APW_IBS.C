@@ -1,5 +1,6 @@
 // File: BasisSet/Lattice/Imp/APW_IBS.C  Augmented Plane Wave secular-matrix assembly.
 module;
+#include <memory>
 #include <cassert>
 #include <complex>
 #include <cmath>
@@ -18,9 +19,9 @@ import qchem.Vector3D;           // dot product (operator*), norm
 namespace qchem::BasisSet::Lattice
 {
 
-APW_IBS::APW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,
+APW_IBS::APW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,
                  double Ecut, double Rmt, size_t lmax)
-    : BasisSet::IrrepBasisSetImp<dcmplx>(Symmetry::BlochFactory(N,kIndex))
+    : BasisSet::IrrepBasisSetImp<dcmplx>(Symmetry::BlochFactory(N,kIndex), cache)
     , itsRecip(recip)
     , itsk(kIndex.x/static_cast<double>(N.x),
            kIndex.y/static_cast<double>(N.y),

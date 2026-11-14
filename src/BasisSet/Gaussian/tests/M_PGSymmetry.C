@@ -33,7 +33,7 @@ TEST(PGSymmetry, water_extract_and_SALCs)
     h2o.Insert(Site{1, rvec3_t(0,-0.757, -0.467)});   // H
 
     rvec_t exps{1.0, 0.25};
-    Orbital_IBS ibs(exps, 1, &h2o);                          // s + p shells, 2 exponents each
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 1, &h2o);                          // s + p shells, 2 exponents each
 
     auto shells = ExtractAoShells(ibs);
     auto pts    = StructureToSymPoints(h2o);
@@ -80,7 +80,7 @@ TEST(PGSymmetry, decorator_blocks_real_overlap)
     h2o.Insert(Site{1, rvec3_t(0, 0.757, -0.467)});
     h2o.Insert(Site{1, rvec3_t(0,-0.757, -0.467)});
     rvec_t exps{1.0, 0.25};
-    Orbital_IBS ibs(exps, 1, &h2o);
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 1, &h2o);
 
     auto shells = ExtractAoShells(ibs);
     auto pts    = StructureToSymPoints(h2o);
@@ -105,7 +105,7 @@ TEST(PGSymmetry, decorator_blocks_real_overlap)
         size_t start = salc.blockStart[r], dG = salc.blockStart[r+1]-start;
         if (dG==0) continue;
         rmat_t Or = blazem::submatrix(salc.O, 0, start, nAO, dG);
-        SymmetryAdapted_IBS sa(&ibs, Or, salc.irrep[start], ibs.GetSymt());
+        SymmetryAdapted_IBS sa(std::make_shared<::qchem::BasisSet::BasisCache>(), &ibs, Or, salc.irrep[start], ibs.GetSymt());
         EXPECT_EQ(sa.GetNumFunctions(), dG);
         rsmat_t Sblk = sa.MakeOverlap();
         for (size_t a=0;a<dG;a++) for (size_t b=0;b<dG;b++)
@@ -122,7 +122,7 @@ TEST(PGSymmetry, symmetry_adapted_basis_set)
     h2o.Insert(Site{1, rvec3_t(0, 0.757, -0.467)});
     h2o.Insert(Site{1, rvec3_t(0,-0.757, -0.467)});
     rvec_t exps{1.0, 0.25};
-    Orbital_IBS ibs(exps, 1, &h2o);
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 1, &h2o);
 
     auto shells = ExtractAoShells(ibs);
     auto pts    = StructureToSymPoints(h2o);
@@ -155,7 +155,7 @@ TEST(PGSymmetry, decorator_coulomb_matches_AO_slice)
     h2o.Insert(Site{1, rvec3_t(0, 0.757, -0.467)});
     h2o.Insert(Site{1, rvec3_t(0,-0.757, -0.467)});
     rvec_t exps{1.0, 0.25};
-    Orbital_IBS ibs(exps, 1, &h2o);
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 1, &h2o);
 
     auto shells = ExtractAoShells(ibs);
     auto pts    = StructureToSymPoints(h2o);
@@ -173,7 +173,7 @@ TEST(PGSymmetry, decorator_coulomb_matches_AO_slice)
         if (dG==0) continue;
         rmat_t Or = blazem::submatrix(salc.O, 0, start, nAO, dG);
         Ob.push_back(Or);
-        sad.push_back(new SymmetryAdapted_IBS(&ibs, Or, salc.irrep[start], ibs.GetSymt()));
+        sad.push_back(new SymmetryAdapted_IBS(std::make_shared<::qchem::BasisSet::BasisCache>(), &ibs, Or, salc.irrep[start], ibs.GetSymt()));
         rsmat_t D = blazem::zero<double>(dG);
         for (size_t a=0;a<dG;a++) D(a,a)=0.5;        // 0.5 * I  (symmetric, non-zero)
         Db.push_back(D);
@@ -215,7 +215,7 @@ TEST(PGSymmetry, eri4_basis_rejects_a_substrate_free_partner)
     h2o.Insert(Site{1, rvec3_t(0, 0.757, -0.467)});
     h2o.Insert(Site{1, rvec3_t(0,-0.757, -0.467)});
     rvec_t exps{1.0, 0.25};
-    Orbital_IBS ibs(exps, 1, &h2o);
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 1, &h2o);
 
     auto shells = ExtractAoShells(ibs);
     auto pts    = StructureToSymPoints(h2o);
@@ -226,7 +226,7 @@ TEST(PGSymmetry, eri4_basis_rejects_a_substrate_free_partner)
     size_t start=salc.blockStart[0], dG=salc.blockStart[1]-start;
     ASSERT_GT(dG,0u);
     rmat_t Or = blazem::submatrix(salc.O, 0, start, nAO, dG);
-    SymmetryAdapted_IBS sa(&ibs, Or, salc.irrep[start], ibs.GetSymt());
+    SymmetryAdapted_IBS sa(std::make_shared<::qchem::BasisSet::BasisCache>(), &ibs, Or, salc.irrep[start], ibs.GetSymt());
 
     rsmat_t D = blazem::zero<double>(dG);
     for (size_t a=0;a<dG;a++) D(a,a)=0.5;          // non-zero, so nothing short-circuits before the cast

@@ -71,10 +71,10 @@ void SymmetryAdapted_IBS::SliceAOFock(rsmat_t& Fab, const rsmat_t& Fao) const
     AddSlice(Fab, itsO, Fao);
 }
 
-SymmetryAdapted_IBS::SymmetryAdapted_IBS(const Orbital_1E_IBS<double>* raw, const rmat_t& Oblock,
+SymmetryAdapted_IBS::SymmetryAdapted_IBS(const std::shared_ptr<BasisCache>& cache, const Orbital_1E_IBS<double>* raw, const rmat_t& Oblock,
                                          const std::string& label, const sym_t& sym,
                                          std::shared_ptr<const std::vector<Symmetry::SymOp>> group)
-    : IrrepBasisSetImp<double>(sym)
+    : IrrepBasisSetImp<double>(sym, cache)
     , Symmetry::IdentityRepresentation<double>(group ? Symmetry::Stabiliser::OpList(std::move(group)) : Symmetry::Stabiliser())
     , itsRaw(raw)
     , itsRawHF (dynamic_cast<const Orbital_HF_IBS <double>*>(raw))  // same object, HF  face

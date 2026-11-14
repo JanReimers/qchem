@@ -25,6 +25,7 @@
 // The old NumPoints/Sample/Integrate trio described the QUADRATURE behind them, and read as correct only
 // because here n_functions == n_points, so the wrong accessor returned the right number.
 module;
+#include <memory>
 #include <mutex>
 #include <cassert>
 #include <map>
@@ -33,6 +34,7 @@ module;
 #include <type_traits> // std::is_same_v (the same-scalar table cache)
 #include <utility>
 export module qchem.BasisSet.DeltaFit_IBS;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary                    // cFIT_SF_ABS + Integrals_Overlap3C + FitQuadrature
 export import qchem.BasisSet.Transition_DFT_IBS;   // Transition_Overlap3C: the (k+q, k) pair on my Φ tables (LinearResponsePlan B2)
@@ -40,7 +42,7 @@ import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep)
 import qchem.Types;                                      // dcmplx, rvec3_t, vec_t
 import qchem.Mesh.Quadrature;                            // qcMesh::SiteIntegrals (the atomic-partition observable)
-import qchem.Parallel;                                   // LazyLock -- the per-block caches' guards
+import qchem.SlotMap;                                    // InstanceSlotMap: the per-block caches, keyed by the block's instance (S3c)
 import qchem.Reporting;                                  // EmitFold -- this basis announces its own star-average
 
 export namespace qchem::BasisSet
@@ -102,8 +104,8 @@ public:
     //! implementation, not a type other code needs to name.
     bool isOrtho() const override {return true;}
     //! \a q is the FINISHED quadrature (mesh + fold + Shubnikov tags) from \c MakeXCQuadrature, and \a sym the irrep the caller's lineage gives a fit block (see the class note).
-    DeltaFit_IBS(FitQuadrature q, const sym_t& sym)
-        : IrrepBasisSetImp<T>(sym)
+    DeltaFit_IBS(const std::shared_ptr<BasisCache>& cache, FitQuadrature q, const sym_t& sym)
+        : IrrepBasisSetImp<T>(sym, cache)
         , itsQuad(std::move(q))
     {
         assert(itsQuad.GetMesh() && itsQuad.GetMesh()->size()>0 && "DeltaFit_IBS: a delta basis IS its mesh -- it cannot be empty");
@@ -196,25 +198,27 @@ private:
                                        const cvec_t& v) const;
     //! ONE body for both \c Overlap3C overloads, each with its own typed cache.  R2.9(i) idiom: the
     //! accessor is const and the tensor is a lazily-built, geometry-fixed cache, so the maps are \c mutable.
-    template <class U> const PairProjection<U>& Tensor(SymMap<PairProjection<U>>& cache,
-                                                   SymMap<mat_t<U>>& phis,
+    template <class U> const PairProjection<U>& Tensor(const InstanceSlotMap<PairProjection<U>>& cache,
+                                                   const InstanceSlotMap<mat_t<U>>& phis,
                                                    const Orbital_1E_IBS<U>& orb) const;
     //! \f$\Phi_{gi}=\chi_i(r_g)\f$ -- HOW this class evaluates its own 3-centre integral, cached per block.
     //! Entirely private since 2026-08-23: a table of values is not an integral and has no business in an
     //! interface (user).  The three contractions below are what leaves.
-    template <class U> const mat_t<U>& Table(SymMap<mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const;
+    template <class U> const mat_t<U>& Table(const InstanceSlotMap<mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const;
     //! \f$\langle\chi_i|\sum_g c_g\delta_g|\chi_j\rangle=\Phi^\dagger\mathrm{diag}(w\,c)\Phi\f$
     template <class U> hmat_t<U> AdjointT(const mat_t<U>& P, const rvec_t& c) const;
     //! \f$\langle\delta_g|\rho[D]\rangle/w_g=[\Phi D\Phi^\dagger]_{gg}\f$ -- the full quadratic form
     template <class U> rvec_t ForwardT(const mat_t<U>& P, const hmat_t<U>& D) const;
     //! ...and the same thing for a caller holding \f$D=LL^\dagger\f$: \f$\sum_m|[\Phi L]_{gm}|^2\f$
     template <class U> rvec_t ForwardFactoredT(const mat_t<U>& P, const mat_t<U>& L) const;
-    mutable SymMap<mat_t<dcmplx>> itsPhi;    //!< Bloch blocks' tables (npts x n), keyed by the block's SPATIAL symmetry
-    mutable SymMap<mat_t<double>> itsPhiR;   //!< real TRIM blocks' tables (disjoint symmetries -- 3c-3)
-    mutable SymMap<PairProjection<dcmplx>> itsO3;   //!< the Bloch blocks' 3-centre tensors
-    mutable SymMap<PairProjection<double>> itsO3R;  //!< ...and the real TRIM blocks'
-    qchem::LazyLock itsTableLock;    //!< itsPhi / itsPhiR: filled per block, reachable from the parallel Fock pass
-    qchem::LazyLock itsTensorLock;   //!< itsO3 / itsO3R (taken BEFORE itsTableLock, never after)
+    // Per orbital BLOCK, keyed by the block's InstanceToken (S3c, user ruling 2026-11-14: the δ fit caches Φ itself).  Not by its
+    // spatial sym_t: two blocks of equal symmetry (two basis sets, or one rebuilt at a new geometry against a surviving fit) are two
+    // tables.  The spin channels share one block object, so they share its table.  A dead block's entries go on the next fill.
+    // Thread-safe once-fills (the parallel Fock pass reaches them per block); a Tensor fill asks its Table, never the reverse.
+    InstanceSlotMap<mat_t<dcmplx>> itsPhi;    //!< Bloch blocks' tables (npts x n)
+    InstanceSlotMap<mat_t<double>> itsPhiR;   //!< real TRIM blocks' tables (3c-3)
+    InstanceSlotMap<PairProjection<dcmplx>> itsO3;   //!< the Bloch blocks' 3-centre tensors, built on itsPhi
+    InstanceSlotMap<PairProjection<double>> itsO3R;  //!< ...and the real TRIM blocks', on itsPhiR
     FitQuadrature itsQuad;   //!< the mesh + its orbit fold + the Shubnikov spin tags
 };
 

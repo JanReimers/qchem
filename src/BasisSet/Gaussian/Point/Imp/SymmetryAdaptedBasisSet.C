@@ -26,7 +26,7 @@ SymmetryAdaptedBasisSet::SymmetryAdaptedBasisSet(const ::qchem::BasisSet::Orbita
         rmat_t            Or    = blazem::submatrix(salc.O, 0, start, nAO, dG);
         const std::string label = salc.irrep[start];         // all columns of the block share it
         sym_t             sym(new Symmetry::Molecule::Irrep(label, r));
-        this->Insert(new ::qchem::BasisSet::SymmetryAdapted_IBS(raw, Or, label, sym, group));
+        this->Insert(new ::qchem::BasisSet::SymmetryAdapted_IBS(this->BlockCache(), raw, Or, label, sym, group));
     }
 }
 

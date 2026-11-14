@@ -1,12 +1,12 @@
 // File: BasisSet/Internal/Imp/Orbital_ERI4_IBS.C  Build up 4C contractions for HF calculations.
 module;
+#include <memory>
 #include <cassert>
 #include <stdexcept>
-#include <string>   // std::string comparison for the canonical-order (BasisSetID) check
 module qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.Blaze;   // blazem:: in the asserts: invisible to an NDEBUG build
 import qchem.BasisSet.Internal.ERI4;
-import qchem.BasisSet.Internal.DB_Cache;
+import qchem.BasisSet.BasisCache;
 
 namespace qchem::BasisSet
 {
@@ -31,16 +31,29 @@ template <class T> const Orbital_ERI4_IBS<T>& Orbital_ERI4_IBS<T>::Substrate(con
     return *e;
 }
 
+// The pair lives in the PARENT's cache under the two blocks' indices (doc/IntegralCacheOwnershipPlan.md §2: an unordered pair, stored
+// canonical).  Both blocks must be children of ONE parent: a pair across two parents has no single owner.
+template <class T> void Orbital_ERI4_IBS<T>::RequireSameParent(const Orbital_ERI4_IBS<T>& c) const
+{
+    if (&c.Cache()!=&this->Cache())
+        throw std::logic_error("Orbital_ERI4_IBS: '"+this->Name()+"' and '"+c.Name()+"' belong to two different basis sets; an ERI4 "
+                               "block pairs two blocks of ONE parent (its cache owns the pair)");
+}
+template <class T> bool Orbital_ERI4_IBS<T>::IsCanonical(const Orbital_ERI4_IBS<T>& c) const
+{
+    RequireSameParent(c);
+    return this->CacheIndex() <= c.CacheIndex();
+}
 template <class T> const ERI4& Orbital_ERI4_IBS<T>::Direct(const Orbital_ERI4_IBS<T>& c) const
 {
-    return theCache<T>().Get(IntegralsCache_Base::I4C::Direct,this,&c,
-        [this,&c]{ return MakeDirect(c); });
+    RequireSameParent(c);
+    return this->Cache().Get(BasisCache::Pair::Direct, this->CacheIndex(), c.CacheIndex(), [this,&c]{ return MakeDirect(c); });
 }
 
 template <class T> const   ERI4&  Orbital_ERI4_IBS<T>::Exchange(const Orbital_ERI4_IBS<T>& c) const
 {
-    return theCache<T>().Get(IntegralsCache_Base::I4C::Exchange,this,&c,
-        [this,&c]{ return MakeExchange(c); });
+    RequireSameParent(c);
+    return this->Cache().Get(BasisCache::Pair::Exchange, this->CacheIndex(), c.CacheIndex(), [this,&c]{ return MakeExchange(c); });
 }
 
 template <class T> void Orbital_ERI4_IBS<T>::AccumulateDirect(rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
@@ -63,7 +76,7 @@ template <class T> void Orbital_ERI4_IBS<T>::AccumulateExchange(rsmat_t& Sab, co
 // bra-ket partner J(cd,this) is never requested, so it is never built or cached (doc/ERI4Rework.md §4).
 // Di/Dj may be zero (an empty irrep); ScatterBoth adds an exact zero for that side, so no pre-screen here
 // (the caller short-circuits only the both-empty case).
-// Request the CANONICAL (min-BasisSetID) block only -- the ERI4 cache throws on the partner orientation.
+// Request the CANONICAL (lower cache index) block only -- the ERI4 cache throws on the partner orientation.
 // ScatterBoth(Si,Sj,Di,Dj) on a block with Nab=Si-side, Ncd=Sj-side gives Si+=J·Dj and Sj+=Jᵀ·Di; when the
 // partner cd sorts first we fetch its block J(cd,this) and swap the two target/density pairs, which yields
 // the identical result (J(cd,this)=J(this,cd)^T).  The irrep pair here is always off-diagonal (this!=cd).
@@ -71,7 +84,7 @@ template <class T> void Orbital_ERI4_IBS<T>::AccumulateDirectBoth(rsmat_t& Ji, r
 {
     assert(!blazem::isnan(Di) && !blazem::isnan(Dj));
     const Orbital_ERI4_IBS<T>& e=Substrate(cd);
-    if (this->BasisSetID() <= e.BasisSetID()) Direct(e).ScatterBoth(Ji,Jj,Di,Dj);        // canonical (this,cd)
+    if (IsCanonical(e))                       Direct(e).ScatterBoth(Ji,Jj,Di,Dj);        // canonical (this,cd)
     else                                      e.Direct(*this).ScatterBoth(Jj,Ji,Dj,Di);  // canonical (cd,this): swap
 }
 
@@ -80,7 +93,7 @@ template <class T> void Orbital_ERI4_IBS<T>::AccumulateExchangeBoth(rsmat_t& Ki,
 {
     assert(!blazem::isnan(Di) && !blazem::isnan(Dj));
     const Orbital_ERI4_IBS<T>& e=Substrate(cd);
-    if (this->BasisSetID() <= e.BasisSetID()) Exchange(e).ScatterBoth(Ki,Kj,Di,Dj);        // canonical (this,cd)
+    if (IsCanonical(e))                       Exchange(e).ScatterBoth(Ki,Kj,Di,Dj);        // canonical (this,cd)
     else                                      e.Exchange(*this).ScatterBoth(Kj,Ki,Dj,Di);  // canonical (cd,this): swap
 }
 

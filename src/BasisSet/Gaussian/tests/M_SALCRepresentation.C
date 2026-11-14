@@ -42,7 +42,7 @@ TEST(SALCRepresentation, WaterSALCBlocksAreIdentityExactlyWhereTheRawDenseRepSay
     h2o.Insert(Site{1, rvec3_t(0, 0.757, -0.467)});
     h2o.Insert(Site{1, rvec3_t(0,-0.757, -0.467)});
     rvec_t exps{1.0, 0.25};
-    Orbital_IBS ibs(exps, 1, &h2o);                          // s + p shells
+    Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, 1, &h2o);                          // s + p shells
     auto shells=ExtractAoShells(ibs);
     auto pts   =StructureToSymPoints(h2o);
     auto g     =Symmetry::Molecule::BuildAbelianGroup(pts, 1e-4);

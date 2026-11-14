@@ -18,11 +18,13 @@
 // generalized problem H c = e O c.  (The energy-dependent friction was specific to *self-consistent*
 // APW; fixing E_l removes it -- the augmented basis functions become fixed objects.)
 module;
+#include <memory>
 #include <iosfwd>
 #include <string>
 #include <vector>
 
 export module qchem.BasisSet.Lattice.LAPW_IBS;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 import qchem.BasisSet.Orbital_1E_IBS;             // Orbital_1E_IBS<dcmplx>: Overlap/Kinetic/Nuclear
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 export import qchem.ReciprocalLattice;
@@ -44,7 +46,7 @@ public:
     //! nuclear charge of the (single, origin) atom -- muffin-tin potential V=-Znuc/r inside the sphere,
     //! V=0 in the interstitial.  Znuc=0 is the empty lattice (free radial functions, analytic Bessel).
     //! In an augmented method the potential defines the basis, so Znuc is fixed at construction.
-    LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,
+    LAPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,
              double Ecut, double Rmt, size_t lmax, double Elin, double Znuc=0.0);
 
     virtual size_t GetNumFunctions() const {return itsG.size();}

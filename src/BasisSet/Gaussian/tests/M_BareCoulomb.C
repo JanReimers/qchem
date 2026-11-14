@@ -71,7 +71,7 @@ TEST(BareCoulomb, OneDShellReproducesTheSlaterAveragesF0And5F2F4Over98)
     const double a=0.9;
     Molecule mol; mol.Insert(Site{25, Vector3D<double>(0,0,0)});
     auto* cart=new BasisSet::Gaussian::PG_Cart::BasisSet;
-    cart->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{a}, 2, &mol));
+    cart->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(cart->BlockCache(), rvec_t{a}, 2, &mol));
     std::shared_ptr<const BasisSet::Real_BS> cbs(cart);
     auto view=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(cbs);
     const auto& sph=FirstBlock(view);
@@ -109,7 +109,7 @@ TEST(BareCoulomb, TheCartesianBlockAnswersDirectlyAndASubsetIsASubTensor)
 {
     Molecule mol; mol.Insert(Site{25, Vector3D<double>(0,0,0)});
     auto* cart=new BasisSet::Gaussian::PG_Cart::BasisSet;
-    cart->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.9, 2.5}, 2, &mol));
+    cart->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(cart->BlockCache(), rvec_t{0.9, 2.5}, 2, &mol));
     std::shared_ptr<const BasisSet::Real_BS> cbs(cart);
     const auto& blk=dynamic_cast<const BasisSet::BareCoulombSource&>(FirstBlock(cbs));
     const std::vector<size_t> d=ShellColumns(FirstBlock(cbs), 2);   // 2 exponents x 6 Cartesian d
@@ -138,7 +138,7 @@ std::shared_ptr<const BasisSet::Real_BS> EngineView(const rvec_t& exps, int LMax
     static Molecule mol; static bool once=false;
     if (!once) { mol.Insert(Site{25, Vector3D<double>(0,0,0)}); once=true; }
     auto* cart=new BasisSet::Gaussian::PG_Cart::BasisSet;
-    cart->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(exps, size_t(LMax), &mol));
+    cart->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(cart->BlockCache(), exps, size_t(LMax), &mol));
     std::shared_ptr<const BasisSet::Real_BS> cbs(cart);
     return BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(cbs);
 }

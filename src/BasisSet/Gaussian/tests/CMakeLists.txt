@@ -2,6 +2,7 @@
 
 add_executable(UTGaussian_BS ../../Radial/tests/gtestmain.C
    M_PGSymmetry.C
+   M_BasisCache.C           # the parent-made cache: a dead fit's 3C tables freed, a new fit at its address misses (S3a, §3b)
    M_CacheKeys.C            # the Gaussian basis cache keys are exact: geometries an ulp apart key apart (2026-11-12)
    M_SALCRepresentation.C   # a molecular SALC block end to end: Identity exact against the raw block's Dense rep (V-BS-SYMMETRY S3)
    M_PG_BoxWalk.C

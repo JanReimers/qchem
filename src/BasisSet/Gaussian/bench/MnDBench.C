@@ -75,14 +75,14 @@ int main(int argc, char** argv)
     if (engine=="mnd" || engine=="both")
     {
         Gaussian94Reader reader(BasisFile(file));
-        qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS ibs(&reader, mol);
+        qchem::BasisSet::Gaussian::PG_Cart::Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), &reader, mol);
         printf("  N = %zu functions\n", ibs.GetNumFunctions());
         tm = TimeIntegrals("MnD", ibs, mol);
     }
     if (engine=="libcint" || engine=="both")
     {
         Gaussian94Reader reader(BasisFile(file));
-        qchem::BasisSet::Gaussian::PG_LibCint::Orbital_IBS ibs(&reader, mol, false);
+        qchem::BasisSet::Gaussian::PG_LibCint::Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), &reader, mol, false);
         printf("  N = %zu functions\n", ibs.GetNumFunctions());
         tl = TimeIntegrals("libcint", ibs, mol);
     }

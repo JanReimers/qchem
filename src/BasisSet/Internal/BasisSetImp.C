@@ -10,6 +10,7 @@ module;
 export module qchem.BasisSet.Internal.BasisSetImp;
 export import qchem.Types;
 export import qchem.BasisSet;
+export import qchem.BasisSet.BasisCache;   // the cache this set MAKES for its blocks (IntegralCacheOwnershipPlan S3a)
 
 export namespace qchem::BasisSet
 {
@@ -60,6 +61,12 @@ public:
     //! alternatives.  The tBasisSet<T> face's GetIBS below stays the same-scalar view.
     const ibs_child_t& GetChild(size_t i) const {return itsBasisSets[i];}
 
+    //! The cache this set MADE (doc/IntegralCacheOwnershipPlan.md S3a; the user, 2026-11-12: "The actual BasisSet will make a cache."):
+    //! every block built for this set is constructed with it, and the blocks co-own it.  PUBLIC (this class is Internal, so only the
+    //! basis family and tests see it) because the builders that Insert blocks into a set they made need it at the block's construction:
+    //! SphericalLatticeView's builder and the unit tests that assemble a set block by block.
+    const std::shared_ptr<BasisCache>& BlockCache() const {return itsBlockCache;}
+
 protected:
     //! TAKES OWNERSHIP.  TWO overloads, one per block scalar (Step 3b): the child slot is typed by the
     //! BLOCK, not by this set's face T, so a complex-faced periodic set may hold a real TRIM block.
@@ -103,6 +110,7 @@ protected:
 
     std::vector<ibs_child_t> itsBasisSets;
 private:
+    std::shared_ptr<BasisCache> itsBlockCache=std::make_shared<BasisCache>();
     std::shared_ptr<const Symmetry::SymmetryImposition> itsImposition;   //!< nullptr = none (molecules / atoms today)
 };
 

@@ -122,7 +122,7 @@ TEST(PW_Cosine, Γ_Prototype_Converges)
     UnitCell          cell(a);
     Lattice_3D        lat(cell, ivec3_t(1,1,1));
     ReciprocalLattice recip(lat.Reciprocal());
-    PlaneWave_IBS     pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), Ecut);
+    PlaneWave_IBS     pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), Ecut);
 
     qchem::Hamiltonian::SlaterExchange  ex(2.0/3.0);
     qchem::Hamiltonian::VWN_Correlation vwn;
@@ -148,7 +148,7 @@ TEST(PW_Cosine, Γ_Prototype_VxcFitConverges)
     UnitCell          cell(a);
     Lattice_3D        lat(cell, ivec3_t(1,1,1));
     ReciprocalLattice recip(lat.Reciprocal());
-    PlaneWave_IBS     pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), Ecut);
+    PlaneWave_IBS     pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), Ecut);
 
     qchem::Hamiltonian::SlaterExchange  ex(2.0/3.0);
     qchem::Hamiltonian::VWN_Correlation vwn;

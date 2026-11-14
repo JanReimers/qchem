@@ -25,6 +25,7 @@ module;
 #include <map>
 #include <memory>
 export module qchem.BasisSet.Internal.SymmetryAdapted_IBS;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Orbital_HF_IBS;         // HF 2-electron CONTRACTION face (no ERI4 -- R1.7)
 export import qchem.BasisSet.Orbital_PP_IBS;         // species fields, forwarded to the raw basis
@@ -56,7 +57,7 @@ public:
     // raw: the whole-molecule AO basis (not owned).  Oblock: this irrep's SALC columns
     // (nAO x dGamma).  label: Mulliken irrep label (used for the cache key + display).
     // group: the ops the SALCs were adapted under (SALCs::ops), SHARED by every block of the basis; {} = {E}.
-    SymmetryAdapted_IBS(const Orbital_1E_IBS<double>* raw, const rmat_t& Oblock,
+    SymmetryAdapted_IBS(const std::shared_ptr<BasisCache>& cache, const Orbital_1E_IBS<double>* raw, const rmat_t& Oblock,
                         const std::string& label, const sym_t& sym,
                         std::shared_ptr<const std::vector<Symmetry::SymOp>> group={});
 

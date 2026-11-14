@@ -12,12 +12,14 @@
 // (rho-tilde -> Hartree, the FFT XC route) + the external pseudopotential stay here: they own atom/model
 // data and are orbital-only (an auxiliary fit basis does not answer them).
 module;
+#include <memory>
 #include <functional>
 #include <stdexcept>
 #include <iosfwd>
 #include <string>
 
 export module qchem.BasisSet.PlaneWave.PlaneWave_IBS;
+export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 export import qchem.BasisSet.Orbital_DFT_IBS;       // the abstract G-space DFT capability (+ ΔG_Map)
 import qchem.BasisSet.PlaneWave.Evaluators; // PW_Evaluator (base subobject) -- NOT re-exported: the evaluator
                                                 // is INTERNAL to qcPlaneWave_BS.  Clients use the abstract faces
@@ -91,18 +93,18 @@ public:
     //! \param recip   the reciprocal lattice (its UnitCell matrix is \f$B=2\pi A^{-\top}\f$).
     //! \param irrep   the Bloch irrep (a BlochQN); \f$k\f$ = Symmetry::Lattice_3D::Getk(irrep).
     //! \param Ecut    plane-wave energy cutoff (Hartree): keep \f$G\f$ with \f$\tfrac12|k+G|^2<E_{cut}\f$.
-    PlaneWave_IBS(const ReciprocalLattice& recip, const sym_t& irrep, double Ecut);
+    PlaneWave_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const ReciprocalLattice& recip, const sym_t& irrep, double Ecut);
 
     //! \brief Convenience constructor for tests/callers that work directly in BZ-grid indices: builds
     //! the Bloch irrep \c BlochFactory(N,kIndex) and delegates to the primary constructor above.
     //! \param N       Brillouin-zone grid divisions (context for the integer k-label).
     //! \param kIndex  integer k-label; the fractional crystal momentum is \f$k = kIndex/N\f$.
-    PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
+    PlaneWave_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const ReciprocalLattice& recip, const ivec3_t& N,
                   const ivec3_t& kIndex, double Ecut);
 
     // --- Orbital_DFT_IBS<dcmplx> capability: density-driven KS assembly in reciprocal space. ---
     // ENTIRELY on the evaluator now: the cached accessors Repulsion3C(c)/Overlap3C(c) come from Orbital_DFT_IBS<dcmplx>
-    // (theCache<dcmplx>()), their one-time builds from Lattice::Orbital_DFT_IBS forwarding to the evaluator's
+    // (the parent's BasisCache, keyed by the fit's instance serial), their one-time builds from Lattice::Orbital_DFT_IBS forwarding to the evaluator's
     // Repulsion3CTensor()/Overlap3CTensor(), and MakeFourierDensity (the SAD seed's rho-tilde) from the
     // PW_Evaluator grid engine (G_FieldEvaluator).  This basis adds nothing here.
 

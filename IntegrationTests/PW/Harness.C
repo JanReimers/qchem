@@ -232,7 +232,7 @@ SCFResult RunSCF_kpoints(const ReciprocalLattice& recip, const CellGeometry& B, 
         for (int ky=0;ky<Nmp.y;ky++)
             for (int kz=0;kz<Nmp.z;kz++)
             {
-                auto p=std::make_unique<PlaneWave_IBS>(recip, Nmp, ivec3_t(kx,ky,kz), Ecut);
+                auto p=std::make_unique<PlaneWave_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), recip, Nmp, ivec3_t(kx,ky,kz), Ecut);
                 Vext.push_back(p->MakeSpeciesFieldMatrix(&st, loc, qchem::BasisSet::FieldRange::Full)+p->MakeProjectorMatrix(&st,nl));
                 K.push_back(p->MakeKinetic());
                 pw.push_back(std::move(p));

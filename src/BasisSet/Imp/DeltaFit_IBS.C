@@ -23,7 +23,6 @@ module;
 #include <cmath>       // std::abs (the Phi-sparsity magnitude screen)
 #include <complex>     // std::abs on a complex table entry
 #include <map>
-#include <mutex>       // std::lock_guard over itsTableLock / itsTensorLock         // the per-block table caches
 #include <exception>
 #include <stdexcept>   // std::invalid_argument (the transition pair's shape checks)
 #include <iostream>
@@ -164,39 +163,37 @@ template <class U> static mat_t<U> MakePhiAt(const Orbital_1E_IBS<U>* bs, const 
 }
 
 // The two Collocation::Values overloads: same body, own cache per scalar.
-template <class T> template <class U> const mat_t<U>& DeltaFit_IBS<T>::Table(SymMap<mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const
+template <class T> template <class U> const mat_t<U>& DeltaFit_IBS<T>::Table(const InstanceSlotMap<mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const
 {
-    // Locked (2026-11-02, the threaded multi-k hang): every fitter and the density's forward reach these maps per block from the
-    // parallel Fock pass.  The serial cold assembly normally fills them, but a contract nothing enforces is not a guard.
-    std::lock_guard<std::mutex> lock(itsTableLock.m);
-    const sym_t& id=orb.GetSymt();                 // the block's SPATIAL symmetry: the two spin channels share one table
-    auto it=cache.find(id);
-    if (it!=cache.end()) return it->second;
-    mat_t<U> P=MakePhiAt<U>(&orb, itsQuad.GetMesh()->Points(), "setup: XC-mesh Phi tables");
-    ReportPhiSparsity(P, *itsQuad.GetMesh());           // mesh-aware (it reports SITE batching), hence outside the builder
-    return cache.emplace(id, std::move(P)).first->second;
+    // Thread-safe (2026-11-02, the threaded multi-k hang): every fitter and the density's forward reach these maps per block from the
+    // parallel Fock pass; the slot map's once-fill builds each block's table once.
+    return cache.GetOrFill(orb.Instance(), [this,&orb]
+    {
+        mat_t<U> P=MakePhiAt<U>(&orb, itsQuad.GetMesh()->Points(), "setup: XC-mesh Phi tables");
+        ReportPhiSparsity(P, *itsQuad.GetMesh());           // mesh-aware (it reports SITE batching), hence outside the builder
+        return P;
+    });
 }
 
 // THE 3-CENTRE OVERLAP <chi_i|delta_g|chi_j> = w_g conj(chi_i(r_g)) chi_j(r_g), as the house CONTRACTIBLE
 // object: rank-3 and never materialised, so what the caller gets is the two contractions of it (three, once
 // the density's factored form is counted -- one integral, two representations of D).  Phi and w stay in
 // here; the caller supplies only what it owns, its coefficients or its density matrix.
-template <class T> template <class U> const PairProjection<U>& DeltaFit_IBS<T>::Tensor(SymMap<PairProjection<U>>& cache,
-                                                             SymMap<mat_t<U>>& phis,
+template <class T> template <class U> const PairProjection<U>& DeltaFit_IBS<T>::Tensor(const InstanceSlotMap<PairProjection<U>>& cache,
+                                                             const InstanceSlotMap<mat_t<U>>& phis,
                                                              const Orbital_1E_IBS<U>& orb) const
 {
-    std::lock_guard<std::mutex> lock(itsTensorLock.m);   // order: tensor, then (inside Table) table -- Table never takes this one
-    const sym_t& id=orb.GetSymt();                 // the block's SPATIAL symmetry, as for the table itself
-    auto it=cache.find(id);
-    if (it!=cache.end()) return it->second;
-    // Bind the table ONCE here: std::map nodes are address-stable, so the closures may capture it by
-    // reference and no contraction re-does the lookup.
-    const mat_t<U>& P=Table(phis, orb);
-    PairProjection<U> g;
-    g.applyRawAdjoint  =[this,&P](const rvec_t& c)   {return AdjointT<U>(P, c);};
-    g.applyRaw         =[this,&P](const hmat_t<U>& D){return ForwardT<U>(P, D);};
-    g.applyRawFactored =[this,&P](const mat_t<U>& L) {return ForwardFactoredT<U>(P, L);};
-    return cache.emplace(id, std::move(g)).first->second;
+    return cache.GetOrFill(orb.Instance(), [this,&phis,&orb]
+    {
+        // Bind the table ONCE here: a filled slot is address-stable, and the table and this record share the block's key, so they are
+        // evicted together; the closures may capture it by reference and no contraction re-does the lookup.
+        const mat_t<U>& P=Table(phis, orb);
+        PairProjection<U> g;
+        g.applyRawAdjoint  =[this,&P](const rvec_t& c)   {return AdjointT<U>(P, c);};
+        g.applyRaw         =[this,&P](const hmat_t<U>& D){return ForwardT<U>(P, D);};
+        g.applyRawFactored =[this,&P](const mat_t<U>& L) {return ForwardFactoredT<U>(P, L);};
+        return g;
+    });
 }
 
 template <class T> const PairProjection<T>& DeltaFit_IBS<T>::Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const
@@ -430,5 +427,8 @@ template <class T> template <class U> rvec_t DeltaFit_IBS<T>::ForwardFactoredT(c
 // The two fit axes (2026-10-31): the periodic (Bloch) one and the molecular one.
 template class DeltaFit_IBS<dcmplx>;
 template class DeltaFit_IBS<double>;
+// The real-TRIM record of the Bloch fit (RealTensor, inline in the interface, reaches it from other TUs): named here so it is emitted.
+template const PairProjection<double>& DeltaFit_IBS<dcmplx>::Tensor<double>(const InstanceSlotMap<PairProjection<double>>&,
+                                                                           const InstanceSlotMap<mat_t<double>>&, const Orbital_1E_IBS<double>&) const;
 
 } //namespace

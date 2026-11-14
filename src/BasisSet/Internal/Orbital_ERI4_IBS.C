@@ -30,8 +30,8 @@ public:
     virtual ERI4       MakeDirect  (const Orbital_ERI4_IBS<T>& c) const=0;
     //! Build the exchange block \f$K(ab,cd)\f$.  Only called once for a given {radial,angular} ID pair.
     virtual ERI4       MakeExchange(const Orbital_ERI4_IBS<T>& c) const=0;
-    //! Cached accessor for MakeDirect().  CANONICAL orientation only (min BasisSetID first) -- the
-    //! cache THROWS on the partner orientation, which is what makes the bra-ket fusion below safe.
+    //! Cached accessor for MakeDirect().  CANONICAL orientation only (the lower cache index first; both blocks children of one parent)
+    //! -- the cache THROWS on the partner orientation, which is what makes the bra-ket fusion below safe.
     const   ERI4&          Direct  (const Orbital_ERI4_IBS<T>& c) const;
     //! Cached accessor for MakeExchange().  Canonical orientation only, as for Direct().
     const   ERI4&          Exchange(const Orbital_ERI4_IBS<T>& c) const;
@@ -51,6 +51,9 @@ protected:
     //! because there is no \f$(ab|cd)\f$ block spanning the two.  Formerly this mistake produced an
     //! empty ERI4 and hence a silent zero contribution.
     const Orbital_ERI4_IBS<T>& Substrate(const Orbital_HF_IBS<T>* cd) const;
+    //! Is (this, \a c) the stored orientation of the pair?  THROWS if the two blocks have different parents.
+    bool IsCanonical      (const Orbital_ERI4_IBS<T>& c) const;
+    void RequireSameParent(const Orbital_ERI4_IBS<T>& c) const;
 };
 
 typedef Orbital_ERI4_IBS<double>    Real_ERI4_OIBS;
