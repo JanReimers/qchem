@@ -3059,3 +3059,25 @@ work around while waiting for the Enzyme fix") is now met for the lattice sums: 
 The row as it stood, verbatim:
 
 · **⚠ TEMPORARY: the GPW (MnD) lattice-sum overlap/kinetic derivatives come from libcint; replace with Enzyme over MnD when EnzymeAD/Enzyme#3747 is fixed** (lane B 2026-11-10; user ruling 2026-11-10: *"libCint and our own MnD code should not be entangled (outside oracle unit tests).  We should be able to drop one without affecting the other.  Having said all that I don't mind a temporary work around while waiting for the Enzyme fix."*).  The one seam is `qchem.BasisSet.Gaussian.Lattice.LibcintPullbackWorkaround` (libcint's ip integrals per shell pair and image over MnD's own screened image list, contracted against MnD's energy series); its only callers are `PG_Cart::Orbital_IBS::MakeLattice{Overlap,Kinetic}Pullback`.  Held by `UTGaussian_BS M_LatticePullback` (FD of the MnD energy path; libcint vs MnD image by image).  The fix is underway upstream: EnzymeAD/Enzyme PR #3753 (wsmoses, "Fix rematerialization of allocations with in-loop lifetime.start", "Fixes #3747"; OPEN 2026-11-10).  **User ruling 2026-11-10: WAIT for #3753 to merge upstream (no build of the PR head); then ONE pin move covering #3747 and #3748, both repros run on the new pin first.**  Next action, once #3753 is merged and the pin moves (one move for #3747 and #3748 together; #3748 alone if #3753 stalls more than a few days): write the two bodies as Enzyme reverse mode over the MnD Overlap2C / Grad2 kernels w.r.t. the ket centre, keep both gates, delete the seam module.  Same principle, pre-existing and NOT yet isolated: the MOLECULAR PG_Cart pullbacks (`Gaussian::EOrbital_1E_IBS` / `EOrbital_PP_IBS`, `Point/IrrepBasisSet.C`) and the Dunlap fit pullbacks also take libcint's derivatives against MnD's energy -- the same move, or a seam like this one, once #3747 allows.
+
+### REMAINDER CLOSED: the molecular PG_Cart and Dunlap pullbacks are Enzyme over MnD (lane B, 2026-11-14)
+
+The same move, one family per commit, each behind its own FD gate and a libcint ORACLE gate (libcint stays only there):
+- **1E** (S, T, V with the nuclei moving), 040547891.
+- **PP**, b314a325c: the projectors over `KetGradient`, the local field (short and long) over `GaussianRF::ThreeCentreGradient`, with
+  cache-free twins of Overlap3C and Repulsion3C.
+- **Dunlap fit**, 86b34ecfc: 3C (ij|k) is ONE `ThreeCentreGradient(Repulsion)` per FIT SHELL (the shell's components share one radial, so
+  Σ_k a_k n_k (ij|k) is one repulsion against Σ_k a_k n_k p_k); the 2C metric (k|l) is a `TwoCentre::Repulsion` kernel in `KetGradient`.
+  Gates: 3C 3.4e-8 / metric 1.8e-8 vs FD; vs libcint 6.3e-12 / 3.0e-11.
+- **HF ERI4 (J and K)**, 1f2ef96da: `NR_Evaluator::ERI4Pullback` walks the unique shell quartets (J: i≤j, k≤l; K: pair (i,k) ≤ (j,l) by
+  (ik|jl) = (jl|ik)) and makes one `GaussianRF::FourCentreGradient` call per quartet, Enzyme over a cache-free twin of Repulsion4C in all four
+  centres.  The 4-centre formula is ONE inline body (`PairRepulsion4C`, `QuartetLambda`) shared with the cached kernel, which keeps its
+  rounding order (0 anchors moved); the hot `Repulsion4CTab` path is untouched.  Gates: twin vs FD 1.7e-11; J 4.3e-8 / K 3.5e-8 vs FD;
+  vs libcint 1.5e-12 / 3.6e-12.  `Point/IrrepBasisSet.C` drops its PG_LibCint import.
+
+The rule each twin obeys (the AD-through-a-branch lesson above): NO zero-value skips on a Hermite or RNLM value (a value zero by symmetry has a
+derivative that is not); skips on a constant weight or an index are safe.
+
+The remainder as it stood, verbatim:
+
+· ✅ **The GPW (MnD) lattice-sum S/T derivatives are Enzyme over MnD; the libcint seam is deleted** (lane B 2026-11-13; full text `doc/Records/OpenWork_History5.md`).  REMAINDER: the molecular 1E family (S, T, V with the nuclei moving) is DONE too (lane B 040547891), and so are the PP family (lane B b314a325c: projectors over `KetGradient`, the local field over `GaussianRF::ThreeCentreGradient`, the cache-free twins of Overlap3C and Repulsion3C) and the Dunlap fit pullbacks (lane B 86b34ecfc: 3C (ij|k) one `ThreeCentreGradient(Repulsion)` per fit shell, the 2C metric (k|l) a `TwoCentre::Repulsion` kernel in `KetGradient`).  Still taking libcint's derivatives against MnD's energy: the HF ERI4 pullback only.  Next action: the same move behind its FD gate, a cache-free twin of Repulsion4C, WITHOUT their zero-value skips on Hermite / RNLM values (`Imp/GaussianRF.C` lines with `==0.0) continue` / `!=0`): a value zero by symmetry has a derivative that is not.
