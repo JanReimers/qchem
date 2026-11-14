@@ -36,9 +36,9 @@ static qchem::Molecule* MakeWaters(int n)   // n waters along z, ~6 Bohr apart (
     for (int i=0;i<n;i++)
     {
         double z = 6.0*i;
-        m->Insert(Site{8, rvec3_t(0,  0.0,   0.0   + z)});
-        m->Insert(Site{1, rvec3_t(0,  1.431, 1.107 + z)});
-        m->Insert(Site{1, rvec3_t(0, -1.431, 1.107 + z)});
+        m->Insert(qchem::Site{8, rvec3_t(0,  0.0,   0.0   + z)});
+        m->Insert(qchem::Site{1, rvec3_t(0,  1.431, 1.107 + z)});
+        m->Insert(qchem::Site{1, rvec3_t(0, -1.431, 1.107 + z)});
     }
     return m;
 }
