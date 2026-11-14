@@ -1,5 +1,5 @@
 // File: BasisSet/Gaussian/tests/M_KetGradient.C  THE 2-CENTRE KERNELS' KET-CENTRE DERIVATIVE, Enzyme's (GaussianRF::KetGradient, lane B
-// 2026-11-13), against the central difference of the CACHED kernels it differentiates (GaussianRF::Overlap2C / Grad2 with the ket radial
+// 2026-11-13), against the central difference of the CACHED kernels it differentiates (GaussianRF::Overlap2C / Grad2 / Repulsion2C with the ket radial
 // placed at B ± h), per shell pair and weight set, on every Cartesian shell pair through d and on contracted radials.  This is the gate
 // at the kernel itself: the lattice pullback (M_LatticePullback) sums it over images and atoms, where a wrong per-image derivative can
 // cancel in a gradient and show only in the virial.
@@ -34,11 +34,13 @@ double Value(GaussianRF::TwoCentre K, const GaussianRF& ra, const GaussianRF& rb
     double s=0.0;
     for (size_t p=0;p<pa.size();p++)
         for (size_t q=0;q<pb.size();q++)
-            s+=W[p*pb.size()+q]*(K==GaussianRF::TwoCentre::Overlap ? ra.Overlap2C(rbB,pa[p],pb[q]) : ra.Grad2(rbB,pa[p],pb[q]));
+            s+=W[p*pb.size()+q]*(K==GaussianRF::TwoCentre::Overlap ? ra.Overlap2C(rbB,pa[p],pb[q])
+                                : K==GaussianRF::TwoCentre::Grad2   ? ra.Grad2(rbB,pa[p],pb[q]) : ra.Repulsion2C(rbB,pa[p],pb[q]));
     return s;
 }
 
 double Comp(const rvec3_t& v, int c) {return c==0 ? v.x : c==1 ? v.y : v.z;}
+const char* KernelName(GaussianRF::TwoCentre K) {return K==GaussianRF::TwoCentre::Overlap ? "S" : K==GaussianRF::TwoCentre::Grad2 ? "T" : "(a|b)";}
 
 } // namespace
 
@@ -47,8 +49,9 @@ TEST(KetGradient, IsTheFiniteDifferenceOfTheCachedKernelForEveryShellPairThrough
     const rvec3_t A(0.13,-0.21,0.34);
     double worst=0.0;
     // A generic ket centre, and two where values vanish BY SYMMETRY (on an axis through the bra, and on a coordinate plane through it):
-    // a kernel that branches on a zero value has a zero derivative there that is not zero (the 2026-11-13 lattice-virial failure).
-    for (const rvec3_t& B0 : {rvec3_t(1.07,0.52,-0.61), rvec3_t(A.x+1.3,A.y,A.z), rvec3_t(A.x+0.9,A.y-0.8,A.z)})
+    // a kernel that branches on a zero value has a zero derivative there that is not zero (the 2026-11-13 lattice-virial failure).  And
+    // the ket ON the bra (B = A): the Coulomb metric's same-atom pairs, where T = 0 in the Boys function.
+    for (const rvec3_t& B0 : {rvec3_t(1.07,0.52,-0.61), rvec3_t(A.x+1.3,A.y,A.z), rvec3_t(A.x+0.9,A.y-0.8,A.z), A})
     for (int contracted=0;contracted<2;contracted++)
         for (int La=0;La<=2;La++)
             for (int Lb=0;Lb<=2;Lb++)
@@ -58,7 +61,7 @@ TEST(KetGradient, IsTheFiniteDifferenceOfTheCachedKernelForEveryShellPairThrough
                 const std::vector<Polarization> pa=ShellComponents(La), pb=ShellComponents(Lb);
                 std::vector<double> W(pa.size()*pb.size());
                 for (size_t k=0;k<W.size();k++) W[k]=std::sin(1.3*double(k)+0.7*La+0.3*Lb+contracted);   // dense, signed, no zeros
-                for (auto K : {GaussianRF::TwoCentre::Overlap, GaussianRF::TwoCentre::Grad2})
+                for (auto K : {GaussianRF::TwoCentre::Overlap, GaussianRF::TwoCentre::Grad2, GaussianRF::TwoCentre::Repulsion})
                 {
                     const rvec3_t g=ra.KetGradient(K, rb, B0, pa.data(), pa.size(), pb.data(), pb.size(), W.data());
                     for (int c=0;c<3;c++)
@@ -68,12 +71,12 @@ TEST(KetGradient, IsTheFiniteDifferenceOfTheCachedKernelForEveryShellPairThrough
                         const double fd=(4.0*(at(0.5*h)-at(-0.5*h))/h - (at(h)-at(-h))/(2*h))/3.0;   // Richardson on the central difference
                         const double an=Comp(g,c), err=std::fabs(an-fd), tol=1e-8*std::max(1.0,std::fabs(fd));
                         worst=std::max(worst,err);
-                        EXPECT_LT(err, tol) << (K==GaussianRF::TwoCentre::Overlap ? "S" : "T") << " La=" << La << " Lb=" << Lb
+                        EXPECT_LT(err, tol) << KernelName(K) << " La=" << La << " Lb=" << Lb
                                             << " contracted=" << contracted << " B-A=(" << B0.x-A.x << "," << B0.y-A.y << "," << B0.z-A.z << ") axis " << c << ": AD " << an << " FD " << fd;
                     }
                 }
             }
-    std::printf("  [ket gradient] worst |AD - FD| over S and <p^2>, La,Lb <= 2, contracted and not, generic and on-axis/on-plane ket: %.2e\n", worst);
+    std::printf("  [ket gradient] worst |AD - FD| over S, <p^2> and (a|b), La,Lb <= 2, contracted and not, generic, on-axis, on-plane and coincident ket: %.2e\n", worst);
 }
 
 // THE NUCLEAR TWIN (GaussianRF::NuclearGradient), every centre moving, against the central difference of the CACHED Nuclear: the bra, the

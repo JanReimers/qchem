@@ -249,6 +249,34 @@ inline double PairNuclear(double p, double Eij, const Hermite2& H2, const Polari
     return s * 2*Pi/p*Eij;
 }
 
+//! \brief THE 2-CENTRE COULOMB (a|b) OF ONE PRIMITIVE PAIR, exponents with product \a ab and sum \a p, from the two Hermite1 tables
+//! through \a Ha(NLM) (a's, at its component \a pa) and \a Hb(NLM') (b's, at \a pb) and the pair's self Hermite-Coulomb table through
+//! \a R(NLM) (\f$\alpha=ab/p\f$ at \f$A-B\f$, \c Ω::SelfRNLM): ONE definition, for the cached \c PrimGaussian::Repulsion2C and the cache-free
+//! twin Enzyme differentiates (\c GaussianRF::KetGradient, \c TwoCentre::Repulsion).  No zero-value skips (the cached kernel skipped zero
+//! Hermite1 coefficients: harmless under AD, since they depend on the exponents alone, but dropped so the 2- and 3-centre formulas read alike).
+template <class Ha_t, class Hb_t, class R_t>
+inline double PairRepulsion2C(double ab, double p, const std::vector<Polarization>& NLMs, const Polarization& pa, const Polarization& pb,
+                              Ha_t&& Ha, Hb_t&& Hb, R_t&& R)
+{
+    double s = 0.0;
+    for (const Polarization& bNLM : NLMs)
+    {
+        if (bNLM > pa) continue;   // an INDEX guard
+        double RR = 0.0;
+        for (int n=0; n<=pb.n; n++)
+            for (int l=0; l<=pb.l; l++)
+                for (int m=0; m<=pb.m; m++)
+                {
+                    const Polarization NLMp(n,l,m);
+                    RR += Hb(NLMp)*R(bNLM+NLMp);
+                }
+        s += Ha(bNLM)*RR;
+    }
+    double factor = 1.0/(ab*std::sqrt(p));
+    factor = (pb.GetTotalL()%2) ? -factor : factor;
+    return s * 2*Pi52*factor;
+}
+
 //! \brief THE THREE-CENTRE GAUSSIAN PRODUCT of primitives a@A, b@B, c@C: exponent sum, the shifts Q-A, Q-B, Q-C and the prefactor
 //! \f$E_{abc}=(\pi/\alpha_Q)^{3/2}e^{-(ab|AB|^2+ac|AC|^2+bc|BC|^2)/\alpha_Q}\f$.  ONE definition: PrimGaussian::GetH3 (the cached
 //! Hermite3) and the cache-free twin Enzyme differentiates (GaussianRF::ThreeCentreGradient) both build their Hermite3 from it.
@@ -385,13 +413,13 @@ public:
     double Overlap2C  (rf_t& rb, po_t& pa, po_t& pb                ) const;
     double Repulsion2C(rf_t& rb, po_t& pa, po_t& pb                ) const;
     double Grad2      (rf_t& rb, po_t& pa, po_t& pb                ) const;   // <p^2> block, no 1/2
-    //! The two 2-centre kernels \c KetGradient differentiates.
-    enum class TwoCentre {Overlap, Grad2};
+    //! The three 2-centre kernels \c KetGradient differentiates: Overlap2C, Grad2 and Repulsion2C.
+    enum class TwoCentre {Overlap, Grad2, Repulsion};
     //! \brief The derivative w.r.t. the KET CENTRE \a B of a weighted shell-pair block of the 2-centre kernel \a K:
     //! \f$\partial_B \sum_{p<n_a,\,q<n_b} W_{pq}\,K(\text{this}, p_a[p];\ rb@B, p_b[q])\f$, \a W row-major \a na x \a nb, the bra at this
     //! radial's centre and the ket on \a rb's primitives placed at \a B (rb's own centre is not read).  Enzyme's reverse mode over the
     //! cache-free kernel (Imp/GaussianRF_AD.C): one pass per shell pair and weight set, which is what a pullback contracts.
-    //! CLIENT: the MnD lattice S / T geometry pullback (PG_Cart_MnD NR_Evaluator::LatticeOneElectronPullback).
+    //! CLIENTS: the MnD S / T geometry pullbacks, lattice and molecular, and the Coulomb metric's (PG_Cart_MnD NR_Evaluator).
     rvec3_t KetGradient(TwoCentre K, rf_t& rb, const rvec3_t& B, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                         const double* W) const;
     //! \brief The geometry derivative of a weighted shell-pair block of the NUCLEAR attraction, every centre moving: with

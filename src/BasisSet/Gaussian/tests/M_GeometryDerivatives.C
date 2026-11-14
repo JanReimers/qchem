@@ -346,7 +346,7 @@ TEST(GeometryDerivatives, PG_CartsCoulombFitPullbacksAreTheFiniteDifferenceOfIts
     const double h=1e-4;
     const auto R=Sites(*h2o);
     rvec3_t s3(0,0,0), s2(0,0,0);
-    double largest=0.0;
+    double largest=0.0, worst3=0.0, worst2=0.0;
     for (size_t at=0;at<R.size();at++)
     {
         s3+=(*F3)[at]; s2+=(*F2)[at];
@@ -358,12 +358,53 @@ TEST(GeometryDerivatives, PG_CartsCoulombFitPullbacksAreTheFiniteDifferenceOfIts
             EXPECT_NEAR(C((*F3)[at],k), f3, 2e-6*std::max(1.0,std::fabs(f3))) << "Σ D a ∂(ij|k)/∂R, atom " << at << " axis " << k;
             EXPECT_NEAR(C((*F2)[at],k), f2, 2e-6*std::max(1.0,std::fabs(f2))) << "Σ A ∂(k|l)/∂R, atom " << at << " axis " << k;
             largest=std::max({largest, std::fabs(f3), std::fabs(f2)});
+            worst3=std::max(worst3, std::fabs(C((*F3)[at],k)-f3)); worst2=std::max(worst2, std::fabs(C((*F2)[at],k)-f2));
         }
     }
+    std::printf("  [Coulomb fit pullbacks] worst |pullback - FD|: 3-centre %.2e, metric %.2e (largest |FD| %.2e); |sum F|: %.1e, %.1e\n",
+                worst3, worst2, largest, norm(s3), norm(s2));
     EXPECT_GT(largest, 0.1) << "the contractions move with the atoms";
     EXPECT_LT(norm(s3), 1e-9); EXPECT_LT(norm(s2), 1e-9);
     EXPECT_THROW((void)dft.MakeRepulsion3CPullback(*fit, hmat_t<double>(n+1), a, h2o.get()), std::invalid_argument) << "a mismatched D";
     EXPECT_THROW((void)metric.MakeRepulsionPullback(rsmat_t(nf+1), h2o.get()), std::invalid_argument) << "a mismatched adjoint";
+}
+
+// ORACLE (since 2026-11-13): the Coulomb-fit pullbacks are Enzyme over the MnD kernels (Repulsion3C, Repulsion2C), so they AGREE with
+// libcint's int3c2e_ip1/_ip2 and int2c2e_ip1 contracted with the same adjoints to the two engines' Boys-function difference, not bit for
+// bit.  Their own correctness is the FD gate above and KetGradient's kernel gates.
+TEST(GeometryDerivatives, PG_CartsCoulombFitPullbacksAgreeWithLibcintsGradients)
+{
+    const auto h2o=Water();
+    auto ibs=Dzvp(h2o.get());
+    std::unique_ptr<BasisSet::rFIT_CD_ABS> fit(ibs->CreateCDFitBasisSet(h2o.get()));
+    const BasisSet::Orbital_DFT_IBS<double>& dft=*ibs;
+    const auto& metric=dynamic_cast<const BasisSet::FIT_CD_NonOrtho&>(*fit);
+    const size_t n=dft.GetNumFunctions(), nf=fit->GetNumFunctions();
+    std::mt19937 rng(11); std::uniform_real_distribution<double> U(-1,1);
+    hmat_t<double> D(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=U(rng);
+    rvec_t a(nf); for (size_t k=0;k<nf;k++) a[k]=U(rng);
+    rsmat_t A(nf); for (size_t k=0;k<nf;k++) for (size_t l=k;l<nf;l++) A(k,l)=U(rng);
+    const auto F3=dft.MakeRepulsion3CPullback(*fit, D, a, h2o.get());
+    const auto F2=metric.MakeRepulsionPullback(A, h2o.get());
+    ASSERT_TRUE(F3 && F2);
+    using PGD=BasisSet::Gaussian::Evaluators::PG_Cart_MnD::PGData;
+    using LC=BasisSet::Gaussian::Evaluators::PG_LibCint::NR_Evaluator;
+    const LC orb(dynamic_cast<const PGD&>(*ibs), h2o.get()), lfit(dynamic_cast<const PGD&>(*fit), h2o.get());
+    rmat_t Dd(D);
+    const auto g3=orb.RepulsionThreeC_Gradient(lfit, Dd, a);
+    const auto g2=lfit.RepulsionTwoC_Gradient(A);
+    ASSERT_EQ(g3.size(), F3->size()); ASSERT_EQ(g2.size(), F2->size());
+    double worst3=0.0, worst2=0.0;
+    for (size_t at=0;at<g3.size();at++)
+        for (int k=0;k<3;k++)
+        {
+            // 1e-9 relative above 1, as the nuclear oracle's: the engines' Boys F_j differ, so their Coulomb values agree to roundoff of
+            // that difference, not bit for bit (measured 2026-11-13: 3-centre 6.3e-12, metric 3.0e-11 against |g| up to ~20).
+            EXPECT_NEAR(C((*F3)[at],k), C(g3[at],k), 1e-9*std::max(1.0,std::fabs(C(g3[at],k)))) << "3-centre, atom " << at << " axis " << k;
+            EXPECT_NEAR(C((*F2)[at],k), C(g2[at],k), 1e-9*std::max(1.0,std::fabs(C(g2[at],k)))) << "metric, atom " << at << " axis " << k;
+            worst3=std::max(worst3, std::fabs(C((*F3)[at],k)-C(g3[at],k))); worst2=std::max(worst2, std::fabs(C((*F2)[at],k)-C(g2[at],k)));
+        }
+    std::printf("  [Coulomb fit, MnD vs libcint] worst |Enzyme-MnD - libcint|: 3-centre %.2e, metric %.2e\n", worst3, worst2);
 }
 
 // The Coulomb-fit Can queries agree with their methods: PG_Cart with its own fit answers both; PG_Spherical, and its own fit, refuse both

@@ -317,33 +317,12 @@ double PrimGaussian::Repulsion2C(const PrimGaussian* a, const PrimGaussian* b,
                                  const Polarization& pa, const Polarization& pb)
 {
     const Ω& ab = findΩ(a->GetGData(), b->GetGData());
-    auto NLMs = Ω::GetNMLs(a->GetL());
     const Hermite1& H1a = a->GetH1();
     const Hermite1& H1b = b->GetH1();
     const RNLM& R = ab.SelfRNLM();
-
-    double factor = 1.0/(ab.ab*sqrt(ab.αₚ));
-    factor = (pb.GetTotalL()%2) ? -factor : factor;
-
-    double s = 0.0;
-    for (auto bNLM:NLMs)
-    {
-        if (bNLM > pa) continue;
-        double ha = H1a(bNLM,pa);
-        if (ha==0.0) continue;
-        double RR = 0.0;
-        for (int n=0; n<=pb.n; n++)
-            for (int l=0; l<=pb.l; l++)
-                for (int m=0; m<=pb.m; m++)
-                {
-                    Polarization NLMp(n,l,m);
-                    double hb = H1b(NLMp,pb);
-                    if (hb!=0.0)
-                        RR += hb*R(bNLM+NLMp);
-                }
-        s += ha*RR;
-    }
-    return s * 2*Pi52*factor;
+    return PairRepulsion2C(ab.ab, ab.αₚ, Ω::GetNMLs(a->GetL()), pa, pb,
+                           [&](const Polarization& n){return H1a(n,pa);}, [&](const Polarization& n){return H1b(n,pb);},
+                           [&R](const Polarization& n){return R(n);});
 }
 
 // <p^2>=<-nabla^2> building block (no 1/2; the Hamiltonian's).

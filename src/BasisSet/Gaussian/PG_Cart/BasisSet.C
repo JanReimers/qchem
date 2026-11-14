@@ -168,7 +168,7 @@ public:
     virtual bool CanPullbackOverlap() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override
         {return qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the PG_Cart fit block", "overlap pullback");}
-    // The Coulomb metric's pullback (the Dunlap force, §13.2): libcint's int2c2e_ip1 on this block's own PGData (Imp/Fit_IBS.C).
+    // The Coulomb metric's pullback (the Dunlap force, §13.2): Enzyme over this block's own MnD Repulsion2C (Imp/Fit_IBS.C).
     virtual bool CanPullbackRepulsion() const override {return true;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const rsmat_t& A, const Structure* st) const override;
     virtual  rvec_t MakeCharge   () const;

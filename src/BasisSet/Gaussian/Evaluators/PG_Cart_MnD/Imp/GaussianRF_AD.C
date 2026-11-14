@@ -88,6 +88,56 @@ double KetPairAt(const double* x, const KetPairCtx* c)
     return s;
 }
 
+// The 2-centre COULOMB (a|b) (TwoCentre::Repulsion: the Coulomb fit's metric), the cache-free twin of PrimGaussian::Repulsion2C: per
+// primitive pair the Gaussian product, F_j(alpha |A-B|^2) with alpha = ab/p and the Hermite-Coulomb recursion at A-B on a flat store (what
+// Ω::SelfRNLM caches), contracted by the shared PairRepulsion2C.  The Hermite1 coefficients of both sides depend on the exponents alone, so
+// they are tabulated OUTSIDE the differentiated function (h: per bra primitive i and component p at hOff[i*na+p], per ket primitive j and
+// component q at hOff[nA*na+j*nb+q], each a box over NLM <= the component) and read as constants.
+struct KetCoulombCtx
+{
+    const double* ea; const double* ca; size_t nA; int LA; const double* A;
+    const double* eb; const double* cb; size_t nB; int LB;
+    const Polarization* pa; size_t na; const Polarization* pb; size_t nb;
+    const double* W;
+    const std::vector<Polarization>* NLMs; const Internal::Boys::AuxillaryFJ* Fj;
+    const double* h; const size_t* hOff;
+};
+double KetCoulombAt(const double* x, const KetCoulombCtx* c)
+{
+    using Internal::MnD::Triangle3D;
+    const rvec3_t A(c->A[0],c->A[1],c->A[2]), B(x[0],x[1],x[2]);
+    const int Lr=c->LA+c->LB;   // as Ω::Ltotal
+    auto tri=[](int n){return size_t(n+1)*(n+2)*(n+3)/6;};
+    std::vector<size_t> off(Lr+2,0);
+    for (int j=0;j<=Lr;j++) off[j+1]=off[j]+tri(Lr-j);
+    std::vector<double> store(off[Lr+1],0.0), Fj(Lr+1,0.0);
+    auto at=[&](int j, int N, int L, int M) -> double&
+    {   const int n=Lr-j; return store[off[j]+Triangle3D::Layer(n-N)+Triangle3D::Row(n-N-L)+size_t(n-N-L-M)]; };
+    auto Rof=[&](const Polarization& m){ return store[Triangle3D::Layer(Lr-m.n)+Triangle3D::Row(Lr-m.n-m.l)+size_t(Lr-m.n-m.l-m.m)]; };
+    auto box=[](const double* t, const Polarization& P){ return [t,&P](const Polarization& n){ return t[(size_t(n.n)*(P.l+1)+n.l)*(P.m+1)+n.m]; }; };
+    double s=0.0;
+    for (size_t i=0;i<c->nA;i++)
+        for (size_t j=0;j<c->nB;j++)
+        {
+            const GaussProduct gp(c->ea[i],A,c->eb[j],B);
+            const double alpha=gp.ab/gp.p;   // as Ω::SelfRNLM
+            c->Fj->GetFjAt(alpha*(gp.AB*gp.AB), Fj);
+            Internal::MnD::HermiteCoulomb(Lr, alpha, gp.AB, Fj, at);
+            double t=0.0;
+            for (size_t p=0;p<c->na;p++)
+                for (size_t q=0;q<c->nb;q++)
+                {
+                    const double w=c->W[p*c->nb+q];
+                    if (w==0.0) continue;   // a constant weight
+                    const double* ha=c->h+c->hOff[i*c->na+p];
+                    const double* hb=c->h+c->hOff[c->nA*c->na+j*c->nb+q];
+                    t += w*PairRepulsion2C(gp.ab,gp.p,*c->NLMs,c->pa[p],c->pb[q],box(ha,c->pa[p]),box(hb,c->pb[q]),Rof);
+                }
+            s += c->ca[i]*c->cb[j]*t;
+        }
+    return s;
+}
+
 rvec3_t GaussianRF::KetGradient(TwoCentre K, rf_t& rb, const rvec3_t& B, const Polarization* pa, size_t na, const Polarization* pb,
                                 size_t nb, const double* W) const
 {
@@ -95,9 +145,34 @@ rvec3_t GaussianRF::KetGradient(TwoCentre K, rf_t& rb, const rvec3_t& B, const P
     for (size_t i=0;i<ea.size();i++) ea[i]=itsPrims[i]->GetExponent();
     for (size_t j=0;j<eb.size();j++) eb[j]=rb.itsPrims[j]->GetExponent();
     const double A[3]={itsCenter.x,itsCenter.y,itsCenter.z};
+    double x[3]={B.x,B.y,B.z}, g[3]={0.0,0.0,0.0};
+    if (K==TwoCentre::Repulsion)
+    {
+        std::vector<double> h; std::vector<size_t> hOff;
+        auto table=[&](const GaussianRF& r, const Polarization* P, size_t nP)
+        {
+            for (const auto& prim : r.itsPrims)
+            {
+                const Hermite1& H1=prim->GetH1();
+                for (size_t u=0;u<nP;u++)
+                {
+                    hOff.push_back(h.size());
+                    for (int n=0;n<=P[u].n;n++) for (int l=0;l<=P[u].l;l++) for (int m=0;m<=P[u].m;m++)
+                        h.push_back(H1(Polarization(n,l,m),P[u]));
+                }
+            }
+        };
+        table(*this, pa, na);
+        table(rb, pb, nb);
+        const Internal::Boys::AuxillaryFJ Fj(itsL+rb.itsL);   // throws past the Boys table, before the AD call
+        if (Ω::theNMLs.size()==0) Ω::MakeNMLs();
+        const KetCoulombCtx c{ea.data(), itsCoeff.data(), ea.size(), itsL, A, eb.data(), rb.itsCoeff.data(), eb.size(), rb.itsL,
+                              pa, na, pb, nb, W, &Ω::GetNMLs(itsL), &Fj, h.data(), hOff.data()};
+        __enzyme_autodiff<void>(reinterpret_cast<void*>(KetCoulombAt), enzyme_dup, x, g, enzyme_const, &c);
+        return rvec3_t(g[0],g[1],g[2]);
+    }
     const KetPairCtx c{K, ea.data(), itsCoeff.data(), ea.size(), itsL, A, eb.data(), rb.itsCoeff.data(), eb.size(), rb.itsL,
                        pa, na, pb, nb, W};
-    double x[3]={B.x,B.y,B.z}, g[3]={0.0,0.0,0.0};
     __enzyme_autodiff<void>(reinterpret_cast<void*>(KetPairAt), enzyme_dup, x, g, enzyme_const, &c);
     return rvec3_t(g[0],g[1],g[2]);
 }
