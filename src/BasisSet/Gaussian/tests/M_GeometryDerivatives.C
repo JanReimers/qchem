@@ -116,8 +116,11 @@ TEST(PointJets, TheDensityPullbackIsTheWeightedSumOfTheDensityJets)
     EXPECT_THROW(J.AddDensityPullback(D, rvec_t(2), F), std::invalid_argument);
 }
 
-TEST(GeometryDerivatives, PG_CartsPullbacksAreLibcintsGradientsContractedAndTranslationInvariant)
+// ORACLE (since 2026-11-13): PG_Cart's overlap, kinetic and nuclear pullbacks are Enzyme over the MnD kernel, so they AGREE with libcint's
+// derivative integrals contracted with A (the nuclear one with the nuclei moving) to roundoff, not bit for bit.
+TEST(GeometryDerivatives, PG_CartsPullbacksAgreeWithLibcintsGradientsContractedAndTranslationInvariant)
 {
+    double worstS=0.0, worstK=0.0, worstV=0.0;
     std::unique_ptr<Molecule> h2o(new Molecule(StructureData::GetMolecule("H2O")));
     const Orbital_IBS ibs(rvec_t{1.0, 0.25}, 2, h2o.get());
     const BasisSet::Orbital_1E_IBS<double>& block=ibs;   // a term holds this face; it asks it, no cast
@@ -137,11 +140,17 @@ TEST(GeometryDerivatives, PG_CartsPullbacksAreLibcintsGradientsContractedAndTran
         {
             double s=0, kk=0, v=0;
             for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) { s+=A(i,j)*dS[at][k](i,j); kk+=A(i,j)*dK[at][k](i,j); v+=A(i,j)*dV[at][k](i,j); }
-            EXPECT_DOUBLE_EQ(C((*FS)[at],k), s); EXPECT_DOUBLE_EQ(C((*FK)[at],k), kk); EXPECT_DOUBLE_EQ(C((*FV)[at],k), v);
+            EXPECT_NEAR(C((*FS)[at],k), s,  1e-11*std::max(1.0,std::fabs(s)));  worstS=std::max(worstS,std::fabs(C((*FS)[at],k)-s));
+            EXPECT_NEAR(C((*FK)[at],k), kk, 1e-11*std::max(1.0,std::fabs(kk))); worstK=std::max(worstK,std::fabs(C((*FK)[at],k)-kk));
+            // V at 1e-9, not 1e-11: the two engines' Boys F_j differ (MnD's tabulated Taylor vs libcint's own), so their nuclear VALUES agree
+            // to ~1e-10 per element (M_LibCint.matrix_1E_matches_scalar's tolerance); measured 1.6e-10 contracted.  The force's own
+            // correctness is the FD gate below and KetGradient.TheNuclearTwin...: it differentiates MnD's energy, Boys table included.
+            EXPECT_NEAR(C((*FV)[at],k), v,  1e-9*std::max(1.0,std::fabs(v)));   worstV=std::max(worstV,std::fabs(C((*FV)[at],k)-v));
         }
         sS+=(*FS)[at]; sK+=(*FK)[at]; sV+=(*FV)[at];
     }
     EXPECT_LT(norm(sS), 1e-11); EXPECT_LT(norm(sK), 1e-10); EXPECT_LT(norm(sV), 1e-10);
+    std::printf("  [MnD vs libcint] worst |Enzyme-MnD - libcint| contracted: S %.2e, T %.2e, V %.2e\n", worstS, worstK, worstV);
     EXPECT_THROW((void)block.MakeOverlapPullback(hmat_t<double>(n+1), h2o.get()), std::invalid_argument) << "a mismatched adjoint throws";
 }
 

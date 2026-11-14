@@ -231,6 +231,24 @@ inline double PairGrad2(double p, double Eij, double a, double b, double ab, con
     return std::pow(Pi/p,1.5)*Eij*h;
 }
 
+//! \brief THE NUCLEAR ATTRACTION OF ONE PRIMITIVE PAIR, from its product (\a p, \a Eij), its Hermite block \a H2 and the nuclei's summed
+//! Hermite-Coulomb table \a R (\f$\sum_C -Z_C R_{NLM}(p, P-C)\f$, read through \a R(NLM)), over the Hermite indices \a NLMs (Ω::GetNMLs):
+//! ONE definition, shared by the cached \c PrimGaussian::Nuclear and the cache-free twin Enzyme differentiates (GaussianRF::NuclearGradient).
+//! NO zero-value skip on the Hermite coefficient (the cached kernel had one): a coefficient zero by symmetry has a derivative that is not.
+template <class Rfn>
+inline double PairNuclear(double p, double Eij, const Hermite2& H2, const Polarization& pa, const Polarization& pb,
+                          const std::vector<Polarization>& NLMs, Rfn&& R)
+{
+    const Polarization Pab = pa + pb;
+    double s = 0.0;
+    for (const Polarization& bNLM : NLMs)
+    {
+        if (bNLM > Pab) continue;   // an INDEX guard: safe under AD
+        s += H2(bNLM,pa,pb)*R(bNLM);
+    }
+    return s * 2*Pi/p*Eij;
+}
+
 // Global Cache2/Cache3 access points (the only way the kernels reach Ω / the auxiliaries).
 const Ω&        findΩ   (const GData& a, const GData& b);                          // primitive pair
 const RNLM&     findRNLM(const GData& ab, const GData& c);                         // 3/4-centre RNLM
@@ -333,6 +351,12 @@ public:
     //! CLIENT: the MnD lattice S / T geometry pullback (PG_Cart_MnD NR_Evaluator::LatticeOneElectronPullback).
     rvec3_t KetGradient(TwoCentre K, rf_t& rb, const rvec3_t& B, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                         const double* W) const;
+    //! \brief The geometry derivative of a weighted shell-pair block of the NUCLEAR attraction, every centre moving: with
+    //! \f$f=\sum_{pq}W_{pq}\langle a\,p_a[p]|\sum_C -Z_C/|r-R_C|\,|b\,p_b[q]\rangle\f$ (bra at this radial's centre A, ket at \a rb's centre B),
+    //! \a gA = ∂f/∂A, \a gB = ∂f/∂B and \a gC[k] = ∂f/∂C_k for the nuclei \a C with charges \a Z.  Enzyme's reverse mode over the cache-free
+    //! twin of \c Nuclear (Imp/GaussianRF_AD.C), one pass.  CLIENT: the molecular nuclear pullback (PG_Cart_MnD NR_Evaluator).
+    void NuclearGradient(rf_t& rb, const Polarization* pa, size_t na, const Polarization* pb, size_t nb, const double* W,
+                         const std::vector<rvec3_t>& C, const std::vector<double>& Z, rvec3_t& gA, rvec3_t& gB, std::vector<rvec3_t>& gC) const;
     double Nuclear    (rf_t& rb, po_t& pa, po_t& pb, const Structure* cl) const;
     double Overlap3C  (rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
     double Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C

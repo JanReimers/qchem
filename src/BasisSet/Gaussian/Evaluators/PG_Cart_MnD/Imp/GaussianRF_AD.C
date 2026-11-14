@@ -13,8 +13,13 @@
 // filling a loop-local array through an inner loop with a data-dependent trip count, is absent here: both loops accumulate a scalar.
 module;
 #include <enzyme/enzyme>
+#include <stdexcept>
+#include <string>
 #include <vector>
 module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
+import qchem.BasisSet.Gaussian.Evaluators.Internal.Boys.AuxillaryFJ;   // F_j (the nuclear twin)
+import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.RNLM;          // HermiteCoulomb
+import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.Triangle3D;    // the layer/row index of a Hermite-Coulomb triangle
 
 namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
 {
@@ -94,6 +99,82 @@ rvec3_t GaussianRF::KetGradient(TwoCentre K, rf_t& rb, const rvec3_t& B, const P
     double x[3]={B.x,B.y,B.z}, g[3]={0.0,0.0,0.0};
     __enzyme_autodiff<void>(reinterpret_cast<void*>(KetPairAt), enzyme_dup, x, g, enzyme_const, &c);
     return rvec3_t(g[0],g[1],g[2]);
+}
+
+
+// THE NUCLEAR ATTRACTION'S GEOMETRY DERIVATIVE, every centre moving (lane B 2026-11-13; it replaced libcint's int1e_ipnuc + int1e_iprinv
+// for the molecular PG_Cart pullback).  The cache-free twin of PrimGaussian::Nuclear: per primitive pair the Gaussian product and the
+// Hermite2 block, per nucleus F_j(T) (Boys::AuxillaryFJ::GetFjAt) and the Hermite-Coulomb recursion (MnD::HermiteCoulomb) on a flat local
+// store, summed with -Z_C as the cached RNLM::Add does, contracted by the shared PairNuclear.  The active input is every centre at once,
+// x = [A, B, C_0 .. C_{n-1}], so one reverse pass gives the bra, the ket and every nucleus.  Gated by tests/M_GeometryDerivatives.C
+// (the FD of the energy's own matrices; libcint's NuclearGradient as an oracle) and tests/M_KetGradient.C (the kernel's own FD).
+struct NucPairCtx
+{
+    const double* ea; const double* ca; size_t nprimA; int LA;
+    const double* eb; const double* cb; size_t nprimB; int LB;
+    const Polarization* pa; size_t na; const Polarization* pb; size_t nb;
+    const double* W; const double* Z; size_t nC;
+    const std::vector<Polarization>* NLMs; const Internal::Boys::AuxillaryFJ* Fj;
+};
+double NucPairAt(const double* x, const NucPairCtx* c)
+{
+    using Internal::MnD::Triangle3D;
+    const rvec3_t A(x[0],x[1],x[2]), B(x[3],x[4],x[5]);
+    const int Ltot=c->LA+c->LB;
+    auto tri=[](int n){return size_t(n+1)*(n+2)*(n+3)/6;};
+    std::vector<size_t> off(Ltot+2,0);
+    for (int j=0;j<=Ltot;j++) off[j+1]=off[j]+tri(Ltot-j);
+    std::vector<double> store(off[Ltot+1],0.0), Rsum(tri(Ltot),0.0), Fj(Ltot+1,0.0);
+    auto at=[&](int j, int N, int L, int M) -> double&
+    {   const int n=Ltot-j; return store[off[j]+Triangle3D::Layer(n-N)+Triangle3D::Row(n-N-L)+size_t(n-N-L-M)]; };
+    double s=0.0;
+    for (size_t i=0;i<c->nprimA;i++)
+        for (size_t j=0;j<c->nprimB;j++)
+        {
+            const GaussProduct gp(c->ea[i],A,c->eb[j],B);
+            const Hermite2 H2(gp.p,gp.PA,gp.PB,c->LA+1,c->LB+1);   // as Ω's
+            for (double& r : Rsum) r=0.0;
+            for (size_t k=0;k<c->nC;k++)
+            {
+                const rvec3_t dR=gp.P-rvec3_t(x[6+3*k],x[7+3*k],x[8+3*k]);
+                c->Fj->GetFjAt(gp.p*dR*dR, Fj);
+                Internal::MnD::HermiteCoulomb(Ltot, gp.p, dR, Fj, at);
+                for (size_t q=0;q<Rsum.size();q++) Rsum[q]+=store[q]*(-1.0*c->Z[k]);   // layer j = 0 is store[0 .. tri(Ltot))
+            }
+            auto Rof=[&](const Polarization& m){ return Rsum[Triangle3D::Layer(Ltot-m.n)+Triangle3D::Row(Ltot-m.n-m.l)+size_t(Ltot-m.n-m.l-m.m)]; };
+            double t=0.0;
+            for (size_t p=0;p<c->na;p++)
+                for (size_t q=0;q<c->nb;q++)
+                {
+                    const double w=c->W[p*c->nb+q];
+                    if (w==0.0) continue;   // a constant weight: safe
+                    t += w*PairNuclear(gp.p,gp.Eij,H2,c->pa[p],c->pb[q],*c->NLMs,Rof);
+                }
+            s += c->ca[i]*c->cb[j]*t;
+        }
+    return s;
+}
+
+void GaussianRF::NuclearGradient(rf_t& rb, const Polarization* pa, size_t na, const Polarization* pb, size_t nb, const double* W,
+                                 const std::vector<rvec3_t>& C, const std::vector<double>& Z, rvec3_t& gA, rvec3_t& gB,
+                                 std::vector<rvec3_t>& gC) const
+{
+    if (C.size()!=Z.size()) throw std::invalid_argument("GaussianRF::NuclearGradient: "+std::to_string(C.size())+" nuclei, "+std::to_string(Z.size())+" charges");
+    std::vector<double> ea(itsPrims.size()), eb(rb.itsPrims.size());
+    for (size_t i=0;i<ea.size();i++) ea[i]=itsPrims[i]->GetExponent();
+    for (size_t j=0;j<eb.size();j++) eb[j]=rb.itsPrims[j]->GetExponent();
+    const int Ltot=itsL+rb.itsL;
+    if (Ω::theNMLs.size()==0) Ω::MakeNMLs();
+    const Internal::Boys::AuxillaryFJ Fj(Ltot);   // throws past the Boys table, before the AD call
+    const NucPairCtx c{ea.data(), itsCoeff.data(), ea.size(), itsL, eb.data(), rb.itsCoeff.data(), eb.size(), rb.itsL,
+                       pa, na, pb, nb, W, Z.data(), Z.size(), &Ω::GetNMLs(Ltot), &Fj};
+    std::vector<double> x(6+3*C.size()), g(x.size(),0.0);
+    x[0]=itsCenter.x; x[1]=itsCenter.y; x[2]=itsCenter.z; x[3]=rb.itsCenter.x; x[4]=rb.itsCenter.y; x[5]=rb.itsCenter.z;
+    for (size_t k=0;k<C.size();k++) { x[6+3*k]=C[k].x; x[7+3*k]=C[k].y; x[8+3*k]=C[k].z; }
+    __enzyme_autodiff<void>(reinterpret_cast<void*>(NucPairAt), enzyme_dup, x.data(), g.data(), enzyme_const, &c);
+    gA=rvec3_t(g[0],g[1],g[2]); gB=rvec3_t(g[3],g[4],g[5]);
+    gC.assign(C.size(), rvec3_t(0,0,0));
+    for (size_t k=0;k<C.size();k++) gC[k]=rvec3_t(g[6+3*k],g[7+3*k],g[8+3*k]);
 }
 
 } //namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD

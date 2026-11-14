@@ -422,13 +422,19 @@ add_subdirectory(./CLIapps)
 # The CLI apps ride every sweep build: a stale rundeck/valgen against a rebuilt libqchem segfaulted (lane G) or silently dropped
 # its report (lane H, 2026-11-11), because no sweep or nightly relinked them.  A new app in CLIapps/ joins this list.
 add_custom_target(allApps
-    DEPENDS scfrun valgen gpwprobe rundeck gth2upf
     COMMENT "Build all CLI apps"
 )
+add_dependencies(allApps scfrun valgen gpwprobe rundeck gth2upf)   # add_dependencies, not DEPENDS: the executable audit below reads it
+# Benchmarks and profiling drivers: not tests, but they must COMPILE on every landing (lane B 2026-11-13: MnDBench had been broken since
+# c926486ca, 2026-11-04, because nothing in allTests built it -- the _NOT_BUILT trap's silent-rot class).
+add_custom_target(allBenches
+    COMMENT "Build all benchmark / profiling drivers"
+)
+add_dependencies(allBenches MnDBench)   # add_dependencies, not DEPENDS: the executable audit below reads it
 add_custom_target(allTests
-    DEPENDS allApps ITMain UTAD UTCommon UTOptimize UTCalculation UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTRadial_BS UTGaussian_BS UTLattice_BS UTLASolver UTSCFAccelerator UTSCFIterator UTResponse UTWaveFunction
     COMMENT "Build all unit test executables"
 )
+add_dependencies(allTests allApps allBenches ITMain UTAD UTCommon UTOptimize UTCalculation UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTRadial_BS UTGaussian_BS UTLattice_BS UTLASolver UTSCFAccelerator UTSCFIterator UTResponse UTWaveFunction)   # add_dependencies, not DEPENDS: the executable audit below reads it
 # libxc and libcint (cmake/Dependencies.cmake), after the project's own targets, their tests off.
 qchem_build_c_dependencies()
 
@@ -488,3 +494,59 @@ endforeach()
 foreach(t IN LISTS qchem_defs_libs)
     target_link_options(${t} PRIVATE "LINKER:-z,defs")
 endforeach()
+
+# EVERY PROJECT EXECUTABLE IS BUILT BY allTests (lane B 2026-11-13).  An executable no sweep builds rots silently: MnDBench broke on
+# 2026-11-04 and nobody saw it for nine days, the class the _NOT_BUILT trap belongs to (CLAUDE.md).  So configure walks the project's own
+# trees (the root, src/, IntegrationTests/, CLIapps/; submodules and pybind/ are not touched) for EXECUTABLE targets and STOPS, naming
+# them, when one is not reachable from allTests through the add_dependencies of the custom targets (allApps, allBenches, ...).  Fix: add it to the
+# matching list above.
+function(qchem_executables_under dir out)
+    get_property(targets DIRECTORY ${dir} PROPERTY BUILDSYSTEM_TARGETS)
+    get_property(subdirs DIRECTORY ${dir} PROPERTY SUBDIRECTORIES)
+    set(found "")
+    foreach(t IN LISTS targets)
+        get_target_property(type ${t} TYPE)
+        if(type STREQUAL "EXECUTABLE")
+            list(APPEND found ${t})
+        endif()
+    endforeach()
+    foreach(d IN LISTS subdirs)
+        qchem_executables_under(${d} sub)
+        list(APPEND found ${sub})
+    endforeach()
+    set(${out} ${found} PARENT_SCOPE)
+endfunction()
+set(qchem_all_exes "")
+foreach(t IN LISTS qchem_root_targets)
+    get_target_property(type ${t} TYPE)
+    if(type STREQUAL "EXECUTABLE")
+        list(APPEND qchem_all_exes ${t})
+    endif()
+endforeach()
+foreach(d src IntegrationTests CLIapps)
+    qchem_executables_under(${CMAKE_CURRENT_SOURCE_DIR}/${d} exes)
+    list(APPEND qchem_all_exes ${exes})
+endforeach()
+set(qchem_reached "")
+set(qchem_frontier allTests)
+while(qchem_frontier)
+    list(POP_FRONT qchem_frontier t)
+    if(t IN_LIST qchem_reached OR NOT TARGET ${t})
+        continue()
+    endif()
+    list(APPEND qchem_reached ${t})
+    get_target_property(deps ${t} MANUALLY_ADDED_DEPENDENCIES)
+    if(deps)
+        list(APPEND qchem_frontier ${deps})
+    endif()
+endwhile()
+set(qchem_unbuilt "")
+foreach(e IN LISTS qchem_all_exes)
+    if(NOT e IN_LIST qchem_reached)
+        list(APPEND qchem_unbuilt ${e})
+    endif()
+endforeach()
+if(qchem_unbuilt)
+    message(FATAL_ERROR "These executables are not built by allTests, so no sweep or landing would ever compile them: ${qchem_unbuilt}.  "
+        "Add each to the add_dependencies list of allApps, allBenches or allTests in the root CMakeLists.txt (the rule beside this check).")
+endif()

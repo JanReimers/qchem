@@ -112,54 +112,32 @@ protected:
     const E& Cast() const {return dynamic_cast<const E&>(*this);}
 
 public:
-    // d/dR (GeometryOptimizationPlan §13.2): libcint's derivative integrals on this block's own PGData, for the Cartesian PG_Cart evaluator
-    // (increment 1).  Every other Gaussian evaluator refuses until it has them.
-    virtual bool CanPullbackOverlap() const override {return kLibcint;}
-    virtual bool CanPullbackKinetic() const override {return kLibcint;}
-    virtual bool CanPullbackNuclear() const override {return kLibcint;}
+    // d/dR (GeometryOptimizationPlan §13.2), for the Cartesian PG_Cart (MnD) evaluator; every other Gaussian evaluator refuses until it has
+    // them.  All three are Enzyme over the MnD kernel (NR_Evaluator::MolecularOneElectronPullback / MolecularNuclearPullback, lane B
+    // 2026-11-13): the force differentiates the formula the energy sums, with libcint out of the path (the user's 2026-11-10 ruling).
+    virtual bool CanPullbackOverlap() const override {return kMnD;}
+    virtual bool CanPullbackKinetic() const override {return kMnD;}
+    virtual bool CanPullbackNuclear() const override {return kMnD;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>& W, const Structure* st) const override
     {
-        if constexpr (kLibcint) return Outcome<rvec3vec_t,AD::NoGradient>::Ok(Contract(LibCint<E>(st).OverlapGradient(), W));
+        if constexpr (kMnD)
+            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(Cast().MolecularOneElectronPullback(E::SeriesKernel::Overlap, W, st));
         else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", "overlap pullback");
     }
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<double>& D, const Structure* st) const override
     {
-        if constexpr (kLibcint) return Outcome<rvec3vec_t,AD::NoGradient>::Ok(Contract(LibCint<E>(st).KineticGradient(), D));
+        if constexpr (kMnD)
+            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(Cast().MolecularOneElectronPullback(E::SeriesKernel::Kinetic, D, st));
         else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", "kinetic pullback");
     }
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<double>& D, const Structure* st) const override
     {
-        if constexpr (kLibcint) return Outcome<rvec3vec_t,AD::NoGradient>::Ok(Contract(LibCint<E>(st).NuclearGradient(), D));
+        if constexpr (kMnD) return Outcome<rvec3vec_t,AD::NoGradient>::Ok(Cast().MolecularNuclearPullback(D, st));
         else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", "nuclear pullback");
     }
 private:
-    static constexpr bool kLibcint=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
-    //! A TEMPLATE, so it is instantiated only inside the kLibcint branch: for any other evaluator Cast() is no PGData.
-    template <class EE> Evaluators::PG_LibCint::NR_Evaluator LibCint(const Structure* st) const
-    {
-        if (!st) throw std::invalid_argument("EOrbital_1E_IBS: a geometry pullback needs the structure");
-        const EE& e=dynamic_cast<const EE&>(*this);
-        return Evaluators::PG_LibCint::NR_Evaluator(static_cast<const Evaluators::PG_Cart_MnD::PGData&>(e), st);
-    }
-    //! Σ_ij A_ij dM_ij/dR_atom for every atom: a per-atom gradient-matrix set contracted with the adjoint.
-    static rvec3vec_t Contract(const Evaluators::PG_LibCint::NR_Evaluator::GradientMatrices& dM, const hmat_t<double>& A)
-    {
-        rvec3vec_t F(dM.size(), rvec3_t(0,0,0));
-        for (size_t at=0;at<dM.size();at++)
-        {
-            double x[3]={0,0,0};
-            for (int k=0;k<3;k++)
-            {
-                const rmat_t& M=dM[at][k];
-                if (M.rows()!=A.rows() || M.columns()!=A.columns())
-                    throw std::invalid_argument("EOrbital_1E_IBS: the adjoint is "+std::to_string(A.rows())+" x "+std::to_string(A.columns())+
-                                                ", the block's matrices are "+std::to_string(M.rows())+" x "+std::to_string(M.columns()));
-                for (size_t i=0;i<M.rows();i++) for (size_t j=0;j<M.columns();j++) x[k]+=A(i,j)*M(i,j);
-            }
-            F[at]=rvec3_t(x[0],x[1],x[2]);
-        }
-        return F;
-    }
+    //! The Cartesian MnD evaluator: the one whose kernels the pullbacks differentiate.
+    static constexpr bool kMnD=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
 };
 
 // --- Species fields: the analytic local PP and KB projectors -----------------------------------------
