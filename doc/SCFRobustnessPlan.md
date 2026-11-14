@@ -228,8 +228,8 @@ nobody), naming the object that broke it and the iteration.
     | regime \ stage | COLD (seeded) | CARRIED (anneal, U loop, ±α, geometry step) | RESTORED (same Hamiltonian) |
     |---|---|---|---|
     | `Insulator` | Null + Pulay-D (α 0.45, depth 8, start 5) | Null + Pulay-D, fresh history | kT 0: Ladder@GDM + linear ≤ 0.3; kT > 0 or a partial eigensolve: DIIS + linear ≤ 0.3 |
-    | `MagneticInsulator` | Null + K+P (G0 1.0, α 0.45, depth 8, start 5), no MOM | Null + K+P, fresh history | DIIS + linear ≤ 0.3 |
-    | `Metal` | Null + K+P (G0 1.0 PROVISIONAL until Q4's Al measurement, α 0.45, depth 8, start 5) | Null + K+P, fresh history | DIIS + linear ≤ 0.3 |
+    | `MagneticInsulator` | Null + K+P (G0 1.0, α 0.45, depth 8, start 5), no MOM | Null + K+P, fresh history | ~~DIIS + linear ≤ 0.3~~ Null + K+P, history from iteration 1 (start 0) — Q-R (b) |
+    | `Metal` | Null + K+P (G0 1.0 PROVISIONAL until Q4's Al measurement, α 0.45, depth 8, start 5) | Null + K+P, fresh history | ~~DIIS + linear ≤ 0.3~~ Null + K+P, history from iteration 1 (start 0) — Q-R (b) |
 
   - The stop gate (`MinΔρPerElectron` + `MinFD`, R4.2) and the cap (`NMaxIter`) are not touched by B5.
   - `MagneticInsulator` is exactly the banked MnO free recipe (`decks/MnO_AFM2_free.json`).
@@ -266,6 +266,14 @@ nobody), naming the object that broke it and the iteration.
     `MagneticInsulator` but KEEPS its knobs, because its pilot restore runs on the stated Null + K+P, not this table's restored
     column (DIIS + linear) -- whether a named field-mixer regime should restore on its field mixer (row 4's "Pulay from iteration 1")
     is open, Q-R in lane A's READY.
+  - **Q-R RULED (b) and BUILT 2026-11-13 (lane A)**: a named `MagneticInsulator` / `Metal` RESTORES on its own Null + K+P with the
+    Pulay history from iteration 1 (`pulayStart` 0), not on DIIS + linear ≤ 0.3; `Auto` / `Insulator` keep row 4 (with the 0.3
+    ceiling cap).  The policy line reads "row 4, the K+P restore".  Gates: `SCFRecipe.NamedRegimesResolveTheirSection3Cells` (the
+    restored golden rows), panel `GPW_NiO.k222_Pol_Smear_Kerker_Pulay_Null_Saved_RestoresOnItsOwnHistory_Panel_Long` (a WARM restore
+    of a vendored pilot-sized NiO k222 state onto the cold grids: 11 iterations, first iterate pinned, the cold run's E to 1e-9).
+    Measured on that restore: row 4 (recipe `Insulator`) stops FALSELY at iteration 1 (Δρ 6.5e-13, [F,D] 6.9e-4, 147 nHa high), the
+    second case of OpenWork §3 "A Δρ-only stop certifies an unconverged iterate".  An EXACT resume converges in 1 iteration under
+    either recipe, so it is not the gate.  Record: lane A note `laneA-QR-measured.md`.
 
 ### P4a — the regime matrix is the `Auto` spec (§3)
 

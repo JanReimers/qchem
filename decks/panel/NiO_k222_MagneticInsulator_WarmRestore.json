@@ -1,0 +1,62 @@
+{
+ "_doc": [
+  "CONVERGENCE PANEL (doc/SCFRobustnessPlan.md §4), Q-R ruling (b) (user 2026-11-13): a named MagneticInsulator RESTORES on Null + Kerker+Pulay with its history from iteration 1 (pulayStart 0), not on row 4's DIIS + linear <= 0.3.  NiO AFM-II, k222, free, kT 0.005, VA spherical.",
+  "WARM restart: the vendored state decks/states/NiO_AFM2_k222_MagneticInsulator.h5 (the pilot-sized state: cutoffFactor 4, V_long x 4.97; saved by ~/Code/qchem6-runs/NiO/laneA_qr_cold.json, cold 18 + pilot 10 iterations, E -106.3510571976) restored onto the cold run's FIRST grids stated here (cutoffFactor 2, rasters x 0), so the density MOVES (an exact resume converges in 1 iteration on any recipe and proves nothing about Q-R).",
+  "Measured 2026-11-13 (6 threads): MagneticInsulator 11 iterations, first iterate -106.351423122, E -106.3514267282 = the cold run's -106.3514267289 on these grids, Ni moment 1.376.  The same restart as recipe Insulator (row 4) stops FALSELY at iteration 1 (drho 6.5e-13, [F,D] 6.9e-4, E 147 nHa high).  NMaxIter is above the budget so a slow restore fails on the BUDGET, not the cap."
+ ],
+ "structure": "NiO_AFM2",
+ "kmesh": [
+  2,
+  2,
+  2
+ ],
+ "basis": {
+  "data": "VALENCE_LOWQ_VA",
+  "angular": "spherical"
+ },
+ "solid": {
+  "multiplicity": 1,
+  "siteSpins": [
+   1,
+   -1,
+   0,
+   0
+  ],
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.0001,
+  "imposeSymmetry": false,
+  "cutoffFactor": 2.0,
+  "tolerances": {
+   "rasterX": 0.0,
+   "vlocRasterX": 0.0,
+   "xcRasterX": 0.0,
+   "vlocEps": 1e-06
+  },
+  "xcMesh": {
+   "cellKind": "Becke",
+   "nRadial": 40,
+   "angularDegree": 29,
+   "angular": "Lebedev",
+   "angRot": 0.5,
+   "beckeOrder": 3,
+   "mhlM": 2
+  }
+ },
+ "scf": {
+  "recipe": "MagneticInsulator",
+  "NMaxIter": 30,
+  "minDeltaRhoPerElectron": 1e-07,
+  "deltaRhoMeasure": "MaxDeltaD",
+  "minDeltaE": "off",
+  "minDeltaFD": "off",
+  "minVirial": "off",
+  "minFD": "off",
+  "mergeTol": 0.0001,
+  "smearingkT": 0.005
+ },
+ "state": {
+  "restartFrom": "NiO_AFM2_k222_MagneticInsulator.h5"
+ },
+ "accuracy": 0
+}

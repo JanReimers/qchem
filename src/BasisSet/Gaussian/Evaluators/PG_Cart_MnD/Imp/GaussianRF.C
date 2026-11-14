@@ -304,56 +304,13 @@ const Hermite1& PrimGaussian::GetH1() const
     return *itsH1;
 }
 
-//
-//  Symmetric "gradient-dot-gradient" form of the kinetic-energy building block for a pair of
-//  Cartesian Gaussians \f$\phi_a,\phi_b\f$.  The (non-relativistic) kinetic-energy operator is
-//  \f$\hat T = -\tfrac12\nabla^2\f$, so the matrix element ultimately wanted is
-//  \f[ T_{ab} = -\tfrac12\,\langle\phi_a|\nabla^2|\phi_b\rangle . \f]
-//  Integrating by parts (the surface term vanishes for localized Gaussians) gives the symmetric,
-//  manifestly positive-definite form returned here:
-//  \f[ \texttt{Grad2}_{ab} \;=\; \langle\phi_a|-\nabla^2|\phi_b\rangle
-//        \;=\; \int \nabla\phi_a\cdot\nabla\phi_b \, d^3r . \f]
-//  So \b Grad2 is the matrix of \f$-\nabla^2\f$ (NOT \f$+\nabla^2\f$) -- the name reads as
-//  \f$\nabla\!\cdot\!\nabla\f$, which is why it is positive.  The factor \f$\tfrac12\f$ is applied
-//  later, at the boundary where the word "Kinetic" is introduced: \f$T = \tfrac12\,\texttt{Grad2}\f$.
-//
-//  Per Cartesian axis (x shown; y,z analogous) with \f$l_a=\f$ p1.n, \f$l_b=\f$ p2.n,
-//  \f$\alpha=\f$ ab.a, \f$\beta=\f$ ab.b, and \f$S(\cdot,\cdot)=\f$ ab.H2(0,\f$\cdot,\cdot\f$) the
-//  overlap building block:
-//  \f[ t_{xx} = l_a l_b\,S(l_a\!-\!1,l_b\!-\!1) - 2\beta l_a\,S(l_a\!-\!1,l_b\!+\!1)
-//             - 2\alpha l_b\,S(l_a\!+\!1,l_b\!-\!1) + 4\alpha\beta\,S(l_a\!+\!1,l_b\!+\!1) , \f]
-//  and \f$\texttt{Grad2}=t_{xx}+t_{yy}+t_{zz}\f$.
-//
-static double GetGrad2(const Polarization& p1, const Polarization& p2, const Ω& ab)
-{
-    static Polarization p0(0,0,0), x(1,0,0), y(0,1,0), z(0,0,1);
-    const Polarization& P1 = p1;
-    const Polarization& P2 = p2;
-
-    double txx =   P1.n * P2.n * ab.H2(p0,P1-x,P2-x)
-                 - 2*P1.n * ab.b * ab.H2(p0,P1-x,P2+x)
-                 - 2*P2.n * ab.a * ab.H2(p0,P1+x,P2-x)
-                 + 4*ab.ab        * ab.H2(p0,P1+x,P2+x);
-
-    double tyy =   P1.l * P2.l * ab.H2(p0,P1-y,P2-y)
-                 - 2*P1.l * ab.b * ab.H2(p0,P1-y,P2+y)
-                 - 2*P2.l * ab.a * ab.H2(p0,P1+y,P2-y)
-                 + 4*ab.ab        * ab.H2(p0,P1+y,P2+y);
-
-    double tzz =   P1.m * P2.m * ab.H2(p0,P1-z,P2-z)
-                 - 2*P1.m * ab.b * ab.H2(p0,P1-z,P2+z)
-                 - 2*P2.m * ab.a * ab.H2(p0,P1+z,P2-z)
-                 + 4*ab.ab        * ab.H2(p0,P1+z,P2+z);
-
-    return txx+tyy+tzz;
-}
-
+// The 2-centre formulas (PairOverlap, PairGrad2) live inline in the module interface: the cache-free path Enzyme differentiates
+// (GaussianRF::KetGradient) calls the same ones.
 double PrimGaussian::Overlap2C(const PrimGaussian* a, const PrimGaussian* b,
                                const Polarization& pa, const Polarization& pb)
 {
     const Ω& ab = findΩ(a->GetGData(), b->GetGData());
-    Polarization zero(0,0,0);
-    return pow(Pi/ab.αₚ,1.5)*ab.Eij*ab.H2(zero,pa,pb);
+    return PairOverlap(ab.αₚ, ab.Eij, ab.H2, pa, pb);
 }
 
 double PrimGaussian::Repulsion2C(const PrimGaussian* a, const PrimGaussian* b,
@@ -394,9 +351,7 @@ double PrimGaussian::Grad2(const PrimGaussian* a, const PrimGaussian* b,
                            const Polarization& pa, const Polarization& pb)
 {
     const Ω& ab = findΩ(a->GetGData(), b->GetGData());
-    double factor = pow(Pi/ab.αₚ,1.5)*ab.Eij;
-    double h = GetGrad2(pa,pb,ab);
-    return h!=0 ? factor*h : 0.0;
+    return PairGrad2(ab.αₚ, ab.Eij, ab.a, ab.b, ab.ab, ab.H2, pa, pb);
 }
 
 double PrimGaussian::Nuclear(const PrimGaussian* a, const PrimGaussian* b,

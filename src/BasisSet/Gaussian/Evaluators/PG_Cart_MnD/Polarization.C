@@ -17,16 +17,18 @@ export namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
 class Polarization : public qchem::Math::Monomial
 {
 public:
-    Polarization(                    ) : Monomial{0,0,0} {}
-    Polarization(int _n,int _l,int _m) : Monomial{_n,_l,_m} {}
+    // Explicitly inline (a module's in-class body is not importable otherwise): the cache-free 2-centre kernels Enzyme differentiates
+    // (GaussianRF::KetGradient, Imp/GaussianRF_AD.C) build and shift polarizations.
+    inline Polarization(                    ) : Monomial{0,0,0} {}
+    inline Polarization(int _n,int _l,int _m) : Monomial{_n,_l,_m} {}
     // Implicit lift from a bare Monomial: a Polarization adds no data, only evaluator behaviour, so a
     // Monomial (e.g. a qcMath CartTerm's exponents) can stand in wherever a Polarization is expected -- the
     // spherical evaluator feeds SphericalShell()'s Monomial terms straight into the Cartesian ERI kernels.
     Polarization(const qchem::Math::Monomial& mono) : Monomial(mono) {}
 
     // Arithmetic MUST return Polarization (not Monomial) so the rnlm(pa+pb)->Index3 call sites are unchanged.
-    Polarization  operator+ (const Polarization& p) const {return Polarization(n+p.n, l+p.l, m+p.m);}
-    Polarization  operator- (const Polarization& p) const {return Polarization(n-p.n, l-p.l, m-p.m);}
+    inline Polarization  operator+ (const Polarization& p) const {return Polarization(n+p.n, l+p.l, m+p.m);}
+    inline Polarization  operator- (const Polarization& p) const {return Polarization(n-p.n, l-p.l, m-p.m);}
     bool          operator> (const Polarization& p) const {return n>p.n || l>p.l || m>p.m;}
 
     //! \f$x^n y^l z^m\f$.  A VALUE LEAF of the Enzyme-registered basis gradient (GaussianRF::Gradient), so it is inline (the AD unit
