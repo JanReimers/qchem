@@ -31,7 +31,6 @@ public:
 
     virtual const rvec_t&    Get(I1C,const DBCacheClient*,                          std::function<rvec_t   ()>) override;
     virtual const hmat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<hmat_t<T>()>) override;
-    virtual const hmat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<hmat_t<T>()>) override;
     virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()>) override;
     virtual const PairProjection<T>& Get(I3C,const DBCacheClient*,const DBCacheClient*, std::function<PairProjection<T>()>) override;
     virtual const ERI4     & Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()>) override;
@@ -56,7 +55,6 @@ public:
     // kCacheTestHooks is false (see the Imp TU).
     void Clear(I1C op);   //!< itsVecs
     void Clear(I2C op);   //!< itsSMats
-    void Clear(I2n op);   //!< itsNMats (one operator -> whole map)
     void Clear(I2x op);   //!< itsMats
     void Clear(I3C op);   //!< its3Cs
     void Clear(I4C op);   //!< Jac (Direct) / Kab (Exchange)
@@ -65,13 +63,11 @@ private:
     using key1_t=std::tuple<I1C,IBS_ID_t>; //Integral key for one IBS, 1 centers.
     using key2_t=std::tuple<I2C,IBS_ID_t>; //Integral key for one IBS, 2 centers.
     using keyx_t=std::tuple<I2x,IBS_ID_t,IBS_ID_t>; //Integral key for cross IBS integrals.
-    using keyn_t=std::tuple<I2n,IBS_ID_t,Structure_ID_t>; //Key for structure-dependent 1E mats (Nuclear + PP).
     using key3_t=std::tuple<I3C,IBS_ID_t,IBS_ID_t>; //Integral key for 3 center ERI integrals between 2 IBSs.
 
 
     using map1_t=std::map<key1_t ,rvec_t   >;
     using map2_t=std::map<key2_t ,hmat_t<T>>;
-    using mapn_t=std::map<keyn_t ,hmat_t<T>>;
     using mapx_t=std::map<keyx_t , mat_t<T>>;
     using map3_t=std::map<key3_t , PairProjection<T>>;   // 3-centre tensors, every realization (V1.1)
     using map4_t=std::map<IBS_ID_t,std::map<IBS_ID_t,ERI4>>;
@@ -98,7 +94,6 @@ private:
 
     map1_t itsVecs;  //Vectors (charge)
     map2_t itsSMats; //Symmetric 2 center matrices
-    mapn_t itsNMats; //Symmetric 2 center matrices for nuclear attraction integrals.
     mapx_t itsMats;  //Non-symmetric cross integrals between 2 IBSs.
     map3_t its3Cs;   //3 center, 2 IBS projection tensors <ab|c> for DFT (dense, delta or matrix-free).
     map4_t Jac,Kab;  //4 center, 2 IBS ERI integrals for HF.

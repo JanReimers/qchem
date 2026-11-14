@@ -19,7 +19,7 @@ import qchem.BasisSet.Gaussian.PG_Cart;          // M&D Orbital_IBS
 import qchem.BasisSet.Gaussian.Point.PG_LibCint;       // libcint Orbital_IBS
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
 import qchem.BasisSet.Gaussian.Point.BasisFiles;
-import qchem.BasisSet.Orbital_1E_IBS;            // Overlap()/Kinetic()/Nuclear()
+import qchem.BasisSet.Orbital_1E_IBS;            // Overlap()/Kinetic(), MakeNuclear()
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS; // Direct()/Exchange()
 import qchem.Structure;
 import qchem.Types;
@@ -52,7 +52,7 @@ static double TimeIntegrals(const char* tag, IBS& ibs, const qchem::Structure* c
     volatile double sink=0;
     sink += e1.Overlap()(0,0);   auto t1=clk::now();
     sink += e1.Kinetic()(0,0);   auto t2=clk::now();
-    sink += e1.Nuclear(cl)(0,0); auto t3=clk::now();
+    sink += e1.MakeNuclear(cl)(0,0); auto t3=clk::now();
     sink += hf.Direct(ibs)(0,0)(0,0);   auto t4=clk::now();
     sink += hf.Exchange(ibs)(0,0)(0,0); auto t5=clk::now();
     (void)sink;

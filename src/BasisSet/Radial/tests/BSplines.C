@@ -350,7 +350,7 @@ TEST_F(BSplineTests, Nuclear)
     {
         cout << ibs->GetSymmetry();
         // const Real_OIBS* ibs1=ibs;
-        rsmat_t Ven=ibs->Nuclear(cl);
+        rsmat_t Ven=ibs->MakeNuclear(cl);
         for (auto i:iv_t(0,Ven.rows()-K-1)) //Check banded
             for (auto j:iv_t(i+K+1,Ven.rows())) EXPECT_EQ(Ven(i,j),0.0);
         

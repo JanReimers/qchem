@@ -23,20 +23,11 @@ public:
     enum class I1C  {Charge, Normalization};
     // I2C::Kinetic = cache key for the <p^2>=<-nabla^2> building block (no 1/2; see Orbital_1E_IBS.C).
     enum class I2C  {Overlap, Repulsion,Kinetic,Nuclear,RestMass, InvOverlap, InvRepulsion};
-    // I2n = structure-dependent, matrix-valued 1-electron operators (keyed by BasisSetID + Structure::ID).
-    // LocalPP/SeparablePP = the periodic external pseudopotential matrices (GPW real-space assembly): static
-    // across an SCF but rebuilt per k-point, so process-wide caching lets multi-k / IBZ-vs-full-mesh runs reuse
-    // a k-block's PP across instances.  (The abstract Orbital_PP_IBS is a face of this library,
-    // so the cached accessor sits on the BasisSet-family realiser -- GPW_IBS -- not here.)
-    // LocalPPLong/LocalPPShort = the CP2K local-PP split (doc/GPWPlan.md 0e-PP): distinct cache keys so the
-    // long (Hartree-folded) and short (external) pieces don't collide with each other or the full LocalPP.
-    enum class I2n  {Nuclear, LocalPP, LocalPPLong, LocalPPShort, SeparablePP};
     // I2x::Kinetic = cache key for the RKB (relativistic) L/S cross kinetic; see Orbital_DHF_IBS.C.
     enum class I2x  {Kinetic, Repulsion,Overlap};
     enum class I3C  {Overlap, Repulsion}; // <ab|c> and <ar|1/r12|c>
     enum class I4C  {Direct,Exchange}; // <ab|cd> and <ar|1/r12|cd>
     using IBS_ID_t=std::string;        // internal per-basis key axis = DBCacheClient::BasisSetID()
-    using Structure_ID_t=std::string;
     using RadialTypeID_t=std::string;
 
 };
@@ -59,10 +50,9 @@ public:
     // cached Get()s safely), the result is stored, and a reference to the *stored*
     // object is returned.  No shared "last key"/iterator state, so it is re-entrant.
     virtual const rvec_t&    Get(I1C,const DBCacheClient*,                          std::function<rvec_t   ()> make)=0; // Charge       -> vectors
-    // I2C/I2n are HERMITIAN (hmat_t): identical to symmetric for double (hmat_t<double>==smat_t<double>),
+    // I2C are HERMITIAN (hmat_t): identical to symmetric for double (hmat_t<double>==smat_t<double>),
     // and correctly Hermitian (chmat_t) for the complex/plane-wave path.
     virtual const hmat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<hmat_t<T>()> make)=0; // 2C herm mats
-    virtual const hmat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<hmat_t<T>()> make)=0; // Nuclear
     virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()> make)=0; // cross IBS
     // 3-centre tensor <ab|c> -- ONE slot for every realization (V1.1): the molecular dense vector lands in
     // the double cache, the plane-wave delta / GPW matrix-free tensors in the dcmplx cache; the element type

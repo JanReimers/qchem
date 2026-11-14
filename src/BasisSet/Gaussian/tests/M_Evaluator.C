@@ -11,7 +11,7 @@
 
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;                 // NR_Evaluator
 import qchem.BasisSet.Gaussian.PG_Cart;                      // Orbital_IBS
-import qchem.BasisSet.Orbital_1E_IBS;                                  // cached Overlap()/Kinetic()/Nuclear() accessors
+import qchem.BasisSet.Orbital_1E_IBS;                                  // cached Overlap()/Kinetic(), uncached MakeNuclear()
 import qchem.Structure;                                                  // Molecule, Atom
 import qchem.Types;
 using namespace qchem;
@@ -38,7 +38,7 @@ TEST(M_Evaluator, kernels_match_IBS_integrals)
     const BasisSet::Orbital_1E_IBS<double>& bs1e = ibs;
     const rsmat_t& S = bs1e.Overlap();       // normalized 1E matrices the IBS already builds
     const rsmat_t& K = bs1e.Kinetic();       // the <p^2> block (no 1/2)
-    const rsmat_t& V = bs1e.Nuclear(&h2o);
+    const rsmat_t V = bs1e.MakeNuclear(&h2o);
 
     for (size_t i=0; i<ev.size(); ++i)
         for (size_t j=i; j<ev.size(); ++j)

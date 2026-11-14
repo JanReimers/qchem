@@ -124,7 +124,6 @@ namespace qchem::BasisSet {
     template <class T> class Integrals_Nuclear : public virtual IrrepBasisSet_IDs {
     public:
         virtual hmat_t<T> MakeNuclear(const Structure* cl) const=0;
-        const hmat_t<T>& Nuclear(const Structure* cl) const;
         virtual bool CanPullbackNuclear() const=0;
         virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<T>& D, const Structure* cl) const=0;
     };

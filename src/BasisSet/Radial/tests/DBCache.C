@@ -70,23 +70,20 @@ public:
             ++ibs2;
         }
     }
-    // Nuclear is still in the process-wide cache (until S4 moves it to the Ven term): equal keys share one object.
+    // V is not cached on the basis (S4: the Ven term holds the one copy); equal structures give equal numbers.
     void TestNuclear() const
     {
         using OIBS=BasisSet::Real_OIBS;
         auto ibs2=bs2->Iterate<OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
-            auto& S1=ibs1->Nuclear(cl_hydrogen);
-            auto& S2=(*ibs2)->Nuclear(cl_hydrogen);
-            auto& S3=(*ibs2)->Nuclear(cl_hydrogen_100);
-            auto& S4=(*ibs2)->Nuclear(cl_helium);
+            const auto S1=ibs1->MakeNuclear(cl_hydrogen);
+            const auto S2=(*ibs2)->MakeNuclear(cl_hydrogen);
+            const auto S3=(*ibs2)->MakeNuclear(cl_hydrogen_100);
+            const auto S4=(*ibs2)->MakeNuclear(cl_helium);
             EXPECT_EQ(S1,S2);
             EXPECT_EQ(S1,S3);
             EXPECT_NE(S1,S4);
-            EXPECT_EQ(&S1,&S2);
-            EXPECT_NE(&S1,&S3);
-            EXPECT_NE(&S1,&S4);
             ++ibs2;
         }
     }

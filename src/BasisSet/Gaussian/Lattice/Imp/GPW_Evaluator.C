@@ -861,7 +861,7 @@ Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient> GPW_Evaluator::
 }
 chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const
 {   qchem::report::Timed t("setup: analytic 1E lattice sums (S,T,V)");
-    return itsHomeOnly ? Widen(itsOrb->Nuclear(cl))  : itsLat->MakeNuclear(CellPhase(),itsCell,cl); }
+    return itsHomeOnly ? Widen(itsOrb->MakeNuclear(cl))  : itsLat->MakeNuclear(CellPhase(),itsCell,cl); }
 
 // The KB-quadrature integration mesh (the mesh FALLBACK of MakeSeparablePPByL -- a projector model with no
 // closed-Gaussian face): a uniform lattice mesh whose Nyquist resolution follows a cutoff (CreateIntegrationMesh's
@@ -1332,16 +1332,6 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
         }
     }
     return pack(Vl);
-}
-
-std::string GPW_Evaluator::LocalPPShortIDFragment(const SpeciesRadialField& loc) const
-{
-    if (!dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc)) return IDFragment();   // the grid fallback reads the rasters
-    return "|analytic|mol="+itsOrb->BasisSetID()
-         +"|k="+KeyString(itsk)   // EXACT (2026-11-12): never a printed double
-         +"|cell="+itsCell.KeyFragment()
-         +(itsHomeOnly?"|home":"")
-         +"|screenEps="+std::format("{:.17g}",itsTol.screenEps);
 }
 
 // Cache key: the molecular basis's geometry-aware ID pins the radials + centres (atom positions); the CELL

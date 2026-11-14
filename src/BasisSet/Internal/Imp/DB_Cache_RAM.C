@@ -61,23 +61,6 @@ namespace std
         }
     };  
 
-    using I2n=qchem::BasisSet::IntegralsCache_Base::I2n;
-    template <> struct formatter<I2n> : formatter<string_view> 
-    {  
-        auto format(I2n c, format_context& ctx) const 
-        {  
-            string_view name;  
-            switch (c) { // Reuse switch-case logic, but integrate with format
-                case I2n::Nuclear:      name = "Nuclear"     ; break;
-                case I2n::LocalPP:      name = "LocalPP"     ; break;
-                case I2n::LocalPPLong:  name = "LocalPPLong" ; break;
-                case I2n::LocalPPShort: name = "LocalPPShort"; break;
-                case I2n::SeparablePP:  name = "SeparablePP" ; break;
-            }
-            return formatter<string_view>::format(name, ctx);  
-        }
-    };  
-
     using I3C=qchem::BasisSet::IntegralsCache_Base::I3C;
     template <> struct formatter<I3C> : formatter<string_view> 
     {  
@@ -269,23 +252,6 @@ template <class T> const hmat_t<T>& IntegralsCache_RAM<T>::Get(I2C i2c,const DBC
     return it->second;
 }
 
-template <class T> const hmat_t<T>& IntegralsCache_RAM<T>::Get(I2n i2n,const DBCacheClient* bs,const Structure_ID_t& st,std::function<hmat_t<T>()> make)
-{
-    IBS_ID_t id=bs->BasisSetID();
-    keyn_t key(i2n,id,st);
-    if (auto i=itsNMats.find(key); i!=itsNMats.end())
-    {
-        CheckCacheDim(i->second.rows(),bs->CacheDim(),std::format("I2n {}",i2n),id);
-        return i->second;
-    }
-    if (itsMakeLog) itsLogger << "I2n " << std::format("{:<12}",i2n) << " compute a=" << id << " structure=" << st << std::endl;
-    auto v=make();
-    const auto [it,ok]=itsNMats.insert({key,std::move(v)});
-    assert(ok);
-    CheckCacheDim(it->second.rows(),bs->CacheDim(),std::format("I2n {}",i2n),id);
-    return it->second;
-}
-
 template <class T> const mat_t<T>& IntegralsCache_RAM<T>::Get(I2x i2x,const DBCacheClient* a,const DBCacheClient* b,std::function<mat_t<T>()> make)
 {
     IBS_ID_t ida=a->BasisSetID(), idb=b->BasisSetID();
@@ -371,13 +337,6 @@ template <class T> void IntegralsCache_RAM<T>::Clear(I2C op)
 {
     if constexpr (kCacheTestHooks)
         std::erase_if(itsSMats, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
-}
-template <class T> void IntegralsCache_RAM<T>::Clear(I2n op)
-{
-    // keyn_t = (I2n, IBS_ID_t, Structure_ID_t): erase only the requested operator's entries (Nuclear vs the
-    // LocalPP/SeparablePP pseudopotential matrices), mirroring the per-operator Clear(I2C)/Clear(I4C) hooks.
-    if constexpr (kCacheTestHooks)
-        std::erase_if(itsNMats, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
 }
 template <class T> void IntegralsCache_RAM<T>::Clear(I2x op)
 {

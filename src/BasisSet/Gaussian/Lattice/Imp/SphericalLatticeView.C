@@ -239,7 +239,7 @@ public:
     // ---- finite 1E (the home-only mode + the vet): congruence over the inner CACHED accessors ----
     virtual hmat_t<double> MakeOverlap() const override {return CongruenceR(itsObs->Overlap());}
     virtual hmat_t<double> MakeKinetic() const override {return CongruenceR(itsObs->Kinetic());}
-    virtual hmat_t<double> MakeNuclear(const Structure* cl) const override {return CongruenceR(itsObs->Nuclear(cl));}
+    virtual hmat_t<double> MakeNuclear(const Structure* cl) const override {return CongruenceR(itsObs->MakeNuclear(cl));}
     // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
     virtual bool CanPullbackOverlap() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override

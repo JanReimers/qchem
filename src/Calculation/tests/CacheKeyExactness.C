@@ -41,7 +41,6 @@ void ClearIntegralCache()
     for (auto op : {C::I1C::Charge, C::I1C::Normalization}) ram.Clear(op);
     for (auto op : {C::I2C::Overlap, C::I2C::Repulsion, C::I2C::Kinetic, C::I2C::Nuclear, C::I2C::RestMass, C::I2C::InvOverlap,
                     C::I2C::InvRepulsion}) ram.Clear(op);
-    for (auto op : {C::I2n::Nuclear, C::I2n::LocalPP, C::I2n::LocalPPLong, C::I2n::LocalPPShort, C::I2n::SeparablePP}) ram.Clear(op);
     for (auto op : {C::I2x::Kinetic, C::I2x::Repulsion, C::I2x::Overlap}) ram.Clear(op);
     for (auto op : {C::I3C::Overlap, C::I3C::Repulsion}) ram.Clear(op);
     for (auto op : {C::I4C::Direct, C::I4C::Exchange}) ram.Clear(op);

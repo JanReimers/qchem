@@ -30,7 +30,7 @@
 import qchem.Structure;                         // Molecule, Atom
 import qchem.UnitCell;                          // UnitCell
 import qchem.BasisSet;                          // Real_BS
-import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS / Complex_OIBS + cached Overlap()/Kinetic()/Nuclear()
+import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS / Complex_OIBS + cached Overlap()/Kinetic(), MakeNuclear()
 import qchem.BasisSet.Gaussian.Point.Factory;         // Gaussian::Factory, BasisSetData/Engine/Angular
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;       // GPW_IBS (the basis under test)
 import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier

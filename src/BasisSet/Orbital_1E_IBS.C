@@ -60,8 +60,10 @@ public:
 template <class T> class Integrals_Nuclear : public virtual IrrepBasisSet_IDs
 {
 public:
-    virtual hmat_t<T>  MakeNuclear(const Structure* cl) const=0; //Only called once for a given {radial,angular, structure} ID triple.
-    const   hmat_t<T>&     Nuclear(const Structure* cl) const;
+    //! The UNCACHED build of V for the nuclei of \a cl.  There is no cached Get beside it (doc/IntegralCacheOwnershipPlan.md S4, user
+    //! ruling 5 of 2026-11-12): V depends on a structure the basis does not own, so the client that holds the structure (the Ven term,
+    //! in its static per-block cache) holds the one copy.
+    virtual hmat_t<T>  MakeNuclear(const Structure* cl) const=0;
 
     //! \name d/dR (the user's ruling 2026-11-08; GeometryOptimizationPlan §13.2)
     //!@{

@@ -157,7 +157,7 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
     int Z=cl->GetNuclearCharge();
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
-        rsmat_t Ven=oi->Nuclear(cl);
+        rsmat_t Ven=oi->MakeNuclear(cl);
         rsmat_t VenLnum = -Z*qcMesh::MatrixOverlap(itsMesh,*GetLarge(oi),OneOverR());
         rsmat_t VenSnum = -Z*qcMesh::MatrixOverlap(itsMesh,*GetSmall(oi),OneOverR());
         rsmat_t Vennum=merge_diag(VenLnum,VenSnum);
@@ -174,7 +174,7 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
     int Z=cl->GetNuclearCharge();
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
-        rsmat_t Ven=oi->Nuclear(cl);
+        rsmat_t Ven=oi->MakeNuclear(cl);
         rsmat_t VenLnum = -Z*qcMesh::MatrixOverlap(itsMesh,*GetLarge(oi),OneOverR());
         rsmat_t VenSnum = -Z*qcMesh::MatrixOverlap(itsMesh,*GetSmall(oi),OneOverR());
         rsmat_t Vennum=merge_diag(VenLnum,VenSnum);

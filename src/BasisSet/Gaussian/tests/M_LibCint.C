@@ -53,7 +53,7 @@ TEST(M_LibCint, matrix_1E_matches_scalar)
         {
             EXPECT_NEAR(So(i,j), bs1e.Overlap()(i,j),    1e-10) << "overlap ("<<i<<","<<j<<")";
             EXPECT_NEAR(Ko(i,j), bs1e.Kinetic()(i,j),    1e-10) << "kinetic ("<<i<<","<<j<<")";
-            EXPECT_NEAR(Vo(i,j), bs1e.Nuclear(h2o)(i,j), 1e-10) << "nuclear ("<<i<<","<<j<<")";
+            EXPECT_NEAR(Vo(i,j), bs1e.MakeNuclear(h2o)(i,j), 1e-10) << "nuclear ("<<i<<","<<j<<")";
         }
 }
 
@@ -69,7 +69,7 @@ TEST(M_LibCint, matrix_1E_matches_scalar_g)
 
     const BasisSet::Orbital_1E_IBS<double>& bs1e = ibs;
     rsmat_t So=lc.OverlapMatrix(), Ko=lc.KineticMatrix(), Vo=lc.NuclearMatrix(h2o);
-    const auto S=bs1e.Overlap(), K=bs1e.Kinetic(), V=bs1e.Nuclear(h2o);
+    const auto S=bs1e.Overlap(), K=bs1e.Kinetic(), V=bs1e.MakeNuclear(h2o);
     for (size_t i=0;i<lc.size();++i)
         for (size_t j=i;j<lc.size();++j)
         {
@@ -172,7 +172,7 @@ TEST(M_LibCint, matrix_1E_geometry_gradients_match_finite_differences_of_the_MnD
                 std::shared_ptr<Structure> st=h2o->Clone(); st->MoveSites(R);
                 Orbital_IBS b(std::make_shared<::qchem::BasisSet::BasisCache>(), exps, L, st.get());
                 const BasisSet::Orbital_1E_IBS<double>& b1=b;
-                return std::array<rsmat_t,3>{b1.Overlap(), b1.Kinetic(), b1.Nuclear(st.get())};
+                return std::array<rsmat_t,3>{b1.Overlap(), b1.Kinetic(), b1.MakeNuclear(st.get())};
             };
             const auto p=at(h), m=at(-h);
             for (size_t i=0;i<n;++i) for (size_t j=0;j<n;++j)

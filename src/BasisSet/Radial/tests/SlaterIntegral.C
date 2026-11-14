@@ -83,7 +83,7 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
 {
     for (auto oi:bs->Iterate<Real_OIBS >())
     {
-        rsmat_t Hn=oi->Nuclear(cl);
+        rsmat_t Hn=oi->MakeNuclear(cl);
         rsmat_t Hnnum = -1*qcMesh::MatrixOverlap(itsMesh,*oi,OneOverR());
         EXPECT_NEAR(blazem::max(blazem::abs(Hn-Hnnum)),0.0,1e-7);
 

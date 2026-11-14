@@ -166,7 +166,7 @@ rsmat_t SymmetryAdapted_IBS::MakeOverlap()                 const {return Transfo
 // Kinetic() here is the \f$\langle p^2\rangle=\langle-\nabla^2\rangle\f$ block (no 1/2), just transformed
 // into the SALC basis -- the 1/2 / energy meaning is applied later (see BasisSet/Orbital_1E_IBS.C).
 rsmat_t SymmetryAdapted_IBS::MakeKinetic()                 const {return Transform(itsRaw->Kinetic());}
-rsmat_t SymmetryAdapted_IBS::MakeNuclear(const Structure* cl) const {return Transform(itsRaw->Nuclear(cl));}
+rsmat_t SymmetryAdapted_IBS::MakeNuclear(const Structure* cl) const {return Transform(itsRaw->MakeNuclear(cl));}
 
 bool SymmetryAdapted_IBS::CanAssembleField(const SpeciesRadialField& f) const
 {

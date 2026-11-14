@@ -15,7 +15,6 @@ import qchem.Symmetry.Factory;              // BlochFactory (the convenience cto
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (pry k out of the abstract Bloch irrep)
 import qchem.Symmetry.Lattice_3D.BlochOperationRep; // BuildBlochOperationRep (OrbitalImage, KAxisPlan P4)
 import qchem.Symmetry.Lattice_3D.SpaceGroup; // DirectOp {W|τ} (the ctor's IBZ raster ops param type)
-import qchem.BasisSet.Internal.DB_Cache;    // theCache<dcmplx>() -- process-wide cache for the static PP matrices
                                             // (qcMolecule_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
 import qchem.BasisSet.PlaneWave.Evaluators;  // PlaneWave::PW_Grid_Evaluator (the fit basis IS-A one; cross-cast target)
 import qchem.BasisSet.PlaneWave.PlaneWaveFit_IBS;
@@ -115,57 +114,39 @@ template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(cons
                                 GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "vxcFitGrid");
 }
 
-// The species-field integral service.  Both matrices are STATIC across an SCF but rebuilt PER k-BLOCK, so
-// they go through the process-wide cache (theCache, keyed by BasisSetID + Structure::ID -- exactly the
-// Nuclear() pattern): a multi-k / IBZ-vs-full-mesh run then reuses a k-block's matrices across GPW_IBS
-// instances instead of re-quadraturing them.  The build is the cache-miss `make` lambda; the outer Make* is
-// the Orbital_PP_IBS override the term calls.
+// The species-field integral service: UNCACHED builds (doc/IntegralCacheOwnershipPlan.md S4).  Both matrices are STATIC across
+// an SCF, and the PP terms that call them (Ven_PP_Short / _Long / _NonLocal, PP_Local / PP_NonLocal) hold the one copy in their
+// static per-block cache; the structure they depend on is the term's, not the basis's.  (These were Makes that CACHED, in the
+// process-wide string-keyed cache: CLAUDE.md, Get caches and Make computes.)
 //
-// The RANGE picks the route AND the cache key (doc/GPWPlan.md 0e-PP): the LONG (softened-Coulomb) matrix rides
-// the smooth density-grid integrate-back (MakeLocalPPLong -- no sharp-field sweep); the SHORT matrix is the
-// ANALYTIC 3-centre Gaussian lattice sum (LatticeSum1E::MakeLocalGaussian, no grid; step (b), 2026-07-22 --
-// safe to wire ONLY because step (a) first made the grid LONG standalone-exact, the absolute kappa rule with
-// e^{-kappa/2} pair tails: the old grid short's ~0.5 Ha band-limit error used to CANCEL the grid long's, so
-// exact-short + sloppy-long missed the gate.  Cross-validated by GPW.LocalPPKappaSelfConverged; the grid sweep
-// remains the fallback inside MakeLocalPPShort for a field without the closed-Gaussian face).  Full is the
-// plain sweep over the whole field.  Distinct keys keep the three from colliding.
+// The RANGE picks the route (doc/GPWPlan.md 0e-PP): the LONG (softened-Coulomb) matrix rides the smooth density-grid integrate-back
+// (MakeLocalPPLong -- no sharp-field sweep); the SHORT matrix is the ANALYTIC 3-centre Gaussian lattice sum (LatticeSum1E::
+// MakeLocalGaussian, no grid; step (b), 2026-07-22 -- safe to wire ONLY because step (a) first made the grid LONG standalone-exact,
+// the absolute kappa rule with e^{-kappa/2} pair tails: the old grid short's ~0.5 Ha band-limit error used to CANCEL the grid long's,
+// so exact-short + sloppy-long missed the gate.  Cross-validated by GPW.LocalPPKappaSelfConverged; the grid sweep remains the
+// fallback inside MakeLocalPPShort for a field without the closed-Gaussian face).  Full is the plain sweep over the whole field.
+// A basis rebuilt on new rasters rebuilds its SHORT block too; the R-resolved lattice series under it is memoised on the molecular
+// basis's evaluator, which the rebuilt GPW basis shares, so a rebuild costs the per-k phase sum.
 template <class T> hmat_t<T> tGPW_IBS<T>::MakeSpeciesFieldMatrix(const Structure* cl, const SpeciesRadialField& f, FieldRange rng) const
 {
     switch (rng)
     {
-    case FieldRange::Long:
-        return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPPLong, this, cl->ID(),
-            [this,cl,&f]{ return Lattice::ToScalar<T>(GPW_Evaluator::MakeLocalPPLong(cl, f)); });
-    case FieldRange::Short:
-    {
-        // Its own key, without the grid facts (GPW_Evaluator::LocalPPShortIDFragment): a rebuilt basis reuses the block.
-        struct ShortKey : DBCacheClient
-        {
-            std::string id; size_t dim;
-            ShortKey(std::string i, size_t d) : id(std::move(i)), dim(d) {}
-            std::string BasisSetID() const override {return id;}
-            size_t      CacheDim  () const override {return dim;}
-        } key(Name()+GPW_Evaluator::LocalPPShortIDFragment(f), this->CacheDim());
-        return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPPShort, &key, cl->ID(),
-            [this,cl,&f]{ return Lattice::ToScalar<T>(GPW_Evaluator::MakeLocalPPShort(cl, f)); });
-    }
-    default:
-        return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPP, this, cl->ID(),
-            [this,cl,&f]{ return Lattice::ToScalar<T>(GPW_Evaluator::MakeLocalPP(cl, f)); });
+    case FieldRange::Long:  return Lattice::ToScalar<T>(GPW_Evaluator::MakeLocalPPLong (cl, f));
+    case FieldRange::Short: return Lattice::ToScalar<T>(GPW_Evaluator::MakeLocalPPShort(cl, f));
+    default:                return Lattice::ToScalar<T>(GPW_Evaluator::MakeLocalPP     (cl, f));
     }
 }
 
 template <class T> hmat_t<T> tGPW_IBS<T>::MakeProjectorMatrix(const Structure* cl, const SpeciesProjectorSet& nl) const
 {
     auto* sepR=dynamic_cast<const SpeciesProjectorSet_R*>(&nl);
-    assert(sepR && "GPW MakeProjectorMatrix: the projector set must provide the real-space radial face (SpeciesProjectorSet_R)");
-    return theCache<T>().Get(IntegralsCache_Base::I2n::SeparablePP, this, cl->ID(),
-        [this,cl,sepR]{ return Lattice::ToScalar<T>(GPW_Evaluator::MakeSeparablePP(cl, *sepR)); });
+    if (!sepR) throw std::invalid_argument("GPW MakeProjectorMatrix: the projector set must provide the real-space radial face (SpeciesProjectorSet_R)");
+    return Lattice::ToScalar<T>(GPW_Evaluator::MakeSeparablePP(cl, *sepR));
 }
 
 template <class T> std::map<int,hmat_t<T>> tGPW_IBS<T>::MakeProjectorMatrixByL(const Structure* cl, const SpeciesProjectorSet& nl) const
 {
-    // Diagnostic face (doc/SphericalLatticePlan.md I0): built on demand, NOT DB-cached -- its consumer
+    // Diagnostic face (doc/SphericalLatticePlan.md I0): built on demand, uncached like its siblings -- its consumer
     // (the Ven_PP_NonLocal per-l energy print) caches the result term-side for the run's lifetime.
     auto* sepR=dynamic_cast<const SpeciesProjectorSet_R*>(&nl);
     assert(sepR && "GPW MakeProjectorMatrixByL: the projector set must provide the real-space radial face (SpeciesProjectorSet_R)");

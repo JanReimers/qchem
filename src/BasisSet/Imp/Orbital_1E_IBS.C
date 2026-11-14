@@ -4,7 +4,6 @@ module;
 #include <cassert>
 module qchem.BasisSet.Orbital_1E_IBS;
 
-import qchem.BasisSet.Internal.DB_Cache;     // Nuclear: still process-wide until S4 moves it to the Ven term
 import qchem.BasisSet.BasisCache;
 
 namespace qchem::BasisSet
@@ -17,18 +16,9 @@ template <class T> const hmat_t<T>& Integrals_Kinetic<T>::Kinetic() const
     return this->Cache().template Get<T>(BasisCache::Own::Kinetic, this->CacheIndex(), [this]{ return MakeKinetic(); });
 }
 
-template <class T> const hmat_t<T>& Integrals_Nuclear<T>::Nuclear(const Structure* cl) const
-{
-    assert(cl);
-    return theCache<T>().Get(IntegralsCache_Base::I2n::Nuclear,this,cl->ID(),
-        [this,cl]{ return MakeNuclear(cl); });
-}
-
 template class Integrals_Kinetic<double>;
-template class Integrals_Nuclear<double>;
 // The complex flavours: the periodic (dcmplx) 1E bases -- plane waves and now GPW -- use these cached
 // accessors too (mirrors Integrals_Overlap<dcmplx> in Imp/IrrepBasisSet.C).
 template class Integrals_Kinetic<dcmplx>;
-template class Integrals_Nuclear<dcmplx>;
 
 } //namespace

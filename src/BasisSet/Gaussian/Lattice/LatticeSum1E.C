@@ -144,9 +144,8 @@ public:
 //! (\c chmat_t); real at \f$\Gamma\f$ (all phases 1 \f$\Rightarrow\f$ zero imaginary part).
 //!
 //! \c Make prefix / not self-caching: like the other 1E builders, these are the single-shot producers behind
-//! the cached \c Integrals_{Overlap,Kinetic,Nuclear} accessors (\c Overlap()/\c Kinetic()/\c Nuclear() on the
-//! GPW orbital IBS cache them in \c DB_Cache keyed on \c BasisSetID, so a static-across-SCF matrix is built
-//! once and reused).  The \a (phase,A) arguments mark these as the lattice (periodic) forms.
+//! the GPW orbital IBS's 1E integrals (its cached \c Overlap()/\c Kinetic() in the parent's cache; \c MakeNuclear() uncached, the Ven term
+//! holding the one copy: doc/IntegralCacheOwnershipPlan.md S4).  The \a (phase,A) arguments mark these as the lattice (periodic) forms.
 class LatticeSum1E
 {
 public:

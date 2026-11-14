@@ -29,7 +29,7 @@
 import qchem.Structure;                         // Molecule, Atom
 import qchem.UnitCell;                          // UnitCell
 import qchem.BasisSet;                          // Real_BS
-import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS / Complex_OIBS + cached Overlap()/Kinetic()/Nuclear()
+import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS / Complex_OIBS + cached Overlap()/Kinetic(), MakeNuclear()
 import qchem.BasisSet.Gaussian.Point.Factory;         // Gaussian::Factory, BasisSetData/Engine/Angular
 import qchem.BasisSet.Gaussian.PG_Cart;         // direct PG_Cart construction (the diffuse-d V_long oracle gate)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;       // GPW_IBS (the basis under test)
@@ -161,10 +161,10 @@ TEST(GPW, HomeCellMatchesFiniteExactly)
     ASSERT_EQ(g.GetNumFunctions(), fin.orb->GetNumFunctions());
     EXPECT_LT(MaxImag(g.Overlap()),        1e-14);
     EXPECT_LT(MaxImag(g.Kinetic()),        1e-14);
-    EXPECT_LT(MaxImag(g.Nuclear(&cell)),   1e-13);
+    EXPECT_LT(MaxImag(g.MakeNuclear(&cell)),   1e-13);
     EXPECT_LT(RelDiff(g.Overlap(),      fin.orb->Overlap()),        1e-12);
     EXPECT_LT(RelDiff(g.Kinetic(),      fin.orb->Kinetic()),        1e-12);
-    EXPECT_LT(RelDiff(g.Nuclear(&cell), fin.orb->Nuclear(fin.mol.get())), 1e-12);
+    EXPECT_LT(RelDiff(g.MakeNuclear(&cell), fin.orb->MakeNuclear(fin.mol.get())), 1e-12);
 }
 
 // Tooth (2): sum the periodic images in.  GPW matches the finite matrices to the image tail, and the tail
@@ -877,7 +877,7 @@ TEST(GPW, TRIM_RealBlockMatchesComplexBitwise)
 
         const auto& Sr=gr.Overlap();        const auto& Sc=gc.Overlap();
         const auto& Tr=gr.Kinetic();        const auto& Tc=gc.Kinetic();
-        const auto& Nr=gr.Nuclear(&cell);   const auto& Nc=gc.Nuclear(&cell);
+        const auto& Nr=gr.MakeNuclear(&cell);   const auto& Nc=gc.MakeNuclear(&cell);
         const hmat_t<double> Kr=re.MakeProjectorMatrix(&cell, gth.nonlocal);
         const chmat_t        Kc=cx.MakeProjectorMatrix(&cell, gth.nonlocal);
         const hmat_t<double> Lr=re.MakeSpeciesFieldMatrix(&cell, gth.local, qchem::BasisSet::FieldRange::Short);
@@ -1096,7 +1096,7 @@ TEST(GPW, GeneralK_OneElectronMatricesAreContinuousAtQuarterK)
         auto fro=[](const auto& M){ double t=0.0;
             for (size_t i=0;i<M.rows();i++) for (size_t j=0;j<M.columns();j++) t+=std::norm(M(i,j));
             return std::sqrt(t); };
-        nS=fro(g.Overlap()); nT=fro(g.Kinetic()); nV=fro(g.Nuclear(&cell));
+        nS=fro(g.Overlap()); nT=fro(g.Kinetic()); nV=fro(g.MakeNuclear(&cell));
     };
 
     const auto gth0 = Pseudopotential::GetGTH("Si","LDA",4);

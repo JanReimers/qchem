@@ -22,8 +22,7 @@ Ven::Ven(const st_t& st)
 
 rsmat_t Ven::MakeMatrix(const robs_t* bs,const Spin&) const
 {
-    // std::cout << "Ven=" << bs->Nuclear(&*theStructure) << std::endl;
-    return bs->Nuclear(&*theStructure);
+    return bs->MakeNuclear(&*theStructure);   // uncached: this static term's per-block cache is the one copy (S4)
 }
 
 void Ven::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const

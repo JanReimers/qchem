@@ -193,7 +193,7 @@ TEST(GeometryDerivatives, PG_CartsPullbacksAreTheFiniteDifferenceOfItsOwnMatrice
         {
             auto at_=[&](double s){ auto Rs=R; C(Rs[at],k)+=s; std::shared_ptr<Structure> st=h2o->Clone(); st->MoveSites(Rs);
                                      auto b=Dzvp(st.get()); const BasisSet::Orbital_1E_IBS<double>& b1=*b;
-                                     return std::array<double,3>{TrAM(A,b1.Overlap()), TrAM(A,b1.Kinetic()), TrAM(A,b1.Nuclear(st.get()))}; };
+                                     return std::array<double,3>{TrAM(A,b1.Overlap()), TrAM(A,b1.Kinetic()), TrAM(A,b1.MakeNuclear(st.get()))}; };
             const auto p=at_(h), m=at_(-h);
             const double fS=(p[0]-m[0])/(2*h), fK=(p[1]-m[1])/(2*h), fV=(p[2]-m[2])/(2*h);
             EXPECT_NEAR(C((*FS)[at],k), fS, 2e-6*std::max(1.0,std::fabs(fS))) << "overlap atom " << at << " axis " << k;
@@ -604,7 +604,7 @@ TEST(GeometryDerivatives, SALCPullbacksAreTheFiniteDifferenceOfTheirOwnBlocksWit
         std::array<double,5> t{0,0,0,0,0};
         for (size_t k=0;k<B1.size();k++)
         {
-            t[0]+=TrAM(D[k], B1[k]->Overlap()); t[1]+=TrAM(D[k], B1[k]->Kinetic()); t[2]+=TrAM(D[k], B1[k]->Nuclear(st));
+            t[0]+=TrAM(D[k], B1[k]->Overlap()); t[1]+=TrAM(D[k], B1[k]->Kinetic()); t[2]+=TrAM(D[k], B1[k]->MakeNuclear(st));
             for (size_t l=0;l<B1.size();l++)
             {
                 rsmat_t J(D[k].rows()), K(D[k].rows());

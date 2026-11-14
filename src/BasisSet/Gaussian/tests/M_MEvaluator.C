@@ -16,7 +16,7 @@ import qchem.BasisSet.Gaussian.Evaluators;                    // Evaluator + the
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;        // NR_Evaluator (a scalar 1E+DFT+HF evaluator)
 import qchem.BasisSet.Gaussian.PG_Cart;                       // Orbital_IBS
 import qchem.BasisSet.Gaussian.Point.IBS;                           // Orbital_{1E,DFT,HF}_IBS<E> mixins (dispatch)
-import qchem.BasisSet.Orbital_1E_IBS;                         // public Overlap()/Kinetic()/Nuclear()
+import qchem.BasisSet.Orbital_1E_IBS;                         // public Overlap()/Kinetic(), MakeNuclear()
 import qchem.BasisSet.Orbital_DFT_IBS;                        // public Overlap3C()/Repulsion3C() + Fit_IBS
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;               // public Direct()/Exchange()
 import qchem.BasisSet.PairProjection;                    // PairProjection<double>, fnorm
@@ -129,7 +129,7 @@ TEST(M_MEvaluator, matrix_1E_matches_scalar)
         {
             EXPECT_NEAR(So(i,j), bs1e.Overlap()(i,j),    1e-12) << "overlap ("<<i<<","<<j<<")";
             EXPECT_NEAR(Ko(i,j), bs1e.Kinetic()(i,j),    1e-12) << "kinetic ("<<i<<","<<j<<")";
-            EXPECT_NEAR(Vo(i,j), bs1e.Nuclear(h2o)(i,j), 1e-12) << "nuclear ("<<i<<","<<j<<")";
+            EXPECT_NEAR(Vo(i,j), bs1e.MakeNuclear(h2o)(i,j), 1e-12) << "nuclear ("<<i<<","<<j<<")";
         }
 }
 
