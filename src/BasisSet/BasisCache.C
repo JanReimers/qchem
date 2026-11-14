@@ -8,6 +8,8 @@
 //   - ERI4 Direct / Exchange between two blocks of one parent: the UNORDERED pair of indices, stored canonical (i ≤ j);
 //   - ⟨ab|c⟩ Overlap3C / Repulsion3C: (the block's index, the fit basis's INSTANCE serial).  The element type follows the FIT axis, so
 //     there is one typed map per scalar, the way BasisSetImp holds blocks of both scalars;
+//   - the Gaussian primitive caches (Ω, RNLM, H3) over this parent's own primitives: S5b.  Its blocks' evaluators share it, and a fill
+//     whose keys reach outside this parent uses a scratch store of its own instead, so nothing here can outlive a partner;
 //   - an atom basis's Rk Slater integrals (Cache4, its exponent grouper inside), one per radial family: S5a.  Its blocks (one per l)
 //     register into it as they are built, so their exponent indices are THIS parent's, and an atom run's tables die with its basis.
 // No key carries geometry: a new geometry is a new BasisSet, so a new cache (§6).
@@ -37,6 +39,7 @@ export import qchem.InstanceToken;
 export import qchem.BasisSet.PairProjection;   // PairProjection<T>, the 3-centre record
 import qchem.BasisSet.Internal.ERI4;           // ERI4, the 4-centre tensor (an Internal module: imported, never re-exported)
 import qchem.BasisSet.Internal.Cache4;         // Cache4 / Cache4_Client: an atom basis's Rk tables (imported, never re-exported)
+import qchem.BasisSet.Internal.PrimitiveStore; // the Gaussian primitive caches of this parent (S5; imported, never re-exported)
 export import qchem.Types;
 import qchem.SlotMap;
 import qchem.Reporting;
@@ -90,6 +93,9 @@ public:
         }
         return ThreeC<TFit>().GetOrFill(std::make_tuple(op, block, fit.Serial()), std::forward<F>(make));
     }
+
+    //! S5b: the primitive caches of this parent's blocks (their evaluators co-own it, so the handle is shared).
+    std::shared_ptr<const PrimitiveStore> Primitives() const {return itsPrimitives;}
 
     //! S5a: block \a eval of an atom basis joins its radial family's Rk table (made on the first block of that family).  Called by the
     //! block's constructor, which runs serially inside the parent's factory.
@@ -178,6 +184,7 @@ private:
     once_t<PairProjection<dcmplx>,three_key>  its3C_c;
     mutable std::mutex                        itsPartnerLock;
     mutable std::map<uint64_t,Partner>        itsPartners;
+    std::shared_ptr<PrimitiveStore>                        itsPrimitives=std::make_shared<PrimitiveStore>();
     mutable std::mutex                                     its4Lock;   //!< its4 only, never held across a Cache4 fill
     mutable std::map<std::string,std::unique_ptr<Cache4>>  its4;       //!< the atom Rk tables, by radial family (S5a)
 };

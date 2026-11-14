@@ -2,6 +2,7 @@
 module;
 #include <vector>
 #include <string>
+#include <memory>
 
 export module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Block;
@@ -16,7 +17,12 @@ struct PGData
 {
     std::string BasisSetID() const; // geometry-aware cache identity: radial @ centre : pol per fn
 
-    void Init(std::vector<const Block*>&);
+    //! Flatten \a blocks and take \a store, the PrimitiveStore this evaluator's own-primitive lookups land in (S5): the host block's
+    //! PARENT's (its BasisCache's), so the blocks of one basis set share their Ω.  Demanded, never defaulted by a host.
+    void Init(std::vector<const Block*>&, std::shared_ptr<const PrimitiveStore> store);
+    //! The store this evaluator's lookups over its OWN (and its parent's other blocks') primitives land in.  A fill whose keys reach
+    //! another owner (a lattice image, a fit basis's primitive) passes a scratch store of its own instead.
+    const PrimitiveStore& Primitives() const {return *itsStore;}
     std::vector<const GaussianRF*> radials; // Flattened radials
     std::vector<Polarization>          pols;    // Flattened polarizations
     rvec_t                             ns;      //Norm constants
@@ -47,6 +53,7 @@ struct PGData
 private:
     void   BuildReaches();
     rvec_t itsReach;
+    std::shared_ptr<const PrimitiveStore> itsStore=std::make_shared<PrimitiveStore>();   //!< the host's parent's, once Init binds it
 
 };
 

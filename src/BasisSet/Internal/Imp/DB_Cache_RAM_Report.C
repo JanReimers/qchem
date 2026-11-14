@@ -60,8 +60,6 @@ template <class T> void IntegralsCache_RAM<T>::EmitReport() const
                           { "reusePct", 100.0 * (1.0 - double(inserts) / double(lookups)) },
                           { "ramMB", ramMB } });
     };
-    for (auto& i : itsCache2s) addReuse(i.first, i.second->Inserts(), i.second->Lookups(), i.second->RAMsize()/mb);
-    for (auto& i : itsCache3s) addReuse(i.first, i.second->Inserts(), i.second->Lookups(), i.second->RAMsize()/mb);
 
     rpt::json cache;
     if (!tiers.empty()) cache["tiers"] = tiers;

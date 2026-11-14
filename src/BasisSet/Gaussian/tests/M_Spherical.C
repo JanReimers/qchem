@@ -25,6 +25,10 @@ import qchem.Types;
 using namespace qchem;
 
 using namespace qchem::BasisSet::Gaussian::Evaluators;
+
+//! The PrimitiveStore these direct kernel calls look up in (S5: every looking-up kernel takes one).  One per test file, single-threaded.
+static const qchem::BasisSet::PrimitiveStore& TestStore() {static const qchem::BasisSet::PrimitiveStore s; return s;}
+
 using qchem::Math::SphericalShell;
 using PG_Spherical_MnD::NR_Evaluator;
 using PG_Cart_MnD::GaussianRF;
@@ -42,7 +46,7 @@ static void check_orthogonal(int l)
             double s = 0.0;
             for (const auto& ta : sh[i])
                 for (const auto& tb : sh[j])
-                    s += ta.c * tb.c * rf.Overlap2C(rf, ta.p, tb.p);
+                    s += ta.c * tb.c * rf.Overlap2C(TestStore(), rf, ta.p, tb.p);
             if (i!=j) EXPECT_NEAR(s, 0.0, 1e-12) << "l="<<l<<" components ("<<i<<","<<j<<") not orthogonal";
             else      EXPECT_GT(std::fabs(s), 1e-12) << "l="<<l<<" component "<<i<<" has zero norm";
         }
@@ -114,7 +118,7 @@ TEST(M_Spherical, evaluator_1E)
     };
     addShell(0,0,0); addShell(1,2,0);   // A: 1 + 5 = 6 components
     addShell(2,0,1); addShell(3,2,1);   // B: 1 + 5 = 6 components
-    ev.Init();
+    ev.Init(std::make_shared<BasisSet::PrimitiveStore>());   // a standalone evaluator: its own store
     ASSERT_EQ(ev.size(), size_t(12));
 
     for (size_t i=0;i<ev.size();++i)
@@ -143,7 +147,7 @@ TEST(M_Spherical, evaluator_3C4C_symmetry)
     NR_Evaluator ev;
     auto addShell = [&](size_t r,int l){ for (auto& t : SphericalShell(l)) ev.comps.push_back({&radials[r],t}); };
     addShell(0,2); addShell(1,2);     // 10 components (0..4 on A, 5..9 on B)
-    ev.Init();
+    ev.Init(std::make_shared<BasisSet::PrimitiveStore>());   // a standalone evaluator: its own store
     ASSERT_EQ(ev.size(), size_t(10));
 
     const int idx[][4] = { {0,1,2,3}, {0,5,7,9}, {2,2,8,8}, {1,6,3,4} };
@@ -174,7 +178,7 @@ TEST(M_Spherical, fit_kernels)
     NR_Evaluator ev;
     auto add = [&](size_t r,int l){ for (auto& t : SphericalShell(l)) ev.comps.push_back({&radials[r],t}); };
     add(0,0); add(1,2);     // 1 s + 5 d = 6 components
-    ev.Init();
+    ev.Init(std::make_shared<BasisSet::PrimitiveStore>());   // a standalone evaluator: its own store
 
     EXPECT_GT(ev.Charge(0), 0.0) << "s component should carry charge";
     for (size_t i=1;i<6;i++)

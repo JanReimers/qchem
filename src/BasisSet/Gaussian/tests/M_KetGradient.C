@@ -17,6 +17,10 @@ import qchem.Blaze;
 using namespace qchem;
 using namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD;
 
+//! The PrimitiveStore these direct kernel calls look up in (S5: every looking-up kernel takes one).  One per test file, single-threaded.
+static const qchem::BasisSet::PrimitiveStore& TestStore() {static const qchem::BasisSet::PrimitiveStore s; return s;}
+
+
 namespace {
 
 std::vector<Polarization> ShellComponents(int L)
@@ -34,8 +38,8 @@ double Value(GaussianRF::TwoCentre K, const GaussianRF& ra, const GaussianRF& rb
     double s=0.0;
     for (size_t p=0;p<pa.size();p++)
         for (size_t q=0;q<pb.size();q++)
-            s+=W[p*pb.size()+q]*(K==GaussianRF::TwoCentre::Overlap ? ra.Overlap2C(rbB,pa[p],pb[q])
-                                : K==GaussianRF::TwoCentre::Grad2   ? ra.Grad2(rbB,pa[p],pb[q]) : ra.Repulsion2C(rbB,pa[p],pb[q]));
+            s+=W[p*pb.size()+q]*(K==GaussianRF::TwoCentre::Overlap ? ra.Overlap2C(TestStore(),rbB,pa[p],pb[q])
+                                : K==GaussianRF::TwoCentre::Grad2   ? ra.Grad2(TestStore(),rbB,pa[p],pb[q]) : ra.Repulsion2C(TestStore(),rbB,pa[p],pb[q]));
     return s;
 }
 
@@ -102,7 +106,7 @@ TEST(KetGradient, TheNuclearTwinIsTheFiniteDifferenceOfTheCachedKernelWithEveryC
                 {
                     const GaussianRF ra=radA(A), rb=radB(B); const Molecule m=mol(C);
                     double v=0.0;
-                    for (size_t p=0;p<pa.size();p++) for (size_t q=0;q<pb.size();q++) v+=W[p*pb.size()+q]*ra.Nuclear(rb,pa[p],pb[q],&m);
+                    for (size_t p=0;p<pa.size();p++) for (size_t q=0;q<pb.size();q++) v+=W[p*pb.size()+q]*ra.Nuclear(TestStore(),rb,pa[p],pb[q],&m);
                     return v;
                 };
                 rvec3_t gA, gB; std::vector<rvec3_t> gC;
@@ -160,8 +164,8 @@ TEST(KetGradient, TheThreeCentreTwinsAreTheFiniteDifferenceOfTheCachedKernelsWit
                     const GaussianRF ra=radA(A), rb=radB(B), rc=radC(C);
                     double v=0.0;
                     for (size_t p=0;p<pa.size();p++) for (size_t q=0;q<pb.size();q++) for (size_t u=0;u<pt.size();u++)
-                        v+=W[p*pb.size()+q]*ct[u]*(K==GaussianRF::ThreeCentre::Overlap ? rc.Overlap3C(ra,rb,pa[p],pb[q],pt[u])
-                                                                                        : rc.Repulsion3C(ra,rb,pa[p],pb[q],pt[u]));
+                        v+=W[p*pb.size()+q]*ct[u]*(K==GaussianRF::ThreeCentre::Overlap ? rc.Overlap3C(TestStore(),ra,rb,pa[p],pb[q],pt[u])
+                                                                                        : rc.Repulsion3C(TestStore(),ra,rb,pa[p],pb[q],pt[u]));
                     return v;
                 };
                 rvec3_t gA, gB, gC;
@@ -217,7 +221,7 @@ TEST(KetGradient, TheFourCentreTwinIsTheFiniteDifferenceOfTheCachedKernelWithEve
             const GaussianRF ra=radA(A), rb=radB(B), rc=radC(C), rd=radD(D);
             double v=0.0;
             for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++) for (size_t c=0;c<nc;c++) for (size_t d=0;d<nd;d++)
-                v+=W[((a*nb+b)*nc+c)*nd+d]*rd.Repulsion4C(ra,rb,rc,pa[a],pb[b],pc[c],pd[d]);
+                v+=W[((a*nb+b)*nc+c)*nd+d]*rd.Repulsion4C(TestStore(),ra,rb,rc,pa[a],pb[b],pc[c],pd[d]);
             return v;
         };
         rvec3_t g[4];

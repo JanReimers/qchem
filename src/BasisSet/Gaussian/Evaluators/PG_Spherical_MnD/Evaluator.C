@@ -5,13 +5,13 @@
 // to the SAME Cartesian kernels PG_Cart_MnD already provides (GaussianRF::Overlap2C/Grad2/Nuclear, all
 // oracle-verified).  So the spherical 1E element is just those kernels summed over the two components'
 // Cartesian monomials with the solid-harmonic coefficients and per-component normalisations folded in --
-// no new integral math, only the transform.  (The primitive/Omega caches are shared with PG_Cart_MnD for
-// free: same GaussianRF primitives -> same content-based registry indices -> same cached Omega.)
+// no new integral math, only the transform.  (The primitive caches are the host's PARENT's PrimitiveStore, given to Init; S5.)
 module;
 #include <cassert>
 #include <string>
 #include <ostream>
 #include <vector>
+#include <memory>
 export module qchem.BasisSet.Gaussian.Evaluators.PG_Spherical_MnD;
 import qchem.BasisSet.Gaussian.Evaluators;                                  // Evaluator + concepts
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;           // Cartesian kernels (reused)
@@ -35,7 +35,11 @@ struct SphData
     rvec_t                 ns;      // per-component normalisation (1/sqrt(raw self-overlap))
 
     size_t      size() const {return comps.size();}
-    void        Init();              // fills ns from the raw self-overlaps (uses the Cartesian kernel)
+    //! Fills ns from the raw self-overlaps (the Cartesian kernel) and takes \a store, the host's parent's PrimitiveStore (S5).
+    void        Init(std::shared_ptr<const PrimitiveStore> store);
+    //! The store this evaluator's lookups over its own (and its parent's other blocks') primitives land in.
+    const PrimitiveStore& Primitives() const {return *itsStore;}
+    std::shared_ptr<const PrimitiveStore> itsStore=std::make_shared<PrimitiveStore>();
     std::string BasisSetID() const;  // geometry-aware cache identity (the integral cache key)
 };
 
@@ -52,36 +56,41 @@ public:
     double Norm   (size_t i) const {return ns[i];}
     double Overlap(size_t i,size_t j) const
     {
-        return TransformSum(i,j,[](const Cart::GaussianRF& a,const Cart::GaussianRF& b,
+        return TransformSum(i,j,[this](const Cart::GaussianRF& a,const Cart::GaussianRF& b,
                                    const Cart::Polarization& pa,const Cart::Polarization& pb)
-                                  {return a.Overlap2C(b,pa,pb);});
+                                  {return a.Overlap2C(Primitives(),b,pa,pb);});
     }
     double Grad2(size_t i,size_t j) const   // <p^2>=<-nabla^2> block, no 1/2
     {
-        return TransformSum(i,j,[](const Cart::GaussianRF& a,const Cart::GaussianRF& b,
+        return TransformSum(i,j,[this](const Cart::GaussianRF& a,const Cart::GaussianRF& b,
                                    const Cart::Polarization& pa,const Cart::Polarization& pb)
-                                  {return a.Grad2(b,pa,pb);});
+                                  {return a.Grad2(Primitives(),b,pa,pb);});
     }
     double Nuclear(size_t i,size_t j,const Structure* cl=0) const
     {
-        return TransformSum(i,j,[cl](const Cart::GaussianRF& a,const Cart::GaussianRF& b,
+        return TransformSum(i,j,[this,cl](const Cart::GaussianRF& a,const Cart::GaussianRF& b,
                                      const Cart::Polarization& pa,const Cart::Polarization& pb)
-                                    {return a.Nuclear(b,pa,pb,cl);});
+                                    {return a.Nuclear(Primitives(),b,pa,pb,cl);});
     }
 
     // --- 3-centre (DFT) and 4-centre (HF): same Cartesian kernels, summed over every slot's monomials.
-    double OverlapThreeC(size_t iA,const NR_Evaluator& eB,size_t iB,const NR_Evaluator& eC,size_t iC) const
+    // \a eC is the FIT (another owner): a fill passes ONE scratch store \a ps (Make3C), the bare forms make one per call (S5).
+    double OverlapThreeC(const PrimitiveStore& ps,size_t iA,const NR_Evaluator& eB,size_t iB,const NR_Evaluator& eC,size_t iC) const
     {
-        return ThreeCSum(iA,eB,iB,eC,iC,[](const Cart::GaussianRF& rc,const Cart::GaussianRF& ra,const Cart::GaussianRF& rb,
+        return ThreeCSum(iA,eB,iB,eC,iC,[&ps](const Cart::GaussianRF& rc,const Cart::GaussianRF& ra,const Cart::GaussianRF& rb,
                                            const Cart::Polarization& pa,const Cart::Polarization& pb,const Cart::Polarization& pc)
-                                          {return rc.Overlap3C(ra,rb,pa,pb,pc);});
+                                          {return rc.Overlap3C(ps,ra,rb,pa,pb,pc);});
     }
+    double RepulsionThreeC(const PrimitiveStore& ps,size_t iA,const NR_Evaluator& eB,size_t iB,const NR_Evaluator& eC,size_t iC) const
+    {
+        return ThreeCSum(iA,eB,iB,eC,iC,[&ps](const Cart::GaussianRF& rc,const Cart::GaussianRF& ra,const Cart::GaussianRF& rb,
+                                           const Cart::Polarization& pa,const Cart::Polarization& pb,const Cart::Polarization& pc)
+                                          {return rc.Repulsion3C(ps,ra,rb,pa,pb,pc);});
+    }
+    double OverlapThreeC  (size_t iA,const NR_Evaluator& eB,size_t iB,const NR_Evaluator& eC,size_t iC) const
+        {const PrimitiveStore scratch; return OverlapThreeC  (scratch,iA,eB,iB,eC,iC);}
     double RepulsionThreeC(size_t iA,const NR_Evaluator& eB,size_t iB,const NR_Evaluator& eC,size_t iC) const
-    {
-        return ThreeCSum(iA,eB,iB,eC,iC,[](const Cart::GaussianRF& rc,const Cart::GaussianRF& ra,const Cart::GaussianRF& rb,
-                                           const Cart::Polarization& pa,const Cart::Polarization& pb,const Cart::Polarization& pc)
-                                          {return rc.Repulsion3C(ra,rb,pa,pb,pc);});
-    }
+        {const PrimitiveStore scratch; return RepulsionThreeC(scratch,iA,eB,iB,eC,iC);}
     double FourC(size_t iA,const NR_Evaluator& eB,size_t iB,const NR_Evaluator& eC,size_t iC,
                  const NR_Evaluator& eD,size_t iD) const
     {
@@ -91,7 +100,7 @@ public:
                 for (const auto& tc : eC.comps[iC].terms)
                     for (const auto& td : eD.comps[iD].terms)
                         s += ta.c*tb.c*tc.c*td.c
-                           * eD.comps[iD].radial->Repulsion4C(*comps[iA].radial, *eB.comps[iB].radial,
+                           * eD.comps[iD].radial->Repulsion4C(Primitives(), *comps[iA].radial, *eB.comps[iB].radial,   // one parent's blocks
                                                               *eC.comps[iC].radial, ta.p, tb.p, tc.p, td.p);
         return s * ns[iA]*eB.ns[iB]*eC.ns[iC]*eD.ns[iD];
     }
@@ -100,20 +109,22 @@ public:
     double OverlapWith(size_t i,const qchem::Math::CartGaussian& g) const
     {
         Cart::GaussianRF gr(g.alpha,g.center,Degree(g));
+        const PrimitiveStore scratch;   // gr is a temporary of this call
         double s = 0.0;
         for (const auto& ta : comps[i].terms)
             for (const auto& tg : g.terms)
-                s += ta.c*tg.c * comps[i].radial->Overlap2C(gr,Cart::Polarization(ta.p),Cart::Polarization(tg.p));
+                s += ta.c*tg.c * comps[i].radial->Overlap2C(scratch,gr,Cart::Polarization(ta.p),Cart::Polarization(tg.p));
         return s * ns[i];
     }
     double OperatorThreeC(size_t i,size_t j,const qchem::Math::CartGaussian& g) const
     {
         Cart::GaussianRF gr(g.alpha,g.center,Degree(g));
+        const PrimitiveStore scratch;   // gr is a temporary of this call
         double s = 0.0;
         for (const auto& ta : comps[i].terms)
             for (const auto& tb : comps[j].terms)
                 for (const auto& tg : g.terms)
-                    s += ta.c*tb.c*tg.c * gr.Overlap3C(*comps[i].radial,*comps[j].radial,Cart::Polarization(ta.p),
+                    s += ta.c*tb.c*tg.c * gr.Overlap3C(scratch,*comps[i].radial,*comps[j].radial,Cart::Polarization(ta.p),
                                                        Cart::Polarization(tb.p),Cart::Polarization(tg.p));
         return s * ns[i]*ns[j];
     }
@@ -121,10 +132,11 @@ public:
     {
         Cart::GaussianRF gr(alpha,c,0);
         const Cart::Polarization s0(qchem::Math::Monomial{0,0,0});
+        const PrimitiveStore scratch;   // gr is a temporary of this call
         double s = 0.0;
         for (const auto& ta : comps[i].terms)
             for (const auto& tb : comps[j].terms)
-                s += ta.c*tb.c * gr.Repulsion3C(*comps[i].radial,*comps[j].radial,Cart::Polarization(ta.p),
+                s += ta.c*tb.c * gr.Repulsion3C(scratch,*comps[i].radial,*comps[j].radial,Cart::Polarization(ta.p),
                                                 Cart::Polarization(tb.p),s0);
         return s * ns[i]*ns[j];
     }
@@ -133,10 +145,12 @@ public:
     // summed like everything else.  Repulsion2C has a cross-evaluator form (this fit x another fit).
     double Repulsion2C(size_t i,const NR_Evaluator& e,size_t j) const
     {
+        // A fit x fit metric: \a e is this fit or another, so a scratch store (another fit's primitives never enter this one's).
+        const PrimitiveStore scratch;
         double s = 0.0;
         for (const auto& ta : comps[i].terms)
             for (const auto& tb : e.comps[j].terms)
-                s += ta.c*tb.c * comps[i].radial->Repulsion2C(*e.comps[j].radial, ta.p, tb.p);
+                s += ta.c*tb.c * comps[i].radial->Repulsion2C(scratch, *e.comps[j].radial, ta.p, tb.p);
         return s * ns[i]*e.ns[j];
     }
     double Repulsion2C(size_t i,size_t j) const {return Repulsion2C(i,*this,j);}

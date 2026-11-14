@@ -79,11 +79,12 @@ public:
     // Grad2 is the FULL Cartesian \f$\langle p^2\rangle=\langle-\nabla^2\rangle\f$ block: NO 1/2 (that is
     // the Hamiltonian's), NO centrifugal term (atom-only).  Nuclear is the multi-centre attraction.
     double Norm   (size_t i)          const {return ns[i];}
-    double Overlap(size_t i,size_t j) const {return radials[i]->Overlap2C(*radials[j], pols[i], pols[j]) * ns[i]*ns[j];}
-    double Grad2  (size_t i,size_t j) const {return radials[i]->Grad2    (*radials[j], pols[i], pols[j]) * ns[i]*ns[j];}
+    // Lookups over this block's (and its parent's other blocks') own primitives land in the parent's store, Primitives() (S5).
+    double Overlap(size_t i,size_t j) const {return radials[i]->Overlap2C(Primitives(), *radials[j], pols[i], pols[j]) * ns[i]*ns[j];}
+    double Grad2  (size_t i,size_t j) const {return radials[i]->Grad2    (Primitives(), *radials[j], pols[i], pols[j]) * ns[i]*ns[j];}
     double Nuclear(size_t i,size_t j,const Structure* cl=0) const
     {
-        return radials[i]->Nuclear(*radials[j], pols[i], pols[j], cl) * ns[i]*ns[j];
+        return radials[i]->Nuclear(Primitives(), *radials[j], pols[i], pols[j], cl) * ns[i]*ns[j];
     }
 
     // --- Periodic (lattice-summed) 1E matrices at general k -- the GPW seam ------------------------------
@@ -189,12 +190,9 @@ public:
     {
         chmat_t S(size());
         const bool trace=(qchem::Diagnostics::Enabled("rss_trace"));
-        // GEOMETRY-CACHE BOUND (the full-SR OOM, doc/GPWPlan.md): the MnD Omega/RNLM/H3 caches key on
-        // per-instance IDs, and AtCenter mints fresh clones per (pair, offset) -- a diffuse basis' ~2k
-        // images/pair would grow them to GBs inside ONE matrix build.  The size-0 budget evicts each
-        // clone as the next is inserted (O(1) resident); safe here because the 1E/3C kernels hold at
-        // most one live borrow per cache.  Replaces the old per-pair ClearGeometryCaches().
-        const GeometryCacheBudget geoBudget;
+        // GEOMETRY-CACHE BOUND (the full-SR OOM, doc/GPWPlan.md): AtCenter mints a fresh clone per (pair, offset) -- a diffuse basis'
+        // ~2k images/pair -- so each image term looks up in a SCRATCH PrimitiveStore that dies with the term (S5; it replaces the
+        // size-0 GeometryCacheBudget): resident is one term's entries, and the parent's store never sees an image's serial.
         for (auto i:indices())
         {
             for (auto j:indices(i))
@@ -202,7 +200,7 @@ public:
                 const rvec3_t cj=radials[j]->GetCenter();
                 dcmplx s(0.0);
                 images(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
-                                { s += phase(n) * K(i, j, radials[j]->AtCenter(cj+Roff)); });
+                                { const PrimitiveStore scratch; s += phase(n) * K(i, j, radials[j]->AtCenter(cj+Roff), scratch); });
                 s *= ns[i]*ns[j];
                 S(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-set to conj
             }
@@ -229,14 +227,13 @@ public:
     template <class Kernel, class Images> LatticeSeries MakeLatticeSeries(const UnitCell& A, Kernel K, Images images) const
     {
         LatticeSeries S;
-        const GeometryCacheBudget geoBudget;   // as LatticeSumPerK: each image clone is evicted as the next is inserted
-        for (auto i:indices())
+        for (auto i:indices())   // as LatticeSumPerK: each image term looks up in its own scratch store
             for (auto j:indices(i))
             {
                 S.start.push_back(S.terms.size());
                 const rvec3_t cj=radials[j]->GetCenter();
                 images(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
-                                { S.terms.push_back({n, K(i, j, radials[j]->AtCenter(cj+Roff))}); });
+                                { const PrimitiveStore scratch; S.terms.push_back({n, K(i, j, radials[j]->AtCenter(cj+Roff), scratch)}); });
             }
         S.start.push_back(S.terms.size());
         return S;
@@ -281,10 +278,11 @@ public:
         return *it->second;
     }
 
-    auto OverlapKernel() const {return [this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Overlap2C(cj,pols[i],pols[j]);};}
-    auto KineticKernel() const {return [this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Grad2   (cj,pols[i],pols[j]);};}
+    // The image kernels: \a ps is the image term's scratch store (cj is an AtCenter clone, owned by no basis set).
+    auto OverlapKernel() const {return [this](size_t i,size_t j,const GaussianRF& cj,const PrimitiveStore& ps){return radials[i]->Overlap2C(ps,cj,pols[i],pols[j]);};}
+    auto KineticKernel() const {return [this](size_t i,size_t j,const GaussianRF& cj,const PrimitiveStore& ps){return radials[i]->Grad2   (ps,cj,pols[i],pols[j]);};}
     auto NuclearKernel(const Structure* cl) const
-    {   return [this,cl](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Nuclear(cj,pols[i],pols[j],cl);}; }
+    {   return [this,cl](size_t i,size_t j,const GaussianRF& cj,const PrimitiveStore& ps){return radials[i]->Nuclear(ps,cj,pols[i],pols[j],cl);}; }
     // The image lists: S and T each on their OWN kernel's bound (ForSeriesImages, below); the nuclear and local-Gaussian series still on
     // the pair prefactor (ForImageOffsets) -- the nuclear kernel's 1/r has no bound written yet, and the local Gaussian's double sum
     // (pair images x operator images) leaves ~1e3 screenEps per element under ANY per-term screen (OpenWork row, lane B 2026-11-10).
@@ -309,7 +307,7 @@ public:
     template <class OpTerms> auto LocalGaussianKernel(const OpTerms& ops) const   // OpTerms = std::vector<OpTerm> (declared below)
     {
         const double lne=-std::log(kScreenEps());
-        return [this,&ops,lne](size_t i,size_t j,const GaussianRF& cj)
+        return [this,&ops,lne](size_t i,size_t j,const GaussianRF& cj,const PrimitiveStore& ps)
         {
             const rvec3_t Ri=radials[i]->GetCenter(), Rj=cj.GetCenter();   // chi_i home, chi_j imaged
             const double ai=MinExponent(i), aj=MinExponent(j);            // AtCenter preserves exponents
@@ -321,7 +319,7 @@ public:
                 const double c=ot.gr->GetExponents()[0];                  // op is uncontracted (single g.alpha)
                 const rvec3_t AC=Ri-Rc, BC=Rj-Rc;
                 if ((ai*aj*AB2 + ai*c*(AC*AC) + aj*c*(BC*BC))/(ai+aj+c) > lne) continue;  // prefactor < eps: skip
-                s += ot.c * ot.gr->Overlap3C(*radials[i], cj, pols[i], pols[j], ot.pol);
+                s += ot.c * ot.gr->Overlap3C(ps, *radials[i], cj, pols[i], pols[j], ot.pol);
             }
             return s;
         };
@@ -343,8 +341,8 @@ public:
         // MOST DIFFUSE primitive (a=MinExponent -> largest reach -> conservative: drops only sub-eps terms), and
         // SKIP the expensive Overlap3C when it is below eps.  This is the 3-centre analogue of the pair reach
         // sqrt(-ln eps (1/a_i+1/a_j)): a diffuse orbital no longer forces a huge operator sum, because g anchors
-        // the product to its atom.  (3-centre kernel under LatticeSum's size-0 GeometryCacheBudget: each surviving
-        // triple's Hermite3 block is built, used, and evicted -- O(1) resident.)
+        // the product to its atom.  (3-centre kernel in each image term's scratch store: each surviving triple's Hermite3 block is
+        // built, used, and dropped with the term -- O(1) resident.)
         std::string key="G|"+CellKey(A)+SitesKey(cl)+"|op=";
         for (const Site& a : cl->Sites())
         {
@@ -369,6 +367,7 @@ public:
     {
         const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,nullptr);   // finite: home atoms only
         const double lne=-std::log(kScreenEps());   // SAME 3-centre screen as the periodic form (finite==lattice)
+        const PrimitiveStore scratch;               // the operator's radials are this fill's own: their entries die with it (S5)
         chmat_t S(size());
         for (auto i:indices()) for (auto j:indices(i))
         {
@@ -382,7 +381,7 @@ public:
                 const double c=ot.gr->GetExponents()[0];
                 const rvec3_t AC=Ri-Rc, BC=Rj-Rc;
                 if ((ai*aj*AB2 + ai*c*(AC*AC) + aj*c*(BC*BC))/(ai+aj+c) > lne) continue;  // prefactor < eps: skip
-                s += ot.c * ot.gr->Overlap3C(*radials[i], *radials[j], pols[i], pols[j], ot.pol);
+                s += ot.c * ot.gr->Overlap3C(scratch, *radials[i], *radials[j], pols[i], pols[j], ot.pol);
             }
             S(i,j)=dcmplx(s*ns[i]*ns[j], 0.0);   // finite: real symmetric (upper triangle; chmat_t mirrors)
         }
@@ -401,8 +400,7 @@ public:
     {
         const int Lg=GaussDegree(g);
         cvec_t b(size(), dcmplx(0.0));
-        const GeometryCacheBudget geoBudget;   // size-0: g's image clones stay O(1) (see LatticeSum)
-        double rr=0.0;
+        double rr=0.0;   // (each image term below looks up in its own scratch store: g's clones stay O(1), see LatticeSumPerK)
         for (auto i:indices())
         {
             if (i==0 || radials[i]!=radials[i-1]) rr=GaussReach(i,g);   // one reach per shell
@@ -414,7 +412,8 @@ public:
                 const rvec3_t Roff=A.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
                 const rvec3_t d=dig-Roff;
                 if (d.x*d.x+d.y*d.y+d.z*d.z > rr*rr) continue;       // product < eps -> series converged here
-                s += phase(n)*GaussOverlapTerm(i, g, g.center+Roff, Lg);
+                const PrimitiveStore scratch;
+                s += phase(n)*GaussOverlapTerm(i, g, g.center+Roff, Lg, scratch);
             }
             b[i]=ns[i]*s;
         }
@@ -425,7 +424,8 @@ public:
     {
         const int Lg=GaussDegree(g);
         cvec_t b(size(), dcmplx(0.0));
-        for (auto i:indices()) b[i]=ns[i]*GaussOverlapTerm(i, g, g.center, Lg);
+        const PrimitiveStore scratch;   // g is this call's own function: its entries die with the call
+        for (auto i:indices()) b[i]=ns[i]*GaussOverlapTerm(i, g, g.center, Lg, scratch);
         return b;
     }
     // Gaussian::LatticeSum1E: the lattice-summed <g|h(.-R_n)> of two CALLER functions -- the same kernel
@@ -466,9 +466,10 @@ public:
                                 const Gaussian::LatticeSum1E::GaussianFunction& h, const rvec3_t& c)
     {
         GaussianRF rg(g.alpha, g.center, GaussDegree(g)), rh(h.alpha, c, GaussDegree(h));
+        const PrimitiveStore scratch;   // two temporaries: nothing outlives the call
         double s=0.0;
         for (const auto& tg : g.terms)
-            for (const auto& th : h.terms) s += tg.c*th.c*rg.Overlap2C(rh, Polarization(tg.p), Polarization(th.p));
+            for (const auto& th : h.terms) s += tg.c*th.c*rg.Overlap2C(scratch, rh, Polarization(tg.p), Polarization(th.p));
         return s;
     }
     //! The reach of the series sum_n <chi_i|g(.-R_n)> for the SHELL of i: past it |ns_c <chi_c|g>| < screenEps for every
@@ -510,27 +511,30 @@ public:
     // The three kernels of an analytic species field (isPP_Evaluator).  g is integrated RAW.
     double OverlapWith(size_t i, const Math::CartGaussian& g) const
     {
-        return ns[i]*GaussOverlapTerm(i, g, g.center, GaussDegree(g));
+        const PrimitiveStore scratch;
+        return ns[i]*GaussOverlapTerm(i, g, g.center, GaussDegree(g), scratch);
     }
     double OperatorThreeC(size_t i, size_t j, const Math::CartGaussian& g) const
     {
         GaussianRF gr(g.alpha, g.center, GaussDegree(g));
+        const PrimitiveStore scratch;   // gr is a temporary of this call
         double s=0.0;
-        for (const auto& t : g.terms) s += t.c*gr.Overlap3C(*radials[i], *radials[j], pols[i], pols[j], Polarization(t.p));
+        for (const auto& t : g.terms) s += t.c*gr.Overlap3C(scratch, *radials[i], *radials[j], pols[i], pols[j], Polarization(t.p));
         return s*ns[i]*ns[j];
     }
     double RepulsionThreeC(size_t i, size_t j, const rvec3_t& c, double alpha) const
     {
         GaussianRF gr(alpha, c, 0);
-        return ns[i]*ns[j]*gr.Repulsion3C(*radials[i], *radials[j], pols[i], pols[j], Polarization(Math::Monomial{0,0,0}));
+        const PrimitiveStore scratch;   // gr is a temporary of this call
+        return ns[i]*ns[j]*gr.Repulsion3C(scratch, *radials[i], *radials[j], pols[i], pols[j], Polarization(Math::Monomial{0,0,0}));
     }
     double GaussOverlapTerm(size_t i, const Gaussian::LatticeSum1E::GaussianFunction& g,
-                            const rvec3_t& c, int Lg) const
+                            const rvec3_t& c, int Lg, const PrimitiveStore& ps) const   //!< \a ps: the caller's scratch (g is not this block's)
     {
         GaussianRF gr(g.alpha, c, Lg);
         double sr=0.0;
         for (const auto& t : g.terms)
-            sr += t.c * radials[i]->Overlap2C(gr, pols[i], Polarization(t.p));
+            sr += t.c * radials[i]->Overlap2C(ps, gr, pols[i], Polarization(t.p));
         return sr;
     }
 
@@ -3818,16 +3822,22 @@ public:
     // MakeDirect / MakeExchange.  (A member may read another same-type evaluator's private data.)
 
     // <ab|c> 3-centre integrals (M&D, evaluated on the C radial) -- one named function per kind.
-    double OverlapThreeC(size_t iA, const NR_Evaluator& eB, size_t iB, const NR_Evaluator& eC, size_t iC) const
+    // \a eC is the FIT (another owner), so its primitives never enter the parent's store: a whole fill passes ONE scratch store to the
+    // overloads taking \a ps (Make3C), and the bare forms (the concept's, the gates' reference) make one per call (S5).
+    double OverlapThreeC(const PrimitiveStore& ps, size_t iA, const NR_Evaluator& eB, size_t iB, const NR_Evaluator& eC, size_t iC) const
     {
-        return eC.radials[iC]->Overlap3C(*radials[iA], *eB.radials[iB], pols[iA], eB.pols[iB], eC.pols[iC])
+        return eC.radials[iC]->Overlap3C(ps, *radials[iA], *eB.radials[iB], pols[iA], eB.pols[iB], eC.pols[iC])
              * ns[iA] * eB.ns[iB] * eC.ns[iC];
     }
+    double RepulsionThreeC(const PrimitiveStore& ps, size_t iA, const NR_Evaluator& eB, size_t iB, const NR_Evaluator& eC, size_t iC) const
+    {
+        return eC.radials[iC]->Repulsion3C(ps, *radials[iA], *eB.radials[iB], pols[iA], eB.pols[iB], eC.pols[iC])
+             * ns[iA] * eB.ns[iB] * eC.ns[iC];
+    }
+    double OverlapThreeC  (size_t iA, const NR_Evaluator& eB, size_t iB, const NR_Evaluator& eC, size_t iC) const
+        {const PrimitiveStore scratch; return OverlapThreeC  (scratch, iA, eB, iB, eC, iC);}
     double RepulsionThreeC(size_t iA, const NR_Evaluator& eB, size_t iB, const NR_Evaluator& eC, size_t iC) const
-    {
-        return eC.radials[iC]->Repulsion3C(*radials[iA], *eB.radials[iB], pols[iA], eB.pols[iB], eC.pols[iC])
-             * ns[iA] * eB.ns[iB] * eC.ns[iC];
-    }
+        {const PrimitiveStore scratch; return RepulsionThreeC(scratch, iA, eB, iB, eC, iC);}
 
     // (ab|cd) 4-centre electron-repulsion integral (M&D, evaluated on the D radial).
     double FourC(size_t iA,
@@ -3835,7 +3845,7 @@ public:
                  const NR_Evaluator& eC, size_t iC,
                  const NR_Evaluator& eD, size_t iD) const
     {
-        return eD.radials[iD]->Repulsion4C(*radials[iA], *eB.radials[iB], *eC.radials[iC],
+        return eD.radials[iD]->Repulsion4C(Primitives(), *radials[iA], *eB.radials[iB], *eC.radials[iC],   // four blocks of one parent
                                            pols[iA], eB.pols[iB], eC.pols[iC], eD.pols[iD])
              * ns[iA] * eB.ns[iB] * eC.ns[iC] * eD.ns[iD];
     }
@@ -3852,7 +3862,7 @@ public:
     void FourCBlock(size_t a0, size_t na, const NR_Evaluator& eB, size_t b0, size_t nb,
                     const NR_Evaluator& eC, size_t c0, size_t nc, const NR_Evaluator& eD, size_t d0, size_t nd, double* out) const
     {
-        eD.radials[d0]->Repulsion4CBlock(*radials[a0], *eB.radials[b0], *eC.radials[c0],
+        eD.radials[d0]->Repulsion4CBlock(Primitives(), *radials[a0], *eB.radials[b0], *eC.radials[c0],
                                          &pols[a0], na, &eB.pols[b0], nb, &eC.pols[c0], nc, &eD.pols[d0], nd, out);
         size_t q=0;
         for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++) for (size_t c=0;c<nc;c++) for (size_t d=0;d<nd;d++,q++)
@@ -3892,13 +3902,13 @@ public:
                          const NR_Evaluator& eD, size_t gD, double* out) const
     {
         const GroupSlot A(*this,gA), B(eB,gB), C(eC,gC), D(eD,gD);
-        GaussianRF::Repulsion4CGroupBlock(A.r.data(),A.m, B.r.data(),B.m, C.r.data(),C.m, D.r.data(),D.m,
+        GaussianRF::Repulsion4CGroupBlock(Primitives(), A.r.data(),A.m, B.r.data(),B.m, C.r.data(),C.m, D.r.data(),D.m,
                                           A.p,A.n, B.p,B.n, C.p,C.n, D.p,D.n, out);
         NormFourC(A, eB, B, eC, C, eD, D, out);
     }
     //! \brief THE THREADED ERI4 FILL'S INPUT (OpenWork §3 "thread-safe only by the serial-phase rule", lane H 2026-11-11): every group
     //! pair (gA <= gB) of this evaluator against itself, its primitive pairs' charge distributions, [Pair(gA,gB)][i*nj+j] (\c
-    //! GaussianRF::PairTable).  Built SERIALLY -- it is the only place the threaded fill meets the global Ω cache -- and read by \c
+    //! GaussianRF::PairTable).  Built SERIALLY -- it is the only place the threaded fill meets the parent's store -- and read by \c
     //! FourCGroupBlock(table, ...) on the workers.  An uncached compute (a Make): the fill builds it once per UniqueQuartets.
     using GroupPairΩ=std::vector<PrimitivePairTable>;
     GroupPairΩ MakeGroupPairΩ() const
@@ -3907,10 +3917,10 @@ public:
         const std::vector<Shell>& sh=Shells();
         GroupPairΩ t(G.size()*(G.size()+1)/2);
         for (size_t gb=0;gb<G.size();gb++) for (size_t ga=0;ga<=gb;ga++)
-            t[gb*(gb+1)/2+ga]=GaussianRF::PairTable(*radials[sh[G[ga].first].begin], *radials[sh[G[gb].first].begin]);
+            t[gb*(gb+1)/2+ga]=GaussianRF::PairTable(Primitives(), *radials[sh[G[ga].first].begin], *radials[sh[G[gb].first].begin]);
         return t;
     }
-    //! \c FourCGroupBlock of this evaluator against itself (gA <= gB, gC <= gD) with the Ω read from \a t (\c MakeGroupPairΩ): no global
+    //! \c FourCGroupBlock of this evaluator against itself (gA <= gB, gC <= gD) with the Ω read from \a t (\c MakeGroupPairΩ): no
     //! cache is touched, so a worker may call it.  The same kernel body as the overload above, so the same bits.
     void FourCGroupBlock(const GroupPairΩ& t, size_t gA, size_t gB, size_t gC, size_t gD, double* out) const
     {
@@ -3921,19 +3931,19 @@ public:
                                           t.at(gB*(gB+1)/2+gA), t.at(gD*(gD+1)/2+gC), out);
         NormFourC(A, *this, B, *this, C, *this, D, out);
     }
-    //! The worker count for a group-block fill: \c QCHEM_OPENMP_THREADS (serial by default), and ONE whenever the geometry caches may
-    //! evict (a lattice \c GeometryCacheBudget scope), since the \c MakeGroupPairΩ pointers must outlive the fill.
-    static int GroupBlockThreads() {return GaussianRF::GeometryCachesKeepEverything() ? PairThreads() : 1;}
+    //! The worker count for a group-block fill: \c QCHEM_OPENMP_THREADS (serial by default).  (A store never evicts, so the \c
+    //! MakeGroupPairΩ pointers always outlive the fill: the old "one worker under a lattice cache budget" case is gone with S5.)
+    static int GroupBlockThreads() {return PairThreads();}
     //! \brief A GROUP TRIPLE of \c RepulsionThreeC / \c OverlapThreeC at once (this is the A slot, \a eC the fit): \a out[m*n+q] with
     //! m=(ia*mb+ib)*mc+ic and q=(a*nb+b)*nc+c is the per-element kernel's value BIT FOR BIT (the three norms in its order).
     void RepulsionThreeCGroupBlock(size_t gA, const NR_Evaluator& eB, size_t gB, const NR_Evaluator& eC, size_t gC, double* out) const
     {
-        const GroupSlot A(*this,gA), B(eB,gB), C(eC,gC);
-        GaussianRF::Repulsion3CGroupBlock(A.r.data(),A.m, B.r.data(),B.m, C.r.data(),C.m, A.p,A.n, B.p,B.n, C.p,C.n, out);
+        const GroupSlot A(*this,gA), B(eB,gB), C(eC,gC);   // the ab Ω are this parent's own; the fit's c only meets a local RNLM
+        GaussianRF::Repulsion3CGroupBlock(Primitives(), A.r.data(),A.m, B.r.data(),B.m, C.r.data(),C.m, A.p,A.n, B.p,B.n, C.p,C.n, out);
         NormThreeC(A, eB, B, eC, C, out);
     }
     //! \c RepulsionThreeCGroupBlock of this block against itself (gA <= gB) and the fit \a eC, with the ab Ω read from \a t (\c
-    //! MakeGroupPairΩ): no global cache is touched, so a worker may call it.  The same kernel body, so the same bits.
+    //! MakeGroupPairΩ): no store is touched, so a worker may call it.  The same kernel body, so the same bits.
     void RepulsionThreeCGroupBlock(const GroupPairΩ& t, size_t gA, size_t gB, const NR_Evaluator& eC, size_t gC, double* out) const
     {
         if (gB<gA) throw std::invalid_argument("NR_Evaluator::RepulsionThreeCGroupBlock(table): a group pair out of order");

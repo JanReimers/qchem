@@ -65,6 +65,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/Cache4.C
   Internal/Cache2.C
   Internal/Cache3.C
+  Internal/PrimitiveStore.C             # one owner's Ω / RNLM / H3 caches (IntegralCacheOwnershipPlan S5)
   PairProjection.C
   PairProjector.C
   GMap.C

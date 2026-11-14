@@ -35,11 +35,7 @@ public:
     virtual const ERI4     & Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()>) override;
 
 
-    virtual void Register(Cache2_Client* eval) override;
-    virtual const Cache2* GetCache2(const RadialTypeID_t& type) const override;
 
-    virtual void Register(Cache3_Client* eval) override;
-    virtual const Cache3* GetCache3(const RadialTypeID_t& type) const override;
 
     // --- Troubleshooting / DBCache-unit-test hooks.  DELIBERATELY on the concrete RAM type, NOT on the
     // abstract IntegralsCache<T> face: production code only ever holds that face (via theCache<T>()), so it
@@ -82,10 +78,6 @@ private:
     void RunGarbageCollector(const id_pair_t& protect);
     size_t Purge(map4_t& eri4s,const id_pair_t& old,const id_pair_t& protect);
 
-    using val2_t=std::unique_ptr<Cache2>;
-    using cach2_t=std::map<RadialTypeID_t,val2_t>;
-    using val3_t=std::unique_ptr<Cache3>;
-    using cach3_t=std::map<RadialTypeID_t,val3_t>;
 
     map1_t itsVecs;  //Vectors (charge)
     map2_t itsSMats; //Symmetric 2 center matrices
@@ -94,8 +86,6 @@ private:
     map4_t Jac,Kab;  //4 center, 2 IBS ERI integrals for HF.
 
 
-    cach2_t itsCache2s; //2 index charge-distribution caches (molecular Omega_ab), keyed by RadialType
-    cach3_t itsCache3s; //3 index Hermite-block caches (molecular DFT Overlap3C), keyed by RadialType
 
     bool itsMakeLog;
     mutable std::ofstream itsLogger;

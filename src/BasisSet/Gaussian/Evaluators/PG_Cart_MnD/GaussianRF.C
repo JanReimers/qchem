@@ -19,6 +19,7 @@ import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Hermite;   // Hermite1/2/3
 import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD;                   // RNLM (Ω self-auxiliary)
 import qchem.BasisSet.Internal.Cache2;                                    // Cacheable2 (Ω is cached)
+export import qchem.BasisSet.Internal.PrimitiveStore;                     // the owner's Ω / RNLM / H3 caches every looking-up kernel takes (S5)
 import qchem.CMath;                                                        // Pi (the 2-centre kernels below)
 
 import qchem.ScalarFunction;
@@ -28,10 +29,10 @@ import qchem.Structure;
 //
 //  MODULE-INTERNAL implementation of the radial integrals -- none of this is exported, and only the
 //  PrimGaussian kernels (same module) touch it:
-//    GData -- the cache identity of one primitive (exponent, centre, max-L + a content-based index).
+//    GData -- the cache identity of one primitive (exponent, centre, max-L + its never-reused serial).
 //    Ω     -- the McMurchie-Davidson charge distribution of a PRIMITIVE PAIR (Hermite coeffs + the
-//             auxiliary RNLM); cached in the process-global Cache2.
-//    findΩ/findRNLM/findH3 -- the global Cache2/Cache3 access points.
+//             auxiliary RNLM); cached in the CALLER's PrimitiveStore (S5: the owner's, or a fill's scratch).
+//    findΩ/findRNLM/findH3 -- the store lookups (the store is always an explicit argument).
 //  (Previously these were the separate Internal.GData / Internal.Omega modules; folded in here since
 //  nothing else uses them -- which also lets findH3 build the block directly, no cycle-breaker lambda.)
 //
@@ -73,7 +74,7 @@ using ::qchem::BasisSet::Gaussian::Evaluators::Internal::MnD::RNLM;  // Ω's sel
 
 struct GData
 {
-    size_t   ID;      // content-based registry index (NOT the old per-object UniqueID)
+    size_t   ID;      // the primitive's never-reused serial (PrimitiveStore::NextSerial): a store key, unique across owners
     double   α;   // exponent
     rvec3_t  R;       // centre
     int      L;       // actually a maximum L
@@ -87,7 +88,7 @@ public:
     PrimGaussian(double Exp, const rvec3_t& Center, int L);
     ~PrimGaussian();
 
-    size_t          GetID      () const {return itsIndex;}   // content-based registry index
+    size_t          GetID      () const {return itsIndex;}   // never-reused serial (a PrimitiveStore key)
     double          GetExponent() const {return itsExponent;}
     const rvec3_t&  GetCenter  () const {return itsCenter;}
     int             GetL       () const {return itsL;}
@@ -101,20 +102,19 @@ public:
 
     // M&D integral kernels over primitives -- one named function per integral, no enum/switch dispatch
     // (that was residue of the retired multiple-dispatch gauntlet).  a/b/c/d are primitive Gaussians.
-    static double Overlap2C  (const PrimGaussian* a, const PrimGaussian* b,
+    static double Overlap2C  (const PrimitiveStore& s, const PrimGaussian* a, const PrimGaussian* b,
                               const Polarization& pa, const Polarization& pb);
-    static double Repulsion2C(const PrimGaussian* a, const PrimGaussian* b,
+    static double Repulsion2C(const PrimitiveStore& s, const PrimGaussian* a, const PrimGaussian* b,
                               const Polarization& pa, const Polarization& pb);
-    static double Grad2      (const PrimGaussian* a, const PrimGaussian* b,        // <p^2> block, no 1/2
+    static double Grad2      (const PrimitiveStore& s, const PrimGaussian* a, const PrimGaussian* b,        // <p^2> block, no 1/2
                               const Polarization& pa, const Polarization& pb);
-    static double Nuclear    (const PrimGaussian* a, const PrimGaussian* b,
+    static double Nuclear    (const PrimitiveStore& s, const PrimGaussian* a, const PrimGaussian* b,
                               const Polarization& pa, const Polarization& pb, const Structure* cl);
-    //! 3-centre overlap: builds/caches the Hermite3 block in the global Cache3 (keyed by the primitive
-    //! triple).  On LATTICE paths the caller wraps the build in a GeometryCacheBudget (size-0), so the
-    //! block is evicted right after use -- the old streaming variant's build-use-discard, now one kernel.
-    static double Overlap3C  (const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c,
+    //! 3-centre overlap: builds/caches the Hermite3 block in \a s (keyed by the primitive triple).  The third primitive is usually
+    //! another owner's (a fit basis, a lattice image), so the caller passes a SCRATCH store it drops at the end of its fill (S5).
+    static double Overlap3C  (const PrimitiveStore& s, const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c,
                               const Polarization& pa, const Polarization& pb, const Polarization& pc);
-    static double Repulsion3C(const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c,
+    static double Repulsion3C(const PrimitiveStore& s, const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c,
                               const Polarization& pa, const Polarization& pb, const Polarization& pc);
     //! The same with the pair's charge distribution \a ab and the triple's RNLM table \a R handed in: what a GROUP block
     //! (\c GaussianRF::Repulsion3CGroupBlock) calls once per component triple, having looked both up ONCE per primitive triple.
@@ -122,7 +122,7 @@ public:
                               const Polarization& pa, const Polarization& pb, const Polarization& pc);
     // (ab|cd) given the two charge distributions directly: the caller (GaussianRF::Repulsion4C) hoists the
     // findΩ lookups out of the inner contraction loop, so this hot kernel does no cache descent for Ω.
-    static double Repulsion4C(const Ω& ab, const Ω& cd,
+    static double Repulsion4C(const PrimitiveStore& s, const Ω& ab, const Ω& cd,
                               const Polarization& pa, const Polarization& pb,
                               const Polarization& pc, const Polarization& pd);
     //! The same with the primitive quartet's RNLM table and prefactor \f$\lambda\f$ (\c Lambda4C) handed in: what a SHELL-QUARTET block
@@ -146,7 +146,7 @@ private:
     mutable Hermite1* itsH1;
 };
 
-// Ω: the M&D charge distribution of a primitive pair (a,b).  Lives in the process-global Cache2.
+// Ω: the M&D charge distribution of a primitive pair (a,b).  Lives in the caller's PrimitiveStore (S5).
 struct Ω : public Cacheable2
 {
     Ω(const GData&,const GData&);
@@ -181,7 +181,7 @@ private:
 
 //! \brief THE 2-CENTRE OVERLAP AND \f$\langle p^2\rangle\f$ OF ONE PRIMITIVE PAIR, from its Gaussian product (exponent sum \a p, prefactor
 //! \a Eij) and its Hermite block \a H2: ONE definition each.  Two paths call them: the cached one (\c PrimGaussian::Overlap2C / \c Grad2 on
-//! the Ω of the global cache) and the cache-free one Enzyme differentiates (\c GaussianRF::KetGradient, which builds the product and the
+//! the Ω of a PrimitiveStore) and the cache-free one Enzyme differentiates (\c GaussianRF::KetGradient, which builds the product and the
 //! block per primitive pair, so the derivative sees every geometry dependence).  INLINE, so the AD unit sees the bodies.
 inline double PairOverlap(double p, double Eij, const Hermite2& H2, const Polarization& pa, const Polarization& pb)
 {
@@ -358,10 +358,10 @@ inline double PairRepulsion4C(const Hermite2& Hab, const Polarization& pa, const
     return s*lambda;
 }
 
-// Global Cache2/Cache3 access points (the only way the kernels reach Ω / the auxiliaries).
-const Ω&        findΩ   (const GData& a, const GData& b);                          // primitive pair
-const RNLM&     findRNLM(const GData& ab, const GData& c);                         // 3/4-centre RNLM
-const Hermite3& findH3  (const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c); // <ab|c>
+// The store lookups (the only way the kernels reach Ω / the auxiliaries); the store is the caller's (S5).
+const Ω&        findΩ   (const PrimitiveStore& s, const GData& a, const GData& b);                          // primitive pair
+const RNLM&     findRNLM(const PrimitiveStore& s, const GData& ab, const GData& c);                         // 3/4-centre RNLM
+const Hermite3& findH3  (const PrimitiveStore& s, const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c); // <ab|c>
 
 // INLINE: a value leaf of the Enzyme-registered GaussianRF::Gradient (Imp/GaussianRF_AD.C differentiates its body).
 inline double PrimGaussian::operator()(const rvec3_t& r) const
@@ -374,7 +374,7 @@ inline double PrimGaussian::operator()(const rvec3_t& r) const
 
 export namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
 {
-//! \brief ONE RADIAL PAIR'S PRIMITIVE CHARGE DISTRIBUTIONS, OPAQUE: [i*nb+j] = Ω(a_i, b_j), collected through the global cache by
+//! \brief ONE RADIAL PAIR'S PRIMITIVE CHARGE DISTRIBUTIONS, OPAQUE: [i*nb+j] = Ω(a_i, b_j), collected through a PrimitiveStore by
 //! \c GaussianRF::PairTable (SERIAL ONLY) and read back by its table overload of \c Repulsion4CGroupBlock, which touches no cache --
 //! so a threaded fill builds these first and hands them to its workers (OpenWork §3).  Ω stays module-internal: a holder can only pass
 //! the table back.
@@ -385,26 +385,6 @@ class PrimitivePairTable
 };
 
 
-//! \brief Scoped byte budget on the GEOMETRY-KEYED MnD caches (PG.Omega / PG.RNLM / PG.H3).  The caches
-//! key on per-instance primitive IDs, so a LATTICE sum -- which mints fresh image clones per (pair,
-//! offset) via \c AtCenter -- would grow them without bound (measured: the full-SR NaF analytic short
-//! built ~2M Hermite3 tables, 11+ GB, in seconds -- the 2026-07-22 OOM).  A lattice driver constructs
-//! this guard for the duration of its matrix build: it pushes a size-0 (keep-newest) budget onto all
-//! three caches, so each insert of a fresh image clone evicts the previous one -- O(1) resident, no
-//! per-pair clear, no streaming-kernel duplication.  Safe because the 1E/3C kernels hold at most ONE
-//! live borrow per cache at a time.  MOLECULAR paths never build a guard, keeping the default unbounded
-//! budget and their ~99.9% hit rates.  RAII: the previous budgets are restored on scope exit.
-class GeometryCacheBudget
-{
-public:
-    //! \param maxBytesPerCache 0 = keep only the just-inserted entry (the lattice size-1 policy).
-    explicit GeometryCacheBudget(size_t maxBytesPerCache=0);
-    ~GeometryCacheBudget();
-    GeometryCacheBudget(const GeometryCacheBudget&)=delete;
-    GeometryCacheBudget& operator=(const GeometryCacheBudget&)=delete;
-private:
-    size_t itsPrevΩ, itsPrevRNLM, itsPrevH3;   // budgets to restore
-};
 
 //
 //  THE radial function: a contracted Gaussian.  itsPrims.size()==1 (coeff 1.0) is an uncontracted
@@ -448,9 +428,11 @@ public:
 
     // Named integral entry points (2C/3C/4C); each contracts its primitives over the matching named
     // PrimGaussian kernel.  No enum/switch -- the old peel-off dispatch and its IType tag are both gone.
-    double Overlap2C  (rf_t& rb, po_t& pa, po_t& pb                ) const;
-    double Repulsion2C(rf_t& rb, po_t& pa, po_t& pb                ) const;
-    double Grad2      (rf_t& rb, po_t& pa, po_t& pb                ) const;   // <p^2> block, no 1/2
+    // Each looking-up entry point takes the PrimitiveStore its lookups land in (S5): the block's parent's for keys over the parent's own
+    // primitives, a fill's scratch for keys that reach another owner (an image clone, a fit basis's primitive).
+    double Overlap2C  (const PrimitiveStore& s, rf_t& rb, po_t& pa, po_t& pb                ) const;
+    double Repulsion2C(const PrimitiveStore& s, rf_t& rb, po_t& pa, po_t& pb                ) const;
+    double Grad2      (const PrimitiveStore& s, rf_t& rb, po_t& pa, po_t& pb                ) const;   // <p^2> block, no 1/2
     //! The three 2-centre kernels \c KetGradient differentiates: Overlap2C, Grad2 and Repulsion2C.
     enum class TwoCentre {Overlap, Grad2, Repulsion};
     //! \brief The derivative w.r.t. the KET CENTRE \a B of a weighted shell-pair block of the 2-centre kernel \a K:
@@ -482,15 +464,15 @@ public:
     void FourCentreGradient(rf_t& ra, rf_t& rb, rf_t& rc, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                             const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, const double* W,
                             rvec3_t& gA, rvec3_t& gB, rvec3_t& gC, rvec3_t& gD) const;
-    double Nuclear    (rf_t& rb, po_t& pa, po_t& pb, const Structure* cl) const;
-    double Overlap3C  (rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
-    double Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
-    double Repulsion4C(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const; // this is D
+    double Nuclear    (const PrimitiveStore& s, rf_t& rb, po_t& pa, po_t& pb, const Structure* cl) const;
+    double Overlap3C  (const PrimitiveStore& s, rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
+    double Repulsion3C(const PrimitiveStore& s, rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
+    double Repulsion4C(const PrimitiveStore& s, rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const; // this is D
     //! \brief A SHELL QUARTET at once (this is D): \a out[((a*nb+b)*nc+c)*nd+d] = \c Repulsion4C for components pa[a], pb[b], pc[c],
     //! pd[d] of the four shells (each shell shares its radial).  Per primitive quartet the Ω pair, the RNLM table and \f$\lambda\f$ are
     //! looked up ONCE (the per-component call looked them up per component quartet: 6⁴ times on a d quartet).  Each component's sum runs
     //! over the primitive quartets in the per-component call's order with its arithmetic, so the values are BIT-IDENTICAL to it.
-    void   Repulsion4CBlock(rf_t& ra, rf_t& rb, rf_t& rc, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+    void   Repulsion4CBlock(const PrimitiveStore& s, rf_t& ra, rf_t& rb, rf_t& rc, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                             const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, double* out) const;
 
     //! \brief Whether \a o is built on EXACTLY this radial's primitives (the same centre, L and exponents, in order; the contraction
@@ -503,12 +485,12 @@ public:
     //! \a out[m*n+q] with m=((ia*mb+ib)*mc+ic)*md+id the member quartet and q=((a*nb+b)*nc+c)*nd+d the component quartet (n=na*nb*nc*nd).
     //! Each member's value is \c Repulsion4CBlock's on those four radials BIT FOR BIT: the same primitive values, the same coefficient
     //! products, accumulated in the same primitive order.  \c Repulsion4CBlock IS this with one member per slot.
-    static void Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+    static void Repulsion4CGroupBlock(const PrimitiveStore& s, const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
                                       const GaussianRF* const* rc, size_t mc, const GaussianRF* const* rd, size_t md,
                                       const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                                       const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, double* out);
     //! The same with the two pairs' charge distributions HANDED IN: \a abΩ = \c PairTable of slot a's and slot b's primitives, \a cdΩ
-    //! of slot c's and d's.  This overload touches NO global cache (it builds its RNLMs in a scratch
+    //! of slot c's and d's.  This overload touches NO store (it builds its RNLMs in a scratch
     //! and reads only \a abΩ / \a cdΩ), so a THREADED caller may run it on workers once it has built the tables serially (OpenWork §3,
     //! "thread-safe only by the serial-phase rule").  The overload above builds the tables and calls this: one body, bit for bit.
     static void Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
@@ -516,21 +498,19 @@ public:
                                       const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                                       const Polarization* pc, size_t nc, const Polarization* pd, size_t nd,
                                       const PrimitivePairTable& abΩ, const PrimitivePairTable& cdΩ, double* out);
-    //! The charge distributions of every primitive pair of \a a and \a b, [i*nb+j] = Ω(a_i, b_j), through the global cache (\c findΩ):
-    //! SERIAL ONLY.  The pointers stay valid while the cache keeps every entry (\c GeometryCachesKeepEverything).
-    static PrimitivePairTable PairTable(const GaussianRF& a, const GaussianRF& b);
-    //! True when the geometry caches evict nothing (the molecular default; a lattice driver's \c GeometryCacheBudget scope makes it
-    //! false): a \c PairTable's pointers then outlive any later lookup, which a threaded caller relies on.
-    static bool GeometryCachesKeepEverything();
+    //! The charge distributions of every primitive pair of \a a and \a b, [i*nb+j] = Ω(a_i, b_j), through \a s (\c findΩ):
+    //! SERIAL ONLY (the store is single-thread).  The pointers stay valid while \a s lives: a store never evicts (S5), so a threaded
+    //! caller builds the table serially and hands it to its workers.
+    static PrimitivePairTable PairTable(const PrimitiveStore& s, const GaussianRF& a, const GaussianRF& b);
     //! The 3-centre <ab|c> twins of \c Repulsion4CGroupBlock (centre C is the third slot): \a out[m*n+q] with m=(ia*mb+ib)*mc+ic and
     //! q=(a*nb+b)*nc+c.  Each member's value is \c Repulsion3C / \c Overlap3C on its three radials BIT FOR BIT (per primitive triple
     //! one Ω and one RNLM lookup, or one Hermite3, instead of one per component triple and per member).
-    static void Repulsion3CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+    static void Repulsion3CGroupBlock(const PrimitiveStore& s, const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
                                       const GaussianRF* const* rc, size_t mc,
                                       const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                                       const Polarization* pc, size_t nc, double* out);
     //! The same with the ab pair's charge distributions HANDED IN (\a abΩ = \c PairTable of slot a's and slot b's primitives): touches no
-    //! global cache (the RNLM per triple is a scratch), so a worker may run it.  The overload above builds the table and calls this.
+    //! store (the RNLM per triple is a scratch), so a worker may run it.  The overload above builds the table and calls this.
     static void Repulsion3CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
                                       const GaussianRF* const* rc, size_t mc,
                                       const Polarization* pa, size_t na, const Polarization* pb, size_t nb,

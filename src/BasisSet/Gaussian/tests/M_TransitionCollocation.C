@@ -21,7 +21,7 @@
 import qchem.BasisSet.Gaussian.Point.Factory;     // Factory(BasisSetData, cell, engine, angular)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator::ContractCubeOverride (D-CUBE0)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;     // LatticeCollocation, TransitionCollocation
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;  // GeometryCacheBudget (the per-kernel screen gate's image clones)
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;  // the image clones' kernels and their PrimitiveStore
 import qchem.LatticePoints;   // LatticePointsInSphere (the bound gate walks images past the reach)
 import qchem.BasisSet.Gaussian.Lattice.LatticeScreener;  // GeometryOnlyScreener, CollocationEps
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (the GPW_SPHERICAL block)
@@ -475,7 +475,6 @@ void KernelBoundHolds(BasisSetData data, const UnitCell& cell, const char* what)
     const SeriesFixture f=MakeSeries(data, cell);
     ASSERT_NE(f.ev, nullptr) << what;
     const NR& ev=*f.ev;
-    const Evaluators::PG_Cart_MnD::GeometryCacheBudget geo;
     const double eps=ev.Tolerances().screenEps;
     for (NR::SeriesKernel K : {NR::SeriesKernel::Overlap, NR::SeriesKernel::Kinetic})
     {
@@ -496,8 +495,9 @@ void KernelBoundHolds(BasisSetData data, const UnitCell& cell, const char* what)
                     const double r=norm(dij-Roff);
                     if (r>rTest) continue;
                     const auto img=ev.radials[j]->AtCenter(cj+Roff);
-                    const double k=ev.ns[i]*ev.ns[j]*(K==NR::SeriesKernel::Overlap ? ev.radials[i]->Overlap2C(img,ev.pols[i],ev.pols[j])
-                                                                                    : ev.radials[i]->Grad2   (img,ev.pols[i],ev.pols[j]));
+                    const BasisSet::PrimitiveStore scratch;   // the image clone's lookups die with the term, as the evaluator's own (S5)
+                    const double k=ev.ns[i]*ev.ns[j]*(K==NR::SeriesKernel::Overlap ? ev.radials[i]->Overlap2C(scratch,img,ev.pols[i],ev.pols[j])
+                                                                                    : ev.radials[i]->Grad2   (scratch,img,ev.pols[i],ev.pols[j]));
                     const double b=ev.KernelBound(K,i,j,r);
                     if (std::abs(k)>1e-300) worst=std::max(worst,std::abs(k)/b);
                     if (r>reach) maxOut=std::max(maxOut,std::abs(k));

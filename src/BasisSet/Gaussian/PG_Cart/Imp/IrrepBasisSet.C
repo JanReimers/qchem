@@ -88,7 +88,7 @@ IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, Reader* b
     
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
-    PGData::Init(bls);
+    PGData::Init(bls, this->Cache().Primitives());   // the parent's primitive store (S5)
 };
 
 IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rvec_t& es, size_t LMax, const Structure* cl)
@@ -114,7 +114,7 @@ IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rve
     }
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
-    PGData::Init(bls);
+    PGData::Init(bls, this->Cache().Primitives());   // the parent's primitive store (S5)
 }
 // Single atom version
 IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rvec_t& es, size_t L)
@@ -133,7 +133,7 @@ IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rve
     }
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
-    PGData::Init(bls);
+    PGData::Init(bls, this->Cache().Primitives());   // the parent's primitive store (S5)
 }
 //----------------------------------------------------------------
 //
@@ -148,7 +148,7 @@ IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const bv_t& theBlocks)
     for (const auto& bl : theBlocks) itsBlocks.push_back(std::unique_ptr<Block>(bl->Clone()));
     std::vector<const Block*> bls;
     for (auto& bl : itsBlocks) bls.push_back(bl.get());
-    PGData::Init(bls);
+    PGData::Init(bls, this->Cache().Primitives());   // the parent's primitive store (S5)
 }
 
 IrrepBasisSet::~IrrepBasisSet() {};
