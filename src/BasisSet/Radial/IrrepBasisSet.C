@@ -3,6 +3,7 @@ module;
 #include <iosfwd>
 #include <memory>
 #include <cassert>
+#include <algorithm>
 #include <iostream>
 #include "forward.H"
 
@@ -22,6 +23,7 @@ import qchem.BasisSet.Internal.Cache4;
 import qchem.Symmetry.Factory;
 import qchem.Constants;
 import qchem.Blaze;
+import qchem.Reporting;   // a truncated Coulomb metric reports itself
 
 export namespace qchem::BasisSet
 {
@@ -180,6 +182,44 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const rsmat_t&, const Structure*) const override
         {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the radial fit block", "Coulomb-metric pullback");}
 
+    //! \brief The Coulomb metric's inverse, ROBUST to a near-singular metric.  A dense Slater s set (the atom pilot's raised Coulomb-fit rungs,
+    //! \c CoulombFitLadder) makes G near-singular, and a plain inverse then hands the Dunlap fit garbage (U, rung 2: |ΔE| 7e4 Ha, lane B
+    //! 2026-11-14).  So G = V diag(w) V^T, and the modes with w < \c kMetricRelTol x w_max are DROPPED: the fit then lives on the span G
+    //! resolves, and Dunlap's robust energy, stationary in the coefficients, stays second order in the residual on that span.  A metric
+    //! with no such mode takes the plain inverse, unchanged to the bit.  MEASURED 2026-11-14 (Kr-U, High pools): it is not only the raised
+    //! rungs -- the classic fit (rung 0) is near-singular too, 4-9 of 36-46 modes on Gaussian and 1 of 21-22 on Slater Au, Rn, U, which
+    //! the plain inverse had been inverting silently; the dense Slater rungs drop most of theirs (U rung 4: 472 of 510).  Truncated, every
+    //! Dunlap energy agrees with the radial-Poisson Hartree to a few μHa (A_DFT_heavy).  A truncation REPORTS itself (count and floor).
+    static constexpr double kMetricRelTol=1e-12;
+    virtual rsmat_t MakeInvRepulsion() const override
+    {
+        const rsmat_t G=MakeRepulsion();
+        const size_t n=G.rows();
+        rvec_t w; rmat_t V;
+        blazem::eigen(G, w, V);
+        double wmax=0.0;
+        for (size_t k=0;k<n;k++) wmax=std::max(wmax, w[k]);
+        bool drop=false;
+        for (size_t k=0;k<n;k++) drop = drop || w[k]<kMetricRelTol*wmax;
+        if (!drop) return blazem::inv(G);
+        size_t dropped=0;
+        for (size_t k=0;k<n;k++) if (w[k]<kMetricRelTol*wmax) dropped++;
+        // A truncation is a choice the run must show (a silent one is a substitution): the count and the floor, one level in, under
+        // whatever scope the caller opened (the Hartree fit's), and on the console.
+        qchem::report::Set("coulombMetricModesDropped", (long)dropped);
+        qchem::report::Set("coulombMetricFloor", kMetricRelTol*wmax);
+        std::cout<<"[coulomb fit] the metric of "<<n<<" functions is near-singular: "<<dropped<<" mode(s) below the floor "
+                 <<kMetricRelTol*wmax<<" (= "<<kMetricRelTol<<" x the largest eigenvalue) are dropped"<<std::endl;
+        rsmat_t Ginv(n);
+        for (size_t i=0;i<n;i++)
+            for (size_t j=i;j<n;j++)
+            {
+                double s=0.0;
+                for (size_t k=0;k<n;k++) if (w[k]>=kMetricRelTol*wmax) s+=V(i,k)*V(j,k)/w[k];
+                Ginv(i,j)=s;
+            }
+        return Ginv;
+    }
     virtual rsmat_t MakeRepulsion(                ) const 
     {
         auto& e=Cast();

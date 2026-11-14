@@ -7,6 +7,7 @@ add_executable(UTRadial_BS gtestmain.C
    BasisSet_Atom.C
    BasisSet_DHF.C 
    BSplines.C 
+   CoulombFitLadder.C
    DBCache.C
 #    DiracHydrogen.C
    DiracIntegral.C 

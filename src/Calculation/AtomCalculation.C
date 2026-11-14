@@ -82,8 +82,10 @@ struct AtomCalcOptions
     bool   pseudopotential = false;
     int    valence         = 0;
 
-    //! Atomic XC integration grid: the proven atom values (one angular point -- atoms are spherical).
-    qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 50,
+    //! Atomic XC integration grid (one angular point -- atoms are spherical).  \c nRadial 0 = UNSTATED: the run enters at 50 MHL points and
+    //! climbs the radial count to eps at its converged density (the atom pilot, pin 31: the old fixed 50 cost Xe 0.6-1.7 mHa and U 1-6 mHa,
+    //! lane B 2026-11-14).  A stated count is audited against eps and never raised.
+    qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 0,
                               .mhl_m    = 3,                         .mhl_alpha = 2.0,
                               .angular  = qcMesh::AngularKind::Lebedev, .angularDegree = 0,   // the 1-direction rule
                               .beckeOrder = 2};
@@ -93,6 +95,12 @@ struct AtomCalcOptions
     qchem::Hamiltonian::VxcFit vxcFit = qchem::Hamiltonian::VxcFit::Auto;
     //! \copydoc CalcOptions::xcRho -- the atom path's twin (\c Auxiliary = the radial fit set).
     qchem::Hamiltonian::XCρ xcRho = qchem::Hamiltonian::XCρ::Exact;
+    //! The Hartree route, the twin of \c CalcOptions::coulomb.  \c Auto = \c Multipole: \f$\rho\f$'s l = 0 channel on a radial mesh, solved
+    //! by radial Poisson (exact to its mesh; \c nRadial 0 = sized from eps by the atom pilot, a stated count audited).  \c Auxiliary = the
+    //! Dunlap Coulomb fit, its fit set climbed up \c BasisSet::Radial::CoulombFitLadder to eps (rung 0, the s block x 2, cost U 32 mHa).
+    //! \c Delta is REFUSED: its radial-Poisson projection needs angular channels the atom's one-direction rule cannot carry (half the energy,
+    //! no convergence).  See \c Hamiltonian::CoulombRoute.
+    qchem::Hamiltonian::CoulombRoute coulomb = {};
     //! SCF seed.  Default == auto: CoreGuess (atoms never use the molecular SAD seed).
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
 
@@ -222,9 +230,27 @@ private:
     std::shared_ptr<const Structure>     itsStructure;   //!< the single atom (Hamiltonian shares it)
     ElectronConfiguration*               itsEC    = nullptr;  //!< owned
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
-    //! The run's Coulomb-fit slot (doc/IntegralCacheOwnershipPlan.md S2b): every Hamiltonian builder demands one, and an atom builds one
-    //! Hamiltonian on its basis, so this slot is filled once.
-    Hamiltonian::CoulombFitSlot<double>  itsCoulombFit;
+    //! The run's Coulomb-fit slot (doc/IntegralCacheOwnershipPlan.md S2b): every Hamiltonian builder demands one.  A slot fills ONCE, so the
+    //! atom pilot replaces it when it raises the Dunlap fit's rung (a unique_ptr for that reason, never for sharing).
+    std::unique_ptr<Hamiltonian::CoulombFitSlot<double>> itsCoulombFit=std::make_unique<Hamiltonian::CoulombFitSlot<double>>();
+    //! \brief The atom's RESOLVED grids (policy: \c ResolveGrids at construction, raised by \c PilotGrids): the XC radial count, the Hartree
+    //! route with its radial count, and the Dunlap fit's rung.  "stated" = the caller gave it, so it is audited and never raised.
+    struct Grids
+    {
+        int  xcRadial=50;
+        bool xcStated=false;
+        Hamiltonian::CoulombRoute coulomb;
+        bool hStated=false;
+        int  fitRung=0;
+    };
+    Grids itsGrids;
+    bool  itsDFT=false;       //!< the model reads a density on a mesh (DFT or the PP pseudo-atom): only these have grids to size
+    bool  itsPiloted=false;   //!< the atom pilot ran (once per calculation)
+    std::unique_ptr<qchem::ChargeDensity::rDM_CD> itsCarried;   //!< the converged D the pilot carries into its re-convergence, consumed by \c BuildGraph
+    void ResolveGrids();
+    void PilotGrids(const SCFParams& params);
+    //! A Hamiltonian on \a g, its Coulomb fit from \a slot (filled here with \a g's rung when it is above 0).
+    qchem::Hamiltonian::rHamiltonian* MakeHamiltonianOn(const Grids& g, const Hamiltonian::CoulombFitSlot<double>& slot) const;
     //! R2.22: the iterator no longer deletes what it is handed, so this facade owns the Hamiltonian and
     //! the accelerator.  Both are still REBUILT per Converge() -- a molecular Hamiltonian is cheap, so
     //! that stays as it was; assigning here frees the previous pair at exactly the old moment.  Declared

@@ -18,6 +18,7 @@
 import qchem.MoleculeCalculation;            // MoleculeCalculation (A_PG: molecular basis on an atom)
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, Model, SpinGroup (atomic exponent-pool DFT)
 import qchem.SCFIterator;            // SCFParams
+import qchem.Hamiltonian.Factory;    // Hamiltonian::CoulombFit (the heavy-atom routes)
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
 import qchem.PeriodicTable;          // thePeriodicTable(): Slater alpha + NIST DFT oracle; RelativeError, RelativeDFTError
@@ -138,3 +139,55 @@ TEST_P(A_PG_DFT, Energy)
 }
 INSTANTIATE_TEST_SUITE_P(U, A_PG_DFT, ::testing::ValuesIn(WithZ({2,4,10,18,36}, PGCase{0,SpinGroup::UnPolarized,1e-3})),   ZName<PGCase>);   // dzvp above PySCF Xalpha: worst Kr 381 ppm (was 3e-3 vs NIST LSDA)
 INSTANTIATE_TEST_SUITE_P(P, A_PG_DFT, ::testing::ValuesIn(WithZ({3,5,11,37},   PGCase{0,SpinGroup::Polarized,  1e-3})),   ZName<PGCase>);   // worst ~250 ppm; Z=51 slow -> omitted
+
+//---------------------------------------------------------------------------------------------------------------
+//  HEAVY ATOMS AGAINST NIST, ONE HARTREE ROUTE AT A TIME (lane B 2026-11-14, the atom-below-NIST row; user: "do both, and have integration
+//  tests for both").  Before the atom pilot, two eps-blind approximations pulled the LSDA energy BELOW NIST, which is impossible for a
+//  variational energy in NIST's configuration: the fixed 50-point XC radial mesh (Xe 0.6-1.7 mHa, U 1-6) and the Dunlap Coulomb fit on the
+//  s block x 2 (Slater U 32 mHa).  With both sized from eps (1e-5 per term), each route must land ABOVE NIST, by no more than the High pool's
+//  own incompleteness (measured with both converged by hand, 2026-11-14: Xe Slater +0.24 / Gaussian +3.9 mHa, U +1.8 / +3.8), and the two
+//  routes must agree with each other to eps: that cross-check is what makes either one trustworthy.
+//  The oracle: NIST's LDA total for a closed shell, its LSD total for an open shell (src/Common/Data/nist{LDA,LSD}.json), the same functional.
+struct HeavyCase { const char* name; AtomType type; int Z; SpinGroup spin; double nist, margin; };
+static void PrintTo(const HeavyCase& c, std::ostream* os) { *os << c.name; }
+static double HeavyEnergy(const HeavyCase& c, Hamiltonian::CoulombFit route)
+{
+    AtomCalcOptions o{.type=c.type, .basisPool=BasisSetAccuracy::High, .model=Model::LDA, .spin=c.spin};
+    o.coulomb.fit=route;
+    AtomCalculation calc(c.Z, 0, o, dft_scf_params(c.Z));
+    EXPECT_TRUE(calc.IsConverged()) << c.name << ": the oracle comparison needs a converged energy";
+    return calc.Energy();
+}
+// The worst a term may deliver is eps (the pilot's target); two sized terms (XC and Hartree), so 2 eps, plus the SCF's own stop.
+static constexpr double kHeavyEps=1e-5, kHeavySlack=3*kHeavyEps;
+
+class A_DFT_heavy : public ::testing::TestWithParam<HeavyCase> {};
+TEST_P(A_DFT_heavy, MultipoleHartreeLandsAboveNIST)
+{
+    const HeavyCase c=GetParam();
+    const double dE=HeavyEnergy(c, Hamiltonian::CoulombFit::Multipole)-c.nist;
+    printf("%s radial-Poisson Hartree: E - E_NIST = %+.6f mHa (margin %.1f)\n", c.name, dE*1e3, c.margin*1e3);
+    EXPECT_GT(dE, -kHeavySlack) << "below NIST: an approximation is not meeting eps";
+    EXPECT_LT(dE, c.margin) << "further above NIST than the pool's measured incompleteness";
+}
+TEST_P(A_DFT_heavy, DunlapHartreeLandsAboveNIST)
+{
+    const HeavyCase c=GetParam();
+    const double dE=HeavyEnergy(c, Hamiltonian::CoulombFit::Auxiliary)-c.nist;
+    printf("%s Dunlap Hartree: E - E_NIST = %+.6f mHa (margin %.1f)\n", c.name, dE*1e3, c.margin*1e3);
+    EXPECT_GT(dE, -kHeavySlack) << "below NIST: an approximation is not meeting eps";
+    EXPECT_LT(dE, c.margin) << "further above NIST than the pool's measured incompleteness";
+}
+TEST_P(A_DFT_heavy, TheTwoHartreeRoutesAgreeToEps)
+{
+    const HeavyCase c=GetParam();
+    const double a=HeavyEnergy(c, Hamiltonian::CoulombFit::Multipole), b=HeavyEnergy(c, Hamiltonian::CoulombFit::Auxiliary);
+    printf("%s radial Poisson - Dunlap = %+.3e Ha\n", c.name, a-b);
+    EXPECT_NEAR(a, b, kHeavySlack);
+}
+INSTANTIATE_TEST_SUITE_P(Heavy, A_DFT_heavy, ::testing::Values(
+    HeavyCase{"SL_Xe", AtomType::Slater,   54, SpinGroup::UnPolarized, -7228.856107,  0.5e-3},
+    HeavyCase{"SG_Xe", AtomType::Gaussian, 54, SpinGroup::UnPolarized, -7228.856107,  5.0e-3},
+    HeavyCase{"SL_U",  AtomType::Slater,   92, SpinGroup::Polarized,   -25658.474515, 3.0e-3},
+    HeavyCase{"SG_U",  AtomType::Gaussian, 92, SpinGroup::Polarized,   -25658.474515, 5.0e-3}),
+    [](const testing::TestParamInfo<HeavyCase>& i){ return std::string(i.param.name); });
