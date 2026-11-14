@@ -31,6 +31,23 @@ export namespace qchem::BasisSet::Radial
     //! the occupied config differs from the neutral element -- e.g. a pseudo-ion (F- closed p^6 vs neutral
     //! F open p^5); for a neutral atom pass Atom_EC(Z) and the result is identical to the Z overload.
     Real_BS* Factory(BasisSetAccuracy, Type, size_t Z, const ElectronConfiguration& ec);
+
+    //! \brief A radial basis that builds its Coulomb (Hartree) fit at a LADDER of richnesses, so a caller can size the fit to an
+    //! accuracy target (the atom facade's policy, doc/Pins.md pin 31).  The rungs are NESTED: each one's functions include the rung
+    //! below's, so the fit space only grows and the Dunlap energy error \f$-\tfrac12(\Delta\rho|\Delta\rho)\f$ only shrinks up the ladder.
+    //!  - rung 0: \c CreateCDFitBasisSet's own fit, the first (s) block's exponents x 2;
+    //!  - rung 1: every block's exponents x 2, merged into one s set (an l-shell density r^{2l} e^{-2 zeta r} peaks where the s block's
+    //!    exponents are thin: U's 5f costs the rung-0 fit 32 mHa, lane B 2026-11-14);
+    //!  - rung r >= 2: rung 1 with 2^{r-1} - 1 geometric points inserted between each pair of neighbours.
+    //! Slater and Gaussian NR bases carry it; a basis without a Coulomb fit (B-spline, Dirac) does not.
+    class CoulombFitLadder
+    {
+    public:
+        virtual ~CoulombFitLadder() = default;
+        //! The fit at \a rung, owned by the caller.  THROWS for \a rung outside [0, kCoulombFitRungs).
+        virtual rFIT_CD_ABS* MakeCoulombFitRung(int rung) const=0;
+        static constexpr int kCoulombFitRungs=6;
+    };
 }
 
 

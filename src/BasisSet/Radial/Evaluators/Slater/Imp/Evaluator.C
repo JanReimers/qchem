@@ -2,12 +2,15 @@
 module;
 #include <cassert>
 #include <iostream>
+#include <cmath>
 
 module qchem.BasisSet.Radial.Evaluators.Slater.IBS;
 import qchem.BasisSet.Radial.Evaluators.Slater.Internal.Rk; 
 import qchem.BasisSet.Radial.Evaluators.Slater.Internal.Integrals; 
 import qchem.BasisSet.Radial.Evaluators.Slater.Internal.ExponentScaler; 
 import qchem.Blaze;
+import qchem.IntPow;   // uintpow: a power-m fit function's r^{2m}
+import qchem.Math;
 
 namespace qchem::BasisSet::Radial::Evaluators::Slater
 {
@@ -44,7 +47,7 @@ rvec_t Radial::norms() const
 {
     size_t N=es.size();    
     rvec_t ret(N);
-    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::qchem::Slater::Integral(2*es[i],2*l)); 
+    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::qchem::Slater::Integral(2*es[i], ms.empty() ? 2*l : 4*ms[i]));   // a power-m fit function is r^{2m} e^{-zeta r}
     return ret;
 }
 
@@ -54,7 +57,11 @@ rvec_t Radial::norms() const
 
 rvec_t Radial::operator() (const rvec3_t& r) const
 {
-    return slater(norm(r),l,es,ns);
+    if (ms.empty()) return slater(norm(r),l,es,ns);
+    const double mr=norm(r);
+    rvec_t v(es.size());
+    for (size_t i=0;i<es.size();i++) v[i]=ns[i]*uintpow(mr,2*ms[i])*std::exp(-es[i]*mr);   // a power-m fit function
+    return v;
 }
 
 rvec3vec_t Radial::Gradient(const rvec3_t& r) const
@@ -66,7 +73,9 @@ rvec3vec_t Radial::Gradient(const rvec3_t& r) const
         ret=rvec3_t{0,0,0};
         return ret;
     }
-    rvec_t grad=grad_slater(norm(r),l,es,ns);
+    rvec_t grad(size());
+    if (ms.empty()) grad=grad_slater(norm(r),l,es,ns);
+    else for (size_t i=0;i<es.size();i++) grad[i]=(2*ms[i]/mr-es[i])*ns[i]*uintpow(mr,2*ms[i])*std::exp(-es[i]*mr);   // d/dr r^{2m} e^{-zeta r}
     // std::cout << "grad=";
     // for (auto g:grad) std::cout << g << " ";
     // std::cout << std::endl;

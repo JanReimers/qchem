@@ -9,6 +9,9 @@ module;
 #include <iostream>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
+#include <map>
+#include <optional>
+#include <iomanip>
 module qchem.AtomCalculation;
 
 import qchem.Hamiltonian.Factory;                   // Factory(...), IsDFT, XCFunctional (XC selector)
@@ -29,6 +32,10 @@ import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `sc
 import qchem.BasisSet.Orbital_1E_IBS;                // Real_OIBS -- the per-irrep blocks a saved state walks
 import qchem.CompositeCD;                            // tComposite_CD (a restored density's shape)
 import qchem.ChargeDensity.Factory;                  // IrrepCD_Factory
+import qchem.BasisSet.Radial.Factory;                // CoulombFitLadder: the Dunlap fit's rungs (the pilot's third axis)
+import qchem.Mesh.BeckeClimb;                        // BeckeTailEstimate: a rung's error from its difference to the rung above
+import qchem.Accuracy;                               // AccuracyTarget, ClientConsumes
+import qchem.Math;                                   // std::fabs, std::max (the pilot's distances)
 
 namespace qchem
 {
@@ -131,6 +138,8 @@ AtomCalculation::AtomCalculation(BuildOnly, int Z, int charge, const AtomCalcOpt
     itsEC = opts.pseudopotential ? static_cast<ElectronConfiguration*>(new PseudoAtom_EC(itsZ, PPZion(opts,itsNe)-itsNe, PPZion(opts,itsNe)))
           : IsDirac(opts.model)  ? static_cast<ElectronConfiguration*>(new AtomDirac_EC(itsNe))
           :                        static_cast<ElectronConfiguration*>(new Atom_EC(itsNe));
+    itsDFT = opts.pseudopotential || opts.xc.has_value() || qchem::Hamiltonian::IsDFT(opts.model);
+    ResolveGrids();
     // The basis is NOT built here: BuildGraph builds it INSIDE an open run report's "basis" scope, so the shells'
     // exponents are announced by the shells themselves as they are constructed (V1.14).
 }
@@ -211,13 +220,7 @@ void AtomCalculation::BuildGraph()
             const auto xcRun=PseudoAtomXC(itsOpts);
             policy::PPFittedFunctional(H::PPFunctionalChecks({{el, Pseudopotential::GetGTH(el, "LDA", PPZion(itsOpts,itsNe)).fitted}}, xcRun));
         }
-        ham = itsOpts.pseudopotential
-            ? H::Factory(itsOpts.spin, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis,
-                         itsCoulombFit, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho), {}, PseudoAtomXC(itsOpts))
-            : itsOpts.xc.has_value()
-                ? H::Factory(itsOpts.spin, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis, itsCoulombFit, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho))
-                : H::Factory(itsOpts.model, itsOpts.spin, itsStructure, itsOpts.mesh, itsBasis, itsCoulombFit, itsOpts.xalpha,
-                             H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho));
+        ham = MakeHamiltonianOn(itsGrids, *itsCoulombFit);
     }
     {
         rpt::Section basis("basis");
@@ -230,7 +233,10 @@ void AtomCalculation::BuildGraph()
         delete itsScf; itsScf = nullptr;
         itsHam.reset(ham);
         itsAccel.reset(accel);
-        if (itsRestored.empty())
+        if (itsCarried)   // the atom pilot's re-convergence on raised grids: the converged D drives the first Fock
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), itsCarried.release(), itsStructure.get(), ortho,
+                                 0.0, qchem::SCFIterator::SeedRole::WorkingDensity);
+        else if (itsRestored.empty())
             itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsOpts.mesh,
                                  // a stated SAD seed reads the run's own atom: the GTH pseudo-atom at its Zion (the valence library), else all-electron
                                  itsOpts.pseudopotential ? qchem::ChargeDensity::SeedKey("LDA", {{itsZ, PPZion(itsOpts,itsNe)}}) : qchem::ChargeDensity::SeedKey{},
@@ -252,13 +258,16 @@ bool AtomCalculation::Converge(const SCFParams& params)
     // The atomic SCF writes into the CALLER'S report run, as every facade does (user ruling D, 2026-11-02): scfrun, valgen, the
     // valence-basis generator and the tests that read the report open it.  With no run open every write is a no-op.
     namespace rpt = qchem::report;
-    { rpt::Section scf("scf"); ReportSCFRecipe(params, AcceleratorTag(), AtomRecipeKeys(itsOpts, itsNe)); ReportAccuracy(itsOpts.accuracy, kNoAccuracyConsumerYet); }   // the "what recipe am I running" header
+    { rpt::Section scf("scf"); ReportSCFRecipe(params, AcceleratorTag(), AtomRecipeKeys(itsOpts, itsNe)); ReportAccuracy(itsOpts.accuracy, itsDFT && itsOpts.accuracy.eps>0.0
+            ? std::string("the XC radial mesh and the Hartree route's mesh or Coulomb fit (the atom pilot, at the converged density)")
+            : std::string(kNoAccuracyConsumerYet)); }   // the "what recipe am I running" header
     if (itsPrepared) itsPrepared=false;                // Prepare built the graph (in its caller's run): reuse it, once
     else             BuildGraph();
     if (itsObserver) itsScf->SetObserver(itsObserver);
 
     itsLastkT=params.SmearingkT;
     bool ok = itsScf->Iterate(params);
+    if (ok && itsDFT && !itsPiloted && itsOpts.accuracy.eps>0.0) { RebuildSampling(); PilotGrids(params); ok=itsScf->Converged(); }
     // Snapshot the (cumulative, process-wide) integrals cache into the run's `cache` section, inside the bracket.
     qchem::BasisSet::EmitIntegralsCacheReport();
     RebuildSampling();
@@ -383,6 +392,7 @@ void AtomCalculation::RecordState(StateRecord& r, double kT) const
     if (o.model==Model::Xalpha) fp.warmNum["xc.xalpha"]={o.xalpha};
     fp.warmNum["grids.xcMesh"]={double(o.mesh.nRadial), double(o.mesh.angularDegree), double(int(o.mesh.radial)), double(int(o.mesh.angular))};
     fp.warmNum["xc.fit"]={double(int(o.vxcFit))};
+    fp.warmNum["coulomb.route"]={double(int(o.coulomb.fit)), double(int(o.coulomb.solver)), double(o.coulomb.lMax), double(o.coulomb.nRadial)};
     fp.warmNum["ortho.kind"]={double(int(o.ortho))};
 }
 
@@ -483,6 +493,212 @@ AtomCalculation::PrepareRestart(const std::string& path, int Z, int charge, cons
     c->BuildGraph();
     c->itsPrepared=true;
     return O::Ok(std::move(c));
+}
+
+} // namespace qchem
+
+namespace qchem
+{
+// ====================================================================================================================================
+// THE ATOM'S GRIDS (pin 31; lane B 2026-11-14, the atom-below-NIST row).  Two approximations were fixed and eps-blind, and both pulled
+// the energy DOWN: the 50-point XC radial mesh (Xe 0.6-1.7 mHa, U 1-6) and the Dunlap Coulomb fit on the s block x 2 (its robust energy
+// is J - (Δρ|Δρ)/2 <= J: Slater U 32 mHa).  Converged, every atom lands above NIST.  So both are SIZED here, from the accuracy target.
+// ====================================================================================================================================
+namespace
+{
+//! The ladders the pilot climbs (policy, measured on Xe and U, Slater and Gaussian High, 2026-11-14): the XC count is flat from 100 on
+//! Xe and from 150 on U Gaussian; the Hartree's radial-Poisson mesh moves U 40 μHa from 200 to 400 and nothing from 400 to 800.
+constexpr int kAtomXCRadials[]     ={50, 75, 100, 150, 200, 300, 400};
+constexpr int kAtomHartreeRadials[]={200, 300, 400, 600, 800, 1200};
+constexpr int kAtomPilotRounds=3;   //!< the first round climbs freely; each later one confirms at the re-converged D, raising at most once
+template <size_t N> std::optional<int> RungAbove(const int (&rungs)[N], int n)
+{
+    for (int r : rungs) if (r>n) return r;
+    return std::nullopt;
+}
+}
+
+void AtomCalculation::ResolveGrids()
+{
+    namespace H = qchem::Hamiltonian;
+    if (!itsDFT) return;   // HF, Dirac, 1-electron: no mesh, no Hartree route
+    const bool sized=itsOpts.accuracy.eps>0.0;
+    itsGrids.xcStated=itsOpts.mesh.nRadial>0;
+    itsGrids.xcRadial=itsGrids.xcStated ? itsOpts.mesh.nRadial : kAtomXCRadials[0];
+    itsGrids.coulomb=itsOpts.coulomb;
+    using CF=H::CoulombFit;
+    if (itsGrids.coulomb.fit==CF::Delta)
+        policy::Refuse("AtomHartreeRoute", "the δ Hartree route on an atom",
+                       "its radial-Poisson projection needs angular channels, and the atom's mesh has one direction (degree 0), so every channel "
+                       "above l = 0 aliases: Xe gives half its energy and never converges.  The Multipole route is the δ route's exact l = 0 form "
+                       "on this rule -- state Multipole or Auxiliary, or leave the route unstated (Multipole)");
+    if (itsGrids.coulomb.fit==CF::Auto)
+    {
+        itsGrids.coulomb.fit=CF::Multipole;
+        policy::Report("AtomHartreeRoute", "the atom's Hartree is the radial-Poisson multipole route (l = 0)", policy::Verdict::Choose,
+                       "no Hartree route stated: radial Poisson on the density's l = 0 channel is exact to its mesh and as cheap as the fit "
+                       "(U 0.27 s vs 0.36 s); the Dunlap fit (Auxiliary) is one stated choice away");
+    }
+    if (itsGrids.coulomb.fit==CF::Multipole)
+    {
+        if (const auto a=H::AdmitCoulomb(*itsStructure, itsGrids.coulomb, itsOpts.mesh); !a)
+            policy::Refuse("AdmitCoulomb", "the stated Hartree route on this atom", a.Error());
+        itsGrids.hStated=itsGrids.coulomb.nRadial>0;
+        if (!itsGrids.hStated) itsGrids.coulomb.nRadial=kAtomHartreeRadials[0];
+    }
+    itsGrids.fitRung=0;
+    const std::string xc=std::to_string(itsGrids.xcRadial);
+    if (!sized)
+        policy::Report("AtomGridsAsStated", "the atom's grids as stated: XC radial "+xc, policy::Verdict::Choose,
+                       "accuracy eps = 0 states no target, so nothing is sized: the XC mesh enters at its rung, and the Dunlap fit (if stated) "
+                       "is the s block x 2 (rung 0)");
+    else if (!itsGrids.xcStated)
+        policy::Report("AtomXCRadialClimbs", "the atom's XC radial mesh climbs from "+xc+" points to eps at the converged density",
+                       policy::Verdict::Choose, "no XC radial count stated: the run sizes it from the accuracy target (pin 31), only up");
+}
+
+qchem::Hamiltonian::rHamiltonian* AtomCalculation::MakeHamiltonianOn(const Grids& g, const Hamiltonian::CoulombFitSlot<double>& slot) const
+{
+    namespace H = qchem::Hamiltonian;
+    qcMesh::MeshParams mesh=itsOpts.mesh;
+    mesh.nRadial=g.xcRadial;
+    if (itsDFT && g.coulomb.fit==H::CoulombFit::Auxiliary && g.fitRung>0)
+    {
+        // The Dunlap fit above rung 0 (rung 0 is the basis's own CreateCDFitBasisSet, which the Hartree term fills itself).  A cross-cast
+        // between two abstract faces: the radial basis realizes the ladder; a basis without one never reached a raised rung (PilotGrids).
+        const auto* ladder=dynamic_cast<const BasisSet::Radial::CoulombFitLadder*>(itsBasis);
+        if (!ladder) throw std::logic_error("AtomCalculation::MakeHamiltonianOn: a raised Coulomb-fit rung on a basis without a CoulombFitLadder");
+        using fit_t=std::shared_ptr<const BasisSet::rFIT_CD_ABS>;
+        slot.GetOrFill([&]{return fit_t(ladder->MakeCoulombFitRung(g.fitRung));});
+    }
+    return itsOpts.pseudopotential
+        ? H::Factory(itsOpts.spin, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), mesh, itsBasis,
+                     slot, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho), g.coulomb, PseudoAtomXC(itsOpts))
+        : itsOpts.xc.has_value()
+            ? H::Factory(itsOpts.spin, itsStructure, *itsOpts.xc, mesh, itsBasis, slot, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho), g.coulomb)
+            : H::Factory(itsOpts.model, itsOpts.spin, itsStructure, mesh, itsBasis, slot, itsOpts.xalpha,
+                         H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho), g.coulomb);
+}
+
+// THE ATOM PILOT (pin 31; the molecule's mesh pilot, one-dimensional per axis).  The run has converged on its entry grids.  At THIS D,
+// each unstated axis climbs its ladder: the distance between a rung and the rung above is the worst change of any term energy (each axis
+// moves only its own term), and the rung's error is BeckeTailEstimate of it.  Up to three axes: the XC radial count, the Hartree route's
+// radial count (Multipole) or the Dunlap fit's rung (Auxiliary).  A stated axis is audited once and never raised.  If anything was raised,
+// rebuild on the raised grids, re-converge ONCE from the carried D, and confirm (each later round raises an axis at most once).
+void AtomCalculation::PilotGrids(const SCFParams& params)
+{
+    namespace rpt = qchem::report;
+    namespace H = qchem::Hamiltonian;
+    itsPiloted=true;
+    const double target=itsOpts.accuracy.Target(ClientConsumes::Energy, 1);
+    const auto* ladder=dynamic_cast<const BasisSet::Radial::CoulombFitLadder*>(itsBasis);
+    const bool  dunlap=itsGrids.coulomb.fit==H::CoulombFit::Auxiliary;
+    const std::string tag="[atom pilot] ";
+    report::FormatGuard keep(std::cout);
+    rpt::Section pilot("atomPilot");
+    rpt::Set("measure", "E"); rpt::Set("target", target);
+    if (dunlap && !ladder)
+        policy::Report("AtomCoulombFitNotSized", "the Dunlap fit stays at the basis's own (rung 0)", policy::Verdict::Warn,
+                       "this radial basis carries no CoulombFitLadder, so its fit cannot be climbed; its energy error is -(Δρ|Δρ)/2, unmeasured");
+    enum class Axis {XC, Hartree, Fit};
+    auto name=[](Axis a){return a==Axis::XC ? std::string("xcRadial") : a==Axis::Hartree ? std::string("hartreeRadial") : std::string("coulombFitRung");};
+    auto value=[](const Grids& g, Axis a){return a==Axis::XC ? g.xcRadial : a==Axis::Hartree ? g.coulomb.nRadial : g.fitRung;};
+    auto above=[&](const Grids& g, Axis a) -> std::optional<Grids>
+    {
+        Grids u=g;
+        if (a==Axis::XC)      { auto n=RungAbove(kAtomXCRadials, g.xcRadial);           if (!n) return std::nullopt; u.xcRadial=*n; }
+        if (a==Axis::Hartree) { auto n=RungAbove(kAtomHartreeRadials, g.coulomb.nRadial); if (!n) return std::nullopt; u.coulomb.nRadial=*n; }
+        if (a==Axis::Fit)     { if (g.fitRung+1>=BasisSet::Radial::CoulombFitLadder::kCoulombFitRungs) return std::nullopt; u.fitRung=g.fitRung+1; }
+        return u;
+    };
+    std::vector<std::pair<Axis,bool>> axes{{Axis::XC, itsGrids.xcStated}};   // (axis, stated)
+    if (itsGrids.coulomb.fit==H::CoulombFit::Multipole) axes.push_back({Axis::Hartree, itsGrids.hStated});
+    if (dunlap && ladder)                               axes.push_back({Axis::Fit, false});
+
+    for (int round=0; round<kAtomPilotRounds; round++)
+    {
+        rpt::Row row("rounds");
+        const qchem::ChargeDensity::rDM_CD* d=itsDensity.get();
+        auto key=[](const Grids& g){return std::to_string(g.xcRadial)+"/"+std::to_string(g.coulomb.nRadial)+"/"+std::to_string(g.fitRung);};
+        std::map<std::string, std::vector<double>> probes;   // each grid sampled once at this D: every term's energy
+        auto sample=[&](const H::rHamiltonian& h){ std::vector<double> E; for (const auto& te : h.MakeTermEnergies(d)) E.push_back(te.E); return E; };
+        itsHam->RefreshForDensity(itsBasis, d);
+        probes.emplace(key(itsGrids), sample(*itsHam));
+        auto probe=[&](const Grids& g) -> const std::vector<double>&
+        {
+            if (auto it=probes.find(key(g)); it!=probes.end()) return it->second;
+            // FENCED: a reference's own mesh and fit reports go to a nested run, so this run's `hamiltonian` keeps describing what it USED.
+            struct Fence { explicit Fence(const std::string& n) {rpt::Begin(n);} ~Fence() {rpt::End();} } fence("atom pilot reference "+key(g));
+            H::CoulombFitSlot<double> slot;   // a reference's own fit (a raised rung), never the run's
+            const std::unique_ptr<H::rHamiltonian> h(MakeHamiltonianOn(g, slot));
+            h->RefreshForDensity(itsBasis, d);
+            return probes.emplace(key(g), sample(*h)).first->second;
+        };
+        auto distance=[&](const Grids& a, const Grids& b)
+        {
+            const auto& ea=probe(a); const auto& eb=probe(b);
+            if (ea.size()!=eb.size()) throw std::logic_error("AtomCalculation::PilotGrids: two grids hand back different term lists");
+            double worst=0.0;
+            for (size_t t=0;t<ea.size();t++) worst=std::max(worst, std::fabs(ea[t]-eb[t]));
+            return worst;
+        };
+        Grids next=itsGrids;
+        bool raised=false;
+        rpt::json steps=rpt::json::array();
+        for (const auto& [axis, stated] : axes)
+        {
+            Grids cur=next;
+            std::optional<double> dBelow;
+            int raises=0;
+            for (;;)
+            {
+                const auto up=above(cur, axis);
+                if (!up)
+                {
+                    std::cout<<tag<<"WARNING: "<<name(axis)<<" "<<value(cur,axis)<<" is the ladder's top: unaudited, not settled"<<std::endl;
+                    policy::Report("AtomGridLadderTop", name(axis)+" at its ladder's top "+std::to_string(value(cur,axis)), policy::Verdict::Warn,
+                                   "no rung above it to measure against, so its error against eps "+std::to_string(target)+" is unknown");
+                    break;
+                }
+                const double dd=distance(cur, *up), est=qcMesh::BeckeTailEstimate(dd, dBelow);
+                const bool over=est>target;
+                steps.push_back({{"axis",name(axis)}, {"rung",value(cur,axis)}, {"reference",value(*up,axis)}, {"delivered",dd},
+                                 {"tailEstimate",est}, {"over",over}});
+                std::cout<<tag<<"round "<<round<<"  "<<name(axis)<<" "<<value(cur,axis)<<" vs "<<value(*up,axis)<<": |ΔE| "
+                         <<std::scientific<<std::setprecision(2)<<dd<<", tail "<<est<<(over ? " > " : " <= ")<<target<<std::defaultfloat<<std::endl;
+                if (!over) break;
+                if (stated)
+                {
+                    policy::Report("AtomStatedGridOverTarget", "the stated "+name(axis)+" "+std::to_string(value(cur,axis))+" misses eps",
+                                   policy::Verdict::Warn, "a stated grid is audited, never raised (pin 31): tail estimate "+std::to_string(est)+
+                                   " > target "+std::to_string(target)+"; the rung above, "+std::to_string(value(*up,axis))+", would be the next try");
+                    break;
+                }
+                dBelow=dd; cur=*up; raises++; raised=true;
+                if (round>0 && raises>=1) break;   // a confirming round raises once and re-converges
+            }
+            next=cur;
+        }
+        rpt::Set("round", round); rpt::Set("steps", steps);
+        rpt::Set("grids", rpt::json{{"xcRadial",next.xcRadial}, {"hartreeRadial",next.coulomb.nRadial}, {"coulombFitRung",next.fitRung}});
+        if (!raised) { std::cout<<tag<<"settled: every axis meets eps "<<target<<" at this D"<<std::endl; break; }
+        if (round+1==kAtomPilotRounds)
+        {
+            std::cout<<tag<<"WARNING: the last round raised; its grids are NOT audited at the re-converged D"<<std::endl;
+            policy::Report("AtomPilotRoundCap", "the atom pilot stops after "+std::to_string(kAtomPilotRounds)+" rounds", policy::Verdict::Warn,
+                           "the last round raised a grid, and its re-converged density is not audited again");
+        }
+        // Raised: rebuild on the raised grids (a fresh fit slot when the rung moved) and re-converge ONCE from the carried D.
+        if (next.fitRung!=itsGrids.fitRung) itsCoulombFit=std::make_unique<H::CoulombFitSlot<double>>();
+        itsGrids=next;
+        itsCarried=itsScf->GetWaveFunction()->GetChargeDensity();
+        BuildGraph();
+        if (itsObserver) itsScf->SetObserver(itsObserver);
+        itsScf->Iterate(params);
+        RebuildSampling();
+        if (!itsScf->Converged()) { std::cout<<tag<<"WARNING: the re-convergence on the raised grids did not converge"<<std::endl; break; }
+        if (round+1==kAtomPilotRounds) break;
+    }
 }
 
 } // namespace qchem
