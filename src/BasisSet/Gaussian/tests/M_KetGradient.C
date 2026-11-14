@@ -189,3 +189,56 @@ TEST(KetGradient, TheThreeCentreTwinsAreTheFiniteDifferenceOfTheCachedKernelsWit
         }
     std::printf("  [3-centre twins] worst |AD - FD|: <ab|c> %.2e, (ab|c) %.2e\n", worst[0], worst[1]);
 }
+
+// THE 4-CENTRE TWIN (GaussianRF::FourCentreGradient, lane B 2026-11-14) against the Richardson central difference of the CACHED
+// Repulsion4C, moving each of A, B, C, D in turn: shells through d on the bra and the ket (not every combination: (La,Lb,Lc,Ld) over a
+// set that has every L in every slot), contracted and not, with the ket pair coincident with the bra, on the A-B axis, and generic.
+TEST(KetGradient, TheFourCentreTwinIsTheFiniteDifferenceOfTheCachedKernelWithEveryCentreMoving)
+{
+    const rvec3_t A0(0.13,-0.21,0.34), B0(A0.x+1.3,A0.y,A0.z);
+    struct Ls {int a,b,c,d;};
+    const std::vector<Ls> Lsets={{0,0,0,0},{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1},{1,1,1,1},{2,0,1,0},{0,2,0,1},{1,0,2,0},{0,1,0,2},{2,2,1,0},{1,1,2,2}};
+    double worst=0.0;
+    for (const auto& kc : {std::pair<rvec3_t,rvec3_t>{A0,B0}, {rvec3_t(A0.x+0.5,A0.y,A0.z), rvec3_t(A0.x-0.6,A0.y,A0.z)},
+                           {rvec3_t(0.9,0.8,-0.5), rvec3_t(-0.4,1.1,0.7)}})
+    for (const Ls& L : Lsets)
+    {
+        const rvec3_t C0=kc.first, D0=kc.second;
+        auto radA=[&](const rvec3_t& A){ return GaussianRF(rvec_t{0.6,0.4}, rvec_t{1.9,0.45}, A, L.a); };
+        auto radB=[&](const rvec3_t& B){ return GaussianRF(0.57, B, L.b); };
+        auto radC=[&](const rvec3_t& C){ return GaussianRF(rvec_t{0.5,0.5}, rvec_t{1.2,0.33}, C, L.c); };
+        auto radD=[&](const rvec3_t& D){ return GaussianRF(0.83, D, L.d); };
+        const std::vector<Polarization> pa=ShellComponents(L.a), pb=ShellComponents(L.b), pc=ShellComponents(L.c), pd=ShellComponents(L.d);
+        const size_t na=pa.size(), nb=pb.size(), nc=pc.size(), nd=pd.size();
+        std::vector<double> W(na*nb*nc*nd);
+        for (size_t k=0;k<W.size();k++) W[k]=std::sin(0.7*double(k)+0.5*L.a+0.25*L.b+0.3*L.c+0.15*L.d);
+        auto value=[&](const rvec3_t& A, const rvec3_t& B, const rvec3_t& C, const rvec3_t& D)
+        {
+            const GaussianRF ra=radA(A), rb=radB(B), rc=radC(C), rd=radD(D);
+            double v=0.0;
+            for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++) for (size_t c=0;c<nc;c++) for (size_t d=0;d<nd;d++)
+                v+=W[((a*nb+b)*nc+c)*nd+d]*rd.Repulsion4C(ra,rb,rc,pa[a],pb[b],pc[c],pd[d]);
+            return v;
+        };
+        rvec3_t g[4];
+        radD(D0).FourCentreGradient(radA(A0), radB(B0), radC(C0), pa.data(), na, pb.data(), nb, pc.data(), nc, pd.data(), nd, W.data(),
+                                    g[0], g[1], g[2], g[3]);
+        for (int centre=0;centre<4;centre++)
+            for (int c=0;c<3;c++)
+            {
+                const double h=1e-4;
+                auto at=[&](double s)
+                {
+                    rvec3_t X[4]={A0,B0,C0,D0};
+                    (c==0 ? X[centre].x : c==1 ? X[centre].y : X[centre].z)+=s;
+                    return value(X[0],X[1],X[2],X[3]);
+                };
+                const double fd=(4.0*(at(0.5*h)-at(-0.5*h))/h - (at(h)-at(-h))/(2*h))/3.0;
+                const double an=Comp(g[centre],c), err=std::fabs(an-fd), tol=1e-8*std::max(1.0,std::fabs(fd));
+                worst=std::max(worst,err);
+                EXPECT_LT(err, tol) << "(ab|cd) L=" << L.a << L.b << L.c << L.d << " centre " << centre << " axis " << c << ": AD " << an << " FD " << fd;
+            }
+        EXPECT_LT(norm(g[0]+g[1]+g[2]+g[3]), 1e-10*std::max(1.0, norm(g[0])+norm(g[1])+norm(g[2])+norm(g[3]))) << "translation invariance";
+    }
+    std::printf("  [4-centre twin] worst |AD - FD|: (ab|cd) %.2e\n", worst);
+}

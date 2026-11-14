@@ -799,6 +799,68 @@ public:
             g, nullptr);
         return g;
     }
+    //! \brief THE HF ERI4 GEOMETRY PULLBACK, every centre moving: per site, the derivative of
+    //! \f$f=\sum D^a_{ij}D^b_{kl}\,(ij|kl)\f$ (Coulomb) or \f$\sum D^a_{ij}D^b_{kl}\,(ik|jl)\f$ (\a exchange), i, j on this block, k, l on
+    //! \a other, (ab|cd) = \c FourC with its four norms, over the full symmetric \a Da, \a Db.  One Enzyme pass per shell quartet
+    //! (\c GaussianRF::FourCentreGradient, the cache-free twin of Repulsion4C), so the force differentiates the formula the energy sums.
+    //! The index symmetries with symmetric densities halve the walk: Coulomb visits i0 <= j0 and k0 <= l0, an off-diagonal pair counted
+    //! twice ((ij|kl) = (ji|kl) = (ij|lk)); exchange visits the shell pair (i0,k0) <= (j0,l0), an off-diagonal one counted twice
+    //! ((ik|jl) = (jl|ik)).  The value f is the J / K contraction \c AccumulateDirect / \c AccumulateExchange give.
+    //! CLIENT: Gaussian::Orbital_ERI4_IBS (PG_Cart).  THROWS on a missing structure, a mis-sized density or a stray centre.
+    rvec3vec_t ERI4Pullback(const NR_Evaluator& other, const rsmat_t& Da, const rsmat_t& Db, bool exchange, const Structure* st) const
+    {
+        const char* what = exchange ? "the HF exchange pullback" : "the HF Coulomb pullback";
+        CheckPullbackArgs(what, Da.rows(), st);
+        if (Db.rows()!=other.size())
+            throw std::invalid_argument(std::string(what)+": the partner density is "+std::to_string(Db.rows())+" square for "
+                                        +std::to_string(other.size())+" functions");
+        const std::vector<size_t> atomA=ComponentSites(st, what), atomB=other.ComponentSites(st, what);
+        const std::vector<Shell>& SA=Shells();
+        const std::vector<Shell>& SB=other.Shells();
+        rvec3vec_t F(st->GetNumAtoms(), rvec3_t(0,0,0));
+        std::vector<double> W;
+        // One quartet: slots 0..3 on the evaluators e[], shells sh[], sites at[]; W = factor * weight(P,Q,R,S) * the four norms.
+        auto quartet=[&](const NR_Evaluator* const e[4], const Shell* const sh[4], const std::vector<size_t>* const at[4], double factor, auto weight)
+        {
+            const size_t o0=sh[0]->begin, o1=sh[1]->begin, o2=sh[2]->begin, o3=sh[3]->begin;
+            const size_t n0=sh[0]->end-o0, n1=sh[1]->end-o1, n2=sh[2]->end-o2, n3=sh[3]->end-o3;
+            W.assign(n0*n1*n2*n3, 0.0);
+            for (size_t a=0;a<n0;a++) for (size_t b=0;b<n1;b++) for (size_t c=0;c<n2;c++) for (size_t d=0;d<n3;d++)
+                W[((a*n1+b)*n2+c)*n3+d]=factor*weight(o0+a,o1+b,o2+c,o3+d)*e[0]->ns[o0+a]*e[1]->ns[o1+b]*e[2]->ns[o2+c]*e[3]->ns[o3+d];
+            rvec3_t g0, g1, g2, g3;
+            e[3]->radials[o3]->FourCentreGradient(*e[0]->radials[o0], *e[1]->radials[o1], *e[2]->radials[o2], &e[0]->pols[o0], n0,
+                                                  &e[1]->pols[o1], n1, &e[2]->pols[o2], n2, &e[3]->pols[o3], n3, W.data(), g0, g1, g2, g3);
+            F[(*at[0])[o0]]+=g0; F[(*at[1])[o1]]+=g1; F[(*at[2])[o2]]+=g2; F[(*at[3])[o3]]+=g3;
+        };
+        if (!exchange)
+        {
+            const NR_Evaluator* const e[4]={this, this, &other, &other};
+            const std::vector<size_t>* const at[4]={&atomA, &atomA, &atomB, &atomB};
+            for (size_t i=0;i<SA.size();i++) for (size_t j=i;j<SA.size();j++)
+                for (size_t k=0;k<SB.size();k++) for (size_t l=k;l<SB.size();l++)
+                {
+                    const Shell* const sh[4]={&SA[i], &SA[j], &SB[k], &SB[l]};
+                    quartet(e, sh, at, (i<j ? 2.0 : 1.0)*(k<l ? 2.0 : 1.0),
+                            [&](size_t P, size_t Q, size_t R, size_t S){ return double(Da(P,Q))*double(Db(R,S)); });
+                }
+        }
+        else
+        {
+            const NR_Evaluator* const e[4]={this, &other, this, &other};
+            const std::vector<size_t>* const at[4]={&atomA, &atomB, &atomA, &atomB};
+            const size_t nB=SB.size();
+            for (size_t i=0;i<SA.size();i++) for (size_t k=0;k<nB;k++)
+                for (size_t j=0;j<SA.size();j++) for (size_t l=0;l<nB;l++)
+                {
+                    const size_t P=i*nB+k, Q=j*nB+l;   // the shell pairs (i,k) and (j,l)
+                    if (Q<P) continue;
+                    const Shell* const sh[4]={&SA[i], &SB[k], &SA[j], &SB[l]};
+                    quartet(e, sh, at, P<Q ? 2.0 : 1.0,
+                            [&](size_t I, size_t K, size_t J, size_t L){ return double(Da(I,J))*double(Db(K,L)); });
+                }
+        }
+        return F;
+    }
 private:
     static GaussianRF::TwoCentre TwoCentreOf(SeriesKernel K)
     {

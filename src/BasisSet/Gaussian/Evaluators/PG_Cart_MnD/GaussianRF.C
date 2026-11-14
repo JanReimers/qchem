@@ -320,6 +320,44 @@ inline double PairRepulsion3C(const Hermite2& H2, double p, double Eij, double c
     return s * 2*Pi52 * Eij*factor;
 }
 
+//! \brief \f$\lambda=2\pi^{5/2}E_{ab}E_{cd}/(p\,q\sqrt{p+q})\f$ of a primitive quartet (M&D 3.31, 2.25), from the two pairs' exponent sums
+//! \a p, \a q and prefactors \a Eab, \a Ecd: ONE definition, for the cached \c PrimGaussian::Lambda4C and the cache-free twin.
+inline double QuartetLambda(double p, double Eab, double q, double Ecd)
+{
+    double lambda = 2*Pi52/(p*q*std::sqrt(p+q));   // M&D 3.31
+    lambda *= Eab*Ecd;                              // M&D 2.25 (this rounding order: the cached kernel's, bit for bit)
+    return lambda;
+}
+//! \brief THE 4-CENTRE COULOMB (ab|cd) OF ONE PRIMITIVE QUARTET, from the two pairs' Hermite blocks \a Hab and \a Hcd, the quartet's
+//! Hermite-Coulomb table through \a R(N, L, M) (\f$\alpha=pq/(p+q)\f$ at \f$P-Q\f$) and its prefactor \a lambda (\c QuartetLambda): ONE
+//! definition, for the cached \c PrimGaussian::Repulsion4C and the cache-free twin Enzyme differentiates (GaussianRF::FourCentreGradient).
+//! NO zero-value skips on the Hermite or R values (the cached kernel had them): a value zero by symmetry has a derivative that is not.
+//! Dropping them moves no value: a skipped term was an exact zero, and adding one leaves the sum's bits alone, so the tabulated
+//! \c PrimGaussian::Repulsion4CTab (the hot path, which keeps its skips, same terms in the same order) is still this bit for bit.
+template <class R_t>
+inline double PairRepulsion4C(const Hermite2& Hab, const Polarization& pa, const Polarization& pb,
+                              const Hermite2& Hcd, const Polarization& pc, const Polarization& pd, double lambda, R_t&& R)
+{
+    const Polarization Pab = pa + pb;
+    const Polarization Pcd = pc + pd;
+    double s = 0.0;
+    for (int an=0; an<=Pab.n; ++an)
+     for (int al=0; al<=Pab.l; ++al)
+      for (int am=0; am<=Pab.m; ++am)
+      {
+          const double hab = Hab(Polarization(an,al,am), pa, pb);
+          for (int cn=0; cn<=Pcd.n; ++cn)
+           for (int cl=0; cl<=Pcd.l; ++cl)
+            for (int cm=0; cm<=Pcd.m; ++cm)
+            {
+                const double hcd = Hcd(Polarization(cn,cl,cm), pc, pd);
+                const double sign = ((cn+cl+cm)&1) ? -1.0 : 1.0;   // (-1)^(total of the cd term)
+                s += hab*hcd*R(an+cn, al+cl, am+cm)*sign;
+            }
+      }
+    return s*lambda;
+}
+
 // Global Cache2/Cache3 access points (the only way the kernels reach Ω / the auxiliaries).
 const Ω&        findΩ   (const GData& a, const GData& b);                          // primitive pair
 const RNLM&     findRNLM(const GData& ab, const GData& c);                         // 3/4-centre RNLM
@@ -436,6 +474,14 @@ public:
     //! twins (Imp/GaussianRF_AD.C).  CLIENT: the molecular PP field pullbacks (PG_Cart_MnD NR_Evaluator).
     void ThreeCentreGradient(ThreeCentre K, rf_t& ra, rf_t& rb, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                              const Polarization* pt, const double* ct, size_t nt, const double* W, rvec3_t& gA, rvec3_t& gB, rvec3_t& gC) const;
+    //! \brief The geometry derivative of a weighted shell QUARTET of the 4-centre Coulomb, every centre moving (THIS radial is centre D, as in
+    //! \c Repulsion4C): \f$f=\sum_{abcd}W_{abcd}\,(ra\,p_a[a],\ rb\,p_b[b]\,|\,rc\,p_c[c],\ \text{this}\ p_d[d])\f$, \a W at
+    //! ((a*nb+b)*nc+c)*nd+d, the four radials at their own centres; \a gA .. \a gD the derivatives w.r.t. ra's, rb's, rc's and this radial's
+    //! centre.  Enzyme's reverse mode over the cache-free twin of Repulsion4C (Imp/GaussianRF_AD.C), one pass.  CLIENT: the molecular HF
+    //! ERI4 pullback (PG_Cart_MnD NR_Evaluator).
+    void FourCentreGradient(rf_t& ra, rf_t& rb, rf_t& rc, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                            const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, const double* W,
+                            rvec3_t& gA, rvec3_t& gB, rvec3_t& gC, rvec3_t& gD) const;
     double Nuclear    (rf_t& rb, po_t& pa, po_t& pb, const Structure* cl) const;
     double Overlap3C  (rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
     double Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C

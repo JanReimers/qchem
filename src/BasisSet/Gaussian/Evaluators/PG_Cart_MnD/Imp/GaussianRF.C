@@ -369,9 +369,7 @@ double PrimGaussian::Repulsion3C(const Ω& ab, const RNLM& R, const PrimGaussian
 
 double PrimGaussian::Lambda4C(const Ω& ab, const Ω& cd)
 {
-    double lambda = 2*Pi52/(ab.αₚ*cd.αₚ*sqrt(ab.αₚ+cd.αₚ)); //M&D 3.31
-    lambda *= ab.Eij*cd.Eij; //M&D 2.25
-    return lambda;
+    return QuartetLambda(ab.αₚ, ab.Eij, cd.αₚ, cd.Eij);
 }
 
 double PrimGaussian::Repulsion4C(const Ω& ab, const Ω& cd,
@@ -385,36 +383,9 @@ double PrimGaussian::Repulsion4C(const Ω& ab, const Ω& cd, const RNLM& rnlm, d
                                  const Polarization& pa, const Polarization& pb,
                                  const Polarization& pc, const Polarization& pd)
 {
-
-    // Iterate the CONTRIBUTING Hermite (N,L,M) terms directly -- those with each component <= the bra/ket
-    // total (Pab/Pcd) -- instead of scanning the full GetNMLs() list and discarding most via operator>
-    // (which also copied a Polarization per term and built a temporary for the RNLM index).  Same set,
-    // order-independent sum.  This mirrors Repulsion3C's inner loop; it removes the hot Polarization
-    // operator>/operator+/copy ops the profiler flagged.
-    const Polarization Pab = pa + pb;
-    const Polarization Pcd = pc + pd;
-    double s = 0.0;
-    for (int an=0; an<=Pab.n; ++an)
-     for (int al=0; al<=Pab.l; ++al)
-      for (int am=0; am<=Pab.m; ++am)
-      {
-          const double hab = ab.H2(Polarization(an,al,am), pa, pb);
-          if (hab==0.0) continue;
-          for (int cn=0; cn<=Pcd.n; ++cn)
-           for (int cl=0; cl<=Pcd.l; ++cl)
-            for (int cm=0; cm<=Pcd.m; ++cm)
-            {
-                const double hcd = cd.H2(Polarization(cn,cl,cm), pc, pd);
-                if (hcd==0.0) continue;
-                const double r = rnlm(Index3{an+cn, al+cl, am+cm});
-                if (r!=0.0)
-                {
-                    const double sign = ((cn+cl+cm)&1) ? -1.0 : 1.0;   // (-1)^(total of the cd term)
-                    s += hab*hcd*r*sign;
-                }
-            }
-      }
-    return s*lambda;
+    // The shared formula (PairRepulsion4C), the one the cache-free twin differentiates: the contributing Hermite (N,L,M) terms, each
+    // component <= the bra/ket total, in the order Repulsion4CTab sums them.
+    return PairRepulsion4C(ab.H2, pa, pb, cd.H2, pc, pd, lambda, [&rnlm](int n, int l, int m){ return rnlm(Index3{n,l,m}); });
 }
 
 //

@@ -35,9 +35,7 @@ import qchem.Math.Angular;                               // CartTerm, Monomial
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Gaussian.Evaluators;      // concepts + generic 1E matrix builders
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator: the evaluator whose blocks give libcint's derivative integrals
-import qchem.BasisSet.Gaussian.Evaluators.PG_LibCint;    // the derivative integrals (int1e_ip*), gated in tests/M_LibCint.C
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;   // PGData: the layout libcint's evaluator is built on
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator: the evaluator whose own MnD kernels give the geometry pullbacks (Enzyme)
 export import qchem.BasisSet.AoShellSource;              // the GetAoShells face (+ Symmetry::Molecule::AoShell)
 export import qchem.BasisSet.BareCoulombSource;          // the BareCoulomb face (+ ERI4Block) -- ACBN0 (+U increment 3)
 import qchem.Structure;
@@ -569,11 +567,11 @@ class Orbital_ERI4_IBS
     , public virtual ::qchem::BasisSet::BareCoulombSource   // the raw (m1m2|m3m4) over a subset (ACBN0, 2026-09-21)
 {
 public:
-    // d/dR (GeometryOptimizationPlan §13.2): libcint's int2e_ip1 on the two blocks' own PGData, for the Cartesian PG_Cart evaluator when
-    // the partner block is one too.  Every other pairing refuses until it has them.
+    // d/dR (GeometryOptimizationPlan §13.2): Enzyme over this block's own MnD Repulsion4C (NR_Evaluator::ERI4Pullback), for the Cartesian
+    // PG_Cart evaluator when the partner block is one too.  Every other pairing refuses until it has them.
     virtual bool CanPullbackERI4(const ::qchem::BasisSet::Orbital_HF_IBS<double>* other) const override
     {
-        if constexpr (kLibcintERI) return dynamic_cast<const E*>(other)!=nullptr;
+        if constexpr (kMnD) return dynamic_cast<const E*>(other)!=nullptr;
         else return false;
     }
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeDirectPullback(const rsmat_t& Da, const rsmat_t& Db, const ::qchem::BasisSet::Orbital_HF_IBS<double>* other,
@@ -581,22 +579,16 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeExchangePullback(const rsmat_t& Da, const rsmat_t& Db, const ::qchem::BasisSet::Orbital_HF_IBS<double>* other,
                                                                     const Structure* st) const override {return ERI4Pullback(Da, Db, other, st, true);}
 private:
-    static constexpr bool kLibcintERI=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
+    static constexpr bool kMnD=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
     Outcome<rvec3vec_t,AD::NoGradient> ERI4Pullback(const rsmat_t& Da, const rsmat_t& Db, const ::qchem::BasisSet::Orbital_HF_IBS<double>* other,
                                                     const Structure* st, bool exchange) const
     {
         const char* what = exchange ? "exchange pullback" : "Coulomb pullback";
-        if constexpr (kLibcintERI)
+        if constexpr (kMnD)
         {
             if (!CanPullbackERI4(other)) return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block against a partner of another family", what);
-            if (!st) throw std::invalid_argument("Gaussian Orbital_ERI4_IBS: a geometry pullback needs the structure");
-            using LC=Evaluators::PG_LibCint::NR_Evaluator;
-            using PGD=Evaluators::PG_Cart_MnD::PGData;
-            const LC a(static_cast<const PGD&>(dynamic_cast<const E&>(*this)), st), b(static_cast<const PGD&>(dynamic_cast<const E&>(*other)), st);
-            auto dense=[](const rsmat_t& D){ rmat_t M(D.rows(), D.columns()); for (size_t i=0;i<D.rows();i++) for (size_t j=0;j<D.columns();j++) M(i,j)=D(i,j); return M; };
-            const std::vector<rvec3_t> g=a.ERI4Gradient(b, dense(Da), dense(Db), exchange);
-            rvec3vec_t F(g.size()); for (size_t A=0;A<g.size();A++) F[A]=g[A];
-            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(F);
+            const E& a=dynamic_cast<const E&>(*this);
+            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(a.ERI4Pullback(dynamic_cast<const E&>(*other), Da, Db, exchange, st));
         }
         else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", what);
     }

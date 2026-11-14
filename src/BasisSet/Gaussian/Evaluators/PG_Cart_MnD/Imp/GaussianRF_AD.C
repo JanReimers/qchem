@@ -1,5 +1,6 @@
 // File: GaussianRF_AD.C  THE CARTESIAN GAUSSIAN DERIVATIVES, Enzyme's (GeometryOptimizationPlan, "DERIVATIVES ARE ENZYME'S"): the basis
-// gradient in r, and the 2-centre S / <p^2> kernels' derivative in the ket centre (KetGradient, below).
+// gradient in r, and the 2-, 3- and 4-centre kernels' geometry derivatives (KetGradient, NuclearGradient, ThreeCentreGradient,
+// FourCentreGradient, below).
 //
 //
 // Enzyme is required (user ruling 2026-11-09), so the hand ∇_r of PrimGaussian, GaussianRF and Polarization is gone: ∇_r[p(r-C) g(r)]
@@ -366,6 +367,84 @@ void GaussianRF::ThreeCentreGradient(ThreeCentre K, rf_t& ra, rf_t& rb, const Po
     double g[9]={0,0,0,0,0,0,0,0,0};
     __enzyme_autodiff<void>(reinterpret_cast<void*>(ThreeCAt), enzyme_dup, x, g, enzyme_const, &c);
     gA=rvec3_t(g[0],g[1],g[2]); gB=rvec3_t(g[3],g[4],g[5]); gC=rvec3_t(g[6],g[7],g[8]);
+}
+
+
+// THE 4-CENTRE COULOMB'S GEOMETRY DERIVATIVE, every centre moving (lane B 2026-11-14; it replaced libcint's int2e_ip1 for the molecular HF
+// J and K pullbacks).  The cache-free twin of PrimGaussian::Repulsion4C: per primitive pair the Gaussian product and its Hermite2 (as Ω
+// builds them), per primitive quartet F_j(alpha |P-Q|^2) with alpha = pq/(p+q) and the Hermite-Coulomb recursion at P-Q on a flat store
+// (what findRNLM caches), contracted by the shared PairRepulsion4C with the shared QuartetLambda.  x = [A, B, C, D]: one reverse pass
+// gives all four centres.  The cd pair's product is rebuilt per ab pair (no table of Hermite2 objects inside the differentiated
+// function).  Gated by tests/M_KetGradient.C (the FD of the cached kernel) and tests/M_GeometryDerivatives.C (the FD of the J / K
+// contractions; libcint's ERI4Gradient as an oracle).
+struct FourCCtx
+{
+    const double* e[4]; const double* c[4]; size_t np[4]; int L[4];
+    const Polarization* p[4]; size_t n[4];
+    const double* W;
+    const Internal::Boys::AuxillaryFJ* Fj;
+};
+double FourCAt(const double* x, const FourCCtx* c)
+{
+    using Internal::MnD::Triangle3D;
+    const rvec3_t A(x[0],x[1],x[2]), B(x[3],x[4],x[5]), C(x[6],x[7],x[8]), D(x[9],x[10],x[11]);
+    const int Lr=c->L[0]+c->L[1]+c->L[2]+c->L[3];   // as findRNLM: Ltotal(ab) + Ltotal(cd)
+    auto tri=[](int n){return size_t(n+1)*(n+2)*(n+3)/6;};
+    std::vector<size_t> off(Lr+2,0);
+    for (int j=0;j<=Lr;j++) off[j+1]=off[j]+tri(Lr-j);
+    std::vector<double> store(off[Lr+1],0.0), Fj(Lr+1,0.0);
+    auto at=[&](int j, int N, int L, int M) -> double&
+    {   const int n=Lr-j; return store[off[j]+Triangle3D::Layer(n-N)+Triangle3D::Row(n-N-L)+size_t(n-N-L-M)]; };
+    auto R=[&](int N, int L, int M){ return store[Triangle3D::Layer(Lr-N)+Triangle3D::Row(Lr-N-L)+size_t(Lr-N-L-M)]; };
+    const size_t na=c->n[0], nb=c->n[1], nc=c->n[2], nd=c->n[3];
+    double s=0.0;
+    for (size_t i=0;i<c->np[0];i++)
+        for (size_t j=0;j<c->np[1];j++)
+        {
+            const GaussProduct ab(c->e[0][i],A,c->e[1][j],B);
+            const Hermite2 Hab(ab.p,ab.PA,ab.PB,c->L[0]+1,c->L[1]+1);   // as Ω's
+            for (size_t k=0;k<c->np[2];k++)
+                for (size_t l=0;l<c->np[3];l++)
+                {
+                    const GaussProduct cd(c->e[2][k],C,c->e[3][l],D);
+                    const Hermite2 Hcd(cd.p,cd.PA,cd.PB,c->L[2]+1,c->L[3]+1);
+                    const double alpha=ab.p*cd.p/(ab.p+cd.p);   // as findRNLM
+                    const rvec3_t dR=ab.P-cd.P;
+                    c->Fj->GetFjAt(alpha*(dR*dR), Fj);
+                    Internal::MnD::HermiteCoulomb(Lr, alpha, dR, Fj, at);
+                    const double lambda=QuartetLambda(ab.p,ab.Eij,cd.p,cd.Eij);
+                    double t=0.0;
+                    for (size_t a=0;a<na;a++)
+                        for (size_t b=0;b<nb;b++)
+                            for (size_t q=0;q<nc;q++)
+                                for (size_t d=0;d<nd;d++)
+                                {
+                                    const double w=c->W[((a*nb+b)*nc+q)*nd+d];
+                                    if (w==0.0) continue;   // a constant weight
+                                    t += w*PairRepulsion4C(Hab,c->p[0][a],c->p[1][b],Hcd,c->p[2][q],c->p[3][d],lambda,R);
+                                }
+                    s += c->c[0][i]*c->c[1][j]*c->c[2][k]*c->c[3][l]*t;
+                }
+        }
+    return s;
+}
+
+void GaussianRF::FourCentreGradient(rf_t& ra, rf_t& rb, rf_t& rc, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                    const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, const double* W,
+                                    rvec3_t& gA, rvec3_t& gB, rvec3_t& gC, rvec3_t& gD) const
+{
+    auto exps=[](const GaussianRF& r){ std::vector<double> e(r.itsPrims.size()); for (size_t i=0;i<e.size();i++) e[i]=r.itsPrims[i]->GetExponent(); return e; };
+    const std::vector<double> ea=exps(ra), eb=exps(rb), ec=exps(rc), ed=exps(*this);
+    const Internal::Boys::AuxillaryFJ Fj(ra.itsL+rb.itsL+rc.itsL+itsL);   // throws past the Boys table, before the AD call
+    const FourCCtx c{{ea.data(), eb.data(), ec.data(), ed.data()},
+                     {ra.itsCoeff.data(), rb.itsCoeff.data(), rc.itsCoeff.data(), itsCoeff.data()},
+                     {ea.size(), eb.size(), ec.size(), ed.size()}, {ra.itsL, rb.itsL, rc.itsL, itsL},
+                     {pa, pb, pc, pd}, {na, nb, nc, nd}, W, &Fj};
+    double x[12]={ra.itsCenter.x,ra.itsCenter.y,ra.itsCenter.z, rb.itsCenter.x,rb.itsCenter.y,rb.itsCenter.z,
+                  rc.itsCenter.x,rc.itsCenter.y,rc.itsCenter.z, itsCenter.x,itsCenter.y,itsCenter.z};
+    double g[12]={0,0,0,0,0,0,0,0,0,0,0,0};
+    __enzyme_autodiff<void>(reinterpret_cast<void*>(FourCAt), enzyme_dup, x, g, enzyme_const, &c);
+    gA=rvec3_t(g[0],g[1],g[2]); gB=rvec3_t(g[3],g[4],g[5]); gC=rvec3_t(g[6],g[7],g[8]); gD=rvec3_t(g[9],g[10],g[11]);
 }
 
 } //namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
