@@ -317,33 +317,12 @@ double PrimGaussian::Repulsion2C(const PrimGaussian* a, const PrimGaussian* b,
                                  const Polarization& pa, const Polarization& pb)
 {
     const Ω& ab = findΩ(a->GetGData(), b->GetGData());
-    auto NLMs = Ω::GetNMLs(a->GetL());
     const Hermite1& H1a = a->GetH1();
     const Hermite1& H1b = b->GetH1();
     const RNLM& R = ab.SelfRNLM();
-
-    double factor = 1.0/(ab.ab*sqrt(ab.αₚ));
-    factor = (pb.GetTotalL()%2) ? -factor : factor;
-
-    double s = 0.0;
-    for (auto bNLM:NLMs)
-    {
-        if (bNLM > pa) continue;
-        double ha = H1a(bNLM,pa);
-        if (ha==0.0) continue;
-        double RR = 0.0;
-        for (int n=0; n<=pb.n; n++)
-            for (int l=0; l<=pb.l; l++)
-                for (int m=0; m<=pb.m; m++)
-                {
-                    Polarization NLMp(n,l,m);
-                    double hb = H1b(NLMp,pb);
-                    if (hb!=0.0)
-                        RR += hb*R(bNLM+NLMp);
-                }
-        s += ha*RR;
-    }
-    return s * 2*Pi52*factor;
+    return PairRepulsion2C(ab.ab, ab.αₚ, Ω::GetNMLs(a->GetL()), pa, pb,
+                           [&](const Polarization& n){return H1a(n,pa);}, [&](const Polarization& n){return H1b(n,pb);},
+                           [&R](const Polarization& n){return R(n);});
 }
 
 // <p^2>=<-nabla^2> building block (no 1/2; the Hamiltonian's).
@@ -363,16 +342,7 @@ double PrimGaussian::Nuclear(const PrimGaussian* a, const PrimGaussian* b,
     for (const Site& atom : cl->Sites())
         R.Add(RNLM(ab.Ltotal,ab.αₚ,ab.P-atom.R), -1.0*(atom.Z));
 
-    auto NLMs = Ω::GetNMLs(ab.Ltotal);
-    const Polarization Pab = pa + pb;
-    double s = 0.0;
-    for (auto bNLM:NLMs)
-    {
-        if (bNLM > Pab) continue;
-        if (double h = ab.H2(bNLM,pa,pb); h!=0)
-            s += h*R(bNLM);
-    }
-    return s * 2*Pi/ab.αₚ*ab.Eij;
+    return PairNuclear(ab.αₚ, ab.Eij, ab.H2, pa, pb, Ω::GetNMLs(ab.Ltotal), [&R](const Polarization& n){return R(n);});
 }
 
 // 3-centre overlap <ab|c>: the Hermite block, cached by primitive triple in the global Cache3 (the build
@@ -392,36 +362,14 @@ double PrimGaussian::Repulsion3C(const PrimGaussian* ga, const PrimGaussian* gb,
 double PrimGaussian::Repulsion3C(const Ω& ab, const RNLM& R, const PrimGaussian* gc,
                                  const Polarization& pa, const Polarization& pb, const Polarization& pc)
 {
-    auto NLMs = Ω::GetNMLs(ab.Ltotal);
     const Hermite1& Hc = gc->GetH1();
-    const Polarization Pab = pa+pb;
-    double s = 0.0;
-    for (auto nlm:NLMs)
-    {
-        if (nlm > Pab) continue;
-        double hab = ab.H2(nlm,pa,pb);
-        if (hab==0.0) continue;
-        double Rs = 0.0;
-        for (int n=0; n<=pc.n; n++)
-            for (int l=0; l<=pc.l; l++)
-                for (int m=0; m<=pc.m; m++)
-                {
-                    Polarization NLMp(n,l,m);
-                    if (double h = Hc(NLMp,pc); h!=0.0)
-                        Rs += h*R(nlm+NLMp);
-                }
-        if (Rs!=0) s += hab*Rs;
-    }
-    double factor = 1.0/(ab.αₚ*gc->GetExponent()*sqrt(ab.αₚ+gc->GetExponent()));
-    factor = (pc.GetTotalL()%2) ? -factor : factor;
-    return s * 2*Pi52 * ab.Eij*factor;
+    return PairRepulsion3C(ab.H2, ab.αₚ, ab.Eij, gc->GetExponent(), pa, pb, pc, Ω::GetNMLs(ab.Ltotal),
+                           [&](const Polarization& q){return Hc(q,pc);}, [&R](const Polarization& q){return R(q);});
 }
 
 double PrimGaussian::Lambda4C(const Ω& ab, const Ω& cd)
 {
-    double lambda = 2*Pi52/(ab.αₚ*cd.αₚ*sqrt(ab.αₚ+cd.αₚ)); //M&D 3.31
-    lambda *= ab.Eij*cd.Eij; //M&D 2.25
-    return lambda;
+    return QuartetLambda(ab.αₚ, ab.Eij, cd.αₚ, cd.Eij);
 }
 
 double PrimGaussian::Repulsion4C(const Ω& ab, const Ω& cd,
@@ -435,36 +383,9 @@ double PrimGaussian::Repulsion4C(const Ω& ab, const Ω& cd, const RNLM& rnlm, d
                                  const Polarization& pa, const Polarization& pb,
                                  const Polarization& pc, const Polarization& pd)
 {
-
-    // Iterate the CONTRIBUTING Hermite (N,L,M) terms directly -- those with each component <= the bra/ket
-    // total (Pab/Pcd) -- instead of scanning the full GetNMLs() list and discarding most via operator>
-    // (which also copied a Polarization per term and built a temporary for the RNLM index).  Same set,
-    // order-independent sum.  This mirrors Repulsion3C's inner loop; it removes the hot Polarization
-    // operator>/operator+/copy ops the profiler flagged.
-    const Polarization Pab = pa + pb;
-    const Polarization Pcd = pc + pd;
-    double s = 0.0;
-    for (int an=0; an<=Pab.n; ++an)
-     for (int al=0; al<=Pab.l; ++al)
-      for (int am=0; am<=Pab.m; ++am)
-      {
-          const double hab = ab.H2(Polarization(an,al,am), pa, pb);
-          if (hab==0.0) continue;
-          for (int cn=0; cn<=Pcd.n; ++cn)
-           for (int cl=0; cl<=Pcd.l; ++cl)
-            for (int cm=0; cm<=Pcd.m; ++cm)
-            {
-                const double hcd = cd.H2(Polarization(cn,cl,cm), pc, pd);
-                if (hcd==0.0) continue;
-                const double r = rnlm(Index3{an+cn, al+cl, am+cm});
-                if (r!=0.0)
-                {
-                    const double sign = ((cn+cl+cm)&1) ? -1.0 : 1.0;   // (-1)^(total of the cd term)
-                    s += hab*hcd*r*sign;
-                }
-            }
-      }
-    return s*lambda;
+    // The shared formula (PairRepulsion4C), the one the cache-free twin differentiates: the contributing Hermite (N,L,M) terms, each
+    // component <= the bra/ket total, in the order Repulsion4CTab sums them.
+    return PairRepulsion4C(ab.H2, pa, pb, cd.H2, pc, pd, lambda, [&rnlm](int n, int l, int m){ return rnlm(Index3{n,l,m}); });
 }
 
 //
@@ -476,16 +397,8 @@ Hermite3* PrimGaussian::GetH3(const PrimGaussian& g1, const PrimGaussian& g2) co
     const rvec3_t A = g1.itsCenter,   B = g2.itsCenter,   C = itsCenter;
     const int    La = g1.itsL,       Lb = g2.itsL,       Lc = itsL;
 
-    double alphaQ = a+b+c;
-
-    rvec3_t AB = A-B;
-    rvec3_t AC = A-C;
-    rvec3_t BC = B-C;
-    rvec3_t Q  = (a*A+b*B+c*C)/alphaQ;
-
-    double Eabc = pow(Pi/alphaQ,1.5)*exp( -(a*b*AB*AB + a*c*AC*AC + b*c*BC*BC) / alphaQ );
-
-    return new Hermite3(alphaQ,Q-A,Q-B,Q-C,La,Lb,Lc,Eabc);
+    const ThreeCentreProduct t=MakeThreeCentreProduct(a,A,b,B,c,C);   // the one definition (the module interface)
+    return new Hermite3(t.alphaQ,t.QA,t.QB,t.QC,La,Lb,Lc,t.Eabc);
 }
 
 //

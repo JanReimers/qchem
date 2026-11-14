@@ -35,9 +35,7 @@ import qchem.Math.Angular;                               // CartTerm, Monomial
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Gaussian.Evaluators;      // concepts + generic 1E matrix builders
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator: the evaluator whose blocks give libcint's derivative integrals
-import qchem.BasisSet.Gaussian.Evaluators.PG_LibCint;    // the derivative integrals (int1e_ip*), gated in tests/M_LibCint.C
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;   // PGData: the layout libcint's evaluator is built on
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator: the evaluator whose own MnD kernels give the geometry pullbacks (Enzyme)
 export import qchem.BasisSet.AoShellSource;              // the GetAoShells face (+ Symmetry::Molecule::AoShell)
 export import qchem.BasisSet.BareCoulombSource;          // the BareCoulomb face (+ ERI4Block) -- ACBN0 (+U increment 3)
 import qchem.Structure;
@@ -112,54 +110,32 @@ protected:
     const E& Cast() const {return dynamic_cast<const E&>(*this);}
 
 public:
-    // d/dR (GeometryOptimizationPlan §13.2): libcint's derivative integrals on this block's own PGData, for the Cartesian PG_Cart evaluator
-    // (increment 1).  Every other Gaussian evaluator refuses until it has them.
-    virtual bool CanPullbackOverlap() const override {return kLibcint;}
-    virtual bool CanPullbackKinetic() const override {return kLibcint;}
-    virtual bool CanPullbackNuclear() const override {return kLibcint;}
+    // d/dR (GeometryOptimizationPlan §13.2), for the Cartesian PG_Cart (MnD) evaluator; every other Gaussian evaluator refuses until it has
+    // them.  All three are Enzyme over the MnD kernel (NR_Evaluator::MolecularOneElectronPullback / MolecularNuclearPullback, lane B
+    // 2026-11-13): the force differentiates the formula the energy sums, with libcint out of the path (the user's 2026-11-10 ruling).
+    virtual bool CanPullbackOverlap() const override {return kMnD;}
+    virtual bool CanPullbackKinetic() const override {return kMnD;}
+    virtual bool CanPullbackNuclear() const override {return kMnD;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>& W, const Structure* st) const override
     {
-        if constexpr (kLibcint) return Outcome<rvec3vec_t,AD::NoGradient>::Ok(Contract(LibCint<E>(st).OverlapGradient(), W));
+        if constexpr (kMnD)
+            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(Cast().MolecularOneElectronPullback(E::SeriesKernel::Overlap, W, st));
         else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", "overlap pullback");
     }
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<double>& D, const Structure* st) const override
     {
-        if constexpr (kLibcint) return Outcome<rvec3vec_t,AD::NoGradient>::Ok(Contract(LibCint<E>(st).KineticGradient(), D));
+        if constexpr (kMnD)
+            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(Cast().MolecularOneElectronPullback(E::SeriesKernel::Kinetic, D, st));
         else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", "kinetic pullback");
     }
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<double>& D, const Structure* st) const override
     {
-        if constexpr (kLibcint) return Outcome<rvec3vec_t,AD::NoGradient>::Ok(Contract(LibCint<E>(st).NuclearGradient(), D));
+        if constexpr (kMnD) return Outcome<rvec3vec_t,AD::NoGradient>::Ok(Cast().MolecularNuclearPullback(D, st));
         else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", "nuclear pullback");
     }
 private:
-    static constexpr bool kLibcint=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
-    //! A TEMPLATE, so it is instantiated only inside the kLibcint branch: for any other evaluator Cast() is no PGData.
-    template <class EE> Evaluators::PG_LibCint::NR_Evaluator LibCint(const Structure* st) const
-    {
-        if (!st) throw std::invalid_argument("EOrbital_1E_IBS: a geometry pullback needs the structure");
-        const EE& e=dynamic_cast<const EE&>(*this);
-        return Evaluators::PG_LibCint::NR_Evaluator(static_cast<const Evaluators::PG_Cart_MnD::PGData&>(e), st);
-    }
-    //! Σ_ij A_ij dM_ij/dR_atom for every atom: a per-atom gradient-matrix set contracted with the adjoint.
-    static rvec3vec_t Contract(const Evaluators::PG_LibCint::NR_Evaluator::GradientMatrices& dM, const hmat_t<double>& A)
-    {
-        rvec3vec_t F(dM.size(), rvec3_t(0,0,0));
-        for (size_t at=0;at<dM.size();at++)
-        {
-            double x[3]={0,0,0};
-            for (int k=0;k<3;k++)
-            {
-                const rmat_t& M=dM[at][k];
-                if (M.rows()!=A.rows() || M.columns()!=A.columns())
-                    throw std::invalid_argument("EOrbital_1E_IBS: the adjoint is "+std::to_string(A.rows())+" x "+std::to_string(A.columns())+
-                                                ", the block's matrices are "+std::to_string(M.rows())+" x "+std::to_string(M.columns()));
-                for (size_t i=0;i<M.rows();i++) for (size_t j=0;j<M.columns();j++) x[k]+=A(i,j)*M(i,j);
-            }
-            F[at]=rvec3_t(x[0],x[1],x[2]);
-        }
-        return F;
-    }
+    //! The Cartesian MnD evaluator: the one whose kernels the pullbacks differentiate.
+    static constexpr bool kMnD=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
 };
 
 // --- Species fields: the analytic local PP and KB projectors -----------------------------------------
@@ -240,33 +216,35 @@ public:
         return V;
     }
 
-    // d/dR (GeometryOptimizationPlan §13.2): libcint's derivative integrals on this block's own PGData, each field Gaussian an auxiliary
-    // shell (PG_LibCint::NR_Evaluator's PP gradients), for the Cartesian PG_Cart evaluator; every other evaluator refuses.  The VALUES
-    // the projector pullback weights by (b_i = <i|β Y_lm>) are this engine's, exactly as MakeProjectorMatrix forms them.
-    virtual bool CanPullbackSpeciesField(const SpeciesRadialField& f) const override {return kLibcint && CanAssembleField(f);}
-    virtual bool CanPullbackProjectors(const SpeciesProjectorSet& ps) const override {return kLibcint && CanAssembleProjectors(ps);}
+    // d/dR (GeometryOptimizationPlan §13.2), for the Cartesian PG_Cart (MnD) evaluator; every other evaluator refuses.  Enzyme over the MnD
+    // kernels (NR_Evaluator::OverlapWithPullback / OperatorThreeCPullback / GaussianRepulsionPullback, lane B 2026-11-13): the force
+    // differentiates the formulas the energy sums, libcint out of the path (the user's 2026-11-10 ruling).  The VALUES the projector
+    // pullback weights by (b_i = <i|β Y_lm>) are this engine's, exactly as MakeProjectorMatrix forms them.
+    virtual bool CanPullbackSpeciesField(const SpeciesRadialField& f) const override {return kMnD && CanAssembleField(f);}
+    virtual bool CanPullbackProjectors(const SpeciesProjectorSet& ps) const override {return kMnD && CanAssembleProjectors(ps);}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure* st, const SpeciesRadialField& f, FieldRange range,
                                                                         const hmat_t<double>& D) const override
     {
-        if constexpr (kLibcint)
+        if constexpr (kMnD)
         {
             if (!CanAssembleField(f)) return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block, a field with no closed form", "species-field pullback");
-            const auto lc=LibCintOf(st);
-            const rmat_t Dd=Dense(D, lc.size());
+            if (!st) throw std::invalid_argument("Gaussian EOrbital_PP_IBS::MakeSpeciesFieldPullback: needs the structure");
+            const E& e=dynamic_cast<const E&>(*this);
+            const rmat_t Dd=Dense(D, e.size());
             const auto& gs=dynamic_cast<const SpeciesRadialField_Gaussian&>(f);
             const auto& gc=dynamic_cast<const SpeciesRadialField_GaussianCharge&>(f);
             rvec3vec_t F(st->GetNumAtoms(), rvec3_t(0,0,0));
-            auto add=[&](const std::vector<rvec3_t>& g, double s){ for (size_t A=0;A<g.size();A++) F[A]+=s*g[A]; };
+            auto add=[&](const auto& g, double s){ for (size_t A=0;A<g.size();A++) F[A]+=s*g[A]; };
             for (size_t A=0;A<st->GetNumAtoms();A++)
             {
                 const Site& a=st->Sites()[A];
                 if (range!=FieldRange::Long)
                     for (const auto& t : gs.AsGaussians(a.Z,FieldRange::Short))
-                        add(lc.OperatorThreeCGradient(Math::CartGaussian{a.R, t.alpha, Math::MultiplyR2({Math::CartTerm{Math::Monomial{0,0,0},t.c}}, t.n)}, A, Dd), 1.0);
+                        add(e.OperatorThreeCPullback(Math::CartGaussian{a.R, t.alpha, Math::MultiplyR2({Math::CartTerm{Math::Monomial{0,0,0},t.c}}, t.n)}, A, Dd, st), 1.0);
                 if (range!=FieldRange::Short)
                 {
                     const GaussianCharge q=gc.AsGaussianCharge(a.Z);
-                    add(lc.GaussianRepulsionGradient(A, q.alpha, Dd), -q.q*std::pow(q.alpha/Pi,1.5));
+                    add(e.GaussianRepulsionPullback(A, q.alpha, Dd, st), -q.q*std::pow(q.alpha/Pi,1.5));
                 }
             }
             return Outcome<rvec3vec_t,AD::NoGradient>::Ok(F);
@@ -275,11 +253,11 @@ public:
     }
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure* st, const SpeciesProjectorSet& ps, const hmat_t<double>& D) const override
     {
-        if constexpr (kLibcint)
+        if constexpr (kMnD)
         {
             if (!CanAssembleProjectors(ps)) return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block, projectors with no closed form", "projector pullback");
+            if (!st) throw std::invalid_argument("Gaussian EOrbital_PP_IBS::MakeProjectorPullback: needs the structure");
             const E& e=dynamic_cast<const E&>(*this);
-            const auto lc=LibCintOf(st);
             const size_t n=e.size();
             if (D.rows()!=n) throw std::invalid_argument("Gaussian EOrbital_PP_IBS::MakeProjectorPullback: D is "+std::to_string(D.rows())+" square for "+std::to_string(n)+" functions");
             const auto& gp=dynamic_cast<const SpeciesProjectorSet_Gaussian&>(ps);
@@ -308,7 +286,7 @@ public:
                         for (size_t i=0;i<n;i++) { double s=0.0; for (size_t j=0;j<n;j++) s+=D(i,j)*b[j]; w[i]=2.0*wp*s; }
                         for (const auto& g : gs)
                         {
-                            const auto dg=lc.OverlapWithGradient(g, A, w);
+                            const auto dg=e.OverlapWithPullback(g, A, w, st);
                             for (size_t B=0;B<dg.size();B++) F[B]+=dg[B];
                         }
                     }
@@ -319,13 +297,8 @@ public:
         else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", "projector pullback");
     }
 private:
-    static constexpr bool kLibcint=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
-    //! The libcint evaluator on this block's own PGData (a TEMPLATE body, instantiated only in the kLibcint branch).
-    template <class EE=E> Evaluators::PG_LibCint::NR_Evaluator LibCintOf(const Structure* st) const
-    {
-        if (!st) throw std::invalid_argument("Gaussian EOrbital_PP_IBS: a geometry pullback needs the structure");
-        return Evaluators::PG_LibCint::NR_Evaluator(static_cast<const Evaluators::PG_Cart_MnD::PGData&>(dynamic_cast<const EE&>(*this)), st);
-    }
+    //! The Cartesian MnD evaluator: the one whose kernels the pullbacks differentiate.
+    static constexpr bool kMnD=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
     static rmat_t Dense(const hmat_t<double>& D, size_t n)
     {
         if (D.rows()!=n) throw std::invalid_argument("Gaussian EOrbital_PP_IBS: D is "+std::to_string(D.rows())+" square for "+std::to_string(n)+" functions");
@@ -362,36 +335,29 @@ protected:
                                    {return aE.RepulsionThreeC(ia, aE, ib, cE, ic);});
     }
 public:
-    // d/dR (GeometryOptimizationPlan §13.2): libcint's int3c2e_ip1/_ip2 on the two blocks' own PGData, for the Cartesian PG_Cart evaluator
-    // when the fit block is one too (the same E, as MakeRepulsion3C casts it).  Every other pairing refuses until it has them.
+    // d/dR (GeometryOptimizationPlan §13.2): Enzyme over the MnD 3-centre Coulomb (NR_Evaluator::RepulsionThreeCPullback, lane B
+    // 2026-11-13: libcint is out of the force path), for the Cartesian PG_Cart evaluator when the fit block is one too (the same E, as
+    // MakeRepulsion3C casts it).  Every other pairing refuses until it has them.
     virtual bool CanPullbackRepulsion3C(const rFIT_CD_ABS& c) const override
     {
-        if constexpr (kLibcint) return dynamic_cast<const E*>(&c)!=nullptr;
+        if constexpr (kMnD) return dynamic_cast<const E*>(&c)!=nullptr;
         else return false;
     }
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const rFIT_CD_ABS& c, const hmat_t<double>& D, const rvec_t& a,
                                                                        const Structure* st) const override
     {
-        if constexpr (kLibcint)
+        if constexpr (kMnD)
         {
             if (!CanPullbackRepulsion3C(c)) return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block against a fit of another family", "3-centre repulsion pullback");
             if (!st) throw std::invalid_argument("Gaussian Orbital_DFT_IBS: a geometry pullback needs the structure");
-            using LC=Evaluators::PG_LibCint::NR_Evaluator;
-            using PGD=Evaluators::PG_Cart_MnD::PGData;
-            const LC orb(static_cast<const PGD&>(dynamic_cast<const E&>(*this)), st), fit(static_cast<const PGD&>(dynamic_cast<const E&>(c)), st);
-            if (D.rows()!=orb.size() || a.size()!=fit.size())
-                throw std::invalid_argument("Gaussian Orbital_DFT_IBS::MakeRepulsion3CPullback: D is "+std::to_string(D.rows())+" square and a has "
-                                            +std::to_string(a.size())+", for "+std::to_string(orb.size())+" orbital and "+std::to_string(fit.size())+" fit functions");
-            rmat_t Dd(D.rows(), D.columns());
-            for (size_t i=0;i<D.rows();i++) for (size_t j=0;j<D.columns();j++) Dd(i,j)=D(i,j);
-            const std::vector<rvec3_t> g=orb.RepulsionThreeC_Gradient(fit, Dd, a);
-            rvec3vec_t F(g.size()); for (size_t A=0;A<g.size();A++) F[A]=g[A];
-            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(F);
+            const E& e=dynamic_cast<const E&>(*this);
+            const rmat_t Dd(D);   // both triangles; the evaluator checks the size
+            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(e.RepulsionThreeCPullback(dynamic_cast<const E&>(c), Dd, a, st));
         }
         else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", "3-centre repulsion pullback");
     }
 private:
-    static constexpr bool kLibcint=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
+    static constexpr bool kMnD=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
     // For each fit component ic, build the symmetric (ia,ib) block via the supplied named 3-centre kernel
     // (which folds in all three normalizations).
     template <class Kernel>
@@ -601,11 +567,11 @@ class Orbital_ERI4_IBS
     , public virtual ::qchem::BasisSet::BareCoulombSource   // the raw (m1m2|m3m4) over a subset (ACBN0, 2026-09-21)
 {
 public:
-    // d/dR (GeometryOptimizationPlan §13.2): libcint's int2e_ip1 on the two blocks' own PGData, for the Cartesian PG_Cart evaluator when
-    // the partner block is one too.  Every other pairing refuses until it has them.
+    // d/dR (GeometryOptimizationPlan §13.2): Enzyme over this block's own MnD Repulsion4C (NR_Evaluator::ERI4Pullback), for the Cartesian
+    // PG_Cart evaluator when the partner block is one too.  Every other pairing refuses until it has them.
     virtual bool CanPullbackERI4(const ::qchem::BasisSet::Orbital_HF_IBS<double>* other) const override
     {
-        if constexpr (kLibcintERI) return dynamic_cast<const E*>(other)!=nullptr;
+        if constexpr (kMnD) return dynamic_cast<const E*>(other)!=nullptr;
         else return false;
     }
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeDirectPullback(const rsmat_t& Da, const rsmat_t& Db, const ::qchem::BasisSet::Orbital_HF_IBS<double>* other,
@@ -613,22 +579,16 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeExchangePullback(const rsmat_t& Da, const rsmat_t& Db, const ::qchem::BasisSet::Orbital_HF_IBS<double>* other,
                                                                     const Structure* st) const override {return ERI4Pullback(Da, Db, other, st, true);}
 private:
-    static constexpr bool kLibcintERI=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
+    static constexpr bool kMnD=std::same_as<E, Evaluators::PG_Cart_MnD::NR_Evaluator>;
     Outcome<rvec3vec_t,AD::NoGradient> ERI4Pullback(const rsmat_t& Da, const rsmat_t& Db, const ::qchem::BasisSet::Orbital_HF_IBS<double>* other,
                                                     const Structure* st, bool exchange) const
     {
         const char* what = exchange ? "exchange pullback" : "Coulomb pullback";
-        if constexpr (kLibcintERI)
+        if constexpr (kMnD)
         {
             if (!CanPullbackERI4(other)) return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block against a partner of another family", what);
-            if (!st) throw std::invalid_argument("Gaussian Orbital_ERI4_IBS: a geometry pullback needs the structure");
-            using LC=Evaluators::PG_LibCint::NR_Evaluator;
-            using PGD=Evaluators::PG_Cart_MnD::PGData;
-            const LC a(static_cast<const PGD&>(dynamic_cast<const E&>(*this)), st), b(static_cast<const PGD&>(dynamic_cast<const E&>(*other)), st);
-            auto dense=[](const rsmat_t& D){ rmat_t M(D.rows(), D.columns()); for (size_t i=0;i<D.rows();i++) for (size_t j=0;j<D.columns();j++) M(i,j)=D(i,j); return M; };
-            const std::vector<rvec3_t> g=a.ERI4Gradient(b, dense(Da), dense(Db), exchange);
-            rvec3vec_t F(g.size()); for (size_t A=0;A<g.size();A++) F[A]=g[A];
-            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(F);
+            const E& a=dynamic_cast<const E&>(*this);
+            return Outcome<rvec3vec_t,AD::NoGradient>::Ok(a.ERI4Pullback(dynamic_cast<const E&>(*other), Da, Db, exchange, st));
         }
         else return NoGeometryDerivativeYet<rvec3vec_t>("this Gaussian block", what);
     }

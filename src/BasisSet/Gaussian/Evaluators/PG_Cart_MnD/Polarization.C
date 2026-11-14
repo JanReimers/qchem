@@ -29,7 +29,7 @@ public:
     // Arithmetic MUST return Polarization (not Monomial) so the rnlm(pa+pb)->Index3 call sites are unchanged.
     inline Polarization  operator+ (const Polarization& p) const {return Polarization(n+p.n, l+p.l, m+p.m);}
     inline Polarization  operator- (const Polarization& p) const {return Polarization(n-p.n, l-p.l, m-p.m);}
-    bool          operator> (const Polarization& p) const {return n>p.n || l>p.l || m>p.m;}
+    inline bool   operator> (const Polarization& p) const {return n>p.n || l>p.l || m>p.m;}   // inline: PairNuclear (an Enzyme leaf) uses it
 
     //! \f$x^n y^l z^m\f$.  A VALUE LEAF of the Enzyme-registered basis gradient (GaussianRF::Gradient), so it is inline (the AD unit
     //! differentiates its body) and branch-free: \c intpow returns 0 at x = 0 through a branch, and the derivative of a branch is the

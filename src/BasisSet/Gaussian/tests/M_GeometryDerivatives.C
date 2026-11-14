@@ -116,8 +116,11 @@ TEST(PointJets, TheDensityPullbackIsTheWeightedSumOfTheDensityJets)
     EXPECT_THROW(J.AddDensityPullback(D, rvec_t(2), F), std::invalid_argument);
 }
 
-TEST(GeometryDerivatives, PG_CartsPullbacksAreLibcintsGradientsContractedAndTranslationInvariant)
+// ORACLE (since 2026-11-13): PG_Cart's overlap, kinetic and nuclear pullbacks are Enzyme over the MnD kernel, so they AGREE with libcint's
+// derivative integrals contracted with A (the nuclear one with the nuclei moving) to roundoff, not bit for bit.
+TEST(GeometryDerivatives, PG_CartsPullbacksAgreeWithLibcintsGradientsContractedAndTranslationInvariant)
 {
+    double worstS=0.0, worstK=0.0, worstV=0.0;
     std::unique_ptr<Molecule> h2o(new Molecule(StructureData::GetMolecule("H2O")));
     const Orbital_IBS ibs(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{1.0, 0.25}, 2, h2o.get());
     const BasisSet::Orbital_1E_IBS<double>& block=ibs;   // a term holds this face; it asks it, no cast
@@ -137,11 +140,17 @@ TEST(GeometryDerivatives, PG_CartsPullbacksAreLibcintsGradientsContractedAndTran
         {
             double s=0, kk=0, v=0;
             for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) { s+=A(i,j)*dS[at][k](i,j); kk+=A(i,j)*dK[at][k](i,j); v+=A(i,j)*dV[at][k](i,j); }
-            EXPECT_DOUBLE_EQ(C((*FS)[at],k), s); EXPECT_DOUBLE_EQ(C((*FK)[at],k), kk); EXPECT_DOUBLE_EQ(C((*FV)[at],k), v);
+            EXPECT_NEAR(C((*FS)[at],k), s,  1e-11*std::max(1.0,std::fabs(s)));  worstS=std::max(worstS,std::fabs(C((*FS)[at],k)-s));
+            EXPECT_NEAR(C((*FK)[at],k), kk, 1e-11*std::max(1.0,std::fabs(kk))); worstK=std::max(worstK,std::fabs(C((*FK)[at],k)-kk));
+            // V at 1e-9, not 1e-11: the two engines' Boys F_j differ (MnD's tabulated Taylor vs libcint's own), so their nuclear VALUES agree
+            // to ~1e-10 per element (M_LibCint.matrix_1E_matches_scalar's tolerance); measured 1.6e-10 contracted.  The force's own
+            // correctness is the FD gate below and KetGradient.TheNuclearTwin...: it differentiates MnD's energy, Boys table included.
+            EXPECT_NEAR(C((*FV)[at],k), v,  1e-9*std::max(1.0,std::fabs(v)));   worstV=std::max(worstV,std::fabs(C((*FV)[at],k)-v));
         }
         sS+=(*FS)[at]; sK+=(*FK)[at]; sV+=(*FV)[at];
     }
     EXPECT_LT(norm(sS), 1e-11); EXPECT_LT(norm(sK), 1e-10); EXPECT_LT(norm(sV), 1e-10);
+    std::printf("  [MnD vs libcint] worst |Enzyme-MnD - libcint| contracted: S %.2e, T %.2e, V %.2e\n", worstS, worstK, worstV);
     EXPECT_THROW((void)block.MakeOverlapPullback(hmat_t<double>(n+1), h2o.get()), std::invalid_argument) << "a mismatched adjoint throws";
 }
 
@@ -338,7 +347,7 @@ TEST(GeometryDerivatives, PG_CartsCoulombFitPullbacksAreTheFiniteDifferenceOfIts
     const double h=1e-4;
     const auto R=Sites(*h2o);
     rvec3_t s3(0,0,0), s2(0,0,0);
-    double largest=0.0;
+    double largest=0.0, worst3=0.0, worst2=0.0;
     for (size_t at=0;at<R.size();at++)
     {
         s3+=(*F3)[at]; s2+=(*F2)[at];
@@ -350,12 +359,53 @@ TEST(GeometryDerivatives, PG_CartsCoulombFitPullbacksAreTheFiniteDifferenceOfIts
             EXPECT_NEAR(C((*F3)[at],k), f3, 2e-6*std::max(1.0,std::fabs(f3))) << "Σ D a ∂(ij|k)/∂R, atom " << at << " axis " << k;
             EXPECT_NEAR(C((*F2)[at],k), f2, 2e-6*std::max(1.0,std::fabs(f2))) << "Σ A ∂(k|l)/∂R, atom " << at << " axis " << k;
             largest=std::max({largest, std::fabs(f3), std::fabs(f2)});
+            worst3=std::max(worst3, std::fabs(C((*F3)[at],k)-f3)); worst2=std::max(worst2, std::fabs(C((*F2)[at],k)-f2));
         }
     }
+    std::printf("  [Coulomb fit pullbacks] worst |pullback - FD|: 3-centre %.2e, metric %.2e (largest |FD| %.2e); |sum F|: %.1e, %.1e\n",
+                worst3, worst2, largest, norm(s3), norm(s2));
     EXPECT_GT(largest, 0.1) << "the contractions move with the atoms";
     EXPECT_LT(norm(s3), 1e-9); EXPECT_LT(norm(s2), 1e-9);
     EXPECT_THROW((void)dft.MakeRepulsion3CPullback(*fit, hmat_t<double>(n+1), a, h2o.get()), std::invalid_argument) << "a mismatched D";
     EXPECT_THROW((void)metric.MakeRepulsionPullback(rsmat_t(nf+1), h2o.get()), std::invalid_argument) << "a mismatched adjoint";
+}
+
+// ORACLE (since 2026-11-13): the Coulomb-fit pullbacks are Enzyme over the MnD kernels (Repulsion3C, Repulsion2C), so they AGREE with
+// libcint's int3c2e_ip1/_ip2 and int2c2e_ip1 contracted with the same adjoints to the two engines' Boys-function difference, not bit for
+// bit.  Their own correctness is the FD gate above and KetGradient's kernel gates.
+TEST(GeometryDerivatives, PG_CartsCoulombFitPullbacksAgreeWithLibcintsGradients)
+{
+    const auto h2o=Water();
+    auto ibs=Dzvp(h2o.get());
+    std::unique_ptr<BasisSet::rFIT_CD_ABS> fit(ibs->CreateCDFitBasisSet(h2o.get()));
+    const BasisSet::Orbital_DFT_IBS<double>& dft=*ibs;
+    const auto& metric=dynamic_cast<const BasisSet::FIT_CD_NonOrtho&>(*fit);
+    const size_t n=dft.GetNumFunctions(), nf=fit->GetNumFunctions();
+    std::mt19937 rng(11); std::uniform_real_distribution<double> U(-1,1);
+    hmat_t<double> D(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=U(rng);
+    rvec_t a(nf); for (size_t k=0;k<nf;k++) a[k]=U(rng);
+    rsmat_t A(nf); for (size_t k=0;k<nf;k++) for (size_t l=k;l<nf;l++) A(k,l)=U(rng);
+    const auto F3=dft.MakeRepulsion3CPullback(*fit, D, a, h2o.get());
+    const auto F2=metric.MakeRepulsionPullback(A, h2o.get());
+    ASSERT_TRUE(F3 && F2);
+    using PGD=BasisSet::Gaussian::Evaluators::PG_Cart_MnD::PGData;
+    using LC=BasisSet::Gaussian::Evaluators::PG_LibCint::NR_Evaluator;
+    const LC orb(dynamic_cast<const PGD&>(*ibs), h2o.get()), lfit(dynamic_cast<const PGD&>(*fit), h2o.get());
+    rmat_t Dd(D);
+    const auto g3=orb.RepulsionThreeC_Gradient(lfit, Dd, a);
+    const auto g2=lfit.RepulsionTwoC_Gradient(A);
+    ASSERT_EQ(g3.size(), F3->size()); ASSERT_EQ(g2.size(), F2->size());
+    double worst3=0.0, worst2=0.0;
+    for (size_t at=0;at<g3.size();at++)
+        for (int k=0;k<3;k++)
+        {
+            // 1e-9 relative above 1, as the nuclear oracle's: the engines' Boys F_j differ, so their Coulomb values agree to roundoff of
+            // that difference, not bit for bit (measured 2026-11-13: 3-centre 6.3e-12, metric 3.0e-11 against |g| up to ~20).
+            EXPECT_NEAR(C((*F3)[at],k), C(g3[at],k), 1e-9*std::max(1.0,std::fabs(C(g3[at],k)))) << "3-centre, atom " << at << " axis " << k;
+            EXPECT_NEAR(C((*F2)[at],k), C(g2[at],k), 1e-9*std::max(1.0,std::fabs(C(g2[at],k)))) << "metric, atom " << at << " axis " << k;
+            worst3=std::max(worst3, std::fabs(C((*F3)[at],k)-C(g3[at],k))); worst2=std::max(worst2, std::fabs(C((*F2)[at],k)-C(g2[at],k)));
+        }
+    std::printf("  [Coulomb fit, MnD vs libcint] worst |Enzyme-MnD - libcint|: 3-centre %.2e, metric %.2e\n", worst3, worst2);
 }
 
 // The Coulomb-fit Can queries agree with their methods: PG_Cart with its own fit answers both; PG_Spherical, and its own fit, refuse both
@@ -393,6 +443,7 @@ TEST(GeometryDerivatives, PG_CartsERI4PullbacksAreTheFiniteDifferenceOfItsOwnCon
     const auto R=Sites(*h2o);
     // The two blocks of a cross pair share ONE parent cache (an ERI4 pair of two parents throws, plan S3a).
     auto even=[](const Structure* st, std::shared_ptr<::qchem::BasisSet::BasisCache> cache){ return std::make_unique<Orbital_IBS>(cache, rvec_t{1.0,0.25}, 1, st); };
+    double worstJ=0.0, worstK=0.0;
     for (bool cross : {false, true})
     {
         const auto parent=std::make_shared<::qchem::BasisSet::BasisCache>();
@@ -438,17 +489,58 @@ TEST(GeometryDerivatives, PG_CartsERI4PullbacksAreTheFiniteDifferenceOfItsOwnCon
                 EXPECT_NEAR(C((*FJ)[at],k), fJ, 2e-6*std::max(1.0,std::fabs(fJ))) << (cross ? "cross " : "self ") << "Coulomb, atom " << at << " axis " << k;
                 EXPECT_NEAR(C((*FK)[at],k), fK, 2e-6*std::max(1.0,std::fabs(fK))) << (cross ? "cross " : "self ") << "exchange, atom " << at << " axis " << k;
                 largest=std::max({largest, std::fabs(fJ), std::fabs(fK)});
+                worstJ=std::max(worstJ, std::fabs(C((*FJ)[at],k)-fJ)); worstK=std::max(worstK, std::fabs(C((*FK)[at],k)-fK));
             }
         }
         EXPECT_GT(largest, 0.1) << "the contractions move with the atoms";
         EXPECT_LT(norm(sJ), 1e-8); EXPECT_LT(norm(sK), 1e-8);
     }
+    std::printf("  [HF ERI4 pullbacks] worst |pullback - FD|: Coulomb %.2e, exchange %.2e\n", worstJ, worstK);
     BasisSet::Gaussian::Gaussian94Reader reader(BasisSet::Gaussian::BasisFile("dzvp.bsd"));
     const BasisSet::Gaussian::PG_Spherical::Orbital_IBS sph(std::make_shared<::qchem::BasisSet::BasisCache>(), &reader, h2o.get());
     const BasisSet::Orbital_HF_IBS<double>& S=sph;
     EXPECT_FALSE(S.CanPullbackERI4(&S)) << "PG_Spherical has no geometry derivative yet";
     const auto r=S.MakeDirectPullback(rsmat_t(sph.GetNumFunctions()), rsmat_t(sph.GetNumFunctions()), &S, h2o.get());
     EXPECT_FALSE(bool(r)); if (!r) EXPECT_FALSE(r.Error().why.empty());
+}
+
+// The HF ERI4 pullbacks (Enzyme over MnD's Repulsion4C, lane B 2026-11-14) against libcint's int2e_ip1 (PG_LibCint::ERI4Gradient, the route
+// they replaced) on the same blocks: random symmetric Da, Db, the DZVP block with itself and against an even-tempered s+p block.  1e-9
+// relative above 1: the two engines' Boys F_j differ, so the gradients agree to roundoff of that difference, not bit for bit.
+TEST(GeometryDerivatives, PG_CartsERI4PullbacksAgreeWithLibcintsGradients)
+{
+    const auto h2o=Water();
+    using PGD=BasisSet::Gaussian::Evaluators::PG_Cart_MnD::PGData;
+    using LC=BasisSet::Gaussian::Evaluators::PG_LibCint::NR_Evaluator;
+    double worst[2]={0.0,0.0};
+    for (bool cross : {false, true})
+    {
+        const auto parent=std::make_shared<::qchem::BasisSet::BasisCache>();   // the cross pair shares ONE parent cache (plan S3a)
+        const auto a=Dzvp(h2o.get(), parent);
+        const auto bOwn=std::make_unique<Orbital_IBS>(parent, rvec_t{1.0,0.25}, 1, h2o.get());
+        const BasisSet::Orbital_HF_IBS<double>& A=*a;
+        const BasisSet::Orbital_HF_IBS<double>& B=cross ? static_cast<const BasisSet::Orbital_HF_IBS<double>&>(*bOwn) : A;
+        const size_t na=a->GetNumFunctions(), nb=cross ? bOwn->GetNumFunctions() : na;
+        std::mt19937 rng(cross ? 23 : 19); std::uniform_real_distribution<double> U(-1,1);
+        rsmat_t Da(na), Db(nb);
+        for (size_t i=0;i<na;i++) for (size_t j=i;j<na;j++) Da(i,j)=U(rng);
+        for (size_t i=0;i<nb;i++) for (size_t j=i;j<nb;j++) Db(i,j)=U(rng);
+        const auto FJ=A.MakeDirectPullback(Da, Db, &B, h2o.get()), FK=A.MakeExchangePullback(Da, Db, &B, h2o.get());
+        ASSERT_TRUE(FJ && FK);
+        const LC la(dynamic_cast<const PGD&>(*a), h2o.get());
+        const LC lb(cross ? dynamic_cast<const PGD&>(*bOwn) : dynamic_cast<const PGD&>(*a), h2o.get());
+        const rmat_t Dda(Da), Ddb(Db);
+        const auto gJ=la.ERI4Gradient(lb, Dda, Ddb, false), gK=la.ERI4Gradient(lb, Dda, Ddb, true);
+        ASSERT_EQ(gJ.size(), FJ->size()); ASSERT_EQ(gK.size(), FK->size());
+        for (size_t at=0;at<gJ.size();at++)
+            for (int k=0;k<3;k++)
+            {
+                EXPECT_NEAR(C((*FJ)[at],k), C(gJ[at],k), 1e-9*std::max(1.0,std::fabs(C(gJ[at],k)))) << (cross ? "cross " : "self ") << "Coulomb, atom " << at << " axis " << k;
+                EXPECT_NEAR(C((*FK)[at],k), C(gK[at],k), 1e-9*std::max(1.0,std::fabs(C(gK[at],k)))) << (cross ? "cross " : "self ") << "exchange, atom " << at << " axis " << k;
+                worst[0]=std::max(worst[0], std::fabs(C((*FJ)[at],k)-C(gJ[at],k))); worst[1]=std::max(worst[1], std::fabs(C((*FK)[at],k)-C(gK[at],k)));
+            }
+    }
+    std::printf("  [HF ERI4, MnD vs libcint] worst |Enzyme-MnD - libcint|: Coulomb %.2e, exchange %.2e\n", worst[0], worst[1]);
 }
 
 // GATE 6, the SALC decorator (§13.2; lane B 2026-11-09): every C2v block of water's DZVP gets a random symmetric density D_Γ, and
