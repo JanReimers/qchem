@@ -12,6 +12,7 @@
 #include <memory>
 #include <new>
 #include <string>
+#include <cmath>
 #include <blaze/math/expressions/DMatDMatEqualExpr.h>   // op== inside gtest (as DBCache.C)
 
 import qchem.BasisSet.Gaussian.Point.Factory;                 // Factory, BasisSetData, Engine, Angular
@@ -23,6 +24,8 @@ import qchem.BasisSet;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.Structure;
 import qchem.Types;
+import qchem.Mesh;                                            // MeshParams (the δ fit's XC mesh)
+import qchem.Symmetry;                                        // SymmetryOrder: the old δ table key
 using namespace qchem;
 using namespace qchem::BasisSet::Gaussian;
 
@@ -85,4 +88,61 @@ TEST(M_BasisCache, ADeadFitsTablesAreFreedAndANewFitAtItsAddressMisses)
     EXPECT_EQ(cache.NumThreeCentre(), n0+1);
     EXPECT_EQ(R2.dense, dense1) << "the same fit content rebuilt gives the same numbers";
     fit2->~Fit();
+}
+
+// S3c, the latent defect the δ basis's own tables carried: they were keyed by the block's SPATIAL symmetry, so two blocks of equal
+// symmetry (two basis sets, or one rebuilt at a new geometry, against a surviving fit) got the FIRST block's Φ.  Now the fit keys
+// them by the block's InstanceToken: block 2 gets its own table, the one a fresh fit builds for it.
+TEST(M_BasisCache, TwoBlocksOfEqualSymmetryAskedOfOneDeltaFitGetTheirOwnTables)
+{
+    auto water=[](double dy)
+    {
+        Molecule m;
+        m.Insert(Site{8, rvec3_t( 0.0,     0.0,      0.0)});
+        m.Insert(Site{1, rvec3_t( 1.43042, 1.10715,  0.0)});
+        m.Insert(Site{1, rvec3_t(-1.43042, 1.10715+dy, 0.0)});
+        return m;
+    };
+    const Molecule mol1=water(0.0), mol2=water(0.1);   // one H moved 0.1 bohr: the same symmetry, different functions
+    std::unique_ptr<BasisSet::Real_BS> bs1(Factory(BasisSetData::DZVP, &mol1, Engine::MnD, Angular::Cartesian));
+    std::unique_ptr<BasisSet::Real_BS> bs2(Factory(BasisSetData::DZVP, &mol2, Engine::MnD, Angular::Cartesian));
+    auto firstBlock=[](const BasisSet::Real_BS& bs)
+    {
+        const BasisSet::Real_DFT_OIBS* b=nullptr;
+        for (auto x : bs.Iterate<BasisSet::Real_DFT_OIBS>()) {b=x; break;}
+        return b;
+    };
+    const auto* b1=firstBlock(*bs1);
+    const auto* b2=firstBlock(*bs2);
+    ASSERT_TRUE(b1 && b2);
+    const SymmetryOrder less;
+    ASSERT_FALSE(less(b1->GetSymt(), b2->GetSymt()) || less(b2->GetSymt(), b1->GetSymt()))
+        << "the two blocks must share a spatial symmetry, or the gate is vacuous";
+
+    const qcMesh::MeshParams mesh{.radial=qcMesh::RadialKind::MHL, .nRadial=40, .mhl_m=3, .mhl_alpha=2.0,
+                                  .angular=qcMesh::AngularKind::Lebedev, .angularDegree=17, .beckeOrder=2};
+    BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(mol1, mesh, nullptr);
+    std::unique_ptr<const BasisSet::rFIT_SF_ABS> delta(bs1->CreateVxcFitBasisSet(&mol1, mesh, BasisSet::VxcFit::Delta, &quad));
+    std::unique_ptr<const BasisSet::rFIT_SF_ABS> fresh(bs1->CreateVxcFitBasisSet(&mol1, mesh, BasisSet::VxcFit::Delta, &quad));
+
+    const PairProjection<double>& r1=delta->Overlap3C(*b1);
+    const PairProjection<double>& r2=delta->Overlap3C(*b2);
+    const PairProjection<double>& f2=fresh->Overlap3C(*b2);
+    EXPECT_NE(&r1, &r2) << "block 2 was served block 1's record";
+    // Compare the records by what they DO: the adjoint Φ† diag(w c) Φ for one coefficient vector over the points.
+    const size_t np=delta->GetNumFunctions();
+    rvec_t c(np);
+    for (size_t g=0; g<np; g++) c[g]=1.0+0.37*std::sin(0.11*double(g));
+    const auto A1=r1.applyRawAdjoint(c), A2=r2.applyRawAdjoint(c), F2=f2.applyRawAdjoint(c);
+    ASSERT_EQ(A2.rows(), F2.rows()); ASSERT_EQ(A2.rows(), A1.rows());
+    double moved=0.0, stale=0.0;
+    for (size_t i=0; i<A2.rows(); i++)
+        for (size_t j=0; j<A2.columns(); j++)
+        {
+            moved=std::max(moved, std::fabs(A2(i,j)-A1(i,j)));
+            stale=std::max(stale, std::fabs(A2(i,j)-F2(i,j)));
+        }
+    EXPECT_GT(moved, 1e-3) << "block 2's record must differ from block 1's (its H moved)";
+    EXPECT_EQ(stale, 0.0) << "block 2's record must be the one a fresh fit builds for it";
+    EXPECT_EQ(&r1, &delta->Overlap3C(*b1)) << "asked again, block 1 is a HIT";
 }

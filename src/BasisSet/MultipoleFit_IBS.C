@@ -29,7 +29,8 @@ export import qchem.Mesh.SiteMultipoles;
 export import qchem.BasisSet.CoulombDeltaFit_IBS;   // PointCoulombIntegrals: this basis answers its own Coulomb integrals
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.Blaze;
-import qchem.Parallel;   // LazyLock -- the per-block cache's guard
+import qchem.Parallel;   // LazyLock -- the Coulomb solve's guard
+import qchem.SlotMap;    // InstanceSlotMap: the composed pairs, per orbital block (S3c)
 import qchem.Symmetry;
 import qchem.Types;
 
@@ -72,16 +73,15 @@ public:
     //! \copydoc BasisSet::Integrals_Overlap3C::Overlap3C
     const PairProjection<double>& Overlap3C(const Orbital_DFT_IBS<double,double>& orb) const override
     {
-        const PairProjection<double>& d=itsDelta->Overlap3C(orb);   // the δ basis's own lock, taken before mine
-        std::lock_guard<std::mutex> lock(itsLock.m);
-        const sym_t& id=orb.GetSymt();
-        auto it=itsO3.find(id);
-        if (it!=itsO3.end()) return it->second;
-        PairProjection<double> g;
-        g.applyRaw       =[this,&d](const hmat_t<double>& D) {return Channels(d.applyRaw(D));};
-        g.applyRawAdjoint=[this,&d](const rvec_t& c) {return d.applyRawAdjoint(itsSites->Synthesize(itsSites->Split(c)));};
-        if (d.applyRawFactored) g.applyRawFactored=[this,&d](const mat_t<double>& L) {return Channels(d.applyRawFactored(L));};
-        return itsO3.emplace(id,std::move(g)).first->second;
+        return itsO3.GetOrFill(orb.Instance(), [this,&orb]
+        {
+            const PairProjection<double>& d=itsDelta->Overlap3C(orb);   // the δ basis's record for the SAME block (same key, same life)
+            PairProjection<double> g;
+            g.applyRaw       =[this,&d](const hmat_t<double>& D) {return Channels(d.applyRaw(D));};
+            g.applyRawAdjoint=[this,&d](const rvec_t& c) {return d.applyRawAdjoint(itsSites->Synthesize(itsSites->Split(c)));};
+            if (d.applyRawFactored) g.applyRawFactored=[this,&d](const mat_t<double>& L) {return Channels(d.applyRawFactored(L));};
+            return g;
+        });
     }
 
     size_t GetNumFunctions() const override {return itsSites->NumChannels();}
@@ -125,8 +125,8 @@ private:
     rvec_t itsW;          //!< the mesh's weights
     rvec_t itsDiagonal;   //!< the shell weight of each channel
     mutable std::unique_ptr<qcMesh::CoulombOperator> itsCoulomb;   //!< its Coulomb integrals, built on first use (Coulomb())
-    mutable SymMap<PairProjection<double>> itsO3;   //!< the composed pairs, by SPATIAL symmetry
-    qchem::LazyLock itsLock;
+    InstanceSlotMap<PairProjection<double>> itsO3;   //!< the composed pairs, per orbital BLOCK (its InstanceToken, not its sym_t: S3c)
+    qchem::LazyLock itsLock;   //!< itsCoulomb
 };
 
 } //namespace

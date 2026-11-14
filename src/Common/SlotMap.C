@@ -21,7 +21,10 @@ module;
 #include <cstddef>
 #include <stdexcept>
 #include <utility>
+#include <cstdint>
+#include <vector>
 export module qchem.SlotMap;
+import qchem.InstanceToken;
 
 export namespace qchem
 {
@@ -165,6 +168,51 @@ public:
     template <class F> size_t Bytes(F&& bytesOf) const {return itsSlot.Bytes(std::forward<F>(bytesOf));}
 private:
     SlotMap<int,V,SlotDiscipline::FillOnce> itsSlot;
+};
+
+//! \brief A \c FillOnce slot per PARTNER OBJECT, keyed by the partner's \c InstanceToken serial, that frees a dead partner's slot.
+//! For an owner caching something over ANOTHER object it does not own (a δ fit's \f$\Phi_{gi}=\chi_i(r_g)\f$ table per orbital block:
+//! doc/IntegralCacheOwnershipPlan.md S3c, user ruling 2026-11-14).  Never keyed by the partner's address (reused after it dies) or by a
+//! content stand-in such as its symmetry (two partners with equal symmetry are still two partners: the latent defect S3c removed).
+//! Every \c GetOrFill first sweeps out the slots of partners that no longer exist (\c EvictDead), as \c BasisCache does for ⟨ab|c⟩:
+//! a dead partner's serial is never reused, so nobody can be building or holding its slot.
+template <class V> class InstanceSlotMap
+{
+public:
+    template <class F> const V& GetOrFill(const InstanceToken& partner, F&& make) const
+    {
+        EvictDead();
+        {
+            std::lock_guard<std::mutex> l(itsLock);
+            itsAlive.try_emplace(partner.Serial(), partner.Alive());
+        }
+        return itsSlots.GetOrFill(partner.Serial(), std::forward<F>(make));
+    }
+    //! Free the slots of every partner that no longer exists; returns how many slots went.
+    size_t EvictDead() const
+    {
+        std::vector<uint64_t> dead;
+        {
+            std::lock_guard<std::mutex> l(itsLock);
+            for (auto it=itsAlive.begin(); it!=itsAlive.end();)
+                if (it->second.expired()) {dead.push_back(it->first); it=itsAlive.erase(it);}
+                else ++it;
+        }
+        if (dead.empty()) return 0;
+        return itsSlots.EraseIf([&](uint64_t k){for (uint64_t d:dead) if (d==k) return true; return false;});
+    }
+    size_t Filled() const {return itsSlots.Filled();}
+    template <class F> size_t Bytes(F&& bytesOf) const {return itsSlots.Bytes(std::forward<F>(bytesOf));}
+
+    InstanceSlotMap() = default;
+    InstanceSlotMap(const InstanceSlotMap& o) : itsSlots(o.itsSlots)
+        {std::lock_guard<std::mutex> l(o.itsLock); itsAlive=o.itsAlive;}
+    InstanceSlotMap& operator=(const InstanceSlotMap&) = delete;
+
+private:
+    SlotMap<uint64_t,V,SlotDiscipline::FillOnce>              itsSlots;
+    mutable std::mutex                                       itsLock;    //!< itsAlive only, never held across a fill
+    mutable std::map<uint64_t,std::weak_ptr<const uint64_t>> itsAlive;
 };
 
 } // namespace qchem
