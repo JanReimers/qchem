@@ -166,6 +166,7 @@ AngularMesh MakeAngular(const MeshParams& p)
     {
     case AngularKind::Lebedev:       m = LebedevAngular(ResolveLebedev(p.angularDegree).nDir); break;
     case AngularKind::GaussLegendre: m = GaussLegendreAngular(p.angularDegree); break;
+    case AngularKind::None:          m = LebedevAngular(ResolveLebedev(0).nDir); break;   // the radial-only set: one direction at 4 pi
     default: throw std::runtime_error("MakeAngular: unknown AngularKind");
     }
     return (p.angRot != 0.0) ? Rotate(std::move(m), p.angRot) : m;

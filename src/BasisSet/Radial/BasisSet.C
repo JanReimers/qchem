@@ -26,6 +26,8 @@ import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Radial.Factory;   // CoulombFitLadder (the face BasisSet_HF realizes)
+import qchem.BasisSet.DeltaFit_IBS;      // DeltaFit_IBS::RealPointValues: the δ fit evaluates these blocks through their RADIAL face
+import qchem.Symmetry.Unit;              // UnitQN: the real δ basis's trivial irrep (as tBasisSet's own δ build)
 import qchem.Blaze;
 
 export 
@@ -190,6 +192,35 @@ public:
         }
         else
             return itsBlocks.front()->MakeCoulombFitOver(MergedCoulombFitExponents(perBlock, rung));
+    }
+    //! \brief The δ fit over these blocks reads their RADIAL face (R1.0 step 2, user ruling 2026-11-14; V-XC-ONE-TERM step 5).
+    //! An atom block stores the radial \f$\chi_i(r)\f$ of every m of its l, the m count living in the OCCUPATION, so the spherical
+    //! density at a point is \f$\sum D_{ij}\chi_i(|r|)\chi_j(|r|)\f$ whatever the direction: \f$\Phi_{gi}=\chi_i(|r_g|)\f$.  The factory
+    //! wires that evaluation in by name (these are its own concrete blocks), so the SCF never asks a block's 3-D face -- display work,
+    //! to become an honest \f$Y_{lm}\f$ per (i, m).  Every other representation is the hub's.  The same values as the 3-D face gives
+    //! today, which evaluates \f$\chi_i(|r|)\f$ too.
+    virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp, VxcFit fit=VxcFit::Auto,
+                                              const FitQuadrature* quad=nullptr) const override
+    {
+        if (fit!=VxcFit::Delta) return BasisSetImp<double>::CreateVxcFitBasisSet(cl, mp, fit, quad);
+        if (!quad) throw std::invalid_argument("Radial::BasisSet_HF::CreateVxcFitBasisSet: VxcFit::Delta is built over a quadrature, and none "
+                                               "was handed in (MakeXCQuadrature)");
+        std::map<uint64_t, const EOrbital_HF_IBS*> mine;   // these blocks by instance: the closure is handed one of them, alive
+        for (const auto* b : itsBlocks) mine.emplace(b->Instance().Serial(), b);
+        auto radial=[mine](const BasisSet::Orbital_1E_IBS<double>& orb, const rvec3vec_t& R)
+        {
+            const auto it=mine.find(orb.Instance().Serial());
+            if (it==mine.end())
+                throw std::logic_error("Radial::BasisSet_HF: the δ fit over this atom basis was asked for a block that is not one of its own");
+            rmat_t P(R.size(), orb.GetNumFunctions());
+            for (size_t g=0; g<R.size(); g++)
+            {
+                const rvec_t chi=it->second->RadialValues(norm(R[g]));
+                for (size_t i=0; i<chi.size(); i++) P(g,i)=chi[i];
+            }
+            return P;
+        };
+        return new DeltaFit_IBS<double>(std::make_shared<BasisSet::BasisCache>(), *quad, sym_t(new UnitQN), radial);   // its OWN cache (S3a)
     }
 private:
     std::vector<const EOrbital_HF_IBS*> itsBlocks;   //!< the blocks, as built (owned by BasisSetImp): the Coulomb-fit ladder reads their exponents

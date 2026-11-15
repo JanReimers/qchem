@@ -139,6 +139,11 @@ AtomCalculation::AtomCalculation(BuildOnly, int Z, int charge, const AtomCalcOpt
           : IsDirac(opts.model)  ? static_cast<ElectronConfiguration*>(new AtomDirac_EC(itsNe))
           :                        static_cast<ElectronConfiguration*>(new Atom_EC(itsNe));
     itsDFT = opts.pseudopotential || opts.xc.has_value() || qchem::Hamiltonian::IsDFT(opts.model);
+    // THE RADIAL-ONLY ALIAS (V-XC-ONE-TERM step 5, controller 2026-11-14: deck backward compatibility).  Before AngularKind::None the atom
+    // spelled its radial-only set Lebedev at degree 0, the 1-direction rule: the SAME points (one direction at 4 pi).  On the atom that
+    // spelling still reads as it always did, now under its own name, so the admission rule and the reports see what the mesh IS.
+    if (itsOpts.mesh.angular==qcMesh::AngularKind::Lebedev && itsOpts.mesh.angularDegree==0) itsOpts.mesh.angular=qcMesh::AngularKind::None;
+    if (itsOpts.mesh.angular==qcMesh::AngularKind::None) itsOpts.mesh.angularDegree=0;   // not read by the rule: one value, one mesh ID
     ResolveGrids();
     // The basis is NOT built here: BuildGraph builds it INSIDE an open run report's "basis" scope, so the shells'
     // exponents are announced by the shells themselves as they are constructed (V1.14).
@@ -529,7 +534,7 @@ void AtomCalculation::ResolveGrids()
     using CF=H::CoulombFit;
     if (itsGrids.coulomb.fit==CF::Delta)
         policy::Refuse("AtomHartreeRoute", "the δ Hartree route on an atom",
-                       "its radial-Poisson projection needs angular channels, and the atom's mesh has one direction (degree 0), so every channel "
+                       "its radial-Poisson projection needs angular channels, and the atom's mesh is the radial-only set (one direction), so every channel "
                        "above l = 0 aliases: Xe gives half its energy and never converges.  The Multipole route is the δ route's exact l = 0 form "
                        "on this rule -- state Multipole or Auxiliary, or leave the route unstated (Multipole)");
     if (itsGrids.coulomb.fit==CF::Auto)

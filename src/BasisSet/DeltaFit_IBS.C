@@ -25,6 +25,7 @@
 // The old NumPoints/Sample/Integrate trio described the QUADRATURE behind them, and read as correct only
 // because here n_functions == n_points, so the wrong accessor returned the right number.
 module;
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <cassert>
@@ -103,10 +104,18 @@ public:
     //! thing holding up a \f$\delta\f$-only FACE, and "my metric is diagonal" is a fact about this
     //! implementation, not a type other code needs to name.
     bool isOrtho() const override {return true;}
+    //! \brief How a REAL orbital block is evaluated at this basis's points, when its OWN basis set's factory says so (R1.0 step 2,
+    //! user ruling 2026-11-14).  The atom's blocks are radial: the factory (\c Radial::BasisSet_HF) hands a closure that fills
+    //! \f$\Phi_{gi}=R_i(|r_g|)\f$ from each block's radial face, the m count living in the occupation, so the atom SCF never asks a
+    //! block's 3-D face -- which is display work, to become an honest \f$Y_{lm}\f$ per (i, m).  Unset (every other lineage): the block's
+    //! own \c op(r).  Concrete wiring in the factory, never a capability cast here.
+    using RealPointValues=std::function<mat_t<double>(const Orbital_1E_IBS<double>&, const rvec3vec_t&)>;
     //! \a q is the FINISHED quadrature (mesh + fold + Shubnikov tags) from \c MakeXCQuadrature, and \a sym the irrep the caller's lineage gives a fit block (see the class note).
-    DeltaFit_IBS(const std::shared_ptr<BasisCache>& cache, FitQuadrature q, const sym_t& sym)
+    //! \a realValues: see \c RealPointValues (empty = each block's \c op(r)).
+    DeltaFit_IBS(const std::shared_ptr<BasisCache>& cache, FitQuadrature q, const sym_t& sym, RealPointValues realValues={})
         : IrrepBasisSetImp<T>(sym, cache)
         , itsQuad(std::move(q))
+        , itsRealValues(std::move(realValues))
     {
         assert(itsQuad.GetMesh() && itsQuad.GetMesh()->size()>0 && "DeltaFit_IBS: a delta basis IS its mesh -- it cannot be empty");
         // The invariants of the bundle, checked HERE, once, where it becomes an object -- they used to be
@@ -220,6 +229,7 @@ private:
     InstanceSlotMap<PairProjection<dcmplx>> itsO3;   //!< the Bloch blocks' 3-centre tensors, built on itsPhi
     InstanceSlotMap<PairProjection<double>> itsO3R;  //!< ...and the real TRIM blocks', on itsPhiR
     FitQuadrature itsQuad;   //!< the mesh + its orbit fold + the Shubnikov spin tags
+    RealPointValues itsRealValues;   //!< the factory's evaluation of a real block at my points, or empty (\c RealPointValues)
 };
 
 } //namespace

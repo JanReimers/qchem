@@ -114,6 +114,13 @@ public:
     //! \note the one structure-kind question F3 leaves on the site set; when the factory is handed the imposed
     //! group itself (V-STRUCTURE-ISP F2 / V-BS-SYMMETRY), this becomes that group's question.
     virtual bool   HasTranslationSymmetry() const {return false;}
+    //! \brief Does this structure's symmetry group contain the FULL ROTATION GROUP O(3) about its one centre?  The twin of
+    //! \c HasTranslationSymmetry, consumed by the same rule (\c Hamiltonian::AdmitVxc, doc/Pins.md pin 30): a representation that
+    //! imposes O(3) -- the radial-only point set (\c qcMesh::AngularKind::None), a one-direction rule at 4 pi -- is refused on a
+    //! structure whose group lacks it, where integrating one direction would be a wrong number.  True only on the \c Atom: the atom
+    //! path IMPOSES O(3), by spherically averaging an open shell (each l block's occupation carries its whole m count), so its density
+    //! is spherical by construction.  A Molecule of one site is not an Atom: the molecular path imposes a point group, never O(3).
+    virtual bool   HasFullRotationSymmetry() const {return false;}
 
     //! \brief The sites, read-only, in atom-index order (user ruling Q2: a by-value Site range).
     SiteRange Sites() const {return SiteRange(*this);}
@@ -162,6 +169,8 @@ public:
 
     virtual std::shared_ptr<Structure> Clone() const override {return std::make_shared<Atom>(*this);}
     virtual size_t GetNumAtoms      () const override {return 1;}
+    //! The atom path imposes O(3): its open shell is spherically averaged, so its density is spherical (see the base's declaration).
+    virtual bool   HasFullRotationSymmetry() const override {return true;}
 
     //! A single atom's integration mesh: the atom-centred radial x angular grid (no Becke partitioning).
     virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;

@@ -143,7 +143,7 @@ const auto kLoopEstimator = NAMES(SolidCalculation::HubbardLoop::Estimator, {"AC
 const auto kProjector = NAMES(Hamiltonian::HubbardProjectorKind, {"siteShells",Hamiltonian::HubbardProjectorKind::SiteShells},
                               {"pseudoAtomic",Hamiltonian::HubbardProjectorKind::PseudoAtomic});
 const auto kRadial = NAMES(RadialKind, {"MHL",RadialKind::MHL}, {"Log",RadialKind::Log}, {"Linear",RadialKind::Linear});
-const auto kAngular= NAMES(AngularKind, {"Lebedev",AngularKind::Lebedev}, {"GaussLegendre",AngularKind::GaussLegendre});
+const auto kAngular= NAMES(AngularKind, {"Lebedev",AngularKind::Lebedev}, {"GaussLegendre",AngularKind::GaussLegendre}, {"none",AngularKind::None});
 using Measure = SCFParams::Measure;
 using BasisSet::Gaussian::BasisSetData;
 const auto kMeasure= NAMES(Measure, {"L1PerElectron",Measure::L1PerElectron}, {"MaxDeltaD",Measure::MaxΔD});
