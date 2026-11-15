@@ -24,6 +24,7 @@ export module qchem.ChargeDensity.Internal.DensitySampler;
 export import qchem.ChargeDensity.DensitySampler;   // the abstract face these realise
 import qchem.BasisSet.Fit_Types;
 import qchem.BasisSet.Orbital_DFT_IBS;      // the fit-basis faces + FitQuadrature
+import qchem.BasisSet.Orbital_1E_IBS;       // Orbital_1E_IBS<double>: the periodic A1 Gamma block (GaussianFitSpace)
 import qchem.BasisSet.G_FieldEvaluator;     // G_RasterTransform -- the pair route asks its raster for size/quadrature
 import qchem.Parallel;                       // LazyLock (lazy per-block caches filled from outer-loop workers)
 import qchem.Fitting.FunctionFitter;        // FunctionFitter_Scalar / ScalarProjector
@@ -556,6 +557,72 @@ public:
 private:
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsFitBasis;
     BasisSet::FitQuadrature itsPoints;
+};
+
+//! \brief THE PERIODIC A1 GAUSSIAN SET as a fit space (V-XC-ONE-TERM step 6, lane S 2026-11-15).  The molecular A1 Vxc set (A1_exch) on the
+//! cell's sites, lattice-summed at Gamma, f_a(r) = sum_L g_a(r - R_a - L): REAL and cell-periodic, so one set serves every k (rho and v_xc
+//! are Gamma-periodic).  It is a REAL Gamma block (\a a1, a GPW block over the A1 set), held here and never passed through the fit-basis
+//! factory: the complex lineage's \c tBasisSet<dcmplx>::CreateVxcFitBasisSet returns a complex fit, and a real one there would change a
+//! tier-1 hub (controller 2026-11-15: real values, the factory builds it, the sampler holds it).  Its metric S = <f_a|f_b>_cell is the
+//! block's ANALYTIC lattice-summed overlap, so P is the true L2 projection (controller ruling (3)); its values at points come from the
+//! block's image-summed evaluation, STREAMED in point chunks (never a stored table: MnO's raster would be ~1.6 GB).
+//!   forward   b = Phi_R^T (Omega/N) rho_R (<f_a|rho> by the raster quadrature, where rho[D] is exact pointwise), c = S^-1 b,
+//!             rho_P = Phi_X c at the points;
+//!   adjoint   u = Phi_X^T (w v), c' = S^-1 u, v_R = Phi_R c'  (the raster strategy's Matrix carries the Omega/N).
+//! S^-1 drops the modes below \c kMetricRelTol x its largest eigenvalue (diffuse lattice-summed Gaussians in a small cell are nearly
+//! dependent) and REPORTS a truncation (count and floor), as the radial Coulomb metric does.
+class GaussianFitSpace : public virtual FitSpace
+{
+public:
+    //! \a a1: the real Gamma A1 block; \a rasterPoints / \a rasterWeight: the raster the forward integrates on (its points in raster order,
+    //! Omega/N); \a points: the XC mesh.  Empty \a rasterPoints: the fit space serves only \c Resample (the fitted-potential cell).
+    GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, rvec3vec_t rasterPoints, double rasterWeight,
+                     BasisSet::FitQuadrature points);
+    rvec_t AtPoints(const rvec_t& onRaster) const override;
+    rvec_t OnRaster(const rvec_t& atPoints) const override;
+    std::string Name() const override {return "the periodic A1 Gaussian set";}
+    //! \brief v FITTED onto the set in the XC quadrature and sampled back at the points: Phi_X S^-1 Phi_X^T (w v).  The fitted-potential
+    //! cell's whole operation (A1 x rho[D]: v(rho[D]) fitted for H, pin 32).
+    rvec_t Resample(const rvec_t& atPoints) const;
+    size_t NumFunctions() const {return itsSinv.rows();}
+    //! The modes S^-1 drops (\c kMetricRelTol x the largest eigenvalue).  Calibration, not theory: lane B's radial Coulomb-metric floor
+    //! (Radial::IrrepBasisSet, measured there on Kr-U), adopted here unmeasured for the overlap metric -- the OpenWork ε-sizing row owns
+    //! its measurement.
+    static constexpr double kMetricRelTol=1e-12;
+private:
+    rvec_t PhiT (const rvec3vec_t& R, const rvec_t& f) const;   //!< Phi(R)^T f, streamed
+    rvec_t Phi  (const rvec3vec_t& R, const rvec_t& c) const;   //!< Phi(R) c, streamed
+    std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> itsA1;
+    rvec3vec_t itsRaster;
+    double     itsRasterWeight;
+    BasisSet::FitQuadrature itsPoints;
+    rsmat_t    itsSinv;
+};
+
+//! \brief THE FITTED-POTENTIAL CELL on a point set (A1 x rho[D], target W; V-XC-ONE-TERM step 6): XC of rho[D] at the inner strategy's points,
+//! its v FITTED onto the periodic A1 set for H -- the molecular \c FittedVxc semantics, as a decorator: Rho = inner.Rho (rho[D] exactly),
+//! Matrix(v) = inner.Matrix(\c GaussianFitSpace::Resample(v)).  H is NOT dE/dD (doc/Pins.md pin 32): the policy layer warns on the cell and
+//! refuses what needs dE/dD (\c qchem.XCRhoPolicy).
+class FittedPotentialDensitySampler
+    : public virtual DensitySampler
+{
+public:
+    FittedPotentialDensitySampler(std::shared_ptr<const GaussianFitSpace> fit, std::shared_ptr<const DensitySampler> inner);
+    double Integrate(const rvec_t& f) const override {return itsInner->Integrate(f);}
+    size_t NumPoints() const override {return itsInner->NumPoints();}
+    XCRhoSource RhoSource() const override {return itsInner->RhoSource();}
+    std::optional<double> GroupResidual() const override {return itsInner->GroupResidual();}
+    const rvec_t& Rho(const cChargeDensity* cd) const override {return itsInner->Rho(cd);}
+    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override {return itsInner->RhoPol(cd, s);}
+    chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override {return itsInner->Matrix(bs, itsFit->Resample(v));}
+    rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override {return itsInner->Matrix(bs, itsFit->Resample(v));}
+    void WarmForDensity(const cChargeDensity* cd, bool polarized) const override {itsInner->WarmForDensity(cd, polarized);}
+    //! ⛔ Not realized on this cell.  THROW, naming the gap.
+    cvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
+    mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const override;
+private:
+    std::shared_ptr<const GaussianFitSpace> itsFit;
+    std::shared_ptr<const DensitySampler>   itsInner;
 };
 
 //! \brief XC OF A FITTED DENSITY AT A POINT SET (V-XC-ONE-TERM steps 4 and 6): a DECORATOR over the raster strategy the fit's raster would use

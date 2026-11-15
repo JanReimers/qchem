@@ -12,6 +12,8 @@ module;
 module qchem.ChargeDensity.DensitySampler;
 import qchem.ChargeDensity.Internal.DensitySampler;   // the two strategies this chooses between
 import qchem.BasisSet.G_FieldEvaluator;               // G_RasterTransform -- the capability that decides
+import qchem.ScalarFunction;                          // RasterPointCapture: the raster hands its points to one bulk call
+import qchem.Types;
 
 namespace qchem::ChargeDensity
 {
@@ -51,6 +53,38 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
         return raster;
     }
     return std::make_shared<const SinglesDensitySampler>(fb, std::move(quad));
+}
+
+// The raster's points, in raster order: the one bulk call G_RasterTransform::Sample makes, captured.
+namespace
+{
+class RasterPointCapture : public virtual ScalarFunction<double>
+{
+public:
+    double  operator()(const rvec3_t&) const override {throw std::logic_error("RasterPointCapture: bulk only");}
+    rvec3_t Gradient  (const rvec3_t&) const override {throw std::logic_error("RasterPointCapture: no gradient");}
+    rvec_t  operator()(const rvec3vec_t& rs) const override {itsPoints=rs; return rvec_t(rs.size(), 0.0);}
+    mutable rvec3vec_t itsPoints;
+};
+}
+
+std::shared_ptr<const DensitySampler>
+MakeAuxiliaryFitSampler(const fitbasis_t& ball, const fitbasis_t& delta, BasisSet::FitQuadrature points,
+                        std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, bool projected)
+{
+    if (!points.GetMesh()) throw std::logic_error("MakeAuxiliaryFitSampler: the periodic A1 fit needs the XC point set");
+    if (!projected)
+    {
+        auto fit=std::make_shared<const GaussianFitSpace>(std::move(a1), rvec3vec_t{}, 0.0, points);
+        return std::make_shared<const FittedPotentialDensitySampler>(fit, MakeDensitySampler(delta, points));
+    }
+    const auto* raster=dynamic_cast<const BasisSet::G_RasterTransform*>(ball.get());   // abstract -> abstract
+    if (!raster) throw std::logic_error("MakeAuxiliaryFitSampler: the projected cell needs the plane-wave fit's raster");
+    RasterPointCapture capture;
+    (void)raster->Sample(capture);
+    const double weight=raster->Integral(rvec_t(raster->RasterSize(), 1.0))/double(raster->RasterSize());   // Omega/N
+    auto fit=std::make_shared<const GaussianFitSpace>(std::move(a1), std::move(capture.itsPoints), weight, points);
+    return std::make_shared<const FitAtPointsDensitySampler>(fit, std::make_shared<const PairDensitySampler>(ball), points);
 }
 
 std::shared_ptr<const tDensitySampler<double>>

@@ -34,6 +34,7 @@ module;
 #include <vector>   // SinglesDensitySampler sigmas/flipFixed (Shubnikov S3)
 export module qchem.ChargeDensity.DensitySampler;
 import qchem.BasisSet.Orbital_DFT_IBS;      // the fit-basis faces
+import qchem.BasisSet.Orbital_1E_IBS;       // Orbital_1E_IBS<double>: the periodic A1 Gamma block
 import qchem.BasisSet.Fit_Types;            // FitQuadrature
 import qchem.ChargeDensity.Types;           // tobs_t/cobs_t/robs_t -- this library has its OWN, identical to the
                                             // qcHamiltonian typedefs the engine used to borrow (R1.0e, 2026-09-10)
@@ -269,6 +270,17 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad={});
 //! (step 3, 2026-11-10) -- the \c XCρ::Fit cell, which the caller states.
 std::shared_ptr<const tDensitySampler<double>>
 MakeDensitySampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, BasisSet::FitQuadrature quad={});
+
+//! \brief THE PERIODIC A1 VXC FIT's strategies (V-XC-ONE-TERM step 6, lane S 2026-11-15), over \a a1: the REAL Gamma block of the A1 set on
+//! the cell's sites, built by the Hamiltonian factory and held by the strategy (a real fit cannot pass the complex lineage's fit-basis
+//! factory without changing a tier-1 hub).  \a points: the XC mesh (Becke or a uniform cell mesh).
+//!   - \a projected (xc.rho fit, target A): P rho of the raster's rho[D] (\a ball: the plane-wave fit whose raster the pair collocation runs
+//!     on), at the points; H = dE/dD exactly (the decorator over the raster's exact pair).
+//!   - not \a projected (xc.rho exact, target W): rho[D] at the points through the delta basis \a delta on them, its v FITTED onto the set
+//!     for H (pin 32: H is not dE/dD; the policy layer warns and refuses what needs dE/dD).
+std::shared_ptr<const DensitySampler>
+MakeAuxiliaryFitSampler(const fitbasis_t& ball, const fitbasis_t& delta, BasisSet::FitQuadrature points,
+                        std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, bool projected);
 
 } //namespace
 

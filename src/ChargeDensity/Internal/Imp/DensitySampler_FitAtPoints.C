@@ -14,9 +14,11 @@ module;
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 module qchem.ChargeDensity.Internal.DensitySampler;
 import qchem.ChargeDensity;
 import qchem.BasisSet.G_FieldEvaluator;
+import qchem.BasisSet.Orbital_1E_IBS;   // the periodic A1 Gamma block's overlap and point values
 import qchem.Reporting;
 import qchem.Parallel;    // InnerThreads: the synthesis is per-point parallel
 import qchem.Blaze;
@@ -132,6 +134,134 @@ cvec_t FitAtPointsDensitySampler::Sample(const TransitionDensity<dcmplx>&, const
 mat_t<dcmplx> FitAtPointsDensitySampler::Matrix(const cobs_t*, const cobs_t*, const cvec_t&, const rvec3_t&) const
 {
     throw std::logic_error("FitAtPointsDensitySampler: the transition adjoint on the fit-at-points XC route is not realized");
+}
+
+} //namespace
+
+// ---- the periodic A1 Gaussian set as a fit space (V-XC-ONE-TERM step 6) ----------------------------------------------------------------
+namespace qchem::ChargeDensity
+{
+
+GaussianFitSpace::GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, rvec3vec_t rasterPoints, double rasterWeight,
+                                   BasisSet::FitQuadrature points)
+    : itsA1(std::move(a1)), itsRaster(std::move(rasterPoints)), itsRasterWeight(rasterWeight), itsPoints(std::move(points))
+{
+    if (!itsA1) throw std::logic_error("GaussianFitSpace: needs the periodic A1 block");
+    if (!itsPoints.GetMesh() || itsPoints.GetMesh()->size()==0) throw std::logic_error("GaussianFitSpace: a point set with no points");
+    // S^-1, robust to a near-dependent set: S = V diag(w) V^T, the modes below kMetricRelTol x w_max dropped and REPORTED.
+    const auto& S=itsA1->Overlap();
+    const size_t n=S.rows();
+    rsmat_t Sd(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) Sd(i,j)=S(i,j);
+    rvec_t w; rmat_t V;
+    blazem::eigen(Sd, w, V);
+    double wmax=0.0;
+    for (size_t k=0;k<n;k++) wmax=std::max(wmax, w[k]);
+    size_t dropped=0;
+    for (size_t k=0;k<n;k++) if (w[k]<kMetricRelTol*wmax) dropped++;
+    if (dropped)
+    {
+        qchem::report::Set("a1MetricModesDropped", (long)dropped);
+        qchem::report::Set("a1MetricFloor", kMetricRelTol*wmax);
+        std::cout<<"[periodic A1 fit] the overlap metric of "<<n<<" functions is near-singular: "<<dropped<<" mode(s) below the floor "
+                 <<kMetricRelTol*wmax<<" (= "<<kMetricRelTol<<" x the largest eigenvalue) are dropped"<<std::endl;
+    }
+    itsSinv=rsmat_t(n);
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++)
+        {
+            double s=0.0;
+            for (size_t k=0;k<n;k++) if (w[k]>=kMetricRelTol*wmax) s+=V(i,k)*V(j,k)/w[k];
+            itsSinv(i,j)=s;
+        }
+    // The footprint facts, one level in: what streaming saves, against what a stored table would cost (the policy layer judges them).
+    qchem::report::Set("a1Functions", (long)n);
+    qchem::report::Set("a1RasterPoints", (long)itsRaster.size());
+    qchem::report::Set("a1XCPoints", (long)itsPoints.GetMesh()->size());
+}
+
+// Phi(R) evaluated in chunks of points (the block's image-summed bulk evaluation): never the whole table at once.
+static constexpr size_t kA1Chunk=2048;
+rvec_t GaussianFitSpace::PhiT(const rvec3vec_t& R, const rvec_t& f) const
+{
+    assert(f.size()==R.size());
+    const size_t n=NumFunctions(), nblk=(R.size()+kA1Chunk-1)/kA1Chunk;
+    std::vector<rvec_t> part(nblk, rvec_t(n, 0.0));   // one partial per chunk: a deterministic sum at any thread count
+#ifdef QCHEM_OPENMP
+    #pragma omp parallel for schedule(dynamic) num_threads(qchem::InnerThreads())
+#endif
+    for (size_t b=0; b<nblk; b++)
+    {
+        const size_t lo=b*kA1Chunk, hi=std::min(R.size(), lo+kA1Chunk);
+        rvec3vec_t sub(hi-lo);
+        for (size_t g=lo; g<hi; g++) sub[g-lo]=R[g];
+        const rmat_t P=(*itsA1)(sub);
+        for (size_t g=lo; g<hi; g++) for (size_t a=0; a<n; a++) part[b][a]+=P(g-lo,a)*f[g];
+    }
+    rvec_t out(n, 0.0);
+    for (const auto& p : part) out+=p;
+    return out;
+}
+rvec_t GaussianFitSpace::Phi(const rvec3vec_t& R, const rvec_t& c) const
+{
+    const size_t n=NumFunctions(), nblk=(R.size()+kA1Chunk-1)/kA1Chunk;
+    rvec_t out(R.size(), 0.0);
+#ifdef QCHEM_OPENMP
+    #pragma omp parallel for schedule(dynamic) num_threads(qchem::InnerThreads())
+#endif
+    for (size_t b=0; b<nblk; b++)
+    {
+        const size_t lo=b*kA1Chunk, hi=std::min(R.size(), lo+kA1Chunk);
+        rvec3vec_t sub(hi-lo);
+        for (size_t g=lo; g<hi; g++) sub[g-lo]=R[g];
+        const rmat_t P=(*itsA1)(sub);
+        for (size_t g=lo; g<hi; g++) { double s=0.0; for (size_t a=0; a<n; a++) s+=P(g-lo,a)*c[a]; out[g]=s; }
+    }
+    return out;
+}
+
+rvec_t GaussianFitSpace::AtPoints(const rvec_t& onRaster) const
+{
+    if (itsRaster.size()==0) throw std::logic_error("GaussianFitSpace::AtPoints: built without a raster (the fitted-potential cell's fit space)");
+    qchem::report::Timed timed("scf: XC periodic A1 projection of rho");
+    rvec_t b=PhiT(itsRaster, onRaster);
+    b*=itsRasterWeight;
+    const rvec_t c=itsSinv*b;
+    return Phi(itsPoints.GetMesh()->Points(), c);
+}
+rvec_t GaussianFitSpace::OnRaster(const rvec_t& atPoints) const
+{
+    if (itsRaster.size()==0) throw std::logic_error("GaussianFitSpace::OnRaster: built without a raster (the fitted-potential cell's fit space)");
+    qchem::report::Timed timed("scf: XC periodic A1 adjoint onto the raster");
+    const rvec_t& w=itsPoints.GetMesh()->Weights();
+    rvec_t wv(atPoints.size());
+    for (size_t g=0; g<wv.size(); g++) wv[g]=w[g]*atPoints[g];
+    const rvec_t c=itsSinv*PhiT(itsPoints.GetMesh()->Points(), wv);
+    return Phi(itsRaster, c);
+}
+rvec_t GaussianFitSpace::Resample(const rvec_t& atPoints) const
+{
+    qchem::report::Timed timed("scf: XC periodic A1 fit of v");
+    const rvec_t& w=itsPoints.GetMesh()->Weights();
+    rvec_t wv(atPoints.size());
+    for (size_t g=0; g<wv.size(); g++) wv[g]=w[g]*atPoints[g];
+    const rvec_t c=itsSinv*PhiT(itsPoints.GetMesh()->Points(), wv);
+    return Phi(itsPoints.GetMesh()->Points(), c);
+}
+
+// ---- the fitted-potential cell -------------------------------------------------------------------------------------------------------
+FittedPotentialDensitySampler::FittedPotentialDensitySampler(std::shared_ptr<const GaussianFitSpace> fit, std::shared_ptr<const DensitySampler> inner)
+    : itsFit(std::move(fit)), itsInner(std::move(inner))
+{
+    if (!itsFit || !itsInner) throw std::logic_error("FittedPotentialDensitySampler: needs the fit space and its inner strategy");
+}
+cvec_t FittedPotentialDensitySampler::Sample(const TransitionDensity<dcmplx>&, const Spin&) const
+{
+    throw std::logic_error("FittedPotentialDensitySampler::Sample: a linear response on the fitted-potential cell is not realized");
+}
+mat_t<dcmplx> FittedPotentialDensitySampler::Matrix(const cobs_t*, const cobs_t*, const cvec_t&, const rvec3_t&) const
+{
+    throw std::logic_error("FittedPotentialDensitySampler: the transition adjoint on the fitted-potential cell is not realized");
 }
 
 } //namespace

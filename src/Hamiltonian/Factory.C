@@ -7,6 +7,7 @@ module;
 #include <utility>
 export module qchem.Hamiltonian.Factory;
 export import qchem.Hamiltonian;
+import qchem.BasisSet.Orbital_1E_IBS;   // the periodic A1 Vxc fit's real Gamma set (the solid door's vxcAux)
 import qchem.Hamiltonian.Types;
 export import qchem.Symmetry.Spin;   // SpinGroup -- the imposed spin subgroup every Factory takes
 import qchem.Mesh;
@@ -260,9 +261,12 @@ export namespace qchem::Hamiltonian
     //! \a xcMesh chooses the real-space XC quadrature and \a fit chooses which basis represents
     //! \f$v_{xc}\f$; the two are ORTHOGONAL (see \c VxcFit).  Resolve \c UnitCellKind::Auto BEFORE
     //! calling -- \c qcMesh::ResolveXCMesh is the policy, and an unresolved \c Auto reads as \c Uniform here.
-    //! \a hubbard: the DFT+U manifold list (empty = no Hubbard term).
+    //! \a hubbard: the DFT+U manifold list (empty = no Hubbard term).  \a fit carries the rho axis too (\c XCRoute; I3 and the periodic A1).
+    //! \a vxcAux: the periodic A1 Vxc fit's real Gamma set -- the A1_exch set on the cell's sites as a GPW block at Gamma -- which a caller
+    //! stating xc.fit Auxiliary builds (V-XC-ONE-TERM step 6: this library does not link the Gaussian factories); ignored otherwise.
     cHamiltonian* Factory(SpinGroup, const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit,
                           const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh,
-                          XCRoute fit = {}, std::vector<HubbardManifold> hubbard = {}, const XCFunctional& xc = {});
+                          XCRoute fit = {}, std::vector<HubbardManifold> hubbard = {}, const XCFunctional& xc = {},
+                          std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux = {});
 
 } // namespace
