@@ -6,6 +6,11 @@ module;
 #include <cassert>
 #include <string>
 #include <stdexcept>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+#include <utility>
+#include <type_traits>
 export module qchem.BasisSet.Radial.BasisSet;
 export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 export import qchem.BasisSet;
@@ -20,6 +25,8 @@ import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.BasisSet.Internal.Cache4;   // Cache4 / Cacheable4: the parent's Rk table (S5a)
+import qchem.BasisSet.Radial.Factory;   // CoulombFitLadder (the face BasisSet_HF realizes)
+import qchem.Blaze;
 
 export 
 namespace qchem::BasisSet {
@@ -28,9 +35,58 @@ namespace Radial {
 using namespace Evaluators;
 
 // Full service NR: 1E, DFT and HF
+//! The merged, nested Coulomb-fit exponents of \c CoulombFitLadder's rung \a rung >= 1, from every block's fit exponents \a perBlock (already
+//! x 2).  Exponents within 2% of a kept neighbour are dropped (a near-duplicate is a near-singular metric, not a richer fit); rung r inserts
+//! 2^{r-1} - 1 geometric points between kept neighbours, so each rung's set holds the rung below's.
+inline rvec_t MergedCoulombFitExponents(const std::vector<rvec_t>& perBlock, int rung)
+{
+    std::vector<double> all;
+    for (const rvec_t& es : perBlock) for (size_t i=0;i<es.size();i++) all.push_back(es[i]);
+    std::sort(all.begin(), all.end());
+    std::vector<double> kept;
+    for (double e : all) if (kept.empty() || e>kept.back()*1.02) kept.push_back(e);
+    const int m=(1<<(rung-1))-1;   // points inserted between neighbours
+    std::vector<double> out;
+    for (size_t i=0;i<kept.size();i++)
+    {
+        out.push_back(kept[i]);
+        if (i+1<kept.size()) for (int k=1;k<=m;k++) out.push_back(kept[i]*std::pow(kept[i+1]/kept[i], double(k)/(m+1)));
+    }
+    rvec_t r(out.size());
+    for (size_t i=0;i<out.size();i++) r[i]=out[i];
+    return r;
+}
+
+//! The power-m Coulomb-fit functions of \c CoulombFitLadder's rung \a rung >= 1 for a family whose fit functions carry their own radial
+//! power (Slater): each block's fit exponents \a perBlock[b] (already x 2) at half-power \a ls[b] = that block's l, the density's own diagonal
+//! products r^{2l} e^{-2 zeta r}; rung r inserts 2^{r-1} - 1 geometric points between each block's neighbours (near-duplicates within a
+//! block, 2%, dropped first), so each rung holds the rung below.  Returns (exponents, powers).
+inline std::pair<rvec_t,std::vector<int>> ShellPowerCoulombFit(const std::vector<rvec_t>& perBlock, const std::vector<int>& ls, int rung)
+{
+    std::vector<double> es; std::vector<int> ms;
+    const int m=(1<<(rung-1))-1;
+    for (size_t b=0;b<perBlock.size();b++)
+    {
+        std::vector<double> all;
+        for (size_t i=0;i<perBlock[b].size();i++) all.push_back(perBlock[b][i]);   // index loop: std iterators cannot see Blaze's op==
+        std::sort(all.begin(), all.end());
+        std::vector<double> kept;
+        for (double e : all) if (kept.empty() || e>kept.back()*1.02) kept.push_back(e);
+        for (size_t i=0;i<kept.size();i++)
+        {
+            es.push_back(kept[i]); ms.push_back(ls[b]);
+            if (i+1<kept.size()) for (int k=1;k<=m;k++) { es.push_back(kept[i]*std::pow(kept[i+1]/kept[i], double(k)/(m+1))); ms.push_back(ls[b]); }
+        }
+    }
+    rvec_t r(es.size());
+    for (size_t i=0;i<es.size();i++) r[i]=es[i];
+    return {r, ms};
+}
+
 template <is1E_DFT_HF_Evaluator Evaluator> class BasisSet_HF
     : public virtual Real_BS
     , public BasisSetImp<double>
+    , public CoulombFitLadder
 {
 public:
     // Define the Orbital IBS using mixins.
@@ -64,6 +120,13 @@ public:
         {
             return new EFit_IBS(std::make_shared<BasisSet::BasisCache>(), Evaluator::Rescale(2.0/3.0, this->GetSymt()), *cl, mp);
         }
+        //! This block's Coulomb-fit exponents (its own x 2), for \c CoulombFitLadder's merged rungs.
+        rvec_t CoulombFitExponents() const {return 2.0*this->es;}
+        //! A Coulomb fit of THIS block's symmetry over \a es (verbatim): the merged rungs, on the first (s) block.
+        rFIT_CD_ABS* MakeCoulombFitOver(const rvec_t& es) const {return new EFit_IBS(std::make_shared<BasisSet::BasisCache>(), Evaluator(es, this->GetSymt()));}
+        //! A power-m Coulomb fit (\a es at half-powers \a ms) of THIS block's symmetry, on the first (s) block: the family's own rungs.
+        rFIT_CD_ABS* MakeCoulombFitOver(const rvec_t& es, const std::vector<int>& ms) const {return new EFit_IBS(std::make_shared<BasisSet::BasisCache>(), Evaluator(es, ms, this->GetSymt()));}
+        int BlockL() const {return Evaluator::Getl();}
 
         virtual std::ostream&  Write(std::ostream& os) const
         {
@@ -77,13 +140,13 @@ public:
     BasisSet_HF(size_t N, double remin, double remax, const ElectronConfiguration& ec)
     {
         for (auto ir:ec.GetIrreps())
-            Insert(new EOrbital_HF_IBS(BlockCache(),N,remin,remax,ir));  
+            { auto* b=new EOrbital_HF_IBS(BlockCache(),N,remin,remax,ir); Insert(b); itsBlocks.push_back(b); }
      
     }
     BasisSet_HF(const rvec_t& es, const ElectronConfiguration& ec, size_t ltrim=0)
     {
         for (auto ir:ec.GetIrreps())
-            Insert(new EOrbital_HF_IBS(BlockCache(),es,ir,ltrim));
+            { auto* b=new EOrbital_HF_IBS(BlockCache(),es,ir,ltrim); Insert(b); itsBlocks.push_back(b); }
 
     }
     // INDEPENDENT per-l exponent lists: each occupied irrep gets its OWN list \c esByL[l], verbatim (no
@@ -104,9 +167,32 @@ public:
                 throw std::runtime_error("Atom BasisSet_HF: the electron configuration occupies angular "
                     "momentum l=" + std::to_string(l) + " but the basis recipe supplied no exponents for it. "
                     "Add a shell for l=" + std::to_string(l) + ".");
-            Insert(new EOrbital_HF_IBS(BlockCache(),it->second,ir,0));   // ltrim=0: this l's full list
+            { auto* b=new EOrbital_HF_IBS(BlockCache(),it->second,ir,0); Insert(b); itsBlocks.push_back(b); } // ltrim=0: this l's full list
         }
     }
+
+    virtual rFIT_CD_ABS* MakeCoulombFitRung(int rung) const override
+    {
+        if (rung<0 || rung>=kCoulombFitRungs)
+            throw std::out_of_range("Radial::BasisSet_HF::MakeCoulombFitRung: rung "+std::to_string(rung)+" outside [0, "+std::to_string(kCoulombFitRungs)+")");
+        if (itsBlocks.empty()) throw std::logic_error("Radial::BasisSet_HF::MakeCoulombFitRung: a basis with no blocks has no Coulomb fit");
+        if (rung==0) return itsBlocks.front()->CreateCDFitBasisSet(nullptr);   // the hub's own fit, verbatim
+        std::vector<rvec_t> perBlock;
+        for (const auto* b : itsBlocks) perBlock.push_back(b->CoulombFitExponents());
+        // A family whose fit functions carry their own radial power (Slater) fits each l-shell with its own shape, r^{2l} e^{-2 zeta r};
+        // the others (Gaussian: its rung 0 already meets eps on Xe and U, 2026-11-14) merge every block's exponents into one s set.
+        if constexpr (std::is_constructible_v<Evaluator, const rvec_t&, const std::vector<int>&, const sym_t&>)
+        {
+            std::vector<int> ls;
+            for (const auto* b : itsBlocks) ls.push_back(b->BlockL());
+            const auto [es, ms]=ShellPowerCoulombFit(perBlock, ls, rung);
+            return itsBlocks.front()->MakeCoulombFitOver(es, ms);
+        }
+        else
+            return itsBlocks.front()->MakeCoulombFitOver(MergedCoulombFitExponents(perBlock, rung));
+    }
+private:
+    std::vector<const EOrbital_HF_IBS*> itsBlocks;   //!< the blocks, as built (owned by BasisSetImp): the Coulomb-fit ladder reads their exponents
 };
 
 // NR: 1E and HF, but no DFT

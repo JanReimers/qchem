@@ -175,6 +175,7 @@ static int Main(int argc, char** argv)
     string out=""; double rmin=1e-4, rmax=20.0, alpha=-1; int ngrid=400;
     nlohmann::json entryTags=nlohmann::json::object();   // --entry key=value: provenance strings stamped on the --out entry
     int valence=0;   // >0: dump only the outermost `valence` electrons' density (pseudo-VALENCE for PW SAD)
+    int xcNRadial=0, hNRadial=0, hLMax=0; string coulombFit;   // the atom's XC radial mesh and Hartree route (0 / empty = the facade's)
 
     // ---- help text ----
     auto usage=[&](std::ostream& os){
@@ -234,6 +235,12 @@ static int Main(int argc, char** argv)
         "  --valence <int>    dump only the outermost <n> electrons' density (pseudo-valence\n"
         "                       for the plane-wave SAD seed); 0 => full all-electron (default 0)\n"
         "\n"
+        " Atom integration (DFT models):\n"
+        "  --nradial <int>    XC radial mesh points, stated (audited, never raised; default: sized from eps)\n"
+        "  --coulomb <name>   Hartree route: multipole (radial Poisson, the default) | aux (the Dunlap fit) | delta (refused on an atom)\n"
+        "  --hnradial <int>   the multipole Hartree's radial points, stated (default: sized from eps)\n"
+        "  --hlmax <int>      the Hartree route's l cut (0 => its default; the atom's rule allows 0 only)\n"
+        "\n"
         "  -h, --help         show this help and exit\n";
     };
 
@@ -284,6 +291,10 @@ static int Main(int argc, char** argv)
         else if (a=="--rmax")    rmax=std::stod(need(i));
         else if (a=="--ngrid")   ngrid=std::stoi(need(i));
         else if (a=="--valence") valence=std::stoi(need(i));
+        else if (a=="--nradial") xcNRadial=std::stoi(need(i));
+        else if (a=="--coulomb") coulombFit=need(i);
+        else if (a=="--hnradial")hNRadial=std::stoi(need(i));
+        else if (a=="--hlmax")   hLMax=std::stoi(need(i));
         else if (a=="--entry")
         {
             const string kv=need(i); const auto e2=kv.find('=');
@@ -367,6 +378,16 @@ static int Main(int argc, char** argv)
     opts.type        = bases[basis];
     opts.basisPool    = accs[acc];
     opts.accelerator = accj;                  // full accelerator config (type + tuned knobs) -- the escape hatch
+    if (xcNRadial>0) opts.mesh.nRadial=xcNRadial;   // a stated XC radial count (default: sized from eps by the atom pilot)
+    if (!coulombFit.empty())
+    {
+        using CF=qchem::Hamiltonian::CoulombFit;
+        static const std::map<string,CF> cfs={{"aux",CF::Auxiliary},{"delta",CF::Delta},{"multipole",CF::Multipole}};
+        if (!cfs.count(coulombFit)) {cout<<"--coulomb takes aux | delta | multipole"<<endl; return 1;}
+        opts.coulomb.fit=cfs.at(coulombFit);
+    }
+    opts.coulomb.nRadial=hNRadial;
+    opts.coulomb.lMax=hLMax;
     if (ppmodel)
     {
         opts.pseudopotential = true;

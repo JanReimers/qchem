@@ -46,7 +46,11 @@ TEST(ValenceBasisGen, Fluorine_q7)
     r.element        = "F";
     r.Zion           = 7;
     r.electrons      = 8;                                   // F-
-    r.accelerator    = "GDM";   // closed shell, 2p unbound in this window (eps +0.07): DIIS's energy never settles
+    // The DIIS->GDM Ladder.  The 2p is unbound in this window (eps +0.07).  Under the old Dunlap fit (the atom's Hartree until
+    // 2026-11-14) DIIS jittered at 5e-6 Ha, so the recipe stated GDM.  Under the exact radial-Poisson Hartree, standalone GDM sits in a
+    // 4-step handoff limit cycle ([F,D] 0.13-0.5, never under its engage gate; OpenWork row), while DIIS, the Ladder and directmin all
+    // converge to -24.2047246 (the fit gave -24.2047251).
+    r.accelerator    = "Ladder";
     r.shells         = { {0, EvenTemperedWindow(8, 0.12, 40.0)},
                          {1, EvenTemperedWindow(6, 0.14, 12.0)} };
     GeneratedBasis g = GenerateValenceBasis(r, /*TMPTRACE*/true);
@@ -137,7 +141,7 @@ TEST(ValenceBasisGen, FluorineSeedDensityAnionIsDiffuse)
     auto window = []{ return std::vector<std::pair<int,std::vector<double>>>{
         {0, EvenTemperedWindow(8, 0.12, 40.0)}, {1, EvenTemperedWindow(6, 0.14, 12.0)} }; };
     ValenceBasisRecipe neutral; neutral.element="F"; neutral.Zion=7; neutral.electrons=7; neutral.shells=window();
-    ValenceBasisRecipe anion;   anion.element  ="F"; anion.Zion  =7; anion.electrons  =8; anion.shells  =window(); anion.accelerator="GDM";
+    ValenceBasisRecipe anion;   anion.element  ="F"; anion.Zion  =7; anion.electrons  =8; anion.shells  =window(); anion.accelerator="Ladder";   // see Fluorine_q7
 
     GeneratedSeedDensity n = GenerateSeedDensity(neutral);
     GeneratedSeedDensity a = GenerateSeedDensity(anion);
@@ -159,7 +163,7 @@ TEST(ValenceBasisGen, FluorineSeedDensityAnionIsDiffuse)
 TEST(ValenceBasisGen, AssembleValenceLowqFile)
 {
     ValenceBasisRecipe f;
-    f.element="F"; f.Zion=7; f.electrons=8; f.accelerator="GDM";   // F-: see Fluorine_q7
+    f.element="F"; f.Zion=7; f.electrons=8; f.accelerator="Ladder";   // F-: see Fluorine_q7
     f.shells={ {0, EvenTemperedWindow(8, 0.12, 40.0)}, {1, EvenTemperedWindow(6, 0.14, 12.0)} };
     ValenceBasisRecipe na;
     na.element="Na"; na.Zion=1; na.electrons=1;
