@@ -185,8 +185,9 @@ TEST(M_DFT, BadMultiplicityIsRefused)
 }
 
 // THE AUXILIARY Vxc FIT (VxcFit::Auxiliary -- the Gaussian A1 set), kept as a strategy since δ became the default (user ruling
-// "δ default, A1 kept"; pin 30: it keeps the ONE XC term honest over every fit basis).  The same FittedVxc consumes it through
-// the fit face.  Its error is the A1 fit of v_xc AND eps_xc: 1-6 mHa against PySCF with the SAME A1_coul Coulomb fit and exact XC.
+// "δ default, A1 kept"; pin 30: it keeps the ONE XC term honest over every fit basis).  At xc.rho exact (the W cell) the one XC term
+// runs it as the fitted-potential sampler: E is the exact XC of rho[D], H the A1 fit of v.  Until FittedVxc's retirement (2026-11-15)
+// eps was fitted for E as well, 1-6 mHa off PySCF with the SAME A1_coul Coulomb fit and exact XC; now 2-80 μHa, second order.
 static Molecule MakeF2()   // ~/Code/cp2k-runs/F2 geometry (bohr)
 {
     Molecule m;
@@ -254,8 +255,11 @@ TEST(M_DFT, WaterLDA_AuxiliaryFit)
     MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA,
                                                                                        .vxcFit = Hamiltonian::VxcFit::Auxiliary}));
     ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -75.8808368818, 1e-5);   // anchor
-    EXPECT_NEAR(calc.Energy(), -75.87944736, 3e-3) << "ORACLE: PySCF A1_coul J-fit route; the gap (-1.4 mHa) is the A1 Vxc fit";
+    // RE-JUDGED 2026-11-15 (pin 10, lane S): FittedVxc retired.  The cell's E is now the exact XC of rho[D] on the run's mesh (FittedVxc fitted eps
+    // for E too, the -1.4 mHa it sat off PySCF); only H still sees the A1 fit of v, a second-order error in E.  From -75.8808368818.  Independent
+    // route: PySCF's exact XC, 2.1 μHa away (was 1.39 mHa).
+    EXPECT_NEAR(calc.Energy(), -75.8794494584, 1e-5);   // anchor
+    EXPECT_NEAR(calc.Energy(), -75.87944736, 2e-5) << "ORACLE: PySCF A1_coul J-fit route, exact XC; the gap is the A1 fit of v in H (second order)";
 }
 
 TEST(M_DFT, OxygenTripletLDA_AuxiliaryFit)
@@ -264,8 +268,10 @@ TEST(M_DFT, OxygenTripletLDA_AuxiliaryFit)
                                                        .vxcFit = Hamiltonian::VxcFit::Auxiliary}));
     ASSERT_TRUE(calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                                .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false}));
-    EXPECT_NEAR(calc.Energy(), -149.3018824495, 1e-4);   // anchor
-    EXPECT_NEAR(calc.Energy(), -149.30067460, 3e-3) << "ORACLE: PySCF UKS A1_coul J-fit route; the gap (-1.2 mHa) is the A1 Vxc fit";
+    // RE-JUDGED 2026-11-15 (pin 10, lane S): FittedVxc retired (see WaterLDA_AuxiliaryFit).  From -149.3018824495.  Independent routes: our δ cell
+    // (OxygenTripletLDA) -149.3006843397, 7.5 μHa BELOW (the variational minimum: the fitted v only perturbs D), and PySCF 2.2 μHa away.
+    EXPECT_NEAR(calc.Energy(), -149.3006768238, 1e-4);   // anchor
+    EXPECT_NEAR(calc.Energy(), -149.30067460, 2e-5) << "ORACLE: PySCF UKS A1_coul J-fit route, exact XC; the gap is the A1 fit of v in H (second order)";
 }
 
 // F2 GTH q7 (the case the "Molecular PP route is 4 mHa/atom off CP2K" row was filed on) on BOTH routes: the δ default is CP2K's
@@ -283,16 +289,16 @@ TEST(M_DFT, F2_PP_AuxiliaryFit)
     MoleculeCalculation calc(MoleculeSetup::Resolve(MakeF2(), {.basis = "valence_lowq_vb", .model = Model::LDA, .vxcFit = Hamiltonian::VxcFit::Auxiliary,
                                                        .pp = "gth-lda-valence"}));
     ASSERT_TRUE(calc.Result());
-    // RE-JUDGED 2026-11-11 (pin 10, lane B): the A1 fit's norm went analytic (it was a quadrature on the fit's private mesh), +1.38e-5,
-    // from -48.1970701902.  Independent route: the same run on a (200, 59) mesh, where the old mesh norm is 1 to its quadrature error:
-    // -48.1970585462.  The new value sits 2.2e-6 from it (the (80, 29) mesh's own error), the old one 1.16e-5.
-    EXPECT_NEAR(calc.Energy(), -48.1970563871, 1e-5);   // anchor
-    EXPECT_NEAR(calc.Energy(), -48.20187971, 7e-3) << "ORACLE: PySCF A1_coul J-fit route; the gap (+4.8 mHa) is the A1 Vxc fit";
+    // RE-JUDGED 2026-11-15 (pin 10, lane S): FittedVxc retired (see WaterLDA_AuxiliaryFit).  From -48.1970563871 (+4.8 mHa off PySCF: the eps fit
+    // of a PP valence density).  Independent route: our δ cell (F2_PP) -48.2018945557, 93 μHa BELOW (variational); PySCF 78 μHa away.  The
+    // larger second-order gap than water's is A1_exch's poorer fit of v on a pseudo-valence density (its P-rho is 29% negative, OpenWork).
+    EXPECT_NEAR(calc.Energy(), -48.2018018561, 1e-5);   // anchor
+    EXPECT_NEAR(calc.Energy(), -48.20187971, 1e-4) << "ORACLE: PySCF A1_coul J-fit route, exact XC; the gap is the A1 fit of v in H (second order)";
 }
 
 // THE A1 Pρ CELL (VxcFit::Auxiliary at XCρ::Fit; V-XC-ONE-TERM step 3, 2026-11-10): XC sees the A1 fit's projection of ρ[D], through
-// the ONE XC term (E = Σ w e(Pρ) on the run's Becke mesh, H = dE/dD exactly), where the ρ[D] cell above (FittedVxc) fits v and ε
-// separately on the fit's own mesh.  Its gap to PySCF's exact XC is the A1_exch basis's incompleteness for ρ ITSELF (water's Pρ holds
+// the ONE XC term (E = Σ w e(Pρ) on the run's Becke mesh, H = dE/dD exactly), where the ρ[D] cell above takes E from ρ[D] itself
+// and fits only v for H (not variational, pin 32).  Its gap to PySCF's exact XC is the A1_exch basis's incompleteness for ρ ITSELF (water's Pρ holds
 // 9.958 of 10 electrons; it misses the O core).  THE INDEPENDENT ROUTE (pin 10, scripts/pyscf_prho_oracle.py): PySCF's own converged
 // density projected onto A1_exch in the overlap metric, E_xc[Pρ] - E_xc[ρ] at that fixed D; ours is self-consistent, so it sits a
 // second-order relaxation BELOW that (variational).
