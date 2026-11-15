@@ -27,19 +27,19 @@ namespace qchem::Hamiltonian
 // (AccumulateDirectAll -> ScatterBoth), so only the canonical ERI4 blocks are ever built/cached -- halving
 // Coulomb ERI RAM+build vs the old per-irrep pass, which fetched both J(i,j) and J(j,i).  Result is bit-close
 // (~1e-13) to the old Fock, not bit-identical: the old J(j,i) was an independent build, here it is J(i,j)^T.
-void Vee::AccumulateAll(std::vector<rsmat_t>& X,const ChargeDensity::tHF_System_CD<double>& sweep) const
+void Vee_HF::AccumulateAll(std::vector<rsmat_t>& X,const ChargeDensity::tHF_System_CD<double>& sweep) const
 {
     sweep.AccumulateDirectAll(X);
 }
 
-void Vee::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
+void Vee_HF::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     // E_ee = 1/2 Tr(D.J), taken from THIS term's own whole-system Coulomb blocks -- no per-irrep GetMatrix
     // round-trip through DM_Contract (which is what kept Vee tied to the 3-arg GetMatrix / tDynamic_CC).
     const double trDJ=cd->DM_ContractBlocks(RefreshedBlocks(DensityID(cd), CacheSpin(Spin::None)));
     te.Add("Eee", 0.5*trDJ, EnergyRole::Potential, trDJ);   // quadratic: E = 1/2 Tr(D J), Tr(D V) = Tr(D J)
 }
-std::ostream& Vee::Write(std::ostream& os) const
+std::ostream& Vee_HF::Write(std::ostream& os) const
 {
     os << "    Coulomb potential ro(r_2)/r_12" << std::endl;
     return os;

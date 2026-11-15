@@ -9,9 +9,12 @@ module;
 #include <cassert>
 #include <memory>
 #include <stdexcept>
+#include <string>
 module qchem.ChargeDensity.DensitySampler;
 import qchem.ChargeDensity.Internal.DensitySampler;   // the two strategies this chooses between
 import qchem.BasisSet.G_FieldEvaluator;               // G_RasterTransform -- the capability that decides
+import qchem.BasisSet.IrrepBasisSet;    // Evaluatable_IBS<double>: the A1 fit functions at points
+import qchem.Types;
 
 namespace qchem::ChargeDensity
 {
@@ -43,10 +46,26 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
     if (dynamic_cast<const BasisSet::G_RasterTransform*>(fb.get()))
     {
         auto* ball=dynamic_cast<const BasisSet::G_OrbitalPairBall*>(fb.get());   // abstract -> abstract
-        if (ball && ball->HoldsEveryOrbitalPair()) return std::make_shared<const ProjectedDensitySampler>(fb);
-        return std::make_shared<const PairDensitySampler>(fb);
+        std::shared_ptr<const DensitySampler> raster;
+        if (ball && ball->HoldsEveryOrbitalPair()) raster=std::make_shared<const ProjectedDensitySampler>(fb);
+        else                                       raster=std::make_shared<const PairDensitySampler>(fb);
+        // A POINT SET handed in with a ball (a Becke mesh, I3): XC is evaluated there, on top of the raster strategy's exact pair.
+        if (quad.GetMesh()) return std::make_shared<const FitAtPointsDensitySampler>(std::make_shared<const BallFitSpace>(fb, quad), raster, quad);
+        return raster;
     }
     return std::make_shared<const SinglesDensitySampler>(fb, std::move(quad));
+}
+
+std::shared_ptr<const DensitySampler>
+MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points,
+                        std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, bool projected)
+{
+    if (!points.GetMesh()) throw std::logic_error("MakeAuxiliaryFitSampler: the periodic A1 fit needs the XC point set");
+    if (!delta) throw std::logic_error("MakeAuxiliaryFitSampler: the periodic A1 fit samples rho[D] through the delta basis on the XC points");
+    auto fit=std::make_shared<const GaussianFitSpace>(std::move(a1), points);
+    auto inner=MakeDensitySampler(delta, points);
+    if (projected) return std::make_shared<const FitAtPointsDensitySampler>(fit, inner, points);
+    return std::make_shared<const FittedPotentialDensitySampler>(fit, inner);
 }
 
 std::shared_ptr<const tDensitySampler<double>>
@@ -57,6 +76,29 @@ MakeDensitySampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, Basis
     // (V-XC-ONE-TERM step 3).  The caller reaches it only for xc.rho "fit": the "exact" A1 cell is the fitted-v term, not a sampler.
     if (!fb->isOrtho()) return std::make_shared<const OverlapProjectedDensitySampler>(fb, std::move(quad));
     return std::make_shared<const tSinglesDensitySampler<double>>(fb, std::move(quad));
+}
+
+std::shared_ptr<const tDensitySampler<double>>
+MakeFittedPotentialSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& delta, BasisSet::FitQuadrature points,
+                           const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fit)
+{
+    if (!fit) throw std::logic_error("MakeFittedPotentialSampler: no fit basis");
+    // Abstract -> abstract: the analytic metric and the values at points, the two faces the fit space asks of the set.
+    const auto* metric=dynamic_cast<const BasisSet::FIT_SF_NonOrtho*>(fit.get());
+    if (!metric) throw std::logic_error("MakeFittedPotentialSampler: the fit basis "+fit->Name()+" has no overlap metric (FIT_SF_NonOrtho)");
+    if (!dynamic_cast<const BasisSet::Evaluatable_IBS<double>*>(fit.get()))
+        throw std::logic_error("MakeFittedPotentialSampler: the fit basis "+fit->Name()+" cannot evaluate its functions at points (Evaluatable_IBS)");
+    auto eval=[fit](const rvec3vec_t& R) {return rmat_t((*dynamic_cast<const BasisSet::Evaluatable_IBS<double>*>(fit.get()))(R));};
+    auto space=std::make_shared<const GaussianFitSpace>(metric->Overlap(), eval, points, "the A1 Gaussian set");
+    return std::make_shared<const tFittedPotentialDensitySampler<double>>(space, MakeDensitySampler(delta, std::move(points)));
+}
+
+std::shared_ptr<const tDensitySampler<double>>
+MakeMultipoleFittedPotentialSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& delta, BasisSet::FitQuadrature points,
+                                    std::shared_ptr<const qcMesh::SiteMultipoles> sites)
+{
+    auto space=std::make_shared<const MultipoleFitSpace>(std::move(sites), points);
+    return std::make_shared<const tFittedPotentialDensitySampler<double>>(space, MakeDensitySampler(delta, std::move(points)));
 }
 
 } //namespace

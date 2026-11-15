@@ -3,7 +3,7 @@
 // Flat C ABI between the two worlds:
 //   qchem_bridge.cpp -- a C++20 *module unit* that `import`s qchem (its #includes live in a
 //                       global-module-fragment, so they de-dup against the imported modules' GMFs --
-//                       no <ranges> ODR clash).  It runs MoleculeSetup::Resolve + qchem::MoleculeCalculation.
+//                       no <ranges> ODR clash).  It runs MoleculeSetup::Admit + qchem::MoleculeCalculation.
 //   qchem_py.cpp     -- pure nanobind; includes ONLY this header, never a module.
 //
 // HANDLES ARE OPAQUE STRUCT POINTERS, never void*.  `qcb_calc` is defined only inside the bridge (it owns the
@@ -89,7 +89,7 @@ typedef struct qcb_request
     const char*   angular;        //!< BasisSet::Gaussian::Angular: "cartesian" | "spherical"; null/"" = cartesian
 } qcb_request;
 
-//! Resolve + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
+//! Admit + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
 qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char* err, int errlen);
 //! qcb_make's general form.  `path` (null or "" = a fresh start): the SCF starts from that saved state
 //! (MoleculeCalculation::Restart; "qchem-state 2.0"): an EXACT RESUME when nothing differs, else a WARM START naming each
@@ -97,7 +97,7 @@ qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char
 //! (MoleculeCalculation::Prepare / PrepareRestart), filed as the report run "<ID> build" (basis.perIrrep with the overlap's
 //! conditioning, every mesh); the first qcb_converge then runs the SCF on that graph.  Null on failure; a REFUSAL of the state
 //! (its kind, basis, electrons or blocks differ, or the file is unreadable) also sets *refused = 1, so the caller can tell it
-//! from a failure and decide on a fresh run.
+//! from a failure and decide on a fresh run; a refusal of the SETUP (MoleculeSetup::Admit: the options themselves) sets 2.
 qcb_calc* qcb_start(const qcb_request* req, const char* path, int buildOnly, qcb_row_fn step, qcb_sink* sink, int* refused,
                     char* err, int errlen);
 void      qcb_free(qcb_calc* h);
@@ -185,7 +185,8 @@ int        qcb_solid_levels(const qcb_solid* h, char* out, int outlen);   //!< a
 
 //! A molecule's view: `req` states the molecule and the options that identify its basis (Z, positions, basis / basisFile, model, pp,
 //! symmetry, polarized, multiplicity, angular; the SCF knobs are ignored).  A crystal's: its deck.  Null on a refusal (*refused = 1,
-//! "view refused (<why>): <details>" in `err`) or a failure (*refused = 0).  Files the run "<structure> view", its "view" section.
+//! "view refused (<why>): <details>" in `err`; a molecule's refused SETUP: 2, "setup refused (policy <name>): <reason>") or a
+//! failure (*refused = 0).  Files the run "<structure> view", its "view" section.
 qcb_view* qcb_view_molecule(const qcb_request* req, const char* path, int* refused, char* err, int errlen);
 qcb_view* qcb_view_solid(const char* deckJson, const char* path, int* refused, char* err, int errlen);
 void      qcb_view_free(qcb_view* h);

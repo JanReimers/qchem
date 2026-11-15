@@ -626,7 +626,7 @@ template class IrrepCD_HFPair<FiniteIrrepCD>;   // the finite leaf itself is no 
 // smell the old finite-complex specializations carried is GONE).
 
 // The complex overlap bypasses the (symmetric double) cache: MakeOverlap directly.  The REAL periodic
-// block's S caches fine (theCache<double>), so it takes the core's cached accessor path.
+// block's S caches fine (its parent's BasisCache), so it takes the core's cached accessor path.
 template <class T> double PeriodicIrrepCD<T>::GetTotalCharge() const
 {
     if constexpr (std::is_same_v<T,dcmplx>)

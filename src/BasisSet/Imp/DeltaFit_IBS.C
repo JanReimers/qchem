@@ -180,6 +180,8 @@ template <class T> template <class U> const mat_t<U>& DeltaFit_IBS<T>::Table(con
             }
         if (P.rows()==0) P=MakePhiAt<U>(&orb, itsQuad.GetMesh()->Points(), "setup: XC-mesh Phi tables");
         ReportPhiSparsity(P, *itsQuad.GetMesh());           // mesh-aware (it reports SITE batching), hence outside the builder
+        report::Accumulate("cache", "deltaPhiBytes",   double(P.rows())*double(P.columns())*sizeof(U));   // S6: the table reports itself as it fills
+        report::Accumulate("cache", "deltaPhiEntries", 1.0);
         return P;
     });
 }

@@ -4,8 +4,7 @@
 import qchem.SCFCap;     // an SCF that ends at its iteration cap FAILS the running test (user ruling 2026-10-29)
 #include <string>
 
-// The integrals cache is now a construct-on-first-use singleton (BasisSet::theCache<T>()); nothing to
-// new/delete here (this was a latent null-deref before -- the cache global was never created).
+// There is no process-wide integrals cache (doc/IntegralCacheOwnershipPlan.md S6): nothing to set up here.
 
 int main(int argc, char **argv)
 {

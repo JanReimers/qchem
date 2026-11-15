@@ -28,8 +28,8 @@
 // passing fails it too: the ratchet.  Fixing a cell means moving its row to its target in this table.
 //
 // What "today" observes (\c Observed): the factory throws; it accepts a cell mesh on a structure with no cell (the
-// molecular mesh ignores \c cellKind -- a silent substitution); it builds the OTHER XC term (the molecular
-// \c FittedVxc); it builds the one term; or \c Hamiltonian::AdmitVxc REFUSES it (an Outcome, asked before the factory --
+// molecular mesh ignores \c cellKind -- a silent substitution); it builds an XC term other than the one term (the molecular
+// \c FittedVxc did, until its retirement 2026-11-15); it builds the one term; or \c Hamiltonian::AdmitVxc REFUSES it (an Outcome, asked before the factory --
 // which consults the same rule and throws \c invalid_argument when handed a refused cell).
 //
 // ⚠ The one-term check reads the Hamiltonian's own report (\c Write) for the term's line.  A test may cheat this
@@ -37,6 +37,7 @@
 #include "gtest/gtest.h"
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -54,6 +55,7 @@ import qchem.BasisSet.Lattice.BasisSet;      // GPWFactory -- the solid's Bloch 
 import qchem.Hamiltonian.Factory;
 import qchem.Pseudopotential.Set;
 import qchem.Mesh;
+import qchem.Mesh.XCPolicy;                       // BeckeXCParams (the I3 gate's Becke recipe)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;   // tGPW_IBS<dcmplx>: one Bloch block, for the sampler equivalence
 import qchem.BasisSet.DeltaFit_IBS;               // the δ basis the singles sampler runs on
 import qchem.BasisSet.G_FieldEvaluator;           // G_RasterTransform: the pair sampler's raster length
@@ -64,6 +66,7 @@ import qchem.CompositeCD;                         // tComposite_CD<dcmplx>
 import qchem.Streamable;
 import qchem.Types;
 import qchem.Blaze;                                // D + s*Delta, rvec_t *= (the A1 Pρ derivative gate)
+import qchem.Reporting;                            // the I3 cell's health entry (xcFitAtPoints)
 
 using namespace qchem;
 using Hamiltonian::VxcFit;
@@ -86,7 +89,7 @@ const char* Name(Observed o)
     {
         case Observed::OneTerm:    return "assembles through the one term";
         case Observed::Refused:    return "refused";
-        case Observed::OtherTerm:  return "builds the other XC term (FittedVxc)";
+        case Observed::OtherTerm:  return "builds an XC term other than the one term";
         case Observed::Throws:     return "throws";
         case Observed::SilentMesh: return "accepts a cell mesh on a structure with no cell";
     }
@@ -102,8 +105,6 @@ struct Cell
 };
 const char* Name(Hamiltonian::XCρ r) {return r==Hamiltonian::XCρ::Fit ? "Pρ" : "ρ[D]";}
 
-const std::string kPin30   ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (pin-30 gap: the factory throws)";
-const std::string kI3      ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (I3: a PW fit on a Becke mesh, the E/H pairing not designed)";
 
 //! THE TABLE.  Edit a row only to move it toward its target; an X row is deleted (its \c today becomes the target)
 //! the day its defect is fixed.
@@ -112,20 +113,23 @@ const std::vector<Cell> kCells=
     // -- solid (G ⊇ T): every representation but a radial-only one imposes at most T
     {Kind::Solid,    VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
     {Kind::Solid,    VxcFit::Delta,     Points::Uniform, Target::A, Observed::OneTerm,    ""},
-    {Kind::Solid,    VxcFit::Auxiliary, Points::Becke,   Target::W, Observed::Throws,     kPin30},
-    {Kind::Solid,    VxcFit::Auxiliary, Points::Uniform, Target::W, Observed::Throws,     kPin30},
-    {Kind::Solid,    VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::Throws,     kPin30, XCρ::Fit},
-    {Kind::Solid,    VxcFit::Auxiliary, Points::Uniform, Target::A, Observed::Throws,     kPin30, XCρ::Fit},
-    {Kind::Solid,    VxcFit::PlaneWave, Points::Becke,   Target::A, Observed::Throws,     kI3},
+    {Kind::Solid,    VxcFit::Auxiliary, Points::Becke,   Target::W, Observed::OneTerm,    ""},
+    {Kind::Solid,    VxcFit::Auxiliary, Points::Uniform, Target::W, Observed::OneTerm,    ""},
+    {Kind::Solid,    VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OneTerm,    "", XCρ::Fit},
+    {Kind::Solid,    VxcFit::Auxiliary, Points::Uniform, Target::A, Observed::OneTerm,    "", XCρ::Fit},
+    {Kind::Solid,    VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Refused,    ""},
+    {Kind::Solid,    VxcFit::PlaneWave, Points::Becke,   Target::A, Observed::OneTerm,    "", XCρ::Fit},
     {Kind::Solid,    VxcFit::PlaneWave, Points::Uniform, Target::A, Observed::OneTerm,    ""},
+    {Kind::Solid,    VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Refused,    "", XCρ::Fit},
     {Kind::Solid,    VxcFit::Delta,     Points::Radial,  Target::R, Observed::Refused,    ""},
     {Kind::Solid,    VxcFit::Auxiliary, Points::Radial,  Target::R, Observed::Refused,    ""},
     {Kind::Solid,    VxcFit::Auxiliary, Points::Radial,  Target::R, Observed::Refused,    "", XCρ::Fit},
     {Kind::Solid,    VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::Refused,    ""},
+    {Kind::Solid,    VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::Refused,    "", XCρ::Fit},
     // -- molecule (G = the point group): only {e} representations -- a cell mesh / PW impose T, a radial rule O(3)
     {Kind::Molecule, VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
     {Kind::Molecule, VxcFit::Delta,     Points::Uniform, Target::R, Observed::Refused,    ""},
-    {Kind::Molecule, VxcFit::Auxiliary, Points::Becke,   Target::W, Observed::OtherTerm,  ""},
+    {Kind::Molecule, VxcFit::Auxiliary, Points::Becke,   Target::W, Observed::OneTerm,    ""},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    ""},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OneTerm,    "", XCρ::Fit},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    "", XCρ::Fit},
@@ -138,14 +142,14 @@ const std::vector<Cell> kCells=
     // -- atom (G = O(3)): Becke (less symmetry) and radial assemble; a cell mesh or PW impose T
     {Kind::Atom,     VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
     {Kind::Atom,     VxcFit::Delta,     Points::Uniform, Target::R, Observed::Refused,    ""},
-    {Kind::Atom,     VxcFit::Auxiliary, Points::Becke,   Target::W, Observed::OtherTerm,  ""},
+    {Kind::Atom,     VxcFit::Auxiliary, Points::Becke,   Target::W, Observed::OneTerm,    ""},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    ""},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OneTerm,    "", XCρ::Fit},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    "", XCρ::Fit},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Refused,    ""},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Refused,    ""},
     {Kind::Atom,     VxcFit::Delta,     Points::Radial,  Target::A, Observed::OneTerm,    ""},
-    {Kind::Atom,     VxcFit::Auxiliary, Points::Radial,  Target::W, Observed::OtherTerm,  ""},
+    {Kind::Atom,     VxcFit::Auxiliary, Points::Radial,  Target::W, Observed::OneTerm,    ""},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Radial,  Target::A, Observed::OneTerm,    "", XCρ::Fit},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::Refused,    ""},
 };
@@ -167,10 +171,17 @@ bool Leq(Group h, Group g) {return h==Group::E || h==g;}
 Target Derived(const Cell& c)
 {
     if (!(Leq(H(c.kind,c.fit),G(c.kind)) && Leq(H(c.points),G(c.kind)))) return Target::R;
+    // The plane-wave ball over the solid's GPW orbitals (every solid cell here is GPW): no ball holds a Gaussian pair product, so P rho is
+    // not rho[D] and the rho axis splits.  On the raster the realized route collocates rho[D] (rho fit refused, lane S 4a972a43); at Becke
+    // points the ball's P rho is synthesized (I3), and XC of rho[D] there IS the delta cell (rho exact refused, user ruling 2026-11-14).
+    if (c.kind==Kind::Solid && c.fit==VxcFit::PlaneWave)
+        return (c.points==Points::Becke) == (c.rho==XCρ::Fit) ? Target::A : Target::R;
     return c.fit==VxcFit::Auxiliary && c.rho==XCρ::Exact ? Target::W : Target::A;
 }
-Observed AtTarget(Target t) {return t==Target::A ? Observed::OneTerm : t==Target::W ? Observed::OtherTerm : Observed::Refused;}
-bool Reached(const Cell& c) {return c.today==AtTarget(c.target);}
+//! Every admitted cell, A and W alike, assembles through the one term: the W cell is the fitted-potential sampler (FittedVxc retired
+//! 2026-11-15, lane S), so only the target says it is not variational.
+Observed AtTarget(Target t, Kind) {return t==Target::R ? Observed::Refused : Observed::OneTerm;}
+bool Reached(const Cell& c) {return c.today==AtTarget(c.target, c.kind);}
 
 //! A small Becke mesh: the cells are classified, not converged.
 qcMesh::MeshParams PointsFor(Points p)
@@ -204,8 +215,15 @@ Observed Observe(const Cell& c)
                 BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
             std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::GPWFactory(lat, mol, {.densityEcut=8.0}));
             Hamiltonian::CoulombFitSlot<dcmplx> coulombFit;
+            std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> aux;   // the periodic A1 set, built by the caller as the facade does
+            if (c.fit==VxcFit::Auxiliary)
+            {
+                std::shared_ptr<const BasisSet::Real_BS> a1mol(BasisSet::Gaussian::FactoryFromFile("A1_exch.bsd", &cell));
+                aux=std::make_shared<const BasisSet::Gaussian::tGPW_IBS<double>>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell,
+                                                                                 ivec3_t(1,1,1), ivec3_t(0,0,0), a1mol, 0.0);
+            }
             std::unique_ptr<Hamiltonian::cHamiltonian> ham(Hamiltonian::Factory(SpinGroup::UnPolarized, lat.GetStructure(), bs.get(), coulombFit,
-                Pseudopotential::PseudopotentialSet::Get("gth-lda-valence"), mesh, c.fit));   // (the solid door has no ρ axis yet: an A1 cell throws first)
+                Pseudopotential::PseudopotentialSet::Get("gth-lda-valence"), mesh, Hamiltonian::XCRoute(c.fit, c.rho), {}, {}, aux));
             return HoldsTheOneTerm(*ham) ? Observed::OneTerm : Observed::OtherTerm;
         }
         std::shared_ptr<const Structure> st;
@@ -232,6 +250,7 @@ Observed Observe(const Cell& c)
         if (c.points==Points::Uniform) return Observed::SilentMesh;
         return HoldsTheOneTerm(*ham) ? Observed::OneTerm : Observed::OtherTerm;
     }
+    catch (const std::invalid_argument&) {return Observed::Refused;}   // a factory refusal: a cell no code may run (the caller did not ask first)
     catch (const std::logic_error&) {return Observed::Throws;}
 }
 } //namespace
@@ -256,8 +275,8 @@ TEST(VxcProductSpace, TheTableIsWellFormed)
             {
                 for (XCρ r : {XCρ::Exact, XCρ::Fit})
                 {
-                    // Pρ is its own cell only where P is inexact: the A1 fit
-                    if (r==XCρ::Fit && f!=VxcFit::Auxiliary) continue;
+                    // Pρ is its own cell only where P is inexact: the A1 fit, and the plane-wave ball over the solid's GPW orbitals
+                    if (r==XCρ::Fit && !(f==VxcFit::Auxiliary || (k==Kind::Solid && f==VxcFit::PlaneWave))) continue;
                     bool listed=false;
                     for (const Cell& c : kCells) listed|= c.kind==k && c.fit==f && c.points==p && c.rho==r;
                     EXPECT_TRUE(listed) << Name(k) << " x " << Name(f) << " x " << Name(p) << " x " << Name(r) << " is missing from the table";
@@ -274,7 +293,7 @@ TEST(VxcProductSpace, EveryCellDoesWhatTheTableSays)
         std::cout << "[Vxc cell] " << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points) << " x " << Name(c.rho) << ": " << Name(o) << std::endl;
         EXPECT_EQ(o, c.today) << Name(c.kind) << " x " << Name(c.fit) << " x " << Name(c.points) << " x " << Name(c.rho) << ": " << Name(o)
             << ", the table says " << Name(c.today)
-            << (o==AtTarget(c.target)
+            << (o==AtTarget(c.target, c.kind)
                 ? " -- it REACHED its target: move the row (and close its defect)" : "")
             << (c.row.empty() ? "" : "  [row: "+c.row+"]");
     }
@@ -386,7 +405,7 @@ TEST(VxcProductSpace, SinglesAndPairSamplersAgreeOnOneUniformMesh)
 //! THE A1 Pρ CELL IS VARIATIONAL (V-XC-ONE-TERM step 3, 2026-11-10): the overlap-projected sampler's \c Matrix is the exact derivative of
 //! its \c Rho's quadrature energy.  A QUADRATIC test functional, \f$E=\sum_g w_g(P\rho)_g^2\f$ (\f$v=2P\rho\f$), makes the central
 //! difference exact, so the gate isolates the forward/adjoint pairing from the functional: \f$\mathrm{Tr}(H\Delta)=dE/ds\f$ to roundoff.
-//! It is what the Gaussian x δ cell (\c FittedVxc) FAILS by construction (pin 32): its H fits \f$v(\rho[D])\f$ on its own mesh.
+//! It is what the Gaussian x δ cell (the W cell) FAILS by construction (pin 32): its H fits \f$v(\rho[D])\f$.
 TEST(VxcProductSpace, TheA1ProjectedCellsMatrixIsItsEnergysDerivative)
 {
     auto n2=std::make_shared<Molecule>();
@@ -432,5 +451,135 @@ TEST(VxcProductSpace, TheA1ProjectedCellsMatrixIsItsEnergysDerivative)
     const double ds=1.0, Ep=energy(ds), Em=energy(-ds), fd=(Ep-Em)/(2*ds);
     std::cout << "[FD A1 Pρ] E(+s)=" << std::setprecision(14) << Ep << " E(-s)=" << Em << " n=" << n << " nFit=" << fb->GetNumFunctions() << " points=" << sampler->NumPoints()
               << " fd=" << std::setprecision(14) << fd << " Tr(H Delta)=" << an << " rel=" << std::fabs(an-fd)/std::fabs(fd) << std::endl;
-    EXPECT_NEAR(an, fd, 1e-8*std::max(1.0,std::fabs(fd))) << "the A1 metric's roundoff is ~3e-10 here; H off a DIFFERENT quadrature (the FittedVxc mismatch) misses by the mesh's own error";
+    EXPECT_NEAR(an, fd, 1e-8*std::max(1.0,std::fabs(fd))) << "the A1 metric's roundoff is ~3e-10 here; H from a fitted v (the W cell) misses by the fit's own error";
+}
+
+//! I3 IS VARIATIONAL (V-XC-ONE-TERM step 4, lane S 2026-11-14): the plane-wave ball evaluated at Becke points.  P rho(r_g) is the ball's
+//! Fourier series of rho[D] synthesized at each point, E = sum_g w_g e(P rho(r_g)), and Matrix contracts the exact adjoint (the ball's
+//! projection of v from the points).  So H = dE/dD, on a GPW block where P is inexact.  e = rho^2 makes E exactly quadratic in s (the
+//! central difference has no truncation error), and its derivative is v = 2 rho.
+TEST(VxcProductSpace, ThePlaneWaveBallAtBeckePointsIsItsEnergysDerivative)
+{
+    using namespace qchem::ChargeDensity;
+    UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5});
+    std::shared_ptr<const Structure> st=cell.Clone();
+    std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(
+        BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, 12.0,
+                                            BasisSet::Gaussian::CellImages::Periodic, 2.0, 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, {});
+    const qcMesh::MeshParams becke=qcMesh::BeckeXCParams(30, -1.0, 11);
+    BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*st, becke, nullptr);   // a bare block: the plain mesh
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> pw(cx.CreateVxcFitBasisSet(st.get(), becke));
+    const auto atPoints=MakeDensitySampler(pw, quad);
+    const auto onRaster=MakeDensitySampler(pw, {});
+    EXPECT_EQ(atPoints->NumPoints(), quad.GetMesh()->size()) << "the ball handed a point set is evaluated there";
+
+    const size_t n=cx.GetNumFunctions();
+    hmat_t<dcmplx> D(n), Delta(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+    {
+        D(i,j)    = i==j ? dcmplx(4.0/double(n),0.0) : dcmplx(0.004*((3*i+5*j)%7)-0.012, 0.0);
+        Delta(i,j)= i==j ? dcmplx(0.01*((5*i)%7)-0.03,0.0) : dcmplx(0.01*((2*i+7*j)%5)-0.02, 0.0);
+    }
+    const Irrep irr=cx.GetIrrep(Spin::None);
+    auto density=[&](const hmat_t<dcmplx>& d)
+    {
+        auto cd=std::make_unique<tComposite_CD<dcmplx>>();
+        cd->Insert(std::unique_ptr<tDM_CD<dcmplx>>(new PeriodicIrrepCD<dcmplx>(chmat_t(d), &cx, irr)), irr);
+        return cd;
+    };
+    auto energy=[&](double s)
+    {
+        const auto cd=density(hmat_t<dcmplx>(D+s*Delta));
+        rvec_t e=atPoints->Rho(cd.get());
+        for (auto& x : e) x*=x;
+        return atPoints->Integrate(e);
+    };
+    const auto cd0=density(D);
+    rvec_t v;
+    {   // THE CELL REPORTS ITS HEALTH every synthesis (controller 2026-11-14): the truncation charge error and min rho_P, one level in
+        qchem::report::Run run("I3 health");
+        v=atPoints->Rho(cd0.get());
+    }
+    {
+        const auto& G=qchem::report::GlobalReport();
+        const qchem::report::json* filed=nullptr;
+        for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind("I3 health@",0)==0) filed=&it.value();
+        ASSERT_NE(filed, nullptr);
+        ASSERT_TRUE(filed->contains("xcFitAtPoints")) << filed->dump(1);
+        const auto& h=(*filed)["xcFitAtPoints"];
+        EXPECT_TRUE(h.contains("chargeError") && h.contains("minRho") && h.contains("chargeTarget")) << h.dump();
+        EXPECT_NEAR(h["chargeError"].get<double>(), atPoints->Integrate(v)-cd0->GetTotalCharge(), 1e-12);
+    }
+    const double qPoints=atPoints->Integrate(v), qRaster=onRaster->Integrate(onRaster->Rho(cd0.get()));
+    v*=2.0;
+    const chmat_t H=atPoints->Matrix(&cx, v);
+    double an=0.0;
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) an+=std::real(dcmplx(H(i,j))*dcmplx(Delta(j,i)));
+    const double ds=1.0, fd=(energy(ds)-energy(-ds))/(2*ds);
+    std::cout << "[FD PW ball at Becke] n=" << n << " nG=" << pw->GetNumFunctions() << " points=" << atPoints->NumPoints()
+              << " q(points)=" << std::setprecision(12) << qPoints << " q(raster)=" << qRaster
+              << " fd=" << std::setprecision(14) << fd << " Tr(H Delta)=" << an << " rel=" << std::fabs(an-fd)/std::fabs(fd) << std::endl;
+    EXPECT_NEAR(an, fd, 1e-9*std::max(1.0,std::fabs(fd))) << "H must be the derivative of the energy evaluated at the Becke points";
+    // The charges are PRINTED, not gated: the ball's charge is Omega rho~(0), exact on the raster, but on a GPW block rho_P is the raster's
+    // rho[D] truncated to the ball, which rings near the nuclei (pin 1), and the Becke points sit there -- at this deliberately coarse ball
+    // (densityEcut 12) and mesh the two differ by ~2%.  That is grid convergence (the pilot's business), not the pairing this test gates.
+    EXPECT_FALSE(atPoints->CanPullbackMatrix(&cx)) << "the Becke points move with the atoms: no geometry gradient on this route yet";
+}
+
+//! THE PERIODIC A1 Pρ CELL IS VARIATIONAL (V-XC-ONE-TERM step 6, lane S 2026-11-15): the A1 Vxc set on the cell's sites, lattice-summed at
+//! Gamma (a real Gamma GPW block over it), rho[D] at the XC points (the delta basis there) fitted onto it with its ANALYTIC overlap metric,
+//! P rho = Phi S^-1 Phi^T w rho evaluated back at the points, and the same operator on v into the delta basis's Matrix.  So H = dE/dD on a Becke mesh and on a uniform cell mesh alike;
+//! e = rho^2 makes E exactly quadratic (no truncation error in the central difference).
+TEST(VxcProductSpace, ThePeriodicA1ProjectedCellIsItsEnergysDerivative)
+{
+    using namespace qchem::ChargeDensity;
+    UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5});
+    std::shared_ptr<const Structure> st=cell.Clone();
+    std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(
+        BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, 12.0,
+                                            BasisSet::Gaussian::CellImages::Periodic, 2.0, 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, {});
+    std::shared_ptr<const BasisSet::Real_BS> a1mol(BasisSet::Gaussian::FactoryFromFile("A1_exch.bsd", &cell));
+    auto a1=std::make_shared<const BasisSet::Gaussian::tGPW_IBS<double>>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell,
+                                                                           ivec3_t(1,1,1), ivec3_t(0,0,0), a1mol, 0.0);
+    const size_t n=cx.GetNumFunctions();
+    hmat_t<dcmplx> D(n), Delta(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+    {
+        D(i,j)    = i==j ? dcmplx(4.0/double(n),0.0) : dcmplx(0.004*((3*i+5*j)%7)-0.012, 0.0);
+        Delta(i,j)= i==j ? dcmplx(0.01*((5*i)%7)-0.03,0.0) : dcmplx(0.01*((2*i+7*j)%5)-0.02, 0.0);
+    }
+    const Irrep irr=cx.GetIrrep(Spin::None);
+    auto density=[&](const hmat_t<dcmplx>& d)
+    {
+        auto cd=std::make_unique<tComposite_CD<dcmplx>>();
+        cd->Insert(std::unique_ptr<tDM_CD<dcmplx>>(new PeriodicIrrepCD<dcmplx>(chmat_t(d), &cx, irr)), irr);
+        return cd;
+    };
+    for (const auto& [name, mesh] : {std::pair<std::string,qcMesh::MeshParams>{"Becke", qcMesh::BeckeXCParams(30, -1.0, 11)},
+                                     std::pair<std::string,qcMesh::MeshParams>{"uniform", qcMesh::MeshParams{.nUniform=16, .cellKind=UnitCellKind::Uniform}}})
+    {
+        BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*st, mesh, nullptr);
+        auto delta=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), quad,
+                                                                          Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+        const auto s=MakeAuxiliaryFitSampler(delta, quad, a1, /*projected*/true);
+        auto energy=[&](double t)
+        {
+            const auto cd=density(hmat_t<dcmplx>(D+t*Delta));
+            rvec_t e=s->Rho(cd.get());
+            for (auto& x : e) x*=x;
+            return s->Integrate(e);
+        };
+        const auto cd0=density(D);
+        rvec_t v=s->Rho(cd0.get());
+        v*=2.0;
+        const chmat_t H=s->Matrix(&cx, v);
+        double an=0.0;
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) an+=std::real(dcmplx(H(i,j))*dcmplx(Delta(j,i)));
+        const double ds=1.0, fd=(energy(ds)-energy(-ds))/(2*ds);
+        std::cout << "[FD periodic A1 Pρ, " << name << "] n=" << n << " nA1=" << a1->GetNumFunctions() << " points=" << s->NumPoints()
+                  << " fd=" << std::setprecision(14) << fd << " Tr(H Delta)=" << an << " rel=" << std::fabs(an-fd)/std::fabs(fd) << std::endl;
+        EXPECT_NEAR(an, fd, 1e-9*std::max(1.0,std::fabs(fd))) << name << ": H must be the derivative of the energy of P rho at the points";
+    }
 }

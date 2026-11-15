@@ -29,6 +29,8 @@ import qchem.Structure;
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
 import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
 import qchem.Reporting;                           // the xcQuadrature route announcement, the term scopes and their fitbasis rows
+import qchem.BasisSet.G_FieldEvaluator;           // G_OrbitalPairBall: does the plane-wave Vxc ball hold every orbital pair (the rho axis)
+import qchem.ChargeDensity.DensitySampler;        // MakeAuxiliaryFitSampler
 
 namespace qchem::Hamiltonian
 {
@@ -47,8 +49,8 @@ Ham_HF::Ham_HF(const st_t& st, SpinGroup g)
     Add(new Kinetic<double>);
     Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
     Add(new Ven(st));
-    Add(new Vee);
-    Add(new Vxc);                  // same-spin exchange: -1/2 K on a folded doublet, -K per channel
+    Add(new Vee_HF);
+    Add(new Vxc_HF);                  // same-spin exchange: -1/2 K on a folded doublet, -K per channel
 }
 
 //! A FIT BASIS IS BUILT IN ITS TERM'S SCOPE, one level into the caller's context, and files one \c fitbasis row there: a facade's run
@@ -80,43 +82,41 @@ static std::shared_ptr<const qcMesh::SiteMultipoles> MakeSiteMultipoles(const st
     return std::make_shared<const qcMesh::SiteMultipoles>(mesh, centres, mp, lMax);
 }
 
-//! THE MOLECULAR / ATOM XC TERM (V-XC-ONE-TERM, 2026-10-31): the δ basis runs the ONE XC term the periodic path runs
-//! (\c tVxc_Quadrature<double>: v_xc at the mesh points, E_xc by the same quadrature, the adjoint for H), chosen by the fit
-//! basis's CAPABILITY (an orthogonal fit is a quadrature), never by T.
-//! THE \f$\rho\f$ AXIS (\c XCρ, user ruling 2026-11-09).  A δ basis on the XC points has an exact \f$P\f$, so both values are the one
-//! singles term.  A non-orthogonal A1 fit splits: \c XCρ::Fit is the PROJECTED strategy through the same term (\f$E=\int e(P\rho)\f$,
-//! \f$H=\partial E/\partial D\f$; V-XC-ONE-TERM step 3), and \c XCρ::Exact is the Gaussian x \f$\delta\f$ cell, \c FittedVxc (\f$v(\rho[D])\f$
-//! fitted for \f$H\f$; not variational, pin 32) -- the policy layer warns on it.  The multipole fit's \c Fit cell is not realized yet (an
-//! X cell of UTHamiltonian VxcProductSpace).
+//! THE MOLECULAR / ATOM XC TERM (V-XC-ONE-TERM, 2026-10-31): every cell runs the ONE XC term the periodic path runs
+//! (\c tVxc_Quadrature<double>: E_xc by a quadrature on the run's XC mesh, H by its sampler's Matrix), the cell chosen by the sampler.
+//! THE \f$\rho\f$ AXIS (\c XCρ, user ruling 2026-11-09):
+//!   - a δ basis on the XC points has an exact \f$P\f$, so both values are the one singles term;
+//!   - the A1 fit at \c XCρ::Fit is the PROJECTED strategy (\f$E=\int e(P\rho)\f$, \f$H=\partial E/\partial D\f$; V-XC-ONE-TERM step 3);
+//!   - the A1 fit at \c XCρ::Exact, and the multipole fit, are the FITTED-POTENTIAL cell (target W): \f$E=\sum_g w_g e(\rho[D])\f$ by the δ
+//!     quadrature, \f$v\f$ fitted for H (not variational, pin 32; the policy layer warns).  Until 2026-11-15 this was \c FittedVxc, which
+//!     fitted \f$\varepsilon\f$ for E as well, on the fit's own mesh (lane S: retired, the cell is the periodic one's decorator now).
+//! The multipole fit's \c Fit cell is not realized yet (an X cell of UTHamiltonian VxcProductSpace).
 static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp, XCRoute xc,
                                      std::vector<std::shared_ptr<ExFunctional>> parts, SpinGroup g, int lMax)
 {
     const VxcFit resolved=MolecularVxcFit(xc.fit);
-    const bool   projected=xc.rho==XCρ::Fit && resolved==VxcFit::Auxiliary;   // the A1 Pρ cell: the projected strategy on the XC mesh
     if (xc.rho==XCρ::Fit && resolved==VxcFit::Multipole)
         throw std::logic_error("MolecularVxcTerm: xc.rho \"fit\" with the multipole Vxc fit is not realized yet -- the projected strategy "
                                "over MultipoleFit_IBS (an open X cell of UTHamiltonian VxcProductSpace, V-XC-ONE-TERM)");
-    // A δ basis is built over the XC quadrature, and the projected A1 strategy integrates on it; the fitted-v A1 term keeps its own
-    // private mesh.
-    BasisSet::FitQuadrature quad;
-    if (resolved==VxcFit::Delta || resolved==VxcFit::Multipole || projected) quad=BasisSet::MakeXCQuadrature(*st, mp, bs->GetImposition());
+    BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*st, mp, bs->GetImposition());
+    auto sum=std::make_shared<CompositeExFunctional>(std::move(parts));
+    // The δ basis on the XC points: the whole term on the δ cell, the inner strategy of a fitted-potential one.
+    auto makeDelta=[&]{return bs->CreateVxcFitBasisSet(st.get(), mp, VxcFit::Delta, &quad);};
     if (resolved==VxcFit::Multipole)
     {
-        // Through the fit, as the A1 route is: the sampler strategy below is the δ route's own, and its coefficients are point values.
         const auto delta=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]
         {
             qchem::report::Set("lMax", lMax);
-            return bs->CreateVxcFitBasisSet(st.get(), mp, VxcFit::Delta, &quad);
+            return makeDelta();
         });
-        FittedVxc::fbs_t mfb=std::make_shared<BasisSet::MultipoleFit_IBS>(std::make_shared<BasisSet::BasisCache>(), delta, MakeSiteMultipoles(st, *quad.GetMesh(), mp, lMax), sym_t(new UnitQN));
-        FittedVxc::ex_t  fx(std::make_shared<CompositeExFunctional>(std::move(parts)));
-        return new FittedVxc(mfb, fx, g);
+        auto sampler=ChargeDensity::MakeMultipoleFittedPotentialSampler(delta, quad, MakeSiteMultipoles(st, *quad.GetMesh(), mp, lMax));
+        return new tVxc_Quadrature<double>(sum, std::move(sampler), g);
     }
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]{return bs->CreateVxcFitBasisSet(st.get(), mp, resolved, &quad);});
-    if (fb->isOrtho() || projected) return MakeVxcTerm(std::move(parts), fb, g, std::move(quad)).release();
-    FittedVxc::fbs_t ffb=fb;
-    FittedVxc::ex_t  fx(std::make_shared<CompositeExFunctional>(std::move(parts)));
-    return new FittedVxc(ffb, fx, g);
+    if (fb->isOrtho() || xc.rho==XCρ::Fit)
+        return new tVxc_Quadrature<double>(sum, ChargeDensity::MakeDensitySampler(fb, std::move(quad)), g);
+    const auto delta=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc points", makeDelta);
+    return new tVxc_Quadrature<double>(sum, ChargeDensity::MakeFittedPotentialSampler(delta, quad, fb), g);
 }
 
 //! The run's Coulomb fit from its slot (built by \a make on the first ask).
@@ -267,7 +267,8 @@ Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& sp
 
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const Pseudopotential::LocalPotential* loc,
                             const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
-                            VxcFit fit, std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> functional)
+                            XCRoute route, std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> functional,
+                            std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
 {
     // Build the functionals FIRST: their GridCutoffFactor() sets how dense the fit grid must be (the CP2K
     // REL_CUTOFF seam).  The parts share ONE Vxc fit basis, so it takes the DENSEST of them.  Default LDA: Dirac + VWN5.
@@ -310,6 +311,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
     // The route ANNOUNCES itself (user pin: the console always says which XC route is in play --
     // this is the one selection site).
     const bool becke = xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
+    const VxcFit fit = route.fit;
     // ★★★ AUTO NOW READS THE GRID ALONE.  The rule used to be `becke || polarized`, and the `polarized`
     // half was a CONFLATION of two orthogonal things (user, 2026-08-28: *"polarization and XC grids ... in
     // my mind they have nothing to do with each other ... the user should be able to select any XC grid,
@@ -331,15 +333,14 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
     // as stated, which refuses it (a pin-30 gap).  Until 2026-10-31 the `delta ? Delta : PlaneWave` below turned it
     // into the plane-wave route SILENTLY -- found by the Vxc product-space UT (UTHamiltonian VxcProductSpace).
     const VxcFit resolved = fit==VxcFit::Auxiliary ? fit : (delta ? VxcFit::Delta : VxcFit::PlaneWave);
-    // A PlaneWave fit ON a Becke grid (I3) is refused until its one-functional E/H derivative pairing
-    // is designed (the projection sum is trivial; the DISCIPLINE is that H must be the exact derivative of
-    // the quadratured E -- the user's GDM-after-DIIS audit would expose any mismatch).  A THROW, not an assert
-    // (2026-10-31): compiled out under NDEBUG the assert let a Release run take the raster instead, silently --
-    // and it is a cell of the Vxc product space (UTHamiltonian VxcProductSpace), an open gap of pin 30.
-    if (resolved==VxcFit::PlaneWave && becke)
-        throw std::logic_error("Ham_PW_DFT: VxcFit::PlaneWave on a Becke XC mesh (I3) -- the E/H one-functional pairing is not "
-                               "designed yet; an open gap of the Vxc product space (pin 30)");
-
+    // A PlaneWave fit ON a Becke grid (I3, V-XC-ONE-TERM step 4, lane S 2026-11-14): the ball's Fourier series of rho evaluated AT the
+    // Becke points, rho_P(r_g) = sum_G rho~(G) e^{iG.r_g} (rho~ linear in D), E = sum_g w_g e(rho_P(r_g)), and H = the exact adjoint:
+    // v~(G) = (1/Omega) sum_g w_g v_g e^{-iG.r_g} contracted with <ij|G> -- ONE functional, H = dE/dD (the projected strategy on a point
+    // set, \c ProjectedDensitySampler).  The quadrature is built for it as for the delta route.  What rho_P IS splits on the orbital
+    // basis: a ball holding every orbital pair (plane-wave orbitals) gives rho_P = rho[D], either value of xc.rho; any other (GPW)
+    // gives P rho, so it serves xc.rho fit, and xc.rho exact is REFUSED there by name (user ruling 2026-11-14, option (ii)) -- XC of
+    // rho[D] on Becke points IS the delta cell, and a plane-wave-fitted v of rho[D] would break H = dE/dD.
+    const bool ballOnBecke = resolved==VxcFit::PlaneWave && becke;
     qcMesh::MeshParams xc=xcMesh;   // the user's mesh knobs (WHICH POINTS) + the functional's fit-grid density
     xc.relCutoff=mp.relCutoff;      // the REPRESENTATION travels as its own argument, not folded in here
 
@@ -351,8 +352,8 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
     // TWO CONCEPTS, TWO LINES (user, 2026-10-05): the INTEGRATION GRID and the Vxc FIT BASIS are different things even where they
     // coincide numerically (a delta fit on the quadrature's own points), so the quadrature line never says "fit".
     std::cout<<"[XC quadrature] "
-             <<(delta ? (becke ? "periodic BECKE atom-centred mesh (details on the [Becke grid] line)" : "uniform cell mesh")
-                      : "uniform real-space raster of the density's {G} ball (details on the [uniform grid] line)")
+             <<(becke ? "periodic BECKE atom-centred mesh (details on the [Becke grid] line)"
+                      : delta ? "uniform cell mesh" : "uniform real-space raster of the density's {G} ball (details on the [uniform grid] line)")
              <<std::endl;
     std::cout<<"[Vxc fit] "
              <<(delta ? "delta functions on the XC quadrature's points (the trivial fit: v_xc sampled at each point)"
@@ -363,7 +364,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
     // announces its own grid separately, in its term, as vxcFitGrid).  Relative, never a root-anchored key (user ruling 2026-11-02).
     {
         qchem::report::Scope here("xcQuadrature");
-        qchem::report::Set("kind", delta ? (becke ? "Becke" : "DeltaUniform") : "PlaneWave");
+        qchem::report::Set("kind", becke ? "Becke" : delta ? "DeltaUniform" : "PlaneWave");
     }
     // ONE factory call still makes every representation decision.  On the δ route the run's XC QUADRATURE (mesh + atomic
     // partition + orbit fold + Shubnikov tags) is built FIRST, by the imposition the basis was built under (MakeXCQuadrature,
@@ -375,12 +376,45 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
         // EXCLUSIVE of "setup: becke mesh build", which happens inside here and has its own bucket -- so
         // this one reads as the fit basis's OWN construction over an already-built mesh.
         qchem::report::Timed timed("setup: Vxc fit basis (mesh build is its child)");
-        if (resolved==VxcFit::Delta)
+        if (resolved==VxcFit::Delta || ballOnBecke || resolved==VxcFit::Auxiliary)
         {
             qchem::report::Timed timed("setup: XC quadrature build (mesh + fold are its children)");
             quadrature=BasisSet::MakeXCQuadrature(*st, xc, bs->GetImposition());
         }
-        XFitBasis=BuildTermFit<BasisSet::cFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]{return bs->CreateVxcFitBasisSet(st.get(), xc, resolved, &quadrature);});
+        // The periodic A1 fit (V-XC-ONE-TERM step 6) is not a fit basis this factory can return (it is REAL; the complex lineage's fit
+        // factory returns a complex fit, and a real one there would change a tier-1 hub): XFitBasis is then the delta basis on the XC points,
+        // through which its strategy samples rho[D], and the A1 set comes from the caller and is held by the strategy.
+        const VxcFit asFitBasis = resolved==VxcFit::Auxiliary ? VxcFit::Delta : resolved;
+        XFitBasis=BuildTermFit<BasisSet::cFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]{return bs->CreateVxcFitBasisSet(st.get(), xc, asFitBasis, &quadrature);});
+    }
+    // THE RHO AXIS ON THE PLANE-WAVE FIT (the solid door's, since step 4).  A ball that holds every orbital pair has P rho = rho[D]: both
+    // values of xc.rho are one cell.  Any other ball (GPW) splits them, and a cell with no realization is REFUSED (invalid_argument: the
+    // caller did not ask \c qchem.XCRhoPolicy first), never run as the other value of the axis.
+    std::shared_ptr<const ChargeDensity::DensitySampler> a1Sampler;   // the periodic A1 cells' strategy, else empty (the factory decides)
+    if (resolved==VxcFit::Auxiliary)
+    {
+        // THE PERIODIC A1 SET (V-XC-ONE-TERM step 6, controller 2026-11-15): the molecular A1 Vxc set (A1_exch, Z <= 54) on the cell's sites,
+        // lattice-summed at Gamma -- a REAL Gamma GPW block over it (\a vxcAux) supplies the analytic lattice-summed overlap and the
+        // image-summed point values.  The CALLER builds it (the facade, which links the Gaussian factories this library does not).
+        if (!vxcAux)
+            throw std::invalid_argument("Ham_PW_DFT: the periodic A1 Vxc fit needs its real Gamma set (the A1_exch set on the cell's sites), "
+                                        "which the caller builds and hands in");
+        const auto& a1=vxcAux;
+        std::cout<<"[Vxc fit] the periodic A1 Gaussian set ("<<a1->GetNumFunctions()<<" functions, lattice-summed at Gamma), "
+                 <<(route.rho==XCρ::Fit ? "XC of P rho at the XC points" : "v(rho[D]) fitted for H")<<std::endl;
+        a1Sampler=ChargeDensity::MakeAuxiliaryFitSampler(XFitBasis, std::move(quadrature), a1, route.rho==XCρ::Fit);
+    }
+    else if (resolved==VxcFit::PlaneWave)
+    {
+        const auto* ball=dynamic_cast<const BasisSet::G_OrbitalPairBall*>(XFitBasis.get());   // abstract -> abstract
+        const bool exactP = ball && ball->HoldsEveryOrbitalPair();
+        if (!exactP && becke && route.rho==XCρ::Exact)
+            throw std::invalid_argument("Ham_PW_DFT: the plane-wave Vxc fit on a Becke mesh at xc.rho exact over Gaussian (GPW) orbitals -- no "
+                "ball holds a Gaussian pair product, so XC of rho[D] at the Becke points is the delta cell (state xc.fit Delta), and the ball "
+                "realizes only its projection P rho (state xc.rho fit)");
+        if (!exactP && !becke && route.rho==XCρ::Fit)
+            throw std::invalid_argument("Ham_PW_DFT: the plane-wave Vxc fit on its raster at xc.rho fit over Gaussian (GPW) orbitals -- the raster "
+                "route collocates rho[D] itself; state xc.rho exact (what this cell runs), or a Becke mesh, where the ball's P rho is realized");
     }
     // SPIN-NATIVE (tier 4b) exchange must be channel-native: a spin-tagged SlaterExchange does NOT halve
     // rho, because it is fed rho_sigma per channel.  Correlation's two-channel face serves both cases.
@@ -388,7 +422,8 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
         // EXCLUSIVE of "setup: XC-mesh Phi tables" (built inside, own bucket) -- so this reads as the term
         // assembly around them.
         qchem::report::Timed timed("setup: XC term assembly (Phi tables are its child)");
-        Add(MakeVxcTerm(parts, XFitBasis, GetSpinGroup(), std::move(quadrature)).release());
+        if (a1Sampler) Add(new Vxc_Quadrature(std::make_shared<CompositeExFunctional>(parts), a1Sampler, GetSpinGroup()));
+        else           Add(MakeVxcTerm(parts, XFitBasis, GetSpinGroup(), std::move(quadrature)).release());
     }
     // DFT+U (programme step 5): one term carrying the whole manifold list, born on the forward/adjoint pair.
     if (!hubbard.empty()) Add(new Hubbard_U(st, std::move(hubbard), GetSpinGroup()));
@@ -427,11 +462,12 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcm
 
 // Multi-species, runtime vector form (LiCoO2 / f-oxides: distinct elements collected at run time).
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const std::vector<std::pair<std::string,int>>& species,
-                       const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit, SpinGroup g,
-                       std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc)
+                       const std::string& functional, const qcMesh::MeshParams& xcMesh, XCRoute fit, SpinGroup g,
+                       std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc,
+                       std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
     : cHamiltonianImp(g)
 {
-    BuildFromGTH(st, bs, coulombFit, species, functional, xcMesh, fit, std::move(hubbard), std::move(xc));
+    BuildFromGTH(st, bs, coulombFit, species, functional, xcMesh, fit, std::move(hubbard), std::move(xc), std::move(vxcAux));
 }
 
 // Look up each (element, valence) from the GTH database and build + OWN a per-Z router model (one
@@ -439,8 +475,9 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcm
 // FormFactor(a->itsZ,...) dispatches to the right species).  The owned models outlive the terms (members,
 // destroyed after the cHamiltonian base that holds them), so each term's &loc/&nl stays valid for the run.
 void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const std::vector<std::pair<std::string,int>>& species,
-                              const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit,
-                              std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc)
+                              const std::string& functional, const qcMesh::MeshParams& xcMesh, XCRoute fit,
+                              std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc,
+                              std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
 {
     std::shared_ptr<const Pseudopotential::LocalPotential> loc;   // the ONE builder the GPW facade sizes its ladder from (V-BS-RASTER)
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
@@ -459,7 +496,7 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitS
     }
     itsOwnedLocal=loc;
     itsOwnedSep  =sep;
-    BuildTerms(st, bs, coulombFit, loc.get(), sep.get(), xcMesh, fit, std::move(hubbard), std::move(xc));
+    BuildTerms(st, bs, coulombFit, loc.get(), sep.get(), xcMesh, fit, std::move(hubbard), std::move(xc), std::move(vxcAux));
 }
 
 Ham_DHF_1E::Ham_DHF_1E(const st_t& st)
@@ -476,8 +513,8 @@ Ham_DHF::Ham_DHF(const st_t& st)
     Add(new DiracKinetic());
     Add(new RestMass());
     Add(new Ven(st));
-    Add(new Vee());
-    Add(new Vxc());
+    Add(new Vee_HF);
+    Add(new Vxc_HF);
 }
 
 } //namespace

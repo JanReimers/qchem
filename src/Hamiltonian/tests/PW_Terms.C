@@ -20,6 +20,8 @@ import qchem.BasisSet.PlaneWave.Evaluators;   // PW_Grid_Evaluator -- a UNIT TES
 import qchem.BasisSet.Lattice.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
 import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
 import qchem.Mesh;                           // qcMesh::MeshParams (the Hartree fit basis factory arg; ignored)
+import qchem.Mesh.XCPolicy;                  // BeckeXCParams (the I3 gate)
+import qchem.BasisSet;                       // MakeXCQuadrature, FitQuadrature (the I3 gate)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
 import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
@@ -457,4 +459,48 @@ TEST(PW_Terms, TheXCMatrixIsItsEnergysDerivative)
               << " rel=" << std::fabs(an-fd)/std::fabs(fd) << std::endl;
     EXPECT_NEAR(an, fd, 1e-9*std::max(1.0,std::fabs(fd))) << key;
     }
+}
+
+// I3 ON PLANE-WAVE ORBITALS (V-XC-ONE-TERM step 4): the >= 4 Ecut ball holds every orbital pair, so the ball's series synthesized at Becke
+// points IS rho[D] there, and H (the exact adjoint: the ball's projection of v from the points) is dE/dD.  e = rho^2: E is exactly
+// quadratic in s, so the central difference has no truncation error and a large step is right.
+TEST(PW_Terms, TheBallAtBeckePointsIsItsEnergysDerivative)
+{
+    const double a=10.26, h=0.5*a;
+    Matrix3D<double> Amat(0.0,h,h,  h,0.0,h,  h,h,0.0);
+    auto cell=std::make_shared<UnitCell>(Amat);
+    cell->AddAtom(14,rvec3_t(0.0,0.0,0.0));
+    cell->AddAtom(14,rvec3_t(0.25,0.25,0.25));
+    const ivec3_t N(4,4,4);
+    Lattice_3D    lat(*cell, N);
+    PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), N, ivec3_t(1,0,0), 4.0);
+    const size_t n=pw.GetNumFunctions();
+    const Irrep irr=pw.GetIrrep(Spin::None);
+    hmat_t<dcmplx> D(n), Delta(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+    {
+        D(i,j)    = i==j ? dcmplx(8.0/double(n),0.0) : dcmplx(0.004*((3*i+5*j)%7)-0.012, 0.003*((i+3*j)%5)-0.006);
+        Delta(i,j)= i==j ? dcmplx(0.01*((5*i)%7)-0.03,0.0) : dcmplx(0.01*((2*i+7*j)%5)-0.02, 0.01*((4*i+j)%3)-0.01);
+    }
+    const qcMesh::MeshParams becke=qcMesh::BeckeXCParams(30, -1.0, 11);
+    BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*cell, becke, nullptr);
+    const qchem::ChargeDensity::fitbasis_t fb(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}));
+    const auto s=qchem::ChargeDensity::MakeDensitySampler(fb, quad);
+    auto energy=[&](double t)
+    {
+        const qchem::ChargeDensity::PeriodicIrrepCD<dcmplx> cd(hmat_t<dcmplx>(D+t*Delta), &pw, irr);
+        rvec_t e=s->Rho(&cd);
+        for (auto& x : e) x*=x;
+        return s->Integrate(e);
+    };
+    const qchem::ChargeDensity::PeriodicIrrepCD<dcmplx> cd0(D, &pw, irr);
+    rvec_t v=s->Rho(&cd0);
+    v*=2.0;
+    const chmat_t H=s->Matrix(&pw, v);
+    double an=0.0;
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) an+=std::real(dcmplx(H(i,j))*dcmplx(Delta(j,i)));
+    const double ds=1.0, fd=(energy(ds)-energy(-ds))/(2*ds);
+    std::cout << "[FD PW orbitals, ball at Becke] n=" << n << " points=" << s->NumPoints() << " fd=" << std::setprecision(14) << fd
+              << " Tr(H Delta)=" << an << " rel=" << std::fabs(an-fd)/std::fabs(fd) << std::endl;
+    EXPECT_NEAR(an, fd, 1e-9*std::max(1.0,std::fabs(fd)));
 }
