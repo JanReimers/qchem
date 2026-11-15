@@ -123,6 +123,48 @@ std::unique_ptr<AtomCalculation> AtomCalculation::Prepare(int Z, int charge, con
     return c;
 }
 
+// THE CONFIGURATION POLICY (OpenWork row "All-electron ION seeds", 2026-11-15): STATED (opts.configuration, NIST's notation) or derived --
+// the isoelectronic neutral all-electron, the pseudo-ion rule under a pseudopotential, the j-coupled one for Dirac.  Either way the run
+// report files the configuration the SCF occupies (policy AtomConfiguration: Choose when derived; a stated one that cannot run is REFUSED).
+ElectronConfiguration* AtomCalculation::MakeConfiguration() const
+{
+    const std::string el=thePeriodicTable().GetSymbol(itsZ);
+    const int zion=PPZion(itsOpts,itsNe);
+    const int core=itsOpts.pseudopotential ? itsZ-zion : 0;   // the electrons the SCF does not carry
+    if (itsOpts.configuration.empty())
+    {
+        if (IsDirac(itsOpts.model)) return new AtomDirac_EC(itsNe);
+        Atom_EC* ec=itsOpts.pseudopotential ? new PseudoAtom_EC(itsZ, zion-itsNe, zion) : new Atom_EC(itsNe);
+        policy::Report("AtomConfiguration", el+" "+ConfigurationText(ec->Shells(core)), policy::Verdict::Choose,
+                       itsOpts.pseudopotential ? "unstated: the pseudo-ion rule (a cation empties s before d)"
+                                               : "unstated: the isoelectronic neutral's configuration (right for an anion and a main-group cation; "
+                                                 "a d- or f-block cation states its own)");
+        return ec;
+    }
+    const std::string stated="configuration \""+itsOpts.configuration+"\"";
+    if (IsDirac(itsOpts.model))
+        policy::Refuse("AtomConfiguration", stated+" on a Dirac atom", "a stated configuration on a j-coupled (Dirac) atom is not realized yet "
+                       "(doc/OpenWork.md); leave it unstated for the derived one");
+    const auto parsed=ParseConfiguration(itsOpts.configuration);
+    if (!parsed) policy::Refuse("AtomConfiguration", stated, parsed.Error());
+    const StatedConfiguration& c=parsed.Value();
+    // A pseudo-atom's [X] is the core its pseudopotential REPLACES (the SCF carries only the named shells); an all-electron atom carries its
+    // [X] too, so there the electron count below is the whole check.
+    if (itsOpts.pseudopotential && c.CoreElectrons()!=core)
+        policy::Refuse("AtomConfiguration", stated+" for "+el+" q"+std::to_string(zion),
+                       "its ["+c.coreSymbol+"] core holds "+std::to_string(c.CoreElectrons())+" electrons, but the pseudopotential replaces "
+                       +std::to_string(core)+" (Z - q): write the core it replaces and name the rest");
+    const ShellOccupations carried=itsOpts.pseudopotential ? c.named : c.All();
+    int n=0; for (const auto& o : carried) n+=o.count;
+    if (n!=itsNe)
+        policy::Refuse("AtomConfiguration", stated+" for "+el+" at charge "+std::to_string(itsZ-itsNe-core),
+                       "it holds "+std::to_string(n)+" electrons where the run carries "+std::to_string(itsNe));
+    if (const std::string why=WhyNotRepresentable(carried, /*fromLowestN*/!itsOpts.pseudopotential); !why.empty())
+        policy::Refuse("AtomConfiguration", stated, why);
+    qchem::report::Set("configuration", ConfigurationText(carried));   // a stated one is the caller's: no policy row, but the record carries it
+    return new Atom_EC(carried);
+}
+
 AtomCalculation::AtomCalculation(BuildOnly, int Z, int charge, const AtomCalcOptions& opts, const AcceleratorOptions& acc,
                                  Observer onIteration)
     : itsZ(Z)
@@ -135,9 +177,7 @@ AtomCalculation::AtomCalculation(BuildOnly, int Z, int charge, const AtomCalcOpt
     // The EC follows the model: a pseudo-atom uses the valence-only PseudoAtom_EC (keyed by the full Z and
     // the net charge Zion-electrons); relativistic models need the Dirac (j-coupled) configuration;
     // everything else is a plain Atom_EC.
-    itsEC = opts.pseudopotential ? static_cast<ElectronConfiguration*>(new PseudoAtom_EC(itsZ, PPZion(opts,itsNe)-itsNe, PPZion(opts,itsNe)))
-          : IsDirac(opts.model)  ? static_cast<ElectronConfiguration*>(new AtomDirac_EC(itsNe))
-          :                        static_cast<ElectronConfiguration*>(new Atom_EC(itsNe));
+    itsEC = MakeConfiguration();
     itsDFT = opts.pseudopotential || opts.xc.has_value() || qchem::Hamiltonian::IsDFT(opts.model);
     // THE RADIAL-ONLY ALIAS (V-XC-ONE-TERM step 5, controller 2026-11-14: deck backward compatibility).  Before AngularKind::None the atom
     // spelled its radial-only set Lebedev at degree 0, the 1-direction rule: the SAME points (one direction at 4 pi).  On the atom that
@@ -393,6 +433,7 @@ void AtomCalculation::RecordState(StateRecord& r, double kT) const
         fp.refuseNum["basis.exponentsByL"]=byL;
     }
     fp.refuseNum["pp.valence"]={o.pseudopotential ? double(PPZion(o, itsNe)) : 0.0};
+    if (!o.configuration.empty()) fp.refuseStr["configuration"]=o.configuration;   // a state of another configuration seeds nothing (stated only: the derived default keeps its old fingerprint)
     // ---- WARM ----
     if (o.model==Model::Xalpha) fp.warmNum["xc.xalpha"]={o.xalpha};
     fp.warmNum["grids.xcMesh"]={double(o.mesh.nRadial), double(o.mesh.angularDegree), double(int(o.mesh.radial)), double(int(o.mesh.angular))};

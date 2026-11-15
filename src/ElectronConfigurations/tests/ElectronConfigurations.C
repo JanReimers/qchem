@@ -859,3 +859,82 @@ TEST_F(ElectronConfigurationTests, MoleculeOpenShellTriplet)
     EXPECT_EQ(ec.GetN(Irrep(Spin::None,s)),16);
 }
 
+
+//----------------------------------------------------------------------------------------------
+//  A STATED configuration (2026-11-15, OpenWork row "All-electron ION seeds").
+namespace
+{
+int Spin2S(const Atom_EC& ec)   // 2S from the occupations: up minus down over every irrep
+{
+    int up=0, dn=0;
+    for (auto ir : ec.GetIrreps()) { up+=ec.GetN(Irrep(Spin::Up,ir)); dn+=ec.GetN(Irrep(Spin::Down,ir)); }
+    return up-dn;
+}
+int Total(const Atom_EC& ec)
+{
+    int n=0;
+    for (auto ir : ec.GetIrreps()) n+=ec.GetN(Irrep(Spin::Up,ir))+ec.GetN(Irrep(Spin::Down,ir));
+    return n;
+}
+}
+
+TEST(StatedConfiguration, NISTsNotationParsesWithItsCoreExpanded)
+{
+    const auto fe=ParseConfiguration("[Ar] 3d^6 4s^1");
+    ASSERT_TRUE(fe) << fe.Error();
+    EXPECT_EQ(fe.Value().coreSymbol, "Ar");
+    EXPECT_EQ(fe.Value().CoreElectrons(), 18);
+    EXPECT_EQ(fe.Value().NamedElectrons(), 7);
+    EXPECT_EQ(ConfigurationText(fe.Value().All()), "1s^2 2s^2 2p^6 3s^2 3p^6 3d^6 4s^1");
+    const auto bare=ParseConfiguration("1s2 2s2 2p6");   // the ^ is optional, no core
+    ASSERT_TRUE(bare) << bare.Error();
+    EXPECT_EQ(bare.Value().CoreElectrons(), 0);
+    EXPECT_EQ(bare.Value().NamedElectrons(), 10);
+    for (const char* bad : {"[Xy] 3d^6", "[Ar 3d^6", "3x^2", "3d^", "2d^1", "3d^11", "[Ar] 3p^2", "4s^1 4s^1", ""})
+        EXPECT_FALSE(ParseConfiguration(bad)) << "\"" << bad << "\" must be refused";
+}
+
+// The radial atom fills each l block from its lowest level up, so only the highest occupied n of each l may be open and no level may be
+// skipped; an all-electron atom also starts every l at n = l+1.
+TEST(StatedConfiguration, TheRadialAtomHoldsOnlyBottomUpFilledLBlocks)
+{
+    auto shells=[](const char* t){ return ParseConfiguration(t).Value().All(); };
+    EXPECT_EQ(WhyNotRepresentable(shells("[Ar] 3d^6 4s^1"), true), "");
+    EXPECT_NE(WhyNotRepresentable(shells("[Ne] 3s^1 5s^1"), true), "") << "a hole at 4s";
+    EXPECT_NE(WhyNotRepresentable(shells("1s^2 2s^1 3s^1"), true), "") << "2s open below an occupied 3s";
+    EXPECT_NE(WhyNotRepresentable(shells("2s^2"), true), "") << "an all-electron atom starts s at 1s";
+    EXPECT_EQ(WhyNotRepresentable(shells("3d^5"), false), "") << "a pseudo-atom's d block starts at its valence";
+}
+
+// Fe+ is NIST's [Ar] 3d^6 4s^1 (high spin: four unpaired d and the s), where its isoelectronic neutral Mn is 3d^5 4s^2 (2S = 5 too, but
+// another configuration).  The stated EC carries 25 electrons, 2S = 5, and reads back the text it was stated as.
+TEST(StatedConfiguration, IronCationIsItsOwnConfigurationNotManganeses)
+{
+    const Atom_EC fe(ParseConfiguration("[Ar] 3d^6 4s^1").Value().All());
+    EXPECT_EQ(Total(fe), 25);
+    EXPECT_EQ(Spin2S(fe), 5);
+    EXPECT_EQ(ConfigurationText(fe.Shells()), "1s^2 2s^2 2p^6 3s^2 3p^6 3d^6 4s^1");
+    const Atom_EC mn(25);
+    EXPECT_EQ(ConfigurationText(mn.Shells()), "1s^2 2s^2 2p^6 3s^2 3p^6 3d^5 4s^2") << "the derived rule: the isoelectronic neutral";
+    const Atom_EC v(ParseConfiguration("[Ar] 3d^4").Value().All());   // V+: 4s moved INTO 3d
+    EXPECT_EQ(Spin2S(v), 4);
+    EXPECT_THROW(Atom_EC(ParseConfiguration("[Ne] 3s^1 5s^1").Value().All()), std::logic_error) << "an unchecked shape is a broken invariant";
+}
+
+// THE TWO ROUTES AGREE: every neutral atom's derived EC, read back as subshells and stated again, occupies every irrep identically
+// (the stated route is the derived one wherever the derived one is right).
+TEST_F(ElectronConfigurationTests, EveryNeutralStatedAgainOccupiesEveryIrrepAsTheDerivedOne)
+{
+    for (int Z=1; Z<=92; Z++)
+    {
+        const Atom_EC derived(Z);
+        const ShellOccupations shells=derived.Shells();
+        ASSERT_EQ(WhyNotRepresentable(shells, true), "") << "Z=" << Z << " " << ConfigurationText(shells);
+        const Atom_EC stated(shells);
+        EXPECT_EQ(Total(stated), Z) << "Z=" << Z;
+        EXPECT_EQ(Spin2S(stated), Spin2S(derived)) << "Z=" << Z << " " << ConfigurationText(shells);
+        for (auto ir : derived.GetIrreps())
+            for (Spin s : {Spin::Up, Spin::Down})
+                EXPECT_EQ(stated.GetN(Irrep(s,ir)), derived.GetN(Irrep(s,ir))) << "Z=" << Z << " " << ConfigurationText(shells);
+    }
+}

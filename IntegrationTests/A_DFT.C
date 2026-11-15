@@ -191,3 +191,33 @@ INSTANTIATE_TEST_SUITE_P(Heavy, A_DFT_heavy, ::testing::Values(
     HeavyCase{"SL_U",  AtomType::Slater,   92, SpinGroup::Polarized,   -25658.474515, 3.0e-3},
     HeavyCase{"SG_U",  AtomType::Gaussian, 92, SpinGroup::Polarized,   -25658.474515, 5.0e-3}),
     [](const testing::TestParamInfo<HeavyCase>& i){ return std::string(i.param.name); });
+
+//---------------------------------------------------------------------------------------------------------------
+//  A FIRST CATION IN ITS STATED CONFIGURATION (OpenWork row "All-electron ION seeds", 2026-11-15).  A d-block cation is NOT its
+//  isoelectronic neutral (Fe+ is 3d^6 4s^1, not Mn's 3d^5 4s^2: solved in Mn's it lands 148 mHa above NIST), and V+ and Co+ move
+//  electrons from 4s INTO 3d, which no removal rule reproduces.  Stated as NIST states it (dftdata/configurations), each lands just
+//  above NIST's LSD cation total (dftdata/LSD/cations; doc/GSData/NIST-dftdata-tar.gz).  Measured 2026-11-15: Slater +0.03 / +0.04 /
+//  +0.04 mHa, Gaussian +1.6 / +1.7 / +1.9 mHa (Fe / V / Co); PySCF (unc-ano-rcc, the same spherical high-spin occupations) Fe+ +0.62.
+struct IonCase { const char* name; AtomType type; int Z; const char* configuration; double nist, margin; };
+static void PrintTo(const IonCase& c, std::ostream* os) { *os << c.name; }
+class A_DFT_ion : public ::testing::TestWithParam<IonCase> {};
+TEST_P(A_DFT_ion, AFirstCationInNISTsConfigurationLandsAboveNIST)
+{
+    const IonCase c=GetParam();
+    AtomCalcOptions o{.type=c.type, .basisPool=BasisSetAccuracy::High, .model=Model::LDA, .spin=SpinGroup::Polarized};
+    o.configuration=c.configuration;
+    AtomCalculation calc(c.Z, 1, o, dft_scf_params(c.Z));
+    ASSERT_TRUE(calc.IsConverged()) << c.name << ": the oracle comparison needs a converged energy";
+    const double dE=calc.Energy()-c.nist;
+    printf("%s %s: E - E_NIST(cation) = %+.6f mHa (margin %.1f)\n", c.name, c.configuration, dE*1e3, c.margin*1e3);
+    EXPECT_GT(dE, -kHeavySlack) << "below NIST: an approximation is not meeting eps";
+    EXPECT_LT(dE, c.margin) << "further above NIST than the pool's measured incompleteness -- or another configuration";
+}
+INSTANTIATE_TEST_SUITE_P(Cation, A_DFT_ion, ::testing::Values(
+    IonCase{"SL_Fe", AtomType::Slater,   26, "[Ar] 3d^6 4s^1", -1260.927746, 0.5e-3},
+    IonCase{"SG_Fe", AtomType::Gaussian, 26, "[Ar] 3d^6 4s^1", -1260.927746, 4.0e-3},
+    IonCase{"SL_V",  AtomType::Slater,   23, "[Ar] 3d^4",      -941.523838,  0.5e-3},
+    IonCase{"SG_V",  AtomType::Gaussian, 23, "[Ar] 3d^4",      -941.523838,  4.0e-3},
+    IonCase{"SL_Co", AtomType::Slater,   27, "[Ar] 3d^8",      -1379.896444, 0.5e-3},
+    IonCase{"SG_Co", AtomType::Gaussian, 27, "[Ar] 3d^8",      -1379.896444, 4.0e-3}),
+    [](const testing::TestParamInfo<IonCase>& i){ return std::string(i.param.name); });
