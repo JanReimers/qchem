@@ -30,7 +30,6 @@ import qchem.Blaze;
 import qchem.BasisSet;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.PairProjection;          // DensePairProjectionIntegrator: one dispatching contraction of the 3-centre record
-import qchem.BasisSet.Internal.DB_Cache_RAM;   // the global cache's Clear hooks (tests may cheat): a COLD run in-process
 using namespace qchem;
 
 //! What one geometry point holds, read through the point (a friend: the facade hands none of it out).
@@ -71,17 +70,7 @@ public:
 
 namespace
 {
-void ClearIntegralCache()   //!< as CacheKeyExactness: every operator of the string-keyed global cache
-{
-    using C=BasisSet::IntegralsCache_Base;
-    auto& ram=dynamic_cast<BasisSet::IntegralsCache_RAM<double>&>(BasisSet::theCache<double>());
-    for (auto op : {C::I1C::Charge, C::I1C::Normalization}) ram.Clear(op);
-    for (auto op : {C::I2C::Overlap, C::I2C::Repulsion, C::I2C::Kinetic, C::I2C::Nuclear, C::I2C::RestMass, C::I2C::InvOverlap,
-                    C::I2C::InvRepulsion}) ram.Clear(op);
-    for (auto op : {C::I2x::Kinetic, C::I2x::Repulsion, C::I2x::Overlap}) ram.Clear(op);
-    for (auto op : {C::I3C::Overlap, C::I3C::Repulsion}) ram.Clear(op);
-    for (auto op : {C::I4C::Direct, C::I4C::Exchange}) ram.Clear(op);
-}
+//! (S6: every run builds its own basis set and so its own caches; a run is cold by construction, there is nothing global to clear.)
 template <class M> double MaxAbsDiff(const M& x, const M& y)
 {
     EXPECT_EQ(x.rows(), y.rows()); EXPECT_EQ(x.columns(), y.columns());
@@ -115,7 +104,6 @@ TEST(GeometryCache, AGeometryIterationBuildsANewCalculationAndNoCacheOutlivesIts
     SCFParams scf;   // the default gate: the claim is about integrals, not the SCF tail
     std::vector<rvec3_t> R1, R2;
     GeometryCacheTests::Snapshot s1, s2, cold;
-    ClearIntegralCache();
     {
         MoleculeSession pes(setup, scf);
         R1=pes.Reference().R;
@@ -126,7 +114,6 @@ TEST(GeometryCache, AGeometryIterationBuildsANewCalculationAndNoCacheOutlivesIts
         ASSERT_TRUE(bool(pes.ConvergeAt(std::nullopt, R2)));   // the SECOND iteration of one surface
         s2=GeometryCacheTests::Take(*pes.Current());
     }   // the surface and its points are gone before the cache is cleared (its Get hands out references)
-    ClearIntegralCache();
     {
         MoleculeSession fresh(setup, scf);
         ASSERT_TRUE(bool(fresh.ConvergeAt(std::nullopt, R2)));

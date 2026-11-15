@@ -18,6 +18,11 @@
 // every 3-centre insert sweeps them out (the weak handle beside each serial says when), and says so on the console and in the run report
 // under the caller's scope.  In a normal run the fits die WITH the orbital basis, so a non-zero count is itself news.
 //
+// THE REPORT (S6; the run-report rule, user 2026-11-02: the callee writes one level in, AS IT RUNS): every fill adds its own bytes and a count
+// under `cache` at the caller's cursor -- `<kind>Bytes` / `<kind>Entries`, plus `primitiveBytes` / `rkBytes` for what the fill's integrals put
+// in this parent's primitive store and atom Rk tables -- so the report shows where each table was committed, in run sequence, and nobody
+// collects anything afterwards.
+//
 // Threading: each slot is a SlotMap once-fill (a short lock to find the slot, the build outside any lock, other askers of THAT slot wait),
 // so a fill may itself ask the cache for another slot.
 module;
@@ -66,12 +71,12 @@ public:
 
     template <class T, class F> const hmat_t<T>& Get(Own op, size_t block, F&& make) const
     {
-        return Own2<T>().GetOrFill(std::make_tuple(op, block), std::forward<F>(make));
+        return Own2<T>().GetOrFill(std::make_tuple(op, block), Reported(NameOf(op), std::forward<F>(make)));
     }
     //! The RKB L/S cross kinetic: a table over the large block and the small-component partner it OWNS, so keyed by the block alone.
     template <class T, class F> const mat_t<T>& GetRKBCross(size_t block, F&& make) const
     {
-        return Cross<T>().GetOrFill(block, std::forward<F>(make));
+        return Cross<T>().GetOrFill(block, Reported("rkbCross", std::forward<F>(make)));
     }
     //! ERI4 between blocks \a a and \a b: only the canonical orientation a ≤ b is stored, so the other one is refused (a caller asking
     //! for it would hold a second copy of the same integrals).
@@ -80,7 +85,7 @@ public:
         if (a>b)
             throw std::logic_error(std::format("BasisCache: ERI4 asked for the non-canonical block pair ({},{}); ask ({},{}) "
                                                "and scatter both (Orbital_ERI4_IBS::ScatterBoth)", a, b, b, a));
-        return itsERI4.GetOrFill(std::make_tuple(op, a, b), std::forward<F>(make));
+        return itsERI4.GetOrFill(std::make_tuple(op, a, b), Reported(op==Pair::Direct ? "eri4Direct" : "eri4Exchange", std::forward<F>(make)));
     }
     //! ⟨ab|c⟩ of block \a block against the partner \a fit (named \a fitName for the report).  Sweeps dead partners' entries first.
     template <class TFit, class F> const PairProjection<TFit>& Get(Three op, size_t block, const InstanceToken& fit, const std::string& fitName,
@@ -91,7 +96,8 @@ public:
             std::lock_guard<std::mutex> l(itsPartnerLock);
             itsPartners.try_emplace(fit.Serial(), Partner{fit.Alive(), fitName});
         }
-        return ThreeC<TFit>().GetOrFill(std::make_tuple(op, block, fit.Serial()), std::forward<F>(make));
+        return ThreeC<TFit>().GetOrFill(std::make_tuple(op, block, fit.Serial()),
+                                        Reported(op==Three::Overlap ? "overlap3C" : "repulsion3C", std::forward<F>(make)));
     }
 
     //! S5b: the primitive caches of this parent's blocks (their evaluators co-own it, so the handle is shared).
@@ -150,6 +156,47 @@ public:
     size_t NumThreeCentre() const {return its3C_r.Filled()+its3C_c.Filled();}
 
 private:
+    static const char* NameOf(Own op) {return op==Own::Overlap ? "overlap" : op==Own::Kinetic ? "kinetic" : "restMass";}
+    // The bytes a filled value holds (the doubles or complex numbers it stores; blaze's scalar symmetric/Hermitian adaptors keep the full
+    // square).  A matrix-free ⟨ab|c⟩ realization holds closures whose captures this cannot see: it reports its dense part only.
+    template <class M> static double MatrixBytes(const M& m) {return double(m.rows())*double(m.columns())*sizeof(typename M::ElementType);}
+    template <class M> requires requires (const M& m) {m.rows(); m.columns();}
+    static double BytesOf(const M& m) {return MatrixBytes(m);}   // every dense table (hmat_t / mat_t are aliases: T is not deducible through them)
+    static double BytesOf(const ERI4& e)   // one value per unordered outer pair (blaze's non-scalar adaptor shares (a,b) and (b,a)), each full
+    {
+        const double nab=double(e.Nab()), ncd=e.Nab() ? double(e.Ncd()) : 0.0;
+        return 0.5*nab*(nab+1.0)*ncd*ncd*sizeof(double);
+    }
+    template <class T> static double BytesOf(const PairProjection<T>& p)
+    {
+        double b=0.0;
+        for (const auto& d : p.dense) b+=MatrixBytes(d);
+        return b;
+    }
+    double PrimitiveBytes() const {return double(itsPrimitives->RAMsize());}
+    double RkBytes() const
+    {
+        std::lock_guard<std::mutex> l(its4Lock);
+        double b=0.0;
+        for (const auto& [k,c] : its4) b+=double(c->RAMsize());
+        return b;
+    }
+    //! \a make wrapped so the fill reports itself as it runs (see the file comment).  The primitive store and the Rk tables are single-thread
+    //! by contract (a fill's serial prepass), so their growth across one fill is that fill's own.
+    template <class F> auto Reported(const char* kind, F&& make) const
+    {
+        return [this, kind, make=std::forward<F>(make)]() mutable
+        {
+            const double p0=PrimitiveBytes(), r0=RkBytes();
+            auto v=make();
+            report::Accumulate("cache", std::string(kind)+"Bytes", BytesOf(v));
+            report::Accumulate("cache", std::string(kind)+"Entries", 1.0);
+            if (const double dp=PrimitiveBytes()-p0; dp!=0.0) report::Accumulate("cache", "primitiveBytes", dp);
+            if (const double dr=RkBytes()-r0;        dr!=0.0) report::Accumulate("cache", "rkBytes", dr);
+            return v;
+        };
+    }
+
     template <class V, class K> using once_t = SlotMap<K,V,SlotDiscipline::FillOnce>;
     using own_key   = std::tuple<Own,size_t>;
     using pair_key  = std::tuple<Pair,size_t,size_t>;

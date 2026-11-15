@@ -3,12 +3,13 @@
 // Every integral here is ANALYTIC except a Vxc fit's projection of a pointwise field, Overlap(f), which runs over the projection mesh
 // that fit owns (built from its Structure at construction).  A Coulomb fit owns no mesh (user 2026-11-11).
 module;
+#include <string>
+#include <utility>
 #include <cassert>
 #include <cmath>
 #include <stdexcept>
 module qchem.BasisSet.Internal.Fit_IBS;
 import qchem.Mesh.Quadrature;          // qcMesh::Mesh, Overlap (over qcMath Vector/ScalarFunction)
-import qchem.BasisSet.Internal.DB_Cache;
 import qchem.Blaze;
 import qchem.Reporting;   // report::Scope (FitMesh)
 
@@ -31,23 +32,39 @@ Fit_IBS::Fit_IBS(const Structure& st, const qcMesh::MeshParams& mp)
     assert(itsProjectionMesh->size()>0 && "Fit_IBS: the structure produced an empty quadrature mesh");
 }
 
-rvec_t         Fit_IBS::Charge      () const {return itsCharge      .GetOrFill([this]{return MakeCharge      ();});}
-const rsmat_t& Fit_IBS::Repulsion   () const {return itsRepulsion   .GetOrFill([this]{return MakeRepulsion   ();});}
-const rsmat_t& Fit_IBS::InvOverlap  () const {return itsInvOverlap  .GetOrFill([this]{return MakeInvOverlap  ();});}
-const rsmat_t& Fit_IBS::InvRepulsion() const {return itsInvRepulsion.GetOrFill([this]{return MakeInvRepulsion();});}
+// THE REPORT (S6): each fill of this basis's own slots adds its bytes and a count under `cache` at the caller's cursor, as it runs.
+namespace
+{
+    double BytesOf(const rvec_t& v) {return double(v.size())*sizeof(double);}
+    template <class M> double BytesOf(const M& m) {return double(m.rows())*double(m.columns())*sizeof(double);}
+    template <class F> auto Reported(const char* kind, F&& make)
+    {
+        return [kind, make=std::forward<F>(make)]() mutable
+        {
+            auto v=make();
+            report::Accumulate("cache", std::string(kind)+"Bytes", BytesOf(v));
+            report::Accumulate("cache", std::string(kind)+"Entries", 1.0);
+            return v;
+        };
+    }
+}
+
+rvec_t         Fit_IBS::Charge      () const {return itsCharge      .GetOrFill(Reported("fitCharge",       [this]{return MakeCharge      ();}));}
+const rsmat_t& Fit_IBS::Repulsion   () const {return itsRepulsion   .GetOrFill(Reported("fitRepulsion",    [this]{return MakeRepulsion   ();}));}
+const rsmat_t& Fit_IBS::InvOverlap  () const {return itsInvOverlap  .GetOrFill(Reported("fitInvOverlap",   [this]{return MakeInvOverlap  ();}));}
+const rsmat_t& Fit_IBS::InvRepulsion() const {return itsInvRepulsion.GetOrFill(Reported("fitInvRepulsion", [this]{return MakeInvRepulsion();}));}
 // Norm() is ANALYTIC (2026-11-11): a property of the functions alone.  It was a mesh quadrature, keyed by the mesh as well after the same
 // fit basis built on a coarse seed mesh served its Norm to a later run on a finer one (a 585 ppm drift).
-const rvec_t&  Fit_IBS::Norm        () const {return itsNorm        .GetOrFill([this]{return MakeNorm        ();});}
+const rvec_t&  Fit_IBS::Norm        () const {return itsNorm        .GetOrFill(Reported("fitNorm",         [this]{return MakeNorm        ();}));}
 
 // The cross Coulomb against a fit basis \a b.  With itself (the only call today, ConstrainedFF) it is one of this basis's own
-// integrals.  Against ANOTHER fit it is keyed by that partner, which needs the partner's instance token (S3, plan §3b), so it stays
-// in the global cache until then.
+// integrals.  Against ANOTHER fit it is a table over this basis's functions keyed by that partner's instance token (plan §2, "fit ×
+// another fit stays on the fit"), dropped when the partner dies (S6: it was the last entry of the process-wide cache).
 const rmat_t& Fit_IBS::Repulsion(const rFIT_CD_ABS& b) const
 {
     if (&b==static_cast<const rFIT_CD_ABS*>(this))
-        return itsSelfRepulsion.GetOrFill([this,&b]{return MakeRepulsion(b);});
-    return theCache<double>().Get(IntegralsCache_Base::I2x::Repulsion,this,&b
-            ,[this,&b]{ return MakeRepulsion(b); });
+        return itsSelfRepulsion.GetOrFill(Reported("fitSelfRepulsion", [this,&b]{return MakeRepulsion(b);}));
+    return itsCrossRepulsion.GetOrFill(b.Instance(), Reported("fitCrossRepulsion", [this,&b]{ return MakeRepulsion(b); }));
 }
 
 rvec_t Fit_IBS::OverlapDiagonal() const

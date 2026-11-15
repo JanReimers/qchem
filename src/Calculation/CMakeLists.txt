@@ -38,6 +38,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     XCRhoPolicy.C
     SeedPolicy.C
     AuditFootprint.C
+    ERI4MemoryPolicy.C                    # the ERI4 RAM cap as a setup policy (IntegralCacheOwnershipPlan S6, ruling 6)
 )
 target_include_directories(qchem PRIVATE
     ${PROJECT_SOURCE_DIR}/src                       # forward.H (the unit-test friend declarations)
