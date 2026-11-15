@@ -143,13 +143,21 @@ mat_t<dcmplx> FitAtPointsDensitySampler::Matrix(const cobs_t*, const cobs_t*, co
 namespace qchem::ChargeDensity
 {
 
-GaussianFitSpace::GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, BasisSet::FitQuadrature points)
-    : itsA1(std::move(a1)), itsPoints(std::move(points))
+static const BasisSet::Orbital_1E_IBS<double>& RequireBlock(const std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>>& a1)
 {
-    if (!itsA1) throw std::logic_error("GaussianFitSpace: needs the periodic A1 block");
+    if (!a1) throw std::logic_error("GaussianFitSpace: needs the periodic A1 block");
+    return *a1;
+}
+GaussianFitSpace::GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, BasisSet::FitQuadrature points)
+    : GaussianFitSpace(RequireBlock(a1).Overlap(), [a1](const rvec3vec_t& R) {return rmat_t((*a1)(R));}, std::move(points),
+                       "the periodic A1 Gaussian set")
+{}
+GaussianFitSpace::GaussianFitSpace(const rsmat_t& S, Evaluator eval, BasisSet::FitQuadrature points, std::string name)
+    : itsEval(std::move(eval)), itsPoints(std::move(points)), itsName(std::move(name))
+{
+    if (!itsEval) throw std::logic_error("GaussianFitSpace: needs the set's evaluator at points");
     if (!itsPoints.GetMesh() || itsPoints.GetMesh()->size()==0) throw std::logic_error("GaussianFitSpace: a point set with no points");
     // S^-1, robust to a near-dependent set: S = V diag(w) V^T, the modes below kMetricRelTol x w_max dropped and REPORTED.
-    const auto& S=itsA1->Overlap();
     const size_t n=S.rows();
     rsmat_t Sd(n);
     for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) Sd(i,j)=S(i,j);
@@ -163,7 +171,7 @@ GaussianFitSpace::GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IB
     {
         qchem::report::Set("a1MetricModesDropped", (long)dropped);
         qchem::report::Set("a1MetricFloor", kMetricRelTol*wmax);
-        std::cout<<"[periodic A1 fit] the overlap metric of "<<n<<" functions is near-singular: "<<dropped<<" mode(s) below the floor "
+        std::cout<<"["<<itsName<<"] the overlap metric of "<<n<<" functions is near-singular: "<<dropped<<" mode(s) below the floor "
                  <<kMetricRelTol*wmax<<" (= "<<kMetricRelTol<<" x the largest eigenvalue) are dropped"<<std::endl;
     }
     itsSinv=rsmat_t(n);
@@ -184,14 +192,14 @@ GaussianFitSpace::GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IB
             const size_t hi=std::min(R.size(), lo+2048);
             rvec3vec_t sub(hi-lo);
             for (size_t g=lo; g<hi; g++) sub[g-lo]=R[g];
-            const rmat_t P=(*itsA1)(sub);
+            const rmat_t P=itsEval(sub);
             for (size_t g=lo; g<hi; g++) for (size_t a=0; a<n; a++) { const double wa=W[g]*P(g-lo,a); for (size_t b=0; b<n; b++) Sq(a,b)+=wa*P(g-lo,b); }
         }
         double num=0.0, den=0.0;
         for (size_t a=0; a<n; a++) for (size_t b=0; b<n; b++) { const double d=S(a,b)-Sq(a,b); num+=d*d; den+=S(a,b)*S(a,b); }
         itsMetricGap=std::sqrt(num/std::max(den, 1e-300));
         qchem::report::Set("a1MetricGap", itsMetricGap);
-        std::cout<<"[periodic A1 fit] metric gap ||S - Phi^T w Phi|| / ||S|| = "<<itsMetricGap<<" on "<<R.size()<<" XC points"
+        std::cout<<"["<<itsName<<"] metric gap ||S - Phi^T w Phi|| / ||S|| = "<<itsMetricGap<<" on "<<R.size()<<" XC points"
                  <<(itsMetricGap>1e-3 ? "  WARNING: the XC mesh does not resolve the set's functions (R is not a projector there)" : "")<<std::endl;
     }
     // The footprint facts, one level in: what streaming saves, against what a stored table would cost (the policy layer judges them).
@@ -214,7 +222,7 @@ rvec_t GaussianFitSpace::PhiT(const rvec3vec_t& R, const rvec_t& f) const
         const size_t lo=b*kA1Chunk, hi=std::min(R.size(), lo+kA1Chunk);
         rvec3vec_t sub(hi-lo);
         for (size_t g=lo; g<hi; g++) sub[g-lo]=R[g];
-        const rmat_t P=(*itsA1)(sub);
+        const rmat_t P=itsEval(sub);
         for (size_t g=lo; g<hi; g++) for (size_t a=0; a<n; a++) part[b][a]+=P(g-lo,a)*f[g];
     }
     rvec_t out(n, 0.0);
@@ -233,7 +241,7 @@ rvec_t GaussianFitSpace::Phi(const rvec3vec_t& R, const rvec_t& c) const
         const size_t lo=b*kA1Chunk, hi=std::min(R.size(), lo+kA1Chunk);
         rvec3vec_t sub(hi-lo);
         for (size_t g=lo; g<hi; g++) sub[g-lo]=R[g];
-        const rmat_t P=(*itsA1)(sub);
+        const rmat_t P=itsEval(sub);
         for (size_t g=lo; g<hi; g++) { double s=0.0; for (size_t a=0; a<n; a++) s+=P(g-lo,a)*c[a]; out[g]=s; }
     }
     return out;
@@ -241,7 +249,7 @@ rvec_t GaussianFitSpace::Phi(const rvec3vec_t& R, const rvec_t& c) const
 
 rvec_t GaussianFitSpace::Resample(const rvec_t& atPoints) const
 {
-    qchem::report::Timed timed("scf: XC periodic A1 fit of v");
+    qchem::report::Timed timed("scf: XC A1 fit of v");
     const rvec_t& w=itsPoints.GetMesh()->Weights();
     rvec_t wv(atPoints.size());
     for (size_t g=0; g<wv.size(); g++) wv[g]=w[g]*atPoints[g];
@@ -251,12 +259,43 @@ rvec_t GaussianFitSpace::Resample(const rvec_t& atPoints) const
 
 void GaussianFitSpace::ReportHealthFacts() const {qchem::report::Set("metricGap", itsMetricGap);}
 
-// ---- the fitted-potential cell -------------------------------------------------------------------------------------------------------
-FittedPotentialDensitySampler::FittedPotentialDensitySampler(std::shared_ptr<const GaussianFitSpace> fit, std::shared_ptr<const DensitySampler> inner)
-    : itsFit(std::move(fit)), itsInner(std::move(inner))
+// ---- the multipole channels as a fit space (FittedVxc's retirement) ---------------------------------------------------------------------
+MultipoleFitSpace::MultipoleFitSpace(std::shared_ptr<const qcMesh::SiteMultipoles> sites, BasisSet::FitQuadrature points)
+    : itsSites(std::move(sites)), itsPoints(std::move(points))
 {
-    if (!itsFit || !itsInner) throw std::logic_error("FittedPotentialDensitySampler: needs the fit space and its inner strategy");
+    if (!itsSites) throw std::logic_error("MultipoleFitSpace: needs the site multipoles");
+    if (!itsPoints.GetMesh() || itsPoints.GetMesh()->size()==0) throw std::logic_error("MultipoleFitSpace: a point set with no points");
+    // Each channel's divisor, the shell weight r_i^2 dr_i (the layout of SiteMultipoles::Flatten: site, radial node, lm).
+    const auto& W=itsSites->ShellWeights();
+    const size_t nLM=itsSites->NumLM();
+    itsDiagonal=rvec_t(itsSites->NumChannels());
+    size_t k=0;
+    for (size_t a=0; a<itsSites->NumSites(); a++)
+        for (size_t i=0; i<W.size(); i++)
+            for (size_t c=0; c<nLM; c++) itsDiagonal[k++]=W[i];
 }
+rvec_t MultipoleFitSpace::AtPoints(const rvec_t&) const
+{
+    throw std::logic_error("MultipoleFitSpace::AtPoints: the projected multipole cell (xc.rho fit x the multipole Vxc fit) is not realized -- "
+                           "the channels are a dual pair, not a projection self-adjoint in the XC weights (an X cell of VxcProductSpace)");
+}
+rvec_t MultipoleFitSpace::Resample(const rvec_t& x) const
+{
+    qchem::report::Timed timed("scf: XC multipole fit of v");
+    const rvec_t& w=itsPoints.GetMesh()->Weights();
+    if (x.size()!=w.size()) throw std::logic_error("MultipoleFitSpace::Resample: a field on "+std::to_string(x.size())+" points for a mesh of "
+                                                   +std::to_string(w.size()));
+    rvec_t q(x.size());
+    for (size_t g=0; g<q.size(); g++) q[g]=w[g]*x[g];
+    rvec_t c=itsSites->Flatten(itsSites->Moments(q));
+    for (size_t a=0; a<c.size(); a++) c[a]/=itsDiagonal[a];
+    return itsSites->Synthesize(itsSites->Split(c));
+}
+
+// ---- the fitted-potential cell -------------------------------------------------------------------------------------------------------
+FittedPotentialDensitySampler::FittedPotentialDensitySampler(std::shared_ptr<const FitSpace> fit, std::shared_ptr<const DensitySampler> inner)
+    : tFittedPotentialDensitySampler<dcmplx>(std::move(fit), inner), itsInner(std::move(inner))
+{}
 cvec_t FittedPotentialDensitySampler::Sample(const TransitionDensity<dcmplx>&, const Spin&) const
 {
     throw std::logic_error("FittedPotentialDensitySampler::Sample: a linear response on the fitted-potential cell is not realized");

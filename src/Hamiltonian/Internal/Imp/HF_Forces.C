@@ -49,18 +49,18 @@ void AddScaled(rvec3vec_t& F, const rvec3vec_t& g, double a, const char* who)
 }
 } // namespace
 
-std::string Vee::MissingGradient(const tbs_t<double>* bs, const Structure*) const {return MissingERI4(bs, "Vee (HF Coulomb)");}
-std::string Vxc::MissingGradient(const tbs_t<double>* bs, const Structure*) const {return MissingERI4(bs, "Vxc (HF exchange)");}
+std::string Vee_HF::MissingGradient(const tbs_t<double>* bs, const Structure*) const {return MissingERI4(bs, "Vee_HF (HF Coulomb)");}
+std::string Vxc_HF::MissingGradient(const tbs_t<double>* bs, const Structure*) const {return MissingERI4(bs, "Vxc_HF (HF exchange)");}
 
-void Vee::AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const
+void Vee_HF::AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const
 {
-    AddScaled(F, Sweep(D, "Vee").DirectPullback(st), -0.5, "Vee");
+    AddScaled(F, Sweep(D, "Vee_HF").DirectPullback(st), -0.5, "Vee_HF");
 }
 
-void Vxc::AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const
+void Vxc_HF::AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const
 {
     for (const Spin& s : ChargeDensity::SpinIrrepsOf(D))
-        AddScaled(F, Sweep(DensityFor(D, s), "Vxc").ExchangePullback(st), -0.5*Scale(s), "Vxc");
+        AddScaled(F, Sweep(DensityFor(D, s), "Vxc_HF").ExchangePullback(st), -0.5*Scale(s), "Vxc_HF");
 }
 
 } // namespace qchem::Hamiltonian

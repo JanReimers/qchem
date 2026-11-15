@@ -19,6 +19,7 @@ module;
 #include <optional>   // GroupResidual (R2.1)
 #include <memory>
 #include <string>
+#include <functional>   // GaussianFitSpace::Evaluator
 #include <vector>   // SinglesDensitySampler sigmas/flipFixed (Shubnikov S3)
 export module qchem.ChargeDensity.Internal.DensitySampler;
 export import qchem.ChargeDensity.DensitySampler;   // the abstract face these realise
@@ -33,6 +34,7 @@ import qchem.ChargeDensity.Types;           // tobs_t/cobs_t/robs_t -- this libr
                                             // with no Hamiltonian dependency of its own; it moves with the engine
 import qchem.ChargeDensity;
 import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quadrature the engine integrates on)
+import qchem.Mesh.SiteMultipoles;           // MultipoleFitSpace: the site multipole transforms
 import qchem.Symmetry.Lattice_3D.Fold;      // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
 import qchem.Symmetry;                      // sym_t / SymMap
 import qchem.SlotMap;                       // InstanceSlotMap: the per-block adjoint views, by the block's instance
@@ -585,11 +587,16 @@ private:
 class GaussianFitSpace : public virtual FitSpace
 {
 public:
+    //! The set's values at a chunk of points (points x functions): the one thing the fit space asks of the set besides its metric.
+    typedef std::function<rmat_t(const rvec3vec_t&)> Evaluator;
     //! \a a1: the real Gamma A1 block; \a points: the XC mesh, which is also the inner strategy's (the delta basis on it).
     GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, BasisSet::FitQuadrature points);
+    //! \brief The same fit space over ANY Gaussian set with an analytic metric \a S and an evaluator \a eval at points: the molecular A1
+    //! fit (FittedVxc's retirement, lane S 2026-11-15) and the periodic Gamma block alike.  \a name is the report's and console's.
+    GaussianFitSpace(const rsmat_t& S, Evaluator eval, BasisSet::FitQuadrature points, std::string name);
     rvec_t AtPoints(const rvec_t& rho) const override {return Resample(rho);}
     rvec_t OnRaster(const rvec_t& v  ) const override {return Resample(v);}
-    std::string Name() const override {return "the periodic A1 Gaussian set";}
+    std::string Name() const override {return itsName;}
     //! \brief R x = Phi_X S^-1 Phi_X^T (w x): \a x fitted onto the set in the XC quadrature and sampled back at the points.  The projected
     //! cell's forward AND adjoint, and the fitted-potential cell's whole operation (A1 x rho[D]: v(rho[D]) fitted for H, pin 32).
     rvec_t Resample(const rvec_t& atPoints) const;
@@ -605,36 +612,74 @@ public:
 private:
     rvec_t PhiT (const rvec3vec_t& R, const rvec_t& f) const;   //!< Phi(R)^T f, streamed
     rvec_t Phi  (const rvec3vec_t& R, const rvec_t& c) const;   //!< Phi(R) c, streamed
-    std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> itsA1;
+    Evaluator   itsEval;
     BasisSet::FitQuadrature itsPoints;
-    rsmat_t    itsSinv;
-    double     itsMetricGap=0.0;
+    std::string itsName;
+    rsmat_t     itsSinv;
+    double      itsMetricGap=0.0;
 };
 
-//! \brief THE FITTED-POTENTIAL CELL on a point set (A1 x rho[D], target W; V-XC-ONE-TERM step 6): XC of rho[D] at the inner strategy's points,
-//! its v FITTED onto the periodic A1 set for H -- the molecular \c FittedVxc semantics, as a decorator: Rho = inner.Rho (rho[D] exactly),
-//! Matrix(v) = inner.Matrix(\c GaussianFitSpace::Resample(v)).  H is NOT dE/dD (doc/Pins.md pin 32): the policy layer warns on the cell and
-//! refuses what needs dE/dD (\c qchem.XCRhoPolicy).
-class FittedPotentialDensitySampler
-    : public virtual DensitySampler
+//! \brief THE MULTIPOLE CHANNELS as a fit space (FittedVxc's retirement, lane S 2026-11-15): the site multipole expansion on the atom-centred
+//! XC mesh it was built from (\c BasisSet::MultipoleFit_IBS's transforms, without the basis): coefficients c = moments(w x) / shell weight,
+//! and back at the points by the radial splines, R x = Synthesize(c).  A dual pair, not an orthogonal projection, so R is NOT self-adjoint
+//! in w: it serves the fitted-potential cell (Matrix = inner.Matrix(R v), target W) and refuses the projected one (\c AtPoints throws:
+//! multipole x P rho is an open X cell of VxcProductSpace).
+class MultipoleFitSpace : public virtual FitSpace
 {
 public:
-    FittedPotentialDensitySampler(std::shared_ptr<const GaussianFitSpace> fit, std::shared_ptr<const DensitySampler> inner);
-    double Integrate(const rvec_t& f) const override {return itsInner->Integrate(f);}
-    size_t NumPoints() const override {return itsInner->NumPoints();}
-    XCRhoSource RhoSource() const override {return itsInner->RhoSource();}
-    std::optional<double> GroupResidual() const override {return itsInner->GroupResidual();}
-    const rvec_t& Rho(const cChargeDensity* cd) const override {return itsInner->Rho(cd);}
-    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override {return itsInner->RhoPol(cd, s);}
-    chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override {return itsInner->Matrix(bs, itsFit->Resample(v));}
-    rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override {return itsInner->Matrix(bs, itsFit->Resample(v));}
-    void WarmForDensity(const cChargeDensity* cd, bool polarized) const override {itsInner->WarmForDensity(cd, polarized);}
+    MultipoleFitSpace(std::shared_ptr<const qcMesh::SiteMultipoles> sites, BasisSet::FitQuadrature points);
+    rvec_t AtPoints(const rvec_t& rho) const override;
+    rvec_t OnRaster(const rvec_t& v  ) const override {return Resample(v);}
+    std::string Name() const override {return "the multipole channels";}
+    rvec_t Resample(const rvec_t& atPoints) const;
+private:
+    std::shared_ptr<const qcMesh::SiteMultipoles> itsSites;
+    BasisSet::FitQuadrature itsPoints;
+    rvec_t itsDiagonal;   //!< each channel's shell weight
+};
+
+//! \brief THE FITTED-POTENTIAL CELL on a point set (target W; V-XC-ONE-TERM step 6, and FittedVxc's retirement): XC of rho[D] at the inner
+//! strategy's points, its v FITTED for H -- what \c FittedVxc did for H, as a decorator: Rho = inner.Rho (rho[D] exactly),
+//! Matrix(v) = inner.Matrix(\c FitSpace::OnRaster(v)), and E = sum_g w_g e(rho[D]) by the inner quadrature (FittedVxc fitted eps for E as
+//! well; that second fit is gone).  H is NOT dE/dD (doc/Pins.md pin 32): the policy layer warns on the cell and refuses what needs dE/dD
+//! (\c qchem.XCRhoPolicy).  \a T: the molecule's real blocks or a crystal's Bloch blocks.
+template <class T> class tFittedPotentialDensitySampler
+    : public virtual tDensitySampler<T>
+{
+public:
+    tFittedPotentialDensitySampler(std::shared_ptr<const FitSpace> fit, std::shared_ptr<const tDensitySampler<T>> inner)
+        : itsFit(std::move(fit)), itsInnerT(std::move(inner))
+    {
+        if (!itsFit || !itsInnerT) throw std::logic_error("FittedPotentialDensitySampler: needs the fit space and its inner strategy");
+    }
+    double Integrate(const rvec_t& f) const override {return itsInnerT->Integrate(f);}
+    size_t NumPoints() const override {return itsInnerT->NumPoints();}
+    XCRhoSource RhoSource() const override {return itsInnerT->RhoSource();}
+    std::optional<double> GroupResidual() const override {return itsInnerT->GroupResidual();}
+    rvec_t SiteIntegrals(const rvec_t& f) const override {return itsInnerT->SiteIntegrals(f);}
+    const rvec_t& Rho(const tChargeDensity<T>* cd) const override {return itsInnerT->Rho(cd);}
+    const rvec_t& RhoPol(const tChargeDensity<T>* cd, const Spin& s) const override {return itsInnerT->RhoPol(cd, s);}
+    hmat_t<T> Matrix(const tobs_t<T>* bs, const rvec_t& v) const override {return itsInnerT->Matrix(bs, itsFit->OnRaster(v));}
+    void WarmForDensity(const tChargeDensity<T>* cd, bool polarized) const override {itsInnerT->WarmForDensity(cd, polarized);}
+protected:
+    std::shared_ptr<const FitSpace>             itsFit;
+    std::shared_ptr<const tDensitySampler<T>>   itsInnerT;
+};
+
+//! The periodic fitted-potential cell: the real TRIM block's Matrix through the same fit, and the response faces refused by name.
+class FittedPotentialDensitySampler
+    : public         tFittedPotentialDensitySampler<dcmplx>
+    , public virtual DensitySampler
+{
+public:
+    FittedPotentialDensitySampler(std::shared_ptr<const FitSpace> fit, std::shared_ptr<const DensitySampler> inner);
+    using tFittedPotentialDensitySampler<dcmplx>::Matrix;
+    rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override {return itsInner->Matrix(bs, itsFit->OnRaster(v));}
     //! ⛔ Not realized on this cell.  THROW, naming the gap.
     cvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
     mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const override;
 private:
-    std::shared_ptr<const GaussianFitSpace> itsFit;
-    std::shared_ptr<const DensitySampler>   itsInner;
+    std::shared_ptr<const DensitySampler> itsInner;   //!< the inner strategy through its periodic face (the real block)
 };
 
 //! \brief XC OF A FITTED DENSITY AT A POINT SET (V-XC-ONE-TERM steps 4 and 6): a DECORATOR over the raster strategy the fit's raster would use

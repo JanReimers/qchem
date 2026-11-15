@@ -17,7 +17,6 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/Vee.C
     Internal/Imp/Vxc.C
     Internal/Imp/Vee_Fit.C
-    Internal/Imp/FittedVxc.C
     # The periodic (plane-wave / GPW) term set -- ONE module interface, five implementation units, the
     # same shape Internal/Terms.C has always had.  Split 2026-09-08 out of a single 1213-line TU.
     Internal/Imp/PWTerms_PP.C

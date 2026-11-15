@@ -49,8 +49,8 @@ Ham_HF::Ham_HF(const st_t& st, SpinGroup g)
     Add(new Kinetic<double>);
     Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
     Add(new Ven(st));
-    Add(new Vee);
-    Add(new Vxc);                  // same-spin exchange: -1/2 K on a folded doublet, -K per channel
+    Add(new Vee_HF);
+    Add(new Vxc_HF);                  // same-spin exchange: -1/2 K on a folded doublet, -K per channel
 }
 
 //! A FIT BASIS IS BUILT IN ITS TERM'S SCOPE, one level into the caller's context, and files one \c fitbasis row there: a facade's run
@@ -113,29 +113,28 @@ private:
     std::shared_ptr<const BasisSet::rFIT_SF_ABS> itsDelta;
 };
 
-//! THE MOLECULAR / ATOM XC TERM (V-XC-ONE-TERM, 2026-10-31): the δ basis runs the ONE XC term the periodic path runs
-//! (\c tVxc_Quadrature<double>: v_xc at the mesh points, E_xc by the same quadrature, the adjoint for H), chosen by the fit
-//! basis's CAPABILITY (an orthogonal fit is a quadrature), never by T.
-//! THE \f$\rho\f$ AXIS (\c XCρ, user ruling 2026-11-09).  A δ basis on the XC points has an exact \f$P\f$, so both values are the one
-//! singles term.  A non-orthogonal A1 fit splits: \c XCρ::Fit is the PROJECTED strategy through the same term (\f$E=\int e(P\rho)\f$,
-//! \f$H=\partial E/\partial D\f$; V-XC-ONE-TERM step 3), and \c XCρ::Exact is the Gaussian x \f$\delta\f$ cell, \c FittedVxc (\f$v(\rho[D])\f$
-//! fitted for \f$H\f$; not variational, pin 32) -- the policy layer warns on it.  The multipole fit's \c Fit cell is not realized yet (an
-//! X cell of UTHamiltonian VxcProductSpace).
+//! THE MOLECULAR / ATOM XC TERM (V-XC-ONE-TERM, 2026-10-31): every cell runs the ONE XC term the periodic path runs
+//! (\c tVxc_Quadrature<double>: E_xc by a quadrature on the run's XC mesh, H by its sampler's Matrix), the cell chosen by the sampler.
+//! THE \f$\rho\f$ AXIS (\c XCρ, user ruling 2026-11-09):
+//!   - a δ basis on the XC points has an exact \f$P\f$, so both values are the one singles term;
+//!   - the A1 fit at \c XCρ::Fit is the PROJECTED strategy (\f$E=\int e(P\rho)\f$, \f$H=\partial E/\partial D\f$; V-XC-ONE-TERM step 3);
+//!   - the A1 fit at \c XCρ::Exact, and the multipole fit, are the FITTED-POTENTIAL cell (target W): \f$E=\sum_g w_g e(\rho[D])\f$ by the δ
+//!     quadrature, \f$v\f$ fitted for H (not variational, pin 32; the policy layer warns).  Until 2026-11-15 this was \c FittedVxc, which
+//!     fitted \f$\varepsilon\f$ for E as well, on the fit's own mesh (lane S: retired, the cell is the periodic one's decorator now).
+//! The multipole fit's \c Fit cell is not realized yet (an X cell of UTHamiltonian VxcProductSpace).
 static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, XCMeshShare& share, XCRoute xc,
                                      std::vector<std::shared_ptr<ExFunctional>> parts, SpinGroup g, int lMax)
 {
     const qcMesh::MeshParams& mp=share.Params();
     const VxcFit resolved=MolecularVxcFit(xc.fit);
-    const bool   projected=xc.rho==XCρ::Fit && resolved==VxcFit::Auxiliary;   // the A1 Pρ cell: the projected strategy on the XC mesh
     if (xc.rho==XCρ::Fit && resolved==VxcFit::Multipole)
         throw std::logic_error("MolecularVxcTerm: xc.rho \"fit\" with the multipole Vxc fit is not realized yet -- the projected strategy "
                                "over MultipoleFit_IBS (an open X cell of UTHamiltonian VxcProductSpace, V-XC-ONE-TERM)");
-    // A δ basis is built over the XC quadrature, and the projected A1 strategy integrates on it; the fitted-v A1 term keeps its own
-    // private mesh.
-    BasisSet::FitQuadrature quad;
-    if (resolved==VxcFit::Delta || resolved==VxcFit::Multipole || projected) quad=share.Quadrature();   // shared with a grid Hartree term (P2)
-    // A δ fit basis (the Delta route, or the Multipole fit's inner δ) is the share's: one Φ table per block for the whole Hamiltonian.
-    auto sharedDelta=[&]
+    BasisSet::FitQuadrature quad=share.Quadrature();   // shared with a grid Hartree term on the same mesh (P2)
+    auto sum=std::make_shared<CompositeExFunctional>(std::move(parts));
+    // The δ basis on the XC points: the whole term on the δ cell, the inner strategy of a fitted-potential one.  It is the share's:
+    // one Φ table per block for the whole Hamiltonian (P2).
+    auto makeDelta=[&]
     {
         bool built=false;
         auto d=share.Delta(built);
@@ -144,25 +143,23 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, XCMeshShar
     };
     if (resolved==VxcFit::Multipole)
     {
-        // Through the fit, as the A1 route is: the sampler strategy below is the δ route's own, and its coefficients are point values.
         const auto delta=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]
         {
             qchem::report::Set("lMax", lMax);
-            return sharedDelta();
+            return makeDelta();
         });
-        FittedVxc::fbs_t mfb=std::make_shared<BasisSet::MultipoleFit_IBS>(std::make_shared<BasisSet::BasisCache>(), delta, MakeSiteMultipoles(st, *quad.GetMesh(), mp, lMax), sym_t(new UnitQN));
-        FittedVxc::ex_t  fx(std::make_shared<CompositeExFunctional>(std::move(parts)));
-        return new FittedVxc(mfb, fx, g);
+        auto sampler=ChargeDensity::MakeMultipoleFittedPotentialSampler(delta, quad, MakeSiteMultipoles(st, *quad.GetMesh(), mp, lMax));
+        return new tVxc_Quadrature<double>(sum, std::move(sampler), g);
     }
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]() -> std::shared_ptr<const BasisSet::rFIT_SF_ABS>
     {
-        if (resolved==VxcFit::Delta) return sharedDelta();
+        if (resolved==VxcFit::Delta) return makeDelta();
         return std::shared_ptr<const BasisSet::rFIT_SF_ABS>(bs->CreateVxcFitBasisSet(st.get(), mp, resolved, &quad));
     });
-    if (fb->isOrtho() || projected) return MakeVxcTerm(std::move(parts), fb, g, std::move(quad)).release();
-    FittedVxc::fbs_t ffb=fb;
-    FittedVxc::ex_t  fx(std::make_shared<CompositeExFunctional>(std::move(parts)));
-    return new FittedVxc(ffb, fx, g);
+    if (fb->isOrtho() || xc.rho==XCρ::Fit)
+        return new tVxc_Quadrature<double>(sum, ChargeDensity::MakeDensitySampler(fb, std::move(quad)), g);
+    const auto delta=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc points", makeDelta);
+    return new tVxc_Quadrature<double>(sum, ChargeDensity::MakeFittedPotentialSampler(delta, quad, fb), g);
 }
 
 //! The run's Coulomb fit from its slot (built by \a make on the first ask).
@@ -571,8 +568,8 @@ Ham_DHF::Ham_DHF(const st_t& st)
     Add(new DiracKinetic());
     Add(new RestMass());
     Add(new Ven(st));
-    Add(new Vee());
-    Add(new Vxc());
+    Add(new Vee_HF);
+    Add(new Vxc_HF);
 }
 
 } //namespace

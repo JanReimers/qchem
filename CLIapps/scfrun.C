@@ -175,6 +175,7 @@ static int Main(int argc, char** argv)
     string out=""; double rmin=1e-4, rmax=20.0, alpha=-1; int ngrid=400;
     nlohmann::json entryTags=nlohmann::json::object();   // --entry key=value: provenance strings stamped on the --out entry
     int valence=0;   // >0: dump only the outermost `valence` electrons' density (pseudo-VALENCE for PW SAD)
+    string configuration;   // --config: the atom's STATED electron configuration (NIST notation; empty = derived)
     int xcNRadial=0, hNRadial=0, hLMax=0; string coulombFit;   // the atom's XC radial mesh and Hartree route (0 / empty = the facade's)
 
     // ---- help text ----
@@ -191,6 +192,7 @@ static int Main(int argc, char** argv)
         "  --sym              point-group SALC blocking + per-irrep aufbau (molecules)\n"
         "  --Z <int>          atomic number                          (default 2)\n"
         "  --q <int>          net charge (electrons = Z - q)          (default 0)\n"
+        "  --config <text>    the atom's electron configuration, NIST notation (\"[Ar] 3d^6 4s^1\"; default: derived)\n"
         "  --model <name>     HF | DHF | E1 | DE1 | LDA | Xalpha | PP  (default HF)\n"
         "                       (LDA/Xalpha are atom-DFT, for SAD density generation;\n"
         "                        PP = local-pseudopotential pseudo-atom, needs --valence)\n"
@@ -260,6 +262,7 @@ static int Main(int argc, char** argv)
         else if (a=="--mol")     molname=need(i);
         else if (a=="--mult")    mult=std::stoi(need(i));
         else if (a=="--q")       q=std::stoi(need(i));
+        else if (a=="--config")  configuration=need(i);
         else if (a=="--model")   model=need(i);
         else if (a=="--pol")     pol=need(i);
         else if (a=="--basis")   basis=need(i);
@@ -405,6 +408,7 @@ static int Main(int argc, char** argv)
         else                   opts.model=Model::LDA;    // real LSDA: Dirac exchange + VWN5
     }
     else { opts.model = models[model]; opts.spin = pp; }   // HF / Dirac (AtomCalculation picks the EC from the model)
+    opts.configuration = configuration;   // stated (NIST notation), or empty = derived -- every model (Dirac refuses a stated one)
 
     if (minro<0) minro=Z*1e-4;
     if (minfd<0) minfd=Z*2e-5;
