@@ -66,7 +66,7 @@ import qchem.CompositeCD;                         // tComposite_CD<dcmplx>
 import qchem.Streamable;
 import qchem.Types;
 import qchem.Blaze;                                // D + s*Delta, rvec_t *= (the A1 Pρ derivative gate)
-import qchem.Reporting;                            // the I3 cell's health entry (xcBallAtPoints)
+import qchem.Reporting;                            // the I3 cell's health entry (xcFitAtPoints)
 
 using namespace qchem;
 using Hamiltonian::VxcFit;
@@ -498,8 +498,8 @@ TEST(VxcProductSpace, ThePlaneWaveBallAtBeckePointsIsItsEnergysDerivative)
         const qchem::report::json* filed=nullptr;
         for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind("I3 health@",0)==0) filed=&it.value();
         ASSERT_NE(filed, nullptr);
-        ASSERT_TRUE(filed->contains("xcBallAtPoints")) << filed->dump(1);
-        const auto& h=(*filed)["xcBallAtPoints"];
+        ASSERT_TRUE(filed->contains("xcFitAtPoints")) << filed->dump(1);
+        const auto& h=(*filed)["xcFitAtPoints"];
         EXPECT_TRUE(h.contains("chargeError") && h.contains("minRho") && h.contains("chargeTarget")) << h.dump();
         EXPECT_NEAR(h["chargeError"].get<double>(), atPoints->Integrate(v)-cd0->GetTotalCharge(), 1e-12);
     }

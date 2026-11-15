@@ -526,35 +526,61 @@ private:
 };
 
 
-//! \brief THE BALL EVALUATED AT A POINT SET (I3, V-XC-ONE-TERM step 4, lane S 2026-11-14): a plane-wave Vxc ball whose XC is integrated
-//! on a Becke mesh instead of its own raster.  A DECORATOR over the raster strategy the ball would use on its own (\a raster: the
-//! projected one where the ball holds every orbital pair, the pair collocation otherwise), so it inherits that strategy's EXACT
-//! forward/adjoint pair -- the GPW collocation, or the plane-wave projection -- and adds one more exact pair on top:
-//!   forward  rho_P(r_g) = sum_{G in ball} rho~(G) e^{iG.r_g},   rho~ = the forward FFT of the raster's rho, truncated to the ball;
-//!   adjoint  v~(G) = (1/Omega) sum_g w_g v_g e^{-iG.r_g} (\c G_FieldEvaluator::ProjectField), back on the raster, into the raster
-//!            strategy's own \c Matrix.
-//! So E = sum_g w_g e(rho_P(r_g)) and H = dE/dD exactly (gates: \c PW_Terms.TheBallAtBeckePointsIsItsEnergysDerivative on plane-wave
-//! orbitals, \c VxcProductSpace.ThePlaneWaveBallAtBeckePointsIsItsEnergysDerivative on a GPW block).  rho_P is rho[D] where the ball
-//! holds every orbital pair; on a GPW block it is the raster's rho[D] (the pair collocation) truncated to the ball -- the ball's image
-//! of rho[D] as the raster sees it, converging to rho[D] as the ball grows (the policy layer reports it, \c qchem.XCRhoPolicy).  The
-//! analytic L2 projection <G|rho[D]> would need a matching analytic <ij|G> adjoint, which the GPW fitter contraction is not.
-//! The cost is the direct sum, N_G x N_points per synthesis and per projection.  The Becke points move with the atoms, so this route
-//! has no geometry gradient or virial yet (the defaults: it says so).
-class BallAtPointsDensitySampler
+//! \brief A FIT SPACE BETWEEN A RASTER AND A POINT SET (V-XC-ONE-TERM, lane S 2026-11-15): the one exact linear pair that carries the raster's
+//! density into a fit space and out at an arbitrary point set, and its adjoint.  The strategy \c FitAtPointsDensitySampler is built on.
+//!   forward  \c AtPoints: rho on the raster -> the fit's coefficients -> rho_P at the points;
+//!   adjoint  \c OnRaster: v at the points (with their weights) -> the fit's coefficients -> the field on the raster the raster strategy's
+//!            \c Matrix contracts.
+//! Exactness of the pair (OnRaster = AtPoints^T with the raster weight Omega/N and the point weights folded in) is what makes H = dE/dD.
+class FitSpace
+{
+public:
+    virtual ~FitSpace() = default;
+    virtual rvec_t AtPoints(const rvec_t& onRaster) const=0;
+    virtual rvec_t OnRaster(const rvec_t& atPoints) const=0;
+    virtual std::string Name() const=0;   //!< the report's and console's name for the fit space
+};
+
+//! \brief THE PLANE-WAVE BALL as a fit space (I3, V-XC-ONE-TERM step 4): forward = the raster's forward FFT truncated to the ball and synthesized
+//! at each point, rho_P(r_g) = sum_{G in ball} rho~(G) e^{iG.r_g} (\c G_FieldEvaluator::EvalField); adjoint = v~(G) = (1/Omega) sum_g w_g v_g
+//! e^{-iG.r_g} (\c ProjectField), back on the raster.  rho_P is rho[D] where the ball holds every orbital pair; on a GPW block it is the
+//! raster's rho[D] truncated to the ball, converging to rho[D] as the ball grows.  The cost is the direct sum, N_G x N_points each way.
+class BallFitSpace : public virtual FitSpace
+{
+public:
+    //! \a fb: a \c G_RasterTransform and a \c G_FieldEvaluator; \a points: the mesh the series is evaluated at.
+    BallFitSpace(std::shared_ptr<const BasisSet::cFIT_SF_ABS> fb, BasisSet::FitQuadrature points);
+    rvec_t AtPoints(const rvec_t& onRaster) const override;
+    rvec_t OnRaster(const rvec_t& atPoints) const override;
+    std::string Name() const override {return "the plane-wave ball";}
+private:
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsFitBasis;
+    BasisSet::FitQuadrature itsPoints;
+};
+
+//! \brief XC OF A FITTED DENSITY AT A POINT SET (V-XC-ONE-TERM steps 4 and 6): a DECORATOR over the raster strategy the fit's raster would use
+//! on its own (\a raster: the projected one where a plane-wave ball holds every orbital pair, the GPW pair collocation otherwise), so it
+//! inherits that strategy's EXACT forward/adjoint pair, and adds the fit space's exact pair (\c FitSpace) on top:
+//!   Rho = FitSpace::AtPoints(raster rho),  E = sum_g w_g e(rho_P(r_g)),  Matrix(v) = raster.Matrix(FitSpace::OnRaster(v)).
+//! So H = dE/dD exactly (gates: \c PW_Terms.TheBallAtBeckePointsIsItsEnergysDerivative on plane-wave orbitals,
+//! \c VxcProductSpace.ThePlaneWaveBallAtBeckePointsIsItsEnergysDerivative on a GPW block).  I3 learned it the hard way: first built on the
+//! projected strategy's ball projector and fitter, it was exact on plane-wave orbitals and 0.7% off dE/dD on a GPW block, whose
+//! projector and fitter contraction are not one pair; composing with the raster strategy's own Rho/Matrix pair is exact on both.
+//! The points move with the atoms, so this route has no geometry gradient or virial yet (the defaults: it says so).
+class FitAtPointsDensitySampler
     : public virtual DensitySampler
 {
 public:
-    typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
-    //! \a fb: the ball (a \c G_RasterTransform and a \c G_FieldEvaluator); \a raster: the strategy over its raster; \a points: the mesh.
-    BallAtPointsDensitySampler(fbs_t fb, std::shared_ptr<const DensitySampler> raster, BasisSet::FitQuadrature points);
+    //! \a fit: the fit space between the raster and \a points; \a raster: the strategy over the raster; \a points: the XC mesh.
+    FitAtPointsDensitySampler(std::shared_ptr<const FitSpace> fit, std::shared_ptr<const DensitySampler> raster, BasisSet::FitQuadrature points);
     double Integrate(const rvec_t& f) const override;
     size_t NumPoints() const override {return itsPoints.GetMesh()->size();}
     XCRhoSource RhoSource() const override {return itsRaster->RhoSource();}
     std::optional<double> GroupResidual() const override {return std::nullopt;}
     const rvec_t& Rho(const cChargeDensity* cd) const override;
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
-    //! \f$\langle i|v|j\rangle\f$ through the exact adjoint: \a v at my points projected onto the ball, put on the raster, contracted
-    //! by the raster strategy.
+    //! \f$\langle i|v|j\rangle\f$ through the exact adjoint: \a v at my points carried by the fit space onto the raster, contracted by the
+    //! raster strategy.
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
     //! The raster strategy's own warm-up (its tables), which this route samples through.
@@ -563,19 +589,16 @@ public:
     cvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
     mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const override;
 private:
-    rvec_t AtPoints(const rvec_t& onRaster) const;   //!< the forward: raster rho -> ball -> my points
-    //! \brief THE CELL'S HEALTH, every synthesis (controller 2026-11-14): on a GPW block rho_P is rho[D] cut SHARPLY at the ball, a G-space
-    //! cut that rings in r (doc/Pins.md pin 1), and nothing sizes that ball from eps yet.  So the run reports, under \c xcBallAtPoints:
-    //! the truncation charge error \f$\int\rho_P-N\f$ (on the Becke points) and \f$\min\rho_P\f$ there, and WARNS when the charge error
-    //! exceeds the run's target (the mesh's \c SamplingAccuracy::target, eps x atoms in its own units, applied to the charge in electrons)
-    //! or \f$\min\rho_P<0\f$ (e_xc of a negative density is guarded to zero, so XC silently loses those points).
+    //! \brief THE CELL'S HEALTH, every synthesis (controller 2026-11-14): a fit space is not rho[D] -- the ball's sharp cut rings in r (pin 1),
+    //! a Gaussian fit has a residual -- so the run reports, under \c xcFitAtPoints: the fit's charge error \f$\int\rho_P-N\f$ (on the points)
+    //! and \f$\min\rho_P\f$ there, and WARNS when the charge error exceeds the run's target (the mesh's \c SamplingAccuracy::target, eps x
+    //! atoms in its own units, applied to the charge in electrons) or \f$\min\rho_P<0\f$ (e_xc of a negative density is guarded to zero).
     void ReportHealth(const rvec_t& rhoP, double N) const;
-    rvec_t OnRaster(const rvec_t& atPoints) const;   //!< the adjoint: v at my points -> ball -> raster
-    fbs_t itsFitBasis;
+    std::shared_ptr<const FitSpace> itsFit;
     std::shared_ptr<const DensitySampler> itsRaster;
     BasisSet::FitQuadrature itsPoints;
     //! rho_P at my points, and the raster sample each was synthesized from: the synthesis is the cost, so it reruns only when the raster
-    //! strategy's sample changed (a value compare, N_raster, against N_G x N_points).
+    //! strategy's sample changed (a value compare, N_raster).
     mutable rvec_t itsRho, itsRhoUp, itsRhoDn;
     mutable rvec_t itsRhoFrom, itsUpFrom, itsDnFrom;
     mutable bool   itsWarnedCharge=false, itsWarnedNegative=false, itsAnnounced=false;   //!< one console line per new condition
