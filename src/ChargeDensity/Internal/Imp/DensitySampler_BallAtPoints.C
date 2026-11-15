@@ -6,7 +6,10 @@
 // fitter: exact on plane-wave orbitals (FD 7e-14) but 0.7% off dE/dD on a GPW block, whose ball projection and fitter contraction are
 // not one pair there.  Composing with the raster strategy's own Rho/Matrix pair is what makes it exact on both.
 module;
+#include <algorithm>
 #include <cassert>
+#include <cmath>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -65,10 +68,34 @@ rvec_t BallAtPointsDensitySampler::OnRaster(const rvec_t& atPoints) const
     return raster.RhoOnGrid(field.ProjectField(itsPoints.GetMesh()->Points(), itsPoints.GetMesh()->Weights(), atPoints));
 }
 
+void BallAtPointsDensitySampler::ReportHealth(const rvec_t& rhoP, double N) const
+{
+    double minRho=rhoP.size() ? rhoP[0] : 0.0;
+    for (double x : rhoP) minRho=std::min(minRho, x);
+    const double dq=Integrate(rhoP)-N;
+    const SamplingTarget* t=itsPoints.GetMesh()->FourierTarget();
+    const double target= t ? t->accuracy.target : 0.0;   // 0 = the run stated no target: report, and warn on a negative density only
+    {
+        qchem::report::Scope here("xcBallAtPoints");
+        qchem::report::Set("chargeError", dq);
+        qchem::report::Set("minRho", minRho);
+        qchem::report::Set("chargeTarget", target);
+    }
+    const bool overCharge= target>0.0 && std::fabs(dq)>target, negative= minRho<0.0;
+    if (!itsAnnounced || (overCharge && !itsWarnedCharge) || (negative && !itsWarnedNegative))
+    {
+        std::cout << "[xc ball at Becke points] truncation charge error " << dq << " e (target " << target << ")  min rho_P " << minRho;
+        if (overCharge) std::cout << "  WARNING: the ball's sharp cut misses the charge target -- raise densityEcut (no eps sizing yet)";
+        if (negative)   std::cout << "  WARNING: rho_P < 0 at some Becke points (the cut rings, pin 1): XC drops them";
+        std::cout << std::endl;
+        itsAnnounced=true; itsWarnedCharge|=overCharge; itsWarnedNegative|=negative;
+    }
+}
+
 const rvec_t& BallAtPointsDensitySampler::Rho(const cChargeDensity* cd) const
 {
     const rvec_t& r=itsRaster->Rho(cd);
-    if (r.size()!=itsRhoFrom.size() || r!=itsRhoFrom) {itsRho=AtPoints(r); itsRhoFrom=r;}
+    if (r.size()!=itsRhoFrom.size() || r!=itsRhoFrom) {itsRho=AtPoints(r); itsRhoFrom=r; ReportHealth(itsRho, cd->GetTotalCharge());}
     return itsRho;
 }
 const rvec_t& BallAtPointsDensitySampler::RhoPol(const cChargeDensity* cd, const Spin& s) const
@@ -76,7 +103,12 @@ const rvec_t& BallAtPointsDensitySampler::RhoPol(const cChargeDensity* cd, const
     const rvec_t& r=itsRaster->RhoPol(cd, s);
     rvec_t& out =s==Spin::Up ? itsRhoUp : itsRhoDn;
     rvec_t& from=s==Spin::Up ? itsUpFrom : itsDnFrom;
-    if (r.size()!=from.size() || r!=from) {out=AtPoints(r); from=r;}
+    if (r.size()!=from.size() || r!=from)
+    {
+        out=AtPoints(r); from=r;
+        // the health of the total: once both channels are synthesized for the same density
+        if (s==Spin::Down && itsRhoUp.size()==out.size()) ReportHealth(rvec_t(itsRhoUp+out), cd->GetTotalCharge());
+    }
     return out;
 }
 

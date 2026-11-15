@@ -564,6 +564,12 @@ public:
     mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const override;
 private:
     rvec_t AtPoints(const rvec_t& onRaster) const;   //!< the forward: raster rho -> ball -> my points
+    //! \brief THE CELL'S HEALTH, every synthesis (controller 2026-11-14): on a GPW block rho_P is rho[D] cut SHARPLY at the ball, a G-space
+    //! cut that rings in r (doc/Pins.md pin 1), and nothing sizes that ball from eps yet.  So the run reports, under \c xcBallAtPoints:
+    //! the truncation charge error \f$\int\rho_P-N\f$ (on the Becke points) and \f$\min\rho_P\f$ there, and WARNS when the charge error
+    //! exceeds the run's target (the mesh's \c SamplingAccuracy::target, eps x atoms in its own units, applied to the charge in electrons)
+    //! or \f$\min\rho_P<0\f$ (e_xc of a negative density is guarded to zero, so XC silently loses those points).
+    void ReportHealth(const rvec_t& rhoP, double N) const;
     rvec_t OnRaster(const rvec_t& atPoints) const;   //!< the adjoint: v at my points -> ball -> raster
     fbs_t itsFitBasis;
     std::shared_ptr<const DensitySampler> itsRaster;
@@ -572,6 +578,7 @@ private:
     //! strategy's sample changed (a value compare, N_raster, against N_G x N_points).
     mutable rvec_t itsRho, itsRhoUp, itsRhoDn;
     mutable rvec_t itsRhoFrom, itsUpFrom, itsDnFrom;
+    mutable bool   itsWarnedCharge=false, itsWarnedNegative=false, itsAnnounced=false;   //!< one console line per new condition
 };
 
 } //namespace

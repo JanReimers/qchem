@@ -66,6 +66,7 @@ import qchem.CompositeCD;                         // tComposite_CD<dcmplx>
 import qchem.Streamable;
 import qchem.Types;
 import qchem.Blaze;                                // D + s*Delta, rvec_t *= (the A1 Pρ derivative gate)
+import qchem.Reporting;                            // the I3 cell's health entry (xcBallAtPoints)
 
 using namespace qchem;
 using Hamiltonian::VxcFit;
@@ -487,7 +488,21 @@ TEST(VxcProductSpace, ThePlaneWaveBallAtBeckePointsIsItsEnergysDerivative)
         return atPoints->Integrate(e);
     };
     const auto cd0=density(D);
-    rvec_t v=atPoints->Rho(cd0.get());
+    rvec_t v;
+    {   // THE CELL REPORTS ITS HEALTH every synthesis (controller 2026-11-14): the truncation charge error and min rho_P, one level in
+        qchem::report::Run run("I3 health");
+        v=atPoints->Rho(cd0.get());
+    }
+    {
+        const auto& G=qchem::report::GlobalReport();
+        const qchem::report::json* filed=nullptr;
+        for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind("I3 health@",0)==0) filed=&it.value();
+        ASSERT_NE(filed, nullptr);
+        ASSERT_TRUE(filed->contains("xcBallAtPoints")) << filed->dump(1);
+        const auto& h=(*filed)["xcBallAtPoints"];
+        EXPECT_TRUE(h.contains("chargeError") && h.contains("minRho") && h.contains("chargeTarget")) << h.dump();
+        EXPECT_NEAR(h["chargeError"].get<double>(), atPoints->Integrate(v)-cd0->GetTotalCharge(), 1e-12);
+    }
     const double qPoints=atPoints->Integrate(v), qRaster=onRaster->Integrate(onRaster->Rho(cd0.get()));
     v*=2.0;
     const chmat_t H=atPoints->Matrix(&cx, v);
