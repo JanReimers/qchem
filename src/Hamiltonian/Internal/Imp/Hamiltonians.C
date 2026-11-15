@@ -49,8 +49,8 @@ Ham_HF::Ham_HF(const st_t& st, SpinGroup g)
     Add(new Kinetic<double>);
     Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
     Add(new Ven(st));
-    Add(new Vee);
-    Add(new Vxc);                  // same-spin exchange: -1/2 K on a folded doublet, -K per channel
+    Add(new Vee_HF);
+    Add(new Vxc_HF);                  // same-spin exchange: -1/2 K on a folded doublet, -K per channel
 }
 
 //! A FIT BASIS IS BUILT IN ITS TERM'S SCOPE, one level into the caller's context, and files one \c fitbasis row there: a facade's run
@@ -515,8 +515,8 @@ Ham_DHF::Ham_DHF(const st_t& st)
     Add(new DiracKinetic());
     Add(new RestMass());
     Add(new Ven(st));
-    Add(new Vee());
-    Add(new Vxc());
+    Add(new Vee_HF);
+    Add(new Vxc_HF);
 }
 
 } //namespace

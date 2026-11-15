@@ -246,7 +246,7 @@ private:
                                                   size_t version, const Spin& s) const;
 };
 
-class Vee : public Dynamic_HF_HT_Imp
+class Vee_HF : public Dynamic_HF_HT_Imp
          , public virtual tGeometryGradient_HT<double>   // its force (§13.2; lane B): Imp/HF_Forces.C
 {
 public:
@@ -273,7 +273,7 @@ protected:
 //  (This replaced Vxc(-1/2) + a VxcPol forwarding to two Vxc(-1): the coefficient and the density were the
 //  only differences, and both are functions of the block's spin.)
 //
-class Vxc : public Dynamic_HF_HT_Imp
+class Vxc_HF : public Dynamic_HF_HT_Imp
          , public virtual tGeometryGradient_HT<double>   // its force (§13.2; lane B): Imp/HF_Forces.C
 {
 public:
