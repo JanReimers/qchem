@@ -3104,3 +3104,30 @@ The rows (verbatim, from `doc/OpenWork.md`):
 
 **The grids report.**  The value + source half had landed in 4303815f6 (2026-11-07, lane G's Si Γ finding: a stated 4 Ha read as the floor); this adds `densityEcutFloor` (C·α_max, the number a stated value is judged against), gated in `GPW_Si.Γ_Imp_Schema`.
 
+
+
+## ✅ CLOSED by the ρ axis's retirement: the I3 ball's ε sizing, and the A1 Pρ negativity (lane S, 2026-11-15)
+
+User ruling 2026-11-15 ("Your plan sounds good"): XC sees ρ[D] (pin 28), so `xc.rho: fit` on an inexact fit is refused at setup, and the Pρ cells are deleted
+(`OverlapProjectedDensitySampler`, the periodic A1 projection, the plane-wave ball at Becke points over GPW orbitals).  Both rows lost their subject.
+
+**The I3 row's measured reason (Si diamond, Γ, SIPP_SR, GPW, Becke XC mesh, `xc.fit PlaneWave` + `xc.rho fit` vs `xc.fit Delta`, converged SCF each; the ball is the run's density ball):**
+
+| densityEcut | E(ball) − E(δ) Ha | ball charge error e (target 2e-5) | min ρ_P | synthesis s/call |
+|---|---|---|---|---|
+| 12 | −1.90e-4 | −3.27e-3 | −7.9e-3 | 1.1 |
+| 20 | +9.47e-5 | −1.62e-3 | −2.2e-3 | 2.4 |
+| 30 | −1.79e-5 | −7.85e-4 | −3.9e-4 | 4.5 |
+| 45 | −3.90e-5 | −8.55e-4 | +1.1e-4 | 8.8 |
+| 60 | −1.41e-6 | −1.03e-3 | +1.1e-4 | 13.8 |
+| 90 | (stopped) | −1.04e-3 | +1.1e-4 | -- |
+
+The charge error PLATEAUS near −1e-3 e from 30 Ha on, 50× the run's target, while the direct synthesis cost grows as N_G: no ball size reaches ε, because the ball
+holds the raster's ρ[D] truncated, and a Gaussian pair product is not band-limited.  Logs: `~/Code/qchem6-runs/Si/Si_I3sizing_{ball,delta}_<Ecut>.r001.json` (decks), console
+logs in the lane-S session scratchpad.
+
+**The verbatim rows:**
+
+| **The I3 ball at Becke points over GPW orbitals is cut sharply, and nothing sizes it from ε** (controller 2026-11-14, on the I3 READY) | on GPW orbitals the plane-wave Vxc ball at Becke points (`FitAtPointsDensitySampler`, V-XC-ONE-TERM step 4) sees ρ_P = the raster's ρ[D] truncated SHARPLY to the ball: a G-space cut that rings in r (`doc/Pins.md` pin 1), and the Becke points sit at the nuclei where it rings most (2% charge at densityEcut 12 on Si, the gate's print).  The cell reports its health every synthesis (`xcBallAtPoints`: truncation charge error, min ρ_P; WARN past the target or below zero), but its ball is the run's density ball, not sized for this use | size the cell's ball from ε, or replace the sharp cut with a smooth G-space window -- the rigorous bound and its calibration kept SEPARATE (CLAUDE.md), the bound as its own function, the window a named calibration with its measurement record.  Next action: a MEASUREMENT on Si (GPW, Becke): charge error, min ρ_P and E_xc vs densityEcut, sharp vs windowed.  Also route the synthesis through the point set's existing sized NUFFT (`PointSampling::MakeFourierSampler` / `MakeNUFFTSampler`), not the direct N_G × N_points sum · `src/ChargeDensity/Internal/Imp/DensitySampler_BallAtPoints.C` |
+
+| **The A1 Pρ density of a pseudopotential valence density is negative over ~29% of the XC points** (lane S, 2026-11-15, the step-6 pin-10 twin) | XC of Pρ (xc.fit Auxiliary, xc.rho fit) projects ρ[D] onto the A1_exch set in its overlap metric.  On F2 (gth-lda-valence, valence_lowq_vb) the molecular route (`M_DFT.F2_PP_AuxiliaryFitProjected`, `QCHEM_DIAGNOSTICS=rho_negative`) has min Pρ −0.439 with −0.30 e of negative mass on 29% of the points, and the periodic route in a 16-bohr box reproduces it (min −0.4386, charge error −0.21 e): the MODEL, not a code defect.  A1_exch was built to fit all-electron v_xc; a PP valence density has a hole at each core, which an unconstrained L2 fit with tight Gaussians rings around, and XC drops the negative points (GetVxc guards ρ > 0) | decide what the Pρ cell should fit with on PP densities: a charge-constrained fit (∫Pρ = N), a PP-adapted auxiliary set, or a policy WARN that names the set's mismatch when the run's density is a PP valence one.  Next action: measure Pρ's negative mass and E against the δ energy for F2 and Si with a PP-adapted set (e.g. the orbital basis's own products, or a GTH-tailored even-tempered set).  An OPTION to weigh, not a mandate (user 2026-11-15: "we can constrain the fit by total charge", "I am not advocating, just wanted you to be aware"): a charge-constrained Pρ.  The constraint and the metric are ORTHOGONAL axes (constrained/unconstrained × Coulomb-Dunlap/overlap-normal), so if taken it reuses Fitting's metric-agnostic `ConstrainedFF<T>` / `IntegralConstrainedFF` (`src/Fitting/Internal/FunctionFitterImp.C`) in the overlap metric, never a hand-rolled projector; a target of the mesh's own ∫ρ_X keeps the map linear (its transpose the adjoint, H = dE/dD keeps its FD gate).  Likely outcome: chargeError → ~0 while min ρ_P barely moves (the negativity is the SHAPE: a PP core hole in an all-electron set) · `src/ChargeDensity/Internal/Imp/DensitySampler_FitAtPoints.C`, `DensitySampler_OverlapProjected.C` |
