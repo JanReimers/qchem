@@ -2900,90 +2900,92 @@ its isoelectronic neutral's configuration, so they need a stated configuration f
 **RE-JUDGED**: short 1630/1630, anchordiff against main-febe0b1a at 1e-10: **0 of 1625 moved** -- no existing test runs an all-electron DFT
 molecule past Ne on the Auto seed (hence the two new SCF gates).
 
-| Z | el | configuration (NIST = run) | spin | route | E (Ha) | ΔE vs NIST | moment | iters | note |
+**REFRESHED 2026-11-14 (lane B), after the atom fix landed (main 9a8d5992: the XC mesh and a radial-Poisson Hartree sized from ε).** The old table below the fix carried both ε-blind approximations: 18 entries sat BELOW NIST (Te-Ba, Ho-Os, Po, Th-U; Ho −2.5 mHa, U −2.4), variationally impossible.  Re-run (`scripts/gen-ae-seeds`, Z 11-92; its parser now reads the LAST occupation table, 0fa02ab2e, since the atom pilot re-converges once when it raises a grid): **82/82 written, none below NIST**, worst U +1.81 mHa (basis incompleteness).  16 elements now take Slater, was Gaussian (Cu Gd Tb Dy W Hg Tl Pb At Rn Fr Ra Ac Th Pa U): Slater is the nearer route once its Coulomb fit no longer pulls it down; Cu now converges on Slater (+0.06 mHa, was +2.9 on Gaussian).  Densities move ≤ 2e-6 relative where the route is unchanged, up to 2% where it switches (Cu).  The same library came out byte for byte on main 1179902b3 (after lane H's S4).  Z 1-10 still as they were.  The table is the refreshed run; the 2026-11-13 table it replaces is in git (5b976e74a).
+
+| Z | el | configuration (NIST = run) | spin | basis | E (Ha) | ΔE vs NIST | moment | iters | note |
 |---|---|---|---|---|---|---|---|---|---|
-| 11 | Na | [Ne] 3s^1 | P | Slater | -161.447615 | +9.90e-06 | 1.0004 | 18 |  |
-| 12 | Mg | [Ne] 3s^2 | U | Slater | -199.139391 | +1.50e-05 |  | 18 |  |
-| 13 | Al | [Ne] 3s^2 3p^1 | P | Slater | -241.321148 | +8.10e-06 | 1.0004 | 10 |  |
-| 14 | Si | [Ne] 3s^2 3p^2 | P | Slater | -288.222929 | +1.65e-05 | 2.0007 | 10 |  |
-| 15 | P | [Ne] 3s^2 3p^3 | P | Slater | -340.005772 | +2.20e-05 | 3.0011 | 10 |  |
-| 16 | S | [Ne] 3s^2 3p^4 | P | Slater | -396.743924 | +2.43e-05 | 2.0007 | 8 |  |
-| 17 | Cl | [Ne] 3s^2 3p^5 | P | Slater | -458.671449 | +1.42e-05 | 1.0004 | 8 |  |
-| 18 | Ar | [Ne] 3s^2 3p^6 | U | Slater | -525.946180 | +1.54e-05 |  | 9 |  |
-| 19 | K | [Ar] 4s^1 | P | Slater | -598.205998 | +3.35e-05 | 1.0003 | 8 |  |
-| 20 | Ca | [Ar] 4s^2 | U | Slater | -675.742270 | +1.26e-05 |  | 9 |  |
-| 21 | Sc | [Ar] 3d^1 4s^2 | P | Slater | -758.685223 | +2.46e-05 | 1.0004 | 9 |  |
-| 22 | Ti | [Ar] 3d^2 4s^2 | P | Slater | -847.303409 | +5.40e-05 | 2.0007 | 8 |  |
-| 23 | V | [Ar] 3d^3 4s^2 | P | Slater | -941.742168 | +3.59e-05 | 3.0011 | 9 |  |
-| 24 | Cr | [Ar] 3d^5 4s^1 | P | Slater | -1042.218340 | +8.00e-06 | 6.0021 | 30 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^4 4s^2) |
-| 25 | Mn | [Ar] 3d^5 4s^2 | P | Slater | -1148.644090 | +3.00e-06 | 5.0018 | 9 |  |
-| 26 | Fe | [Ar] 3d^6 4s^2 | P | Slater | -1261.223251 | +4.00e-05 | 4.0014 | 9 |  |
-| 27 | Co | [Ar] 3d^7 4s^2 | P | Slater | -1380.167244 | +5.50e-05 | 3.0011 | 10 |  |
+| 11 | Na | [Ne] 3s^1 | P | Slater | -161.447615 | +9.70e-06 | 1.0004 | 18 |  |
+| 12 | Mg | [Ne] 3s^2 | U | Slater | -199.139391 | +1.47e-05 |  | 18 |  |
+| 13 | Al | [Ne] 3s^2 3p^1 | P | Slater | -241.321148 | +7.70e-06 | 1.0004 | 10 |  |
+| 14 | Si | [Ne] 3s^2 3p^2 | P | Slater | -288.222929 | +1.60e-05 | 2.0007 | 10 |  |
+| 15 | P | [Ne] 3s^2 3p^3 | P | Slater | -340.005773 | +2.13e-05 | 3.0011 | 10 |  |
+| 16 | S | [Ne] 3s^2 3p^4 | P | Slater | -396.743924 | +2.35e-05 | 2.0007 | 8 |  |
+| 17 | Cl | [Ne] 3s^2 3p^5 | P | Slater | -458.671450 | +1.32e-05 | 1.0004 | 8 |  |
+| 18 | Ar | [Ne] 3s^2 3p^6 | U | Slater | -525.946180 | +1.47e-05 |  | 9 |  |
+| 19 | K | [Ar] 4s^1 | P | Slater | -598.206013 | +1.93e-05 | 1.0003 | 2 |  |
+| 20 | Ca | [Ar] 4s^2 | U | Slater | -675.742257 | +2.65e-05 |  | 2 |  |
+| 21 | Sc | [Ar] 3d^1 4s^2 | P | Slater | -758.685224 | +2.44e-05 | 1.0004 | 9 |  |
+| 22 | Ti | [Ar] 3d^2 4s^2 | P | Slater | -847.303429 | +3.35e-05 | 2.0007 | 2 |  |
+| 23 | V | [Ar] 3d^3 4s^2 | P | Slater | -941.742169 | +3.47e-05 | 3.0011 | 9 |  |
+| 24 | Cr | [Ar] 3d^5 4s^1 | P | Slater | -1042.218321 | +2.70e-05 | 6.0021 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^4 4s^2) |
+| 25 | Mn | [Ar] 3d^5 4s^2 | P | Slater | -1148.644075 | +1.80e-05 | 5.0018 | 2 |  |
+| 26 | Fe | [Ar] 3d^6 4s^2 | P | Slater | -1261.223263 | +2.80e-05 | 4.0014 | 3 |  |
+| 27 | Co | [Ar] 3d^7 4s^2 | P | Slater | -1380.167258 | +4.10e-05 | 3.0011 | 2 |  |
 | 28 | Ni | [Ar] 3d^8 4s^2 | P | Slater | -1505.615061 | +4.50e-05 | 2.0007 | 14 |  |
-| 29 | Cu | [Ar] 3d^10 4s^1 | P | Gaussian | -1637.790443 | +2.91e-03 | 1.0004 | 19 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^9 4s^2); Slater unconverged, ΔE +1.91e+00 |
-| 30 | Zn | [Ar] 3d^10 4s^2 | U | Slater | -1776.573789 | +6.10e-05 |  | 31 |  |
-| 31 | Ga | [Ar] 3d^10 4s^2 4p^1 | P | Slater | -1921.851839 | +8.50e-05 | 1.0004 | 12 |  |
-| 32 | Ge | [Ar] 3d^10 4s^2 4p^2 | P | Slater | -2073.829766 | +9.40e-05 | 2.0007 | 22 |  |
-| 33 | As | [Ar] 3d^10 4s^2 4p^3 | P | Slater | -2232.587109 | +4.50e-05 | 3.0011 | 27 |  |
-| 34 | Se | [Ar] 3d^10 4s^2 4p^4 | P | Slater | -2398.134903 | +2.70e-05 | 2.0007 | 21 |  |
-| 35 | Br | [Ar] 3d^10 4s^2 4p^5 | P | Slater | -2570.626635 | +1.60e-05 | 1.0004 | 29 |  |
-| 36 | Kr | [Ar] 3d^10 4s^2 4p^6 | U | Slater | -2750.147921 | +1.90e-05 |  | 14 |  |
-| 37 | Rb | [Kr] 5s^1 | P | Slater | -2936.342100 | +6.00e-05 | 1.0003 | 18 |  |
-| 38 | Sr | [Kr] 5s^2 | U | Slater | -3129.453043 | +1.18e-04 |  | 23 |  |
-| 39 | Y | [Kr] 4d^1 5s^2 | P | Slater | -3329.525003 | +1.39e-04 | 1.0004 | 10 |  |
-| 40 | Zr | [Kr] 4d^2 5s^2 | P | Slater | -3536.757118 | +1.09e-04 | 2.0007 | 11 |  |
-| 41 | Nb | [Kr] 4d^4 5s^1 | P | Slater | -3751.295531 | +8.70e-05 | 5.0018 | 23 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^3 5s^2) |
-| 42 | Mo | [Kr] 4d^5 5s^1 | P | Slater | -3973.162550 | +4.50e-05 | 6.0021 | 25 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^4 5s^2) |
-| 43 | Tc | [Kr] 4d^5 5s^2 | P | Slater | -4202.325499 | +1.12e-04 | 5.0018 | 25 |  |
-| 44 | Ru | [Kr] 4d^7 5s^1 | P | Slater | -4439.044456 | +1.51e-04 | 4.0014 | 24 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^6 5s^2) |
-| 45 | Rh | [Kr] 4d^8 5s^1 | P | Slater | -4683.334830 | +9.50e-05 | 3.0011 | 16 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^7 5s^2) |
-| 46 | Pd | [Kr] 4d^10 | U | Slater | -4935.368414 | -8.00e-06 |  | 28 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^8 5s^2) |
-| 47 | Ag | [Kr] 4d^10 5s^1 | P | Slater | -5195.037425 | -7.40e-05 | 1.0004 | 13 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^9 5s^2) |
-| 48 | Cd | [Kr] 4d^10 5s^2 | U | Slater | -5462.391012 | -3.00e-05 |  | 19 |  |
-| 49 | In | [Kr] 4d^10 5s^2 5p^1 | P | Slater | -5737.313743 | +6.60e-05 | 1.0004 | 13 |  |
-| 50 | Sn | [Kr] 4d^10 5s^2 5p^2 | P | Slater | -6019.972289 | +5.60e-05 | 2.0007 | 17 |  |
-| 51 | Sb | [Kr] 4d^10 5s^2 5p^3 | P | Slater | -6310.419491 | -1.65e-04 | 3.0011 | 24 |  |
-| 52 | Te | [Kr] 4d^10 5s^2 5p^4 | P | Slater | -6608.651003 | -5.27e-04 | 2.0007 | 27 |  |
-| 53 | I | [Kr] 4d^10 5s^2 5p^5 | P | Slater | -6914.778785 | -9.28e-04 | 1.0004 | 22 |  |
-| 54 | Xe | [Kr] 4d^10 5s^2 5p^6 | U | Slater | -7228.857239 | -1.13e-03 |  | 27 |  |
-| 55 | Cs | [Xe] 6s^1 | P | Slater | -7550.562853 | -9.87e-04 | 1.0003 | 11 |  |
-| 56 | Ba | [Xe] 6s^2 | U | Slater | -7880.112041 | -4.63e-04 |  | 13 |  |
-| 57 | La | [Xe] 5d^1 6s^2 | P | Slater | -8217.579073 | +2.25e-04 | 1.0004 | 10 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^1 5s^2 5p^6 6s^2) |
-| 58 | Ce | [Xe] 4f^1 5d^1 6s^2 | P | Slater | -8563.372127 | +8.68e-04 | 2.0007 | 11 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^2 5s^2 5p^6 6s^2) |
-| 59 | Pr | [Xe] 4f^3 6s^2 | P | Slater | -8917.714667 | +1.11e-03 | 3.0011 | 17 |  |
-| 60 | Nd | [Xe] 4f^4 6s^2 | P | Slater | -9280.404768 | +9.02e-04 | 4.0014 | 16 |  |
-| 61 | Pm | [Xe] 4f^5 6s^2 | P | Slater | -9651.635988 | +3.31e-04 | 5.0018 | 17 |  |
-| 62 | Sm | [Xe] 4f^6 6s^2 | P | Slater | -10031.484180 | -4.84e-04 | 6.0021 | 14 |  |
-| 63 | Eu | [Xe] 4f^7 6s^2 | P | Slater | -10420.024410 | -1.26e-03 | 7.0025 | 14 |  |
-| 64 | Gd | [Xe] 4f^7 5d^1 6s^2 | P | Gaussian | -10817.014140 | +1.45e-03 | 8.0028 | 26 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^8 5s^2 5p^6 6s^2) |
-| 65 | Tb | [Xe] 4f^9 6s^2 | P | Gaussian | -11223.106110 | +1.93e-03 | 5.0018 | 14 |  |
-| 66 | Dy | [Xe] 4f^10 6s^2 | P | Gaussian | -11637.975320 | +2.46e-03 | 4.0014 | 14 |  |
-| 67 | Ho | [Xe] 4f^11 6s^2 | P | Slater | -12061.834820 | -2.50e-03 | 3.0011 | 14 |  |
-| 68 | Er | [Xe] 4f^12 6s^2 | P | Slater | -12494.748470 | -2.32e-03 | 2.0007 | 14 |  |
-| 69 | Tm | [Xe] 4f^13 6s^2 | P | Slater | -12936.795620 | -2.07e-03 | 1.0004 | 14 |  |
-| 70 | Yb | [Xe] 4f^14 6s^2 | U | Slater | -13388.050400 | -1.81e-03 |  | 14 |  |
-| 71 | Lu | [Xe] 4f^14 5d^1 6s^2 | P | Slater | -13848.236430 | -1.66e-03 | 1.0004 | 15 |  |
-| 72 | Hf | [Xe] 4f^14 5d^2 6s^2 | P | Slater | -14317.513790 | -1.58e-03 | 2.0007 | 14 |  |
-| 73 | Ta | [Xe] 4f^14 5d^3 6s^2 | P | Slater | -14795.928670 | -1.54e-03 | 3.0011 | 14 |  |
-| 74 | W | [Xe] 4f^14 5d^4 6s^2 | P | Gaussian | -15283.525530 | +1.34e-03 | 4.0014 | 14 |  |
-| 75 | Re | [Xe] 4f^14 5d^5 6s^2 | P | Slater | -15780.361330 | -1.19e-03 | 5.0018 | 14 |  |
-| 76 | Os | [Xe] 4f^14 5d^6 6s^2 | P | Slater | -16286.376400 | -9.08e-04 | 4.0014 | 15 |  |
-| 77 | Ir | [Xe] 4f^14 5d^7 6s^2 | P | Slater | -16801.723340 | -4.79e-04 | 3.0011 | 15 |  |
-| 78 | Pt | [Xe] 4f^14 5d^9 6s^1 | P | Slater | -17326.590040 | +7.00e-05 | 2.0007 | 25 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^8 6s^2) |
-| 79 | Au | [Xe] 4f^14 5d^10 6s^1 | P | Slater | -17860.795940 | +6.33e-04 | 1.0004 | 15 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^9 6s^2) |
-| 80 | Hg | [Xe] 4f^14 5d^10 6s^2 | U | Gaussian | -18404.274810 | -5.90e-04 |  | 13 |  |
-| 81 | Tl | [Xe] 4f^14 5d^10 6s^2 6p^1 | P | Gaussian | -18956.962010 | +9.20e-05 | 1.0004 | 10 |  |
-| 82 | Pb | [Xe] 4f^14 5d^10 6s^2 6p^2 | P | Gaussian | -19519.010100 | +6.73e-04 | 2.0007 | 10 |  |
-| 83 | Bi | [Xe] 4f^14 5d^10 6s^2 6p^3 | P | Slater | -20090.453650 | +2.93e-04 | 3.0011 | 10 |  |
-| 84 | Po | [Xe] 4f^14 5d^10 6s^2 6p^4 | P | Slater | -20671.275060 | -1.21e-03 | 2.0007 | 10 |  |
-| 85 | At | [Xe] 4f^14 5d^10 6s^2 6p^5 | P | Gaussian | -21261.558400 | +1.11e-03 | 1.0004 | 10 |  |
-| 86 | Rn | [Xe] 4f^14 5d^10 6s^2 6p^6 | U | Gaussian | -21861.346000 | +8.69e-04 |  | 20 |  |
-| 87 | Fr | [Rn] 7s^1 | P | Gaussian | -22470.321090 | +2.43e-03 | 1.0004 | 10 |  |
-| 88 | Ra | [Rn] 7s^2 | U | Gaussian | -23088.686700 | +1.38e-03 |  | 11 |  |
-| 89 | Ac | [Rn] 6d^1 7s^2 | P | Gaussian | -23716.499910 | +7.52e-04 | 1.0004 | 10 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^1 6s^2 6p^6 7s^2) |
-| 90 | Th | [Rn] 6d^2 7s^2 | P | Gaussian | -24353.849540 | -2.18e-03 | 2.0007 | 10 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^2 6s^2 6p^6 7s^2) |
-| 91 | Pa | [Rn] 5f^2 6d^1 7s^2 | P | Gaussian | -25001.322470 | -2.23e-03 | 3.0011 | 10 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^3 6s^2 6p^6 7s^2) |
-| 92 | U | [Rn] 5f^3 6d^1 7s^2 | P | Gaussian | -25658.476910 | -2.39e-03 | 4.0014 | 16 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^4 6s^2 6p^6 7s^2) |
+| 29 | Cu | [Ar] 3d^10 4s^1 | P | Slater | -1637.793295 | +6.30e-05 | 1.0004 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^9 4s^2) |
+| 30 | Zn | [Ar] 3d^10 4s^2 | U | Slater | -1776.573780 | +7.00e-05 |  | 3 |  |
+| 31 | Ga | [Ar] 3d^10 4s^2 4p^1 | P | Slater | -1921.851851 | +7.30e-05 | 1.0004 | 2 |  |
+| 32 | Ge | [Ar] 3d^10 4s^2 4p^2 | P | Slater | -2073.829785 | +7.50e-05 | 2.0007 | 2 |  |
+| 33 | As | [Ar] 3d^10 4s^2 4p^3 | P | Slater | -2232.587115 | +3.90e-05 | 3.0011 | 2 |  |
+| 34 | Se | [Ar] 3d^10 4s^2 4p^4 | P | Slater | -2398.134893 | +3.70e-05 | 2.0007 | 20 |  |
+| 35 | Br | [Ar] 3d^10 4s^2 4p^5 | P | Slater | -2570.626599 | +5.20e-05 | 1.0004 | 2 |  |
+| 36 | Kr | [Ar] 3d^10 4s^2 4p^6 | U | Slater | -2750.147882 | +5.80e-05 |  | 2 |  |
+| 37 | Rb | [Kr] 5s^1 | P | Slater | -2936.342096 | +6.40e-05 | 1.0003 | 18 |  |
+| 38 | Sr | [Kr] 5s^2 | U | Slater | -3129.453084 | +7.70e-05 |  | 2 |  |
+| 39 | Y | [Kr] 4d^1 5s^2 | P | Slater | -3329.525046 | +9.60e-05 | 1.0004 | 2 |  |
+| 40 | Zr | [Kr] 4d^2 5s^2 | P | Slater | -3536.757108 | +1.19e-04 | 2.0007 | 11 |  |
+| 41 | Nb | [Kr] 4d^4 5s^1 | P | Slater | -3751.295472 | +1.46e-04 | 5.0018 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^3 5s^2) |
+| 42 | Mo | [Kr] 4d^5 5s^1 | P | Slater | -3973.162510 | +8.50e-05 | 6.0021 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^4 5s^2) |
+| 43 | Tc | [Kr] 4d^5 5s^2 | P | Slater | -4202.325518 | +9.30e-05 | 5.0018 | 2 |  |
+| 44 | Ru | [Kr] 4d^7 5s^1 | P | Slater | -4439.044501 | +1.06e-04 | 4.0014 | 3 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^6 5s^2) |
+| 45 | Rh | [Kr] 4d^8 5s^1 | P | Slater | -4683.334808 | +1.17e-04 | 3.0011 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^7 5s^2) |
+| 46 | Pd | [Kr] 4d^10 | U | Slater | -4935.368275 | +1.31e-04 |  | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^8 5s^2) |
+| 47 | Ag | [Kr] 4d^10 5s^1 | P | Slater | -5195.037213 | +1.38e-04 | 1.0004 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^9 5s^2) |
+| 48 | Cd | [Kr] 4d^10 5s^2 | U | Slater | -5462.390829 | +1.53e-04 |  | 2 |  |
+| 49 | In | [Kr] 4d^10 5s^2 5p^1 | P | Slater | -5737.313632 | +1.77e-04 | 1.0004 | 2 |  |
+| 50 | Sn | [Kr] 4d^10 5s^2 5p^2 | P | Slater | -6019.972137 | +2.08e-04 | 2.0007 | 2 |  |
+| 51 | Sb | [Kr] 4d^10 5s^2 5p^3 | P | Slater | -6310.419077 | +2.49e-04 | 3.0011 | 2 |  |
+| 52 | Te | [Kr] 4d^10 5s^2 5p^4 | P | Slater | -6608.650256 | +2.20e-04 | 2.0007 | 2 |  |
+| 53 | I | [Kr] 4d^10 5s^2 5p^5 | P | Slater | -6914.777626 | +2.31e-04 | 1.0004 | 2 |  |
+| 54 | Xe | [Kr] 4d^10 5s^2 5p^6 | U | Slater | -7228.855868 | +2.39e-04 |  | 2 |  |
+| 55 | Cs | [Xe] 6s^1 | P | Slater | -7550.561628 | +2.38e-04 | 1.0003 | 2 |  |
+| 56 | Ba | [Xe] 6s^2 | U | Slater | -7880.111334 | +2.44e-04 |  | 2 |  |
+| 57 | La | [Xe] 5d^1 6s^2 | P | Slater | -8217.579034 | +2.64e-04 | 1.0004 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^1 5s^2 5p^6 6s^2) |
+| 58 | Ce | [Xe] 4f^1 5d^1 6s^2 | P | Slater | -8563.372701 | +2.94e-04 | 2.0007 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^2 5s^2 5p^6 6s^2) |
+| 59 | Pr | [Xe] 4f^3 6s^2 | P | Slater | -8917.715435 | +3.42e-04 | 3.0011 | 2 |  |
+| 60 | Nd | [Xe] 4f^4 6s^2 | P | Slater | -9280.405272 | +3.98e-04 | 4.0014 | 2 |  |
+| 61 | Pm | [Xe] 4f^5 6s^2 | P | Slater | -9651.635860 | +4.59e-04 | 5.0018 | 2 |  |
+| 62 | Sm | [Xe] 4f^6 6s^2 | P | Slater | -10031.483270 | +4.26e-04 | 6.0021 | 2 |  |
+| 63 | Eu | [Xe] 4f^7 6s^2 | P | Slater | -10420.022660 | +4.86e-04 | 7.0025 | 2 |  |
+| 64 | Gd | [Xe] 4f^7 5d^1 6s^2 | P | Slater | -10817.015060 | +5.28e-04 | 8.0028 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^8 5s^2 5p^6 6s^2) |
+| 65 | Tb | [Xe] 4f^9 6s^2 | P | Slater | -11223.107450 | +5.88e-04 | 5.0018 | 2 |  |
+| 66 | Dy | [Xe] 4f^10 6s^2 | P | Slater | -11637.977150 | +6.31e-04 | 4.0014 | 2 |  |
+| 67 | Ho | [Xe] 4f^11 6s^2 | P | Slater | -12061.831650 | +6.68e-04 | 3.0011 | 2 |  |
+| 68 | Er | [Xe] 4f^12 6s^2 | P | Slater | -12494.745450 | +7.02e-04 | 2.0007 | 2 |  |
+| 69 | Tm | [Xe] 4f^13 6s^2 | P | Slater | -12936.792810 | +7.39e-04 | 1.0004 | 2 |  |
+| 70 | Yb | [Xe] 4f^14 6s^2 | U | Slater | -13388.047830 | +7.64e-04 |  | 2 |  |
+| 71 | Lu | [Xe] 4f^14 5d^1 6s^2 | P | Slater | -13848.233990 | +7.77e-04 | 1.0004 | 2 |  |
+| 72 | Hf | [Xe] 4f^14 5d^2 6s^2 | P | Slater | -14317.511400 | +8.12e-04 | 2.0007 | 2 |  |
+| 73 | Ta | [Xe] 4f^14 5d^3 6s^2 | P | Slater | -14795.926290 | +8.43e-04 | 3.0011 | 2 |  |
+| 74 | W | [Xe] 4f^14 5d^4 6s^2 | P | Slater | -15283.526090 | +7.84e-04 | 4.0014 | 2 |  |
+| 75 | Re | [Xe] 4f^14 5d^5 6s^2 | P | Slater | -15780.359300 | +8.35e-04 | 5.0018 | 2 |  |
+| 76 | Os | [Xe] 4f^14 5d^6 6s^2 | P | Slater | -16286.374610 | +8.82e-04 | 4.0014 | 2 |  |
+| 77 | Ir | [Xe] 4f^14 5d^7 6s^2 | P | Slater | -16801.721940 | +9.21e-04 | 3.0011 | 2 |  |
+| 78 | Pt | [Xe] 4f^14 5d^9 6s^1 | P | Slater | -17326.589130 | +9.80e-04 | 2.0007 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^8 6s^2) |
+| 79 | Au | [Xe] 4f^14 5d^10 6s^1 | P | Slater | -17860.795540 | +1.03e-03 | 1.0004 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^9 6s^2) |
+| 80 | Hg | [Xe] 4f^14 5d^10 6s^2 | U | Slater | -18404.273140 | +1.08e-03 |  | 3 |  |
+| 81 | Tl | [Xe] 4f^14 5d^10 6s^2 6p^1 | P | Slater | -18956.960970 | +1.13e-03 | 1.0004 | 2 |  |
+| 82 | Pb | [Xe] 4f^14 5d^10 6s^2 6p^2 | P | Slater | -19519.009600 | +1.17e-03 | 2.0007 | 2 |  |
+| 83 | Bi | [Xe] 4f^14 5d^10 6s^2 6p^3 | P | Slater | -20090.452700 | +1.24e-03 | 3.0011 | 2 |  |
+| 84 | Po | [Xe] 4f^14 5d^10 6s^2 6p^4 | P | Slater | -20671.272540 | +1.31e-03 | 2.0007 | 2 |  |
+| 85 | At | [Xe] 4f^14 5d^10 6s^2 6p^5 | P | Slater | -21261.558100 | +1.41e-03 | 1.0004 | 2 |  |
+| 86 | Rn | [Xe] 4f^14 5d^10 6s^2 6p^6 | U | Slater | -21861.345370 | +1.50e-03 |  | 2 |  |
+| 87 | Fr | [Rn] 7s^1 | P | Slater | -22470.322080 | +1.44e-03 | 1.0003 | 2 |  |
+| 88 | Ra | [Rn] 7s^2 | U | Slater | -23088.686550 | +1.53e-03 |  | 2 |  |
+| 89 | Ac | [Rn] 6d^1 7s^2 | P | Slater | -23716.499050 | +1.61e-03 | 1.0004 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^1 6s^2 6p^6 7s^2) |
+| 90 | Th | [Rn] 6d^2 7s^2 | P | Slater | -24353.845680 | +1.68e-03 | 2.0007 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^2 6s^2 6p^6 7s^2) |
+| 91 | Pa | [Rn] 5f^2 6d^1 7s^2 | P | Slater | -25001.318490 | +1.75e-03 | 3.0011 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^3 6s^2 6p^6 7s^2) |
+| 92 | U | [Rn] 5f^3 6d^1 7s^2 | P | Slater | -25658.472710 | +1.81e-03 | 4.0014 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^4 6s^2 6p^6 7s^2) |
 ## ✅ Fields from a saved state, cheaply, on the structure-neutral face (lane G, landed 2026-11-13, merge 7c6e7597)
 
 The row (verbatim, from `doc/OpenWork.md`):
@@ -3081,3 +3083,10 @@ derivative that is not); skips on a constant weight or an index are safe.
 The remainder as it stood, verbatim:
 
 · ✅ **The GPW (MnD) lattice-sum S/T derivatives are Enzyme over MnD; the libcint seam is deleted** (lane B 2026-11-13; full text `doc/Records/OpenWork_History5.md`).  REMAINDER: the molecular 1E family (S, T, V with the nuclei moving) is DONE too (lane B 040547891), and so are the PP family (lane B b314a325c: projectors over `KetGradient`, the local field over `GaussianRF::ThreeCentreGradient`, the cache-free twins of Overlap3C and Repulsion3C) and the Dunlap fit pullbacks (lane B 86b34ecfc: 3C (ij|k) one `ThreeCentreGradient(Repulsion)` per fit shell, the 2C metric (k|l) a `TwoCentre::Repulsion` kernel in `KetGradient`).  Still taking libcint's derivatives against MnD's energy: the HF ERI4 pullback only.  Next action: the same move behind its FD gate, a cache-free twin of Repulsion4C, WITHOUT their zero-value skips on Hermite / RNLM values (`Imp/GaussianRF.C` lines with `==0.0) continue` / `!=0`): a value zero by symmetry has a derivative that is not.
+
+## ✅ The atom facade's LDA energy below NIST past Z ≈ 50 (lane B, landed 2026-11-14, merge 9a8d5992)
+
+The row (verbatim, from `doc/OpenWork.md`):
+| **The atom facade's spherical LDA energy is ±2.5 mHa off NIST past Z ≈ 50, both signs** (lane B 2026-11-13, measured generating the seed library) | Slater High and Gaussian High (the radial atom solver's richest pools), NIST's configuration, Z 11-92: light atoms within 0.1 mHa of NIST, but Te-Ba, Ho-Os, Po and Th-U land 0.5-2.5 mHa BELOW NIST (variationally impossible for the same configuration: numerics, not physics) and Pr-Nd, Gd-Dy, Fr-Ra up to 2.5 mHa above; at worst 2.4e-7 relative.  Cu does not converge on Slater High (Gaussian does, +2.9 mHa).  Harmless for a seed, but an atom total is someone's reference energy.  **MEASURED 2026-11-13 (lane B), ΔE vs NIST at High:** Kr Slater +0.02 / Gaussian +3.5 mHa; Xe −1.1 / +2.2; Au +0.6 / +2.6; Rn −6.5 / +0.9; U −31 / −2.4 mHa.  So it GROWS with Z and Slater goes far BELOW (a richer basis must not lower a KS energy below its complete-basis value): the deficit is a non-variational piece, the CD fit (the atom's DFT runs a fitted Hartree/Vxc, `CreateCDFitBasisSet`) or the XC radial mesh, not the orbital basis.  BSpline6 refuses DFT ("no block of this basis carries the DFT fit"), so it cannot serve as the basis-limit control **ATTRIBUTED 2026-11-14 (lane B, ladders at SCF gates 1e-6, `scfrun --nradial/--coulomb/--hnradial`): TWO ε-blind approximations, both pulling DOWN.** (1) the XC radial mesh is a FIXED 50 MHL points (`AtomCalcOptions::mesh`): Xe −0.6 / −1.7 mHa, U −1.0 / −6.2 (Slater / Gaussian), flat from 100.  (2) the Dunlap Coulomb fit (the s block's exponents × 2, `Radial/BasisSet.C`; its robust energy is J − ½(Δρ|Δρ) ≤ J): exact on Gaussian, but on Slater Xe −0.77, Au −0.03, Rn −8.9, **U −32 mHa**.  With both converged (XC 200, Hartree by radial Poisson, multipole l = 0, 400-800 points) every atom lands ABOVE NIST: Kr +0.06 / +4.1, Xe +0.24 / +3.9, Au +1.0 / +6.4, Rn +1.5 / +4.9, U +1.8 / +3.8 mHa (basis incompleteness), at no cost (U 0.27 s vs 0.36 s).  Also found: the δ Hartree route on the atom's one-direction rule gives half the energy and never converges (reachable only once the atom facade takes a `coulomb` route). | **FIXED on lane-b 015c8dc09 (2026-11-14), BOTH routes (user: "do both, and have integration tests for both"); landing awaits the user's OK on the mover table** (`side-session-notes/…/lane-b-atom-grids-movers.md`): the XC radial mesh and the radial-Poisson Hartree (the new default) are sized from ε by an atom pilot, the Dunlap route stays as a stated route on an ε-governed fit ladder (`CoulombFitLadder`), δ is refused on the atom.  `A_DFT_heavy`: Xe / U above NIST on both families, the two routes agree to 5 μHa.  NEXT: land, then re-run `gen-ae-seeds` and refresh the OpenWork_History5 table; then this row closes · `src/Calculation/Imp/AtomCalculation.C` |
+
+Landed as 015c8dc09 + 0fa02ab2e (merge 474d48331, main 9a8d5992), the user approving the default flip on the mover table (`side-session-notes/…/lane-b-atom-grids-movers.md`): `AtomCalcOptions::coulomb` (Auto = radial Poisson, Auxiliary = the Dunlap ladder, Delta refused), the XC radial mesh and the Hartree mesh / fit rung sized from ε by the atom pilot (console `[atom pilot]`, report `atomPilot`), `CoulombFitLadder` (Slater: each shell at its own power r^{2l}), the Dunlap metric's truncated inverse reported (`coulombMetricModesDropped`).  Gates `A_DFT_heavy` (Xe, U; Slater, Gaussian): Slater Xe +0.24, U +1.81; Gaussian Xe +3.86, U +3.80 mHa above NIST, the two routes 2.7-5.2 μHa apart.  Short 54 of 1650 moved (every A_DFT_atom mover UP: the old fit hid thin-pool incompleteness by 0.1-0.5 Ha), long 1 (iterations only).  The seed library re-run after it (the generator section above, "REFRESHED 2026-11-14").  Rows it left: standalone GDM's handoff cycle on F⁻ (lane A), the near-singular radial Dunlap metric, the atom's `iters=` after a pilot re-converge.

@@ -16,7 +16,7 @@ import qchem.BasisSet.Radial.Evaluators.Internal.Grouper;
 import qchem.BasisSet.Radial.Evaluators.Internal.ExponentialEvaluator;
 import qchem.BasisSet.Radial.Factory;
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;  // tests may cheat: the ERI4 substrate face
-import qchem.BasisSet.Internal.DB_Cache_RAM;   // theCache<double>() + GetCache4(RadialType)
+import qchem.BasisSet.Internal.BasisSetImp;     // the parent's BlockCache() (tests may cheat): its Rk tables
 import qchem.BasisSet.Internal.Cache4;         // Cache4::Lookups()/Inserts()
 using namespace qchem;
 
@@ -144,18 +144,17 @@ public:
  
     
 
-    // Trigger every 4-index Rk Create() for a basis by evaluating Direct+Exchange over all shell pairs,
-    // then dispose of the basis.  The Rk integrals it computed persist in the process-wide Cache4.
-    void ExerciseAllRk(BasisSet::Real_BS* bs)
+    // Trigger every 4-index Rk Create() for a basis by evaluating Direct+Exchange over all shell pairs (into the basis's own Rk table).
+    void ExerciseAllRkOf(const BasisSet::Real_BS& bs)
     {
         using BasisSet::Real_ERI4_OIBS;
         // Only the canonical (a<=b) block of each pair may be built (the ERI4 cache is canonical-only); the
         // partner exercises the SAME underlying Rk integrals, so canonical pairs still fully warm the pool.
         size_t ii=0;
-        for (auto i:bs->Iterate<Real_ERI4_OIBS>())
+        for (auto i:bs.Iterate<Real_ERI4_OIBS>())
         {
             size_t jj=0;
-            for (auto j:bs->Iterate<Real_ERI4_OIBS>())
+            for (auto j:bs.Iterate<Real_ERI4_OIBS>())
             {
                 if (ii<=jj)   // canonical: the parent's iteration order IS the cache-index order
                 {
@@ -166,30 +165,26 @@ public:
             }
             ii++;
         }
-        delete bs;
     }
 
-    // The exponent-Pool payoff: a heavy atom warms the shared Rk cache for every lighter atom of the
-    // same (family, accuracy) because the lighter atom's exponents are a bit-identical SUBSET.  Warm
-    // with the heavy atom, snapshot the cache, then run the light atom and confirm ~100% reuse (a few
-    // low-l-only Rks are re-created because the light atom's higher-l shells over-evict them on Register
-    // -- harmless and recreated correctly -- so we bound the miss rate rather than demand exactly zero).
-    void TestCrossElementReuse(Type type, const std::string& radialType, size_t Zheavy, size_t Zlight)
+    // S5a: an atom basis OWNS its Rk table (its parent's BasisCache, doc/IntegralCacheOwnershipPlan.md §1).  Its l blocks share it, so
+    // the within-atom reuse stays (the Rk of one exponent quartet serves every l pair), and a second atom gets its own table: the
+    // cross-element warm-up the process-wide pool gave is dropped on purpose (user 2026-11-12: "not a very important capability").
+    void TestOneTablePerAtom(Type type, const std::string& radialType, size_t Za, size_t Zb)
     {
-        auto& cache=BasisSet::theCache<double>();
-        ExerciseAllRk(Factory(Low,type,Zheavy));            // heavy atom populates the shared Rk cache
-        const Cache4* c4=cache.GetCache4(radialType);
-        ASSERT_TRUE(c4);
-        const size_t inserts0=c4->Inserts(), lookups0=c4->Lookups();
-        ExerciseAllRk(Factory(Low,type,Zlight));            // light atom: a strict subset of the heavy exponents
-        const size_t dInserts=c4->Inserts()-inserts0;
-        const size_t dLookups=c4->Lookups()-lookups0;
-        const double reuse=dLookups ? 100.0*(1.0-double(dInserts)/double(dLookups)) : 0.0;
-        std::cout << "[pool] " << radialType << " Z" << Zlight << "-after-Z" << Zheavy
-                  << ": dLookups=" << dLookups << " dInserts=" << dInserts
-                  << " reuse=" << reuse << "%" << std::endl;
-        EXPECT_GT(dLookups,10000u);                          // light atom really did substantial Rk work
-        EXPECT_GT(reuse,99.9);                               // ...and nearly all of it hit the heavy atom's cache
+        std::unique_ptr<BasisSet::Real_BS> a(Factory(Low,type,Za)), b(Factory(Low,type,Zb));
+        auto tableOf=[&](const BasisSet::Real_BS& bs) -> const Cache4&
+            {return dynamic_cast<const BasisSet::BasisSetImp<double>&>(bs).BlockCache()->GetCache4(radialType);};   // tests may cheat
+        const Cache4& ca=tableOf(*a);
+        const Cache4& cb=tableOf(*b);
+        EXPECT_NE(&ca, &cb) << "two atom basis sets share one Rk table";
+        ExerciseAllRkOf(*a);
+        const size_t inserts=ca.Inserts(), lookups=ca.Lookups();
+        const double reuse=lookups ? 100.0*(1.0-double(inserts)/double(lookups)) : 0.0;
+        std::cout << "[S5a] " << radialType << " Z" << Za << ": lookups=" << lookups << " inserts=" << inserts << " reuse=" << reuse << "%" << std::endl;
+        EXPECT_GT(lookups, 10000u);                                         // the atom really did substantial Rk work...
+        EXPECT_GT(reuse, 50.0) << "the l blocks of one atom must share the Rk of a common exponent quartet";
+        EXPECT_EQ(cb.Lookups(), 0u) << "the other atom's table saw none of this atom's work";
     }
 
     BasisSet::Real_BS *bs1,*bs2;
@@ -304,21 +299,15 @@ TEST_F(Cache4Tests,HF2_BS_GridKeyed)
     delete bsB;
 }
 
-// Cross-element Rk reuse (the "exponent Pool" payoff, src/BasisSet/Radial/Factory.C).
-// SlaterExponents()/GaussianExponents() build ONE universal even-tempered pool: emin/beta/emax are fixed
-// constants, so e*=beta yields a bit-identical geometric sequence for EVERY Z; only the COUNT is trimmed
-// by Z (largest exponents dropped; High keeps the smallest NZ, Low strides that prefix).  Hence a lighter
-// element's exponent set is a strict, bit-identical subset of a heavier one's.  So once Uranium(92) has
-// filled the shared "SL"/"SG" Rk Cache4, Erbium(68) reuses every entry -- zero new inserts, 100% reuse.
-// (Medium is deliberately NOT used here: it trims small exponents proportionally, so the lighter atom
-// keeps a small exponent the heavier one dropped and the subset relation breaks.)
-TEST_F(Cache4Tests,HF2_SL_CrossElementReuse)
+// Each atom basis owns its Rk table (S5a).  (The exponent Pool, src/BasisSet/Radial/Factory.C, still makes a lighter element's exponents
+// a bit-identical subset of a heavier one's; the process-wide Cache4 that turned that into cross-element reuse is gone with S5a.)
+TEST_F(Cache4Tests,HF2_SL_OneTablePerAtom)
 {
-    TestCrossElementReuse(Type::Slater,"SL",92,68);         // Uranium warms the pool for Erbium
+    TestOneTablePerAtom(Type::Slater,"SL",92,68);
 }
-TEST_F(Cache4Tests,HF2_SG_CrossElementReuse)
+TEST_F(Cache4Tests,HF2_SG_OneTablePerAtom)
 {
-    TestCrossElementReuse(Type::Gaussian,"SG",54,36);       // lighter pair keeps the (denser) Gaussian run cheap
+    TestOneTablePerAtom(Type::Gaussian,"SG",54,36);
 }
 
 

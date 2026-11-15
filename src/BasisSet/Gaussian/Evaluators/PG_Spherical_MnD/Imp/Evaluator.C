@@ -2,6 +2,8 @@
 module;
 #include <string>
 #include <sstream>
+#include <memory>
+#include <stdexcept>
 module qchem.BasisSet.Gaussian.Evaluators.PG_Spherical_MnD;
 
 namespace qchem::BasisSet::Gaussian::Evaluators::PG_Spherical_MnD
@@ -9,15 +11,17 @@ namespace qchem::BasisSet::Gaussian::Evaluators::PG_Spherical_MnD
 
 // Per-component normalisation: 1/sqrt(<chi_i|chi_i>), the raw spherical self-overlap assembled from the
 // Cartesian overlap of the component's monomials.
-void SphData::Init()
+void SphData::Init(std::shared_ptr<const PrimitiveStore> store)
 {
+    if (!store) throw std::invalid_argument("SphData::Init: no PrimitiveStore (a host passes its parent's)");
+    itsStore=std::move(store);
     ns.resize(comps.size());
     for (size_t i=0;i<comps.size();++i)
     {
         double raw = 0.0;
         for (const auto& ta : comps[i].terms)
             for (const auto& tb : comps[i].terms)
-                raw += ta.c * tb.c * comps[i].radial->Overlap2C(*comps[i].radial, ta.p, tb.p);
+                raw += ta.c * tb.c * comps[i].radial->Overlap2C(Primitives(), *comps[i].radial, ta.p, tb.p);
         ns[i] = 1.0/sqrt(raw);
     }
 }
