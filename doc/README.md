@@ -51,6 +51,7 @@ links INSIDE moved files (`../src/…`) are one level off.
 | **`BasisSetTaxonomyPlan.md`** | the argument behind pin 14 |
 | **`TestSuitePlan.md`** | the SCF suite as a checked product-space grid (grammar now in `CLAUDE.md`) |
 | **`RunReportPlan.md`** | the reporting layer's standing design (pin 17) |
+| **`IntegralCacheOwnershipPlan.md`** | executed 2026-11-14 (S0-S6): every integral cache has an owner (the basis set's `BasisCache`, a fit's slots, a term's SlotMap, a `PrimitiveStore`); no process-wide cache; each table reports its own bytes as it fills; the ERI4 RAM cap is a setup policy.  The why behind `BasisCache`, `InstanceToken`, `InstanceSlotMap`, `PrimitiveStore` |
 | **`cmakenotes.md`** | build-system notes for the module toolchain |
 
 ## `doc/OldPlans/` — RETIRED (32 files; executed and superseded; historical only)

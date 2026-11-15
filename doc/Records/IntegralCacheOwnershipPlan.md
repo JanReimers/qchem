@@ -1,6 +1,6 @@
 # Integral-cache ownership: one caching framework, owned locally
 
-**Status: LIVE PLAN (user rulings 2026-11-12, §8), to be executed by lane H after PADE, stage by stage (S0-S6).**
+**Status: RECORD (2026-11-15).  Executed by lane H, S0-S6, 2026-11-12 to 2026-11-14 (the READY rows in §5 are the execution log); no process-wide integral cache remains.  Open follow-ups live in `doc/OpenWork.md` ("A cache for basis values on a grid"), never here.**  Originally: a LIVE PLAN (user rulings 2026-11-12, §8), executed stage by stage (S0-S6).
 Each stage is its own READY, with "no number moves" checked by `scripts/anchordiff` at 1e-10 on short and long, plus panel4t at S4
 (it touches the Hamiltonian terms).  M2 is measured before S4.  Written 2026-11-12 as a design note.  It was revised the same day for
 the user's three follow-ups, relayed by the controller: the 3C owner, lifetime, threading, instance identity.
