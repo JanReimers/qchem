@@ -326,7 +326,8 @@ Closed 2026-10-31 (lane B), moved verbatim to `Records/OpenWork_History5.md`: "T
   verdict).  **RULED 2026-11-09 (user, on the audit's 5 of ~30): Enzyme is REQUIRED** -- *"Seems like a small burden for a lot of
   functionality."*  Work in this order: (1) configure FAILS, with a clear message, when the plugin is missing (no OFF build); every tree
   (Release, RelChecked, the lane trees, the GUI's) gets configured with it -- **DONE (lane B 4c65d826)**: root `CMakeLists.txt` finds
-  `~/Code/Enzyme-main` by default, checks the pin (871de19f then; cdd0d1c2 since 2026-11-13) and runs a smoke derivative; a tree with an empty plugin cache finds it on
+  `~/Code/Enzyme-<pin>` by default (now `~/Code/Enzyme-cdd0d1c2`; it was `~/Code/Enzyme-main` at 871de19f until 2026-11-13, a tree left
+  frozen there so no plugin is swapped under an old tree), checks the pin and runs a smoke derivative; a tree with an empty plugin cache finds it on
   reconfigure; (2) the hand derivatives below move to in-place AD registrations, one family per commit, each behind its existing FD gate;
   the hand version is deleted.  Every Enzyme derivative keeps its FD gate (EnzymeAD/Enzyme#3747, a SILENT wrong reverse-mode gradient, was
   fixed only at the cdd0d1c2 pin, 2026-11-13; the gates stay, controller ruling).  The principle is one derivative method for all derivatives, Enzyme.
