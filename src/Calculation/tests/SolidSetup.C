@@ -440,8 +440,8 @@ TEST(SolidSetup, ThePlaneWaveFitOnABeckeMeshOverGPWOrbitalsRunsAtRhoFitAndRefuse
 }
 
 // THE PERIODIC A1 FIT (V-XC-ONE-TERM step 6) at the policy layer: xc.fit Auxiliary is admitted on a GPW solid (it was refused until the
-// periodic realization), its two rho cells file what they are -- xc.rho fit the variational projection, xc.rho exact the fitted-potential
-// warning (pin 32) -- and over plane-wave orbitals (no pair collocation to sample rho[D] through) it is refused by name.
+// periodic realization), and its two rho cells file what they are -- xc.rho fit the variational projection, xc.rho exact the fitted-potential
+// warning (pin 32).
 TEST(SolidSetup, ThePeriodicA1FitIsAdmittedOnGPWAndItsRhoCellsReportThemselves)
 {
     using Hamiltonian::VxcFit; using Hamiltonian::XCρ;
@@ -450,8 +450,6 @@ TEST(SolidSetup, ThePeriodicA1FitIsAdmittedOnGPWAndItsRhoCellsReportThemselves)
     EXPECT_NE(pRows[0].find("Gaussian auxiliary fit's projection"), std::string::npos) << pRows[0];
     const auto wRows=XCRhoRows(XCRhoCell::GPWRaster, XCρ::Exact, "Si A1 rho exact", VxcFit::Auxiliary, "XCRhoFittedPotential");
     ASSERT_EQ(wRows.size(), 1u) << "the fitted-potential cell warns";
-    try { (void)XCRhoRows(XCRhoCell::PlaneWaveRaster, XCρ::Fit, "Si A1 over PW", VxcFit::Auxiliary); FAIL() << "the A1 fit ran over plane waves"; }
-    catch (const std::invalid_argument& e) {EXPECT_NE(std::string(e.what()).find("plane-wave orbitals"), std::string::npos) << e.what();}
 }
 
 // ... and what descends E along H refuses on the fitted-potential cell (H is not dE/dD, pin 32): a stated GDM or Ladder is refused by name
@@ -471,4 +469,13 @@ TEST(SolidSetup, ThePeriodicA1FittedPotentialCellRefusesGDMAndTheLadder)
             EXPECT_NE(what.find("xc.rho exact"), std::string::npos) << what;
         }
     }
+}
+
+// THE A1 FIT OVER PLANE-WAVE ORBITALS IS ADMITTED (a refusal flipped, step 6 READY 2, controller 2026-11-15): the fit samples rho[D] through the
+// delta basis on the XC points, which any orbital family serves (the first cut sampled it through the GPW pair collocation and refused plane
+// waves).  So the setup admits it and files its rho row.
+TEST(SolidSetup, ThePeriodicA1FitOverPlaneWaveOrbitalsIsAdmitted)
+{
+    using Hamiltonian::VxcFit; using Hamiltonian::XCρ;
+    EXPECT_EQ(XCRhoRows(XCRhoCell::PlaneWaveRaster, XCρ::Fit, "Si A1 over PW", VxcFit::Auxiliary).size(), 1u);
 }

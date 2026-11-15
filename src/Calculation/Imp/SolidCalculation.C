@@ -547,26 +547,27 @@ static std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> PeriodicA1Set(con
 }
 
 // THE PERIODIC A1 FIT'S COST (controller 2026-11-15: warn with an estimate, bytes as a range, beside the memory available -- the shape of the
-// ERI4 / audit policies).  The fit space STREAMS its point values in chunks (GaussianFitSpace), so what it holds is the raster's points and a
-// chunk of values per thread -- the range below; a stored table of them (raster + XC points x functions) is printed for comparison, and if
-// THAT would not fit the run is told the price of streaming: the values are re-evaluated (image-summed) four times per SCF iteration.
+// ERI4 / audit policies).  The fit space STREAMS its values at the XC points in chunks (GaussianFitSpace), so it holds one chunk of values
+// per thread plus the per-chunk partial sums of a projection -- the range below; a stored table of them (XC points x functions) is printed
+// for comparison, and if THAT would not fit the run is told the price of streaming: the values are re-evaluated (image-summed) twice per
+// fit, a fit per density and one per block per iteration.
 static void ReportPeriodicA1Cost(const BasisSet::Orbital_1E_IBS<double>& a1, const AuditReferenceSize& z, const std::string& label)
 {
-    const double nA1=double(a1.GetNumFunctions()), nR=z.rasterPoints, nX=z.meshPoints, threads=double(std::max(1, qchem::InnerThreads()));
+    const double nA1=double(a1.GetNumFunctions()), nX=z.meshPoints, threads=double(std::max(1, qchem::InnerThreads()));
     const double chunk=2048.0;                                        // GaussianFitSpace's kA1Chunk
-    const double low  = 24.0*nR + threads*chunk*nA1*8.0;              // the raster's points + one chunk of values per thread
-    const double high = low + std::ceil(std::max(nR,nX)/chunk)*nA1*8.0;   // + the per-chunk partial sums of a projection
-    const double tabled=(nR+nX)*nA1*8.0;
+    const double low  = threads*chunk*nA1*8.0;                        // one chunk of values per thread
+    const double high = low + std::ceil(nX/chunk)*nA1*8.0;            // + the per-chunk partial sums of a projection
+    const double tabled=nX*nA1*8.0;
     const AvailableMemory a=QueryAvailableMemory();
     const bool tableFits = tabled<=a.bytes;
     std::ostringstream os;
-    os<<"streamed "<<low/1048576.0<<"-"<<high/1048576.0<<" MiB ("<<nA1<<" functions; "<<nR<<" raster + "<<nX<<" XC points); a stored table would be "
+    os<<"streamed "<<low/1048576.0<<"-"<<high/1048576.0<<" MiB ("<<nA1<<" functions; "<<nX<<" XC points); a stored table would be "
       <<tabled/1048576.0<<" MiB; available "<<a.bytes/1048576.0<<" MiB ("<<a.source<<")";
     std::cout<<"["<<label<<" periodic A1 fit] "<<os.str()<<std::endl;
     policy::Report("PeriodicA1FitCost", "the periodic A1 Vxc fit streams its point values", tableFits ? policy::Verdict::Choose : policy::Verdict::Warn,
                    tableFits ? "the streamed range fits; "+os.str()
-                             : "a stored table of the A1 values would not fit, so they are re-evaluated (image-summed) four times per SCF iteration -- "
-                               "N_A1 x (N_raster + N_XC) evaluations each: "+os.str(),
+                             : "a stored table of the A1 values would not fit, so they are re-evaluated (image-summed) twice per fit -- "
+                               "N_A1 x N_XC evaluations each: "+os.str(),
                    policy::Cost{.memoryBytes=high});
 }
 

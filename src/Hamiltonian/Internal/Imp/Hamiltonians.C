@@ -384,9 +384,9 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
             quadrature=BasisSet::MakeXCQuadrature(*st, xc, bs->GetImposition());
         }
         // The periodic A1 fit (V-XC-ONE-TERM step 6) is not a fit basis this factory can return (it is REAL; the complex lineage's fit
-        // factory returns a complex fit, and a real one there would change a tier-1 hub): XFitBasis is then the plane-wave ball, whose
-        // raster the pair collocation runs on, and the A1 set is built below and held by the strategy.
-        const VxcFit asFitBasis = resolved==VxcFit::Auxiliary ? VxcFit::PlaneWave : resolved;
+        // factory returns a complex fit, and a real one there would change a tier-1 hub): XFitBasis is then the delta basis on the XC points,
+        // through which its strategy samples rho[D], and the A1 set comes from the caller and is held by the strategy.
+        const VxcFit asFitBasis = resolved==VxcFit::Auxiliary ? VxcFit::Delta : resolved;
         XFitBasis=BuildTermFit<BasisSet::cFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]{return bs->CreateVxcFitBasisSet(st.get(), xc, asFitBasis, &quadrature);});
     }
     // THE RHO AXIS ON THE PLANE-WAVE FIT (the solid door's, since step 4).  A ball that holds every orbital pair has P rho = rho[D]: both
@@ -398,19 +398,13 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
         // THE PERIODIC A1 SET (V-XC-ONE-TERM step 6, controller 2026-11-15): the molecular A1 Vxc set (A1_exch, Z <= 54) on the cell's sites,
         // lattice-summed at Gamma -- a REAL Gamma GPW block over it (\a vxcAux) supplies the analytic lattice-summed overlap and the
         // image-summed point values.  The CALLER builds it (the facade, which links the Gaussian factories this library does not).
-        if (const auto* ball=dynamic_cast<const BasisSet::G_OrbitalPairBall*>(XFitBasis.get()); ball && ball->HoldsEveryOrbitalPair())
-            throw std::invalid_argument("Ham_PW_DFT: the periodic A1 Vxc fit over plane-wave orbitals -- it samples rho[D] through the GPW "
-                                        "pair collocation, which a plane-wave basis does not have; state xc.fit Delta or PlaneWave");
         if (!vxcAux)
             throw std::invalid_argument("Ham_PW_DFT: the periodic A1 Vxc fit needs its real Gamma set (the A1_exch set on the cell's sites), "
                                         "which the caller builds and hands in");
         const auto& a1=vxcAux;
-        std::shared_ptr<const BasisSet::cFIT_SF_ABS> delta;
-        if (route.rho==XCρ::Exact)   // the fitted-potential cell samples rho[D] through the delta basis on the XC points
-            delta.reset(bs->CreateVxcFitBasisSet(st.get(), xc, VxcFit::Delta, &quadrature));
         std::cout<<"[Vxc fit] the periodic A1 Gaussian set ("<<a1->GetNumFunctions()<<" functions, lattice-summed at Gamma), "
                  <<(route.rho==XCρ::Fit ? "XC of P rho at the XC points" : "v(rho[D]) fitted for H")<<std::endl;
-        a1Sampler=ChargeDensity::MakeAuxiliaryFitSampler(XFitBasis, delta, std::move(quadrature), a1, route.rho==XCρ::Fit);
+        a1Sampler=ChargeDensity::MakeAuxiliaryFitSampler(XFitBasis, std::move(quadrature), a1, route.rho==XCρ::Fit);
     }
     else if (resolved==VxcFit::PlaneWave)
     {

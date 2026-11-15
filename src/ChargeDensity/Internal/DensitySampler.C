@@ -527,11 +527,12 @@ private:
 };
 
 
-//! \brief A FIT SPACE BETWEEN A RASTER AND A POINT SET (V-XC-ONE-TERM, lane S 2026-11-15): the one exact linear pair that carries the raster's
-//! density into a fit space and out at an arbitrary point set, and its adjoint.  The strategy \c FitAtPointsDensitySampler is built on.
-//!   forward  \c AtPoints: rho on the raster -> the fit's coefficients -> rho_P at the points;
-//!   adjoint  \c OnRaster: v at the points (with their weights) -> the fit's coefficients -> the field on the raster the raster strategy's
-//!            \c Matrix contracts.
+//! \brief A FIT SPACE BETWEEN AN INNER STRATEGY'S POINTS AND THE XC POINTS (V-XC-ONE-TERM, lane S 2026-11-15): the one exact linear pair that
+//! carries the inner strategy's density (on its raster, or on the XC points themselves) into a fit space and out at the XC points, and its
+//! adjoint.  The strategy \c FitAtPointsDensitySampler is built on.
+//!   forward  \c AtPoints: rho at the inner points -> the fit's coefficients -> rho_P at the XC points;
+//!   adjoint  \c OnRaster: v at the XC points (with their weights) -> the fit's coefficients -> the field at the inner points that the inner
+//!            strategy's \c Matrix contracts.
 //! Exactness of the pair (OnRaster = AtPoints^T with the raster weight Omega/N and the point weights folded in) is what makes H = dE/dD.
 class FitSpace
 {
@@ -540,6 +541,8 @@ public:
     virtual rvec_t AtPoints(const rvec_t& onRaster) const=0;
     virtual rvec_t OnRaster(const rvec_t& atPoints) const=0;
     virtual std::string Name() const=0;   //!< the report's and console's name for the fit space
+    //! The fit space's own health facts, written one level in under the decorator's health scope (default: none).
+    virtual void ReportHealthFacts() const {}
 };
 
 //! \brief THE PLANE-WAVE BALL as a fit space (I3, V-XC-ONE-TERM step 4): forward = the raster's forward FFT truncated to the ball and synthesized
@@ -564,39 +567,44 @@ private:
 //! are Gamma-periodic).  It is a REAL Gamma block (\a a1, a GPW block over the A1 set), held here and never passed through the fit-basis
 //! factory: the complex lineage's \c tBasisSet<dcmplx>::CreateVxcFitBasisSet returns a complex fit, and a real one there would change a
 //! tier-1 hub (controller 2026-11-15: real values, the factory builds it, the sampler holds it).  Its metric S = <f_a|f_b>_cell is the
-//! block's ANALYTIC lattice-summed overlap, so P is the true L2 projection (controller ruling (3)); its values at points come from the
-//! block's image-summed evaluation, STREAMED in point chunks (never a stored table: MnO's raster would be ~1.6 GB).
-//!   forward   b = Phi_R^T (Omega/N) rho_R (<f_a|rho> by the raster quadrature, where rho[D] is exact pointwise), c = S^-1 b,
-//!             rho_P = Phi_X c at the points;
-//!   adjoint   u = Phi_X^T (w v), c' = S^-1 u, v_R = Phi_R c'  (the raster strategy's Matrix carries the Omega/N).
+//! block's ANALYTIC lattice-summed overlap (controller ruling (3)); its values at the XC points come from the block's image-summed
+//! evaluation, streamed in point chunks.
+//!
+//! THE WHOLE PAIR LIVES ON THE XC POINTS: the inner strategy is the delta basis on the same points (rho[D] exactly there), and
+//!   forward   rho_P = R rho_X,   adjoint   v' = R v,   with   R x = Phi_X S^-1 Phi_X^T (w x)
+//! (the inner strategy's Matrix carries the points' weights, so v' = R v exactly: R is its own adjoint in the w inner product).  First
+//! built with <f_a|rho> integrated on the GPW raster instead: the raster cannot resolve A1's TIGHT functions near the cores, and S^-1 (near
+//! singular) amplified the error -- F2 in a 16-bohr box (the pin-10 twin, 2026-11-15) had min rho_P -1.7 e/bohr^3 at its converged density
+//! and cost 17.7 s per projection.  On the atom-centred Becke points the tight functions are resolved, and no raster is touched.
 //! S^-1 drops the modes below \c kMetricRelTol x its largest eigenvalue (diffuse lattice-summed Gaussians in a small cell are nearly
 //! dependent) and REPORTS a truncation (count and floor), as the radial Coulomb metric does.
 class GaussianFitSpace : public virtual FitSpace
 {
 public:
-    //! \a a1: the real Gamma A1 block; \a rasterPoints / \a rasterWeight: the raster the forward integrates on (its points in raster order,
-    //! Omega/N); \a points: the XC mesh.  Empty \a rasterPoints: the fit space serves only \c Resample (the fitted-potential cell).
-    GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, rvec3vec_t rasterPoints, double rasterWeight,
-                     BasisSet::FitQuadrature points);
-    rvec_t AtPoints(const rvec_t& onRaster) const override;
-    rvec_t OnRaster(const rvec_t& atPoints) const override;
+    //! \a a1: the real Gamma A1 block; \a points: the XC mesh, which is also the inner strategy's (the delta basis on it).
+    GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, BasisSet::FitQuadrature points);
+    rvec_t AtPoints(const rvec_t& rho) const override {return Resample(rho);}
+    rvec_t OnRaster(const rvec_t& v  ) const override {return Resample(v);}
     std::string Name() const override {return "the periodic A1 Gaussian set";}
-    //! \brief v FITTED onto the set in the XC quadrature and sampled back at the points: Phi_X S^-1 Phi_X^T (w v).  The fitted-potential
-    //! cell's whole operation (A1 x rho[D]: v(rho[D]) fitted for H, pin 32).
+    //! \brief R x = Phi_X S^-1 Phi_X^T (w x): \a x fitted onto the set in the XC quadrature and sampled back at the points.  The projected
+    //! cell's forward AND adjoint, and the fitted-potential cell's whole operation (A1 x rho[D]: v(rho[D]) fitted for H, pin 32).
     rvec_t Resample(const rvec_t& atPoints) const;
     size_t NumFunctions() const {return itsSinv.rows();}
+    //! \brief THE METRIC GAP ||S - Phi_X^T w Phi_X||_F / ||S||_F (controller 2026-11-15): R is self-adjoint in w whatever the mesh (so H = dE/dD
+    //! holds), but it is a PROJECTOR (idempotent) only when the XC quadrature reproduces the analytic metric.  The gap says whether the XC mesh
+    //! resolves the set's tight functions -- the defect the raster had, measured where it could recur.
+    double MetricGap() const {return itsMetricGap;}
+    void ReportHealthFacts() const override;
     //! The modes S^-1 drops (\c kMetricRelTol x the largest eigenvalue).  Calibration, not theory: lane B's radial Coulomb-metric floor
-    //! (Radial::IrrepBasisSet, measured there on Kr-U), adopted here unmeasured for the overlap metric -- the OpenWork ε-sizing row owns
-    //! its measurement.
+    //! (Radial::IrrepBasisSet, measured there on Kr-U), adopted here unmeasured for the overlap metric.
     static constexpr double kMetricRelTol=1e-12;
 private:
     rvec_t PhiT (const rvec3vec_t& R, const rvec_t& f) const;   //!< Phi(R)^T f, streamed
     rvec_t Phi  (const rvec3vec_t& R, const rvec_t& c) const;   //!< Phi(R) c, streamed
     std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> itsA1;
-    rvec3vec_t itsRaster;
-    double     itsRasterWeight;
     BasisSet::FitQuadrature itsPoints;
     rsmat_t    itsSinv;
+    double     itsMetricGap=0.0;
 };
 
 //! \brief THE FITTED-POTENTIAL CELL on a point set (A1 x rho[D], target W; V-XC-ONE-TERM step 6): XC of rho[D] at the inner strategy's points,

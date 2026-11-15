@@ -124,10 +124,6 @@ static void RefuseUnrealizedRoutes(const SolidCalcOptions& o)
         policy::Refuse("SolidFunctional", "solid.model "+Hamiltonian::Name(o.model)+" on a periodic cell",
                        "a periodic run is Kohn-Sham LDA with a pseudopotential; its functionals are LDA (Dirac + VWN5) and PADE -- state one");
     // (xc.fit Auxiliary on a periodic cell was refused here until V-XC-ONE-TERM step 6 realized the periodic A1 fit, 2026-11-15.)
-    if (o.vxcFit==Hamiltonian::VxcFit::Auxiliary && o.orbitalBasis==SolidCalcOptions::OrbitalBasis::PlaneWave)
-        policy::Refuse("VxcProductSpace", "xc.fit Auxiliary (the periodic A1 Gaussian fit) over plane-wave orbitals",
-                       "the periodic A1 fit samples rho[D] through the GPW pair collocation, which a plane-wave basis does not have -- state "
-                       "xc.fit Delta or PlaneWave");
     if (o.orbitalBasis==SolidCalcOptions::OrbitalBasis::PlaneWave && !(o.planeWaveEcut>0.0))
         policy::Refuse("PlaneWaveEcut", "basis.family planeWave (SolidCalcOptions::orbitalBasis) with no cutoff",
                        "a plane-wave basis is its cutoff -- state basis.ecut (planeWaveEcut) > 0 Ha");

@@ -528,8 +528,8 @@ TEST(VxcProductSpace, ThePlaneWaveBallAtBeckePointsIsItsEnergysDerivative)
 }
 
 //! THE PERIODIC A1 Pρ CELL IS VARIATIONAL (V-XC-ONE-TERM step 6, lane S 2026-11-15): the A1 Vxc set on the cell's sites, lattice-summed at
-//! Gamma (a real Gamma GPW block over it), the raster's rho[D] projected onto it in its ANALYTIC overlap metric, P rho evaluated at the XC
-//! points, and the exact adjoint into the pair collocation's Matrix.  So H = dE/dD on a Becke mesh and on a uniform cell mesh alike;
+//! Gamma (a real Gamma GPW block over it), rho[D] at the XC points (the delta basis there) fitted onto it with its ANALYTIC overlap metric,
+//! P rho = Phi S^-1 Phi^T w rho evaluated back at the points, and the same operator on v into the delta basis's Matrix.  So H = dE/dD on a Becke mesh and on a uniform cell mesh alike;
 //! e = rho^2 makes E exactly quadratic (no truncation error in the central difference).
 TEST(VxcProductSpace, ThePeriodicA1ProjectedCellIsItsEnergysDerivative)
 {
@@ -543,7 +543,6 @@ TEST(VxcProductSpace, ThePeriodicA1ProjectedCellIsItsEnergysDerivative)
     std::shared_ptr<const BasisSet::Real_BS> a1mol(BasisSet::Gaussian::FactoryFromFile("A1_exch.bsd", &cell));
     auto a1=std::make_shared<const BasisSet::Gaussian::tGPW_IBS<double>>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell,
                                                                            ivec3_t(1,1,1), ivec3_t(0,0,0), a1mol, 0.0);
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> pw(cx.CreateVxcFitBasisSet(st.get(), qcMesh::MeshParams{}));
     const size_t n=cx.GetNumFunctions();
     hmat_t<dcmplx> D(n), Delta(n);
     for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
@@ -562,7 +561,9 @@ TEST(VxcProductSpace, ThePeriodicA1ProjectedCellIsItsEnergysDerivative)
                                      std::pair<std::string,qcMesh::MeshParams>{"uniform", qcMesh::MeshParams{.nUniform=16, .cellKind=UnitCellKind::Uniform}}})
     {
         BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*st, mesh, nullptr);
-        const auto s=MakeAuxiliaryFitSampler(pw, nullptr, quad, a1, /*projected*/true);
+        auto delta=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), quad,
+                                                                          Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+        const auto s=MakeAuxiliaryFitSampler(delta, quad, a1, /*projected*/true);
         auto energy=[&](double t)
         {
             const auto cd=density(hmat_t<dcmplx>(D+t*Delta));

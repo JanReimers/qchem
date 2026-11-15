@@ -92,6 +92,7 @@ void FitAtPointsDensitySampler::ReportHealth(const rvec_t& rhoP, double N) const
         qchem::report::Set("chargeError", dq);
         qchem::report::Set("minRho", minRho);
         qchem::report::Set("chargeTarget", target);
+        itsFit->ReportHealthFacts();
     }
     const bool overCharge= target>0.0 && std::fabs(dq)>target, negative= minRho<0.0;
     if (!itsAnnounced || (overCharge && !itsWarnedCharge) || (negative && !itsWarnedNegative))
@@ -142,9 +143,8 @@ mat_t<dcmplx> FitAtPointsDensitySampler::Matrix(const cobs_t*, const cobs_t*, co
 namespace qchem::ChargeDensity
 {
 
-GaussianFitSpace::GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, rvec3vec_t rasterPoints, double rasterWeight,
-                                   BasisSet::FitQuadrature points)
-    : itsA1(std::move(a1)), itsRaster(std::move(rasterPoints)), itsRasterWeight(rasterWeight), itsPoints(std::move(points))
+GaussianFitSpace::GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, BasisSet::FitQuadrature points)
+    : itsA1(std::move(a1)), itsPoints(std::move(points))
 {
     if (!itsA1) throw std::logic_error("GaussianFitSpace: needs the periodic A1 block");
     if (!itsPoints.GetMesh() || itsPoints.GetMesh()->size()==0) throw std::logic_error("GaussianFitSpace: a point set with no points");
@@ -174,9 +174,28 @@ GaussianFitSpace::GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IB
             for (size_t k=0;k<n;k++) if (w[k]>=kMetricRelTol*wmax) s+=V(i,k)*V(j,k)/w[k];
             itsSinv(i,j)=s;
         }
+    // THE METRIC GAP: the XC quadrature's metric Phi^T w Phi against the analytic S, streamed in chunks.
+    {
+        const rvec3vec_t& R=itsPoints.GetMesh()->Points();
+        const rvec_t&     W=itsPoints.GetMesh()->Weights();
+        rmat_t Sq(n, n, 0.0);
+        for (size_t lo=0; lo<R.size(); lo+=2048)
+        {
+            const size_t hi=std::min(R.size(), lo+2048);
+            rvec3vec_t sub(hi-lo);
+            for (size_t g=lo; g<hi; g++) sub[g-lo]=R[g];
+            const rmat_t P=(*itsA1)(sub);
+            for (size_t g=lo; g<hi; g++) for (size_t a=0; a<n; a++) { const double wa=W[g]*P(g-lo,a); for (size_t b=0; b<n; b++) Sq(a,b)+=wa*P(g-lo,b); }
+        }
+        double num=0.0, den=0.0;
+        for (size_t a=0; a<n; a++) for (size_t b=0; b<n; b++) { const double d=S(a,b)-Sq(a,b); num+=d*d; den+=S(a,b)*S(a,b); }
+        itsMetricGap=std::sqrt(num/std::max(den, 1e-300));
+        qchem::report::Set("a1MetricGap", itsMetricGap);
+        std::cout<<"[periodic A1 fit] metric gap ||S - Phi^T w Phi|| / ||S|| = "<<itsMetricGap<<" on "<<R.size()<<" XC points"
+                 <<(itsMetricGap>1e-3 ? "  WARNING: the XC mesh does not resolve the set's functions (R is not a projector there)" : "")<<std::endl;
+    }
     // The footprint facts, one level in: what streaming saves, against what a stored table would cost (the policy layer judges them).
     qchem::report::Set("a1Functions", (long)n);
-    qchem::report::Set("a1RasterPoints", (long)itsRaster.size());
     qchem::report::Set("a1XCPoints", (long)itsPoints.GetMesh()->size());
 }
 
@@ -220,25 +239,6 @@ rvec_t GaussianFitSpace::Phi(const rvec3vec_t& R, const rvec_t& c) const
     return out;
 }
 
-rvec_t GaussianFitSpace::AtPoints(const rvec_t& onRaster) const
-{
-    if (itsRaster.size()==0) throw std::logic_error("GaussianFitSpace::AtPoints: built without a raster (the fitted-potential cell's fit space)");
-    qchem::report::Timed timed("scf: XC periodic A1 projection of rho");
-    rvec_t b=PhiT(itsRaster, onRaster);
-    b*=itsRasterWeight;
-    const rvec_t c=itsSinv*b;
-    return Phi(itsPoints.GetMesh()->Points(), c);
-}
-rvec_t GaussianFitSpace::OnRaster(const rvec_t& atPoints) const
-{
-    if (itsRaster.size()==0) throw std::logic_error("GaussianFitSpace::OnRaster: built without a raster (the fitted-potential cell's fit space)");
-    qchem::report::Timed timed("scf: XC periodic A1 adjoint onto the raster");
-    const rvec_t& w=itsPoints.GetMesh()->Weights();
-    rvec_t wv(atPoints.size());
-    for (size_t g=0; g<wv.size(); g++) wv[g]=w[g]*atPoints[g];
-    const rvec_t c=itsSinv*PhiT(itsPoints.GetMesh()->Points(), wv);
-    return Phi(itsRaster, c);
-}
 rvec_t GaussianFitSpace::Resample(const rvec_t& atPoints) const
 {
     qchem::report::Timed timed("scf: XC periodic A1 fit of v");
@@ -248,6 +248,8 @@ rvec_t GaussianFitSpace::Resample(const rvec_t& atPoints) const
     const rvec_t c=itsSinv*PhiT(itsPoints.GetMesh()->Points(), wv);
     return Phi(itsPoints.GetMesh()->Points(), c);
 }
+
+void GaussianFitSpace::ReportHealthFacts() const {qchem::report::Set("metricGap", itsMetricGap);}
 
 // ---- the fitted-potential cell -------------------------------------------------------------------------------------------------------
 FittedPotentialDensitySampler::FittedPotentialDensitySampler(std::shared_ptr<const GaussianFitSpace> fit, std::shared_ptr<const DensitySampler> inner)
