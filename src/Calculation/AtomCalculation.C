@@ -81,6 +81,13 @@ struct AtomCalcOptions
     //! electrons = Z - charge, Zion = valence, net charge = Zion - electrons (e.g. F⁻: valence=7, one extra e).
     bool   pseudopotential = false;
     int    valence         = 0;
+    //! \brief The electron configuration, in NIST's notation ("[Ar] 3d^6 4s^1"; the "^" optional).  EMPTY = derived: the isoelectronic
+    //! neutral's (all-electron) or the pseudo-ion rule (\c PseudoAtom_EC).  Stated, it must hold the run's electrons, and on a pseudo-atom its
+    //! [X] core must be the pseudopotential's own (Z - q electrons; the text then names the valence, Mn2+ q7 = "[Ar] 3d^5"); a mismatch, a
+    //! shape the radial atom cannot hold, or a Dirac model is REFUSED (policy AtomConfiguration).  Why it exists: a d- or f-block CATION
+    //! is not its isoelectronic neutral (Fe+ is 3d^6 4s^1, not Mn's 3d^5 4s^2; V+ and Co+ move electrons from 4s INTO 3d), and no removal
+    //! rule reproduces NIST's first cations (OpenWork row "All-electron ION seeds", 2026-11-15).
+    std::string configuration;
 
     //! Atomic XC integration grid: the RADIAL-ONLY point set (\c AngularKind::None, one direction at 4 pi), exact because the atom's density is
     //! spherical by construction (its open shell is averaged, \c Atom::HasFullRotationSymmetry).  A stated Lebedev at degree 0 -- this set's
@@ -250,6 +257,9 @@ private:
     bool  itsPiloted=false;   //!< the atom pilot ran (once per calculation)
     std::unique_ptr<qchem::ChargeDensity::rDM_CD> itsCarried;   //!< the converged D the pilot carries into its re-convergence, consumed by \c BuildGraph
     void ResolveGrids();
+    //! The electron configuration the SCF occupies: \c opts.configuration STATED (checked, refused when it cannot run) or derived; reported
+    //! under policy AtomConfiguration when derived.
+    ElectronConfiguration* MakeConfiguration() const;
     void PilotGrids(const SCFParams& params);
     //! A Hamiltonian on \a g, its Coulomb fit from \a slot (filled here with \a g's rung when it is above 0).
     qchem::Hamiltonian::rHamiltonian* MakeHamiltonianOn(const Grids& g, const Hamiltonian::CoulombFitSlot<double>& slot) const;

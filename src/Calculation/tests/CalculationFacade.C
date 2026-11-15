@@ -459,3 +459,28 @@ TEST(CalculationFacade, AnAtomStatingLebedevDegreeZeroIsTheRadialOnlySetBitForBi
     EXPECT_EQ(loose.first, none.first)    << "the radial-only set does not read angularDegree";
     EXPECT_EQ(AtomCalcOptions{}.mesh.angular, qcMesh::AngularKind::None) << "the atom's default XC mesh is the radial-only set";
 }
+
+// A STATED CONFIGURATION (OpenWork row "All-electron ION seeds", 2026-11-15).  The atom refuses, before any SCF, a stated configuration
+// that cannot run: the wrong electron count, a hole the radial atom cannot hold, a core that is not the pseudopotential's, a Dirac model.
+// Each refusal names the policy and its reason; a right one builds.
+TEST(AtomConfiguration, AStatedConfigurationThatCannotRunIsRefusedBeforeAnySCF)
+{
+    auto refused=[](int Z, int charge, const AtomCalcOptions& o, const char* expect)
+    {
+        try { (void)AtomCalculation::Prepare(Z, charge, o); ADD_FAILURE() << "must be refused: " << o.configuration; }
+        catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find(expect), std::string::npos) << e.what(); }
+    };
+    const AtomCalcOptions lda{.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low, .model=Model::LDA, .spin=SpinGroup::Polarized};
+    AtomCalcOptions o=lda;
+    o.configuration="[Ar] 3d^6 4s^2"; refused(26, 1, o, "holds 26 electrons where the run carries 25");
+    o.configuration="[Ne] 3s^1 4s^1"; refused(12, 0, o, "open below the occupied 4s");
+    o.configuration="[Ar] 3d^6 4s^";  refused(26, 1, o, "has no electron count");
+    AtomCalcOptions dirac=lda; dirac.model=Model::DHF; dirac.configuration="[Ar] 3d^6 4s^1";
+    refused(26, 1, dirac, "Dirac");
+    AtomCalcOptions pp=lda; pp.type=AtomType::Gaussian; pp.pseudopotential=true; pp.valence=7;   // Mn2+ q7: 5 valence electrons, charge 25 - 5
+    pp.configuration="[Ne] 3s^2 3p^6 3d^5"; refused(25, 20, pp, "the pseudopotential replaces 18");
+    pp.configuration="[Ar] 3d^5";
+    EXPECT_NO_THROW((void)AtomCalculation::Prepare(25, 20, pp)) << "Mn2+ q7 stated as its valence over the PP's own [Ar] core";
+    o.configuration="[Ar] 3d^6 4s^1";
+    EXPECT_NO_THROW((void)AtomCalculation::Prepare(26, 1, o)) << "Fe+ in NIST's configuration";
+}
