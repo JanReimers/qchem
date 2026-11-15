@@ -42,6 +42,7 @@ import qchem.ChargeDensity.Types;           // tobs_t/cobs_t/robs_t -- this libr
 import qchem.ChargeDensity;
 export import qchem.ChargeDensity.TransitionDensity;   // Sample: δρ of a linear response (R2)
 import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quadrature the engine integrates on)
+import qchem.Mesh.SiteMultipoles;           // the multipole fitted-potential cell's channels
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Types;
 import qchem.PointSampling;                  // SamplingTarget (FourierTarget's slot)
@@ -280,6 +281,20 @@ MakeDensitySampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, Basis
 std::shared_ptr<const DensitySampler>
 MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points,
                         std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, bool projected);
+
+//! \brief THE MOLECULAR / ATOM FITTED-POTENTIAL CELLS (target W; FittedVxc's retirement, lane S 2026-11-15): XC of rho[D] on \a points through
+//! \a delta (the delta basis on them: singles, E = sum_g w_g e(rho[D]) exactly), its v FITTED for H onto
+//!   - \c MakeFittedPotentialSampler: \a fit, a non-orthogonal Gaussian set (the A1 Vxc fit), in its analytic overlap metric -- the same fit
+//!     space the periodic A1 cell runs (R v = Phi S^-1 Phi^T w v on the points);
+//!   - \c MakeMultipoleFittedPotentialSampler: the site multipole channels of \a sites, built on \a points' mesh.
+//! H is not dE/dD (pin 32): the policy layer warns, and refuses what needs dE/dD.  Which one is the Hamiltonian factory's choice: it built
+//! the fit, so it knows (Martin's dependency inversion: the factory holds the concrete association).
+std::shared_ptr<const tDensitySampler<double>>
+MakeFittedPotentialSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& delta, BasisSet::FitQuadrature points,
+                           const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fit);
+std::shared_ptr<const tDensitySampler<double>>
+MakeMultipoleFittedPotentialSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& delta, BasisSet::FitQuadrature points,
+                                    std::shared_ptr<const qcMesh::SiteMultipoles> sites);
 
 } //namespace
 

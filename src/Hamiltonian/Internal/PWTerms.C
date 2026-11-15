@@ -430,17 +430,4 @@ MakeVxcTerm(std::vector<std::shared_ptr<ExFunctional>> parts,
     return std::make_unique<Vxc_Quadrature>(sum, q, g);
 }
 
-//! \brief The XC term on the REAL (molecular / atom) path -- the SAME term as the periodic one (V-XC-ONE-TERM, 2026-10-31):
-//! \c tVxc_Quadrature<double> over the sampler \a fb's capability selects (a δ basis: singles).  \a quad is the bundle the δ
-//! basis was built over.
-inline std::unique_ptr<rDynamic_HT>
-MakeVxcTerm(std::vector<std::shared_ptr<ExFunctional>> parts,
-            const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, SpinGroup g,
-            BasisSet::FitQuadrature quad={})
-{
-    std::shared_ptr<const ChargeDensity::tDensitySampler<double>> q=ChargeDensity::MakeDensitySampler(fb, std::move(quad));
-    auto sum=std::make_shared<CompositeExFunctional>(std::move(parts));
-    return std::make_unique<tVxc_Quadrature<double>>(sum, q, g);
-}
-
 } //namespace

@@ -28,8 +28,8 @@
 // passing fails it too: the ratchet.  Fixing a cell means moving its row to its target in this table.
 //
 // What "today" observes (\c Observed): the factory throws; it accepts a cell mesh on a structure with no cell (the
-// molecular mesh ignores \c cellKind -- a silent substitution); it builds the OTHER XC term (the molecular
-// \c FittedVxc); it builds the one term; or \c Hamiltonian::AdmitVxc REFUSES it (an Outcome, asked before the factory --
+// molecular mesh ignores \c cellKind -- a silent substitution); it builds an XC term other than the one term (the molecular
+// \c FittedVxc did, until its retirement 2026-11-15); it builds the one term; or \c Hamiltonian::AdmitVxc REFUSES it (an Outcome, asked before the factory --
 // which consults the same rule and throws \c invalid_argument when handed a refused cell).
 //
 // ⚠ The one-term check reads the Hamiltonian's own report (\c Write) for the term's line.  A test may cheat this
@@ -89,7 +89,7 @@ const char* Name(Observed o)
     {
         case Observed::OneTerm:    return "assembles through the one term";
         case Observed::Refused:    return "refused";
-        case Observed::OtherTerm:  return "builds the other XC term (FittedVxc)";
+        case Observed::OtherTerm:  return "builds an XC term other than the one term";
         case Observed::Throws:     return "throws";
         case Observed::SilentMesh: return "accepts a cell mesh on a structure with no cell";
     }
@@ -129,7 +129,7 @@ const std::vector<Cell> kCells=
     // -- molecule (G = the point group): only {e} representations -- a cell mesh / PW impose T, a radial rule O(3)
     {Kind::Molecule, VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
     {Kind::Molecule, VxcFit::Delta,     Points::Uniform, Target::R, Observed::Refused,    ""},
-    {Kind::Molecule, VxcFit::Auxiliary, Points::Becke,   Target::W, Observed::OtherTerm,  ""},
+    {Kind::Molecule, VxcFit::Auxiliary, Points::Becke,   Target::W, Observed::OneTerm,    ""},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    ""},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OneTerm,    "", XCρ::Fit},
     {Kind::Molecule, VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    "", XCρ::Fit},
@@ -142,14 +142,14 @@ const std::vector<Cell> kCells=
     // -- atom (G = O(3)): Becke (less symmetry) and radial assemble; a cell mesh or PW impose T
     {Kind::Atom,     VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
     {Kind::Atom,     VxcFit::Delta,     Points::Uniform, Target::R, Observed::Refused,    ""},
-    {Kind::Atom,     VxcFit::Auxiliary, Points::Becke,   Target::W, Observed::OtherTerm,  ""},
+    {Kind::Atom,     VxcFit::Auxiliary, Points::Becke,   Target::W, Observed::OneTerm,    ""},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    ""},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Becke,   Target::A, Observed::OneTerm,    "", XCρ::Fit},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    "", XCρ::Fit},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Refused,    ""},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Refused,    ""},
     {Kind::Atom,     VxcFit::Delta,     Points::Radial,  Target::A, Observed::OneTerm,    ""},
-    {Kind::Atom,     VxcFit::Auxiliary, Points::Radial,  Target::W, Observed::OtherTerm,  ""},
+    {Kind::Atom,     VxcFit::Auxiliary, Points::Radial,  Target::W, Observed::OneTerm,    ""},
     {Kind::Atom,     VxcFit::Auxiliary, Points::Radial,  Target::A, Observed::OneTerm,    "", XCρ::Fit},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::Refused,    ""},
 };
@@ -178,9 +178,9 @@ Target Derived(const Cell& c)
         return (c.points==Points::Becke) == (c.rho==XCρ::Fit) ? Target::A : Target::R;
     return c.fit==VxcFit::Auxiliary && c.rho==XCρ::Exact ? Target::W : Target::A;
 }
-//! W is the fitted-v term on the molecule and the atom (\c FittedVxc); on the solid it runs through the ONE term, its strategy fitting v
-//! (\c FittedPotentialDensitySampler, V-XC-ONE-TERM step 6) -- the shape \c FittedVxc retires into.
-Observed AtTarget(Target t, Kind k) {return t==Target::A || (t==Target::W && k==Kind::Solid) ? Observed::OneTerm : t==Target::W ? Observed::OtherTerm : Observed::Refused;}
+//! Every admitted cell, A and W alike, assembles through the one term: the W cell is the fitted-potential sampler (FittedVxc retired
+//! 2026-11-15, lane S), so only the target says it is not variational.
+Observed AtTarget(Target t, Kind) {return t==Target::R ? Observed::Refused : Observed::OneTerm;}
 bool Reached(const Cell& c) {return c.today==AtTarget(c.target, c.kind);}
 
 //! A small Becke mesh: the cells are classified, not converged.
@@ -405,7 +405,7 @@ TEST(VxcProductSpace, SinglesAndPairSamplersAgreeOnOneUniformMesh)
 //! THE A1 Pρ CELL IS VARIATIONAL (V-XC-ONE-TERM step 3, 2026-11-10): the overlap-projected sampler's \c Matrix is the exact derivative of
 //! its \c Rho's quadrature energy.  A QUADRATIC test functional, \f$E=\sum_g w_g(P\rho)_g^2\f$ (\f$v=2P\rho\f$), makes the central
 //! difference exact, so the gate isolates the forward/adjoint pairing from the functional: \f$\mathrm{Tr}(H\Delta)=dE/ds\f$ to roundoff.
-//! It is what the Gaussian x δ cell (\c FittedVxc) FAILS by construction (pin 32): its H fits \f$v(\rho[D])\f$ on its own mesh.
+//! It is what the Gaussian x δ cell (the W cell) FAILS by construction (pin 32): its H fits \f$v(\rho[D])\f$.
 TEST(VxcProductSpace, TheA1ProjectedCellsMatrixIsItsEnergysDerivative)
 {
     auto n2=std::make_shared<Molecule>();
@@ -451,7 +451,7 @@ TEST(VxcProductSpace, TheA1ProjectedCellsMatrixIsItsEnergysDerivative)
     const double ds=1.0, Ep=energy(ds), Em=energy(-ds), fd=(Ep-Em)/(2*ds);
     std::cout << "[FD A1 Pρ] E(+s)=" << std::setprecision(14) << Ep << " E(-s)=" << Em << " n=" << n << " nFit=" << fb->GetNumFunctions() << " points=" << sampler->NumPoints()
               << " fd=" << std::setprecision(14) << fd << " Tr(H Delta)=" << an << " rel=" << std::fabs(an-fd)/std::fabs(fd) << std::endl;
-    EXPECT_NEAR(an, fd, 1e-8*std::max(1.0,std::fabs(fd))) << "the A1 metric's roundoff is ~3e-10 here; H off a DIFFERENT quadrature (the FittedVxc mismatch) misses by the mesh's own error";
+    EXPECT_NEAR(an, fd, 1e-8*std::max(1.0,std::fabs(fd))) << "the A1 metric's roundoff is ~3e-10 here; H from a fitted v (the W cell) misses by the fit's own error";
 }
 
 //! I3 IS VARIATIONAL (V-XC-ONE-TERM step 4, lane S 2026-11-14): the plane-wave ball evaluated at Becke points.  P rho(r_g) is the ball's
