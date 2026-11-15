@@ -17,7 +17,7 @@ import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.Fit_IBS;   // the shared Gaussian-family implementation base we DERIVE
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
-import qchem.BasisSet.Internal.DB_Cache;
+import qchem.BasisSet.Internal.Cache4;   // Cache4 / Cacheable4: the parent's Rk table (S5a)
 import qchem.BasisSet.Radial.Evaluators;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.Symmetry.Factory;
@@ -405,7 +405,7 @@ template <isHF_Evaluator E> ERI4 Orbital_ERI4_IBS<E>::MakeDirect(const BasisSet:
     size_t spanab=a.maxSpan(),spancd=c.maxSpan();
     size_t Na=a.size(), Nc=c.size();
     rvec11_t Akac=a.DirectAk(c);
-    const Cache4* Rk_cache=BasisSet::theCache<double>().GetCache4(a.RadialType());
+    const Cache4* Rk_cache=&this->Cache().GetCache4(a.RadialType());   // the parent's (S5a); c is a block of the same parent
     ERI4 J(Na,Nc);
 
     for (size_t ia:a.indices())
@@ -450,7 +450,7 @@ template <isHF_Evaluator E> ERI4 Orbital_ERI4_IBS<E>::MakeExchange(const BasisSe
     size_t Na=a.size(), Nc=c.size();
     int la=a.Getl(), lc=c.Getl();
     rvec11_t Akac=a.ExchangeAk(c);
-    const Cache4* Rk_cache=BasisSet::theCache<double>().GetCache4(a.RadialType());
+    const Cache4* Rk_cache=&this->Cache().GetCache4(a.RadialType());   // the parent's (S5a); c is a block of the same parent
 
     ERI4 K(Na,Nc);
     for (size_t ia:a.indices())

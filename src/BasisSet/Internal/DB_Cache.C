@@ -7,7 +7,6 @@ export module qchem.BasisSet.Internal.DB_Cache;
 export import qchem.BasisSet.DBCacheClient;   // the key contract (public since V1.20d); the mechanism stays here
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.PairProjection;    // PairProjection<T> (the 3-centre tensor, all realizations)
-import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.Cache2;
 import qchem.BasisSet.Internal.Cache3;
 import qchem.Types;
@@ -60,17 +59,7 @@ public:
     virtual const PairProjection<T>& Get(I3C,const DBCacheClient*,const DBCacheClient*, std::function<PairProjection<T>()> make)=0; // 3 centre
     virtual const ERI4&      Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()> make)=0; // 4 centre
 
-    // 4 center radial Slater integrals, Rk for HF calculations
-    virtual void Register(Cache4_Client* eval)=0;
-    virtual const Cache4* GetCache4(const RadialTypeID_t& type) const=0;
-
-    // 2 center charge distributions Omega_ab (molecular Gaussians); analogue of Cache4.
-    virtual void Register(Cache2_Client* eval)=0;
-    virtual const Cache2* GetCache2(const RadialTypeID_t& type) const=0;
-
-    // 3 center Hermite blocks (molecular DFT Overlap3C); analogue of Cache4.
-    virtual void Register(Cache3_Client* eval)=0;
-    virtual const Cache3* GetCache3(const RadialTypeID_t& type) const=0;
+    // (The primitive caches -- atom Rk, Gaussian Ω / RNLM / H3 -- left for their owner's BasisCache at S5.)
 
     // Snapshot the current (cumulative) RAM/reuse stats into the open run report's `cache` section
     // (RunReportPlan step 4).  A no-op when no run is open.  The cache is NEVER cleared between runs, so a

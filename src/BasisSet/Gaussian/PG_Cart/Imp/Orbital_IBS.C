@@ -20,7 +20,7 @@ rsmat_t MakeOverlap2C(const PGData* ab)
     rsmat_t s(N);
     for (size_t ia=0;ia<N;ia++)
         for (size_t ib=ia;ib<N;ib++)
-            s(ia,ib)=ab->radials[ia]->Overlap2C(*ab->radials[ib],ab->pols[ia],ab->pols[ib])*ab->ns[ia]*ab->ns[ib];
+            s(ia,ib)=ab->radials[ia]->Overlap2C(ab->Primitives(), *ab->radials[ib],ab->pols[ia],ab->pols[ib])*ab->ns[ia]*ab->ns[ib];
 
     return s;
 }
@@ -32,7 +32,7 @@ rsmat_t MakeRepulsion2C(const PGData* ab)
     rsmat_t s(N);
     for (size_t ia=0;ia<N;ia++)
         for (size_t ib=ia;ib<N;ib++)
-            s(ia,ib)=ab->radials[ia]->Repulsion2C(*ab->radials[ib],ab->pols[ia],ab->pols[ib])*ab->ns[ia]*ab->ns[ib];
+            s(ia,ib)=ab->radials[ia]->Repulsion2C(ab->Primitives(), *ab->radials[ib],ab->pols[ia],ab->pols[ib])*ab->ns[ia]*ab->ns[ib];
 
     return s;
 }

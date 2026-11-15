@@ -26,6 +26,9 @@ import qchem.Structure;
 import qchem.Types;
 import qchem.Mesh;                                            // MeshParams (the δ fit's XC mesh)
 import qchem.Symmetry;                                        // SymmetryOrder: the old δ table key
+import qchem.BasisSet.Internal.PrimitiveStore;                // S5: the parent's primitive store
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;        // NR_Evaluator::Primitives (tests may cheat)
+import qchem.BasisSet.Orbital_1E_IBS;                         // Real_OIBS::Overlap
 using namespace qchem;
 using namespace qchem::BasisSet::Gaussian;
 
@@ -145,4 +148,43 @@ TEST(M_BasisCache, TwoBlocksOfEqualSymmetryAskedOfOneDeltaFitGetTheirOwnTables)
     EXPECT_GT(moved, 1e-3) << "block 2's record must differ from block 1's (its H moved)";
     EXPECT_EQ(stale, 0.0) << "block 2's record must be the one a fresh fit builds for it";
     EXPECT_EQ(&r1, &delta->Overlap3C(*b1)) << "asked again, block 1 is a HIT";
+}
+
+// S5 (controller ruling 2026-11-14): the Gaussian primitive caches belong to their owner.  Two basis sets built from IDENTICAL primitives
+// (one water, DZVP, built twice) get two stores, and the second one's integrals never hit the first one's entries: every primitive key is
+// a never-reused serial, so equal content in two owners is two keys.  (The old process-wide registry interned them to ONE key: the second
+// basis was served the first's Ω, and a dead geometry's entries were never freed.)  The blocks of ONE basis share their parent's store.
+TEST(M_BasisCache, TwoOwnersOfEqualPrimitivesNeverShareAPrimitiveKey)
+{
+    Molecule mol;
+    mol.Insert(Site{8, rvec3_t( 0.0,     0.0,      0.0)});
+    mol.Insert(Site{1, rvec3_t( 1.43042, 1.10715,  0.0)});
+    mol.Insert(Site{1, rvec3_t(-1.43042, 1.10715,  0.0)});
+    std::unique_ptr<BasisSet::Real_BS> bs1(Factory(BasisSetData::DZVP, &mol, Engine::MnD, Angular::Cartesian));
+    std::unique_ptr<BasisSet::Real_BS> bs2(Factory(BasisSetData::DZVP, &mol, Engine::MnD, Angular::Cartesian));
+    auto storeOf=[](const BasisSet::Real_BS& bs) -> const BasisSet::PrimitiveStore&   // tests may cheat: the parent's store
+        {return *dynamic_cast<const BasisSet::BasisSetImp<double>&>(bs).BlockCache()->Primitives();};
+    const BasisSet::PrimitiveStore &s1=storeOf(*bs1), &s2=storeOf(*bs2);
+    ASSERT_NE(&s1, &s2) << "two basis sets share one primitive store";
+    auto first=[](const BasisSet::Real_BS& bs)
+    {
+        const BasisSet::Real_OIBS* b=nullptr;
+        for (auto x : bs.Iterate<BasisSet::Real_OIBS>()) {b=x; break;}
+        return b;
+    };
+    const auto* b1=first(*bs1);
+    const auto* b2=first(*bs2);
+    ASSERT_TRUE(b1 && b2);
+    using NR=BasisSet::Gaussian::Evaluators::PG_Cart_MnD::NR_Evaluator;
+    EXPECT_EQ(&dynamic_cast<const NR&>(*b1).Primitives(), &s1) << "a block's evaluator must look up in its PARENT's store";
+
+    const size_t i1=s1.Omega().Inserts();
+    const rsmat_t S1=b1->Overlap();                    // fills bs1's store
+    const size_t d1=s1.Omega().Inserts()-i1;
+    ASSERT_GT(d1, 0u) << "the overlap built no Ω in its parent's store: the gate would be vacuous";
+    const size_t i2=s2.Omega().Inserts(), l1=s1.Omega().Lookups();
+    const rsmat_t S2=b2->Overlap();                    // the same content in another owner
+    EXPECT_EQ(s2.Omega().Inserts()-i2, d1) << "the second owner must build its own Ω for every primitive pair (none served from the first)";
+    EXPECT_EQ(s1.Omega().Lookups(), l1) << "the second owner's integrals looked up in the first owner's store";
+    EXPECT_EQ(S1, S2) << "the same primitives in two owners give the same numbers";
 }
