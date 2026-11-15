@@ -137,6 +137,10 @@ namespace qchem::Hamiltonian
                 return R::Fail("a uniform cell mesh imposes the lattice translations (H_R = T), and "+G+
                                " -- state the XC mesh cellKind Becke or Auto, the atom-centred mesh (doc/Pins.md pin 30)");
         }
+        if (mp.angular==qcMesh::AngularKind::None && !st.HasFullRotationSymmetry())
+            return R::Fail("the radial-only point set (angular none) integrates one direction, exact only for a spherical integrand, so it "
+                           "imposes O(3) about its centre (H_R = O(3)), and this structure's G (a point group, or a space group) has no full "
+                           "rotation symmetry -- state an angular rule (Lebedev or GaussLegendre) (doc/Pins.md pin 30)");
         return R::Ok({fit, mp.cellKind});
     }
     Outcome<CoulombRoute,std::string> AdmitCoulomb(const Structure& st, const CoulombRoute& coulomb, const qcMesh::MeshParams& mp, VxcFit fit)
@@ -150,9 +154,10 @@ namespace qchem::Hamiltonian
                 return R::Fail("a multipole fit's potential is the radial Poisson solve of its channels; a direct sum runs over points -- "
                                "state the solver RadialPoisson or Auto, or the fit Delta");
         }
-        if ((multipole || fit==VxcFit::Multipole) && coulomb.lMax>MultipoleLMaxBound(mp.angularDegree))
-            return R::Fail("lMax "+std::to_string(coulomb.lMax)+" on an angular rule of degree "+std::to_string(mp.angularDegree)+": a multipole fit's "
-                           "channels are orthonormal only for 2 lMax <= degree -- state lMax <= "+std::to_string(MultipoleLMaxBound(mp.angularDegree))+
+        const int degree=qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree);   // 0 on the radial-only set
+        if ((multipole || fit==VxcFit::Multipole) && coulomb.lMax>MultipoleLMaxBound(degree))
+            return R::Fail("lMax "+std::to_string(coulomb.lMax)+" on an angular rule of degree "+std::to_string(degree)+": a multipole fit's "
+                           "channels are orthonormal only for 2 lMax <= degree -- state lMax <= "+std::to_string(MultipoleLMaxBound(degree))+
                            " or raise the degree");
         return R::Ok(coulomb);
     }

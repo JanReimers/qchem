@@ -57,6 +57,7 @@ static const char* AngularName(qcMesh::AngularKind a)
     {
         case qcMesh::AngularKind::Lebedev:       return "Lebedev";
         case qcMesh::AngularKind::GaussLegendre: return "GaussLegendre";
+        case qcMesh::AngularKind::None:          return "none (radial-only)";
     }
     return "?";
 }
@@ -72,6 +73,10 @@ static void ReportMolecularMesh(size_t natom, const qcMesh::MeshParams& mp, size
 qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams& mp)
 {
     RefuseCellMesh(mp, "the atom-centred (molecule / atom) mesh");
+    // The radial-only set imposes O(3): a library invariant here (the callers ask Hamiltonian::AdmitVxc first), so a THROW.
+    if (mp.angular==qcMesh::AngularKind::None && !atoms.HasFullRotationSymmetry())
+        throw std::invalid_argument("the atom-centred mesh: the radial-only point set (angular none) integrates one direction, exact only for a "
+                                    "spherical integrand -- it imposes O(3), and this structure's group has no full rotation symmetry (doc/Pins.md pin 30)");
     const int beckeOrder=mp.beckeOrder;
     assert(beckeOrder>=0);
     size_t natom=atoms.GetNumAtoms();

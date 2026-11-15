@@ -74,7 +74,7 @@ namespace
 enum class Kind     {Solid, Molecule, Atom};
 enum class Points   {Becke, Uniform, Radial};
 enum class Target   {A, R, W};                                //!< where the cell must end up
-enum class Observed {OneTerm, Refused, OtherTerm, Throws, SilentMesh, NoPointSet};   //!< what it does today
+enum class Observed {OneTerm, Refused, OtherTerm, Throws, SilentMesh};   //!< what it does today
 
 using Hamiltonian::XCρ;
 const char* Name(Kind k)     {return k==Kind::Solid ? "solid" : k==Kind::Molecule ? "molecule" : "atom";}
@@ -89,7 +89,6 @@ const char* Name(Observed o)
         case Observed::OtherTerm:  return "builds the other XC term (FittedVxc)";
         case Observed::Throws:     return "throws";
         case Observed::SilentMesh: return "accepts a cell mesh on a structure with no cell";
-        case Observed::NoPointSet: return "cannot be stated (MeshParams has no radial-only point set)";
     }
     return "?";
 }
@@ -105,7 +104,6 @@ const char* Name(Hamiltonian::XCρ r) {return r==Hamiltonian::XCρ::Fit ? "Pρ" 
 
 const std::string kPin30   ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (pin-30 gap: the factory throws)";
 const std::string kI3      ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (I3: a PW fit on a Becke mesh, the E/H pairing not designed)";
-const std::string kRadial  ="doc/OOD-SOLID-Cleanup.md V-XC-ONE-TERM (no radial-only point set: v_xc at radial points, 4πr² dr -- the atom path)";
 
 //! THE TABLE.  Edit a row only to move it toward its target; an X row is deleted (its \c today becomes the target)
 //! the day its defect is fixed.
@@ -120,9 +118,10 @@ const std::vector<Cell> kCells=
     {Kind::Solid,    VxcFit::Auxiliary, Points::Uniform, Target::A, Observed::Throws,     kPin30, XCρ::Fit},
     {Kind::Solid,    VxcFit::PlaneWave, Points::Becke,   Target::A, Observed::Throws,     kI3},
     {Kind::Solid,    VxcFit::PlaneWave, Points::Uniform, Target::A, Observed::OneTerm,    ""},
-    {Kind::Solid,    VxcFit::Delta,     Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
-    {Kind::Solid,    VxcFit::Auxiliary, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
-    {Kind::Solid,    VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
+    {Kind::Solid,    VxcFit::Delta,     Points::Radial,  Target::R, Observed::Refused,    ""},
+    {Kind::Solid,    VxcFit::Auxiliary, Points::Radial,  Target::R, Observed::Refused,    ""},
+    {Kind::Solid,    VxcFit::Auxiliary, Points::Radial,  Target::R, Observed::Refused,    "", XCρ::Fit},
+    {Kind::Solid,    VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::Refused,    ""},
     // -- molecule (G = the point group): only {e} representations -- a cell mesh / PW impose T, a radial rule O(3)
     {Kind::Molecule, VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
     {Kind::Molecule, VxcFit::Delta,     Points::Uniform, Target::R, Observed::Refused,    ""},
@@ -132,9 +131,10 @@ const std::vector<Cell> kCells=
     {Kind::Molecule, VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    "", XCρ::Fit},
     {Kind::Molecule, VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Refused,    ""},
     {Kind::Molecule, VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Refused,    ""},
-    {Kind::Molecule, VxcFit::Delta,     Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
-    {Kind::Molecule, VxcFit::Auxiliary, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
-    {Kind::Molecule, VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
+    {Kind::Molecule, VxcFit::Delta,     Points::Radial,  Target::R, Observed::Refused,    ""},
+    {Kind::Molecule, VxcFit::Auxiliary, Points::Radial,  Target::R, Observed::Refused,    ""},
+    {Kind::Molecule, VxcFit::Auxiliary, Points::Radial,  Target::R, Observed::Refused,    "", XCρ::Fit},
+    {Kind::Molecule, VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::Refused,    ""},
     // -- atom (G = O(3)): Becke (less symmetry) and radial assemble; a cell mesh or PW impose T
     {Kind::Atom,     VxcFit::Delta,     Points::Becke,   Target::A, Observed::OneTerm,    ""},
     {Kind::Atom,     VxcFit::Delta,     Points::Uniform, Target::R, Observed::Refused,    ""},
@@ -144,9 +144,10 @@ const std::vector<Cell> kCells=
     {Kind::Atom,     VxcFit::Auxiliary, Points::Uniform, Target::R, Observed::Refused,    "", XCρ::Fit},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Becke,   Target::R, Observed::Refused,    ""},
     {Kind::Atom,     VxcFit::PlaneWave, Points::Uniform, Target::R, Observed::Refused,    ""},
-    {Kind::Atom,     VxcFit::Delta,     Points::Radial,  Target::A, Observed::NoPointSet, kRadial},
-    {Kind::Atom,     VxcFit::Auxiliary, Points::Radial,  Target::W, Observed::NoPointSet, kRadial},
-    {Kind::Atom,     VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::NoPointSet, kRadial},
+    {Kind::Atom,     VxcFit::Delta,     Points::Radial,  Target::A, Observed::OneTerm,    ""},
+    {Kind::Atom,     VxcFit::Auxiliary, Points::Radial,  Target::W, Observed::OtherTerm,  ""},
+    {Kind::Atom,     VxcFit::Auxiliary, Points::Radial,  Target::A, Observed::OneTerm,    "", XCρ::Fit},
+    {Kind::Atom,     VxcFit::PlaneWave, Points::Radial,  Target::R, Observed::Refused,    ""},
 };
 
 //! THE SYMMETRY RULE (pin 30), as a three-element lattice: {e} ≤ every G; T ≤ G only on a solid; O(3) ≤ G only on the
@@ -175,7 +176,8 @@ bool Reached(const Cell& c) {return c.today==AtTarget(c.target);}
 qcMesh::MeshParams PointsFor(Points p)
 {
     qcMesh::MeshParams m{.nRadial=20, .angularDegree=5};
-    m.cellKind = qcMesh::CellKind::RecipeStated(p==Points::Becke ? UnitCellKind::Becke : UnitCellKind::Uniform);
+    m.cellKind = qcMesh::CellKind::RecipeStated(p==Points::Becke ? UnitCellKind::Becke : p==Points::Uniform ? UnitCellKind::Uniform : UnitCellKind::Auto);
+    if (p==Points::Radial) m.angular=qcMesh::AngularKind::None;   // the radial-only set, STATED (V-XC-ONE-TERM step 5)
     m.nUniform = 12;
     return m;
 }
@@ -189,7 +191,6 @@ bool HoldsTheOneTerm(const Streamable& ham)
 //! What the PUBLIC factory does with the cell today.
 Observed Observe(const Cell& c)
 {
-    if (c.points==Points::Radial) return Observed::NoPointSet;   // no MeshParams states it (yet)
     const qcMesh::MeshParams mesh=PointsFor(c.points);
     try
     {
@@ -255,8 +256,8 @@ TEST(VxcProductSpace, TheTableIsWellFormed)
             {
                 for (XCρ r : {XCρ::Exact, XCρ::Fit})
                 {
-                    // Pρ is its own cell only where P is inexact: the A1 fit, on a point set it can be stated on
-                    if (r==XCρ::Fit && !(f==VxcFit::Auxiliary && p!=Points::Radial)) continue;
+                    // Pρ is its own cell only where P is inexact: the A1 fit
+                    if (r==XCρ::Fit && f!=VxcFit::Auxiliary) continue;
                     bool listed=false;
                     for (const Cell& c : kCells) listed|= c.kind==k && c.fit==f && c.points==p && c.rho==r;
                     EXPECT_TRUE(listed) << Name(k) << " x " << Name(f) << " x " << Name(p) << " x " << Name(r) << " is missing from the table";
@@ -290,11 +291,13 @@ TEST(VxcProductSpace, ARefusalNamesBothGroupsAndTheFactoryRefusesTheSame)
     const std::shared_ptr<const Structure> st=n2;
     std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(),
                                                 BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-    for (const auto& [fit, points] : {std::pair{VxcFit::PlaneWave, Points::Becke}, std::pair{VxcFit::Delta, Points::Uniform}})
+    struct Refused {VxcFit fit; Points points; const char* imposed;};
+    for (const auto& [fit, points, imposed] : {Refused{VxcFit::PlaneWave, Points::Becke, "H_R = T"}, Refused{VxcFit::Delta, Points::Uniform, "H_R = T"},
+                                               Refused{VxcFit::Delta, Points::Radial, "H_R = O(3)"}})   // the radial-only set (step 5)
     {
         const auto a=Hamiltonian::AdmitVxc(*st, fit, PointsFor(points));
         ASSERT_FALSE(a) << Name(fit) << " x " << Name(points) << " on a molecule must be refused";
-        EXPECT_NE(a.Error().find("H_R = T"), std::string::npos) << a.Error();
+        EXPECT_NE(a.Error().find(imposed), std::string::npos) << a.Error();
         EXPECT_NE(a.Error().find("G"), std::string::npos) << a.Error();
         try
         {
