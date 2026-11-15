@@ -185,7 +185,7 @@ public:
     virtual SamplingTarget* FourierTarget() const {return nullptr;}
 };
 
-//! \brief The XC quadrature for densities and blocks of scalar type \a T -- the faces \c Vxc_Quadrature<T> drives.
+//! \brief The XC quadrature for densities and blocks of scalar type \a T -- the faces \c cVxc_DFT<T> drives.
 //! \c double for the molecular / atom path, \c dcmplx for the periodic one; the periodic sampler adds the response and the
 //! real-TRIM faces below (\c DensitySampler).  (V-XC-ONE-TERM: until 2026-10-31 this face was complex-only, which is why a
 //! molecule could not run the one XC term.)

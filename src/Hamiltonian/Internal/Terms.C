@@ -456,6 +456,6 @@ private:
 
 
 // FittedVxc (the least-squares v and eps fits of the A1 / multipole cells) is RETIRED (lane S, 2026-11-15): those cells run the one XC term,
-// tVxc_Quadrature, over the fitted-potential sampler (ChargeDensity::MakeFittedPotentialSampler / MakeMultipoleFittedPotentialSampler).
+// tVxc_DFT, over the fitted-potential sampler (ChargeDensity::MakeFittedPotentialSampler / MakeMultipoleFittedPotentialSampler).
 
 } //namespace

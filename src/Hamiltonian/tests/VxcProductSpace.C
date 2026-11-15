@@ -17,7 +17,7 @@
 // still realizes them (their FD gates below are library gates).
 //
 // EVERY CELL HAS ONE OF FOUR OUTCOMES (user 2026-10-31; W added 2026-11-09):
-//   A  it ASSEMBLES through the one XC term (\c Vxc_Quadrature);
+//   A  it ASSEMBLES through the one XC term (\c cVxc_DFT);
 //   W  it RUNS WITH A WARNING through the fitted-v term: the Gaussian x δ cell (A1 fit, ρ Exact) -- v(ρ[D]) fitted for H, so H
 //      is not dE/dD (pin 32).  Ruling (b): kept as a cheap better-than-SAD start; the policy layer warns on it;
 //   R  it is REFUSED at the factory: a representation may not impose a symmetry the calculation lacks.  DERIVED, not
@@ -201,7 +201,7 @@ qcMesh::MeshParams PointsFor(Points p)
 bool HoldsTheOneTerm(const Streamable& ham)
 {
     std::ostringstream os; ham.Write(os);
-    return os.str().find("XC-mesh")!=std::string::npos;   // Vxc_Quadrature::Write's line
+    return os.str().find("XC-mesh")!=std::string::npos;   // cVxc_DFT::Write's line
 }
 
 //! What the PUBLIC factory does with the cell today.

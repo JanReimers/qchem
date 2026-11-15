@@ -62,7 +62,7 @@ using Pseudopotential::GTH_PP;
 
 namespace
 {
-// The Hartree term / Vxc_Quadrature now take their fit basis (from the basis's own factory) at construction, like
+// The Hartree term / cVxc_DFT now take their fit basis (from the basis's own factory) at construction, like
 // FittedVee/FittedVxc.  These low-level term tests build one straight from the plane-wave basis at hand.
 qchem::Hamiltonian::Vee_Fit<dcmplx>* NewPWHartree(const PlaneWave_IBS& pw)
 {
@@ -72,9 +72,9 @@ qchem::Hamiltonian::Vee_Fit<dcmplx>* NewPWHartree(const PlaneWave_IBS& pw)
 }
 // The XC term takes a QUADRATURE, and MakeDensitySampler reads off the strategy the fit basis supports --
 // here a plane-wave (raster) basis, so the pair/collocation one.
-qchem::Hamiltonian::Vxc_Quadrature* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamiltonian::Vxc_Quadrature::xc_t& xc)
+qchem::Hamiltonian::cVxc_DFT* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamiltonian::cVxc_DFT::xc_t& xc)
 {
-    return new qchem::Hamiltonian::Vxc_Quadrature(xc, qchem::ChargeDensity::MakeDensitySampler(
+    return new qchem::Hamiltonian::cVxc_DFT(xc, qchem::ChargeDensity::MakeDensitySampler(
         qchem::ChargeDensity::fitbasis_t(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}))), SpinGroup::UnPolarized);
 }
 
@@ -178,7 +178,7 @@ TEST(PW_Terms, LocalPPLongPlusShortEqualsFull)
 }
 
 
-// The Vee_Hartree and Vxc_Quadrature dynamic terms route a complex density (PeriodicIrrepCD<dcmplx>) through the framework
+// The Vee_Hartree and cVxc_DFT dynamic terms route a complex density (PeriodicIrrepCD<dcmplx>) through the framework
 // and must reproduce the basis's Repulsion / Overlap -- the inversion working for the
 // density-dependent terms.  We feed a hand-built Hermitian density matrix (2 electrons in (e0+e1)/sqrt2).
 TEST(PW_Terms, PWDynamicTermsMatchBasis)
@@ -204,7 +204,7 @@ TEST(PW_Terms, PWDynamicTermsMatchBasis)
     // XC term (Dirac exchange) matrix == the basis's FFT route ON THE DENSITY GRID (4x Ecut: every pair difference, so
     // rho(r) IS rho[D] -- pin 28): rho(r) via inverse FFT of rho-tilde, v_xc pointwise, forward FFT to the matrix.
     auto dirac=std::make_shared<qchem::Hamiltonian::SlaterExchange>(2.0/3.0);
-    std::unique_ptr<qchem::Hamiltonian::Vxc_Quadrature> xc(NewPWXC(F.pw, dirac));
+    std::unique_ptr<qchem::Hamiltonian::cVxc_DFT> xc(NewPWXC(F.pw, dirac));
     qchem::Hamiltonian::cDynamic_HT* xt=xc.get();
     RefreshTerm(*xt, static_cast<const qchem::ChargeDensity::cChargeDensity*>(&cd), &F.pw);
     const chmat_t& Mx = xt->GetMatrix(&F.pw, Spin::None, ChargeDensity::DensityID(&cd));
@@ -238,8 +238,8 @@ TEST(PW_Terms, ItemK_RelCutoffDensifiesAndConvergesVxc)
         qcMesh::MeshParams mp; mp.relCutoff=relCutoff;
         auto fb=qchem::ChargeDensity::fitbasis_t(F.pw.CreateVxcFitBasisSet(nullptr, mp));
         nGfit=fb->GetNumFunctions();
-        std::unique_ptr<qchem::Hamiltonian::Vxc_Quadrature> xc(
-            new qchem::Hamiltonian::Vxc_Quadrature(dirac, qchem::ChargeDensity::MakeDensitySampler(fb), SpinGroup::UnPolarized));
+        std::unique_ptr<qchem::Hamiltonian::cVxc_DFT> xc(
+            new qchem::Hamiltonian::cVxc_DFT(dirac, qchem::ChargeDensity::MakeDensitySampler(fb), SpinGroup::UnPolarized));
         qchem::Hamiltonian::cDynamic_HT* t=xc.get();
         RefreshTerm(*t, static_cast<const qchem::ChargeDensity::cChargeDensity*>(&cd), &F.pw);
         return chmat_t(t->GetMatrix(&F.pw, Spin::None, ChargeDensity::DensityID(&cd)));

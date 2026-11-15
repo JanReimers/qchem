@@ -11,7 +11,7 @@ module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
 import qchem.BasisSet.Orbital_PP_IBS;              // the closed-form species-field service (NeedsPPQuadrature)
 import qchem.BasisSet.ImplicitAngular_IBS;         // the radial capability (NeedsPPQuadrature)
-import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, Vxc_Quadrature + MakeDensitySampler (the periodic KS terms)
+import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, cVxc_DFT + MakeDensitySampler (the periodic KS terms)
 import qchem.Hamiltonian.Internal.IonIon;         // IonIon<T>: ion-ion energy (double molecular / dcmplx PW)
 import qchem.Hamiltonian.Internal.Kinetic;        // Kinetic<T>: kinetic energy (double molecular / dcmplx PW)
 import qchem.Hamiltonian.Internal.Hubbard;        // Hubbard_U: DFT+U (programme step 5)
@@ -83,7 +83,7 @@ static std::shared_ptr<const qcMesh::SiteMultipoles> MakeSiteMultipoles(const st
 }
 
 //! THE MOLECULAR / ATOM XC TERM (V-XC-ONE-TERM, 2026-10-31): every cell runs the ONE XC term the periodic path runs
-//! (\c tVxc_Quadrature<double>: E_xc by a quadrature on the run's XC mesh, H by its sampler's Matrix), the cell chosen by the sampler.
+//! (\c tVxc_DFT<double>: E_xc by a quadrature on the run's XC mesh, H by its sampler's Matrix), the cell chosen by the sampler.
 //! THE \f$\rho\f$ AXIS (\c XCρ, user ruling 2026-11-09):
 //!   - a δ basis on the XC points has an exact \f$P\f$, so both values are the one singles term;
 //!   - an incomplete fit (A1, multipole) at \c XCρ::Fit is REFUSED (pin 28; the ρ axis retired 2026-11-15: its projected cell is deleted);
@@ -110,13 +110,13 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMe
             return makeDelta();
         });
         auto sampler=ChargeDensity::MakeMultipoleFittedPotentialSampler(delta, quad, MakeSiteMultipoles(st, *quad.GetMesh(), mp, lMax));
-        return new tVxc_Quadrature<double>(sum, std::move(sampler), g);
+        return new tVxc_DFT<double>(sum, std::move(sampler), g);
     }
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]{return bs->CreateVxcFitBasisSet(st.get(), mp, resolved, &quad);});
     if (fb->isOrtho())
-        return new tVxc_Quadrature<double>(sum, ChargeDensity::MakeDensitySampler(fb, std::move(quad)), g);
+        return new tVxc_DFT<double>(sum, ChargeDensity::MakeDensitySampler(fb, std::move(quad)), g);
     const auto delta=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc points", makeDelta);
-    return new tVxc_Quadrature<double>(sum, ChargeDensity::MakeFittedPotentialSampler(delta, quad, fb), g);
+    return new tVxc_DFT<double>(sum, ChargeDensity::MakeFittedPotentialSampler(delta, quad, fb), g);
 }
 
 //! The run's Coulomb fit from its slot (built by \a make on the first ask).
@@ -425,7 +425,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
         // EXCLUSIVE of "setup: XC-mesh Phi tables" (built inside, own bucket) -- so this reads as the term
         // assembly around them.
         qchem::report::Timed timed("setup: XC term assembly (Phi tables are its child)");
-        if (a1Sampler) Add(new Vxc_Quadrature(std::make_shared<CompositeExFunctional>(parts), a1Sampler, GetSpinGroup()));
+        if (a1Sampler) Add(new cVxc_DFT(std::make_shared<CompositeExFunctional>(parts), a1Sampler, GetSpinGroup()));
         else           Add(MakeVxcTerm(parts, XFitBasis, GetSpinGroup(), std::move(quadrature)).release());
     }
     // DFT+U (programme step 5): one term carrying the whole manifold list, born on the forward/adjoint pair.
