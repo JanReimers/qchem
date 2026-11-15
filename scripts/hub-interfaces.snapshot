@@ -266,6 +266,7 @@ namespace qchem::ChargeDensity {
         virtual size_t Version() const=0;
         virtual bool isActive() const;
         virtual void JoinLineage(const LineagePtr&);
+        virtual bool HasNoFitComponent() const;
     };
     template <class T> class tLineageTracked : public virtual tChargeDensity<T> {
         LineagePtr itsLineage;

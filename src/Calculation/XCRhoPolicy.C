@@ -1,15 +1,14 @@
 // File: Calculation/XCRhoPolicy.C  The XC ρ-axis policy (user ruling 2026-11-09, V-XC-ONE-TERM): which ρ XC sees, ρ[D] or the Vxc fit's
 // projection Pρ, and what the policy layer says about the combination stated.
 //
-// The two values are one axis (Hamiltonian::XCρ).  They coincide where the fit's P is exact (the δ basis on the XC points), and split
-// for the Gaussian auxiliary (A1) fit:
-//   - A1 x ρ[D]  the Gaussian x δ cell: v(ρ[D]) is FITTED for H, so H is not dE/dD (doc/Pins.md pin 32) and the SCF stops off the
-//                stationary point of any energy.  Ruling (b): it RUNS WITH A WARNING -- an experienced user's cheap better-than-SAD
-//                start for a more accurate run.
-//   - A1 x Pρ    variational (E = ∫ e(Pρ), H = dE/dD), but XC sees the fitted density: an explicit departure from pin 28, reported.
+// THE ρ AXIS IS RETIRED (user 2026-11-15, "Your plan sounds good"): XC sees ρ[D] (doc/Pins.md pin 28), so xc.rho fit is accepted only where
+// the fit's P is EXACT (Pρ = ρ[D]) and REFUSED, citing pin 28, wherever it is not.  The SCF enforces the same rule at run time, fail closed
+// (SCFIterator RequirePin28 on the XC term's certificate).  The cells:
+//   - A1 x ρ[D]  the Gaussian x δ cell: v(ρ[D]) is FITTED for H, so H is not dE/dD (doc/Pins.md pin 32).  Ruling (b): it RUNS WITH A
+//                WARNING -- an experienced user's cheap better-than-SAD start for a more accurate run.  (XC SEES ρ[D]: pin 28 holds.)
+//   - A1 / multipole x Pρ   REFUSED (pin 28): the fit is incomplete, so Pρ is not ρ[D].
 //   - δ  x Pρ    accepted: P is exact on the XC points, so Pρ = ρ[D] -- the row says so.
-//   - PW x Pρ    exact over plane-wave orbitals (the 4 Ecut ball); over GPW orbitals REFUSED on the raster and realized at Becke points,
-//                where the ρ[D] cell is refused instead (ReportSolidXCRho).
+//   - PW x Pρ    exact over plane-wave orbitals (the 4 Ecut ball); over GPW orbitals REFUSED (pin 28), on the raster and at Becke points.
 // A policy of the policy layer: each decision files one `policy` row where it fires (the caller's report cursor).
 module;
 #include <string>
@@ -20,9 +19,16 @@ import qchem.Policy;
 export namespace qchem
 {
 
+//! The pin-28 refusal of a stated xc.rho fit on an inexact fit, \a which naming the fit.
+[[noreturn]] inline void RefuseProjectedRho(const std::string& which, const std::string& why)
+{
+    policy::Refuse("XCRhoProjectedRefused", "xc.rho fit on "+which,
+        why+", so its projection P rho is not rho[D], and XC must see rho[D] (doc/Pins.md pin 28; the rho axis was retired 2026-11-15) -- "
+        "state xc.rho exact (the default), or a fit whose projection is exact: xc.fit Delta");
+}
+
 //! File the ρ-axis decision for a DFT run stating \a fit and \a rho.  Called by the setups before the Hamiltonian is built (a solid
-//! passes the fit its Hamiltonian RESOLVES from Auto, so the row names the cell that runs); reports, never refuses (the cells it sees
-//! all run).
+//! passes the fit its Hamiltonian RESOLVES from Auto, so the row names the cell that runs).  REFUSES xc.rho fit on an inexact fit (pin 28).
 inline void ReportXCRho(Hamiltonian::VxcFit fit, Hamiltonian::XCρ rho)
 {
     using Hamiltonian::VxcFit; using Hamiltonian::XCρ;
@@ -30,11 +36,11 @@ inline void ReportXCRho(Hamiltonian::VxcFit fit, Hamiltonian::XCρ rho)
         policy::Report("XCRhoFittedPotential", "the Gaussian auxiliary Vxc fit at xc.rho exact: v(rho[D]) is fitted for H", policy::Verdict::Warn,
             "H is then not dE/dD (doc/Pins.md pin 32): the SCF stops off the stationary point of any energy, so its energy is not "
             "variational and nothing that needs dE/dD (forces, a variational restart claim) may be read from it.  It is meant as a cheap "
-            "better-than-SAD start; state xc.rho fit for the variational A1 route, or the default delta fit for rho[D] exactly");
+            "better-than-SAD start; state the default delta fit for H = dE/dD");
     else if (fit==VxcFit::Auxiliary && rho==XCρ::Fit)
-        policy::Report("XCRhoProjected", "XC sees P rho, the Gaussian auxiliary fit's projection of rho[D]", policy::Verdict::Choose,
-            "stated (xc.rho fit): variational (E = integral e(P rho), H = dE/dD), but the A1 basis is incomplete, so XC is not evaluated on "
-            "rho[D] (an explicit departure from doc/Pins.md pin 28)");
+        RefuseProjectedRho("the Gaussian auxiliary (A1) Vxc fit", "the A1 basis is incomplete");
+    else if (fit==VxcFit::Multipole && rho==XCρ::Fit)
+        RefuseProjectedRho("the multipole Vxc fit", "the site multipole channels are an incomplete fit");
     else if (rho==XCρ::Fit && (fit==VxcFit::Delta || fit==VxcFit::Auto))
         policy::Report("XCRhoProjected", "xc.rho fit on the delta Vxc fit: fit is exact here, P rho = rho[D]", policy::Verdict::Choose,
             "the delta basis IS the XC quadrature's points, so its projection is the identity there");
@@ -46,9 +52,8 @@ inline void ReportXCRho(Hamiltonian::VxcFit fit, Hamiltonian::XCρ rho)
 //!     every orbital-pair difference and P rho = rho[D] EXACTLY, on its raster or synthesized at Becke points (I3).  Both values of
 //!     xc.rho are the same run; a stated fit is reported as such.
 //!   - Gaussian (GPW) orbitals: a Gaussian pair product is not band-limited, so no ball holds rho[D].
-//!       on the raster: the realized route COLLOCATES rho[D] (\c PairDensitySampler): xc.rho exact is honoured, and xc.rho fit has no
-//!       realization and is REFUSED by name (controller 2026-11-10: never the silent substitution);
-//!       on a Becke mesh (I3, V-XC-ONE-TERM step 4): the ball's P rho is synthesized at the points, so xc.rho fit runs (reported), and
+//!       xc.rho fit is REFUSED (pin 28, 2026-11-15) on the raster and at Becke points alike: P rho is the raster's rho[D] truncated to the
+//!       ball.  On the raster the realized route COLLOCATES rho[D] (\c PairDensitySampler), so xc.rho exact is honoured; on a Becke mesh
 //!       xc.rho exact is REFUSED by name (user ruling 2026-11-14, option (ii)): XC of rho[D] at the Becke points IS the delta cell.
 //! Every other cell is the fit-agnostic decision above.
 inline void ReportSolidXCRho(Hamiltonian::VxcFit fit, Hamiltonian::XCρ rho, bool planeWaveOrbitals, bool becke)
@@ -62,19 +67,14 @@ inline void ReportSolidXCRho(Hamiltonian::VxcFit fit, Hamiltonian::XCρ rho, boo
                 policy::Verdict::Choose, "the Vxc ball is at least 4 Ecut, so it holds every orbital-pair difference G_i - G_j (doc/Pins.md pin 28)");
         return;
     }
-    if (!becke && rho==XCρ::Fit)
-        policy::Refuse("XCRhoProjectedUnrealized", "xc.rho fit on the plane-wave Vxc fit over Gaussian (GPW) orbitals",
-            "a Gaussian pair product is not band-limited, so the G-ball cannot hold rho[D] and its projection P rho is not realized on this "
-            "cell: the raster route collocates rho[D] itself -- state xc.rho exact (what this cell runs), or xc.fit Delta, where P rho = rho[D], "
-            "or a Becke XC mesh, where the ball's P rho is realized");
+    if (rho==XCρ::Fit)
+        RefuseProjectedRho("the plane-wave Vxc fit over Gaussian (GPW) orbitals",
+            std::string("a Gaussian pair product is not band-limited, so no G-ball holds rho[D]")+(becke ? " (its synthesis at the Becke points "
+            "is the raster's rho[D] truncated to the ball)" : ""));
     if (becke && rho==XCρ::Exact)
         policy::Refuse("XCRhoBallOnBeckeExact", "the plane-wave Vxc fit on a Becke XC mesh at xc.rho exact over Gaussian (GPW) orbitals",
             "no ball holds a Gaussian pair product, so XC of rho[D] at the Becke points is the delta cell -- state xc.fit Delta (that cell, "
-            "exactly), or xc.rho fit for the ball's projection P rho at the Becke points (user ruling 2026-11-14)");
-    if (becke && rho==XCρ::Fit)
-        policy::Report("XCRhoProjected", "xc.rho fit on the plane-wave Vxc fit at Becke points: XC sees the ball's P rho", policy::Verdict::Choose,
-            "stated: the ball's Fourier series of rho[D] is synthesized at the Becke points (variational: H = dE/dD), an explicit departure "
-            "from doc/Pins.md pin 28 on Gaussian orbitals, whose rho[D] no ball holds; its cost is the direct sum, N_G x N_points per iteration");
+            "exactly), or a uniform XC mesh (user ruling 2026-11-14)");
 }
 
 //! \brief REFUSE what needs H = dE/dD on the Gaussian x δ cell (ruling (b): "everything that needs H = dE/dD refuses on it by name").

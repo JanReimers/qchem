@@ -66,12 +66,16 @@ struct ChargeBreakdown
 {
     double lost = 0.0;
     rvec_t siteMoments;
-    //! THE PIN-28 AUDIT (doc/Pins.md pin 28): which \f$\rho\f$ the XC term's most recent \f$V_{xc}\f$ build was
-    //! sampled from -- "DM", "cusp", "DMsrc", "shadow", "fitted" (\c ChargeDensity::XCRhoSource); EMPTY when no
-    //! quadrature XC term has built a \f$V_{xc}\f$.  A label, not the enum, because this module stays below
-    //! qcChargeDensity; the one bit a reader JUDGES travels beside it: a fitted \f$\rho\f$ is legal only for the seed.
+    //! THE PIN-28 CERTIFICATE (doc/Pins.md pin 28: XC sees \f$\rho[D]\f$), FAIL CLOSED (user 2026-11-15: "we really need those run time
+    //! checks to fire, because fitted rho's are constantly creeping back into Vxc").  Written ONLY by \c EnergyBreakdown::AddXC, the one door
+    //! for an XC energy: \c xcBuilt says an XC energy was added, \c xcRhoCertified that EVERY XC term which added one POSITIVELY certified
+    //! that the \f$\rho\f$ its \f$V_{xc}\f$ build saw is \f$\rho[D]\f$.  Both default false, so a term (or a sampler) that never certifies
+    //! is treated as fitted, and the SCF throws past the seed.  \c xcRho is the trace's label ("DM", "cusp", "DMsrc", "shadow", "fit=",
+    //! "fitted", "Pρ": \c ChargeDensity::XCRhoSource; empty for a term with no sampled density, HF exchange).  A label and a bit, not the
+    //! enum, because this module stays below qcChargeDensity.
     std::string xcRho;
-    bool        xcRhoFitted = false;
+    bool        xcBuilt        = false;
+    bool        xcRhoCertified = false;
     //! R2.1 (doc/SCFRobustnessPlan.md P2): how far the density the XC term's most recent \f$V_{xc}\f$ build was HANDED sat from
     //! the imposed group, \f$\max|f-Pf|/\max|\rho|\f$ over \f$(\rho,m)\f$, measured at XC's own projector just before it projects.  XC
     //! reads \f$Pf\f$, so this is not what XC saw: it is what every consumer that does NOT project (Hartree under the \f$\sigma\f$=None
@@ -95,6 +99,10 @@ public:
     //! A diagnostic beside the contributions: reported, NEVER summed (a sub-split such as the nonlocal part of
     //! \f$E_{en}\f$, or the Dunlap fit pieces whose combination is already in the Hartree entry).  Merges (+=).
     void AddDiagnostic(const std::string& name, double v);
+    //! \brief THE ONE DOOR FOR AN XC ENERGY ("Exc"; \c Add refuses that name): the energy travels WITH its pin-28 certificate, so no XC term
+    //! can add one without saying what \f$\rho\f$ it saw.  \a rhoIsRhoD = the term's \f$V_{xc}\f$ build saw \f$\rho[D]\f$ (a sampler's
+    //! positive certificate, \c ChargeDensity::CertifiesRhoD; HF exchange, a functional of D itself, passes true).  \a rhoLabel = the trace label.
+    void AddXC(double E, std::optional<double> TrDV, const std::string& rhoLabel, bool rhoIsRhoD);
 
     double operator[](std::string_view name) const;   //!< a contribution's E; 0 if absent
     double Diagnostic(std::string_view name) const;   //!< a diagnostic;       0 if absent
@@ -134,6 +142,7 @@ public:
     ChargeBreakdown charge;   //!< the charge accounting of the same density (see ChargeBreakdown)
 
 private:
+    void AddTerm(const std::string& name, double E, EnergyRole role, std::optional<double> TrDV);   //!< \c Add without the XC-name guard
     double RoleSum(EnergyRole a) const;
     double RoleSum(EnergyRole a, EnergyRole b) const;
     std::vector<std::pair<std::string,EnergyTerm>> itsTerms;         //!< insertion-ordered; names unique

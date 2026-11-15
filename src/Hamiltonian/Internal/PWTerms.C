@@ -328,6 +328,7 @@ protected:
         DensityID id=DensityID(static_cast<const tChargeDensity<T>*>(nullptr));
         rvec_t v[2];
         std::optional<ChargeDensity::XCRhoSource> source;
+        bool densityIsRhoD=false;   //!< the density's own pin-28 answer (\c tChargeDensity::HasNoFitComponent), fail closed
         std::optional<double> groupResidual;
         rvec_t seedFxc[2];
         double seedN=0.0;
@@ -352,6 +353,7 @@ protected:
     //! many times per iteration, and a log emptied by each call would hand the trace an empty cell.
     mutable Refreshed itsRefreshed;   //!< the refresh's one current state (V1.41 stage 2)
     mutable std::optional<ChargeDensity::XCRhoSource> itsFockSource;
+    mutable bool itsFockDensityIsRhoD=false;              //!< the same build's density: rho[D] and nothing else?  (fail closed)
     mutable std::optional<double> itsFockGroupResidual;   //!< R2.1: the same build's density vs the imposed group (\c xcGroupResidual)
     qchem::LazyLock itsFockSourceLock;   //!< every Fock block writes it (the same value): concurrent blocks take turns
     //! The seed's consumer prefactors (SizeFourierSampling): P_E per channel = Integral |v_xc^sigma|, P_H = max_i <i| sum_t |f_xc^{st}| |i>.

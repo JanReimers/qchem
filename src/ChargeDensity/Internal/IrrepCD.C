@@ -106,6 +106,8 @@ public:
     virtual double GetTotalCharge(                      ) const;
 
     virtual size_t Version() const {return itsVersion;}
+    //! THE one density that IS \f$\rho[D]\f$ and nothing else (pin 28, user ruling 2026-11-15): the only true answer in the tree.
+    virtual bool   HasNoFitComponent() const override {return true;}
 
     virtual void   ReScale      (double factor              )      ; // No UT coverage
     virtual void   Axpy         (double c, const tMixableDensity<T>&)   ;  //this += c*that.

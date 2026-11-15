@@ -297,7 +297,7 @@ ball), so every PW run's XC saw ρ[D] with its G_max..2G_max shell cut off; floo
 β-MnO₂ U = 0, 20 Ha: −87.8140996 → −87.8140395 (+60 μHa), now 33 μHa from QE converged on its XC grid (QE's DEFAULT
 36×36×24 grid is itself 107 μHa off its 72³ value -- the old "13 μHa" agreement was two errors cancelling).
 
-**Two exceptions (user, 2026-10-22), both transient:**
+**The exceptions (user, 2026-10-22: 1 and 2, both transient; 2026-11-15: 3 and 4):**
 1. **The SAD seed** has no D -- one iteration.
 2. **A G-dependent (Kerker-type) preconditioner** exists only in the fit's {G} representation, so its step cannot be taken on D.
    During such a step XC sees \f$\rho_{XC}=\tilde\rho_{mix}+(\rho[D]-\tilde\rho_{fit})\f$ (the CUSP DEFICIT, N4): the damped fitted
@@ -305,6 +305,15 @@ ball), so every PW run's XC saw ρ[D] with its G_max..2G_max shell cut off; floo
    ρ[D] (O₂ box: −30.71018173, the ρ[D] value to all digits).  Bare \f$\tilde\rho_{mix}\f$ is NOT this exception -- that is the
    +7.72 mHa.  Nor is the raw output ρ[D] alone: it strips the filter's damping from the XC channel (MnO AFM-II collapsed to
    −45.5 Ha vs −61.403; pin 18).  The part outside the fit needs no damping: no mixer acts outside the fit space.
+
+3. **CP2K parity** (user, 2026-11-15: *"We need the CP2K compatibility mode to keep working.  Very important for numeric checks and for testing
+   performance head to head.  So if our pins fight against this we need at have CP2K compatibility as an allowed exception."*).  Every route
+   `policy.cp2kCompat` sets must keep running under the check below.  Measured 2026-11-15: its routes feed XC through certified sources (the
+   raster pair route's ρ[D] under D-mixing, its raw shadow under Kerker/Pulay, exception 2), so no parity route needs an exception TODAY; a
+   parity route that ever does becomes a NAMED certified route ("CP2K parity"), printed in the XC ρ column and the run report -- never a silent
+   pass, never disabled.
+4. **`policy.xcFromDM`** (a declared deck key, off by default and under parity): XC sees a damped mix of ρ[D] through the retained D.  Certified
+   only as that named route (`DMsrc` in the XC ρ column).
 
 - A mixer with NO G-dependent filter mixes D itself, history and all -- \f$\rho[\sum_i c_iD_i]=\sum_i c_i\rho[D_i]\f$ pointwise -- so XC
   sees \f$\rho[D_{mix}]\f$ with no correction.  Linear D-mixing and direct minimisation (GDM) comply (O₂ box: linear −30.71018167/173).
@@ -320,8 +329,18 @@ ball), so every PW run's XC saw ρ[D] with its G_max..2G_max shell cut off; floo
 THROWS on the two violations the `XC ρ` column used to only mark: an inexact `fitted` ρ after the first iteration, and the `cusp`
 deficit beside a mixer with NO G-dependent filter (pure Pulay: right at the fixed point, wrong in form).  The gate that the crash
 works is `GPW_Si.Γ_Becke_Imp_Kerker_FitXC_Pin28Throws` (the old fitted-XC control).  The column now just names the source
-(DM, cusp, DMsrc, shadow, fit=); by-eye pairing: `cusp` sits beside `Ker` or `Pul+K` in `ρ_mix`.  Why a crash: this defect class
+(DM, cusp, DMsrc, shadow, fit=, fit=mix); by-eye pairing: `cusp` sits beside `Ker` or `Pul+K` in `ρ_mix`.  Why a crash: this defect class
 (fitted ρ / cut G into XC) came back several times while believed gone -- a mark is read by nobody, a throw by everyone.
+
+**FAIL CLOSED (user, 2026-11-15: *"we really need those run time checks to fire, because fitted rho's are constantly creeping back into Vxc.  It
+has happened 2 or 3 times now."*).**  Nothing has to remember to set a flag.  An XC energy enters the breakdown only through
+`EnergyBreakdown::AddXC`, carrying a certificate whose default is UNCERTIFIED, and `RequirePin28` throws on an uncertified one past the
+seed.  The certificate (`ChargeDensity::CertifiesRhoD`) is the AND of two positive answers: the DENSITY's `tChargeDensity::HasNoFitComponent()`
+(false by default; `IrrepCD_Core<T>` is the one override that answers true, and `tComposite_CD<T>` forwards and throws if its irreps disagree;
+user: *"I am very happy that D is only in one place"*), and the SAMPLER's source (DM or an exact fit).  Otherwise it must be one of the named
+routes above.  So a new density or sampler that never answers counts as fitted.  `UTHamiltonian VxcProductSpace.EverySamplersPin28Certificate…`
+measures every remaining sampler's ρ against the density's own pointwise ρ[D], so a false certificate fails too.  The ρ axis is retired: `xc.rho fit`
+on an inexact fit is refused at setup (`XCRhoProjectedRefused`), and the projecting samplers are deleted.
 
 Records: `OpenWork_History4.md` "ITEM 1 MEASURED" (MnO negatives, the collapse), `OpenWork.md` §3 "Kerker/Pulay as the
 DEFAULT mixer" and N4 (the O₂ and MnO arms).
