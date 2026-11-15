@@ -27,6 +27,7 @@ import qchem.Mesh.XCPolicy;                   // qcMesh::XCMeshDefault (the Beck
 import qchem.RunPolicy;                       // RunPolicySpec
 import qchem.LASolver;                        // qchem::Ortho
 export import qchem.SCFRecipe;                // SCFRecipe (the stage's material regime, beside its accelerator)
+export import qchem.SetupRefusal;             // SetupRefusal + Outcome: the Admit door's failure half
 export import qchem.AuditFootprint;           // AuditFootprintCalibration (the audit RSS policy's expert knob)
 export import qchem.Pseudopotential.Set;      // PseudopotentialSet -- the setup's resolved choice
 
@@ -298,17 +299,17 @@ struct SolidCalcOptions
     //!@}
 };
 
-//! \brief THROWS unless \a o states its magnetic ordering where the run needs one: a polarized run carrying a
-//! Hubbard manifold must give \c siteSpins (\c greyImposition, the erasure control, is exempt), and a stated
-//! \c siteSpins must have one entry per site of \a st, each -1, 0 or +1.  A broken invariant, not an Outcome: the
-//! facade calls it first thing, and \c deck::Vet calls it so \c scripts/vet-decks catches a deck before it runs.
+//! \brief REFUSES (\c policy::Refused, rows SiteSpins / StatedMagneticOrdering) unless \a o states its magnetic ordering where the run needs
+//! one: a polarized run carrying a Hubbard manifold must give \c siteSpins (\c greyImposition, the erasure control, is exempt), and a stated
+//! \c siteSpins must have one entry per site of \a st, each -1, 0 or +1.  User input, so the refusal reaches a caller as a \c SetupRefusal
+//! through \c SolidSetup::Admit; \c deck::Vet calls it too, so \c scripts/vet-decks catches a deck before it runs.
 void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& st);
-//! \brief THROWS unless a stated \c o.siteCharges has one entry per site of \a st, sums to zero (formal charges conserve the
-//! cell's charge, as the derived ones do), and seeds an \c IonicSAD run.  Empty passes.  Called by the facade and by \c deck::Vet,
-//! as \c RequireStatedMagneticOrdering is.
+//! \brief REFUSES (\c policy::Refused, row SiteCharges) unless a stated \c o.siteCharges has one entry per site of \a st, sums to zero
+//! (formal charges conserve the cell's charge, as the derived ones do), and seeds an \c IonicSAD run.  Empty passes.  Called by the
+//! resolve phase and by \c deck::Vet, as \c RequireStatedMagneticOrdering is.
 void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st);
 //! \brief The electron count per spin channel, (nUp, nDown), for \a o.multiplicity and the RESOLVED electron count \a nel (decision 2).
-//! THROWS on an impossible request: a multiplicity whose parity disagrees with \a nel or that exceeds it -- in particular multiplicity 1
+//! REFUSES (\c policy::Refused, row SpinMultiplicity) an impossible request: a multiplicity whose parity disagrees with \a nel or that exceeds it -- in particular multiplicity 1
 //! (the EXPLICIT two-channel singlet, nUp = nDown) on an odd \a nel, unless \c o.spinsShareFermi lets one Fermi level set the channels
 //! (a metal: the counts are only the split the occupations start from).  Called by the resolve phase and by \c deck::Resolve.
 std::pair<int,int> SpinChannelCounts(const SolidCalcOptions& o, int nel);
@@ -355,18 +356,30 @@ struct GaussianBasisRecipe
 //! Built only by \c Resolve, held as \c shared_ptr<const SolidSetup>: immutable once made.
 struct SolidSetup
 {
-    //! \brief THE ONE RESOLVE PHASE (doc/Pins.md pin 11).  Installs \a opts.policy as the process run policy FIRST (every factory
-    //! after it consults the policy), then decides.  THROWS on options that contradict each other or the structure -- an unstated
-    //! magnetic ordering (\c RequireStatedMagneticOrdering), a multiplicity whose parity disagrees with \c Nelec, \c numBands too
-    //! small, a plane-wave run asked for a k-mesh, a shift or an imposition: broken invariants of the request, not outcomes.
-    //! \a mol: the molecular orbital basis at \a lat's geometry -- the XC-mesh sharpness reads its α_max, and a GPW point is built
-    //! over it; a plane-wave run ignores it.
+    //! \brief THE ONE RESOLVE PHASE (doc/Pins.md pin 11), as an OUTCOME: the door for USER INPUT (a deck, a GUI form, a command line).
+    //! Installs \a opts.policy as the process run policy FIRST (every factory after it consults the policy), then decides.  Options
+    //! that contradict each other or the structure -- an unstated magnetic ordering, a multiplicity whose parity disagrees with
+    //! \c Nelec, a stated Nelec the species disagree with, \c numBands too small, a route the code does not realize, a basis that does
+    //! not cover the cell -- come back as a \c SetupRefusal naming the policy that refused (its row is in the run report too).  A
+    //! broken invariant still throws.  \a mol: the molecular orbital basis at \a lat's geometry -- the XC-mesh sharpness reads its
+    //! α_max, and a GPW point is built over it; a plane-wave run ignores it.
+    static Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> Admit(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                                                     const SolidCalcOptions& opts,
+                                                     const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+    //! \c Admit from a basis RECIPE: the molecular basis is made at \a lat's geometry by \a recipe (its provenance checked against
+    //! the run's set), after the vet-stage loop -- if the recipe asks for it -- has decided the trim, which is then frozen in
+    //! \c recipe.  A setup with a recipe can rebuild its basis at moved atoms (a geometry step); one from a pre-built \a mol cannot.
+    static Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> Admit(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
+                                                     const SolidCalcOptions& opts,
+                                                     const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+    //! \brief \c Admit, THROWING its refusal (a \c policy::Refused, a \c std::invalid_argument, with the refusal's sentence).  For CODE
+    //! that states its own options -- the tests, the probes (\c gpwprobe), a campaign driver: there a refusal is the caller's programming
+    //! error, which no one at run time can act on, so it throws (CLAUDE.md).  Never for user input: a deck, the GUI binding or a command
+    //! line goes through \c Admit and reports the refusal.
     static std::shared_ptr<const SolidSetup> Resolve(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                                                      const SolidCalcOptions& opts,
                                                      const SCFAccelerators::SolidAcceleratorOptions& acc = {});
-    //! The same from a basis RECIPE: the molecular basis is made at \a lat's geometry by \a recipe (its provenance checked against
-    //! the run's set), after the vet-stage loop -- if the recipe asks for it -- has decided the trim, which is then frozen in
-    //! \c recipe.  A setup with a recipe can rebuild its basis at moved atoms (a geometry step); one from a pre-built \a mol cannot.
+    //! \c Resolve from a basis RECIPE (\c Admit's recipe door, throwing; for code that states its own options).
     static std::shared_ptr<const SolidSetup> Resolve(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
                                                      const SolidCalcOptions& opts,
                                                      const SCFAccelerators::SolidAcceleratorOptions& acc = {});

@@ -227,13 +227,16 @@ TEST(SolidSetup, AnElectronCountThatDisagreesWithTheSpeciesIsRefused)
     const GaussianBasisRecipe q9{.file="valence_lowq_sr2_naq9.bsd"};
     const SolidCalcOptions semicore{.species={{"Na",9},{"F",7}}, .pp="gth-lda-valence"};
     SolidCalcOptions old=semicore; old.Nelec=8;   // the q1 count, the bug
-    try { (void)SolidSetup::Resolve(lat, q9, old); FAIL() << "a stated Nelec 8 against Na q9 + F q7 must be refused"; }
-    catch (const std::invalid_argument& e)
-    {
-        const std::string w=e.what();
+    {   // the user door (a deck's): a refusal is a VALUE naming its policy
+        const auto refused=SolidSetup::Admit(lat, q9, old);
+        ASSERT_FALSE(refused) << "a stated Nelec 8 against Na q9 + F q7 must be refused";
+        EXPECT_EQ(refused.Error().policy, "ElectronCount");
+        const std::string& w=refused.Error().reason;
         EXPECT_NE(w.find("Nelec 8"), std::string::npos) << w;
         EXPECT_NE(w.find("16"), std::string::npos) << "names the species' count: " << w;
     }
+    EXPECT_THROW((void)SolidSetup::Resolve(lat, q9, old), std::invalid_argument) << "the code door throws the same refusal";
+    EXPECT_TRUE(SolidSetup::Admit(lat, q9, semicore)) << "a count the species agree with is admitted";
     EXPECT_EQ(SolidSetup::Resolve(lat, q9, semicore)->opts.Nelec, 16) << "unstated: derived from the species";
     SolidCalcOptions stated=semicore; stated.Nelec=16;
     EXPECT_NO_THROW((void)SolidSetup::Resolve(lat, q9, stated)) << "a stated count that agrees";

@@ -29,6 +29,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     Materials.C
     Deck.C
     SCFFailure.C
+    SetupRefusal.C
     SCFRecipeReport.C
     SCFRecipe.C
     DegenerateFill.C

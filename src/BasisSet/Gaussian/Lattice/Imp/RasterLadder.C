@@ -318,6 +318,9 @@ void GpwRasterLadder::ReportGrids(const std::vector<Symmetry::Lattice_3D::Direct
     // It printed the floor even when a value was stated (lane G, 2026-11-07: Si Γ stated 4 Ha read as the floor), so the source rides with it.
     const bool statedEcut=itsInputs.densityEcut>0.0;
     rpt::Set("densityEcut",  { {"value", statedEcut ? itsInputs.densityEcut : itsInputs.cutoffFactor * itsAlphaMax}, {"source", statedEcut ? "stated" : "floor"} });
+    // The floor under its OWN name, stated or not (OpenWork "The grids report prints the AUTO floor under the name densityEcut", 2026-11-14):
+    // a stated value is judged against it (the under-resolution warning), so a reader of the report sees both numbers the judgement used.
+    rpt::Set("densityEcutFloor", itsInputs.cutoffFactor * itsAlphaMax);
     rpt::Set("cutoffFactor", itsInputs.cutoffFactor);
     rpt::Set("raster",       { {"x", itsTol.rasterX}, {"vlocX", itsTol.vlocRasterX}, {"xcX", itsTol.xcRasterX} });   // the demands (0 = the ball's own)
     // The relative pair rule, its RIGOROUS form (a pair p is resolved at ecut >= s ecut_ref p / 2 alpha_max) beside its EMPIRICAL

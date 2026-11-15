@@ -387,8 +387,15 @@ TEST(Deck, BasisTrimVetAndStateRoundTripAndAreValidated)
     deck::RunSpec sph; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_SR"},{"angular","spherical"}}}}, sph);
     try { deck::Resolve(sph); FAIL() << "spherical + the SR transition-metal block must be refused"; }
     catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("VALENCE_LOWQ_VA"),std::string::npos) << e.what(); }
+    // The refusal judges the FILE the run reads, by its CARTESIAN-ONLY preamble line, never the label in basis.data (2026-11-14): the SR
+    // span under the VA label is refused, and the VA file under the SR label is admitted.
+    deck::RunSpec srAsVA; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_VA"},{"file","valence_lowq_sr.bsd"},{"angular","spherical"}}}}, srAsVA);
+    try { deck::Resolve(srAsVA); FAIL() << "the SR file's Mn block is CARTESIAN-ONLY whatever basis.data says"; }
+    catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("Mn block is CARTESIAN-ONLY"),std::string::npos) << e.what(); }
+    deck::RunSpec vaAsSR; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_SR"},{"file","valence_lowq_va.bsd"},{"angular","spherical"}}}}, vaAsSR);
+    EXPECT_NO_THROW(deck::Resolve(vaAsSR)) << "a spherical-safe file is admitted whatever it is labelled";
     deck::RunSpec ok; deck::FromJson(json{{"structure","Si_diamond"},{"basis",{{"data","SIPP_SR"},{"spherical",true}}}}, ok);
-    EXPECT_NO_THROW(deck::Resolve(ok)) << "the refusal is specific to a transition metal on the SR block";
+    EXPECT_NO_THROW(deck::Resolve(ok)) << "a file that declares no CARTESIAN-ONLY block is spherical-safe";
     // The ONE angular option (user, 2026-11-12): written as basis.angular; the old bool spelling still reads, so a record runs.
     EXPECT_EQ(ok.basis.angular, BasisSet::Gaussian::Angular::Spherical) << "the old basis.spherical spelling reads as basis.angular";
     EXPECT_EQ(deck::ToJson(ok)["basis"]["angular"], "spherical");
@@ -461,6 +468,27 @@ TEST(Deck, ANonShippedBasisFileIsInlinedForTheElementsItUsesWithItsAttribution)
 
 // D-BASIS-REGISTRY: basis.data is a file STEM, any case -- an unregistered file is usable by name; a name that is not in the data
 // directory is refused when the deck is read, listing the names; the record keeps the name as written.
+// A deck is USER INPUT, so the setup's refusal is an OUTCOME at the deck's door (OpenWork "SolidSetup refusals are throws", 2026-11-14):
+// Run returns it as the run's verdict and files it in the record it claimed; Build, whose signature carries no refusal, throws it naming
+// the policy.  The probe: a stated Nelec the species disagree with (Si diamond holds 8) -- a choice only the setup can judge.
+TEST(Deck, ASetupRefusalIsTheRunsOutcomeAndItsRecordNamesThePolicy)
+{
+    const json payload={{"structure","Si_diamond"}, {"basis",{{"data","SIPP_SR"}}}, {"solid",{{"densityEcut",20.0},{"Nelec",6}}}};
+    deck::RunSpec spec; deck::FromJson(payload,spec);
+    const fs::path dir=TmpDir("refused");
+    deck::Provenance pv; pv.commandLine="test"; pv.codeVersion="t";
+    const deck::RunOutcome out=deck::Run(spec,pv,dir);
+    EXPECT_FALSE(out.converged);
+    EXPECT_FALSE(out.energy.has_value());
+    EXPECT_NE(out.summary.find("REFUSED (policy ElectronCount)"), std::string::npos) << out.summary;
+    std::ifstream in(out.revision); const json rec=json::parse(in);
+    ASSERT_TRUE(rec.contains("results")) << "the refused run's record files its verdict";
+    EXPECT_EQ(rec["results"]["refused"]["policy"], "ElectronCount");
+    EXPECT_FALSE(rec["results"]["converged"].get<bool>());
+    try { (void)deck::Build(spec); FAIL() << "Build carries no refusal in its signature: it throws it"; }
+    catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("policy ElectronCount"), std::string::npos) << e.what(); }
+}
+
 TEST(Deck, TheBasisIsAFileStemAndAnUnknownOneIsRefusedListingTheNames)
 {
     deck::RunSpec r;

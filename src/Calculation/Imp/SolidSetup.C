@@ -78,17 +78,17 @@ void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& s
     if (!o.siteSpins.empty())
     {
         if (o.siteSpins.size()!=nAtoms)
-            throw std::invalid_argument("SolidCalcOptions: siteSpins has "+std::to_string(o.siteSpins.size())
+            policy::RefuseAs("SiteSpins", "SolidCalcOptions: siteSpins has "+std::to_string(o.siteSpins.size())
                                         +" entries for "+std::to_string(nAtoms)+" sites ("+sites+")");
         for (int s : o.siteSpins)
-            if (s<-1 || s>1) throw std::invalid_argument("SolidCalcOptions: siteSpins entries are -1, 0 or +1, got "+std::to_string(s));
+            if (s<-1 || s>1) policy::RefuseAs("SiteSpins", "SolidCalcOptions: siteSpins entries are -1, 0 or +1, got "+std::to_string(s));
         return;
     }
     // R2.5 (doc/SCFRobustnessPlan.md P2, 2026-10-30): an IMPOSED polarized run states it too, +U or not -- the imposition IS
     // the decoration (the Shubnikov group), and deriving it from the seed let SAD impose a ferrimagnet on MnO AFM-II.
     const bool polarized = o.multiplicity>=1;
     if (polarized && (!o.hubbard.empty() || o.imposeSymmetry) && !o.greyImposition)
-        throw std::invalid_argument("SolidCalcOptions: a polarized run with a Hubbard manifold or an imposed symmetry must STATE its"
+        policy::RefuseAs("StatedMagneticOrdering", "SolidCalcOptions: a polarized run with a Hubbard manifold or an imposed symmetry must STATE its"
                                     " magnetic ordering -- siteSpins, one of +1/-1/0 per site ("+sites+"); all zeros for a"
                                     " non-magnetic cell.  It is no longer derived from the seed (doc/OpenWork.md §3, R2.5)");
 }
@@ -100,13 +100,13 @@ void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st
     std::string sites;
     st.ForEachSite([&](int Z, const rvec3_t&, bool){ sites+=(sites.empty()?"":" ")+thePeriodicTable().GetSymbol(Z); });
     if (o.siteCharges.size()!=st.GetNumAtoms())
-        throw std::invalid_argument("SolidCalcOptions: siteCharges has "+std::to_string(o.siteCharges.size())
+        policy::RefuseAs("SiteCharges", "SolidCalcOptions: siteCharges has "+std::to_string(o.siteCharges.size())
                                     +" entries for "+std::to_string(st.GetNumAtoms())+" sites ("+sites+")");
     int sum=0; for (int q : o.siteCharges) sum+=q;
-    if (sum!=0) throw std::invalid_argument("SolidCalcOptions: siteCharges sum to "+std::to_string(sum)+", not 0 -- formal charges conserve the"
+    if (sum!=0) policy::RefuseAs("SiteCharges", "SolidCalcOptions: siteCharges sum to "+std::to_string(sum)+", not 0 -- formal charges conserve the"
                                             " cell's charge ("+sites+")");
     if (o.seed!=ChargeDensity::SeedStrategy::IonicSAD && o.seed!=ChargeDensity::SeedStrategy::Default)   // Default: the Auto rule takes IonicSAD
-        throw std::invalid_argument("SolidCalcOptions: siteCharges is stated but the seed is not IonicSAD -- only the ionic seed reads a"
+        policy::RefuseAs("SiteCharges", "SolidCalcOptions: siteCharges is stated but the seed is not IonicSAD -- only the ionic seed reads a"
                                     " charge order, so nothing would consume it");
 }
 
@@ -136,12 +136,12 @@ std::pair<int,int> SpinChannelCounts(const SolidCalcOptions& o, int nel)
 {
     const bool singlet = o.multiplicity==1 && !o.spinsShareFermi;
     if (singlet && nel%2!=0)
-        throw std::invalid_argument("SolidCalcOptions: multiplicity 1 is the two-channel SINGLET (nUp = nDown), impossible with an odd Nelec "
+        policy::RefuseAs("SpinMultiplicity", "SolidCalcOptions: multiplicity 1 is the two-channel SINGLET (nUp = nDown), impossible with an odd Nelec "
                                     +std::to_string(nel)+" -- state multiplicity 2 (a doublet), 0 (minimal spin), or spinsShareFermi true so"
                                     " one Fermi level sets the channels (a metal)");
     const int twoS = o.multiplicity>1 ? o.multiplicity-1 : (singlet ? 0 : nel%2);
     if ((nel-twoS)%2!=0 || twoS>nel)
-        throw std::invalid_argument("SolidCalcOptions: multiplicity "+std::to_string(o.multiplicity)+" parity disagrees with Nelec "
+        policy::RefuseAs("SpinMultiplicity", "SolidCalcOptions: multiplicity "+std::to_string(o.multiplicity)+" parity disagrees with Nelec "
                                     +std::to_string(nel));
     return {(nel+twoS)/2, (nel-twoS)/2};
 }
@@ -156,9 +156,9 @@ namespace
 Lattice_3D SizedForStrain(const Lattice_3D& lat, const SolidCalcOptions& opts)
 {
     const double s=opts.cellStrainAllowance;
-    if (!(s>=0.0)) throw std::invalid_argument("SolidCalcOptions: cellStrainAllowance must be >= 0 (a linear fraction, 0.03 = 3%)");
+    if (!(s>=0.0)) policy::RefuseAs("CellStrainAllowance", "SolidCalcOptions: cellStrainAllowance must be >= 0 (a linear fraction, 0.03 = 3%)");
     if (s==0.0) return lat;
-    if (s>0.25) throw std::invalid_argument("SolidCalcOptions: cellStrainAllowance "+std::to_string(s)+" > 0.25: the sets sized for a cell that "
+    if (s>0.25) policy::RefuseAs("CellStrainAllowance", "SolidCalcOptions: cellStrainAllowance "+std::to_string(s)+" > 0.25: the sets sized for a cell that "
                                             "much larger cost (1+s)^3 in every grid -- relax in stages, re-resolving the setup at the new cell");
     UnitCell cell=lat.GetUnitCell();
     cell.SetSizingCell((1.0+s)*cell.GetCellMatrix());
@@ -174,6 +174,21 @@ Lattice_3D SizedForStrain(const Lattice_3D& lat, const SolidCalcOptions& opts)
 std::vector<Hamiltonian::PPFunctionalCheck> SolidSetup::PPFunctionalChecks() const
 {
     return Hamiltonian::PPFunctionalChecks(pp, *cell, Hamiltonian::ModelToXC(opts.model));
+}
+
+// THE DOORS.  Admit is the one for user input; Resolve, its throwing twin, is for code that states its own options.  Every refusal on
+// the way (the setup's own option checks, and the factories it calls) travels as a policy::Refused, which AdmitBy turns into a value.
+Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> SolidSetup::Admit(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                                                                           const SolidCalcOptions& opts,
+                                                                           const SCFAccelerators::SolidAcceleratorOptions& acc)
+{
+    return AdmitBy([&]{ return Resolve(lat, std::move(mol), opts, acc); });
+}
+Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> SolidSetup::Admit(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
+                                                                           const SolidCalcOptions& opts,
+                                                                           const SCFAccelerators::SolidAcceleratorOptions& acc)
+{
+    return AdmitBy([&]{ return Resolve(lat, recipe, opts, acc); });
 }
 
 std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, std::shared_ptr<const BasisSet::Real_BS> mol,
@@ -204,9 +219,9 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, co
     if (recipe.autoTrim)
     {
         if (!recipe.trim.empty())
-            throw std::invalid_argument("GaussianBasisRecipe: autoTrim and a stated trim are exclusive -- state one");
+            policy::RefuseAs("BasisTrim", "GaussianBasisRecipe: autoTrim and a stated trim are exclusive -- state one");
         if (opts.orthoTol<=0.0)
-            throw std::invalid_argument("GaussianBasisRecipe: autoTrim needs an orthoTol > 0 to trim at -- at 0 it would drop nothing");
+            policy::RefuseAs("BasisTrim", "GaussianBasisRecipe: autoTrim needs an orthoTol > 0 to trim at -- at 0 it would drop nothing");
         // THE VET-STAGE TRIM, ONCE, at the reference geometry (pin 22); frozen below so a geometry step rebuilds the SAME shells.
         auto make=[&](const BasisSet::Gaussian::ShellTrim& t){ GaussianBasisRecipe r=rec; r.trim=t; return r.Make(*cell, pp); };
         BasisSet::Lattice::VetTrimResult r;
@@ -311,7 +326,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
         const int derived=sumQ-opts.charge;
         if (opts.Nelec==0) s->opts.Nelec=derived;
         else if (opts.Nelec!=derived)
-            throw std::invalid_argument("SolidCalcOptions: Nelec "+std::to_string(opts.Nelec)+" disagrees with the species: the cell's valence "
+            policy::RefuseAs("ElectronCount", "SolidCalcOptions: Nelec "+std::to_string(opts.Nelec)+" disagrees with the species: the cell's valence "
                                         "sums to "+std::to_string(sumQ)+(opts.charge!=0 ? " and the stated charge is "+std::to_string(opts.charge) : "")
                                         +", so a neutral"+(opts.charge!=0 ? "-at-that-charge" : "")+" cell holds "+std::to_string(derived)
                                         +".  A charged cell is legal only when STATED (SolidCalcOptions::charge); leave Nelec 0 to derive it");
@@ -373,10 +388,10 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     {
         const auto& a=opts.accuracy;
         const auto& t=opts.tolerances;
-        if (!(a.eps>=0.0)) throw std::invalid_argument("SolidCalcOptions: accuracy eps must be >= 0 (0 = no target: the stated rasters)");
+        if (!(a.eps>=0.0)) policy::RefuseAs("AccuracyTarget", "SolidCalcOptions: accuracy eps must be >= 0 (0 = no target: the stated rasters)");
         const bool stated = t.rasterX!=0.0 || t.vlocRasterX!=0.0 || t.xcRasterX!=0.0;
         if (stated && a.eps>0.0)
-            throw std::invalid_argument("SolidCalcOptions: tolerances state a raster demand (rasterX / vlocRasterX / xcRasterX) beside an accuracy "
+            policy::RefuseAs("AccuracyTarget", "SolidCalcOptions: tolerances state a raster demand (rasterX / vlocRasterX / xcRasterX) beside an accuracy "
                                         "target -- the target derives them; state accuracy 0 to give the rasters yourself");
         if (!s->planeWave && a.eps>0.0)
         {
@@ -385,15 +400,15 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
             // V_loc long's routing tolerance from the same target (a STATED vlocEps is honoured, like a stated densityEcut)
             if (s->opts.tolerances.vlocEps==0.0)
             {
-                if (!(a.vlocRoutingEta>0.0)) throw std::invalid_argument("SolidCalcOptions: accuracy vlocRoutingEta (delivered / bound) must be > 0");
+                if (!(a.vlocRoutingEta>0.0)) policy::RefuseAs("AccuracyTarget", "SolidCalcOptions: accuracy vlocRoutingEta (delivered / bound) must be > 0");
                 s->opts.tolerances.vlocEps=a.VlocEps();
                 s->opts.tolerances.vlocEpsRigorous=a.RigorousVlocEps();   // the two pieces, report-only
                 s->opts.tolerances.vlocRoutingEta=a.vlocRoutingEta;
             }
         }
-        if (!(a.rungGateC>=0.0)) throw std::invalid_argument("SolidCalcOptions: accuracy rungGateC must be >= 0 (0 = no completion rung)");
+        if (!(a.rungGateC>=0.0)) policy::RefuseAs("AccuracyTarget", "SolidCalcOptions: accuracy rungGateC must be >= 0 (0 = no completion rung)");
         s->opts.tolerances.rungGateC=a.rungGateC;   // with or without a target: the ladder's gate is not derived from eps
-        if (!(a.relCutoffSafety>0.0)) throw std::invalid_argument("SolidCalcOptions: accuracy relCutoffSafety (the pair->level rule's stiffness) must be > 0");
+        if (!(a.relCutoffSafety>0.0)) policy::RefuseAs("AccuracyTarget", "SolidCalcOptions: accuracy relCutoffSafety (the pair->level rule's stiffness) must be > 0");
         s->opts.tolerances.relCutoffSafety=a.relCutoffSafety;   // nor is the pair rule's stiffness
     }
     if (s->planeWave)
@@ -447,7 +462,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     std::tie(s->nUp, s->nDown)=SpinChannelCounts(opts, nel);
     // A partial eigensolve must leave EMPTY bands above the fuller channel (smearing and the gap need them).
     if (opts.numBands>0 && opts.numBands<=size_t(s->nUp))
-        throw std::invalid_argument("SolidCalcOptions: numBands "+std::to_string(opts.numBands)+" must exceed the larger spin channel's "
+        policy::RefuseAs("NumBands", "SolidCalcOptions: numBands "+std::to_string(opts.numBands)+" must exceed the larger spin channel's "
                                     +std::to_string(s->nUp)+" electrons");
     return s;
 }

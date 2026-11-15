@@ -4,8 +4,7 @@ PP-PROVENANCE Mn=15 O=6
 the 3s3p semicore.  Mn window s 10 x [0.2, 60], p 9 x [0.25, 50], d 8 x [0.3, 40], validated POLARIZED on the Mn2+ cation the solid
 holds (valgen --q 15 --electrons 13 --spin --floor: 3.65 mHa above the complete-basis floor -102.801, moment 5.0008).  The d set is
 what sets the floor (the q7 block's d window sits 13 mHa above it on q15).  Seeds: atomic_valence_densities.json Mn q15 Nelec 13 / 15.
-RUN IT SPHERICAL (deck basis.spherical true, basis.data VALENCE_LOWQ_VA + basis.file this file -- the spherical refusal reads
-basis.data, not the file): Cartesian, the 6-d s contaminants of the 8 d shells collide with the 10 s and the vet trims the s set to 2;
+RUN IT SPHERICAL (deck basis.angular "spherical"; the refusal judges this file, which declares no CARTESIAN-ONLY block): Cartesian, the 6-d s contaminants of the 8 d shells collide with the 10 s and the vet trims the s set to 2;
 spherical nothing trims (min eig S 5.9e-5), and the span then equals CP2K's (always spherical).  Mixer startingRelaxRo 0.2: at 0.45
 the solid 2-cycles onto the non-magnetic state.
 

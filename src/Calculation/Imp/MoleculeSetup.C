@@ -20,6 +20,12 @@ import qchem.BasisCoverage;   // RequireBasisCovers: a basis lacking an element 
 namespace qchem
 {
 
+// THE DOORS (as SolidSetup's): Admit for user input, Resolve its throwing twin for code that states its own options.
+Outcome<std::shared_ptr<const MoleculeSetup>, SetupRefusal> MoleculeSetup::Admit(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
+{
+    return AdmitBy([&]{ return Resolve(st, opts, acc); });
+}
+
 std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
 {
     auto s=std::make_shared<MoleculeSetup>();
@@ -69,7 +75,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     {
         const int twoS = opts.multiplicity - 1;
         if (twoS > s->Ne || ((s->Ne - twoS) % 2) != 0)
-            throw std::runtime_error("qchem::MoleculeCalculation: multiplicity " + std::to_string(opts.multiplicity) +
+            policy::RefuseAs("SpinMultiplicity", "qchem::MoleculeCalculation: multiplicity " + std::to_string(opts.multiplicity) +
                 " (2S=" + std::to_string(twoS) + ") is incompatible with " + std::to_string(s->Ne) +
                 " electrons -- need 0 <= 2S <= Ne and Ne-2S even.");
     }
@@ -125,11 +131,10 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
 
     AdmitRecipe(acc.recipe, /*kT: not read for a molecule*/0.0, /*molecule*/true);   // Auto | Insulator only (R4.1 ruling (c))
     using AType = qchem::SCFAccelerators::Type;
-    s->accelerator = acc.type=="DIIS"   ? AType::DIIS
-                   : acc.type=="GDM"    ? AType::GDM
-                   : acc.type=="Ladder" ? AType::Ladder
-                   : throw std::runtime_error("qchem::MoleculeCalculation: unknown accelerator type \"" + acc.type +
-                                              "\" (expected DIIS | GDM | Ladder)");
+    if (acc.type!="DIIS" && acc.type!="GDM" && acc.type!="Ladder")
+        policy::RefuseAs("AcceleratorType", "qchem::MoleculeCalculation: unknown accelerator type \"" + acc.type +
+                                            "\" (expected DIIS | GDM | Ladder)");
+    s->accelerator = acc.type=="DIIS" ? AType::DIIS : acc.type=="GDM" ? AType::GDM : AType::Ladder;
     if (dft || !opts.pp.empty()) RefuseGradientConsumers(opts.vxcFit, opts.xcRho, acc.type);   // GDM needs H = dE/dD (pin 32)
     // DFT (and the LSDA pseudopotential) need DIIS engaged from iteration 0: the default Z-scaled EMax gate keeps DIIS off and
     // the SCF limit-cycles to a non-converged snapshot (the "M_Sym layout UB" mechanism, see M_DFT).  So default them to a high

@@ -5,6 +5,7 @@ module;
 #include <cctype>
 #include <fstream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
 #include <stdexcept>
@@ -101,6 +102,30 @@ namespace qchem::BasisSet::Gaussian
     void CheckPPProvenance(BasisSetData data, const std::vector<std::pair<std::string,int>>& species)
     {
         CheckPPProvenance(BasisName(data)+".bsd", species);
+    }
+
+    std::set<std::string> CartesianOnlyElements(std::istream& f)
+    {
+        std::set<std::string> out;
+        std::string line;
+        while (std::getline(f,line))
+        {
+            std::istringstream is(line);
+            std::string tok;
+            if (!(is>>tok)) continue;
+            if (tok=="!") break;                                   // end of the preamble
+            if (tok!="CARTESIAN-ONLY") continue;
+            while (is>>tok) { for (char& c : tok) c=(char)std::toupper((unsigned char)c); out.insert(tok); }
+        }
+        return out;
+    }
+
+    std::set<std::string> CartesianOnlyElements(const std::string& bsdFile)
+    {
+        const std::string path=BasisFile(bsdFile);
+        std::ifstream f(path);
+        if (!f) throw std::runtime_error("CartesianOnlyElements: cannot open basis file " + path);
+        return CartesianOnlyElements(f);
     }
 
     std::string BasisName(BasisSetData data) {return theStems.at(data);}

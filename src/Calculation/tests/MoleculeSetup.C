@@ -28,7 +28,10 @@ TEST(MoleculeSetup, AnOpenShellIsPromotedToPolarizedAndItsParityIsChecked)
     EXPECT_EQ(s->opts.spin, SpinGroup::Polarized);
     EXPECT_EQ(s->Ne, 7);
     EXPECT_FALSE(s->pp) << "no pp named: all-electron";
-    EXPECT_THROW(MoleculeSetup::Resolve(OneAtom(7), {.basis="dzvp", .multiplicity=3}), std::runtime_error) << "a triplet of 7 electrons";
+    const auto refused=MoleculeSetup::Admit(OneAtom(7), {.basis="dzvp", .multiplicity=3});
+    ASSERT_FALSE(refused) << "a triplet of 7 electrons";
+    EXPECT_EQ(refused.Error().policy, "SpinMultiplicity");
+    EXPECT_THROW((void)MoleculeSetup::Resolve(OneAtom(7), {.basis="dzvp", .multiplicity=3}), std::invalid_argument) << "the code door throws it";
 }
 
 TEST(MoleculeSetup, APseudopotentialSetGivesTheValenceCountAndTheValenceStructure)
@@ -88,7 +91,10 @@ TEST(MoleculeSetup, ABasisWithoutAnElementIsRefusedAtResolveNamingTheBasesThatCo
 
 TEST(MoleculeSetup, AnUnknownAcceleratorIsRefusedAtResolve)
 {
-    EXPECT_THROW(MoleculeSetup::Resolve(OneAtom(2), {.basis="dzvp"}, {.type="Anderson"}), std::runtime_error);
+    const auto refused=MoleculeSetup::Admit(OneAtom(2), {.basis="dzvp"}, {.type="Anderson"});
+    ASSERT_FALSE(refused);
+    EXPECT_EQ(refused.Error().policy, "AcceleratorType");
+    EXPECT_NE(refused.Error().reason.find("Anderson"), std::string::npos) << refused.Error().reason;
 }
 
 // EVERY KNOB OF THE MOLECULAR CHAIN REACHES THE FACTORY'S DOOR (2026-11-02): the GDM trust radius and the Ladder's hand-off triggers were

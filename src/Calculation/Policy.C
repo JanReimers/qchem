@@ -17,6 +17,7 @@ module;
 #include <vector>
 export module qchem.Policy;
 import qchem.Reporting;
+import qchem.SetupRefusal;         // SetupRefusal + Outcome: what a setup's Admit door returns (AdmitBy)
 import qchem.Hamiltonian.Factory;   // PPFunctionalCheck (PPFittedFunctional's input, the pre-run query's record)
 
 export namespace qchem::policy
@@ -65,12 +66,33 @@ inline void Report(const std::string& name, const std::string& decided, Verdict 
     if (!detail.is_null()) rpt::Set("detail", detail);
 }
 
-//! A refusal: its row, then std::invalid_argument("<decided> -- <reason>") -- a user-reachable choice the caller cannot run as asked
-//! (an Outcome at a facade's Converge door; a throw from a setup, which is how the setups refuse today).
+//! \brief A REFUSAL IN FLIGHT: the one exception a setup's refusals travel in, from wherever they fire (the setup itself, or a factory it
+//! calls: BasisCoverage, XCRhoPolicy, SCFRecipe) to the setup's \c Admit door, which turns it into a \c SetupRefusal VALUE (2026-11-14,
+//! OpenWork "SolidSetup refusals are throws").  It is still a \c std::invalid_argument, so a caller that states its own options and
+//! calls the throwing \c Resolve sees what it always saw.  Only a user-reachable choice is a \c Refused; a broken invariant throws
+//! anything else and passes through \c Admit untouched.  \c Name() is the policy row's name.
+class Refused : public std::invalid_argument
+{
+public:
+    Refused(std::string name, const std::string& what) : std::invalid_argument(what), itsName(std::move(name)) {}
+    const std::string& Name() const {return itsName;}
+private:
+    std::string itsName;
+};
+
+//! A refusal: its row, then \c Refused("<decided> -- <reason>") -- a user-reachable choice the caller cannot run as asked (an Outcome
+//! at a facade's Converge door, and at a setup's \c Admit door).
 [[noreturn]] inline void Refuse(const std::string& name, const std::string& decided, const std::string& reason)
 {
     Report(name, decided, Verdict::Refuse, reason);
-    throw std::invalid_argument(decided + " -- " + reason);
+    throw Refused(name, decided + " -- " + reason);
+}
+//! A refusal whose \a message is already one sentence (the setups' option checks, worded before the policy rows existed: their text is
+//! what decks and tests read, so it is kept verbatim): its row, then \c Refused(\a message).
+[[noreturn]] inline void RefuseAs(const std::string& name, const std::string& message)
+{
+    Report(name, "refused", Verdict::Refuse, message);
+    throw Refused(name, message);
 }
 
 //! \brief A PSEUDOPOTENTIAL FITTED WITH ANOTHER FUNCTIONAL THAN THE RUN'S: WARN AND GUIDE, AND RUN (user rulings 2026-11-12: OpenWork PADE
@@ -110,3 +132,15 @@ inline void PPFittedFunctional(const std::vector<Hamiltonian::PPFunctionalCheck>
 }
 
 } // namespace qchem::policy
+
+export namespace qchem
+{
+//! The setups' \c Admit door, once: run \a resolve and return its setup, or the \c policy::Refused it raised as a \c SetupRefusal.  Any
+//! other exception is a broken invariant and propagates.
+template <class F> auto AdmitBy(F&& resolve) -> Outcome<decltype(resolve()), SetupRefusal>
+{
+    using R = Outcome<decltype(resolve()), SetupRefusal>;
+    try { return R::Ok(resolve()); }
+    catch (const policy::Refused& r) { return R::Fail({r.Name(), r.what()}); }
+}
+} // namespace qchem

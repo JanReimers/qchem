@@ -191,6 +191,9 @@ TEST(GPW_Si, Γ_Imp_Schema)
     }
     ASSERT_NE(grids, nullptr) << "no run emitted a grids section";
     EXPECT_GT((*grids)["densityEcut"]["value"].get<double>(), 0.0);
+    ASSERT_TRUE(grids->contains("densityEcutFloor")) << "the floor rides under its own name, stated value or not";
+    EXPECT_DOUBLE_EQ((*grids)["densityEcutFloor"].get<double>(),
+                     (*grids)["cutoffFactor"].get<double>()*(*grids)["pairRule"]["alphaMax"].get<double>()) << "C * alpha_max";
     EXPECT_TRUE(grids->contains("cutoffFactor"));
     EXPECT_TRUE(grids->contains("raster"));
     ASSERT_TRUE(grids->contains("ladder"));
