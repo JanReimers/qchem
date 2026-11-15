@@ -137,7 +137,14 @@ enum class RadialKind  {MHL, Log, Linear};
 // Nothing selected it in production, and GaussLegendre already provides arbitrary L WITH exactness at
 // the same ~L^2/2 product-grid cost.  Both survivors now have a real polynomial degree, which is what
 // lets the angular knob become degree-typed (R2.15).
-enum class AngularKind {Lebedev, GaussLegendre};
+//! \c None (V-XC-ONE-TERM step 5, 2026-11-14): NO angular rule -- the RADIAL-ONLY point set, \f$\int f(r)\,4\pi r^2dr\f$ about one centre
+//! (one direction at weight \f$4\pi\f$).  Exact only for a SPHERICAL integrand, so it imposes O(3) about its centre (H_points = O(3),
+//! doc/Pins.md pin 30): admitted only on a structure with full rotation symmetry (the atom path; \c Hamiltonian::AdmitVxc refuses it
+//! elsewhere).  \c angularDegree is not read for it (its degree is 0).  It used to be spelled Lebedev at degree 0 (the 1-direction rule),
+//! which on the molecule doubles as the UNSTATED sentinel -- so the radial-only set could only be inferred, never stated.
+enum class AngularKind {Lebedev, GaussLegendre, None};
+//! The polynomial degree an angular rule is EXACT to: 0 for the radial-only set, else the stated \c angularDegree (Lebedev rounds UP).
+inline int ExactAngularDegree(AngularKind k, int angularDegree) {return k==AngularKind::None ? 0 : angularDegree;}
 //! \brief Which quadrature a periodic UnitCell builds: the uniform FFT-compatible midpoint grid
 //! (Hartree/PP -- resolution from \c eCut / \c nUniform), or the atom-centred periodic Becke
 //! fuzzy-Voronoi grid (dense radial near each nucleus, cheap diffuse tails -- the XC quadrature;

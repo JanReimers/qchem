@@ -21,6 +21,7 @@ import qchem.Types;
 import qchem.SCFCap;   // BoundedSCF: the failure arm runs a deliberately bounded SCF
 import qchem.BasisSet.Gaussian.Point.BasisFiles;   // BasisFile / BasisFileChecksum (a stated basis file)
 import qchem.Reporting;   // the run report the molecular mesh files itself into
+import qchem.Mesh;        // qcMesh::AngularKind (the atom's radial-only XC set)
 
 using namespace qchem;
 using StructureData::GetMolecule;
@@ -431,4 +432,26 @@ TEST(CalculationFacade, TheGaussianDeltaXCCellWarnsAndRefusesGDM)
     ASSERT_FALSE(c.empty()) << chose->dump(1);
     for (const auto& r : c) EXPECT_EQ(r["verdict"].get<std::string>(), "choose");
     EXPECT_TRUE(rowsNamed(*chose, "XCRhoFittedPotential").empty()) << "the variational cell is not warned";
+}
+
+//! THE RADIAL-ONLY SET'S OLD SPELLING (V-XC-ONE-TERM step 5, controller 2026-11-14: backward compatibility, gated).  The atom's XC mesh
+//! is the radial-only point set, AngularKind::None.  Before it had a name the atom spelled it Lebedev at degree 0 (the 1-direction
+//! rule, the same points), so a caller stating that spelling must read exactly as before: the same mesh, bit for bit.  And None is
+//! one mesh whatever angularDegree says (the rule does not read it).
+TEST(CalculationFacade, AnAtomStatingLebedevDegreeZeroIsTheRadialOnlySetBitForBit)
+{
+    auto run=[](qcMesh::AngularKind angular, int degree)
+    {
+        AtomCalcOptions o{.type=AtomType::Gaussian, .basisPool=BasisSetAccuracy::Low, .model=Model::LDA};
+        o.mesh.angular=angular; o.mesh.angularDegree=degree;
+        AtomCalculation calc(2, 0, o);
+        return std::pair{calc.Energy(), calc.IterationCount()};
+    };
+    const auto none  =run(qcMesh::AngularKind::None,    0);
+    const auto legacy=run(qcMesh::AngularKind::Lebedev, 0);
+    const auto loose =run(qcMesh::AngularKind::None,    7);
+    EXPECT_EQ(legacy.first, none.first)   << "Lebedev at degree 0 on the atom must read as the radial-only set, bit for bit";
+    EXPECT_EQ(legacy.second, none.second);
+    EXPECT_EQ(loose.first, none.first)    << "the radial-only set does not read angularDegree";
+    EXPECT_EQ(AtomCalcOptions{}.mesh.angular, qcMesh::AngularKind::None) << "the atom's default XC mesh is the radial-only set";
 }

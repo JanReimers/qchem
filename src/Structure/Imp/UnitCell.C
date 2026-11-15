@@ -344,7 +344,8 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     auto AngularName=[](qcMesh::AngularKind a)
     { switch (a) {
         case qcMesh::AngularKind::Lebedev:         return "Lebedev";
-        case qcMesh::AngularKind::GaussLegendre: return "GaussLegendre"; }
+        case qcMesh::AngularKind::GaussLegendre: return "GaussLegendre";
+        case qcMesh::AngularKind::None:          return "none (radial-only)"; }
       return "?"; };
     auto RadialName=[](qcMesh::RadialKind r)
     { switch (r) {

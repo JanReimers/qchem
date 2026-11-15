@@ -143,7 +143,7 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const 
     qcMesh::MeshParams hmp=mp;
     if (coulomb.nRadial>0) hmp.nRadial=coulomb.nRadial;
     const bool direct=coulomb.solver==CoulombSolver::DirectSum, multipole=coulomb.fit==CoulombFit::Multipole;
-    const int  lMax=ResolvedLMax(coulomb, multipole, hmp.angularDegree);
+    const int  lMax=ResolvedLMax(coulomb, multipole, qcMesh::ExactAngularDegree(hmp.angular, hmp.angularDegree));
     BasisSet::FitQuadrature quad;
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Hartree", "Hartree ρ fit", [&]
     {
@@ -185,7 +185,7 @@ Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> part
 
     // ONE XC term over the SUM of functionals (the gather is linear, so gather(a+b) is gather(a)+gather(b) for half the
     // work); its energy is the functionals' own eps -- correlation's is NOT the exchange virial.
-    Add(MolecularVxcTerm(st, bs, mp, fit, std::move(parts), g, ResolvedLMax(coulomb, true, mp.angularDegree)));
+    Add(MolecularVxcTerm(st, bs, mp, fit, std::move(parts), g, ResolvedLMax(coulomb, true, qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree))));
 }
 
 // Does any block of \a bs fall back to the PP terms' quadrature?  The same questions PP_Local and PP_NonLocal ask.
@@ -234,7 +234,7 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     Add(MolecularHartreeTerm(st, bs, mp, coulomb, coulombFit));
 
     // The run's functional (default LDA: Dirac exchange + VWN5 correlation), ONE XC term over the sum of its parts (see Ham_DFT).
-    Add(MolecularVxcTerm(st, bs, mp, fit, OrDefaultLDA(std::move(xc)), g, ResolvedLMax(coulomb, true, mp.angularDegree)));
+    Add(MolecularVxcTerm(st, bs, mp, fit, OrDefaultLDA(std::move(xc)), g, ResolvedLMax(coulomb, true, qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree))));
 }
 
 Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,

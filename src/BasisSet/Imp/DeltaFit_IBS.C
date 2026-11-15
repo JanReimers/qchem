@@ -169,7 +169,16 @@ template <class T> template <class U> const mat_t<U>& DeltaFit_IBS<T>::Table(con
     // parallel Fock pass; the slot map's once-fill builds each block's table once.
     return cache.GetOrFill(orb.Instance(), [this,&orb]
     {
-        mat_t<U> P=MakePhiAt<U>(&orb, itsQuad.GetMesh()->Points(), "setup: XC-mesh Phi tables");
+        mat_t<U> P;
+        if constexpr (std::is_same_v<U,double>)   // the factory's own evaluation of its blocks (the atom's radial face), when it gave one
+            if (itsRealValues)
+            {
+                qchem::report::Timed timed("setup: XC-mesh Phi tables");
+                P=itsRealValues(orb, itsQuad.GetMesh()->Points());
+                if (P.rows()!=itsQuad.GetMesh()->size() || P.columns()!=orb.GetNumFunctions())
+                    throw std::logic_error("DeltaFit_IBS: the factory's point values for a block are not (points x functions)");
+            }
+        if (P.rows()==0) P=MakePhiAt<U>(&orb, itsQuad.GetMesh()->Points(), "setup: XC-mesh Phi tables");
         ReportPhiSparsity(P, *itsQuad.GetMesh());           // mesh-aware (it reports SITE batching), hence outside the builder
         return P;
     });

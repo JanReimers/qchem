@@ -82,12 +82,14 @@ struct AtomCalcOptions
     bool   pseudopotential = false;
     int    valence         = 0;
 
-    //! Atomic XC integration grid (one angular point -- atoms are spherical).  \c nRadial 0 = UNSTATED: the run enters at 50 MHL points and
+    //! Atomic XC integration grid: the RADIAL-ONLY point set (\c AngularKind::None, one direction at 4 pi), exact because the atom's density is
+    //! spherical by construction (its open shell is averaged, \c Atom::HasFullRotationSymmetry).  A stated Lebedev at degree 0 -- this set's
+    //! old spelling -- reads as \c None (deck backward compatibility).  \c nRadial 0 = UNSTATED: the run enters at 50 MHL points and
     //! climbs the radial count to eps at its converged density (the atom pilot, pin 31: the old fixed 50 cost Xe 0.6-1.7 mHa and U 1-6 mHa,
     //! lane B 2026-11-14).  A stated count is audited against eps and never raised.
     qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 0,
                               .mhl_m    = 3,                         .mhl_alpha = 2.0,
-                              .angular  = qcMesh::AngularKind::Lebedev, .angularDegree = 0,   // the 1-direction rule
+                              .angular  = qcMesh::AngularKind::None,    .angularDegree = 0,   // the radial-only set
                               .beckeOrder = 2};
     //! The Vxc FIT BASIS (2026-10-31): \c Auto = \c Delta, the DEFAULT (user ruling "δ default, A1 kept"; as the molecular facade) --
     //! the δ basis on \c mesh's points; \c Auxiliary = the radial fit set.  The Si pseudo-atom (Slater/Medium) moves 33 -> 5 μHa
@@ -98,7 +100,7 @@ struct AtomCalcOptions
     //! The Hartree route, the twin of \c CalcOptions::coulomb.  \c Auto = \c Multipole: \f$\rho\f$'s l = 0 channel on a radial mesh, solved
     //! by radial Poisson (exact to its mesh; \c nRadial 0 = sized from eps by the atom pilot, a stated count audited).  \c Auxiliary = the
     //! Dunlap Coulomb fit, its fit set climbed up \c BasisSet::Radial::CoulombFitLadder to eps (rung 0, the s block x 2, cost U 32 mHa).
-    //! \c Delta is REFUSED: its radial-Poisson projection needs angular channels the atom's one-direction rule cannot carry (half the energy,
+    //! \c Delta is REFUSED: its radial-Poisson projection needs angular channels the atom's radial-only set cannot carry (half the energy,
     //! no convergence).  See \c Hamiltonian::CoulombRoute.
     qchem::Hamiltonian::CoulombRoute coulomb = {};
     //! SCF seed.  Default == auto: CoreGuess (atoms never use the molecular SAD seed).
