@@ -18,6 +18,7 @@ import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;   // GaussianR
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization; // Polarization
 import qchem.Structure;                                                     // Molecule, Atom, Structure
 import qchem.Types;                                                       // rvec3_t
+import qchem.BasisSet.Internal.PrimitiveStore;   // S5: the store the kernels take (an Internal module: imported directly, never re-exported)
 using namespace qchem;
 
 //! The PrimitiveStore these direct kernel calls look up in (S5: every looking-up kernel takes one).  One per test file, single-threaded.

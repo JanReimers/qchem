@@ -22,6 +22,7 @@ import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;              // Mak
 import qchem.Structure;                                               // Molecule, Atom
 import qchem.Blaze;                                                   // blazem::eigen/inv/dot (view gates)
 import qchem.Types;
+import qchem.BasisSet.Internal.PrimitiveStore;   // S5: the store the kernels take (an Internal module: imported directly, never re-exported)
 using namespace qchem;
 
 using namespace qchem::BasisSet::Gaussian::Evaluators;

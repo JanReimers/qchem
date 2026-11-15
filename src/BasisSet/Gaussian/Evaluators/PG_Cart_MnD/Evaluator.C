@@ -56,6 +56,7 @@ import qchem.Types;
 import qchem.Blaze;                                                // rsmat_t (the lattice-sum matrices)
 import qchem.Reporting;                                            // fold the task-list geometry into grids.boxTasks
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
+import qchem.BasisSet.Internal.PrimitiveStore;   // S5: the store the kernels take (an Internal module: imported directly, never re-exported)
 
 export namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
 {

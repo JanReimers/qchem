@@ -20,6 +20,7 @@ import qchem.Math.Angular;                                                  // S
 import qchem.Math.SolidHarmonics;                                           // CartGaussian
 import qchem.Structure;
 import qchem.Types;
+import qchem.BasisSet.Internal.PrimitiveStore;   // S5: the store the kernels take (an Internal module: imported directly, never re-exported)
 
 export namespace qchem::BasisSet::Gaussian::Evaluators::PG_Spherical_MnD
 {

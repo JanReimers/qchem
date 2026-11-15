@@ -19,7 +19,7 @@ import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Hermite;   // Hermite1/2/3
 import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD;                   // RNLM (Ω self-auxiliary)
 import qchem.BasisSet.Internal.Cache2;                                    // Cacheable2 (Ω is cached)
-export import qchem.BasisSet.Internal.PrimitiveStore;                     // the owner's Ω / RNLM / H3 caches every looking-up kernel takes (S5)
+import qchem.BasisSet.Internal.PrimitiveStore;                            // the owner's Ω / RNLM / H3 caches every looking-up kernel takes (S5; imported, never re-exported)
 import qchem.CMath;                                                        // Pi (the 2-centre kernels below)
 
 import qchem.ScalarFunction;

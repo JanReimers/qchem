@@ -13,6 +13,7 @@ import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.Structure;                                               // Molecule, Site (the nuclei)
 import qchem.Types;
 import qchem.Blaze;
+import qchem.BasisSet.Internal.PrimitiveStore;   // S5: the store the kernels take (an Internal module: imported directly, never re-exported)
 
 using namespace qchem;
 using namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD;
