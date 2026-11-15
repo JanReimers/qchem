@@ -5,7 +5,7 @@
 // surface is the flat extern "C" API in qcb_api.h (C linkage -> links from nanobind).
 //
 // The bridge holds NO recipe of its own.  A molecule: it fills CalcOptions / AcceleratorOptions / SCFParams, calls
-// MoleculeSetup::Resolve, and owns one qchem::MoleculeCalculation.  A crystal: it parses the caller's INPUT DECK and calls
+// MoleculeSetup::Admit, and owns one qchem::MoleculeCalculation.  A crystal: it parses the caller's INPUT DECK and calls
 // deck::Build, owning the SolidCalculation that returns.  Everything it answers comes from the facade.
 module;
 #include <algorithm>
@@ -341,6 +341,15 @@ void view_refused(const qchem::RestartRefusal& r, int* refused, char* err, int e
     write_error(("view refused (" + std::string(why_name(r.why)) + "): " + r.details).c_str(), err, errlen);
 }
 
+//! A refused SETUP (MoleculeSetup::Admit's SetupRefusal: an unstated basis, one that does not cover an element, a route the code
+//! does not realize): *refused = 2 and "setup refused (policy <name>): <reason>" -- user input the caller fixes, told apart from a
+//! refused state (1) and from a failure (0).
+void setup_refused(const qchem::SetupRefusal& r, int* refused, char* err, int errlen)
+{
+    if (refused) *refused = 2;
+    write_error(("setup refused (policy " + r.policy + "): " + r.reason).c_str(), err, errlen);
+}
+
 //! The view's field: 0 = rho, 1 = m, 2 = level \a index's orbital (refused with the reason: no orbitals saved, a complex one).
 const qchem::ScalarFunction<double>& view_field(const qcb_view* h, int field, int index)
 {
@@ -378,7 +387,9 @@ qcb_calc* qcb_start(const qcb_request* req, const char* path, int buildOnly, qcb
         // A BUILD (no SCF) files "<ID> build", as a crystal's deck build does; its first qcb_converge reuses the graph.
         h->id     = r.mol.ID();
         const qchem::report::Run run(buildOnly ? h->id + " build" : h->id);
-        const auto setup = qchem::MoleculeSetup::Resolve(r.mol, r.opts, r.acc);   // deep-copies mol
+        auto admitted = qchem::MoleculeSetup::Admit(r.mol, r.opts, r.acc);       // deep-copies mol
+        if (!admitted) { setup_refused(admitted.Error(), refused, err, errlen); return nullptr; }
+        const auto setup = admitted.TakeValue();
         // The observer rides the constructor, so the trace of ITS SCF streams from the first iteration.
         h->params = scf_params(*req);
         auto observer = step ? forward_to(step, sink) : MoleculeCalculation::Observer{};
@@ -654,7 +665,9 @@ qcb_view* qcb_view_molecule(const qcb_request* req, const char* path, int* refus
         // The bridge is the DRIVER: it opens the run, and the "view" section the view reports into (one level in).
         const qchem::report::Run     run(r.mol.ID() + " view");
         const qchem::report::Section section("view");
-        auto V = MoleculeCalculation::ViewState(path ? path : "", qchem::MoleculeSetup::Resolve(r.mol, r.opts, r.acc));
+        auto admitted = qchem::MoleculeSetup::Admit(r.mol, r.opts, r.acc);
+        if (!admitted) { setup_refused(admitted.Error(), refused, err, errlen); return nullptr; }
+        auto V = MoleculeCalculation::ViewState(path ? path : "", admitted.TakeValue());
         if (!V) { view_refused(V.Error(), refused, err, errlen); return nullptr; }
         h->view = V.TakeValue();
         return h.release();

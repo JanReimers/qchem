@@ -75,6 +75,17 @@ constexpr int errlen = 1024;
 //! A saved state the facade REFUSED to restart from (kind, basis, electrons, blocks, or an unreadable file): a value the caller acts
 //! on (a fresh run, or another state), raised as qchem_py.RestartRefused (a RuntimeError).
 struct RestartRefused : std::runtime_error { using std::runtime_error::runtime_error; };
+//! A molecule's SETUP the library REFUSED (MoleculeSetup::Admit's SetupRefusal: an unstated basis, one that does not cover an
+//! element, a route the code does not realize): the options are wrong, the caller fixes them.  Raised as qchem_py.SetupRefused (a
+//! ValueError, as the throwing door's std::invalid_argument was), its text "setup refused (policy <name>): <reason>".
+struct SetupRefused : std::invalid_argument { using std::invalid_argument::invalid_argument; };
+//! The bridge's *refused code -> its exception (0: a failure, a RuntimeError).
+[[noreturn]] void raise_refusal(int refused, const char* err)
+{
+    if (refused == 2) throw SetupRefused(err);
+    if (refused)      throw RestartRefused(err);
+    throw std::runtime_error(err);
+}
 
 //! A bridge call that writes JSON text (length-returning, sized by a first call with outlen 0) -> the Python object.
 template <class F> nb::object json_call(F&& f)
@@ -136,8 +147,7 @@ public:
             h = qcb_start(&req, restartFrom.c_str(), buildOnly ? 1 : 0, stream ? step_trampoline : nullptr, stream ? &sink : nullptr, &refused, err, errlen);
         }
         if (sink.error) { if (h) qcb_free(h); h = nullptr; throw std::move(*sink.error); }
-        if (!h && refused) throw RestartRefused(err);
-        if (!h) throw std::runtime_error(err);
+        if (!h) raise_refusal(refused, err);
     }
     ~Calculator() { qcb_free(h); }
     Calculator(const Calculator&)            = delete;
@@ -409,8 +419,7 @@ private:
         int refused = 0;
         qcb_view* v;
         { nb::gil_scoped_release nogil; v = open(&refused, err); }
-        if (!v && refused) throw RestartRefused(err);
-        if (!v) throw std::runtime_error(err);
+        if (!v) raise_refusal(refused, err);
         return new StateView(v);
     }
     qcb_view* h = nullptr;
@@ -422,6 +431,7 @@ NB_MODULE(qchem_py, mod)
                 "built from an input deck (qchem::deck::Build).";
 
     nb::exception<RestartRefused>(mod, "RestartRefused", PyExc_RuntimeError);
+    nb::exception<SetupRefused>(mod, "SetupRefused", PyExc_ValueError);
 
     nb::class_<Calculator>(mod, "Calculator")
         .def(nb::init<const std::vector<int>&, const std::vector<double>&, const std::string&, const std::string&,
@@ -450,7 +460,7 @@ NB_MODULE(qchem_py, mod)
              "|ΔE/E|, |Δ[F,D]| (> 0 the gate, 0 = off, < 0 = the lib's default).  mixer: SCFParams::Mixing by name (Auto | Linear | "
              "Kerker | Pulay; the facade refuses what a molecule cannot mix).  smearing_kT: Fermi-Dirac smearing, Ha (0 = off).  "
              "restart_from: a saved state (save_state's file) to start from (MoleculeCalculation::Restart): an exact resume or a "
-             "warm start (restarted_from() says which); a state the facade refuses raises RestartRefused.  build_only: BUILD the whole graph (basis, every mesh, the SCF "
+             "warm start (restarted_from() says which); a state the facade refuses raises RestartRefused; options the setup refuses (MoleculeSetup::Admit) raise SetupRefused.  build_only: BUILD the whole graph (basis, every mesh, the SCF "
              "iterator) and stop before iteration 1, filed as the report run '<ID> build'; run_scf then converges on that graph.  basis_file: a .bsd path used instead of the "
              "shipped file `basis` names (CalcOptions::basisFile; `basis` is then its label).  seed / angular: the STRUCTURE-NEUTRAL "
              "options by the deck's names (a crystal's deck: solid.seed, basis.angular): seed Default (the Auto rule) | CoreGuess | Uniform | "
@@ -575,7 +585,7 @@ NB_MODULE(qchem_py, mod)
 
     nb::class_<StateView>(mod, "StateView", "A saved state, DRAWN: a reopened run's fields and levels from its spec and its state file -- "
                           "the run's basis and the saved D, C, eps, f; no Hamiltonian, no grids, no SCF.  Built by molecule() / crystal(); "
-                          "a state that is not the spec's (another kind / basis / electrons, ANY moved atom, a missing file) raises RestartRefused.")
+                          "a state that is not the spec's (another kind / basis / electrons, ANY moved atom, a missing file) raises RestartRefused; options the setup refuses raise SetupRefused.")
         .def_static("molecule", &StateView::Molecule, nb::arg("numbers"), nb::arg("positions"), nb::arg("basis"), nb::arg("model") = "HF",
                     nb::arg("symmetry") = false, nb::arg("polarized") = false, nb::arg("multiplicity") = 0, nb::arg("pp") = "",
                     nb::arg("basis_file") = "", nb::arg("angular") = "cartesian", nb::arg("path"), nb::rv_policy::take_ownership)
