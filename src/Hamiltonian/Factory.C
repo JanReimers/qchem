@@ -182,13 +182,23 @@ export namespace qchem::Hamiltonian
     //=== The Vxc product space's symmetry rule (doc/Pins.md pin 30) ===================================
     //! The cell \c AdmitVxc admitted: the fit and the XC point set as stated.
     struct AdmittedVxc { VxcFit fit; qcMesh::UnitCellKind points; };
-    //! \brief Is (structure x Vxc fit x XC point set) an ADMISSIBLE cell?  A representation may not impose a symmetry the
-    //! calculation lacks: plane waves and a uniform cell mesh impose the lattice translations T, which a FINITE structure (a
-    //! molecule or an atom) does not have.  A refusal is an expected answer to a user-reachable choice, so it is an Outcome
-    //! naming the imposed group H_R and the structure's G.  Every DFT factory below consults it and throws
-    //! \c std::invalid_argument with the same reason when handed a refused cell; a caller that wants the answer as a value
-    //! (a setup / deck pre-flight, UTHamiltonian VxcProductSpace) asks here first.  A cell the rule ADMITS but no code realizes
-    //! yet (A1 on a solid, PW on a Becke mesh) is not a refusal: it still throws \c std::logic_error, an open X cell of that UT.
+    using qcMesh::ImposedSymmetry;
+    //! \brief G: the group the calculation imposes on rho, as far as admission needs it (pin 30) -- T on a lattice, O(3) on the atom path
+    //! (it spherically averages its open shell), neither on a molecule (its point group contains no T and no O(3)).  The ONE place the
+    //! structure's two symmetry answers are assembled into a group.
+    ImposedSymmetry GroupOf(const Structure&);
+    //! \brief What a Vxc fit imposes on this structure.  The family is named by the enum, but the group comes from the REALIZATION:
+    //! \c Auxiliary is the lineage's own fit -- lattice-summed (T) on a solid, the spherical set (O(3)) on the atom path, atom-centred
+    //! Gaussians ({e}) on a molecule.  The plane-wave ball imposes T everywhere; \c Delta and \c Multipole impose nothing beyond their
+    //! points (site multipoles are centred on every site, so they carry no group of their own); \c Auto resolves to a fit the structure
+    //! admits.
+    ImposedSymmetry ImposedBy(VxcFit, const Structure&);
+    //! \brief Is (structure x Vxc fit x XC point set) an ADMISSIBLE cell?  The rule (doc/Pins.md pin 30) is ONE check:
+    //! \f$H_{fit}\subseteq G\f$ and \f$H_{points}\subseteq G\f$ (\c ImposedBy, \c GroupOf, \c qcMesh::ImposedBy).  Besides it, ONE
+    //! correctness limit (user ruling 2026-11-06): a multipole fit on a periodic structure, whose lattice sum is conditionally convergent.
+    //! A refusal is an expected answer to a user-reachable choice, so it is an Outcome naming the imposed group H_R and the structure's
+    //! G.  Every DFT factory below consults it and throws \c std::invalid_argument with the same reason when handed a refused cell; a
+    //! caller that wants the answer as a value (a setup / deck pre-flight, UTHamiltonian VxcProductSpace) asks here first.
     Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure&, VxcFit, const qcMesh::MeshParams&);
     //! The Hartree partner of \c AdmitVxc.  Refuses a multipole fit on a periodic structure, on the direct sum, and past its \f$l\f$ bound.
     Outcome<CoulombRoute,std::string> AdmitCoulomb(const Structure&, const CoulombRoute&, const qcMesh::MeshParams&, VxcFit=VxcFit::Auto);
