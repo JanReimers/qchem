@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 import qchem.SolidCalculation;
+import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (the fitted-potential cell refuses GDM / the Ladder)
+import qchem.SCFParams;
 import qchem.Lattice_3D;
 import qchem.Structure;
 import qchem.UnitCell;
@@ -250,10 +252,11 @@ namespace
 {
 //! Resolve Si (Gamma, stated grids) on a Becke mesh or the raster at \a rho in a run named \a tag; the `decided` lines of its XCRhoProjected rows.
 enum class XCRhoCell { Becke, GPWRaster, PlaneWaveRaster };   // the solid cells the rho axis splits on
-std::vector<std::string> XCRhoRows(XCRhoCell cell, Hamiltonian::XCρ rho, const std::string& tag)
+std::vector<std::string> XCRhoRows(XCRhoCell cell, Hamiltonian::XCρ rho, const std::string& tag, Hamiltonian::VxcFit fit=Hamiltonian::VxcFit::Auto,
+                                   const std::string& rowName="XCRhoProjected")
 {
     const auto mat=Materials::Get("Si_diamond");
-    SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcRho=rho;
+    SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcRho=rho; o.vxcFit=fit;
     if (cell==XCRhoCell::Becke) o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);   // a small recipe: only the setup runs
     else                        o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
     if (cell==XCRhoCell::PlaneWaveRaster) { o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=4.0; }
@@ -270,7 +273,7 @@ std::vector<std::string> XCRhoRows(XCRhoCell cell, Hamiltonian::XCρ rho, const 
             for (auto it=x.begin(); it!=x.end(); ++it)
             {
                 if (it.key()=="policy" && it.value().is_array())
-                    for (const auto& r : it.value()) if (r.value("name","")=="XCRhoProjected") out.push_back(r.value("decided",""));
+                    for (const auto& r : it.value()) if (r.value("name","")==rowName) out.push_back(r.value("decided",""));
                 walk(it.value());
             }
         else if (x.is_array()) for (const auto& y : x) walk(y);
@@ -420,4 +423,62 @@ TEST(SolidSetup, AKMeshCoarserThanTheCalibratedSpacingIsWarnedNamingTheMeshThatM
     const auto k3=rows(ivec3_t(3,3,3), "Si k333");
     ASSERT_EQ(k3.size(), 1u);
     EXPECT_EQ(k3[0].value("verdict",""), "choose") << "a mesh within the threshold is reported, not warned: " << k3[0].dump();
+}
+
+// I3 (V-XC-ONE-TERM step 4): the plane-wave Vxc fit on a Becke mesh over GPW orbitals.  The ball's P rho is synthesized at the points, so
+// xc.rho fit runs and is reported; XC of rho[D] there is the delta cell, so xc.rho exact is REFUSED by name (user ruling 2026-11-14).
+TEST(SolidSetup, ThePlaneWaveFitOnABeckeMeshOverGPWOrbitalsRunsAtRhoFitAndRefusesRhoExact)
+{
+    const auto fitRows=XCRhoRows(XCRhoCell::Becke, Hamiltonian::XCρ::Fit, "Si PW ball at Becke rho fit", Hamiltonian::VxcFit::PlaneWave);
+    ASSERT_EQ(fitRows.size(), 1u);
+    EXPECT_NE(fitRows[0].find("at Becke points"), std::string::npos) << fitRows[0];
+    try { (void)XCRhoRows(XCRhoCell::Becke, Hamiltonian::XCρ::Exact, "Si PW ball at Becke rho exact", Hamiltonian::VxcFit::PlaneWave);
+          FAIL() << "the GPW ball at Becke points ran at xc.rho exact"; }
+    catch (const std::invalid_argument& e)
+    {
+        const std::string what=e.what();
+        EXPECT_NE(what.find("state xc.fit Delta"), std::string::npos) << what;
+        EXPECT_NE(what.find("xc.rho fit"), std::string::npos) << what;
+    }
+}
+
+// THE PERIODIC A1 FIT (V-XC-ONE-TERM step 6) at the policy layer: xc.fit Auxiliary is admitted on a GPW solid (it was refused until the
+// periodic realization), and its two rho cells file what they are -- xc.rho fit the variational projection, xc.rho exact the fitted-potential
+// warning (pin 32).
+TEST(SolidSetup, ThePeriodicA1FitIsAdmittedOnGPWAndItsRhoCellsReportThemselves)
+{
+    using Hamiltonian::VxcFit; using Hamiltonian::XCρ;
+    const auto pRows=XCRhoRows(XCRhoCell::Becke, XCρ::Fit, "Si A1 rho fit", VxcFit::Auxiliary);
+    ASSERT_EQ(pRows.size(), 1u);
+    EXPECT_NE(pRows[0].find("Gaussian auxiliary fit's projection"), std::string::npos) << pRows[0];
+    const auto wRows=XCRhoRows(XCRhoCell::GPWRaster, XCρ::Exact, "Si A1 rho exact", VxcFit::Auxiliary, "XCRhoFittedPotential");
+    ASSERT_EQ(wRows.size(), 1u) << "the fitted-potential cell warns";
+}
+
+// ... and what descends E along H refuses on the fitted-potential cell (H is not dE/dD, pin 32): a stated GDM or Ladder is refused by name
+// when the run is built, before any SCF.
+TEST(SolidSetup, ThePeriodicA1FittedPotentialCellRefusesGDMAndTheLadder)
+{
+    const auto mat=Materials::Get("Si_diamond");
+    SolidCalcOptions o; o.Nelec=8; o.densityEcut=12.0; o.accuracy.eps=0.0; o.xcRho=Hamiltonian::XCρ::Exact; o.vxcFit=Hamiltonian::VxcFit::Auxiliary;
+    o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);
+    const auto setup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSetData::SIPP_SR}, o);
+    for (auto t : {SCFAccelerators::Type::GDM, SCFAccelerators::Type::Ladder})
+    {
+        try { (void)SolidCalculation::Prepare(setup, {{SCFParams{}, t}}); FAIL() << "a gradient descent was built on the fitted-potential cell"; }
+        catch (const std::invalid_argument& e)
+        {
+            const std::string what=e.what();
+            EXPECT_NE(what.find("xc.rho exact"), std::string::npos) << what;
+        }
+    }
+}
+
+// THE A1 FIT OVER PLANE-WAVE ORBITALS IS ADMITTED (a refusal flipped, step 6 READY 2, controller 2026-11-15): the fit samples rho[D] through the
+// delta basis on the XC points, which any orbital family serves (the first cut sampled it through the GPW pair collocation and refused plane
+// waves).  So the setup admits it and files its rho row.
+TEST(SolidSetup, ThePeriodicA1FitOverPlaneWaveOrbitalsIsAdmitted)
+{
+    using Hamiltonian::VxcFit; using Hamiltonian::XCρ;
+    EXPECT_EQ(XCRhoRows(XCRhoCell::PlaneWaveRaster, XCρ::Fit, "Si A1 over PW", VxcFit::Auxiliary).size(), 1u);
 }

@@ -22,6 +22,8 @@ module;
 #include <vector>
 module qchem.SolidCalculation;
 
+import qchem.BasisSet.Gaussian.Point.Factory;     // FactoryFromFile: the A1_exch set on the cell's sites (the periodic A1 Vxc fit)
+import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;   // tGPW_IBS<double>: the real Gamma block over it
 import qchem.BasisSet.AoShellSource;           // FunctionName: the audit's largest element, by atom, shell and l
 import qchem.BasisSet.Conditioning;            // ReportConditioning, MinOverlapEigenvalue
 import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS / Complex_OIBS (the per-irrep bases to iterate)
@@ -39,6 +41,7 @@ import qchem.Environment;                   // WarnRetiredEnvironment (D-ENV ste
 import qchem.Mesh.XCPolicy;                     // BeckeXCParams / BeckeEntryRung and the rungs above (a geometry run's XC route and its nested ladder)
 import qchem.Mesh.BeckeClimb;                   // ClimbBeckeLadder: the pilot's one-round Becke climb at a fixed D
 import qchem.Policy;                            // policy::Report: a stated grid that misses eps reports itself (StatedDensityEcutMissesEps)
+import qchem.XCRhoPolicy;                        // RefuseGradientConsumers: the fitted-potential cell refuses GDM / the Ladder
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
 import qchem.SCFCap;                           // SetupSCF / AuditSCF -- the seed's atomic solves and the pilot's re-convergence are not the run's iterations
 import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
@@ -523,6 +526,51 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
 }
 
 
+// THE PERIODIC A1 VXC FIT's real Gamma set (V-XC-ONE-TERM step 6): the molecular A1 Vxc set (A1_exch, Z = 1-54) on the cell's sites as a
+// GPW block at Gamma -- its analytic lattice-summed overlap and image-summed point values are the fit space's (ChargeDensity's
+// GaussianFitSpace).  Built HERE, the run's concrete wiring: the Hamiltonian library does not link the Gaussian factories, and the complex
+// lineage's fit-basis factory cannot return a real fit without changing a tier-1 hub (controller 2026-11-15).  Empty unless xc.fit Auxiliary.
+static std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> PeriodicA1Set(const SolidCalcOptions& o, const Structure& st)
+{
+    if (o.vxcFit!=Hamiltonian::VxcFit::Auxiliary) return {};
+    const auto& cell=dynamic_cast<const UnitCell&>(st);   // the facade's concrete wiring: a solid's structure IS its cell
+    std::shared_ptr<const BasisSet::Real_BS> a1mol;
+    try { a1mol.reset(BasisSet::Gaussian::FactoryFromFile("A1_exch.bsd", &cell)); }
+    catch (const std::exception& e)
+    {
+        policy::Refuse("PeriodicA1Species", "xc.fit Auxiliary (the periodic A1 Gaussian fit) on this cell",
+                       std::string("the A1_exch set covers Z = 1-54, and building it on this cell's species failed (")+e.what()+") -- state "
+                       "xc.fit Delta or PlaneWave");
+    }
+    return std::make_shared<const BasisSet::Gaussian::tGPW_IBS<double>>(std::make_shared<BasisSet::BasisCache>(), cell, ivec3_t(1,1,1),
+                                                                          ivec3_t(0,0,0), a1mol, 0.0);
+}
+
+// THE PERIODIC A1 FIT'S COST (controller 2026-11-15: warn with an estimate, bytes as a range, beside the memory available -- the shape of the
+// ERI4 / audit policies).  The fit space STREAMS its values at the XC points in chunks (GaussianFitSpace), so it holds one chunk of values
+// per thread plus the per-chunk partial sums of a projection -- the range below; a stored table of them (XC points x functions) is printed
+// for comparison, and if THAT would not fit the run is told the price of streaming: the values are re-evaluated (image-summed) twice per
+// fit, a fit per density and one per block per iteration.
+static void ReportPeriodicA1Cost(const BasisSet::Orbital_1E_IBS<double>& a1, const AuditReferenceSize& z, const std::string& label)
+{
+    const double nA1=double(a1.GetNumFunctions()), nX=z.meshPoints, threads=double(std::max(1, qchem::InnerThreads()));
+    const double chunk=2048.0;                                        // GaussianFitSpace's kA1Chunk
+    const double low  = threads*chunk*nA1*8.0;                        // one chunk of values per thread
+    const double high = low + std::ceil(nX/chunk)*nA1*8.0;            // + the per-chunk partial sums of a projection
+    const double tabled=nX*nA1*8.0;
+    const AvailableMemory a=QueryAvailableMemory();
+    const bool tableFits = tabled<=a.bytes;
+    std::ostringstream os;
+    os<<"streamed "<<low/1048576.0<<"-"<<high/1048576.0<<" MiB ("<<nA1<<" functions; "<<nX<<" XC points); a stored table would be "
+      <<tabled/1048576.0<<" MiB; available "<<a.bytes/1048576.0<<" MiB ("<<a.source<<")";
+    std::cout<<"["<<label<<" periodic A1 fit] "<<os.str()<<std::endl;
+    policy::Report("PeriodicA1FitCost", "the periodic A1 Vxc fit streams its point values", tableFits ? policy::Verdict::Choose : policy::Verdict::Warn,
+                   tableFits ? "the streamed range fits; "+os.str()
+                             : "a stored table of the A1 values would not fit, so they are re-evaluated (image-summed) twice per fit -- "
+                               "N_A1 x N_XC evaluations each: "+os.str(),
+                   policy::Cost{.memoryBytes=high});
+}
+
 // THE SECOND HALF: the Hamiltonian, the seed (the caller's when given -- a restored state), the iterator.
 void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params,
                                 SCFAccelerators::Type accel, SCFRecipe recipe, bool restored, bool exactResume)
@@ -594,10 +642,12 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
             xc.sampling.residualMargin=opts.accuracy.samplerResidualMargin;
             xc.sampling.eta           =opts.accuracy.samplerEta;
         }
+        const auto a1=PeriodicA1Set(opts, *itsImp->st);
+        if (a1) ReportPeriodicA1Cost(*a1, SizeReference("periodic A1 Vxc fit", opts.tolerances, 1.0, &xc), opts.label);
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, itsImp->setup->pp, xc, opts.vxcFit, hubbard,
-            qchem::Hamiltonian::ModelToXC(opts.model)));
+            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, itsImp->setup->pp, xc, {opts.vxcFit, opts.xcRho}, hubbard,
+            qchem::Hamiltonian::ModelToXC(opts.model), a1));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
@@ -888,6 +938,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() co
     return O::Ok(Converged(itsImp.get()));
 }
 
+
 // THE ACCELERATOR: the caller's, or the Auto policy's (SolidCalcOptions::accelerator).  The iterator then resolves an Auto mixer
 // against the accelerator built here (tSCFIterator::ResolveMixing asks ExtrapolatesFock()), so the two halves cannot disagree.
 void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe recipe, const SCFParams& params, SCFStageKind kind)
@@ -900,7 +951,23 @@ void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe re
     AdmitRecipe(recipe, params.SmearingkT, /*molecule*/false);
     SCFAccelerators::SolidAcceleratorOptions ao=itsImp->accOpts;
     const RecipeAccelerator chosen=ChooseAccelerator(recipe, kind, asked, params.SmearingkT, int(itsImp->setup->opts.numBands));
-    const T t=chosen.type;
+    T t=chosen.type;
+    // THE FITTED-POTENTIAL CELL (the periodic A1 fit at xc.rho exact, V-XC-ONE-TERM step 6): H is not dE/dD (pin 32), so what descends E
+    // along H refuses.  A STATED GDM / Ladder is refused by name; the Auto policy's choice of one becomes DIIS, and says so.
+    {
+        const auto& o=itsImp->setup->opts;
+        if (o.vxcFit==Hamiltonian::VxcFit::Auxiliary && o.xcRho==Hamiltonian::XCρ::Exact && (t==T::GDM || t==T::Ladder))
+        {
+            if (asked==T::Auto)
+            {
+                policy::Report("XCRhoFittedPotentialAccelerator", "the Auto accelerator on the periodic A1 fit at xc.rho exact: DIIS",
+                               policy::Verdict::Choose, "the policy chose "+std::string(t==T::GDM ? "GDM" : "the Ladder")+", which descends E "
+                               "along H, and on this cell H is the fitted v(rho[D]), not dE/dD (doc/Pins.md pin 32)");
+                t=T::DIIS;
+            }
+            else RefuseGradientConsumers(o.vxcFit, o.xcRho, t==T::GDM ? "GDM" : "Ladder");
+        }
+    }
     if (chosen.forceGDMRung) ao.ladderStartOnGDM=true;
     // A direct minimiser rotates the occupied block into the WHOLE virtual space, which a partial eigensolve never built.
     if (itsImp->setup->opts.numBands>0 && (t==T::GDM || t==T::Ladder))
@@ -2262,8 +2329,8 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition);
         }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
-        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, S.pp, xcMesh ? *xcMesh : S.xcMesh, opts.vxcFit, itsImp->hubbard,
-                                                 qchem::Hamiltonian::ModelToXC(opts.model)));
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, S.pp, xcMesh ? *xcMesh : S.xcMesh, {opts.vxcFit, opts.xcRho}, itsImp->hubbard,
+                                                 qchem::Hamiltonian::ModelToXC(opts.model), PeriodicA1Set(opts, *stRef)));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);
     auto cdRef=RestoreDensity(st, *bsRef, g);

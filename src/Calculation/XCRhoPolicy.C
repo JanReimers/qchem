@@ -8,7 +8,8 @@
 //                start for a more accurate run.
 //   - A1 x Pρ    variational (E = ∫ e(Pρ), H = dE/dD), but XC sees the fitted density: an explicit departure from pin 28, reported.
 //   - δ  x Pρ    accepted: P is exact on the XC points, so Pρ = ρ[D] -- the row says so.
-//   - PW x Pρ    exact over plane-wave orbitals (the 4 Ecut ball); REFUSED over GPW orbitals, where no ball holds ρ[D] (ReportSolidXCRho).
+//   - PW x Pρ    exact over plane-wave orbitals (the 4 Ecut ball); over GPW orbitals REFUSED on the raster and realized at Becke points,
+//                where the ρ[D] cell is refused instead (ReportSolidXCRho).
 // A policy of the policy layer: each decision files one `policy` row where it fires (the caller's report cursor).
 module;
 #include <string>
@@ -39,25 +40,41 @@ inline void ReportXCRho(Hamiltonian::VxcFit fit, Hamiltonian::XCρ rho)
             "the delta basis IS the XC quadrature's points, so its projection is the identity there");
 }
 
-//! The SOLID ρ-axis decision, on the fit the Hamiltonian RESOLVES from Auto.  The plane-wave fit's two cells split by the ORBITAL basis:
+//! The SOLID ρ-axis decision, on the fit the Hamiltonian RESOLVES from Auto and the XC points \a becke.  The plane-wave fit's cells split by
+//! the ORBITAL basis:
 //!   - plane-wave orbitals: the Vxc ball is >= 4 Ecut by construction (\c PlaneWave_IBS::CreateVxcFitBasisSet, pin 28), so it holds
-//!     every orbital-pair difference and P rho = rho[D] EXACTLY.  Both values of xc.rho are the same run; a stated fit is reported as such.
-//!   - Gaussian (GPW) orbitals: a Gaussian pair product is not band-limited, so no ball holds it, and the realized route COLLOCATES rho[D]
-//!     on the raster (\c PairDensitySampler) -- XC sees rho[D], to the grid's eps.  xc.rho exact is honoured; xc.rho fit has no
-//!     realization there and is REFUSED by name (lane S, controller 2026-11-10): running it would be the silent substitution CLAUDE.md
-//!     forbids (a stated choice quietly replaced by the other value of the axis).
+//!     every orbital-pair difference and P rho = rho[D] EXACTLY, on its raster or synthesized at Becke points (I3).  Both values of
+//!     xc.rho are the same run; a stated fit is reported as such.
+//!   - Gaussian (GPW) orbitals: a Gaussian pair product is not band-limited, so no ball holds rho[D].
+//!       on the raster: the realized route COLLOCATES rho[D] (\c PairDensitySampler): xc.rho exact is honoured, and xc.rho fit has no
+//!       realization and is REFUSED by name (controller 2026-11-10: never the silent substitution);
+//!       on a Becke mesh (I3, V-XC-ONE-TERM step 4): the ball's P rho is synthesized at the points, so xc.rho fit runs (reported), and
+//!       xc.rho exact is REFUSED by name (user ruling 2026-11-14, option (ii)): XC of rho[D] at the Becke points IS the delta cell.
 //! Every other cell is the fit-agnostic decision above.
-inline void ReportSolidXCRho(Hamiltonian::VxcFit fit, Hamiltonian::XCρ rho, bool planeWaveOrbitals)
+inline void ReportSolidXCRho(Hamiltonian::VxcFit fit, Hamiltonian::XCρ rho, bool planeWaveOrbitals, bool becke)
 {
     using Hamiltonian::VxcFit; using Hamiltonian::XCρ;
-    if (fit!=VxcFit::PlaneWave || rho!=XCρ::Fit) return ReportXCRho(fit, rho);
+    if (fit!=VxcFit::PlaneWave) return ReportXCRho(fit, rho);
     if (planeWaveOrbitals)
-        policy::Report("XCRhoProjected", "xc.rho fit on the plane-wave Vxc fit over plane-wave orbitals: fit is exact here, P rho = rho[D]",
-            policy::Verdict::Choose, "the Vxc ball is at least 4 Ecut, so it holds every orbital-pair difference G_i - G_j (doc/Pins.md pin 28)");
-    else
+    {
+        if (rho==XCρ::Fit)
+            policy::Report("XCRhoProjected", "xc.rho fit on the plane-wave Vxc fit over plane-wave orbitals: fit is exact here, P rho = rho[D]",
+                policy::Verdict::Choose, "the Vxc ball is at least 4 Ecut, so it holds every orbital-pair difference G_i - G_j (doc/Pins.md pin 28)");
+        return;
+    }
+    if (!becke && rho==XCρ::Fit)
         policy::Refuse("XCRhoProjectedUnrealized", "xc.rho fit on the plane-wave Vxc fit over Gaussian (GPW) orbitals",
             "a Gaussian pair product is not band-limited, so the G-ball cannot hold rho[D] and its projection P rho is not realized on this "
-            "cell: the raster route collocates rho[D] itself -- state xc.rho exact (what this cell runs), or xc.fit Delta, where P rho = rho[D]");
+            "cell: the raster route collocates rho[D] itself -- state xc.rho exact (what this cell runs), or xc.fit Delta, where P rho = rho[D], "
+            "or a Becke XC mesh, where the ball's P rho is realized");
+    if (becke && rho==XCρ::Exact)
+        policy::Refuse("XCRhoBallOnBeckeExact", "the plane-wave Vxc fit on a Becke XC mesh at xc.rho exact over Gaussian (GPW) orbitals",
+            "no ball holds a Gaussian pair product, so XC of rho[D] at the Becke points is the delta cell -- state xc.fit Delta (that cell, "
+            "exactly), or xc.rho fit for the ball's projection P rho at the Becke points (user ruling 2026-11-14)");
+    if (becke && rho==XCρ::Fit)
+        policy::Report("XCRhoProjected", "xc.rho fit on the plane-wave Vxc fit at Becke points: XC sees the ball's P rho", policy::Verdict::Choose,
+            "stated: the ball's Fourier series of rho[D] is synthesized at the Becke points (variational: H = dE/dD), an explicit departure "
+            "from doc/Pins.md pin 28 on Gaussian orbitals, whose rho[D] no ball holds; its cost is the direct sum, N_G x N_points per iteration");
 }
 
 //! \brief REFUSE what needs H = dE/dD on the Gaussian x δ cell (ruling (b): "everything that needs H = dE/dD refuses on it by name").
