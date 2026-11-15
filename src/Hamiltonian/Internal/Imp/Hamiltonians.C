@@ -82,6 +82,37 @@ static std::shared_ptr<const qcMesh::SiteMultipoles> MakeSiteMultipoles(const st
     return std::make_shared<const qcMesh::SiteMultipoles>(mesh, centres, mp, lMax);
 }
 
+//! \brief THE XC QUADRATURE AND THE δ FIT BASIS ON IT, ONE PER HAMILTONIAN (lane H 2026-11-15, the basis-on-grid survey P2,
+//! controller ruling).  A molecular run whose Hartree term is a grid route (\c CoulombFit::Delta / \c Multipole) on the XC mesh's own
+//! parameters used to build a SECOND quadrature and a second δ fit beside the Vxc term's, identical, so every orbital block's
+//! \f$\Phi_{gi}=\chi_i(r_g)\f$ table (npts x n, the largest grid holder) was held twice.  The factory now builds them once and hands
+//! the same objects to both terms: a pairing decided here, where the concrete wiring lives; neither term caches anything new.  Each is
+//! built on the first ask, inside the asking term's report scope, so the run report shows which term built it.
+class XCMeshShare
+{
+public:
+    XCMeshShare(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp) : itsSt(st), itsBs(bs), itsMp(mp) {}
+    const qcMesh::MeshParams& Params() const {return itsMp;}
+    const BasisSet::FitQuadrature& Quadrature()
+    {
+        if (!itsQuad.GetMesh()) itsQuad=BasisSet::MakeXCQuadrature(*itsSt, itsMp, itsBs->GetImposition());
+        return itsQuad;
+    }
+    //! The δ fit basis on \c Quadrature(); \a built tells the caller whether this ask built it (else another term did).
+    std::shared_ptr<const BasisSet::rFIT_SF_ABS> Delta(bool& built)
+    {
+        built=!itsDelta;
+        if (built) itsDelta.reset(itsBs->CreateVxcFitBasisSet(itsSt.get(), itsMp, VxcFit::Delta, &Quadrature()));
+        return itsDelta;
+    }
+private:
+    st_t                                         itsSt;
+    const rbs_t*                                 itsBs;
+    qcMesh::MeshParams                           itsMp;
+    BasisSet::FitQuadrature                      itsQuad;
+    std::shared_ptr<const BasisSet::rFIT_SF_ABS> itsDelta;
+};
+
 //! THE MOLECULAR / ATOM XC TERM (V-XC-ONE-TERM, 2026-10-31): the δ basis runs the ONE XC term the periodic path runs
 //! (\c tVxc_Quadrature<double>: v_xc at the mesh points, E_xc by the same quadrature, the adjoint for H), chosen by the fit
 //! basis's CAPABILITY (an orthogonal fit is a quadrature), never by T.
@@ -90,9 +121,10 @@ static std::shared_ptr<const qcMesh::SiteMultipoles> MakeSiteMultipoles(const st
 //! \f$H=\partial E/\partial D\f$; V-XC-ONE-TERM step 3), and \c XCρ::Exact is the Gaussian x \f$\delta\f$ cell, \c FittedVxc (\f$v(\rho[D])\f$
 //! fitted for \f$H\f$; not variational, pin 32) -- the policy layer warns on it.  The multipole fit's \c Fit cell is not realized yet (an
 //! X cell of UTHamiltonian VxcProductSpace).
-static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp, XCRoute xc,
+static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, XCMeshShare& share, XCRoute xc,
                                      std::vector<std::shared_ptr<ExFunctional>> parts, SpinGroup g, int lMax)
 {
+    const qcMesh::MeshParams& mp=share.Params();
     const VxcFit resolved=MolecularVxcFit(xc.fit);
     const bool   projected=xc.rho==XCρ::Fit && resolved==VxcFit::Auxiliary;   // the A1 Pρ cell: the projected strategy on the XC mesh
     if (xc.rho==XCρ::Fit && resolved==VxcFit::Multipole)
@@ -101,20 +133,32 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, const qcMe
     // A δ basis is built over the XC quadrature, and the projected A1 strategy integrates on it; the fitted-v A1 term keeps its own
     // private mesh.
     BasisSet::FitQuadrature quad;
-    if (resolved==VxcFit::Delta || resolved==VxcFit::Multipole || projected) quad=BasisSet::MakeXCQuadrature(*st, mp, bs->GetImposition());
+    if (resolved==VxcFit::Delta || resolved==VxcFit::Multipole || projected) quad=share.Quadrature();   // shared with a grid Hartree term (P2)
+    // A δ fit basis (the Delta route, or the Multipole fit's inner δ) is the share's: one Φ table per block for the whole Hamiltonian.
+    auto sharedDelta=[&]
+    {
+        bool built=false;
+        auto d=share.Delta(built);
+        if (!built) qchem::report::Set("sharedWith", "Hartree");   // the grid Hartree term built it on the same mesh
+        return d;
+    };
     if (resolved==VxcFit::Multipole)
     {
         // Through the fit, as the A1 route is: the sampler strategy below is the δ route's own, and its coefficients are point values.
         const auto delta=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]
         {
             qchem::report::Set("lMax", lMax);
-            return bs->CreateVxcFitBasisSet(st.get(), mp, VxcFit::Delta, &quad);
+            return sharedDelta();
         });
         FittedVxc::fbs_t mfb=std::make_shared<BasisSet::MultipoleFit_IBS>(std::make_shared<BasisSet::BasisCache>(), delta, MakeSiteMultipoles(st, *quad.GetMesh(), mp, lMax), sym_t(new UnitQN));
         FittedVxc::ex_t  fx(std::make_shared<CompositeExFunctional>(std::move(parts)));
         return new FittedVxc(mfb, fx, g);
     }
-    const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]{return bs->CreateVxcFitBasisSet(st.get(), mp, resolved, &quad);});
+    const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]() -> std::shared_ptr<const BasisSet::rFIT_SF_ABS>
+    {
+        if (resolved==VxcFit::Delta) return sharedDelta();
+        return std::shared_ptr<const BasisSet::rFIT_SF_ABS>(bs->CreateVxcFitBasisSet(st.get(), mp, resolved, &quad));
+    });
     if (fb->isOrtho() || projected) return MakeVxcTerm(std::move(parts), fb, g, std::move(quad)).release();
     FittedVxc::fbs_t ffb=fb;
     FittedVxc::ex_t  fx(std::make_shared<CompositeExFunctional>(std::move(parts)));
@@ -131,9 +175,10 @@ template <class T, class Make> static std::shared_ptr<const BasisSet::FIT_CD_ABS
 //! THE MOLECULAR / ATOM HARTREE TERM.  This is where a grid route's fit basis and operator are paired, so nothing below knows
 //! which it got.  An unresolved \c Auto is the Gaussian fit; the δ route is one stated choice away (\c CoulombFit::Delta).
 //! \a coulombFit: the run's Coulomb-fit slot (S2b): filled here on the first build, read on every later one.
-static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp, const CoulombRoute& coulomb,
+static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, XCMeshShare& share, const CoulombRoute& coulomb,
                                          const CoulombFitSlot<double>& coulombFit)
 {
+    const qcMesh::MeshParams& mp=share.Params();
     if (UsesCoulombFitBasis(coulomb))
     {
         Vee_FitDunlap::fbs_t fb=BuildTermFit<BasisSet::rFIT_CD_ABS>("Hartree", "Hartree ρ fit",
@@ -154,8 +199,17 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, const 
         if (!direct) qchem::report::Set("lMax", lMax);
         // Ruled 2026-11-06: a quadrature route's energy is first order.  A multipole's second leg cancels its l truncation, not the mesh's error.
         qchem::report::Set("energyOrder", "first");
+        // On the XC mesh's own parameters the quadrature and the δ fit are the Hamiltonian's ONE pair (P2), shared with the Vxc term.
+        if (hmp.nRadial==mp.nRadial)
+        {
+            bool built=false;
+            auto d=share.Delta(built);
+            if (!built) qchem::report::Set("sharedWith", "Vxc_DFT");
+            quad=share.Quadrature();
+            return d;
+        }
         quad=BasisSet::MakeXCQuadrature(*st, hmp, bs->GetImposition());
-        return bs->CreateVxcFitBasisSet(st.get(), hmp, VxcFit::Delta, &quad);
+        return std::shared_ptr<const BasisSet::rFIT_SF_ABS>(bs->CreateVxcFitBasisSet(st.get(), hmp, VxcFit::Delta, &quad));
     });
     const qcMesh::Mesh& mesh=*quad.GetMesh();
     // The δ basis carries its Coulomb integrals (V-ONE-OF-N 3b-ii, ruling (f)): the operator is the BASIS's physics, chosen here.
@@ -183,11 +237,12 @@ Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> part
     Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
     Add(new Ven(st));
 
-    Add(MolecularHartreeTerm(st, bs, mp, coulomb, coulombFit));
+    XCMeshShare xcMesh(st, bs, mp);   // the XC quadrature and its δ fit: ONE for both terms below (P2)
+    Add(MolecularHartreeTerm(st, bs, xcMesh, coulomb, coulombFit));
 
     // ONE XC term over the SUM of functionals (the gather is linear, so gather(a+b) is gather(a)+gather(b) for half the
     // work); its energy is the functionals' own eps -- correlation's is NOT the exchange virial.
-    Add(MolecularVxcTerm(st, bs, mp, fit, std::move(parts), g, ResolvedLMax(coulomb, true, qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree))));
+    Add(MolecularVxcTerm(st, bs, xcMesh, fit, std::move(parts), g, ResolvedLMax(coulomb, true, qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree))));
 }
 
 // Does any block of \a bs fall back to the PP terms' quadrature?  The same questions PP_Local and PP_NonLocal ask.
@@ -233,10 +288,11 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     Add(new PP_Local(st, vloc, ppMesh));             // pseudized replacement for Ven (combined model -> _R view)
     if (sep) Add(new PP_NonLocal(st, std::move(sep), mp, ppMesh));   // KB separable projectors (null => local-only)
 
-    Add(MolecularHartreeTerm(st, bs, mp, coulomb, coulombFit));
+    XCMeshShare xcMesh(st, bs, mp);   // the XC quadrature and its δ fit: ONE for both terms below (P2)
+    Add(MolecularHartreeTerm(st, bs, xcMesh, coulomb, coulombFit));
 
     // The run's functional (default LDA: Dirac exchange + VWN5 correlation), ONE XC term over the sum of its parts (see Ham_DFT).
-    Add(MolecularVxcTerm(st, bs, mp, fit, OrDefaultLDA(std::move(xc)), g, ResolvedLMax(coulomb, true, qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree))));
+    Add(MolecularVxcTerm(st, bs, xcMesh, fit, OrDefaultLDA(std::move(xc)), g, ResolvedLMax(coulomb, true, qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree))));
 }
 
 Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,

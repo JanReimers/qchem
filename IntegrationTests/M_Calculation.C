@@ -23,6 +23,8 @@ import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geo
 import qchem.Structure;
 import qchem.Types;        // Vector3D
 import qchem.Reporting;    // report:: -- the run report the facade emits (scf section)
+import qchem.Hamiltonian.Types;   // CoulombRoute / CoulombFit (the δ-fit sharing gate)
+import qchem.Mesh;                // qcMesh::MeshParams
 using namespace qchem;
 
 using qchem::MoleculeCalculation;
@@ -143,6 +145,49 @@ TEST(M_Calculation, CacheReportSchema)
         if (cut("Bytes"))   EXPECT_TRUE(total.count(k.substr(0,k.size()-5)+"Entries")) << k << " has no Entries partner";
         if (cut("Entries")) EXPECT_TRUE(total.count(k.substr(0,k.size()-7)+"Bytes"))   << k << " has no Bytes partner";
     }
+}
+
+// THE δ FIT'S Φ IS HELD ONCE PER HAMILTONIAN (lane H 2026-11-15, the basis-on-grid survey P2, controller ruling).  A grid Hartree route
+// (CoulombFit::Delta) on the XC mesh's own parameters used to build a second quadrature and a second δ fit beside the Vxc term's, so
+// every orbital block's Φ (npts x n) was filled and held twice.  The factory now shares one: the run's deltaPhiBytes with BOTH terms on
+// δ equal the Vxc-only run's (Gaussian Hartree), and a Hartree mesh of its own (a different nRadial) still builds its own, more.
+// The mesh is STATED, so the pilot does not climb it and all three runs fill on one (or, for the third, two) meshes.
+TEST(M_Calculation, OneDeltaFitPerHamiltonianHoldsEachBlocksPhiOnce)
+{
+    const qcMesh::MeshParams mesh{.radial=qcMesh::RadialKind::MHL, .nRadial=40, .mhl_m=3, .mhl_alpha=2.0,
+                                  .angular=qcMesh::AngularKind::Lebedev, .angularDegree=17, .beckeOrder=2};
+    auto phiBytes=[&](Hamiltonian::CoulombRoute coulomb, double& energy)
+    {
+        report::ClearGlobal();
+        {
+            report::Run run("H2O");
+            MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
+                                     {.basis = "dzvp", .model = Model::LDA, .mesh = mesh, .coulomb = coulomb}));
+            EXPECT_TRUE(calc.Result());
+            energy=calc.Energy();
+        }
+        double total=0.0;
+        std::function<void(const report::json&)> walk=[&](const report::json& j)
+        {
+            if (j.is_object())
+                for (auto it=j.begin(); it!=j.end(); ++it)
+                    if (it.key()=="cache" && it.value().is_object() && it.value().contains("deltaPhiBytes"))
+                        total+=it.value()["deltaPhiBytes"].get<double>();
+                    else walk(it.value());
+            else if (j.is_array()) for (const auto& e : j) walk(e);
+        };
+        walk(report::GlobalReport());
+        return total;
+    };
+    double eVxc=0.0, eBoth=0.0, eOwn=0.0;
+    const double vxcOnly=phiBytes({}, eVxc);                                                    // Gaussian (Dunlap) Hartree, δ Vxc
+    const double both   =phiBytes({.fit = Hamiltonian::CoulombFit::Delta}, eBoth);              // δ Hartree on the XC mesh: shared
+    const double own    =phiBytes({.fit = Hamiltonian::CoulombFit::Delta, .nRadial = 60}, eOwn);   // a Hartree mesh of its own
+    ASSERT_GT(vxcOnly, 0.0) << "the δ Vxc fit reported no Φ bytes";
+    EXPECT_EQ(both, vxcOnly) << "a δ Hartree on the XC mesh must share the Vxc term's δ fit, not hold a second Φ";
+    EXPECT_GT(own, vxcOnly) << "a Hartree mesh of its own must build its own δ fit (the gate is not vacuous)";
+    EXPECT_NE(eBoth, eVxc);   // the routes are different physics; the energies only show all three ran
+    EXPECT_NE(eOwn, eBoth);
 }
 
 // Parameter-free LDA molecular DFT through the facade (Dirac exchange + VWN5 correlation).  The facade
