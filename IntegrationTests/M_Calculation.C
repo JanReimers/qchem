@@ -103,13 +103,17 @@ TEST(M_Calculation, BasisReportSchema)
 TEST(M_Calculation, CacheReportSchema)
 {
     report::ClearGlobal();                               // isolate the REPORT (the cache itself is never cleared)
-    { report::Run run("H2O"); MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), { .basis = "dzvp" })); }  // HF over dzvp populates Jac/Kab + the Omega/Hermite caches
+    { report::Run run("H2O"); MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), { .basis = "dzvp" })); }  // HF over dzvp (its tables are owner-held since S3a/S5)
 
     const report::json& all = report::GlobalReport();
     const report::json* cache = nullptr;
     for (auto it = all.begin(); it != all.end(); ++it)
         if (it.value().contains("cache")) cache = &it.value()["cache"];
-    ASSERT_NE(cache, nullptr) << "no run emitted a cache section";
+    // The section snapshots the GLOBAL integrals cache, which the ownership plan is emptying: S3a moved ERI4 into each basis set's cache
+    // and S5 the primitive caches (Ω, RNLM, H3, the atom Rk) into their owner's store, so an HF/dzvp run may leave nothing global to
+    // report.  S6 retires the global snapshot and has each store report its bytes under the caller's scope.  Until then the section is
+    // optional; whatever is there keeps its shape.
+    if (!cache) GTEST_SKIP() << "no global cache section: every table this run built is owner-held (IntegralCacheOwnershipPlan S3a, S5)";
 
     // The tiers (Jac/Kab/Cach4) are the GLOBAL ERI4 store, which S3a emptied: an ERI4 pair now lives in its basis set's own cache
     // (doc/IntegralCacheOwnershipPlan.md), and the owner-held bytes reach the report at S6.  So a tier row is optional; its shape is not.
@@ -118,11 +122,10 @@ TEST(M_Calculation, CacheReportSchema)
         for (const char* k : { "name", "ramMB", "pct" })
             EXPECT_TRUE(t.contains(k)) << "tier row missing key: " << k;
 
-    ASSERT_TRUE(cache->contains("reuse"));              // HF/dzvp exercises the Omega + Hermite caches
-    ASSERT_TRUE((*cache)["reuse"].is_array());
-    ASSERT_GE((*cache)["reuse"].size(), 1u);
-    for (const char* k : { "cache", "entries", "lookups", "reusePct", "ramMB" })
-        EXPECT_TRUE((*cache)["reuse"][0].contains(k)) << "reuse row missing key: " << k;
+    if (cache->contains("reuse")) ASSERT_TRUE((*cache)["reuse"].is_array());
+    if (cache->contains("reuse")) for (const report::json& r : (*cache)["reuse"])
+        for (const char* k : { "cache", "entries", "lookups", "reusePct", "ramMB" })
+            EXPECT_TRUE(r.contains(k)) << "reuse row missing key: " << k;
 }
 
 // Parameter-free LDA molecular DFT through the facade (Dirac exchange + VWN5 correlation).  The facade

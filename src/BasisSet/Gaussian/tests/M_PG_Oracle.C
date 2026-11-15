@@ -18,7 +18,12 @@ import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;   // GaussianR
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization; // Polarization
 import qchem.Structure;                                                     // Molecule, Atom, Structure
 import qchem.Types;                                                       // rvec3_t
+import qchem.BasisSet.Internal.PrimitiveStore;   // S5: the store the kernels take (an Internal module: imported directly, never re-exported)
 using namespace qchem;
+
+//! The PrimitiveStore these direct kernel calls look up in (S5: every looking-up kernel takes one).  One per test file, single-threaded.
+static const qchem::BasisSet::PrimitiveStore& TestStore() {static const qchem::BasisSet::PrimitiveStore s; return s;}
+
 
 #ifndef ORACLE_DATA_PATH
 #error "ORACLE_DATA_PATH must be defined by CMake"
@@ -75,7 +80,7 @@ TEST(M_PG_Oracle, overlap)
 {
     check2C(loadRef()["overlap"], "overlap",
             [](const GaussianRF& a, const GaussianRF& b, const Polarization& pa, const Polarization& pb)
-              {return a.Overlap2C(b,pa,pb);}, 1.0);
+              {return a.Overlap2C(TestStore(),b,pa,pb);}, 1.0);
 }
 
 TEST(M_PG_Oracle, kinetic)
@@ -84,7 +89,7 @@ TEST(M_PG_Oracle, kinetic)
     // Hamiltonian), so kinetic = 0.5 * Grad2.  Verified: PG/oracle == 2.0 exactly across the sweep.
     check2C(loadRef()["kinetic"], "kinetic",
             [](const GaussianRF& a, const GaussianRF& b, const Polarization& pa, const Polarization& pb)
-              {return a.Grad2(b,pa,pb);}, 0.5);
+              {return a.Grad2(TestStore(),b,pa,pb);}, 0.5);
 }
 
 TEST(M_PG_Oracle, nuclear)
@@ -98,7 +103,7 @@ TEST(M_PG_Oracle, nuclear)
     }
     check2C(d["nuclear"], "nuclear",
             [&mol](const GaussianRF& a, const GaussianRF& b, const Polarization& pa, const Polarization& pb)
-                  {return a.Nuclear(b,pa,pb,&mol);}, 1.0);
+                  {return a.Nuclear(TestStore(),b,pa,pb,&mol);}, 1.0);
 }
 
 TEST(M_PG_Oracle, eri)
@@ -113,7 +118,7 @@ TEST(M_PG_Oracle, eri)
             Polarization pa=pol(el["a"]), pb=pol(el["b"]), pc=pol(el["c"]), pd=pol(el["d"]);
             double norm = a.GetNormalization(pa)*b.GetNormalization(pb)
                         * c.GetNormalization(pc)*e.GetNormalization(pd);
-            double got = norm * e.Repulsion4C(a,b,c, pa,pb,pc,pd);   // this=d (4th centre)
+            double got = norm * e.Repulsion4C(TestStore(),a,b,c, pa,pb,pc,pd);   // this=d (4th centre)
             double ref = el["value"].get<double>();
             double err = std::fabs(got-ref); maxerr=std::max(maxerr,err); ++n;
             if (err>TOL && fails<6)
@@ -160,12 +165,12 @@ TEST(M_PG_Oracle, overlap3c)
     check3C(loadRef()["overlap3c"], "overlap3c",
             [](const GaussianRF& c, const GaussianRF& a, const GaussianRF& b,
                const Polarization& pa, const Polarization& pb, const Polarization& pc)
-              {return c.Overlap3C(a,b,pa,pb,pc);});
+              {return c.Overlap3C(TestStore(),a,b,pa,pb,pc);});
 }
 TEST(M_PG_Oracle, repulsion3c)
 {
     check3C(loadRef()["repulsion3c"], "repulsion3c",
             [](const GaussianRF& c, const GaussianRF& a, const GaussianRF& b,
                const Polarization& pa, const Polarization& pb, const Polarization& pc)
-              {return c.Repulsion3C(a,b,pa,pb,pc);});
+              {return c.Repulsion3C(TestStore(),a,b,pa,pb,pc);});
 }

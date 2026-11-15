@@ -55,7 +55,7 @@ IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, Reader* b
                 comps.push_back({rp, terms});
         i++;
     }
-    SphData::Init();
+    SphData::Init(this->Cache().Primitives());   // the parent's primitive store (S5)
 };
 
 IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rvec_t& es, size_t LMax, const Structure* cl)
@@ -69,7 +69,7 @@ IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rve
                 const GaussianRF* rp=itsRadials.back().get();
                 for (auto& terms:SphericalShell(L)) comps.push_back({rp, terms});
             }
-    SphData::Init();
+    SphData::Init(this->Cache().Primitives());   // the parent's primitive store (S5)
 }
 
 IrrepBasisSet::~IrrepBasisSet() {};

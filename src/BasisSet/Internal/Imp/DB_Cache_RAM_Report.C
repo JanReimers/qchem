@@ -40,9 +40,7 @@ template <class T> void IntegralsCache_RAM<T>::EmitReport() const
 
     const double mb = 1024.0 * 1024.0;
     const size_t J_ram = Report(Jac, "", false), K_ram = Report(Kab, "", false);   // # of Ts stored
-    size_t cach4_ram = 0;
-    for (auto& i : itsCache4s) cach4_ram = i.second->RAMsize();
-    const size_t total = J_ram + K_ram + cach4_ram;
+    const size_t total = J_ram + K_ram;   // (the atom Rk tables left for their basis's own cache at S5a; S6 reports each store)
     auto pct = [&](size_t n) { return total ? 100.0 * n / total : 0.0; };
 
     rpt::json tiers = rpt::json::array();
@@ -53,7 +51,6 @@ template <class T> void IntegralsCache_RAM<T>::EmitReport() const
     };
     addTier("Jac",   J_ram     * sizeof(T) / mb, J_ram);
     addTier("Kab",   K_ram     * sizeof(T) / mb, K_ram);
-    addTier("Cach4", cach4_ram             / mb, cach4_ram);
 
     rpt::json reuse = rpt::json::array();
     auto addReuse = [&](const std::string& name, size_t inserts, size_t lookups, double ramMB)
@@ -63,9 +60,6 @@ template <class T> void IntegralsCache_RAM<T>::EmitReport() const
                           { "reusePct", 100.0 * (1.0 - double(inserts) / double(lookups)) },
                           { "ramMB", ramMB } });
     };
-    for (auto& i : itsCache2s) addReuse(i.first, i.second->Inserts(), i.second->Lookups(), i.second->RAMsize()/mb);
-    for (auto& i : itsCache3s) addReuse(i.first, i.second->Inserts(), i.second->Lookups(), i.second->RAMsize()/mb);
-    for (auto& i : itsCache4s) addReuse(i.first, i.second->Inserts(), i.second->Lookups(), i.second->RAMsize()/mb);
 
     rpt::json cache;
     if (!tiers.empty()) cache["tiers"] = tiers;

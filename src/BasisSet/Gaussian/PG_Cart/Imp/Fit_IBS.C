@@ -15,6 +15,7 @@ import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet;
 import qchem.Structure;
 import qchem.Streamable;
+import qchem.BasisSet.Internal.PrimitiveStore;   // S5: the store the kernels take (an Internal module: imported directly, never re-exported)
 
 namespace qchem::BasisSet::Gaussian::PG_Cart
 {
@@ -44,10 +45,11 @@ rmat_t EFit_IBS::MakeRepulsion(const rFIT_CD_ABS& _b) const
     assert(a);
     assert(b); 
     int Na=a->size(),Nb=b->size();
+    const PrimitiveStore scratch;   // b may be another fit (another owner): this fill's lookups die with it (S5)
     rmat_t s(Na,Nb);
     for (size_t ia=0;ia<Na;ia++)
         for (size_t ib=0;ib<Nb;ib++)
-            s(ia,ib)=a->radials[ia]->Repulsion2C(
+            s(ia,ib)=a->radials[ia]->Repulsion2C(scratch,
                 *b->radials[ib],a->pols[ia],b->pols[ib])*a->ns[ia]*b->ns[ib];
     assert(!blazem::isnan(s));
     return s;

@@ -34,6 +34,7 @@ import qchem.Math.SolidHarmonics;                       // CartGaussian, Multipl
 import qchem.Math.Angular;                               // CartTerm, Monomial
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet.Internal.PrimitiveStore;   // Make3C's fill-scoped scratch store (S5)
 import qchem.BasisSet.Gaussian.Evaluators;      // concepts + generic 1E matrix builders
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator: the evaluator whose own MnD kernels give the geometry pullbacks (Enzyme)
 export import qchem.BasisSet.AoShellSource;              // the GetAoShells face (+ Symmetry::Molecule::AoShell)
@@ -321,8 +322,8 @@ protected:
         else if constexpr (Evaluators::isShellBlock_DFT_Evaluator<E>)
             return Make3CGroups(c, false, [](const E& aE, const auto&, size_t ga, size_t gb, const E& cE, size_t gc, double* out)
                                    {aE.OverlapThreeCGroupBlock(ga, aE, gb, cE, gc, out);});
-        else return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
-                                   {return aE.OverlapThreeC(ia, aE, ib, cE, ic);});
+        else return Make3C(c, [](const auto& ps, const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
+                                   {return aE.OverlapThreeC(ps, ia, aE, ib, cE, ic);});
     }
     virtual PairProjection<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const
     {
@@ -331,8 +332,8 @@ protected:
         else if constexpr (Evaluators::isShellBlock_DFT_Evaluator<E>)
             return Make3CGroups(c, true, [](const E& aE, const auto& pairΩ, size_t ga, size_t gb, const E& cE, size_t gc, double* out)
                                    {aE.RepulsionThreeCGroupBlock(pairΩ, ga, gb, cE, gc, out);});
-        else return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
-                                   {return aE.RepulsionThreeC(ia, aE, ib, cE, ic);});
+        else return Make3C(c, [](const auto& ps, const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
+                                   {return aE.RepulsionThreeC(ps, ia, aE, ib, cE, ic);});
     }
 public:
     // d/dR (GeometryOptimizationPlan §13.2): Enzyme over the MnD 3-centre Coulomb (NR_Evaluator::RepulsionThreeCPullback, lane B
@@ -366,13 +367,16 @@ private:
         const E& aE=dynamic_cast<const E&>(*this);
         const E& cE=dynamic_cast<const E&>(_c);
         size_t Na=aE.size(), Nc=cE.size();
+        // The fit's primitives are another owner's: this fill's lookups go to ONE scratch store that dies with the fill (S5), so the
+        // reuse across the fill's elements stays and nothing of the fit's lands in the parent's store.
+        const BasisSet::PrimitiveStore scratch;
         PairProjection<double> s3;
         for (size_t ic=0; ic<Nc; ic++)
         {
             rsmat_t s(Na);
             for (size_t ia=0; ia<Na; ia++)
                 for (size_t ib=ia; ib<Na; ib++)
-                    s(ia,ib)=kernel(aE, ia, ib, cE, ic);
+                    s(ia,ib)=kernel(scratch, aE, ia, ib, cE, ic);
             s3.dense.push_back(s);
         }
         return s3;

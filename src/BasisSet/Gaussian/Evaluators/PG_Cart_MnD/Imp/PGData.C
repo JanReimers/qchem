@@ -9,13 +9,17 @@ module;
 // below silently printed as a hex ADDRESS -- and BasisSetID() is a cache key.
 #include <sstream>
 #include <cmath>    // std::pow/std::fabs (the Reaches() scan)
+#include <memory>
+#include <stdexcept>
 module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;
 import qchem.Blaze;
 
 namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
 {
-    void PGData::Init(std::vector<const Block*>& blocks)
+    void PGData::Init(std::vector<const Block*>& blocks, std::shared_ptr<const PrimitiveStore> store)
 {
+    if (!store) throw std::invalid_argument("PGData::Init: no PrimitiveStore (a host passes its parent's)");
+    itsStore=std::move(store);
      for (auto bl:blocks)
         for (auto p:bl->itsPols)
         {
@@ -27,7 +31,7 @@ namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
     size_t N=radials.size();
     ns.resize(N);
     for (size_t i=0;i<N;i++)
-        ns[i]=radials[i]->Overlap2C(*radials[i],pols[i],pols[i]);
+        ns[i]=radials[i]->Overlap2C(Primitives(), *radials[i],pols[i],pols[i]);
     ns=1.0/blazem::sqrt(ns);
     BuildReaches();          // eager: the pointwise screen must be ready before any threaded sweep
 }

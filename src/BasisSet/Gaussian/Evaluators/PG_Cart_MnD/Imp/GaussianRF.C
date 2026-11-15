@@ -28,81 +28,14 @@ using Evaluators::Internal::MnD::Index3;   // plain (n,l,m) Hermite index for th
 
 //#######################################################################
 //
-//   Content-based identity registry -- replaces the old per-object UniqueID.  Each distinct primitive
-//   (exponent, centre, max-L) and each distinct charge-distribution pair gets a stable index from ONE
-//   shared counter, so primitive ids and Ω ids never collide in the RNLM cache (which keys on a mix of
-//   the two).  Content keys mean two equal primitives in different IBSs share a Cache2/3 entry (the
-//   reuse win, as the atom ExponentGrouper does for Cache4).  The registry is a serialisable symbol
-//   table: a future per-job disk cache would persist it next to Cache{2,3} -- nothing here blocks that.
-//
-namespace
-{
-    struct PrimKey
-    {
-        double e, x, y, z; int L;
-        bool operator<(const PrimKey& o) const
-        {
-            if (e!=o.e) return e<o.e;
-            if (x!=o.x) return x<o.x;
-            if (y!=o.y) return y<o.y;
-            if (z!=o.z) return z<o.z;
-            return L<o.L;
-        }
-    };
-    class IdRegistry
-    {
-    public:
-        size_t Primitive  (double e, const rvec3_t& R, int L) {return intern(itsPrims, PrimKey{e,R.x,R.y,R.z,L});}
-        size_t ChargeDist (size_t a, size_t b)                {return intern(itsPairs, std::make_pair(a,b));}
-    private:
-        template <class Map, class Key> size_t intern(Map& m, const Key& k)
-        {
-            auto [it, fresh] = m.try_emplace(k, itsNext);
-            if (fresh) ++itsNext;
-            return it->second;
-        }
-        size_t                                    itsNext = 0;
-        std::map<PrimKey,size_t>                   itsPrims;
-        std::map<std::pair<size_t,size_t>,size_t>  itsPairs;
-    };
-    IdRegistry& theIds() {static IdRegistry r; return r;}
-}
-
-//#######################################################################
-//
-//   Charge distribution Ω + the global Cache2/Cache3 access points.
-//   All PG charge-distribution caching lives in process-global Cache2s, keyed by registry indices so entries
-//   are shared wherever the underlying objects are shared (e.g. SALC irreps over one raw basis):
+//   Charge distribution Ω + the store lookups (S5).  Every entry lives in the CALLER's PrimitiveStore, keyed by never-reused serials:
 //     - Ω keyed by the primitive pair (primA.ID, primB.ID)
-//     - 3/4-centre RNLM keyed by the two charge-distribution ids (ab.ID, c.ID)
+//     - 3/4-centre RNLM keyed by the charge-distribution serial and the third primitive's (or the second Ω's) serial
+//     - the 3-centre Hermite block keyed by the primitive triple
 //   (The 2-centre self-RNLM is a lazy member of each Ω, not cached here.)
 //
 namespace
 {
-    struct OmegaClient : Cache2_Client
-    {
-        std::string RadialType() const override {return "PG.Omega";}
-        Cache2*     MakeCache2() const override {return new Cache2;}
-    };
-    // Memoize the Cache2* per theGlobalCache instance.  GetCache2 is a std::map<std::string,...>::find
-    // (string compare), and findΩ runs it on EVERY call from the innermost contraction loops -- profiling
-    // (callgrind, water/dzvp) put that per-call string lookup at ~13% of MnD integral time.  Caching the
-    // pointer turns it into a pointer compare; the owner guard re-fetches if theGlobalCache is swapped
-    // (e.g. a test teardown), so it stays correct.
-    const Cache2* OmegaCache()
-    {
-        static decltype(&BasisSet::theCache<double>()) owner = nullptr;  // typed cache-instance guard (no void*)
-        static const Cache2* cache = nullptr;
-        if (owner != &BasisSet::theCache<double>())
-        {
-            static OmegaClient c;
-            BasisSet::theCache<double>().Register(&c);
-            cache = BasisSet::theCache<double>().GetCache2("PG.Omega");
-            owner = &BasisSet::theCache<double>();
-        }
-        return cache;
-    }
-
     // Cacheable2 wrapper so an RNLM can live in a Cache2 (RNLM itself is a low-level MnD type and
     // must not depend on the cache framework).
     struct RNLM_C2 : public Cacheable2
@@ -112,25 +45,6 @@ namespace
         bool   isSupported(const Cache2_Client*) const override {return false;}
         size_t RAMsize() const override {return sizeof(RNLM_C2) + rnlm.HeapBytes();}
     };
-    struct RNLMClient : Cache2_Client
-    {
-        std::string RadialType() const override {return "PG.RNLM";}
-        Cache2*     MakeCache2() const override {return new Cache2;}
-    };
-    const Cache2* RNLMCache()   // memoized per theGlobalCache instance (see OmegaCache)
-    {
-        static decltype(&BasisSet::theCache<double>()) owner = nullptr;  // typed cache-instance guard (no void*)
-        static const Cache2* cache = nullptr;
-        if (owner != &BasisSet::theCache<double>())
-        {
-            static RNLMClient c;
-            BasisSet::theCache<double>().Register(&c);
-            cache = BasisSet::theCache<double>().GetCache2("PG.RNLM");
-            owner = &BasisSet::theCache<double>();
-        }
-        return cache;
-    }
-
     // Cacheable3 wrapper holding the 3-centre Hermite block.
     struct H3_C3 : public Cacheable3
     {
@@ -141,55 +55,20 @@ namespace
         // unique_ptr, so its whole size is heap -- count it, not just the ~pointer-sized wrapper.
         size_t RAMsize() const override {return sizeof(H3_C3) + sizeof(Hermite3);}
     };
-    struct H3Client : Cache3_Client
-    {
-        std::string RadialType() const override {return "PG.H3";}
-        Cache3*     MakeCache3() const override {return new Cache3;}
-    };
-    const Cache3* H3Cache()   // memoized per theGlobalCache instance (see OmegaCache)
-    {
-        static decltype(&BasisSet::theCache<double>()) owner = nullptr;  // typed cache-instance guard (no void*)
-        static const Cache3* cache = nullptr;
-        if (owner != &BasisSet::theCache<double>())
-        {
-            static H3Client c;
-            BasisSet::theCache<double>().Register(&c);
-            cache = BasisSet::theCache<double>().GetCache3("PG.H3");
-            owner = &BasisSet::theCache<double>();
-        }
-        return cache;
-    }
 }
 
-// The lattice drivers' geometry-cache scope guard (declared in the interface; doc above).  Push a byte
-// budget onto all three geometry caches; restore the prior budgets on scope exit.
-GeometryCacheBudget::GeometryCacheBudget(size_t maxBytesPerCache)
-    : itsPrevΩ   (OmegaCache()->GetMaxRAM())
-    , itsPrevRNLM(RNLMCache ()->GetMaxRAM())
-    , itsPrevH3  (H3Cache   ()->GetMaxRAM())
+const Ω& findΩ(const PrimitiveStore& store, const GData& a,const GData& b)
 {
-    OmegaCache()->SetMaxRAM(maxBytesPerCache);
-    RNLMCache ()->SetMaxRAM(maxBytesPerCache);
-    H3Cache   ()->SetMaxRAM(maxBytesPerCache);
-}
-GeometryCacheBudget::~GeometryCacheBudget()
-{
-    OmegaCache()->SetMaxRAM(itsPrevΩ);
-    RNLMCache ()->SetMaxRAM(itsPrevRNLM);
-    H3Cache   ()->SetMaxRAM(itsPrevH3);
-}
-
-
-const Ω& findΩ(const GData& a,const GData& b)
-{
-    const Cacheable2& cd = OmegaCache()->get(a.ID, b.ID,
+    const PrimitiveStore::Use use(store);
+    const Cacheable2& cd = store.Omega().get(a.ID, b.ID,
         [&a,&b]() -> const Cacheable2* { return new Ω(a,b); });
     return static_cast<const Ω&>(cd);
 }
 
-const RNLM& findRNLM(const GData& ab,const GData& c)
+const RNLM& findRNLM(const PrimitiveStore& store, const GData& ab,const GData& c)
 {
-    const Cacheable2& w = RNLMCache()->get(ab.ID, c.ID,
+    const PrimitiveStore::Use use(store);
+    const Cacheable2& w = store.RNLM().get(ab.ID, c.ID,
         [&ab,&c]() -> const Cacheable2*
         {
             double alpha = ab.α*c.α/(ab.α+c.α);
@@ -198,7 +77,7 @@ const RNLM& findRNLM(const GData& ab,const GData& c)
     return static_cast<const RNLM_C2&>(w).rnlm;
 }
 
-//! findRNLM's entry built into \a out instead of the global cache (the same arguments, so the same numbers bit for bit): for a kernel
+//! findRNLM's entry built into \a out instead of a store (the same arguments, so the same numbers bit for bit): for a kernel
 //! that meets each primitive quartet ONCE, where the cache is all insert and no hit (OpenWork §4: 99.4 % misses on a cold DZVP ERI4).
 void BuildRNLM(const GData& ab,const GData& c, RNLM& out)
 {
@@ -208,9 +87,10 @@ void BuildRNLM(const GData& ab,const GData& c, RNLM& out)
 
 // 3-centre Hermite block, cached by primitive triple.  Now that Ω lives in this module there is no
 // Ω<->radial module cycle, so the block is built inline here (gc is centre C) -- no make-lambda.
-const Hermite3& findH3(const PrimGaussian* ga, const PrimGaussian* gb, const PrimGaussian* gc)
+const Hermite3& findH3(const PrimitiveStore& store, const PrimGaussian* ga, const PrimGaussian* gb, const PrimGaussian* gc)
 {
-    const Cacheable3& w = H3Cache()->get(ga->GetID(), gb->GetID(), gc->GetID(),
+    const PrimitiveStore::Use use(store);
+    const Cacheable3& w = store.H3().get(ga->GetID(), gb->GetID(), gc->GetID(),
         [&]() -> const Cacheable3* { return new H3_C3(gc->GetH3(*ga,*gb)); });
     return *static_cast<const H3_C3&>(w).h3;
 }
@@ -252,7 +132,7 @@ void Ω::MakeNMLs()
 {}
 
 Ω::Ω(const GData& g1,const GData& g2,const GaussProduct& gp)
-    : itsIndex(theIds().ChargeDist(g1.ID, g2.ID))   // content-based id (disjoint from primitive ids)
+    : itsIndex(PrimitiveStore::NextSerial())   // a never-reused serial (the same counter as the primitives', so the two never collide)
     , Ltotal(g1.L + g2.L)
     , a     (gp.a)
     , b     (gp.b)
@@ -279,7 +159,7 @@ size_t Ω::RAMsize() const
 //
 
 PrimGaussian::PrimGaussian(double theExponent, const rvec3_t& theCenter, int theL)
-    : itsIndex   (theIds().Primitive(theExponent, theCenter, theL))
+    : itsIndex   (PrimitiveStore::NextSerial())   // a never-reused serial: a store key, unique across owners (S5)
     , itsExponent(theExponent)
     , itsCenter  (theCenter)
     , itsL       (theL)
@@ -306,17 +186,17 @@ const Hermite1& PrimGaussian::GetH1() const
 
 // The 2-centre formulas (PairOverlap, PairGrad2) live inline in the module interface: the cache-free path Enzyme differentiates
 // (GaussianRF::KetGradient) calls the same ones.
-double PrimGaussian::Overlap2C(const PrimGaussian* a, const PrimGaussian* b,
+double PrimGaussian::Overlap2C(const PrimitiveStore& store, const PrimGaussian* a, const PrimGaussian* b,
                                const Polarization& pa, const Polarization& pb)
 {
-    const Ω& ab = findΩ(a->GetGData(), b->GetGData());
+    const Ω& ab = findΩ(store, a->GetGData(), b->GetGData());
     return PairOverlap(ab.αₚ, ab.Eij, ab.H2, pa, pb);
 }
 
-double PrimGaussian::Repulsion2C(const PrimGaussian* a, const PrimGaussian* b,
+double PrimGaussian::Repulsion2C(const PrimitiveStore& store, const PrimGaussian* a, const PrimGaussian* b,
                                  const Polarization& pa, const Polarization& pb)
 {
-    const Ω& ab = findΩ(a->GetGData(), b->GetGData());
+    const Ω& ab = findΩ(store, a->GetGData(), b->GetGData());
     const Hermite1& H1a = a->GetH1();
     const Hermite1& H1b = b->GetH1();
     const RNLM& R = ab.SelfRNLM();
@@ -326,18 +206,18 @@ double PrimGaussian::Repulsion2C(const PrimGaussian* a, const PrimGaussian* b,
 }
 
 // <p^2>=<-nabla^2> building block (no 1/2; the Hamiltonian's).
-double PrimGaussian::Grad2(const PrimGaussian* a, const PrimGaussian* b,
+double PrimGaussian::Grad2(const PrimitiveStore& store, const PrimGaussian* a, const PrimGaussian* b,
                            const Polarization& pa, const Polarization& pb)
 {
-    const Ω& ab = findΩ(a->GetGData(), b->GetGData());
+    const Ω& ab = findΩ(store, a->GetGData(), b->GetGData());
     return PairGrad2(ab.αₚ, ab.Eij, ab.a, ab.b, ab.ab, ab.H2, pa, pb);
 }
 
-double PrimGaussian::Nuclear(const PrimGaussian* a, const PrimGaussian* b,
+double PrimGaussian::Nuclear(const PrimitiveStore& store, const PrimGaussian* a, const PrimGaussian* b,
                              const Polarization& pa, const Polarization& pb, const Structure* cl)
 {
     assert(cl);
-    const Ω& ab = findΩ(a->GetGData(), b->GetGData());
+    const Ω& ab = findΩ(store, a->GetGData(), b->GetGData());
     RNLM R;
     for (const Site& atom : cl->Sites())
         R.Add(RNLM(ab.Ltotal,ab.αₚ,ab.P-atom.R), -1.0*(atom.Z));
@@ -345,19 +225,19 @@ double PrimGaussian::Nuclear(const PrimGaussian* a, const PrimGaussian* b,
     return PairNuclear(ab.αₚ, ab.Eij, ab.H2, pa, pb, Ω::GetNMLs(ab.Ltotal), [&R](const Polarization& n){return R(n);});
 }
 
-// 3-centre overlap <ab|c>: the Hermite block, cached by primitive triple in the global Cache3 (the build
+// 3-centre overlap <ab|c>: the Hermite block, cached by primitive triple in the caller's store (the build
 // logic stays here; findH3 just caches the result, no new/delete per call).
-double PrimGaussian::Overlap3C(const PrimGaussian* ga, const PrimGaussian* gb, const PrimGaussian* gc,
+double PrimGaussian::Overlap3C(const PrimitiveStore& store, const PrimGaussian* ga, const PrimGaussian* gb, const PrimGaussian* gc,
                                const Polarization& pa, const Polarization& pb, const Polarization& pc)
 {
-    const Hermite3& H3 = findH3(ga, gb, gc);
+    const Hermite3& H3 = findH3(store, ga, gb, gc);
     return H3(pa,pb,pc);
 }
-double PrimGaussian::Repulsion3C(const PrimGaussian* ga, const PrimGaussian* gb, const PrimGaussian* gc,
+double PrimGaussian::Repulsion3C(const PrimitiveStore& store, const PrimGaussian* ga, const PrimGaussian* gb, const PrimGaussian* gc,
                                  const Polarization& pa, const Polarization& pb, const Polarization& pc)
 {
-    const Ω& ab(findΩ(ga->GetGData(), gb->GetGData()));
-    return Repulsion3C(ab, findRNLM(ab.GetGData(), gc->GetGData()), gc, pa, pb, pc);
+    const Ω& ab(findΩ(store, ga->GetGData(), gb->GetGData()));
+    return Repulsion3C(ab, findRNLM(store, ab.GetGData(), gc->GetGData()), gc, pa, pb, pc);
 }
 double PrimGaussian::Repulsion3C(const Ω& ab, const RNLM& R, const PrimGaussian* gc,
                                  const Polarization& pa, const Polarization& pb, const Polarization& pc)
@@ -372,11 +252,11 @@ double PrimGaussian::Lambda4C(const Ω& ab, const Ω& cd)
     return QuartetLambda(ab.αₚ, ab.Eij, cd.αₚ, cd.Eij);
 }
 
-double PrimGaussian::Repulsion4C(const Ω& ab, const Ω& cd,
+double PrimGaussian::Repulsion4C(const PrimitiveStore& store, const Ω& ab, const Ω& cd,
                                  const Polarization& pa, const Polarization& pb,
                                  const Polarization& pc, const Polarization& pd)
 {
-    return Repulsion4C(ab, cd, findRNLM(ab.GetGData(), cd.GetGData()) /*M&D section 4A*/, Lambda4C(ab,cd), pa, pb, pc, pd);
+    return Repulsion4C(ab, cd, findRNLM(store, ab.GetGData(), cd.GetGData()) /*M&D section 4A*/, Lambda4C(ab,cd), pa, pb, pc, pd);
 }
 
 double PrimGaussian::Repulsion4C(const Ω& ab, const Ω& cd, const RNLM& rnlm, double lambda,
@@ -549,92 +429,91 @@ std::string GaussianRF::TypeID() const
 }
 
 // --- 2-centre: contract the primitive pairs over the matching named PrimGaussian kernel -------------
-double GaussianRF::Overlap2C(rf_t& rb, po_t& pa, po_t& pb) const
+double GaussianRF::Overlap2C(const PrimitiveStore& store, rf_t& rb, po_t& pa, po_t& pb) const
 {
     double s = 0.0;
     for (size_t i=0;i<itsPrims.size();++i)
         for (size_t j=0;j<rb.itsPrims.size();++j)
             s += itsCoeff[i]*rb.itsCoeff[j]
-                 * PrimGaussian::Overlap2C(itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb);
+                 * PrimGaussian::Overlap2C(store, itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb);
     return s;
 }
-double GaussianRF::Repulsion2C(rf_t& rb, po_t& pa, po_t& pb) const
+double GaussianRF::Repulsion2C(const PrimitiveStore& store, rf_t& rb, po_t& pa, po_t& pb) const
 {
     double s = 0.0;
     for (size_t i=0;i<itsPrims.size();++i)
         for (size_t j=0;j<rb.itsPrims.size();++j)
             s += itsCoeff[i]*rb.itsCoeff[j]
-                 * PrimGaussian::Repulsion2C(itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb);
+                 * PrimGaussian::Repulsion2C(store, itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb);
     return s;
 }
-double GaussianRF::Grad2(rf_t& rb, po_t& pa, po_t& pb) const
+double GaussianRF::Grad2(const PrimitiveStore& store, rf_t& rb, po_t& pa, po_t& pb) const
 {
     double s = 0.0;
     for (size_t i=0;i<itsPrims.size();++i)
         for (size_t j=0;j<rb.itsPrims.size();++j)
             s += itsCoeff[i]*rb.itsCoeff[j]
-                 * PrimGaussian::Grad2(itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb);
+                 * PrimGaussian::Grad2(store, itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb);
     return s;
 }
-double GaussianRF::Nuclear(rf_t& rb, po_t& pa, po_t& pb, const Structure* cl) const
+double GaussianRF::Nuclear(const PrimitiveStore& store, rf_t& rb, po_t& pa, po_t& pb, const Structure* cl) const
 {
     double s = 0.0;
     for (size_t i=0;i<itsPrims.size();++i)
         for (size_t j=0;j<rb.itsPrims.size();++j)
             s += itsCoeff[i]*rb.itsCoeff[j]
-                 * PrimGaussian::Nuclear(itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb, cl);
+                 * PrimGaussian::Nuclear(store, itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb, cl);
     return s;
 }
 
 // --- 3-centre <ab|c> (this is centre C) -------------------------------------------------------------
-double GaussianRF::Overlap3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const
+double GaussianRF::Overlap3C(const PrimitiveStore& store, rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const
 {
     double s = 0.0;
     for (size_t i=0;i<ra.itsPrims.size();++i)
         for (size_t j=0;j<rb.itsPrims.size();++j)
             for (size_t k=0;k<itsPrims.size();++k)
                 s += ra.itsCoeff[i]*rb.itsCoeff[j]*itsCoeff[k]
-                     * PrimGaussian::Overlap3C(ra.itsPrims[i].get(), rb.itsPrims[j].get(), itsPrims[k].get(),
+                     * PrimGaussian::Overlap3C(store, ra.itsPrims[i].get(), rb.itsPrims[j].get(), itsPrims[k].get(),
                                                pa, pb, pc);
     return s;
 }
-double GaussianRF::Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const
+double GaussianRF::Repulsion3C(const PrimitiveStore& store, rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const
 {
     double s = 0.0;
     for (size_t i=0;i<ra.itsPrims.size();++i)
         for (size_t j=0;j<rb.itsPrims.size();++j)
             for (size_t k=0;k<itsPrims.size();++k)
                 s += ra.itsCoeff[i]*rb.itsCoeff[j]*itsCoeff[k]
-                     * PrimGaussian::Repulsion3C(ra.itsPrims[i].get(), rb.itsPrims[j].get(), itsPrims[k].get(),
+                     * PrimGaussian::Repulsion3C(store, ra.itsPrims[i].get(), rb.itsPrims[j].get(), itsPrims[k].get(),
                                                  pa, pb, pc);
     return s;
 }
 
 // --- 4-centre (ab|cd) (this is centre D) ------------------------------------------------------------
-double GaussianRF::Repulsion4C(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const
+double GaussianRF::Repulsion4C(const PrimitiveStore& store, rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const
 {
     const size_t ni=ra.itsPrims.size(), nj=rb.itsPrims.size(),
                  nk=rc.itsPrims.size(), nl=itsPrims.size();
     // Hoist the Ω (charge-distribution) lookups out of the inner contraction: ab is constant across the
     // (k,l) loop and the cd table is reused across every (i,j), so findΩ runs ni*nj+nk*nl times instead of
-    // ni*nj*nk*nl (each is a cached red-black-tree lookup).  This holds nk*nl live Ω borrows at once, so it
-    // REQUIRES the unbounded (molecular default) budget -- no GeometryCacheBudget is in scope on the 4C
-    // path, so the Ω cache never evicts and the borrowed addresses stay valid for this call.
+    // ni*nj*nk*nl (each is a cached red-black-tree lookup).  This holds nk*nl live Ω borrows at once, which is safe because a
+    // PrimitiveStore never evicts (S5).
     std::vector<const Ω*> cdΩ(nk*nl);
     for (size_t k=0;k<nk;++k)
         for (size_t l=0;l<nl;++l)
-            cdΩ[k*nl+l] = &findΩ(rc.itsPrims[k]->GetGData(), itsPrims[l]->GetGData());
+            cdΩ[k*nl+l] = &findΩ(store, rc.itsPrims[k]->GetGData(), itsPrims[l]->GetGData());
 
     double s = 0.0;
     for (size_t i=0;i<ni;++i)
         for (size_t j=0;j<nj;++j)
         {
-            const Ω& ab = findΩ(ra.itsPrims[i]->GetGData(), rb.itsPrims[j]->GetGData());
+            const Ω& ab = findΩ(store, ra.itsPrims[i]->GetGData(), rb.itsPrims[j]->GetGData());
             const double cij = ra.itsCoeff[i]*rb.itsCoeff[j];
             for (size_t k=0;k<nk;++k)
                 for (size_t l=0;l<nl;++l)
                     s += cij*rc.itsCoeff[k]*itsCoeff[l]
-                         * PrimGaussian::Repulsion4C(ab, *cdΩ[k*nl+l], pa, pb, pc, pd);
+                         * PrimGaussian::Repulsion4C(store, ab, *cdΩ[k*nl+l], pa, pb, pc, pd);
         }
     return s;
 }
@@ -707,18 +586,24 @@ void BuildHermiteTable(const Ω& w, const Polarization* p1, size_t n1, const Pol
 }
 }
 
-void GaussianRF::Repulsion4CBlock(rf_t& ra, rf_t& rb, rf_t& rc, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+void GaussianRF::Repulsion4CBlock(const PrimitiveStore& store, rf_t& ra, rf_t& rb, rf_t& rc, const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                                   const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, double* out) const
 {
     const GaussianRF *A=&ra, *B=&rb, *C=&rc, *D=this;
-    Repulsion4CGroupBlock(&A,1, &B,1, &C,1, &D,1, pa,na, pb,nb, pc,nc, pd,nd, out);
+    Repulsion4CGroupBlock(store, &A,1, &B,1, &C,1, &D,1, pa,na, pb,nb, pc,nc, pd,nd, out);
 }
 
 bool GaussianRF::SharesPrimitivesWith(const GaussianRF& o) const
 {
     if (itsL!=o.itsL || itsPrims.size()!=o.itsPrims.size()) return false;
     for (size_t i=0;i<itsPrims.size();++i)
-        if (itsPrims[i]->GetID()!=o.itsPrims[i]->GetID()) return false;   // the content-interned (exponent, centre, L) identity
+    {
+        // EXACT content, as the old content-interned id compared it (S5: ids are now per-object serials, so they cannot say "equal"):
+        // the same exponent and centre bit for bit (the L is the radial's, compared above).
+        const PrimGaussian &p=*itsPrims[i], &q=*o.itsPrims[i];
+        if (p.GetExponent()!=q.GetExponent() || p.GetCenter().x!=q.GetCenter().x || p.GetCenter().y!=q.GetCenter().y
+         || p.GetCenter().z!=q.GetCenter().z || p.GetL()!=q.GetL()) return false;
+    }
     return true;
 }
 
@@ -734,29 +619,27 @@ void RequireSharedPrimitives(const GaussianRF* const* r, size_t m, const char* s
 }
 }
 
-void GaussianRF::Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+void GaussianRF::Repulsion4CGroupBlock(const PrimitiveStore& store, const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
                                        const GaussianRF* const* rc, size_t mc, const GaussianRF* const* rd, size_t md,
                                        const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                                        const Polarization* pc, size_t nc, const Polarization* pd, size_t nd, double* out)
 {
     RequireSharedPrimitives(ra,ma,"a"); RequireSharedPrimitives(rb,mb,"b"); RequireSharedPrimitives(rc,mc,"c"); RequireSharedPrimitives(rd,md,"d");
-    // The Ω borrows as Repulsion4C hoists them (the unbounded molecular budget keeps them alive for this call).
-    const PrimitivePairTable abΩ=PairTable(*ra[0], *rb[0]), cdΩ=PairTable(*rc[0], *rd[0]);
+    // The Ω borrows as Repulsion4C hoists them (a store never evicts, so they stay alive for this call).
+    const PrimitivePairTable abΩ=PairTable(store, *ra[0], *rb[0]), cdΩ=PairTable(store, *rc[0], *rd[0]);
     Repulsion4CGroupBlock(ra,ma, rb,mb, rc,mc, rd,md, pa,na, pb,nb, pc,nc, pd,nd, abΩ, cdΩ, out);
 }
 
-PrimitivePairTable GaussianRF::PairTable(const GaussianRF& a, const GaussianRF& b)
+PrimitivePairTable GaussianRF::PairTable(const PrimitiveStore& store, const GaussianRF& a, const GaussianRF& b)
 {
     PrimitivePairTable p;
     std::vector<const Ω*>& t=p.itsΩ;
     t.resize(a.itsPrims.size()*b.itsPrims.size());
     for (size_t i=0;i<a.itsPrims.size();++i)
         for (size_t j=0;j<b.itsPrims.size();++j)
-            t[i*b.itsPrims.size()+j] = &findΩ(a.itsPrims[i]->GetGData(), b.itsPrims[j]->GetGData());
+            t[i*b.itsPrims.size()+j] = &findΩ(store, a.itsPrims[i]->GetGData(), b.itsPrims[j]->GetGData());
     return p;
 }
-
-bool GaussianRF::GeometryCachesKeepEverything() {return OmegaCache()->GetMaxRAM()==Cache2::kUnbounded;}
 
 void GaussianRF::Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
                                        const GaussianRF* const* rc, size_t mc, const GaussianRF* const* rd, size_t md,
@@ -764,7 +647,7 @@ void GaussianRF::Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, c
                                        const Polarization* pc, size_t nc, const Polarization* pd, size_t nd,
                                        const PrimitivePairTable& abT, const PrimitivePairTable& cdT_, double* out)
 {
-    // WORKER-SAFE: no global cache below -- the Ω come in, the RNLM is a scratch, the Hermite tables are locals.
+    // WORKER-SAFE: no store below -- the Ω come in, the RNLM is a scratch, the Hermite tables are locals.
     const GaussianRF &A=*ra[0], &B=*rb[0], &C=*rc[0], &D=*rd[0];   // the primitives, shared by every member of the slot
     const size_t ni=A.itsPrims.size(), nj=B.itsPrims.size(),
                  nk=C.itsPrims.size(), nl=D.itsPrims.size();
@@ -779,7 +662,7 @@ void GaussianRF::Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, c
         for (size_t l=0;l<nl;++l)
             BuildHermiteTable(*cdΩ[k*nl+l], pc, nc, pd, nd, cdH[k*nl+l]);
     HermiteTable abH;
-    RNLM rnlm;                  // scratch, rebuilt per primitive quartet: each is met once here, so the global cache would only insert
+    RNLM rnlm;                  // scratch, rebuilt per primitive quartet: each is met once here, so a store would only insert
     std::vector<double> t(n);   // one primitive quartet's integrals, every component quartet: computed ONCE for all members
     for (size_t i=0;i<ni;++i)
         for (size_t j=0;j<nj;++j)
@@ -819,13 +702,13 @@ void GaussianRF::Repulsion4CGroupBlock(const GaussianRF* const* ra, size_t ma, c
 }
 
 // --- 3-centre group blocks: per primitive triple the lookups and the component integrals ONCE, contracted into every member ---------
-void GaussianRF::Repulsion3CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+void GaussianRF::Repulsion3CGroupBlock(const PrimitiveStore& store, const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
                                        const GaussianRF* const* rc, size_t mc,
                                        const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                                        const Polarization* pc, size_t nc, double* out)
 {
     RequireSharedPrimitives(ra,ma,"a"); RequireSharedPrimitives(rb,mb,"b"); RequireSharedPrimitives(rc,mc,"c");
-    Repulsion3CGroupBlock(ra,ma, rb,mb, rc,mc, pa,na, pb,nb, pc,nc, PairTable(*ra[0], *rb[0]), out);
+    Repulsion3CGroupBlock(ra,ma, rb,mb, rc,mc, pa,na, pb,nb, pc,nc, PairTable(store, *ra[0], *rb[0]), out);
 }
 void GaussianRF::Repulsion3CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
                                        const GaussianRF* const* rc, size_t mc,
@@ -840,7 +723,7 @@ void GaussianRF::Repulsion3CGroupBlock(const GaussianRF* const* ra, size_t ma, c
     const size_t n=na*nb*nc, M=ma*mb*mc;
     for (size_t q=0;q<M*n;q++) out[q]=0.0;
     std::vector<double> t(n);
-    RNLM R;   // scratch, rebuilt per primitive triple (each is met once here: the global cache would only insert)
+    RNLM R;   // scratch, rebuilt per primitive triple (each is met once here: a store would only insert)
     for (size_t i=0;i<ni;++i)
         for (size_t j=0;j<nj;++j)
         {
@@ -876,7 +759,7 @@ void GaussianRF::Overlap3CGroupBlock(const GaussianRF* const* ra, size_t ma, con
         for (size_t j=0;j<nj;++j)
             for (size_t k=0;k<nk;++k)
             {
-                // ONCE per primitive triple, built here rather than in the global Cache3 (worker-safe; the same construction, the same bits)
+                // ONCE per primitive triple, built here rather than in a store (worker-safe; the same construction, the same bits)
                 const std::unique_ptr<const Hermite3> h3(C.itsPrims[k]->GetH3(*A.itsPrims[i], *B.itsPrims[j]));
                 const Hermite3& H3=*h3;
                 size_t q=0;
