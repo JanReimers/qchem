@@ -43,8 +43,12 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
     if (dynamic_cast<const BasisSet::G_RasterTransform*>(fb.get()))
     {
         auto* ball=dynamic_cast<const BasisSet::G_OrbitalPairBall*>(fb.get());   // abstract -> abstract
-        if (ball && ball->HoldsEveryOrbitalPair()) return std::make_shared<const ProjectedDensitySampler>(fb);
-        return std::make_shared<const PairDensitySampler>(fb);
+        std::shared_ptr<const DensitySampler> raster;
+        if (ball && ball->HoldsEveryOrbitalPair()) raster=std::make_shared<const ProjectedDensitySampler>(fb);
+        else                                       raster=std::make_shared<const PairDensitySampler>(fb);
+        // A POINT SET handed in with a ball (a Becke mesh, I3): XC is evaluated there, on top of the raster strategy's exact pair.
+        if (quad.GetMesh()) return std::make_shared<const BallAtPointsDensitySampler>(fb, raster, std::move(quad));
+        return raster;
     }
     return std::make_shared<const SinglesDensitySampler>(fb, std::move(quad));
 }

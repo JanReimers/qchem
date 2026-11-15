@@ -525,6 +525,55 @@ private:
     mutable size_t itsPolVersion=size_t(-1);
 };
 
+
+//! \brief THE BALL EVALUATED AT A POINT SET (I3, V-XC-ONE-TERM step 4, lane S 2026-11-14): a plane-wave Vxc ball whose XC is integrated
+//! on a Becke mesh instead of its own raster.  A DECORATOR over the raster strategy the ball would use on its own (\a raster: the
+//! projected one where the ball holds every orbital pair, the pair collocation otherwise), so it inherits that strategy's EXACT
+//! forward/adjoint pair -- the GPW collocation, or the plane-wave projection -- and adds one more exact pair on top:
+//!   forward  rho_P(r_g) = sum_{G in ball} rho~(G) e^{iG.r_g},   rho~ = the forward FFT of the raster's rho, truncated to the ball;
+//!   adjoint  v~(G) = (1/Omega) sum_g w_g v_g e^{-iG.r_g} (\c G_FieldEvaluator::ProjectField), back on the raster, into the raster
+//!            strategy's own \c Matrix.
+//! So E = sum_g w_g e(rho_P(r_g)) and H = dE/dD exactly (gates: \c PW_Terms.TheBallAtBeckePointsIsItsEnergysDerivative on plane-wave
+//! orbitals, \c VxcProductSpace.ThePlaneWaveBallAtBeckePointsIsItsEnergysDerivative on a GPW block).  rho_P is rho[D] where the ball
+//! holds every orbital pair; on a GPW block it is the raster's rho[D] (the pair collocation) truncated to the ball -- the ball's image
+//! of rho[D] as the raster sees it, converging to rho[D] as the ball grows (the policy layer reports it, \c qchem.XCRhoPolicy).  The
+//! analytic L2 projection <G|rho[D]> would need a matching analytic <ij|G> adjoint, which the GPW fitter contraction is not.
+//! The cost is the direct sum, N_G x N_points per synthesis and per projection.  The Becke points move with the atoms, so this route
+//! has no geometry gradient or virial yet (the defaults: it says so).
+class BallAtPointsDensitySampler
+    : public virtual DensitySampler
+{
+public:
+    typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
+    //! \a fb: the ball (a \c G_RasterTransform and a \c G_FieldEvaluator); \a raster: the strategy over its raster; \a points: the mesh.
+    BallAtPointsDensitySampler(fbs_t fb, std::shared_ptr<const DensitySampler> raster, BasisSet::FitQuadrature points);
+    double Integrate(const rvec_t& f) const override;
+    size_t NumPoints() const override {return itsPoints.GetMesh()->size();}
+    XCRhoSource RhoSource() const override {return itsRaster->RhoSource();}
+    std::optional<double> GroupResidual() const override {return std::nullopt;}
+    const rvec_t& Rho(const cChargeDensity* cd) const override;
+    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
+    //! \f$\langle i|v|j\rangle\f$ through the exact adjoint: \a v at my points projected onto the ball, put on the raster, contracted
+    //! by the raster strategy.
+    chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
+    rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
+    //! The raster strategy's own warm-up (its tables), which this route samples through.
+    void WarmForDensity(const cChargeDensity* cd, bool polarized) const override {itsRaster->WarmForDensity(cd, polarized);}
+    //! ⛔ Not realized: a linear response on this route.  THROWS, naming the gap.
+    cvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
+    mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const override;
+private:
+    rvec_t AtPoints(const rvec_t& onRaster) const;   //!< the forward: raster rho -> ball -> my points
+    rvec_t OnRaster(const rvec_t& atPoints) const;   //!< the adjoint: v at my points -> ball -> raster
+    fbs_t itsFitBasis;
+    std::shared_ptr<const DensitySampler> itsRaster;
+    BasisSet::FitQuadrature itsPoints;
+    //! rho_P at my points, and the raster sample each was synthesized from: the synthesis is the cost, so it reruns only when the raster
+    //! strategy's sample changed (a value compare, N_raster, against N_G x N_points).
+    mutable rvec_t itsRho, itsRhoUp, itsRhoDn;
+    mutable rvec_t itsRhoFrom, itsUpFrom, itsDnFrom;
+};
+
 } //namespace
 
 //======================================================================================================
@@ -532,6 +581,8 @@ private:
 //======================================================================================================
 namespace qchem::ChargeDensity
 {
+
+
 
 // A field ALREADY SAMPLED at the quadrature's points, presented as the ProjectedScalar_R the ortho scalar
 // fitter consumes (the BALL route's only client).  The values are v_xc(rho(r_g)), computed by the TERM --

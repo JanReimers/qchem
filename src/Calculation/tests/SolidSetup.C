@@ -247,10 +247,10 @@ namespace
 {
 //! Resolve Si (Gamma, stated grids) on a Becke mesh or the raster at \a rho in a run named \a tag; the `decided` lines of its XCRhoProjected rows.
 enum class XCRhoCell { Becke, GPWRaster, PlaneWaveRaster };   // the solid cells the rho axis splits on
-std::vector<std::string> XCRhoRows(XCRhoCell cell, Hamiltonian::XCρ rho, const std::string& tag)
+std::vector<std::string> XCRhoRows(XCRhoCell cell, Hamiltonian::XCρ rho, const std::string& tag, Hamiltonian::VxcFit fit=Hamiltonian::VxcFit::Auto)
 {
     const auto mat=Materials::Get("Si_diamond");
-    SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcRho=rho;
+    SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcRho=rho; o.vxcFit=fit;
     if (cell==XCRhoCell::Becke) o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);   // a small recipe: only the setup runs
     else                        o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
     if (cell==XCRhoCell::PlaneWaveRaster) { o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=4.0; }
@@ -417,4 +417,21 @@ TEST(SolidSetup, AKMeshCoarserThanTheCalibratedSpacingIsWarnedNamingTheMeshThatM
     const auto k3=rows(ivec3_t(3,3,3), "Si k333");
     ASSERT_EQ(k3.size(), 1u);
     EXPECT_EQ(k3[0].value("verdict",""), "choose") << "a mesh within the threshold is reported, not warned: " << k3[0].dump();
+}
+
+// I3 (V-XC-ONE-TERM step 4): the plane-wave Vxc fit on a Becke mesh over GPW orbitals.  The ball's P rho is synthesized at the points, so
+// xc.rho fit runs and is reported; XC of rho[D] there is the delta cell, so xc.rho exact is REFUSED by name (user ruling 2026-11-14).
+TEST(SolidSetup, ThePlaneWaveFitOnABeckeMeshOverGPWOrbitalsRunsAtRhoFitAndRefusesRhoExact)
+{
+    const auto fitRows=XCRhoRows(XCRhoCell::Becke, Hamiltonian::XCρ::Fit, "Si PW ball at Becke rho fit", Hamiltonian::VxcFit::PlaneWave);
+    ASSERT_EQ(fitRows.size(), 1u);
+    EXPECT_NE(fitRows[0].find("at Becke points"), std::string::npos) << fitRows[0];
+    try { (void)XCRhoRows(XCRhoCell::Becke, Hamiltonian::XCρ::Exact, "Si PW ball at Becke rho exact", Hamiltonian::VxcFit::PlaneWave);
+          FAIL() << "the GPW ball at Becke points ran at xc.rho exact"; }
+    catch (const std::invalid_argument& e)
+    {
+        const std::string what=e.what();
+        EXPECT_NE(what.find("state xc.fit Delta"), std::string::npos) << what;
+        EXPECT_NE(what.find("xc.rho fit"), std::string::npos) << what;
+    }
 }

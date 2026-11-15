@@ -263,6 +263,6 @@ export namespace qchem::Hamiltonian
     //! \a hubbard: the DFT+U manifold list (empty = no Hubbard term).
     cHamiltonian* Factory(SpinGroup, const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit,
                           const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh,
-                          VxcFit fit = VxcFit::Auto, std::vector<HubbardManifold> hubbard = {}, const XCFunctional& xc = {});
+                          XCRoute fit = {}, std::vector<HubbardManifold> hubbard = {}, const XCFunctional& xc = {});
 
 } // namespace

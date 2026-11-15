@@ -129,19 +129,19 @@ public:
     //! \a hubbard: the DFT+U manifolds (empty = no +U term; programme step 5, pin 23).
     Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const std::vector<std::pair<std::string,int>>& species,
                const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={},
-               VxcFit fit=VxcFit::Auto, SpinGroup g=SpinGroup::UnPolarized,
+               XCRoute fit={}, SpinGroup g=SpinGroup::UnPolarized,
                std::vector<HubbardManifold> hubbard={}, std::vector<std::shared_ptr<ExFunctional>> xc={});
 private:
     //! \a xc: the functional's parts; EMPTY = Dirac + VWN5, the default LDA (every ctor but the facade's leaves it so).
     void BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const Pseudopotential::LocalPotential* loc,
                     const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
-                    VxcFit fit=VxcFit::Auto, std::vector<HubbardManifold> hubbard={},
+                    XCRoute fit={}, std::vector<HubbardManifold> hubbard={},
                     std::vector<std::shared_ptr<ExFunctional>> xc={});
     //! Look up each (element, valence) from the GTH database, build + OWN the (per-Z router) local +
     //! separable models, and assemble the terms against them.  The single-species ctor is the 1-species case.
     void BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const std::vector<std::pair<std::string,int>>& species,
                       const std::string& functional, const qcMesh::MeshParams& xcMesh,
-                      VxcFit fit=VxcFit::Auto, std::vector<HubbardManifold> hubbard={},
+                      XCRoute fit={}, std::vector<HubbardManifold> hubbard={},
                       std::vector<std::shared_ptr<ExFunctional>> xc={});
     std::shared_ptr<const Pseudopotential::LocalPotential>     itsOwnedLocal;  //!< owned model (convenience ctors); null for explicit
     std::shared_ptr<const Pseudopotential::SeparablePotential> itsOwnedSep;

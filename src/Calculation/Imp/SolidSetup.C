@@ -437,7 +437,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
         using Hamiltonian::VxcFit;
         const bool becke=s->xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
         const VxcFit fit= opts.vxcFit==VxcFit::Auto ? (becke ? VxcFit::Delta : VxcFit::PlaneWave) : opts.vxcFit;
-        ReportSolidXCRho(fit, opts.xcRho, s->planeWave);
+        ReportSolidXCRho(fit, opts.xcRho, s->planeWave, becke);
     }
 
     // DECISION 2 -- the spin bookkeeping.  multiplicity -> (nUp,nDown), with the parity check that catches
