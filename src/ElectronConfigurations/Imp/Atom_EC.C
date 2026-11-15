@@ -7,6 +7,10 @@ module;
 #include <algorithm>
 #include <stdexcept>
 #include <string>
+#include <map>
+#include <sstream>
+#include <cctype>
+#include <cstring>
 
 module qchem.ElectronConfiguration.AtomNR;
 import qchem.PeriodicTable;
@@ -191,6 +195,148 @@ Atom_EC::Atom_EC(int Z)
 : Atom_EC(Z, NsOnly_t{})
 {
     BuildNROccupations();
+}
+
+//---------------------------------------------------------------------------------------------------
+//  A STATED CONFIGURATION (2026-11-14, OpenWork row "All-electron ION seeds").
+namespace {
+const char kLetters[]="spdf";
+int SubshellCapacity(int l) {return 2*(2*l+1);}
+//! The noble-gas cores NIST's notation writes as [X], expanded.
+const std::map<std::string, ShellOccupations>& NobleGasCores()
+{
+    static const std::map<std::string, ShellOccupations> cores=[]{
+        std::map<std::string, ShellOccupations> c;
+        ShellOccupations s={{1,0,2}};                                   c["He"]=s;
+        s.insert(s.end(), {{2,0,2},{2,1,6}});                           c["Ne"]=s;
+        s.insert(s.end(), {{3,0,2},{3,1,6}});                           c["Ar"]=s;
+        s.insert(s.end(), {{3,2,10},{4,0,2},{4,1,6}});                  c["Kr"]=s;
+        s.insert(s.end(), {{4,2,10},{5,0,2},{5,1,6}});                  c["Xe"]=s;
+        s.insert(s.end(), {{4,3,14},{5,2,10},{6,0,2},{6,1,6}});         c["Rn"]=s;
+        return c;
+    }();
+    return cores;
+}
+int Electrons(const ShellOccupations& s) {int n=0; for (const auto& o : s) n+=o.count; return n;}
+} // namespace
+
+int StatedConfiguration::CoreElectrons () const {return Electrons(core);}
+int StatedConfiguration::NamedElectrons() const {return Electrons(named);}
+ShellOccupations StatedConfiguration::All() const {ShellOccupations a=core; a.insert(a.end(), named.begin(), named.end()); return a;}
+
+Outcome<StatedConfiguration, std::string> ParseConfiguration(const std::string& text)
+{
+    using R=Outcome<StatedConfiguration, std::string>;
+    StatedConfiguration c;
+    std::string rest=text;
+    const size_t open=rest.find('[');
+    if (open!=std::string::npos)
+    {
+        const size_t close=rest.find(']', open);
+        if (close==std::string::npos) return R::Fail("configuration \""+text+"\": an unclosed [ core");
+        c.coreSymbol=rest.substr(open+1, close-open-1);
+        const auto it=NobleGasCores().find(c.coreSymbol);
+        if (it==NobleGasCores().end()) return R::Fail("configuration \""+text+"\": the core ["+c.coreSymbol+"] is not a noble gas (He Ne Ar Kr Xe Rn)");
+        c.core=it->second;
+        rest=rest.substr(0, open)+" "+rest.substr(close+1);
+    }
+    std::istringstream is(rest);
+    for (std::string tok; is>>tok;)
+    {
+        size_t i=0;
+        while (i<tok.size() && std::isdigit((unsigned char)tok[i])) ++i;
+        const char* letter = i<tok.size() ? std::strchr(kLetters, std::tolower((unsigned char)tok[i])) : nullptr;
+        if (i==0 || !letter || *letter=='\0') return R::Fail("configuration \""+text+"\": '"+tok+"' is not <n><s|p|d|f>^<count>");
+        const int n=std::stoi(tok.substr(0,i)), l=int(letter-kLetters);
+        size_t j=i+1;
+        if (j<tok.size() && tok[j]=='^') ++j;
+        if (j>=tok.size() || !std::all_of(tok.begin()+long(j), tok.end(), [](char ch){return std::isdigit((unsigned char)ch)!=0;}))
+            return R::Fail("configuration \""+text+"\": '"+tok+"' has no electron count");
+        const int count=std::stoi(tok.substr(j));
+        if (n<=l) return R::Fail("configuration \""+text+"\": "+tok+" -- n must exceed l");
+        if (count<=0 || count>SubshellCapacity(l))
+            return R::Fail("configuration \""+text+"\": "+tok+" -- a "+std::string(1,kLetters[l])+" subshell holds 1 to "+std::to_string(SubshellCapacity(l)));
+        for (const auto& o : c.All())
+            if (o.n==n && o.l==l) return R::Fail("configuration \""+text+"\": "+std::to_string(n)+kLetters[l]+" is written twice (or is in the core)");
+        c.named.push_back({n,l,count});
+    }
+    if (c.All().empty()) return R::Fail("configuration \""+text+"\": no subshells");
+    return R::Ok(c);
+}
+
+std::string WhyNotRepresentable(const ShellOccupations& shells, bool fromLowestN)
+{
+    for (int l=0;l<=LMax;l++)
+    {
+        std::vector<ShellOccupation> sl;
+        for (const auto& o : shells) if (o.l==l) sl.push_back(o);
+        if (sl.empty()) continue;
+        std::sort(sl.begin(), sl.end(), [](const auto& a, const auto& b){return a.n<b.n;});
+        const std::string L(1, kLetters[l]);
+        if (fromLowestN && sl.front().n!=l+1)
+            return "the lowest occupied "+L+" level is "+std::to_string(sl.front().n)+L+", but an all-electron atom fills "+std::to_string(l+1)+L+" first";
+        for (size_t i=0;i+1<sl.size();i++)
+        {
+            if (sl[i+1].n!=sl[i].n+1)
+                return "a hole below an occupied level: "+std::to_string(sl[i].n)+L+" then "+std::to_string(sl[i+1].n)+L
+                       +" -- the radial atom fills each l block from its lowest level up";
+            if (sl[i].count!=SubshellCapacity(l))
+                return std::to_string(sl[i].n)+L+"^"+std::to_string(sl[i].count)+" is open below the occupied "+std::to_string(sl[i+1].n)+L
+                       +" -- the radial atom fills each l block from its lowest level up, so only the highest "+L+" subshell may be open";
+        }
+    }
+    return {};
+}
+
+std::string ConfigurationText(const ShellOccupations& shells)
+{
+    ShellOccupations s=shells;
+    std::sort(s.begin(), s.end(), [](const auto& a, const auto& b){return a.n!=b.n ? a.n<b.n : a.l<b.l;});
+    std::string t;
+    for (const auto& o : s) t+=(t.empty() ? "" : " ")+std::to_string(o.n)+kLetters[o.l]+"^"+std::to_string(o.count);
+    return t;
+}
+
+Atom_EC::Atom_EC(const ShellOccupations& shells)
+: itsLMax(0), itsLValance(0)
+{
+    if (const std::string why=WhyNotRepresentable(shells, false); !why.empty())
+        throw std::logic_error("Atom_EC: the stated configuration "+ConfigurationText(shells)+" is not representable ("+why+") -- the caller checks "
+                               "WhyNotRepresentable first");
+    for (const auto& o : shells)
+    {
+        if (o.l<0 || o.l>LMax) throw std::logic_error("Atom_EC: l="+std::to_string(o.l)+" is past LMax");
+        if (o.count==SubshellCapacity(o.l)) itsNs.Nf[o.l]+=o.count;   // closed: core
+        else { itsNs.Nv[o.l]=o.count; itsNs.Nu[o.l]=std::min(o.count, SubshellCapacity(o.l)-o.count); }   // the l's one open subshell: Hund
+    }
+    for (int l=0;l<=LMax;l++)
+    {
+        itsNs.N[l]=itsNs.Nf[l]+itsNs.Nv[l];
+        if (itsNs.N[l]>0) itsLMax=l;
+        if (itsNs.Nv[l]>0) itsLValance=l;
+    }
+    BuildNROccupations();
+}
+
+ShellOccupations Atom_EC::Shells(int coreElectrons) const
+{
+    // The core's shells per l, filled in aufbau order (a pseudo-atom's core is the noble gas below its valence, semicore excluded).
+    static const int aufbau[][2]={{1,0},{2,0},{2,1},{3,0},{3,1},{4,0},{3,2},{4,1},{5,0},{4,2},{5,1},{6,0},{4,3},{5,2},{6,1},{7,0}};
+    int coreShells[LMax+1]={0,0,0,0};
+    int left=coreElectrons;
+    for (const auto& sh : aufbau)
+    {
+        if (left<=0) break;
+        left-=SubshellCapacity(sh[1]); coreShells[sh[1]]++;
+    }
+    if (left!=0) throw std::logic_error("Atom_EC::Shells: a core of "+std::to_string(coreElectrons)+" electrons is not whole aufbau shells");
+    ShellOccupations out;
+    for (int l=0;l<=LMax;l++)
+    {
+        int k=itsNs.N[l], n=l+1+coreShells[l];
+        while (k>0) { const int c=std::min(k, SubshellCapacity(l)); out.push_back({n,l,c}); k-=c; ++n; }
+    }
+    return out;
 }
 
 // Pseudo-atom: load ONLY the raw valence shells (no core, no full-subshell demotion), so a closed valence

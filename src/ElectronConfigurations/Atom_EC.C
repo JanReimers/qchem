@@ -1,20 +1,58 @@
 // File: ElectronConfigurations/Atom_EC.C  Electron configuration for atoms.
 module;
 #include <map>
+#include <string>
+#include <vector>
 #include "forward.H"
 
 export module qchem.ElectronConfiguration.AtomNR;
 export import qchem.ElectronConfiguration;
+export import qchem.Outcome;   // ParseConfiguration: a configuration TEXT is user input
 
 import qchem.ElectronConfiguration.ElectronCounts;
 
 namespace qchem {
 const int Nshell=8;
 
+//! One subshell of a configuration: principal number \c n, angular momentum \c l, and its \c count of electrons.
+export struct ShellOccupation { int n, l, count; };
+export using ShellOccupations = std::vector<ShellOccupation>;
+
+//! \brief An electron configuration as STATED in NIST's notation ("[Ar] 3d^6 4s^1"; the "^" is optional): the noble-gas core \c [X]
+//! expanded, and the subshells written after it (2026-11-14, OpenWork row "All-electron ION seeds": an ion is solved in a STATED
+//! configuration, since Fe+ is 3d^6 4s^1 where its isoelectronic neutral Mn is 3d^5 4s^2).
+export struct StatedConfiguration
+{
+    std::string      coreSymbol;   //!< the [X] noble gas ("Ar"), empty when none is written
+    ShellOccupations core;         //!< the [X] subshells, expanded
+    ShellOccupations named;        //!< the subshells written after it, as written
+    int CoreElectrons () const;
+    int NamedElectrons() const;
+    ShellOccupations All() const;  //!< core then named
+};
+//! Parse \a text (NIST's notation).  Refused (an Outcome: the text is user input): an unknown core, a token that is not n l count, l past f,
+//! n <= l, a count past the subshell's capacity 2(2l+1), or a subshell written twice.
+export Outcome<StatedConfiguration, std::string> ParseConfiguration(const std::string& text);
+//! \brief Why the radial atom cannot hold \a shells, or empty when it can.  The radial solver fills each l block from its LOWEST level up,
+//! so in each l only the highest occupied n may be open, every lower occupied n is full, and the occupied n's are consecutive (no hole
+//! below an occupied level); \a fromLowestN (all-electron) also requires each l to start at n = l+1 (a pseudo-atom's l blocks start at its
+//! valence).  At most one open subshell per l follows.
+export std::string WhyNotRepresentable(const ShellOccupations& shells, bool fromLowestN);
+//! NIST's notation for \a shells, sorted by (n, l) ("1s^2 2s^2 ... 3d^6 4s^1").
+export std::string ConfigurationText(const ShellOccupations& shells);
+
 export class Atom_EC : public virtual ElectronConfiguration
 {
 public:
     Atom_EC(int Z);
+    //! \brief The atom in a STATED configuration \a shells -- every subshell the SCF carries (all-electron: the whole atom; a pseudo-atom:
+    //! the shells beyond its pseudopotential's core).  Closed subshells are core, each l's open one is valence, with Hund's maximal spin
+    //! (min(k, 2(2l+1) - k) unpaired; NIST's LSD atoms and ions are high-spin).  \a shells must be representable (\c WhyNotRepresentable
+    //! with fromLowestN false): a caller that did not check is a broken invariant, and THROWS std::logic_error.
+    explicit Atom_EC(const ShellOccupations& shells);
+    //! The configuration this EC occupies, as subshells: each l's \c N[l] electrons filled from n = l+1 + (that l's shells in a core of
+    //! \a coreElectrons, filled in aufbau order) -- 0 for an all-electron atom, Z - q for a pseudo-atom.  What the run report prints.
+    ShellOccupations Shells(int coreElectrons=0) const;
     virtual int    GetN(const Irrep&) const;  //Core + Valance
     virtual syms_t GetIrreps() const;
     virtual void   Display() const;
