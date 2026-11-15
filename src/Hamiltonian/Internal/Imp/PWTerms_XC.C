@@ -88,6 +88,7 @@ template <class T> const typename tVxc_Quadrature<T>::Refreshed& tVxc_Quadrature
     // pass at rho_out reports the source and group residual of the potential the Fock was built from.
     std::lock_guard<std::mutex> lock(itsFockSourceLock.m);
     itsFockSource=itsRefreshed.source;
+    itsFockDensityIsRhoD=itsRefreshed.densityIsRhoD;
     itsFockGroupResidual=itsRefreshed.groupResidual;
     return itsRefreshed;
 }
@@ -181,17 +182,17 @@ template <class T> void tVxc_Quadrature<T>::GetEnergy(EnergyBreakdown& te, const
     // COMPOSES: exchange contributes Sum_sigma eps_x(rho_sigma) rho_sigma and correlation eps_c rho_tot, and
     // those share no denominator.
     for (size_t g=0; g<exc.size(); g++) { exc[g]=itsXc->GetExcDensity(r.up[g], r.dn[g]); rho[g]=r.up[g]+r.dn[g]; }
-    te.Add("Exc", itsSampler->Integrate(exc), EnergyRole::Potential);
+    // THE PIN-28 CERTIFICATE travels with the energy (fail closed, user ruling 2026-11-15): the last V_xc build's density answered
+    // HasNoFitComponent and its sampler said how it handed that density to XC; ChargeDensity::CertifiesRhoD combines the two.  No build
+    // yet, or any case not on its list, is uncertified.
+    te.AddXC(itsSampler->Integrate(exc), std::nullopt,
+             itsFockSource ? ChargeDensity::CertificateLabel(*itsFockSource, itsFockDensityIsRhoD) : "",
+             itsFockSource && ChargeDensity::CertifiesRhoD(*itsFockSource, itsFockDensityIsRhoD));
     // The charge accounting of the same density: the mesh-charge leak (the quadrature's health metric --
     // CP2K's grid-charge-lost readout) is the quadrature integral of rho vs the analytic Tr(DS); the
     // integrated site moments are the observable, where both rasters are in hand (R1.0h).
     te.charge.lost        = itsSampler->Integrate(rho) - cd->GetTotalCharge();
     te.charge.siteMoments = SiteMoments(cd);
-    if (itsFockSource)
-    {
-        te.charge.xcRho       = ChargeDensity::ShortName(*itsFockSource);
-        te.charge.xcRhoFitted = *itsFockSource==ChargeDensity::XCRhoSource::Fitted;
-    }
     te.charge.xcGroupResidual = itsFockGroupResidual;
     ReportFourierSampling();
     // THE samp/τ COLUMN: the worst audited delivered/tau of the sized samplings since the last energy that saw new ones (one iteration's:
@@ -319,6 +320,7 @@ template <class T> void tVxc_Quadrature<T>::BuildPotential(const tbs_t<T>* bs, c
     const Rasters r=ChannelRasters(cd, half);
     Refreshed& R=itsRefreshed;
     R.source=itsSampler->RhoSource();          // read while the sampler's cache is cd's
+    R.densityIsRhoD=cd->HasNoFitComponent();   // the density's half of the pin-28 certificate (user ruling 2026-11-15)
     R.groupResidual=itsSampler->GroupResidual();
     const int nc = pol ? 2 : 1;               // a folded doublet (Spin::None) is the same field either channel would see: Up
     for (int c=0; c<nc; c++) R.v[c]=PotentialAt(c==1 ? Spin::Down : Spin::Up, r);

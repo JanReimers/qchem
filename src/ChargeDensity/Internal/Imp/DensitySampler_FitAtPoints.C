@@ -257,6 +257,12 @@ rvec_t GaussianFitSpace::Resample(const rvec_t& atPoints) const
     return Phi(itsPoints.GetMesh()->Points(), c);
 }
 
+rvec_t GaussianFitSpace::AtPoints(const rvec_t&) const
+{
+    throw std::invalid_argument("GaussianFitSpace::AtPoints: "+itsName+" would hand XC its projection P rho, not rho[D] (doc/Pins.md pin 28; the "
+                                "projected cell was deleted with the rho axis, 2026-11-15) -- this fit space serves the fitted potential's v only");
+}
+
 void GaussianFitSpace::ReportHealthFacts() const {qchem::report::Set("metricGap", itsMetricGap);}
 
 // ---- the multipole channels as a fit space (FittedVxc's retirement) ---------------------------------------------------------------------

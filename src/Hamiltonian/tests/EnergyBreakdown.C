@@ -34,13 +34,13 @@ TEST(EnergyBreakdown, RoleSumsAndDiagnostics)
 TEST(EnergyBreakdown, MergeByName)
 {
     EnergyBreakdown up, dn;
-    up.Add("Exc", -2.0, EnergyRole::Potential, -2.5);
-    dn.Add("Exc", -1.0, EnergyRole::Potential, -1.5);
+    up.Add("Eee", -2.0, EnergyRole::Potential, -2.5);
+    dn.Add("Eee", -1.0, EnergyRole::Potential, -1.5);
     up+=dn;
     EXPECT_EQ(up.Terms().size(), 1u);
-    EXPECT_DOUBLE_EQ(up["Exc"], -3.0);
+    EXPECT_DOUBLE_EQ(up["Eee"], -3.0);
     EXPECT_DOUBLE_EQ(*up.Terms()[0].second.TrDV, -4.0);
-    EXPECT_THROW(up.Add("Exc", 1.0, EnergyRole::Kinetic), std::logic_error);   // a name has ONE role
+    EXPECT_THROW(up.Add("Eee", 1.0, EnergyRole::Kinetic), std::logic_error);   // a name has ONE role
 }
 
 // The band form: sum f eps + sum (E - Tr(D V)).  The kinetic correction is identically 0 (E == Tr(D T)), so
@@ -55,7 +55,33 @@ TEST(EnergyBreakdown, BandFormMatchesDirectAndThrowsWhenUnclaimed)
     const double sumFEps = 10.0-30.0+16.0;                   // = sum Tr(D V) over the Fock's terms
     EXPECT_DOUBLE_EQ(e.GetBandEnergy(sumFEps), e.GetTotalEnergy());
 
-    e.Add("Exc", -1.0, EnergyRole::Potential);               // no Tr(D V) claimed (a mixed-density XC term)
+    e.AddXC(-1.0, std::nullopt, "DM", true);                 // no Tr(D V) claimed (a mixed-density XC term)
     EXPECT_THROW(e.GetBandEnergy(sumFEps), std::logic_error);
     EXPECT_DOUBLE_EQ(e.GetTotalEnergy(), 10.0-30.0+8.0+3.0-1.0);   // the direct total is unaffected
+}
+
+// THE PIN-28 CERTIFICATE FAILS CLOSED (user 2026-11-15): an XC energy enters only through AddXC, with its certificate; a breakdown with an
+// XC energy is certified only if EVERY XC contribution certified rho[D], on either side of a merge; with no XC energy nothing is claimed.
+TEST(EnergyBreakdown, TheXCCertificateFailsClosed)
+{
+    EnergyBreakdown none;
+    none.Add("Kinetic", 1.0, EnergyRole::Kinetic, 1.0);
+    EXPECT_FALSE(none.charge.xcBuilt);
+    EXPECT_THROW(none.Add("Exc", -1.0, EnergyRole::Potential), std::logic_error) << "the XC name has one door, AddXC";
+
+    EnergyBreakdown good, bad;
+    good.AddXC(-1.0, std::nullopt, "DM", true);
+    EXPECT_TRUE(good.charge.xcBuilt && good.charge.xcRhoCertified);
+    bad.AddXC(-0.5, std::nullopt, "Pρ", false);
+    EXPECT_TRUE(bad.charge.xcBuilt && !bad.charge.xcRhoCertified);
+
+    EnergyBreakdown a=good; a+=bad;
+    EXPECT_FALSE(a.charge.xcRhoCertified) << "one uncertified XC term uncertifies the sum";
+    EXPECT_DOUBLE_EQ(a["Exc"], -1.5);
+    EnergyBreakdown b=bad;  b+=good;
+    EXPECT_FALSE(b.charge.xcRhoCertified) << "in either order";
+    EnergyBreakdown c=none; c+=good;
+    EXPECT_TRUE(c.charge.xcBuilt && c.charge.xcRhoCertified) << "a side with no XC energy claims nothing";
+    good.AddXC(-0.1, std::nullopt, "fitted", false);
+    EXPECT_FALSE(good.charge.xcRhoCertified) << "a second XC term in one breakdown must certify too";
 }

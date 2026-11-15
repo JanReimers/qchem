@@ -16,6 +16,20 @@ using std::endl;
 
 void EnergyBreakdown::Add(const std::string& name, double E, EnergyRole role, std::optional<double> TrDV)
 {
+    if (name=="Exc") throw std::logic_error("EnergyBreakdown::Add: an XC energy goes through AddXC, with its pin-28 certificate (doc/Pins.md pin 28)");
+    AddTerm(name, E, role, TrDV);
+}
+
+void EnergyBreakdown::AddXC(double E, std::optional<double> TrDV, const std::string& rhoLabel, bool rhoIsRhoD)
+{
+    AddTerm("Exc", E, EnergyRole::Potential, TrDV);
+    charge.xcRhoCertified = (charge.xcBuilt ? charge.xcRhoCertified : true) && rhoIsRhoD;   // every XC term must certify
+    charge.xcBuilt=true;
+    if (charge.xcRho.empty()) charge.xcRho=rhoLabel;
+}
+
+void EnergyBreakdown::AddTerm(const std::string& name, double E, EnergyRole role, std::optional<double> TrDV)
+{
     for (auto& [n,t] : itsTerms)
         if (n==name)
         {
@@ -83,13 +97,18 @@ double EnergyBreakdown::GetBandEnergy(double sumFEps) const
 
 EnergyBreakdown& EnergyBreakdown::operator+=(const EnergyBreakdown& e1)
 {
-    for (const auto& [n,t] : e1.itsTerms)       Add(n, t.E, t.role, t.TrDV);
+    for (const auto& [n,t] : e1.itsTerms)       AddTerm(n, t.E, t.role, t.TrDV);   // e1's XC entry came through its AddXC
     for (const auto& [n,d] : e1.itsDiagnostics) AddDiagnostic(n, d);
     charge.lost+=e1.charge.lost;
     // The moments are ONE term's observable, not a sum: take them from whichever side has them (a run has
     // exactly one atom-partitioned XC term).
     if (charge.siteMoments.size()==0) charge.siteMoments=e1.charge.siteMoments;
-    if (charge.xcRho.empty()) {charge.xcRho=e1.charge.xcRho; charge.xcRhoFitted=e1.charge.xcRhoFitted;}   // likewise one XC term
+    if (e1.charge.xcBuilt)   // the certificate MERGES fail-closed: certified only if every XC term on both sides certified
+    {
+        charge.xcRhoCertified = (charge.xcBuilt ? charge.xcRhoCertified : true) && e1.charge.xcRhoCertified;
+        charge.xcBuilt=true;
+        if (charge.xcRho.empty()) charge.xcRho=e1.charge.xcRho;
+    }
     if (!charge.xcGroupResidual) charge.xcGroupResidual=e1.charge.xcGroupResidual;                         // ...and its R2.1 residual
     return *this;
 }

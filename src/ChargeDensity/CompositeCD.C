@@ -140,6 +140,9 @@ public:
     //! The old face, kept one commit (V-ONE-OF-N 3a): forwards to \c Project.
 
     virtual double GetTotalCharge      (                     ) const;
+    //! Forwards to my irreps (pin 28, user ruling 2026-11-15): every block must give the same answer, and a disagreement THROWS (a broken
+    //! invariant).  An empty composite has no D: false.
+    virtual bool   HasNoFitComponent   (                     ) const override;
 
     // The blocks are mutated together (MixIn/ReScale fan out to all), so any block's serial tracks the
     // composite's freshness; forward to the first.  Empty composite -> 0 (the "no density yet" sentinel).

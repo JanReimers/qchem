@@ -17,7 +17,6 @@ target_sources(qcChargeDensity PRIVATE
     Internal/Imp/DensitySampler_Pair.C
     Internal/Imp/DensitySampler_Projected.C   # P rho: the plane-wave ball (V-XC-ONE-TERM step 2)
     Internal/Imp/DensitySampler_FitAtPoints.C   # XC of a fitted density at a point set: the PW ball (I3), the periodic A1 (V-XC-ONE-TERM 4, 6)
-    Internal/Imp/DensitySampler_OverlapProjected.C   # P rho: an overlap-metric fit, the molecular A1 (V-XC-ONE-TERM step 3)
 )
 target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     ChargeDensity.C

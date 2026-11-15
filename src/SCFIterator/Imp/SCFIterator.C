@@ -309,8 +309,11 @@ template <class T> std::unique_ptr<qchem::ChargeDensity::tMixableDensity<T>>
 static void RequirePin28(const EnergyBreakdown& eb, size_t iteration, bool gFilter, bool lineSearch)
 {
     const auto& c=eb.charge;
-    if (c.xcRhoFitted && iteration>1)
-        throw std::logic_error("SCF pin 28: iteration "+std::to_string(iteration)+" built V_xc from a FITTED density (XC ρ '"+c.xcRho
+    // FAIL CLOSED (user 2026-11-15): an XC energy without a POSITIVE certificate is treated as fitted -- a term or sampler that forgets to
+    // certify throws here, it does not pass (EnergyBreakdown::AddXC, ChargeDensity::CertifiesRhoD).
+    if (c.xcBuilt && !c.xcRhoCertified && iteration>1)
+        throw std::logic_error("SCF pin 28: iteration "+std::to_string(iteration)+" built V_xc from a density NOT certified as rho[D] (XC ρ '"
+                               +(c.xcRho.empty() ? std::string("uncertified") : c.xcRho)
                                +"') -- XC must see rho[D]; only the seed (iteration 1) may be fitted.  doc/Pins.md pin 28");
     if (c.xcRho=="cusp" && !gFilter && !lineSearch)
         throw std::logic_error("SCF pin 28: iteration "+std::to_string(iteration)+" built V_xc from the CUSP DEFICIT beside a mixer with "
