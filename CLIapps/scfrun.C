@@ -128,13 +128,17 @@ static void DumpRadialDensity(const ScalarFunction<double>& cd, int Z, int Nelec
     nlohmann::json db = nlohmann::json::array();
     { std::ifstream in(out); if (in) in >> db; }       // load existing database (if any)
     if (!db.is_array()) db = nlohmann::json::array();
-    // replace any existing entry for this (Z, functional)
+    // Replace the existing entry for this CHARGE STATE only: (Z, functional, Nelec, q).  An ion (Nelec = Z - charge) sits BESIDE its
+    // neutral, the entry IonicSAD reads (AtomicDensity's FindAtomicEntry).  An entry without `q` is pre-schema data, whose q is its
+    // own Nelec (the reader's rule), so a fresh neutral still replaces an old q-less one.
+    const auto qOf=[](const nlohmann::json& e){ return e.value("q", e.value("Nelec",-1)); };
     for (auto it=db.begin(); it!=db.end(); )
-        if ((*it).value("Z",-1)==Z && (*it).value("functional",string())==functional) it=db.erase(it);
+        if ((*it).value("Z",-1)==Z && (*it).value("functional",string())==functional
+            && (*it).value("Nelec",-1)==Nelec && qOf(*it)==qOf(entry)) it=db.erase(it);
         else ++it;
     db.push_back(entry);
-    std::sort(db.begin(), db.end(), [](const nlohmann::json& a, const nlohmann::json& b2)
-              { return a.value("Z",0) < b2.value("Z",0); });
+    std::sort(db.begin(), db.end(), [](const nlohmann::json& a, const nlohmann::json& b2)    // by Z, the neutral first, then ions
+              { return std::make_pair(a.value("Z",0), -a.value("Nelec",0)) < std::make_pair(b2.value("Z",0), -b2.value("Nelec",0)); });
     std::ofstream(out) << db.dump(1,'\t') << endl;
 
     cout << "density dump: " << functional << " Z=" << Z << " -> " << out
@@ -445,7 +449,9 @@ static int Main(int argc, char** argv)
             const ChargeDensity::rChargeDensity* chDn = sr ? sr->GetChannel(Spin::Down) : nullptr;
             if (pp==SpinGroup::Polarized && !(chUp && chDn)) { cout<<"scfrun: a polarized atom yielded no spin-resolved density"<<endl; return 1; }
             DumpRadialDensity(calc.Density(), Z, Z-q, functional, out, rmin, rmax, ngrid,
-                              [&]{ nlohmann::json x=entryTags; x["Etot"]=E; x["converged"]=calc.IsConverged(); return x; }(), chUp, chDn);
+                              [&]{ nlohmann::json x=entryTags; x["Etot"]=E; x["converged"]=calc.IsConverged();
+                                    x["q"]=Z;   // the all-electron "valence" charge: its neutral holds q=Z electrons, so an ion (Nelec<q) is not a second neutral
+                                    return x; }(), chUp, chDn);
         }
     }
     return 0;

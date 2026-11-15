@@ -116,6 +116,25 @@ TEST(AtomicDensity, AmbiguousPseudopotentialVariantThrowsInsteadOfPickingTheFirs
     EXPECT_FALSE(HasAtomicDensity(3, "LDA", path, 4)) << "no such state is absence, not an error";
 }
 
+// Row 188: the ALL-ELECTRON library holds an element's ions beside its neutral.  scfrun --out stamps an all-electron entry with q=Z
+// (its neutral holds Z electrons), so Fe+ (Nelec 25, q 26) is not a second neutral -- even beside a pre-schema q-less neutral, whose
+// q is its own Nelec.  The unkeyed request (q=-1, the all-electron SeedKey) finds the neutral and, asked by Nelec, the cation.
+TEST(AtomicDensity, AnAllElectronIonSitsBesideItsNeutral)
+{
+    const std::string path=(std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_seed_ae_ion.json")).string();
+    {
+        const std::string grid=",\"grid\":{\"rmin\":1e-3,\"rmax\":10.0},\"rho\":[";
+        std::ofstream f(path);
+        f<<"[{\"Z\":26,\"functional\":\"LDA\",\"Nelec\":26"<<grid<<"0.1,0.05,0.01]},"              // pre-schema neutral (no q)
+         <<"{\"Z\":26,\"functional\":\"LDA\",\"Nelec\":25,\"q\":26"<<grid<<"0.2,0.05,0.01]},"   // Fe+
+         <<"{\"Z\":26,\"functional\":\"LDA\",\"Nelec\":24,\"q\":26"<<grid<<"0.3,0.05,0.01]}]";  // Fe2+
+    }
+    EXPECT_NEAR(GetAtomicDensity(26,"LDA",path)(1e-3),     0.1,1e-12) << "the neutral is unique: the ions carry q=26 > Nelec";
+    EXPECT_NEAR(GetAtomicDensity(26,"LDA",path,25)(1e-3),  0.2,1e-12) << "Fe+";
+    EXPECT_NEAR(GetAtomicDensity(26,"LDA",path,24)(1e-3),  0.3,1e-12) << "Fe2+";
+    EXPECT_FALSE(HasAtomicDensity(26,"LDA",path,23)) << "Fe3+ absent: IonicSAD falls back to the scaled neutral";
+}
+
 // C4 step 3: the same fixture, now asked WITH the PP variant q (SeedKey::Q) -- the ambiguities dissolve and q1 / q3
 // pick different entries (different rho), and a q the library lacks is absence.
 TEST(AtomicDensity, TheQKeyPicksTheVariantsOwnEntry)
@@ -210,19 +229,36 @@ TEST(AtomicDensity, EveryAllElectronEntryHoldsItsChargeAndItsSpinPairItsHundMome
     }
 }
 
-// Every STAMPED entry (Etot): its energy is NIST's for the same functional and spin treatment -- LSD for a polarized entry, LDA for an
+// Every STAMPED entry (Etot): its energy is its oracle's for the same functional and spin treatment -- LSD for a polarized entry, LDA for an
 // unpolarized one -- to 1e-5 relative.  This is what catches a generator that converged to another configuration, which the charge cannot.
-TEST(AtomicDensity, EveryStampedAllElectronEntryIsNISTsAtomToTenPpm)
+// The oracle is NIST's neutral table for a neutral (Nelec = Z), NIST's FIRST-CATION table for Nelec = Z - 1 (row 188), and for a higher
+// ion, which NIST does not tabulate, the second code the generator judged it on (scripts/pyscf_ion_oracle.py), whose value the entry
+// stamps: there the test checks the stamp is a named second code, the entry sits within 1e-5 of it, and the ion is a CATION (a free LDA
+// anion is unbound, so the library holds none: scripts/gen-ae-seeds).
+TEST(AtomicDensity, EveryStampedAllElectronEntryIsItsOraclesAtomToTenPpm)
 {
     const auto common=std::filesystem::path(COMMON_DATA_PATH);
     const nlohmann::json lda=ReadJson(common/"nistLDA.json"), lsd=ReadJson(common/"nistLSD.json");
+    const nlohmann::json lda1=ReadJson(common/"nistLDAcations.json"), lsd1=ReadJson(common/"nistLSDcations.json");
     for (const auto& e : AELibrary())
     {
         if (!e.contains("Etot")) continue;
-        const int Z=e.at("Z");
+        const int Z=e.at("Z"), charge=Z-e.at("Nelec").get<int>();
         const bool pol=e.contains("rho_up");
-        const double E=e.at("Etot"), Eref=(pol ? lsd : lda).at(std::to_string(Z)).at("Etot");
-        EXPECT_LE(std::abs(E-Eref), 1e-5*std::abs(Eref)) << "Z=" << Z << (pol ? " vs NIST LSD " : " vs NIST LDA ") << Eref << ", E " << E;
-        EXPECT_TRUE(e.value("converged", false)) << "Z=" << Z;
+        const double E=e.at("Etot");
+        double Eref=0;
+        std::string what;
+        if (charge==0)      { Eref=(pol ? lsd  : lda ).at(std::to_string(Z)).at("Etot"); what=pol ? "NIST LSD" : "NIST LDA"; }
+        else if (charge==1) { Eref=(pol ? lsd1 : lda1).at(std::to_string(Z)).at("Etot"); what=pol ? "NIST LSD cation" : "NIST LDA cation"; }
+        else
+        {
+            EXPECT_GT(charge, 0) << "Z=" << Z << " Nelec=" << e.at("Nelec") << ": an anion in the all-electron library (a free LDA anion is unbound)";
+            const std::string oracle=e.value("oracle", std::string());
+            EXPECT_EQ(oracle.rfind("PySCF", 0), 0u) << "Z=" << Z << " charge +" << charge << ": no NIST table, so a named second code; stamp '" << oracle << "'";
+            Eref=std::stod(oracle.substr(oracle.find_last_of(' ')+1));
+            what=oracle;
+        }
+        EXPECT_LE(std::abs(E-Eref), 1e-5*std::abs(Eref)) << "Z=" << Z << " charge +" << charge << " vs " << what << " " << Eref << ", E " << E;
+        EXPECT_TRUE(e.value("converged", false)) << "Z=" << Z << " charge +" << charge;
     }
 }
