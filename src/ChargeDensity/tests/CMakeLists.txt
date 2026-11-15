@@ -9,6 +9,7 @@ add_executable(UTChargeDensity ../../Common/tests/gtestmain.C
    JointPulay.C
    AtomicDensity.C
    SinglesSampler.C
+   BlockInstanceKeys.C
 )
 
 # The library-wide seed gate reads the seed files and NIST's atomic tables directly (src/Common/Data/nistL{D,S}A.json).

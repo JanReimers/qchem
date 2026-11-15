@@ -7,7 +7,7 @@ export module qchem.Fitting.Internal.FunctionFitterImp;
 export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar/_Density, the *FFClients, ScalarFunction
 export import qchem.Fitting.CoulombOperator; // DunlapDensityFit (what ConstrainedFF realizes for Vee_FitDunlap)
 import qchem.Fitting.Types;
-import qchem.Symmetry;               // SymMap -- the per-block integrator cache
+import qchem.SlotMap;                // InstanceSlotMap -- the per-block integrator cache
 import qchem.BasisSet.PairProjection;    // DensePairProjectionIntegrator (the analytic forward/adjoint pair)
 import qchem.Parallel;               // LazyLock -- itsInt's guard
 //--------------------------------------------------------------------------
@@ -107,7 +107,7 @@ private:
     const DensePairProjectionIntegrator<T>& Integrator(const BasisSet::Orbital_DFT_IBS<T,T>&) const;
     fbs_t    itsBasisSet;
     vec_t<T> itsFitCoeff;
-    mutable SymMap<DensePairProjectionIntegrator<T>> itsInt;   //!< by value: no ownership question to get wrong
+    mutable InstanceSlotMap<DensePairProjectionIntegrator<T>> itsInt;   //!< by value, by the block's instance: no ownership question to get wrong
     qchem::LazyLock itsIntLock;   //!< itsInt is reached per block from the parallel Fock pass (DeltaScalarFitter::Integrator)
     vec_t<T> g;
     row_t<T> gS;

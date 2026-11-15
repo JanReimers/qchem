@@ -23,7 +23,6 @@
 module;
 #include <complex>   // std::real -- the Charge() narrow (2026-09-09)
 #include <cassert>
-#include <map>           // the per-block Phi handles (shallow PairProjection copies)
 #include <memory>
 #include <mutex>         // std::lock_guard over itsCacheLock (the per-block caches are filled from a parallel Fock pass)
 #include <ostream>
@@ -36,6 +35,7 @@ import qchem.BasisSet.Orbital_DFT_IBS;                // cFIT_SF_ABS + Integrals
 import qchem.Fitting.FitOperations;           // OrthogonalFit -- this library's projection/diagonal fit
 import qchem.Blaze;                           // hmat_t<U>
 import qchem.Parallel;                        // LazyLock -- the per-block caches' guard
+import qchem.SlotMap;                         // InstanceSlotMap -- the per-block caches, keyed by the block's instance
 
 export namespace qchem::Fitting
 {
@@ -163,25 +163,26 @@ private:
     //! \warning the closures capture the producing basis: valid only while \c itsFitBasis lives, which it
     //! does, because this class co-owns it.
     //! \pre the caller holds \c itsCacheLock (\c Integrator, its only caller).
-    template <class U> const PairProjection<U>& Handle(SymMap<PairProjection<U>>& cache,
+    template <class U> const PairProjection<U>& Handle(InstanceSlotMap<PairProjection<U>>& cache,
                                                    const BasisSet::Orbital_DFT_IBS<U,T>& orb) const
     {
-        const sym_t& id=orb.GetSymt();             // the block's SPATIAL symmetry, as the basis's own table cache uses
-        auto it=cache.find(id);
-        if (it!=cache.end()) return it->second;
-        // The genuine 3c-3 "can you serve a REAL block?" question for U==double; for U==dcmplx it is a
+        // KEYED BY THE BLOCK'S INSTANCE (lane H 2026-11-15, as the fit basis's own table is since S3c): two blocks of equal spatial
+        // symmetry are two blocks.  The genuine 3c-3 "can you serve a REAL block?" question for U==double; for U==dcmplx it is a
         // derived-to-virtual-base cast that cannot fail.  Asked ONCE per block per run, here.
-        const auto& face=dynamic_cast<const BasisSet::Integrals_Overlap3C<U,T>&>(*itsFitBasis);
-        return cache.emplace(id, face.Overlap3C(orb)).first->second;   // shallow: closures, not the table
+        return cache.GetOrFill(orb.Instance(), [&]
+        {
+            const auto& face=dynamic_cast<const BasisSet::Integrals_Overlap3C<U,T>&>(*itsFitBasis);
+            return face.Overlap3C(orb);   // shallow: closures, not the table
+        });
     }
     //! Which typed cache \a U uses -- so \c Contract and \c Overlap3C name one place, not two.
-    template <class U> SymMap<PairProjection<U>>& Cache() const
+    template <class U> InstanceSlotMap<PairProjection<U>>& Cache() const
     {
         if constexpr (std::is_same_v<U,double>) return itsO3R;
         else                                    return itsO3;
     }
     //! Which typed integrator cache \a U uses -- the sibling of \c Cache, so the two never drift apart.
-    template <class U> SymMap<ScreenedMatrixIntegrator<U>>& IntCache() const
+    template <class U> InstanceSlotMap<ScreenedMatrixIntegrator<U>>& IntCache() const
     {
         if constexpr (std::is_same_v<U,double>) return itsIntR;
         else                                    return itsInt;
@@ -193,7 +194,7 @@ private:
     //!
     //! It must be CACHED, not returned by value: the faces hand back a reference, and a
     //! \c ScreenedMatrixIntegrator borrows its \c PairProjection, so a temporary would dangle the moment the
-    //! caller used it.  Keyed on the same spatial \c Symmetry as the tensor, and created only after the tensor is,
+    //! caller used it.  Keyed on the same block instance as the tensor, and created only after the tensor is,
     //! so the two maps never disagree about which blocks exist.
     //!
     //! ⛔ THREAD-SAFE BY A LOCK, NOT BY A WARM-UP (2026-11-02, OpenWork §3 "THREADED multi-k run HANGS FOREVER").  The XC sampler
@@ -205,28 +206,36 @@ private:
     template <class U> const ScreenedMatrixIntegrator<U>&
     Integrator(const BasisSet::Orbital_DFT_IBS<U,T>& orb) const
     {
-        std::lock_guard<std::mutex> lock(itsCacheLock.m);   // guards itsO3R/itsO3/itsIntR/itsInt: Handle is reached only from here
-        auto& fwd=IntCache<U>();
-        const sym_t& id=orb.GetSymt();
-        auto it=fwd.find(id);
-        if (it!=fwd.end()) return it->second;
-        const PairProjection<U>& g=Handle(Cache<U>(), orb);   // materialise (or find) the tensor first
-        // The integrator's "weights" are the FUNCTION integrals <f_a|1> of my coefficient axis, not point
-        // weights -- which on a delta basis are numerically the mesh weights, and on any other fit basis
-        // are still the right thing.  Charge() is that vector; it is real for a real-valued fit basis, and
-        // the narrow is where that fact is stated once.
-        const vec_t<T> q=itsFitBasis->Charge();
-        rvec_t w(q.size());
-        for (size_t a=0;a<q.size();a++) w[a]=std::real(q[a]);
-        return fwd.emplace(id, ScreenedMatrixIntegrator<U>(g, std::move(w))).first->second;
+        std::lock_guard<std::mutex> lock(itsCacheLock.m);   // guards itsO3R/itsO3/itsIntR/itsInt/itsW: Handle is reached only from here
+        return IntCache<U>().GetOrFill(orb.Instance(), [&]
+        {
+            const PairProjection<U>& g=Handle(Cache<U>(), orb);   // materialise (or find) the tensor first
+            return ScreenedMatrixIntegrator<U>(g, Weights());
+        });
+    }
+    //! \brief The integrators' "weights", ONE vector shared by every block (the basis-on-grid survey D2, 2026-11-15: it was a copy
+    //! of npts doubles per block).  They are the FUNCTION integrals <f_a|1> of my coefficient axis, not point weights -- which on a
+    //! delta basis are numerically the mesh weights, and on any other fit basis are still the right thing.  Charge() is that vector;
+    //! it is real for a real-valued fit basis, and the narrow is where that fact is stated once.  \pre the caller holds itsCacheLock.
+    const std::shared_ptr<const rvec_t>& Weights() const
+    {
+        if (!itsW)
+        {
+            const vec_t<T> q=itsFitBasis->Charge();
+            rvec_t w(q.size());
+            for (size_t a=0;a<q.size();a++) w[a]=std::real(q[a]);
+            itsW=std::make_shared<const rvec_t>(std::move(w));
+        }
+        return itsW;
     }
 
-    mutable SymMap<PairProjection<double>> itsO3R;   //!< real TRIM blocks' handles (3c-3), by SPATIAL symmetry
-    mutable SymMap<PairProjection<dcmplx>> itsO3;    //!< Bloch blocks' handles
+    mutable InstanceSlotMap<PairProjection<double>> itsO3R;   //!< real TRIM blocks' handles (3c-3), by the block's instance
+    mutable InstanceSlotMap<PairProjection<dcmplx>> itsO3;    //!< Bloch blocks' handles
     //! Their forward+adjoint views -- BOTH halves off one object per block (2026-09-09).
-    mutable SymMap<ScreenedMatrixIntegrator<double>> itsIntR;
-    mutable SymMap<ScreenedMatrixIntegrator<dcmplx>> itsInt;
-    qchem::LazyLock itsCacheLock;   //!< the four maps above: filled from the parallel Fock pass (see Integrator)
+    mutable InstanceSlotMap<ScreenedMatrixIntegrator<double>> itsIntR;
+    mutable InstanceSlotMap<ScreenedMatrixIntegrator<dcmplx>> itsInt;
+    mutable std::shared_ptr<const rvec_t> itsW;   //!< the views' shared weights (Weights)
+    qchem::LazyLock itsCacheLock;   //!< the maps above and itsW: filled from the parallel Fock pass (see Integrator)
     fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap
     rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit): fitter-private (doc/Records/VOneOfN_D2Design.md §2a)
 };

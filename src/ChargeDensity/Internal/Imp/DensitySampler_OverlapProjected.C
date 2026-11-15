@@ -15,7 +15,7 @@ import qchem.ChargeDensity;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.IrrepBasisSet;    // Evaluatable_IBS<double>: the fit functions at points
 import qchem.BasisSet.PairProjection;   // DensePairProjectionIntegrator over the basis's 3-centre overlap
-import qchem.Symmetry;                  // SymMap: one integrator per orbital block, by its spatial symmetry
+import qchem.SlotMap;                   // InstanceSlotMap: one integrator per orbital block, by its instance
 import qchem.Parallel;                  // LazyLock
 import qchem.Projections;
 import qchem.Blaze;
@@ -43,15 +43,12 @@ public:
         return Projections(rvec_t(blazem::trans(itsPhi)*fw));
     }
     size_t NumCoefficients() const override {return itsFit.GetNumFunctions();}
-    //! The forward / adjoint view for one orbital block, over the basis's CACHED tensor (keyed by BasisSetID there; by the block's
-    //! symmetry here, as \c ConstrainedFF does).
+    //! The forward / adjoint view for one orbital block, over the basis's CACHED tensor (keyed by the fit's instance there; by the
+    //! block's instance here, as \c ConstrainedFF does).
     const DensePairProjectionIntegrator<double>& Integrator(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const
     {
         std::lock_guard<std::mutex> lock(itsLock.m);   // a parallel Fock pass's blocks share this projector
-        const sym_t& id=orb.GetSymt();
-        auto it=itsInt.find(id);
-        if (it!=itsInt.end()) return it->second;
-        return itsInt.emplace(id, DensePairProjectionIntegrator<double>(itsFit.Overlap3C(orb), itsFit.Charge())).first->second;
+        return itsInt.GetOrFill(orb.Instance(), [&]{return DensePairProjectionIntegrator<double>(itsFit.Overlap3C(orb), itsFit.Charge());});
     }
     void SetPoints(const rvec3vec_t* r) {itsPoints=r;}
 private:
@@ -60,7 +57,7 @@ private:
     const rmat_t&                itsPhi;
     const rvec_t&                itsW;
     const rvec3vec_t*            itsPoints=nullptr;
-    mutable SymMap<DensePairProjectionIntegrator<double>> itsInt;
+    mutable InstanceSlotMap<DensePairProjectionIntegrator<double>> itsInt;   //!< per block, by the block's instance
     qchem::LazyLock itsLock;
 };
 

@@ -33,13 +33,10 @@ template <class T> const DensePairProjectionIntegrator<T>&
 ConstrainedFF<T>::Integrator(const BasisSet::Orbital_DFT_IBS<T,T>& orb) const
 {
     std::lock_guard<std::mutex> lock(itsIntLock.m);   // a parallel Fock pass's blocks share this fitter (see DeltaScalarFitter::Integrator)
-    const sym_t& id=orb.GetSymt();
-    auto it=itsInt.find(id);
-    if (it!=itsInt.end()) return it->second;
-    // The basis's cached, D-free Coulomb tensor <ab|c> (built once, keyed by BasisSetID) -- borrowed by the
+    // By the block's INSTANCE (lane H 2026-11-15; its spatial symmetry served a second block of equal symmetry the first one's view).
+    // The basis's cached, D-free Coulomb tensor <ab|c> (built once, keyed by the fit's instance) -- borrowed by the
     // integrator, which is a VIEW of it; the fit functions' own <f_a|1> size its energy quadrature.
-    const PairProjection<T>& R3=orb.Repulsion3C(*itsBasisSet);
-    return itsInt.emplace(id, DensePairProjectionIntegrator<T>(R3, itsBasisSet->Charge())).first->second;
+    return itsInt.GetOrFill(orb.Instance(), [&]{return DensePairProjectionIntegrator<T>(orb.Repulsion3C(*itsBasisSet), itsBasisSet->Charge());});
 }
 
 template <class T> const qcMesh::MatrixForward<double>&

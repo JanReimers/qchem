@@ -158,7 +158,7 @@ public:
 private:
     static const char* NameOf(Own op) {return op==Own::Overlap ? "overlap" : op==Own::Kinetic ? "kinetic" : "restMass";}
     // The bytes a filled value holds (the doubles or complex numbers it stores; blaze's scalar symmetric/Hermitian adaptors keep the full
-    // square).  A matrix-free ⟨ab|c⟩ realization holds closures whose captures this cannot see: it reports its dense part only.
+    // square).  A matrix-free ⟨ab|c⟩ realization holds closures whose captures this cannot see: it reports its dense part and its plane-wave columns only.
     template <class M> static double MatrixBytes(const M& m) {return double(m.rows())*double(m.columns())*sizeof(typename M::ElementType);}
     template <class M> requires requires (const M& m) {m.rows(); m.columns();}
     static double BytesOf(const M& m) {return MatrixBytes(m);}   // every dense table (hmat_t / mat_t are aliases: T is not deducible through them)
@@ -171,6 +171,7 @@ private:
     {
         double b=0.0;
         for (const auto& d : p.dense) b+=MatrixBytes(d);
+        for (const auto& c : p.columns) b+=sizeof(c)+double(c.pairs.size())*sizeof(std::pair<int,int>);   // the plane-wave delta support
         return b;
     }
     double PrimitiveBytes() const {return double(itsPrimitives->RAMsize());}

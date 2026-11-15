@@ -34,7 +34,8 @@ import qchem.ChargeDensity.Types;           // tobs_t/cobs_t/robs_t -- this libr
 import qchem.ChargeDensity;
 import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quadrature the engine integrates on)
 import qchem.Symmetry.Lattice_3D.Fold;      // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
-import qchem.Symmetry;                      // sym_t / SymMap: the per-block adjoint views, by spatial symmetry
+import qchem.Symmetry;                      // sym_t / SymMap
+import qchem.SlotMap;                       // InstanceSlotMap: the per-block adjoint views, by the block's instance
 import qchem.BasisSet.PairProjection;  // ScreenedMatrixIntegrator -- the pair route's MatrixAdjoint view
 import qchem.BasisSet.GSpaceDensityProjector;   // the BALL route's ρ̃ (V-ONE-OF-N 3c)
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
@@ -383,8 +384,11 @@ private:
     //! instantiations are used in that same TU, so no explicit instantiation is needed.
     template <class U> const qcMesh::MatrixAdjoint<dcmplx>*
     BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const;
-    mutable SymMap<ScreenedMatrixIntegrator<dcmplx>> itsAdj;   //!< per block, by its SPATIAL symmetry
-    qchem::LazyLock itsAdjLock;                                  //!< itsAdj is filled lazily, possibly by k-block workers
+    //! Per block, by the block's INSTANCE (lane H 2026-11-15: by its spatial symmetry, two blocks of equal symmetry got the first one's
+    //! view).  Empty for a block with no raw pair (a plane-wave lineage), so that answer is asked once too.
+    mutable InstanceSlotMap<std::optional<ScreenedMatrixIntegrator<dcmplx>>> itsAdj;
+    mutable std::shared_ptr<const rvec_t> itsAdjAxis;   //!< the views' coefficient axis (zeros: the raster's rule integrates), ONE for all blocks
+    qchem::LazyLock itsAdjLock;                         //!< itsAdj and itsAdjAxis are filled lazily, possibly by k-block workers
 };
 
 

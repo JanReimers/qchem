@@ -16,7 +16,8 @@ import qchem.BasisSet.PairProjection;           // GSpacePairProjectionIntegrato
 import qchem.BasisSet.Orbital_DFT_IBS;          // cFIT_SF_ABS, Orbital_DFT_IBS<U,dcmplx>
 import qchem.BasisSet.G_FieldEvaluator;         // G_RasterTransform (the raster a field is sampled on)
 import qchem.BasisSet.GMap;                     // GMapStarField (ρ̃ as a field the group averages)
-import qchem.Symmetry;                          // SymMap
+import qchem.Symmetry;                          // StarGroup
+import qchem.SlotMap;                           // InstanceSlotMap: the per-block views, by the block's instance
 import qchem.Parallel;                          // LazyLock
 import qchem.Reporting;                         // report::Timed
 
@@ -62,24 +63,21 @@ public:
     }
 
 private:
-    //! The projection VIEW for one orbital block, over the basis's cached OVERLAP tensor, by spatial symmetry (as every fitter).
+    //! The projection VIEW for one orbital block, over the basis's cached OVERLAP tensor, by the block's instance (as every fitter).
     template <class U> const GSpacePairProjectionIntegrator<U>& Integrator(const Orbital_DFT_IBS<U,dcmplx>& orb) const
     {
         auto& cache=Cache<U>();
         std::lock_guard<std::mutex> lock(itsCacheLock.m);
-        const sym_t& id=orb.GetSymt();
-        auto it=cache.find(id);
-        if (it!=cache.end()) return it->second;
-        return cache.emplace(id, GSpacePairProjectionIntegrator<U>(orb.Overlap3C(*itsSF))).first->second;
+        return cache.GetOrFill(orb.Instance(), [&]{return GSpacePairProjectionIntegrator<U>(orb.Overlap3C(*itsSF));});
     }
-    template <class U> SymMap<GSpacePairProjectionIntegrator<U>>& Cache() const
+    template <class U> InstanceSlotMap<GSpacePairProjectionIntegrator<U>>& Cache() const
     { if constexpr (std::is_same_v<U,double>) return itsIntR; else return itsIntC; }
 
     std::shared_ptr<const cFIT_SF_ABS> itsSF;     //!< the plane-wave fit basis (its overlap face)
     const G_RasterTransform*           itsRT;     //!< ...its raster
     std::string                        itsBucket; //!< the star-average's ledger row
-    mutable SymMap<GSpacePairProjectionIntegrator<double>> itsIntR;   //!< real TRIM blocks
-    mutable SymMap<GSpacePairProjectionIntegrator<dcmplx>> itsIntC;   //!< Bloch blocks
+    mutable InstanceSlotMap<GSpacePairProjectionIntegrator<double>> itsIntR;   //!< real TRIM blocks
+    mutable InstanceSlotMap<GSpacePairProjectionIntegrator<dcmplx>> itsIntC;   //!< Bloch blocks
     qchem::LazyLock itsCacheLock;
 };
 

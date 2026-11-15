@@ -57,7 +57,8 @@ import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.AtomCentredSet;            // the pseudo-atomic projector functions (HubbardProjectorPlan D1/D2)
 import qchem.BasisSet.BareCoulombSource;         // ERI4Block (ManifoldIntegrals)          // Orbital_DFT_IBS<U,dcmplx> (what ProjectOnto hands the vendor)
 import qchem.Mesh.Integrator;                   // qcMesh::MatrixForward / MatrixAdjoint
-import qchem.Symmetry;                          // sym_t, SymMap
+import qchem.Symmetry;                          // sym_t
+import qchem.SlotMap;                           // InstanceSlotMap: the per-block projectors
 import qchem.Symmetry.Molecule.OperationRep;    // AoShell (rep + per-component norm) -- the site group on a shell
 import qchem.Symmetry.Irrep;                    // Spin, SpinGroup, SpinIrreps
 import qchem.Structure;
@@ -335,7 +336,8 @@ private:
 
     //! The block's pair, built on first use (the overlap is geometry-fixed) and keyed like the XC route's.
     template <class U> const LowdinProjector<U>& Projector(const BasisSet::Orbital_DFT_IBS<U,dcmplx>&) const;
-    template <class U> SymMap<LowdinProjector<U>>& Cache() const;
+    template <class U> InstanceSlotMap<LowdinProjector<U>>& Cache() const;
+    bool NoBlockSeen() const {return itsProj.Filled()==0 && itsProjR.Filled()==0;}   //!< before the first projector (the seed)
     //! Bring the occupations up to \a cd (a no-op when frozen or already at this serial).
     void EnsureOccupations(const cChargeDensity* cd) const;
     void BuildGeometry(const cbs_t* bs) const;   //!< the Lowdin pairs and manifold symmetry of \a bs's blocks (geometry-fixed)
@@ -387,8 +389,9 @@ private:
     mutable size_t itsOccVersion = size_t(-1);
     mutable DensityID itsRefreshedID=DensityID(static_cast<const cChargeDensity*>(nullptr));   //!< the density the last refresh saw: the block path's check (V1.41 stage 2)
     mutable double itsEU = 0.0;
-    mutable SymMap<LowdinProjector<dcmplx>> itsProj;    //!< per Bloch block
-    mutable SymMap<LowdinProjector<double>> itsProjR;   //!< per real TRIM block
+    mutable InstanceSlotMap<LowdinProjector<dcmplx>> itsProj;    //!< per Bloch block, by the block's instance (not its symmetry: lane H 2026-11-15)
+    mutable InstanceSlotMap<LowdinProjector<double>> itsProjR;   //!< per real TRIM block
+    mutable std::vector<size_t> itsManifoldSizes;               //!< per manifold, its projector's size: fixed by the first block seen, as itsNCoeff
     qchem::LazyLock itsProjLock;                         //!< the two lazies above: the seed iteration's Fock blocks fill them concurrently
 };
 

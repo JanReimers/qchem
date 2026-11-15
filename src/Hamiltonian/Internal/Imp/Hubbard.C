@@ -667,30 +667,37 @@ const rvec_t& Hubbard_U::OccupationByLabel(size_t M, const Spin& s) const
     return it->second.byLabel[M];
 }
 
-template <> SymMap<LowdinProjector<double>>& Hubbard_U::Cache<double>() const {return itsProjR;}
-template <> SymMap<LowdinProjector<dcmplx>>& Hubbard_U::Cache<dcmplx>() const {return itsProj;}
+template <> InstanceSlotMap<LowdinProjector<double>>& Hubbard_U::Cache<double>() const {return itsProjR;}
+template <> InstanceSlotMap<LowdinProjector<dcmplx>>& Hubbard_U::Cache<dcmplx>() const {return itsProj;}
 
 template <class U> const LowdinProjector<U>& Hubbard_U::Projector(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
 {
     // LOCKED: normally the refresh's occupation pass builds every block's projector first, but the SEED iteration has no D,
     // so its (concurrent) Fock blocks are the first to ask.  std::map nodes are address-stable: the reference outlives the lock.
     std::lock_guard<std::mutex> lock(itsProjLock.m);
-    SymMap<LowdinProjector<U>>& cache=Cache<U>();
-    const sym_t& id=orb.GetSymt();
-    auto it=cache.find(id);
-    if (it!=cache.end()) return it->second;
-    if (PseudoAtomic())
+    // The first block seen fixes the coefficient count and the manifold sizes (Analyse reads them).
+    auto first=[&](const LowdinProjector<U>& p)
     {
-        LowdinProjector<U> p=AtomicProjector<U>(orb);
-        if (itsNCoeff==0) itsNCoeff=p.NumCoefficients();
-        return cache.emplace(id, std::move(p)).first->second;
-    }
-    const Selection sel=Select(orb);
-    LowdinProjector<U> p(orb.Overlap(), sel.cols);
-    if (itsNCoeff==0) itsNCoeff=p.NumCoefficients();
-    else if (itsNCoeff!=p.NumCoefficients())
-        throw std::logic_error("Hubbard_U: blocks disagree on the manifold size -- the shell layout is not uniform across k");
-    return cache.emplace(id, std::move(p)).first->second;
+        if (itsNCoeff!=0) return false;
+        itsNCoeff=p.NumCoefficients();
+        itsManifoldSizes.clear();
+        for (size_t M=0;M<itsManifolds.size();M++) itsManifoldSizes.push_back(p.Size(M));
+        return true;
+    };
+    return Cache<U>().GetOrFill(orb.Instance(), [&]
+    {
+        if (PseudoAtomic())
+        {
+            LowdinProjector<U> p=AtomicProjector<U>(orb);
+            first(p);
+            return p;
+        }
+        const Selection sel=Select(orb);
+        LowdinProjector<U> p(orb.Overlap(), sel.cols);
+        if (!first(p) && itsNCoeff!=p.NumCoefficients())
+            throw std::logic_error("Hubbard_U: blocks disagree on the manifold size -- the shell layout is not uniform across k");
+        return p;
+    });
 }
 
 const qcMesh::MatrixForward<double>& Hubbard_U::Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const
@@ -708,11 +715,9 @@ double Hubbard_U::Analyse(Spin s, Channel& ch) const
     ch.W=rvec_t(n.size(), 0.0);
     double EU=0.0;
     size_t at=0;
-    // The manifold sizes are the projectors' -- read them off the first cached block.
-    std::vector<size_t> sizes;
-    if (!itsProj.empty())  for (size_t M=0;M<itsManifolds.size();M++) sizes.push_back(itsProj .begin()->second.Size(M));
-    else if (!itsProjR.empty()) for (size_t M=0;M<itsManifolds.size();M++) sizes.push_back(itsProjR.begin()->second.Size(M));
-    else throw std::logic_error("Hubbard_U::Analyse before any block was seen");
+    // The manifold sizes are the projectors' -- fixed by the first block seen.
+    if (NoBlockSeen()) throw std::logic_error("Hubbard_U::Analyse before any block was seen");
+    const std::vector<size_t> sizes=itsManifoldSizes;
     for (size_t M=0;M<itsManifolds.size();M++)
     {
         const size_t m=sizes[M];
@@ -820,7 +825,7 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
     for (const auto& [s,n] : dn) any = any || n.size()>0;
     if (!any)
     {
-        if (itsProj.empty() && itsProjR.empty()) return;    // before any block: nothing to size n by (seed)
+        if (NoBlockSeen()) return;    // before any block: nothing to size n by (seed)
         // n = 0 in every channel; the version is NOT stamped so the first DM-backed density does the real work.
         for (auto& [s,ch] : itsChannels) { ch.n=rvec_t(NumCoefficients(),0.0); Analyse(s,ch); }
         return;
@@ -907,7 +912,7 @@ void Hubbard_U::BuildGeometry(const cbs_t* bs) const
 // builds the pairs first (the fold refreshes every term's state, THEN builds the blocks -- V1.41 stage 3).
 void Hubbard_U::RefreshForDensity(const cChargeDensity* cd) const
 {
-    if (itsProj.empty() && itsProjR.empty()) return;
+    if (NoBlockSeen()) return;
     EnsureOccupations(cd);
     itsRefreshedID=DensityID(cd);   // what the block path checks (V1.41 stage 2)
 }

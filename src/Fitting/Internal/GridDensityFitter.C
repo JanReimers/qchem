@@ -14,7 +14,6 @@
 module;
 #include <cassert>
 #include <functional>
-#include <map>
 #include <memory>
 #include <mutex>
 #include <ostream>
@@ -27,6 +26,7 @@ import qchem.Fitting.FitOperations;   // OrthogonalFit: a matrix-free seed sampl
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.Blaze;
 import qchem.Parallel;                // LazyLock -- the per-block cache's guard
+import qchem.SlotMap;                 // InstanceSlotMap
 
 export namespace qchem::Fitting
 {
@@ -45,11 +45,11 @@ public:
         if (!itsFitBasis->isOrtho())
             throw std::logic_error("GridDensityFitter: the fit basis '"+itsFitBasis->Name()+"' is not orthogonal, so its projection "
                                    "is not its fit -- a grid density fit needs a diagonal metric");
-        itsW=itsFitBasis->OverlapDiagonal();
+        itsW=std::make_shared<const rvec_t>(itsFitBasis->OverlapDiagonal());
         itsCharge=itsFitBasis->Charge();
         double total=0.0;
         for (size_t g=0; g<itsCharge.size(); g++) total+=itsCharge[g];
-        itsC=rvec_t(itsW.size(),1.0/total);   // the initial guess: a uniform density of unit charge, as ConstrainedFF's guess is
+        itsC=rvec_t(itsW->size(),1.0/total);   // the initial guess: a uniform density of unit charge, as ConstrainedFF's guess is
     }
 
     double HartreeEnergy(const std::function<double()>& trDV) const override
@@ -83,29 +83,29 @@ public:
     }
     // PairProjector<double>
     const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const override {return Integrator(orb);}
-    size_t NumCoefficients() const override {return itsW.size();}
+    size_t NumCoefficients() const override {return itsW->size();}
     //! A field's projection on the δ basis: its values at the points (\c OrthogonalFit), the axis \c Forward uses.
     Projections ProjectField(const ScalarFunction<double>& f) const override {return Projections(OrthogonalFit(*itsFitBasis,f));}
 
 private:
-    rvec_t Projection() const {return itsW*itsC;}   // <f_a|rho>.  Blaze: element-wise for two column vectors
+    rvec_t Projection() const {return (*itsW)*itsC;}   // <f_a|rho>.  Blaze: element-wise for two column vectors
     //! The forward+adjoint pair for one orbital block, off the basis's cached tensor.  Locked for the same reason
     //! DeltaScalarFitter::Integrator is: a parallel Fock pass's blocks share this fitter.
     const ScreenedMatrixIntegrator<double>& Integrator(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const
     {
         std::lock_guard<std::mutex> lock(itsCacheLock.m);
-        const sym_t& id=orb.GetSymt();
-        auto it=itsInt.find(id);
-        if (it!=itsInt.end()) return it->second;
-        const auto& face=dynamic_cast<const BasisSet::Integrals_Overlap3C<double,double>&>(*itsFitBasis);
-        return itsInt.emplace(id, ScreenedMatrixIntegrator<double>(face.Overlap3C(orb), itsW)).first->second;
+        return itsInt.GetOrFill(orb.Instance(), [&]   // by the block's INSTANCE, not its symmetry (lane H 2026-11-15)
+        {
+            const auto& face=dynamic_cast<const BasisSet::Integrals_Overlap3C<double,double>&>(*itsFitBasis);
+            return ScreenedMatrixIntegrator<double>(face.Overlap3C(orb), itsW);   // the weights are shared, not copied per block
+        });
     }
 
-    mutable SymMap<ScreenedMatrixIntegrator<double>> itsInt;   //!< per block, by SPATIAL symmetry
+    mutable InstanceSlotMap<ScreenedMatrixIntegrator<double>> itsInt;   //!< per block, by the block's instance
     qchem::LazyLock itsCacheLock;
     fbs_t  itsFitBasis;                             //!< co-owned: the integrators' closures capture it
     const BasisSet::PointCoulombIntegrals* itsCoulomb;   //!< the basis's own Coulomb integrals (a face of itsFitBasis, co-owned there)
-    rvec_t itsW;        //!< \f$\langle f_a|f_a\rangle\f$: the mesh weights on a \f$\delta\f$ basis
+    std::shared_ptr<const rvec_t> itsW;   //!< \f$\langle f_a|f_a\rangle\f$: the mesh weights on a \f$\delta\f$ basis (shared with the views)
     rvec_t itsCharge;   //!< \f$\langle f_a|1\rangle\f$: the same numbers there, not on a multipole basis
     rvec_t itsC;   //!< the fit: on a \f$\delta\f$ basis, the density's values at the points
     rvec_t itsV;   //!< the potential's coefficients; empty until the first DoFit

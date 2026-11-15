@@ -32,6 +32,7 @@ module;
 #include <map>
 #include <type_traits> // std::type_identity_t (ContractAdjoint's non-deduced field parameter)
 #include <vector>
+#include <memory>
 #include <utility>
 // ★ IT IS DELIBERATELY NOT `.Internal.` (promoted 2026-09-10) -- and the label was not merely unhelpful,
 // it was ILLEGAL.  CLAUDE.md: *"Only re-export modules that don't have `.Internal.` in the module name; the
@@ -275,16 +276,22 @@ public:
     //! THROWS when the raw pair is absent rather than assembling half a route: a \c PairProjection with a
     //! forward and no adjoint cannot be an integrator, and finding that out at the first \c Adjoint call --
     //! inside an SCF iteration -- is strictly worse than finding it out here.
-    ScreenedMatrixIntegrator(const PairProjection<T>& g, rvec_t weights,
+    //!
+    //! \a weights are SHARED (lane H 2026-11-15, the basis-on-grid survey D2): one vector of npts doubles per fitter, not one copy
+    //! per orbital block.  The \c rvec_t overload is the convenience for a single integrator.
+    ScreenedMatrixIntegrator(const PairProjection<T>& g, std::shared_ptr<const rvec_t> weights,
                              std::function<double(const rvec_t&)> rule={})
         : itsG(g), itsW(std::move(weights)), itsRule(std::move(rule))
     {
+        if (!itsW) throw std::logic_error("ScreenedMatrixIntegrator: no weights");
         if (!g.applyRaw || !g.applyRawAdjoint)
             throw std::runtime_error("ScreenedMatrixIntegrator: this PairProjection does not realise the raw "
                 "forward/adjoint pair.  An integrator is the PAIR -- a tensor that can collocate but not "
                 "integrate back (or the reverse) is not one, and pretending otherwise is exactly the "
                 "mismatch this interface exists to prevent.");
     }
+    ScreenedMatrixIntegrator(const PairProjection<T>& g, rvec_t weights, std::function<double(const rvec_t&)> rule={})
+        : ScreenedMatrixIntegrator(g, std::make_shared<const rvec_t>(std::move(weights)), std::move(rule)) {}
 
     //! Un-hide the base's FACTORED overload before overriding this one (see qchem.Mesh.Integrator's
     //! warning): without it `Forward(L)` converts a thin factor into an hmat_t adaptor and Blaze throws.
@@ -300,17 +307,18 @@ public:
     virtual hmat_t<T> Adjoint(const rvec_t& v)    const override {return itsG.applyRawAdjoint(v);}
     virtual double    Integrate(const rvec_t& f)  const override
     {
-        assert(f.size()==itsW.size() && "ScreenedMatrixIntegrator::Integrate: one value per raster point");
+        assert(f.size()==itsW->size() && "ScreenedMatrixIntegrator::Integrate: one value per raster point");
         if (itsRule) return itsRule(f);                  // the client's pinned rule (see the ctor)
+        const rvec_t& w=*itsW;
         double s=0.0;
-        for (size_t g=0; g<f.size(); ++g) s+=itsW[g]*f[g];
+        for (size_t g=0; g<f.size(); ++g) s+=w[g]*f[g];
         return s;
     }
-    virtual size_t NumCoefficients() const override {return itsW.size();}
+    virtual size_t NumCoefficients() const override {return itsW->size();}
 
 private:
     const PairProjection<T>& itsG;   //!< borrowed: owned by the basis's integral cache
-    rvec_t               itsW;   //!< the integration raster's weights (also the coefficient-axis length)
+    std::shared_ptr<const rvec_t> itsW;   //!< the integration raster's weights (also the coefficient-axis length), shared by the owner's blocks
     //! The constructing client's own energy quadrature, when it has a pinned one; empty => use \c itsW.
     std::function<double(const rvec_t&)> itsRule;
 };
