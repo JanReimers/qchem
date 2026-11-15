@@ -105,6 +105,7 @@ private:
     OnceSlot<rvec_t>  itsCharge, itsNorm;
     OnceSlot<rsmat_t> itsRepulsion, itsInvOverlap, itsInvRepulsion;
     OnceSlot<rmat_t>  itsSelfRepulsion;   //!< Repulsion(b) with b this basis (ConstrainedFF's only call)
+    InstanceSlotMap<rmat_t> itsCrossRepulsion;   //!< Repulsion(b) with b ANOTHER fit: keyed by b's instance token, freed when b dies (S6)
 };
 
 }//namespace

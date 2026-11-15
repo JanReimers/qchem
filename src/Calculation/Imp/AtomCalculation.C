@@ -26,7 +26,6 @@ import qchem.WaveFunction;                           // WaveFunction (GetChargeD
 import qchem.Orbitals;                               // Orbital, Orbitals
 import qchem.Types;                                  // Vector3D / rvec3_t
 import qchem.BasisSet.Conditioning;                  // ReportConditioning
-import qchem.BasisSet.IntegralsCacheReport;          // EmitIntegralsCacheReport (the run's `cache` section)
 import qchem.Reporting;                              // report:: run sink + the scf-section writer
 import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `scf` header every facade files (V-FACADE-PARITY)
 import qchem.BasisSet.Orbital_1E_IBS;                // Real_OIBS -- the per-irrep blocks a saved state walks
@@ -35,6 +34,7 @@ import qchem.ChargeDensity.Factory;                  // IrrepCD_Factory
 import qchem.BasisSet.Radial.Factory;                // CoulombFitLadder: the Dunlap fit's rungs (the pilot's third axis)
 import qchem.Mesh.BeckeClimb;                        // BeckeTailEstimate: a rung's error from its difference to the rung above
 import qchem.Accuracy;                               // AccuracyTarget, ClientConsumes
+import qchem.ERI4MemoryPolicy;                       // policy::ERI4Memory: the ERI4 RAM cap at setup (S6)
 import qchem.Math;                                   // std::fabs, std::max (the pilot's distances)
 
 namespace qchem
@@ -212,6 +212,14 @@ void AtomCalculation::BuildGraph()
         rpt::Scope basis("basis");
         if (!itsBasis) itsBasis = BuildBasis(itsOpts, itsZ, *itsEC);
     }
+    // THE ERI4 RAM CAP (S6, user ruling 6): an all-electron HF / DHF atom builds the 4-centre tensors; judged once here from the block sizes.
+    // (A PP atom ignores the model and runs LDA, and an XC override is DFT: neither builds ERI4.)
+    if (!itsOpts.pseudopotential && !itsOpts.xc.has_value() && (itsOpts.model==Model::HF || itsOpts.model==Model::DHF))
+    {
+        std::vector<size_t> blocks;
+        for (auto b : itsBasis->Iterate<BasisSet::Real_IBS>()) blocks.push_back(b->GetNumFunctions());
+        policy::ERI4Memory(blocks, "atom Z="+std::to_string(itsZ));
+    }
     // Three DFT/HF routes: a pseudopotential (PP front door, valence electrons = itsNe), an explicit XC functional
     // override (the public selector, e.g. libxc), or the model's built-in Hamiltonian/functional.
     decltype(itsHam.get()) ham=nullptr;
@@ -273,8 +281,7 @@ bool AtomCalculation::Converge(const SCFParams& params)
     itsLastkT=params.SmearingkT;
     bool ok = itsScf->Iterate(params);
     if (ok && itsDFT && !itsPiloted && itsOpts.accuracy.eps>0.0) { RebuildSampling(); PilotGrids(params); ok=itsScf->Converged(); }
-    // Snapshot the (cumulative, process-wide) integrals cache into the run's `cache` section, inside the bracket.
-    qchem::BasisSet::EmitIntegralsCacheReport();
+    // (No end-of-run cache snapshot since S6: each owner-held table reported its own bytes under `cache` where it was filled.)
     RebuildSampling();
     ReportResult("atom "+thePeriodicTable().GetSymbol(itsZ), ok, itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy());
     return ok;

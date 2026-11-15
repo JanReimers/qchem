@@ -199,6 +199,11 @@ void EmitSection(const std::string& name, json section);
 //! is any json-convertible primitive (number/bool/string); stringify domain types at
 //! the call site (the leaf carries no domain types).
 void Set(const std::string& key, json value);
+//! ADD \a delta to the number \a object.key at the current cursor node (creating it at 0 first): for a provider that reports a quantity
+//! growing over several events in ONE scope -- an owner-held cache reporting each fill's bytes as it fills (IntegralCacheOwnershipPlan S6:
+//! the callee writes one level in, as it runs, never collected after the fact).  Safe to call from an outer-loop worker thread (a k-block
+//! fill): it takes the same lock as the timing ledger.  A no-op when no run is open.
+void Accumulate(const std::string& object, const std::string& key, double delta);
 
 //! Write a sub-block `value` under `section[key]` and render JUST that sub-block to the console (heading
 //! "section ▸ key").  For a late addendum to an ALREADY-emitted section -- e.g. a grids.stream that

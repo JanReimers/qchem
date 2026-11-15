@@ -394,6 +394,16 @@ void Set(const std::string& key, json value)
     if (json* n = cursorNode()) (*n)[key] = std::move(value);
 }
 
+namespace { std::mutex g_accumulateMutex; }   //!< Accumulate may run on outer-loop workers (a k-block's cache fill)
+void Accumulate(const std::string& object, const std::string& key, double delta)
+{
+    std::lock_guard<std::mutex> lock(g_accumulateMutex);
+    json* n = cursorNode();
+    if (!n) return;
+    json& v = (*n)[object][key];
+    v = (v.is_number() ? v.get<double>() : 0.0) + delta;
+}
+
 bool EmitAt(const std::string& section, const std::string& key, json value, Detail minLevel)
 {
     if (g_stack.empty()) return true;                  // inert outside a run: nothing de-duplicated it

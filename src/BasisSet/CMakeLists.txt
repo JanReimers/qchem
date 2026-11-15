@@ -1,6 +1,5 @@
 add_library(qcBasisSet) 
 target_sources(qcBasisSet PRIVATE 
-    Imp/IntegralsCacheReport.C
   Imp/BasisSet.C
   Imp/Conditioning.C
   Imp/BareCoulombSource.C
@@ -14,7 +13,6 @@ target_sources(qcBasisSet PRIVATE
   Internal/Imp/SymmetryAdapted_IBS.C
   Internal/Imp/Orbital_DHF_IBS.C
   Internal/Imp/Orbital_ERI4_IBS.C
-  Internal/Imp/DB_Cache.C
   Internal/Imp/Cache4.C
   Internal/Imp/Cache2.C
   Internal/Imp/Cache3.C
@@ -22,13 +20,10 @@ target_sources(qcBasisSet PRIVATE
   Imp/GSpaceDensityProjector.C
   Internal/Imp/ERI4.C
   Internal/Imp/ERI4T.C
-  Internal/Imp/DB_Cache_RAM.C
-  Internal/Imp/DB_Cache_RAM_Report.C
 
 )
 target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     DBCacheClient.C                       # the integral cache's KEY CONTRACT (V1.20d; the mechanism stays Internal)
-    IntegralsCacheReport.C                # the one orchestrator-side ask of the cache (V1.20d)
     Orbital_PP_IBS.C                      # the species-field INTEGRAL SERVICE + its ARGUMENT vocabulary (V1.2; absorbed SpeciesField.C 2026-09-15)
   BasisSet.C
   Conditioning.C                        # the basis conditioning report, one phase on every facade (pin 7)
@@ -72,8 +67,6 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/ERI4.C
   Internal/ERI4T.C
   Internal/IntegralEnums.C
-  Internal/DB_Cache.C
-  Internal/DB_Cache_RAM.C
   )
 target_include_directories(qcBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/src)
 set_property(TARGET qcBasisSet PROPERTY CXX_STANDARD 20)

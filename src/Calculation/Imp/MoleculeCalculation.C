@@ -20,7 +20,6 @@ module qchem.MoleculeCalculation;
 import qchem.BasisSet.Gaussian.Point.Factory;             // BasisSet::Gaussian::Factory
 import qchem.BasisSet.Gaussian.Point.BasisFiles;          // BasisFileChecksum: a stated basis file's identity (report, fingerprint)
 import qchem.BasisSet.Conditioning;                  // ReportConditioning
-import qchem.BasisSet.IntegralsCacheReport;          // EmitIntegralsCacheReport (the run's `cache` section)
 import qchem.BasisSet.Gaussian.PG_Cart.SymmetryAdapt;   // PG::SymmetryAdapt (the SALC builder)
 import qchem.ElectronConfiguration.Molecule;        // Molecule_EC (global aufbau)
 import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Factory
@@ -40,6 +39,7 @@ import qchem.Response.Solver;   // LinearResponse
 import qchem.BasisSet.AoShellSource;   // MeshAudit: the largest element named by atom, shell and l
 import qchem.Mesh.BeckeClimb;          // ClimbBeckeLadder: the mesh pilot's climb at a fixed D
 import qchem.Policy;                   // policy::Report: the pilot's decision files itself
+import qchem.ERI4MemoryPolicy;         // policy::ERI4Memory: the ERI4 RAM cap at setup (S6)
 
 namespace qchem
 {
@@ -172,6 +172,14 @@ void MoleculeCalculation::BuildGraph()
     if (itsSetup->pp)
         policy::PPFittedFunctional(qchem::Hamiltonian::PPFunctionalChecks(*itsSetup->pp, *itsStructure,
                                                                               qchem::Hamiltonian::ModelToXC(opts.model, opts.xalpha)));
+    // THE ERI4 RAM CAP (S6, user ruling 6): a model that builds the 4-centre tensors (HF, DHF) is judged ONCE here, from the block sizes,
+    // against the memory available -- warn and run, or refuse on resources -- instead of a collector evicting them mid-run.
+    if (opts.model==qchem::Hamiltonian::Model::HF || opts.model==qchem::Hamiltonian::Model::DHF)
+    {
+        std::vector<size_t> blocks;
+        for (auto b : itsBasis->Iterate<BasisSet::Real_IBS>()) blocks.push_back(b->GetNumFunctions());
+        policy::ERI4Memory(blocks, opts.basis);
+    }
     decltype(itsHam.get()) ham=nullptr;
     {
         rpt::Scope hamiltonian("hamiltonian");
@@ -254,10 +262,7 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
     RebuildSampling();
     if (!itsPiloted && HasXCMesh() && !itsSetup->meshResolved && itsScf->Converged()) PilotMesh(params);
 
-    // Snapshot the integrals cache into the run's `cache` section (RunReportPlan step 4), inside the bracket.
-    // The cache is a process-wide singleton NEVER cleared between runs, so this is cumulative-to-this-point --
-    // exact for a one-run process, the running total in a multi-run one.
-    qchem::BasisSet::EmitIntegralsCacheReport();
+    // (No end-of-run cache snapshot since S6: each owner-held table reported its own bytes under `cache` where it was filled.)
 
     ReportResult("molecule", itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
                  itsSetup->opts.accuracy.Target(Consumes(), itsStructure->GetNumAtoms()));

@@ -12,7 +12,7 @@ export namespace qchem::BasisSet::Radial
     // Use these for custom basis sets.
     Real_BS* Factory(const nlohmann::json&,const ElectronConfiguration&);
     Real_BS* Factory(const nlohmann::json&,size_t Z); //Use atomic number Z to deduce the ElectronConfiguration
-    // The object below is to define restricted collection of atom basis sets so that the global DB_Cache to not get too large
+    // The object below is to define restricted collection of atom basis sets so that the integral caches do not get too large
     // when running 100s of unit tests.  But these 'canned' versions are also generally usefull for production work.
     //
     // High:   As big and dense as you can get without becoming numercially unstable.

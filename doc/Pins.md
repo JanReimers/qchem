@@ -518,4 +518,4 @@ bitwise-equal inputs: a key that rounds is a tolerance, and pin 1 forbids those 
 Earned by the integral cache, which keyed every basis and structure on streamed centres.  Two H₂O₂ geometries 3e-6 bohr apart shared
 every integral (2.8e-5 Ha wrong), and a BFGS relaxation revisiting within 1e-6 bohr took a spurious minimum.  The audit also found
 keys with no contraction coefficients, and LAPW keys with no k or cell (History5, "A cache key is exact").  Ownership of the cache,
-where most keys disappear, is the open design in `doc/IntegralCacheOwnershipPlan.md`.
+where most keys disappear, was executed 2026-11-14 (every cache owned, none process-wide): `doc/Records/IntegralCacheOwnershipPlan.md`.
