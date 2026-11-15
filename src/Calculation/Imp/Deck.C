@@ -874,11 +874,39 @@ Materials::Material Resolve(RunSpec& spec)
         throw std::runtime_error("deck: basis.autoTrim and basis.trim are exclusive (an autoTrim computes the trim; a stated trim is the A/B for it)");
     if (spec.basis.autoTrim && spec.solid.orthoTol<=0.0)
         throw std::runtime_error("deck: basis.autoTrim needs a solid.orthoTol > 0 to trim at -- at 0 it would drop nothing");
-    if (spec.basis.angular==BasisSet::Gaussian::Angular::Spherical && BasisSet::Gaussian::BasisFileOfName(spec.basis.data)=="valence_lowq_sr.bsd")
+    // THE SPHERICAL VIEW ON A CARTESIAN-ONLY BLOCK (OpenWork, 2026-11-14): judged on the FILE the run reads -- the inlined text, a stated
+    // basis.file, or the registered basis.data -- by what that file declares (`CARTESIAN-ONLY <elements>`), never by the label in
+    // basis.data (which, beside a basis.file, is only a label: a spherical-safe file under the SR label used to be refused, and an SR
+    // span under any other label passed).
+    if (spec.basis.angular==BasisSet::Gaussian::Angular::Spherical)
     {
-        bool tm=false; m.cell->ForEachSite([&](int z, const rvec3_t&, bool){ tm = tm || (z>=21 && z<=30); });
-        if (tm) throw std::runtime_error("deck: basis.angular \"spherical\" with VALENCE_LOWQ_SR -- the SR transition-metal block's s span lives in the Cartesian d "
-                                         "contaminants, which the spherical view removes; use VALENCE_LOWQ_VA or VALENCE_LOWQ_SPH");
+        std::set<std::string> cartesianOnly;
+        std::string which;
+        if (!spec.basis.inlineBsd.empty())
+        {
+            std::string text; for (const auto& l : spec.basis.inlineBsd) text+=l+"\n";
+            std::istringstream is(text);
+            cartesianOnly=BasisSet::Gaussian::CartesianOnlyElements(is);
+            which="the inlined basis";
+        }
+        else
+        {
+            which=spec.basis.file.empty() ? BasisSet::Gaussian::BasisFileOfName(spec.basis.data) : spec.basis.file;
+            cartesianOnly=BasisSet::Gaussian::CartesianOnlyElements(which);
+        }
+        std::set<std::string> hit;
+        m.cell->ForEachSite([&](int z, const rvec3_t&, bool)
+        {
+            std::string sym=thePeriodicTable().GetSymbol(z); for (char& c : sym) c=(char)std::toupper((unsigned char)c);
+            if (cartesianOnly.count(sym)) hit.insert(thePeriodicTable().GetSymbol(z));
+        });
+        if (!hit.empty())
+        {
+            std::string list; for (const auto& h : hit) list+=(list.empty() ? "" : ", ")+h;
+            throw std::runtime_error("deck: basis.angular \"spherical\" with "+which+", whose "+list+" block is CARTESIAN-ONLY (its preamble says so): "
+                                     "its s span lives in the Cartesian d contaminants, which the spherical view removes -- use a spherical-safe file "
+                                     "(VALENCE_LOWQ_VA, VALENCE_LOWQ_SPH) or basis.angular \"cartesian\"");
+        }
     }
     // THE MAGNETIC ORDERING IS STATED (OpenWork §3, 2026-10-26): the facade's own check, run here so a deck is refused BEFORE a revision is claimed.
     try { RequireStatedMagneticOrdering(spec.solid, *m.cell); }
@@ -1169,6 +1197,8 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
 // reference at the deck's positions, then each point -- all through ONE SolidSession, so every point shares the reference's frozen
 // basis recipe and rasters.  The main run is not reused: it was sized as an Energy.  No saved state (the main run's file is the deck's).
 static std::shared_ptr<const SolidSetup> SetupOf(const RunSpec&, const Materials::Material&, const std::vector<SCFStage>&);
+// Build's body with the setup's refusal as a value (Run reports it, Build throws it); defined beside Build.
+static Outcome<std::unique_ptr<SolidCalculation>, SetupRefusal> PrepareOf(const RunSpec& specIn, SolidCalculation::Observer onIteration);
 struct DisplaceResult
 {
     struct Point { std::optional<double> energy; size_t iterations=0; std::string failure; };
@@ -1257,7 +1287,16 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     qchem::report::Begin(stem);
     qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
     const Close close;
-    const std::unique_ptr<SolidCalculation> calc=Build(spec);   // ONE path with the GUI's: built, then converged here
+    auto prepared=PrepareOf(spec, nullptr);   // ONE path with the GUI's (Build): built, then converged here
+    if (!prepared)
+    {   // REFUSED by the setup: the outcome says so and the record (claimed above) files it -- no SCF ran, so no postSCF action did either
+        out.summary="REFUSED (policy "+prepared.Error().policy+"): "+prepared.Error().reason;
+        std::ifstream in(out.revision); json rec=json::parse(in); in.close();
+        rec["results"]={{"converged",false},{"refused",{{"policy",prepared.Error().policy},{"reason",prepared.Error().reason}}}};
+        std::ofstream os(out.revision,std::ios::trunc); os<<rec.dump(2)<<"\n";
+        return out;
+    }
+    const std::unique_ptr<SolidCalculation> calc=prepared.TakeValue();
     (void)calc->Converge(stages);
     if (auto R=calc->Result())
     {
@@ -1472,15 +1511,34 @@ std::vector<SCFStage> ScheduleToRun(const RunSpec& spec)
 // THE SETUP, resolved ONCE: the basis from the deck's recipe (the trim stated, or vetted at the run's own orthoTol and frozen), and every
 // decision the run makes before it builds anything.  The first stage's accelerator (a restart's: its one stage's) is the setup's; each
 // later stage names its own.  \a spec is Build's (its family copied into solid, its save path resolved).
-static std::shared_ptr<const SolidSetup> SetupOf(const RunSpec& spec, const Materials::Material& mat, const std::vector<SCFStage>& stages)
+// A deck is USER INPUT, so its setup goes through SolidSetup::Admit (OpenWork "SolidSetup refusals are throws", 2026-11-14): Run reports a
+// refusal as its outcome and files it in the record; the doors whose signatures carry no refusal (Build, View, MakeBasisShells: the GUI
+// binding calls them) say it as the deck's own refusal, a throw naming the policy -- the deck's convention for every key it refuses.
+static Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> AdmitSetup(const RunSpec& spec, const Materials::Material& mat,
+                                                                           const std::vector<SCFStage>& stages)
 {
     Lattice_3D lat(*mat.cell, spec.kmesh);
     SolidCalcOptions so=spec.solid; so.accelerator=stages.front().accelerator; so.recipe=stages.front().recipe;
-    return SolidSetup::Resolve(lat, RecipeOf(spec.basis), so, spec.accel);
+    return SolidSetup::Admit(lat, RecipeOf(spec.basis), so, spec.accel);
+}
+static std::string Refusal(const SetupRefusal& r) {return "deck: the setup refused the deck (policy "+r.policy+"): "+r.reason;}
+static std::shared_ptr<const SolidSetup> SetupOf(const RunSpec& spec, const Materials::Material& mat, const std::vector<SCFStage>& stages)
+{
+    auto S=AdmitSetup(spec, mat, stages);
+    if (!S) throw std::runtime_error(Refusal(S.Error()));
+    return S.TakeValue();
 }
 
 std::unique_ptr<SolidCalculation> Build(const RunSpec& specIn, SolidCalculation::Observer onIteration)
 {
+    auto C=PrepareOf(specIn, std::move(onIteration));
+    if (!C) throw std::runtime_error(Refusal(C.Error()));
+    return C.TakeValue();
+}
+
+static Outcome<std::unique_ptr<SolidCalculation>, SetupRefusal> PrepareOf(const RunSpec& specIn, SolidCalculation::Observer onIteration)
+{
+    using R=Outcome<std::unique_ptr<SolidCalculation>, SetupRefusal>;
     namespace fs=std::filesystem;
     RunSpec spec=specIn;
     const Materials::Material mat=Resolve(spec);
@@ -1499,12 +1557,14 @@ std::unique_ptr<SolidCalculation> Build(const RunSpec& specIn, SolidCalculation:
         spec.solid.saveStateTo=spec.state.save;
     }
     const std::vector<SCFStage> stages=ScheduleToRun(spec);
-    const auto setup=SetupOf(spec, mat, stages);
-    if (r.empty()) return SolidCalculation::Prepare(setup, stages, std::move(onIteration));
+    auto admitted=AdmitSetup(spec, mat, stages);
+    if (!admitted) return R::Fail(admitted.Error());
+    const auto setup=admitted.TakeValue();
+    if (r.empty()) return R::Ok(SolidCalculation::Prepare(setup, stages, std::move(onIteration)));
     // a refusal THROWS -- a deck never silently re-seeds
-    auto R=SolidCalculation::PrepareRestart(r, setup, stages.front().params, std::move(onIteration));
-    if (!R) throw std::runtime_error("deck: state.restartFrom "+r+" refused: "+R.Error().details);
-    return R.TakeValue();
+    auto P=SolidCalculation::PrepareRestart(r, setup, stages.front().params, std::move(onIteration));
+    if (!P) throw std::runtime_error("deck: state.restartFrom "+r+" refused: "+P.Error().details);
+    return R::Ok(P.TakeValue());
 }
 
 Outcome<std::unique_ptr<StateView>, RestartRefusal> View(const RunSpec& specIn, const std::string& statePath)

@@ -24,6 +24,7 @@ import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (the resolved ac
 export import qchem.SCFRecipe;         // SCFRecipe (AcceleratorOptions::recipe)
 export import qchem.Pseudopotential.Set;   // PseudopotentialSet -- the setup's resolved choice
 export import qchem.Accuracy;            // AccuracyTarget -- a CalcOptions field
+export import qchem.SetupRefusal;        // SetupRefusal + Outcome: the Admit door's failure half
 
 export namespace qchem
 {
@@ -181,8 +182,14 @@ inline constexpr int kMolecularMeshEntryDegree = 29;
 
 struct MoleculeSetup
 {
-    //! \brief THE ONE RESOLVE PHASE.  THROWS on options that contradict each other or the structure: a multiplicity whose parity
-    //! disagrees with the electron count, an unknown accelerator name, a pseudopotential set that does not cover an element.
+    //! \brief THE ONE RESOLVE PHASE, as an OUTCOME: the door for USER INPUT (the GUI binding, a command line).  Options that contradict
+    //! each other or the structure -- a multiplicity whose parity disagrees with the electron count, an unknown accelerator name, an
+    //! unstated basis or one that does not cover an element, a route the code does not realize -- come back as a \c SetupRefusal naming
+    //! the policy that refused.  A broken invariant still throws.
+    static Outcome<std::shared_ptr<const MoleculeSetup>, SetupRefusal> Admit(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc = {});
+    //! \brief \c Admit, THROWING its refusal (a \c policy::Refused, a \c std::invalid_argument, with the refusal's sentence).  For CODE that
+    //! states its own options -- tests, probes, a campaign driver -- where a refusal is the caller's programming error (CLAUDE.md).  Never for
+    //! user input: the GUI binding and \c scfrun go through \c Admit.
     static std::shared_ptr<const MoleculeSetup> Resolve(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc = {});
 
     CalcOptions        opts;   //!< as asked, except \c spin: an open shell (multiplicity > 1) is promoted to Polarized

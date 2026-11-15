@@ -18,6 +18,8 @@
 //     "engine":  "mnd" | "libcint",       // Engine,  default "mnd"
 //     "angular": "cartesian" | "spherical" }  // Angular, default "cartesian"
 module;
+#include <iosfwd>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -57,6 +59,16 @@ export namespace qchem::BasisSet::Gaussian
     //! own header: the BasisSet library does not know the pseudopotential library, the caller passes {element, q}.
     void CheckPPProvenance(const std::string& bsdFile, const std::vector<std::pair<std::string,int>>& species);
     void CheckPPProvenance(BasisSetData data,          const std::vector<std::pair<std::string,int>>& species);
+
+    //! THE ANGULAR VIEW A BLOCK NEEDS (2026-11-14, OpenWork "The deck's basis.spherical refusal reads basis.data"): a file may declare, in
+    //! its preamble, the elements whose block is CARTESIAN-ONLY -- the line `CARTESIAN-ONLY Mn` -- because that block's s span lives in
+    //! the s-type contaminants r^2 e^{-a r^2} of its Cartesian d shells, which the spherical view removes (valence_lowq_sr's Mn: 2 s
+    //! functions, the d contaminants doing the mid-s work).  Returns those symbols upper-cased; empty = nothing declared.  The property is
+    //! the FILE's, so a caller judges the file a run reads, never the name it is labelled with.  Pure parse of the preamble (before the
+    //! first lone `!`), as \c CheckPPProvenance's.
+    std::set<std::string> CartesianOnlyElements(std::istream& bsd);
+    //! \c CartesianOnlyElements of the basis file \a bsdFile (a stem in BasisSetData/, or a path).
+    std::set<std::string> CartesianOnlyElements(const std::string& bsdFile);
 
     //! The file STEM a registered handle names ("valence_lowq_sr2") -- its name everywhere outside C++.
     std::string BasisName(BasisSetData data);

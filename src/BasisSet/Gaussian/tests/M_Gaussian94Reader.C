@@ -5,6 +5,8 @@
 // FindAtom now THROWS, naming the element and the file.  The file here is written by the test, so no data-file edit can move it.
 
 #include "gtest/gtest.h"
+#include <set>
+#include <sstream>
 #include <algorithm>
 #include <cmath>
 #include <cctype>
@@ -202,6 +204,18 @@ TEST(PPProvenance, AQ3RunOnAQ1BlockThrowsNamingBoth)
     const std::string bare=(std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_noprov.bsd")).string();
     { std::ofstream f(bare); f<<"title\n\n!\nBASIS=\"t\"\n"; }
     EXPECT_NO_THROW(CheckPPProvenance(bare, {{"Li",3}})) << "an untagged (legacy) file declares nothing";
+}
+
+// The angular view a block needs (2026-11-14): a file's `CARTESIAN-ONLY` preamble line names the elements whose block the spherical view
+// would break; only the preamble counts, and the shipped SR file declares its Mn block (the deck's spherical refusal reads this).
+TEST(CartesianOnly, ThePreambleNamesTheBlocksAndTheSRFileDeclaresItsMn)
+{
+    std::istringstream tagged("title\nPP-PROVENANCE MN=7 O=6\nCARTESIAN-ONLY Mn\n\n!\nCARTESIAN-ONLY O\nBASIS=\"t\"\n");
+    EXPECT_EQ(CartesianOnlyElements(tagged), std::set<std::string>{"MN"}) << "upper-cased, and a line after the lone ! is not preamble";
+    std::istringstream bare("title\n\n!\nBASIS=\"t\"\n");
+    EXPECT_TRUE(CartesianOnlyElements(bare).empty());
+    EXPECT_EQ(CartesianOnlyElements(std::string("valence_lowq_sr.bsd")), std::set<std::string>{"MN"});
+    EXPECT_TRUE(CartesianOnlyElements(std::string("valence_lowq_va.bsd")).empty()) << "the exact-span file is spherical-safe";
 }
 
 // D-BASIS-REGISTRY (CleanCode, 2026-10-30): a basis is NAMED by its file stem in the data directory -- every .bsd there is

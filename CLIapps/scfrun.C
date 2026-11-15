@@ -357,7 +357,12 @@ static int Main(int argc, char** argv)
         // scfrun is the DRIVER, so it opens the report runs (a facade never does, user ruling D 2026-11-02): one for the ctor's
         // default-recipe SCF, one for the requested re-converge -- the two runs the facade used to open itself.
         std::unique_ptr<MoleculeCalculation> mcalcp;
-        { qchem::report::Run run(mol.ID()); mcalcp=std::make_unique<MoleculeCalculation>(MoleculeSetup::Resolve(mol, copts, aopts)); }
+        {   // a command line is user input: the setup's refusal is reported, not thrown (MoleculeSetup::Admit)
+            qchem::report::Run run(mol.ID());
+            auto setup=MoleculeSetup::Admit(mol, copts, aopts);
+            if (!setup) { cout<<"scfrun: REFUSED (policy "<<setup.Error().policy<<"): "<<setup.Error().reason<<endl; return 1; }
+            mcalcp=std::make_unique<MoleculeCalculation>(setup.TakeValue());
+        }
         MoleculeCalculation& mcalc=*mcalcp;
         { qchem::report::Run run(mol.ID()); (void)mcalc.Converge(makePar(minro<0?1e-4:minro, minfd<0?1e-5:minfd)); }   // the RESULT line reports converged yes/no
         cout << "RESULT  E="<<std::setprecision(10)<<mcalc.Energy()

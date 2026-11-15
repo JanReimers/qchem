@@ -543,7 +543,7 @@ FormatHint HintFor(const std::string& field)
     // Field -> (unit, precision).  Small on purpose; grows with each migrated section.
     // Units: energies Hartree, lengths Bohr, exponents a.u.  Unknown -> {"", 6}.
     static const std::vector<std::pair<std::string, FormatHint>> hints = {
-        { "densityEcut",   { "Ha", 6 } }, { "ecut",       { "Ha", 6 } },
+        { "densityEcut",   { "Ha", 6 } }, { "ecut",       { "Ha", 6 } }, { "densityEcutFloor", { "Ha", 6 } },
         { "cond",          { "",   3 } }, { "lambdaMin",  { "",   3 } },
         { "lambdaMax",     { "",   3 } }, { "ramMB",      { "MB", 3, true } },
         { "reusePct",      { "%",  1, true } }, { "pct",   { "%",  1, true } },

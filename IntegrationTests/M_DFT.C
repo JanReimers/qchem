@@ -174,11 +174,14 @@ TEST(M_DFT, OxygenTripletBelowSinglet_Panel)   // PANEL case 11: a degenerate pa
 }
 
 // A multiplicity whose parity disagrees with Ne must be rejected, not silently miscounted: water has 10
-// electrons (even), so a doublet (multiplicity 2 => 2S=1, odd) is impossible.  Fail loud (B4 validation).
-TEST(M_DFT, BadMultiplicityThrows)
+// electrons (even), so a doublet (multiplicity 2 => 2S=1, odd) is impossible.  Refused at the setup's user door (B4 validation).
+// (Until 2026-11-14 this asked for basis "sto-3g", which is not registered, so it passed on the BASIS lookup's throw and never reached
+// the multiplicity check.)
+TEST(M_DFT, BadMultiplicityIsRefused)
 {
-    EXPECT_THROW(MoleculeCalculation(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis = "sto-3g", .model = Model::LDA, .multiplicity = 2})),
-                 std::runtime_error);
+    const auto refused=MoleculeSetup::Admit(qchem::StructureData::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA, .multiplicity = 2});
+    ASSERT_FALSE(refused);
+    EXPECT_EQ(refused.Error().policy, "SpinMultiplicity");
 }
 
 // THE AUXILIARY Vxc FIT (VxcFit::Auxiliary -- the Gaussian A1 set), kept as a strategy since δ became the default (user ruling
