@@ -2,8 +2,7 @@
 
 #include "gtest/gtest.h"
 
-// The integrals cache is now a construct-on-first-use singleton (BasisSet::theCache<T>()), so there is
-// no longer any cache to new/delete here.
+// There is no process-wide integrals cache (doc/IntegralCacheOwnershipPlan.md S6): every cache has an owner, so nothing to set up here.
 
 int main(int argc, char **argv)
 {

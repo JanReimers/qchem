@@ -8,6 +8,7 @@
 #include <unistd.h>    // getpid: per-process temp names (ctest runs cases in parallel)
 #include <cmath>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -97,35 +98,51 @@ TEST(M_Calculation, BasisReportSchema)
             EXPECT_TRUE(row.contains(k)) << "perIrrep row missing key: " << k;   // cond came from the LASolver
 }
 
-// The cache run-report SCHEMA CHECK (RunReportPlan step 4).  Converge snapshots the integrals cache into the
-// run's `cache` section AFTER Iterate (inside the run bracket).  The cache is a process-wide singleton never
-// cleared between runs, so the numbers are cumulative -- here we only assert the shape.
+// The cache run-report SCHEMA CHECK (doc/IntegralCacheOwnershipPlan.md S6).  There is no process-wide cache to snapshot: every owner-held
+// table reports its OWN bytes as it is filled, under `cache` at whatever scope its caller had open (the run-report rule: the callee writes one
+// level in, as it runs).  So the check walks the run's tree for every `cache` object and requires, for HF over dzvp: the ERI4 Coulomb and
+// exchange bytes, the overlap and the primitive store's growth, each a positive number, with a positive entry count beside each table kind.
 TEST(M_Calculation, CacheReportSchema)
 {
-    report::ClearGlobal();                               // isolate the REPORT (the cache itself is never cleared)
-    { report::Run run("H2O"); MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), { .basis = "dzvp" })); }  // HF over dzvp (its tables are owner-held since S3a/S5)
+    report::ClearGlobal();
+    { report::Run run("H2O"); MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), { .basis = "dzvp" })); }
 
-    const report::json& all = report::GlobalReport();
-    const report::json* cache = nullptr;
-    for (auto it = all.begin(); it != all.end(); ++it)
-        if (it.value().contains("cache")) cache = &it.value()["cache"];
-    // The section snapshots the GLOBAL integrals cache, which the ownership plan is emptying: S3a moved ERI4 into each basis set's cache
-    // and S5 the primitive caches (Ω, RNLM, H3, the atom Rk) into their owner's store, so an HF/dzvp run may leave nothing global to
-    // report.  S6 retires the global snapshot and has each store report its bytes under the caller's scope.  Until then the section is
-    // optional; whatever is there keeps its shape.
-    if (!cache) GTEST_SKIP() << "no global cache section: every table this run built is owner-held (IntegralCacheOwnershipPlan S3a, S5)";
-
-    // The tiers (Jac/Kab/Cach4) are the GLOBAL ERI4 store, which S3a emptied: an ERI4 pair now lives in its basis set's own cache
-    // (doc/IntegralCacheOwnershipPlan.md), and the owner-held bytes reach the report at S6.  So a tier row is optional; its shape is not.
-    if (cache->contains("tiers")) ASSERT_TRUE((*cache)["tiers"].is_array());
-    if (cache->contains("tiers")) for (const report::json& t : (*cache)["tiers"])
-        for (const char* k : { "name", "ramMB", "pct" })
-            EXPECT_TRUE(t.contains(k)) << "tier row missing key: " << k;
-
-    if (cache->contains("reuse")) ASSERT_TRUE((*cache)["reuse"].is_array());
-    if (cache->contains("reuse")) for (const report::json& r : (*cache)["reuse"])
-        for (const char* k : { "cache", "entries", "lookups", "reusePct", "ramMB" })
-            EXPECT_TRUE(r.contains(k)) << "reuse row missing key: " << k;
+    std::map<std::string,double> total;   // every key of every `cache` object in the run, summed over the scopes it landed in
+    size_t nCache=0;
+    std::function<void(const report::json&)> walk=[&](const report::json& j)
+    {
+        if (j.is_object())
+            for (auto it=j.begin(); it!=j.end(); ++it)
+            {
+                if (it.key()=="cache" && it.value().is_object())
+                {
+                    nCache++;
+                    for (auto c=it.value().begin(); c!=it.value().end(); ++c)
+                    {
+                        ASSERT_TRUE(c.value().is_number()) << "cache." << c.key() << " is not a number";
+                        EXPECT_GE(c.value().get<double>(), 0.0) << "cache." << c.key();
+                        total[c.key()]+=c.value().get<double>();
+                    }
+                }
+                else walk(it.value());
+            }
+        else if (j.is_array()) for (const auto& e : j) walk(e);
+    };
+    walk(report::GlobalReport());
+    ASSERT_GT(nCache, 0u) << "no table reported its bytes";
+    for (const char* kind : {"eri4Direct", "eri4Exchange", "overlap", "kinetic"})
+    {
+        EXPECT_GT(total[std::string(kind)+"Bytes"],   0.0) << kind << ": no bytes reported (HF/dzvp builds it)";
+        EXPECT_GE(total[std::string(kind)+"Entries"], 1.0) << kind << ": no fill counted";
+    }
+    EXPECT_GT(total["primitiveBytes"], 0.0) << "the parent's primitive store grew during the fills (Ω of dzvp's primitive pairs)";
+    for (const auto& [k,v] : total)   // every Bytes key has its Entries partner, and vice versa
+    {
+        const auto cut=[&](const std::string& suf){return k.size()>suf.size() && k.compare(k.size()-suf.size(), suf.size(), suf)==0;};
+        if (k=="primitiveBytes" || k=="rkBytes") continue;
+        if (cut("Bytes"))   EXPECT_TRUE(total.count(k.substr(0,k.size()-5)+"Entries")) << k << " has no Entries partner";
+        if (cut("Entries")) EXPECT_TRUE(total.count(k.substr(0,k.size()-7)+"Bytes"))   << k << " has no Bytes partner";
+    }
 }
 
 // Parameter-free LDA molecular DFT through the facade (Dirac exchange + VWN5 correlation).  The facade

@@ -14,6 +14,7 @@ add_executable(UTCalculation ../../Common/tests/gtestmain.C
     SolidSetup.C        # the periodic run setup: the frozen basis recipe, provenance without a deck (step 6)
     SolidSession.C      # the solid potential energy surface: reference == single point, carried step == fresh (step 8)
     DegenerateFill.C    # the degenerate-level fill policy beside GDM: the teaching `choose` row, the `warn` row (D-DEGEN-FILL follow-up)
+    ERI4MemoryPolicy.C  # the ERI4 RAM cap at setup (IntegralCacheOwnershipPlan S6, ruling 6)
     AuditFootprint.C    # the audit RSS policy: the byte count, the calibration against its record, the refusal doors (OpenWork (e))
     ForceFacade.C       # W and the per-term finite difference at fixed D, gated on Ven / kinetic by libcint (GeometryOptimizationPlan §6)
     WyckoffMap.C        # the level-1 solid map (free Wyckoff parameters) on periodic model surfaces (GeometryOptimizationPlan §1)

@@ -293,7 +293,7 @@ private:
     double  itsRelFieldSharp=-1.0;
     std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the ladder's density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
-    // (BasisSet::Orbital_DFT_IBS<dcmplx>::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
+    // (BasisSet::Orbital_DFT_IBS<dcmplx>::Repulsion3C/Overlap3C, in the parent's BasisCache keyed by the fit's instance token: S3a).
     //! \brief Last-density collocation memo, SHARED by every \c MakeCollocator closure of this evaluator (one per fit grid's
     //! overlap tensor): each SCF iteration collocates the SAME \f$D\f$ for several clients -- the XC / mixer
     //! \f$\tilde\rho\f$ and the Hartree fit's -- so a later call on the same ladder replays the level densities for free

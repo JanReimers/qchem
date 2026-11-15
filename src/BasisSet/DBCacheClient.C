@@ -2,8 +2,7 @@
 //
 // V1.20d: this struct is implemented by the PUBLIC face IrrepBasisSet_IDs, so it is public vocabulary and
 // must not live in an .Internal. module (CLAUDE.md: never re-export an Internal module from a public one).
-// The cache MECHANISM (IntegralsCache<T>, theCache) stays in qchem.BasisSet.Internal.DB_Cache -- only the
-// contract is promoted.
+// (The process-wide cache it keyed was deleted at S6, doc/IntegralCacheOwnershipPlan.md; BasisSetID survives as a content identity.)
 module;
 #include <cstddef>
 #include <string>
