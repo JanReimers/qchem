@@ -90,7 +90,7 @@ struct AtomCalcOptions
     std::string configuration;
 
     //! Atomic XC integration grid: the RADIAL-ONLY point set (\c AngularKind::None, one direction at 4 pi), exact because the atom's density is
-    //! spherical by construction (its open shell is averaged, \c Atom::HasFullRotationSymmetry).  A stated Lebedev at degree 0 -- this set's
+    //! spherical by construction (its open shell is averaged, \c Atom::Admits).  A stated Lebedev at degree 0 -- this set's
     //! old spelling -- reads as \c None (deck backward compatibility).  \c nRadial 0 = UNSTATED: the run enters at 50 MHL points and
     //! climbs the radial count to eps at its converged density (the atom pilot, pin 31: the old fixed 50 cost Xe 0.6-1.7 mHa and U 1-6 mHa,
     //! lane B 2026-11-14).  A stated count is audited against eps and never raised.

@@ -7,7 +7,7 @@
 // part BITWISE (EXPECT_EQ on doubles; Step 0's exact +/-1 phases are what make zero tolerance possible).
 //
 // Covered here: the static set (Kinetic, Ven_PP_Short/Long/NonLocal) and the density-dependent
-// Vee_Hartree + the Becke-route Vxc_Quadrature.  Each scalar arm drives its OWN production-shaped
+// Vee_Hartree + the Becke-route cVxc_DFT.  Each scalar arm drives its OWN production-shaped
 // density (a real child on the real block, a complex child on the complex block -- the 3c-3 mixed
 // shape): the GPW integrate-back's D-aware screen is INSTANCE-PAIRED state (the collocation and its
 // adjoint must go through the same block instance -- the 2026-08-18 cross-run-pollution fix scoped the
@@ -325,7 +325,7 @@ TEST(RealComplexTerms, StaticTermsServeTheRealBlockBitwise)
 }
 
 // The DYNAMIC pair reachable without the full SCF: Hartree (G-space Poisson off the shared V_H(G)) and
-// the Becke-route Vxc_Quadrature (the engine's rho raster is block-independent; the real block gets its
+// the Becke-route cVxc_DFT (the engine's rho raster is block-independent; the real block gets its
 // own REAL Phi table, so its quadrature GEMM runs in real arithmetic -- the first realized Step-3 win).
 TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
 {
@@ -351,15 +351,15 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
     // Through the FACTORY: a delta fit basis can only resolve to SINGLES, so naming the strategy bought
     // nothing but an Internal import (user, 2026-09-10).
     auto engine=ChargeDensity::MakeDensitySampler(dfb, q);   // ONE bundle to both collaborators
-    Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), engine, SpinGroup::UnPolarized);
+    cVxc_DFT vxc(std::make_shared<SlaterExchange>(2.0/3.0), engine, SpinGroup::UnPolarized);
     {
         auto* rb=dynamic_cast<const tDynamic_CC<double>*>(&vxc);
-        ASSERT_NE(rb,nullptr) << "Vxc_Quadrature must carry the real-block capability (Step 3c)";
+        ASSERT_NE(rb,nullptr) << "cVxc_DFT must carry the real-block capability (Step 3c)";
         RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cd.get(), rig.cx.get());    // each arm refreshed for ITS density (KAxisPlan P2)
         const chmat_t Vc=static_cast<const cDynamic_HT&>(vxc).GetMatrix(rig.cx.get(), Spin::None, DensityID(cd.get()));
         RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cdr.get(), rig.re.get());
         const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, DensityID(cdr.get()));
-        ExpectMachineEqual(Vr, Vc, "Vxc_Quadrature");
+        ExpectMachineEqual(Vr, Vc, "cVxc_DFT");
     }
 }
 
@@ -458,14 +458,14 @@ TEST(RealComplexTerms, RawRouteXcServesTheRealBlockBitwise)
     auto cd  = rig.MakeDensity();       // the complex arm's density
     auto cdr = rig.MakeRealDensity();   // the real arm's twin (screen-consistent pairing; file header)
     ChargeDensity::fitbasis_t fb(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
-    Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), ChargeDensity::MakeDensitySampler(fb), SpinGroup::UnPolarized);
+    cVxc_DFT vxc(std::make_shared<SlaterExchange>(2.0/3.0), ChargeDensity::MakeDensitySampler(fb), SpinGroup::UnPolarized);
     auto* rb=dynamic_cast<const tDynamic_CC<double>*>(&vxc);
-    ASSERT_NE(rb,nullptr) << "Vxc_Quadrature must carry the real-block capability (Step 3c)";
+    ASSERT_NE(rb,nullptr) << "cVxc_DFT must carry the real-block capability (Step 3c)";
     RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cd.get(), rig.cx.get());    // each arm refreshed for ITS density (KAxisPlan P2)
     const chmat_t Vc=static_cast<const cDynamic_HT&>(vxc).GetMatrix(rig.cx.get(), Spin::None, DensityID(cd.get()));
     RefreshTerm(static_cast<const cDynamic_HT&>(vxc), cdr.get(), rig.re.get());
     const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, DensityID(cdr.get()));
-    ExpectBitwiseEqual(Vr, Vc, "Vxc_Quadrature (pair) raw");
+    ExpectBitwiseEqual(Vr, Vc, "cVxc_DFT (pair) raw");
 }
 
 // The ASSEMBLY gate (Step 3c-2): the Hamiltonian's Ham_RealBlock fold over the term faces must equal the

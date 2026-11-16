@@ -165,6 +165,8 @@ public:
 
     //! The run report's name for this fit.  Not the cache identity: \c BasisSetID stays the shells' own.
     virtual std::string Name() const override {return itsName;}
+    //! Atom-centred Gaussians of every l on the structure's sites: no group of their own ({e}, doc/Pins.md pin 30).
+    virtual qcMesh::ImposedSymmetry Imposes() const override {return {};}
     virtual rsmat_t MakeOverlap() const {return MakeOverlap2C(this);}
     // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative for this fit block yet (the Dunlap increment adds the fit faces').
     virtual bool CanPullbackOverlap() const override {return false;}

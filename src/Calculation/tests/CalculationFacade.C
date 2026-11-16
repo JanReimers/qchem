@@ -378,7 +378,7 @@ TEST(CalculationFacade, EveryFacadeCarriesTheAccuracyTargetAndSaysWhoConsumesIt)
 
 //! THE XC ρ AXIS'S POLICY (user ruling 2026-11-09, V-XC-ONE-TERM step 3): the Gaussian x δ cell (the A1 Vxc fit at xc.rho exact) RUNS
 //! WITH A WARNING, and what needs H = dE/dD refuses on it by name -- GDM and the Ladder (its GDM rung).  The variational A1 cell
-//! (xc.rho fit) reports its choice and takes GDM.
+//! (xc.rho fit) is retired: refused at setup by pin 28 (user 2026-11-15).
 TEST(CalculationFacade, TheGaussianDeltaXCCellWarnsAndRefusesGDM)
 {
     const auto water=GetMolecule("H2O");
@@ -422,16 +422,20 @@ TEST(CalculationFacade, TheGaussianDeltaXCCellWarnsAndRefusesGDM)
             EXPECT_NE(std::string(e.what()).find("not dE/dD"), std::string::npos) << e.what();
         }
     }
-    // The variational A1 cell takes GDM, and files its choice.
+    // The A1 P rho cell is RETIRED (user 2026-11-15, pin 28): xc.rho fit on the incomplete A1 fit is refused at setup, naming the pin, and the
+    // refusal files its row.
     { qchem::report::Run run("H2O A1 Prho resolve");
-      EXPECT_NO_THROW(MoleculeSetup::Resolve(water, {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary,
-                                                     .xcRho=Hamiltonian::XCρ::Fit}, {.type="GDM"})); }
-    const auto* chose=FiledRun("H2O A1 Prho resolve@");
-    ASSERT_NE(chose, nullptr);
-    const auto c=rowsNamed(*chose, "XCRhoProjected");
-    ASSERT_FALSE(c.empty()) << chose->dump(1);
-    for (const auto& r : c) EXPECT_EQ(r["verdict"].get<std::string>(), "choose");
-    EXPECT_TRUE(rowsNamed(*chose, "XCRhoFittedPotential").empty()) << "the variational cell is not warned";
+      try
+      {
+          MoleculeSetup::Resolve(water, {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .xcRho=Hamiltonian::XCρ::Fit});
+          ADD_FAILURE() << "xc.rho fit on the A1 fit was not refused";
+      }
+      catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find("pin 28"), std::string::npos) << e.what(); } }
+    const auto* refused=FiledRun("H2O A1 Prho resolve@");
+    ASSERT_NE(refused, nullptr);
+    const auto c=rowsNamed(*refused, "XCRhoProjectedRefused");
+    ASSERT_FALSE(c.empty()) << refused->dump(1);
+    for (const auto& r : c) EXPECT_EQ(r["verdict"].get<std::string>(), "refuse");
 }
 
 //! THE RADIAL-ONLY SET'S OLD SPELLING (V-XC-ONE-TERM step 5, controller 2026-11-14: backward compatibility, gated).  The atom's XC mesh

@@ -106,6 +106,8 @@ public:
     //! A plane-wave {G} fit basis IS orthonormal (metric = I, the projection IS the fit) -- the single override
     //! satisfying the \c isOrtho contract for BOTH the density and potential fit faces.
     bool isOrtho() const override {return true;}
+    //! Plane waves on the lattice's reciprocal vectors are invariant under every lattice translation: T.
+    qcMesh::ImposedSymmetry Imposes() const override {return {.translations=true};}
 
     //! \copydoc BasisSet::G_RasterStarField::MakeStarField
     //! The IBZ real-space raster star-average (doc/GPWPlan1.md items 3 + 5) is then

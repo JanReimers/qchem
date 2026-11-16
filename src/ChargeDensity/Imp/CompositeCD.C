@@ -353,6 +353,16 @@ template <class T> double tComposite_CD<T>::DM_Contract(const tDynamic_CC<T>* v,
     return ret;
 }
 
+template <class T> bool tComposite_CD<T>::HasNoFitComponent() const
+{
+    if (itsBlocks.empty()) return false;
+    const bool first=std::visit([](const auto* c){return c->HasNoFitComponent();}, itsBlocks.front().cd);
+    for (const Block& b:itsBlocks)
+        if (std::visit([](const auto* c){return c->HasNoFitComponent();}, b.cd)!=first)
+            throw std::logic_error("tComposite_CD::HasNoFitComponent: my irrep blocks disagree on whether they are rho[D] (pin 28)");
+    return first;
+}
+
 template <class T> double tComposite_CD<T>::GetTotalCharge() const
 {
     double ret=0.0;

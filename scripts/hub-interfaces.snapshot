@@ -90,6 +90,7 @@ namespace qchem::BasisSet {
     template <class T> class FIT_SF_ABS : public virtual IrrepBasisSet<T> , public virtual Integrals_Overlap3C<T,T> {
     public:
         virtual bool isOrtho() const=0;
+        virtual qcMesh::ImposedSymmetry Imposes() const=0;
         virtual vec_t<T> Overlap(const ScalarFunction<double>& f) const=0;
         const PairProjection<T>& Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const override;
         virtual vec_t<T> Charge() const=0;
@@ -266,6 +267,7 @@ namespace qchem::ChargeDensity {
         virtual size_t Version() const=0;
         virtual bool isActive() const;
         virtual void JoinLineage(const LineagePtr&);
+        virtual bool HasNoFitComponent() const;
     };
     template <class T> class tLineageTracked : public virtual tChargeDensity<T> {
         LineagePtr itsLineage;
@@ -700,8 +702,7 @@ namespace qchem {
         virtual rvec3vec_t IonIonForces (const std::function<double(int Z)>& zionOf) const;
         virtual rmat3d_t IonIonVirial (const std::function<double(int Z)>& zionOf) const;
         virtual double G0Background (const std::function<double(int Z)>& f) const;
-        virtual bool HasTranslationSymmetry() const;
-        virtual bool HasFullRotationSymmetry() const;
+        virtual bool Admits(qcMesh::ImposedSymmetry H) const;
         SiteRange Sites() const;
         void ForEachSite(const std::function<void(int Z, const rvec3_t& R, bool spinFlip)>& f) const;
         virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const=0;
@@ -722,7 +723,7 @@ namespace qchem {
         explicit Atom(const Site& s);
         virtual std::shared_ptr<Structure> Clone() const override;
         virtual size_t GetNumAtoms () const override;
-        virtual bool HasFullRotationSymmetry() const override;
+        virtual bool Admits(qcMesh::ImposedSymmetry H) const override;
         virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
         virtual std::string ID () const override;
         virtual std::ostream& Write (std::ostream&) const override;

@@ -29,7 +29,7 @@ import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-s
 import qchem.BasisSet.Orbital_PP_IBS;             // cast bs ACROSS to the species-field integral service (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
-import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
+import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the cVxc_DFT engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
 import qchem.PointSampling;                   // SamplingTarget / SamplingAccuracy (the rho-tilde sampler's tolerance, step 2)
 
@@ -37,10 +37,10 @@ import qchem.PointSampling;                   // SamplingTarget / SamplingAccura
 namespace qchem::Hamiltonian
 {
 
-// ---- Vxc_Quadrature ------------------------------------------------------------------------------------------
+// ---- cVxc_DFT ------------------------------------------------------------------------------------------
 
 // Built with the SHARED quadrature engine (mesh + Phi tables + per-serial rho) and the imposed spin subgroup.
-template <class T> tVxc_Quadrature<T>::tVxc_Quadrature(const xc_t& xc, sampler_t quad, SpinGroup g)
+template <class T> tVxc_DFT<T>::tVxc_DFT(const xc_t& xc, sampler_t quad, SpinGroup g) requires std::is_same_v<T,double>
     : itsXc(xc)
     , itsSampler(std::move(quad))
     , itsGroup(g)
@@ -48,19 +48,24 @@ template <class T> tVxc_Quadrature<T>::tVxc_Quadrature(const xc_t& xc, sampler_t
     assert(itsXc);
     assert(itsSampler);
 }
-
-// The periodic term hands the base the same sampler it keeps for the real-TRIM and response faces: ONE engine, two views.
-Vxc_Quadrature::Vxc_Quadrature(const xc_t& xc, std::shared_ptr<const ChargeDensity::DensitySampler> quad, SpinGroup g)
-    : tVxc_Quadrature<dcmplx>(xc, quad, g)
-    , itsPeriodic(std::move(quad))
-{}
+// A Bloch run keeps the same sampler for the real-TRIM and response faces: ONE engine, two views.
+template <class T> tVxc_DFT<T>::tVxc_DFT(const xc_t& xc, std::shared_ptr<const ChargeDensity::DensitySampler> quad, SpinGroup g)
+    requires std::is_same_v<T,dcmplx>
+    : itsXc(xc)
+    , itsSampler(quad)
+    , itsGroup(g)
+{
+    assert(itsXc);
+    assert(itsSampler);
+    itsBloch.periodic=std::move(quad);
+}
 
 // THE CHANNEL RASTERS -- the one place the imposed subgroup is read on the Fock/energy path.  Polarized:
 // the sampler's {up,dn} pair (a spin-agnostic seed collapses to rho/2 per channel INSIDE RhoPol).  SU(2):
 // the folded doublet's one raster, halved into `scratch` and handed over as BOTH channels -- the exact
 // zeta=0 collapse, so the functional's spin-native face reproduces the old scalar path bit for bit
 // (2*(rho/2)==rho; VWN routes exact zeta=0 through its scalar formula).
-template <class T> typename tVxc_Quadrature<T>::Rasters tVxc_Quadrature<T>::ChannelRasters(const tChargeDensity<T>* cd, rvec_t& scratch) const
+template <class T> typename tVxc_DFT<T>::Rasters tVxc_DFT<T>::ChannelRasters(const tChargeDensity<T>* cd, rvec_t& scratch) const
 {
     if (itsGroup==SpinGroup::Polarized)
         return {itsSampler->RhoPol(cd,Spin::Up), itsSampler->RhoPol(cd,Spin::Down)};
@@ -72,7 +77,7 @@ template <class T> typename tVxc_Quadrature<T>::Rasters tVxc_Quadrature<T>::Chan
 // GEMM).  ONE body for both block scalars (Step 3c): the rasters are block-independent; only the final
 // quadrature (typed Phi table) differs.  A folded-doublet block (Spin::None) is the same field either
 // channel would see, so it asks for Up by convention.
-template <class T> rvec_t tVxc_Quadrature<T>::PotentialAt(const Spin& fs, const Rasters& r) const
+template <class T> rvec_t tVxc_DFT<T>::PotentialAt(const Spin& fs, const Rasters& r) const
 {
     rvec_t v(r.up.size());
     for (size_t g=0; g<v.size(); g++) v[g]=itsXc->GetVxc(r.up[g], r.dn[g], fs);
@@ -80,30 +85,33 @@ template <class T> rvec_t tVxc_Quadrature<T>::PotentialAt(const Spin& fs, const 
 }
 // The block path (V1.41 stage 2, ruling C): it READS what the refresh built for \a cd and computes nothing from rho.  A
 // miss is a caller that skipped the refresh, a broken contract no caller can act on, so it throws.
-template <class T> const typename tVxc_Quadrature<T>::Refreshed& tVxc_Quadrature<T>::RefreshedFor(DensityID id) const
+template <class T> const typename tVxc_DFT<T>::Refreshed& tVxc_DFT<T>::RefreshedFor(DensityID id) const
 {
     if (id.IsNone() || !(id==itsRefreshed.id))
-        throw std::logic_error("tVxc_Quadrature: block asked for a density the refresh did not see (RefreshForDensity first)");
+        throw std::logic_error("tVxc_DFT: block asked for a density the refresh did not see (RefreshForDensity first)");
     // What THIS V_xc saw (pin 28): recorded by the FOCK pass, which is the only pass that asks for blocks, so the energy
     // pass at rho_out reports the source and group residual of the potential the Fock was built from.
     std::lock_guard<std::mutex> lock(itsFockSourceLock.m);
     itsFockSource=itsRefreshed.source;
+    itsFockDensityIsRhoD=itsRefreshed.densityIsRhoD;
     itsFockGroupResidual=itsRefreshed.groupResidual;
     return itsRefreshed;
 }
-template <class T> hmat_t<T> tVxc_Quadrature<T>::MakeMatrix(const tobs_t<T>* bs, const Spin& s, DensityID id) const
+template <class T> hmat_t<T> tVxc_DFT<T>::MakeMatrix(const tobs_t<T>* bs, const Spin& s, DensityID id) const
 {
-    const Refreshed& R=RefreshedFor(id);
-    const int c = s==Spin::Down ? 1 : 0;
-    SizeFourierSampling(s, R, [&](const rvec_t& f){return itsSampler->Matrix(bs, f);});
-    return itsSampler->Matrix(bs, R.v[c]);
+    return BlockOn(*itsSampler, bs, s, id);
 }
-rsmat_t Vxc_Quadrature::MakeMatrix(const robs_t* bs, const Spin& s, DensityID id) const
+template <class T> template <class U, class S> hmat_t<U> tVxc_DFT<T>::BlockOn(const S& sampler, const tobs_t<U>* bs, const Spin& s, DensityID id) const
 {
     const Refreshed& R=RefreshedFor(id);
     const int c = s==Spin::Down ? 1 : 0;
-    SizeFourierSampling(s, R, [&](const rvec_t& f){return itsPeriodic->Matrix(bs, f);});
-    return itsPeriodic->Matrix(bs, R.v[c]);
+    SizeFourierSampling(s, R, [&](const rvec_t& f){return sampler.Matrix(bs, f);});
+    return sampler.Matrix(bs, R.v[c]);
+}
+
+template <class T> rsmat_t tVxc_DFT<T>::RealBlock(const robs_t* bs, const Spin& s, DensityID id) const requires std::is_same_v<T,dcmplx>
+{
+    return BlockOn(*itsBloch.periodic, bs, s, id);
 }
 
 // THE ONE TOLERANCE tau on max|delta rho| of a Fourier series sampled on my points (the rho-tilde sampler, step 2; doc/Pins.md pin 31).
@@ -116,7 +124,7 @@ rsmat_t Vxc_Quadrature::MakeMatrix(const robs_t* bs, const Spin& s, DensityID id
 // An energy run takes min(tau_E, tau_R), a geometry run min(tau_E, tau_H, tau_R).  ON THE SEED, once (user ruling 2026-11-04: never a
 // per-iteration input): every block of the first Fock build lowers it, and the sampler's first SIZED Load freezes it.
 template <class T> template <class Mat>
-void tVxc_Quadrature<T>::SizeFourierSampling(const Spin& s, const Refreshed& R, Mat matrixOf) const
+void tVxc_DFT<T>::SizeFourierSampling(const Spin& s, const Refreshed& R, Mat matrixOf) const
 {
     const rvec_t& v=R.v[s==Spin::Down ? 1 : 0];
     SamplingTarget* tgt=itsSampler->FourierTarget();
@@ -148,7 +156,7 @@ void tVxc_Quadrature<T>::SizeFourierSampling(const Spin& s, const Refreshed& R, 
     if (!(tgt->tauTarget>0.0) || tau<tgt->tauTarget) {tgt->tauTarget=tau; tgt->tau=tau*A.tauScale; tgt->tauFrom=from;}
 }
 
-template <class T> void tVxc_Quadrature<T>::ReportFourierSampling() const
+template <class T> void tVxc_DFT<T>::ReportFourierSampling() const
 {
     const SamplingTarget* tgt=itsSampler->FourierTarget();
     if (!tgt || tgt->loads==0 || itsSamplingReported) return;
@@ -172,7 +180,7 @@ template <class T> void tVxc_Quadrature<T>::ReportFourierSampling() const
     itsSamplingReported=true;
 }
 
-template <class T> void tVxc_Quadrature<T>::GetEnergy(EnergyBreakdown& te, const tDM_CD<T>* cd) const
+template <class T> void tVxc_DFT<T>::GetEnergy(EnergyBreakdown& te, const tDM_CD<T>* cd) const
 {
     rvec_t half;
     const Rasters r=ChannelRasters(cd, half);   // reuses the iteration's rasters (same density serial)
@@ -181,17 +189,17 @@ template <class T> void tVxc_Quadrature<T>::GetEnergy(EnergyBreakdown& te, const
     // COMPOSES: exchange contributes Sum_sigma eps_x(rho_sigma) rho_sigma and correlation eps_c rho_tot, and
     // those share no denominator.
     for (size_t g=0; g<exc.size(); g++) { exc[g]=itsXc->GetExcDensity(r.up[g], r.dn[g]); rho[g]=r.up[g]+r.dn[g]; }
-    te.Add("Exc", itsSampler->Integrate(exc), EnergyRole::Potential);
+    // THE PIN-28 CERTIFICATE travels with the energy (fail closed, user ruling 2026-11-15): the last V_xc build's density answered
+    // HasNoFitComponent and its sampler said how it handed that density to XC; ChargeDensity::CertifiesRhoD combines the two.  No build
+    // yet, or any case not on its list, is uncertified.
+    te.AddXC(itsSampler->Integrate(exc), std::nullopt,
+             itsFockSource ? ChargeDensity::CertificateLabel(*itsFockSource, itsFockDensityIsRhoD) : "",
+             itsFockSource && ChargeDensity::CertifiesRhoD(*itsFockSource, itsFockDensityIsRhoD));
     // The charge accounting of the same density: the mesh-charge leak (the quadrature's health metric --
     // CP2K's grid-charge-lost readout) is the quadrature integral of rho vs the analytic Tr(DS); the
     // integrated site moments are the observable, where both rasters are in hand (R1.0h).
     te.charge.lost        = itsSampler->Integrate(rho) - cd->GetTotalCharge();
     te.charge.siteMoments = SiteMoments(cd);
-    if (itsFockSource)
-    {
-        te.charge.xcRho       = ChargeDensity::ShortName(*itsFockSource);
-        te.charge.xcRhoFitted = *itsFockSource==ChargeDensity::XCRhoSource::Fitted;
-    }
     te.charge.xcGroupResidual = itsFockGroupResidual;
     ReportFourierSampling();
     // THE samp/τ COLUMN: the worst audited delivered/tau of the sized samplings since the last energy that saw new ones (one iteration's:
@@ -210,7 +218,7 @@ template <class T> void tVxc_Quadrature<T>::GetEnergy(EnergyBreakdown& te, const
 // sampler only knows how to partition-integrate a field at its points.  Empty when the run resolves no
 // spin (m == 0 identically) or the quadrature has no site blocks -- the caller treats empty as "this run
 // cannot answer", never as "zero".
-template <class T> rvec_t tVxc_Quadrature<T>::SiteMoments(const tChargeDensity<T>* cd) const
+template <class T> rvec_t tVxc_DFT<T>::SiteMoments(const tChargeDensity<T>* cd) const
 {
     if (itsGroup!=SpinGroup::Polarized) return rvec_t();
     return itsSampler->SiteIntegrals(rvec_t(itsSampler->RhoPol(cd,Spin::Up)-itsSampler->RhoPol(cd,Spin::Down)));
@@ -218,7 +226,7 @@ template <class T> rvec_t tVxc_Quadrature<T>::SiteMoments(const tChargeDensity<T
 
 // D-MINDRHO: the sampler caches ONE density serial (both channels of it), so BOTH of a's channels are copied before b's
 // replace them -- two rasters per call, not four (the a-up, b-up, a-dn, b-dn order re-rastered each density).
-template <class T> double tVxc_Quadrature<T>::L1Distance(const tChargeDensity<T>* a, const tChargeDensity<T>* b) const
+template <class T> double tVxc_DFT<T>::L1Distance(const tChargeDensity<T>* a, const tChargeDensity<T>* b) const
 {
     auto l1=[&](const rvec_t& fa, const rvec_t& fb)
     {
@@ -237,51 +245,55 @@ template <class T> double tVxc_Quadrature<T>::L1Distance(const tChargeDensity<T>
 }
 
 // THE RESPONSE (R2): the ALDA kernel at the linearisation density, times δρ_σ, gathered by the same adjoint.
-void Vxc_Quadrature::RefreshForDensity(const cbs_t*, const cChargeDensity* D0, const TransitionDensity<dcmplx>& delta) const
+template <class T> void tVxc_DFT<T>::RefreshResponse(const cChargeDensity* D0, const TransitionDensity<dcmplx>& delta) const
+    requires std::is_same_v<T,dcmplx>
 {
-    if (!D0) throw std::logic_error("Vxc_Quadrature: the XC response needs the density it linearises about (D0)");
-    if (D0->Version()!=itsKernelVersion)
+    BlochState& b=itsBloch;
+    if (!D0) throw std::logic_error("tVxc_DFT: the XC response needs the density it linearises about (D0)");
+    if (D0->Version()!=b.kernelVersion)
     {
         qchem::report::Timed timed("response: f_xc at rho0");
         rvec_t half;
         const Rasters r=ChannelRasters(D0, half);
         const size_t n=r.up.size();
-        itsFuu.resize(n); itsFud.resize(n); itsFdu.resize(n); itsFdd.resize(n);
+        b.fuu.resize(n); b.fud.resize(n); b.fdu.resize(n); b.fdd.resize(n);
         for (size_t g=0; g<n; g++)
         {
-            itsFuu[g]=itsXc->GetFxc(r.up[g], r.dn[g], Spin::Up,   Spin::Up  );
-            itsFud[g]=itsXc->GetFxc(r.up[g], r.dn[g], Spin::Up,   Spin::Down);
-            itsFdu[g]=itsXc->GetFxc(r.up[g], r.dn[g], Spin::Down, Spin::Up  );
-            itsFdd[g]=itsXc->GetFxc(r.up[g], r.dn[g], Spin::Down, Spin::Down);
+            b.fuu[g]=itsXc->GetFxc(r.up[g], r.dn[g], Spin::Up,   Spin::Up  );
+            b.fud[g]=itsXc->GetFxc(r.up[g], r.dn[g], Spin::Up,   Spin::Down);
+            b.fdu[g]=itsXc->GetFxc(r.up[g], r.dn[g], Spin::Down, Spin::Up  );
+            b.fdd[g]=itsXc->GetFxc(r.up[g], r.dn[g], Spin::Down, Spin::Down);
         }
-        itsKernelVersion=D0->Version();
-        itsDeltaVersion=size_t(-1);   // the kernel moved: every δv is stale
+        b.kernelVersion=D0->Version();
+        b.deltaVersion=size_t(-1);   // the kernel moved: every δv is stale
     }
-    if (delta.Version()==itsDeltaVersion) return;
+    if (delta.Version()==b.deltaVersion) return;
     cvec_t du, dd;
-    if (itsGroup==SpinGroup::Polarized) {du=itsPeriodic->Sample(delta, Spin::Up); dd=itsPeriodic->Sample(delta, Spin::Down);}
-    else                                {du=0.5*itsPeriodic->Sample(delta, Spin::None); dd=du;}
-    itsDeltaQ=qchem::ChargeDensity::WaveVectorOf(*delta.Coupling());
+    if (itsGroup==SpinGroup::Polarized) {du=b.periodic->Sample(delta, Spin::Up); dd=b.periodic->Sample(delta, Spin::Down);}
+    else                                {du=0.5*b.periodic->Sample(delta, Spin::None); dd=du;}
+    b.deltaQ=qchem::ChargeDensity::WaveVectorOf(*delta.Coupling());
     const size_t n=du.size();
-    if (n!=itsFuu.size()) throw std::logic_error("Vxc_Quadrature: δρ and the kernel live on different quadratures");
-    itsDvUp.resize(n); itsDvDn.resize(n);
+    if (n!=b.fuu.size()) throw std::logic_error("tVxc_DFT: δρ and the kernel live on different quadratures");
+    b.dvUp.resize(n); b.dvDn.resize(n);
     for (size_t g=0; g<n; g++)
     {
-        itsDvUp[g]=itsFuu[g]*du[g]+itsFud[g]*dd[g];
-        itsDvDn[g]=itsFdu[g]*du[g]+itsFdd[g]*dd[g];
+        b.dvUp[g]=b.fuu[g]*du[g]+b.fud[g]*dd[g];
+        b.dvDn[g]=b.fdu[g]*du[g]+b.fdd[g]*dd[g];
     }
-    itsDeltaVersion=delta.Version();
+    b.deltaVersion=delta.Version();
 }
 
-mat_t<dcmplx> Vxc_Quadrature::GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s, const TransitionDensity<dcmplx>& delta) const
+template <class T> mat_t<dcmplx> tVxc_DFT<T>::ResponseMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s, const TransitionDensity<dcmplx>& delta) const
+    requires std::is_same_v<T,dcmplx>
 {
-    if (delta.Version()!=itsDeltaVersion)
-        throw std::logic_error("Vxc_Quadrature: GetMatrix for a transition density the response phase did not refresh");
+    const BlochState& b=itsBloch;
+    if (delta.Version()!=b.deltaVersion)
+        throw std::logic_error("tVxc_DFT: GetMatrix for a transition density the response phase did not refresh");
     // A folded-doublet block (Spin::None) sees the same δv either channel would: Up by convention, as MakeMatrixT.
-    return itsPeriodic->Matrix(bra, ket, s==Spin::Down ? itsDvDn : itsDvUp, itsDeltaQ);
+    return b.periodic->Matrix(bra, ket, s==Spin::Down ? b.dvDn : b.dvUp, b.deltaQ);
 }
 
-template <class T> std::ostream& tVxc_Quadrature<T>::Write(std::ostream& os) const
+template <class T> std::ostream& tVxc_DFT<T>::Write(std::ostream& os) const
 {
     return os << "    XC-mesh " << (itsGroup==SpinGroup::Polarized ? "SPIN-NATIVE v_xc^sigma(rho_up,rho_down)"
                                                                    : "v_xc(rho(r))")
@@ -297,21 +309,22 @@ template <class T> std::ostream& tVxc_Quadrature<T>::Write(std::ostream& os) con
 // Every refresh, the energy pass's included: warm the channel raster(s) GetEnergy integrates.  The potential is not built here:
 // only the blocks read it, so BuildPotential builds it in the Fock refresh's BuildBlocks (the energy pass, bs = null, never pays
 // for v^sigma on the whole mesh: +2.4 s of a 247 s MnO run when it did, lane S 2026-11-07).
-template <class T> void tVxc_Quadrature<T>::RefreshForDensity(const tChargeDensity<T>* cd) const
+template <class T> void tVxc_DFT<T>::RefreshForDensity(const tChargeDensity<T>* cd) const
 {
     assert(cd);
     itsSampler->WarmForDensity(cd, itsGroup==SpinGroup::Polarized);
 }
 
-template <class T> void tVxc_Quadrature<T>::BuildBlocks(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const
+template <class T> void tVxc_DFT<T>::BuildBlocks(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const
 {
     BuildPotential(bs, cd);
     tDynamic_HT_Imp<T>::BuildBlocks(bs, cd);
+    this->BuildRealBlocks(bs, cd);   // <dcmplx>: the real TRIM blocks too (a no-op on <double>)
 }
 
 // The block-only state for cd, built at the Fock refresh (RefreshForDensity(cd) has warmed the rasters just before, so
 // ChannelRasters reads the sampler's cache).  bs null: an energy evaluation, no blocks, nothing to build.
-template <class T> void tVxc_Quadrature<T>::BuildPotential(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const
+template <class T> void tVxc_DFT<T>::BuildPotential(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const
 {
     if (!cd || !bs) return;
     const bool pol=itsGroup==SpinGroup::Polarized;
@@ -319,6 +332,7 @@ template <class T> void tVxc_Quadrature<T>::BuildPotential(const tbs_t<T>* bs, c
     const Rasters r=ChannelRasters(cd, half);
     Refreshed& R=itsRefreshed;
     R.source=itsSampler->RhoSource();          // read while the sampler's cache is cd's
+    R.densityIsRhoD=cd->HasNoFitComponent();   // the density's half of the pin-28 certificate (user ruling 2026-11-15)
     R.groupResidual=itsSampler->GroupResidual();
     const int nc = pol ? 2 : 1;               // a folded doublet (Spin::None) is the same field either channel would see: Up
     for (int c=0; c<nc; c++) R.v[c]=PotentialAt(c==1 ? Spin::Down : Spin::Up, r);
@@ -348,7 +362,7 @@ template <class T> void tVxc_Quadrature<T>::BuildPotential(const tbs_t<T>* bs, c
     R.id=DensityID(cd);
 }
 
-template class tVxc_Quadrature<double>;   // the molecular / atom path (V-XC-ONE-TERM, 2026-10-31)
-template class tVxc_Quadrature<dcmplx>;   // the periodic path (Vxc_Quadrature)
+template class tVxc_DFT<double>;   // the molecular / atom path (V-XC-ONE-TERM, 2026-10-31)
+template class tVxc_DFT<dcmplx>;   // the periodic path (cVxc_DFT: + the Bloch faces)
 
 } //namespace

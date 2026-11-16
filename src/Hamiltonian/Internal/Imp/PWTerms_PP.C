@@ -27,7 +27,7 @@ import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-s
 import qchem.BasisSet.Orbital_PP_IBS;             // cast bs ACROSS to the species-field integral service (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::G0Background() -- the G=0 alignment (term-side)
-import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
+import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the cVxc_DFT engine's quadrature mesh)
 
 
 namespace qchem::Hamiltonian

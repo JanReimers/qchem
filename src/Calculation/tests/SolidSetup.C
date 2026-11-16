@@ -436,34 +436,40 @@ TEST(SolidSetup, AKMeshCoarserThanTheCalibratedSpacingIsWarnedNamingTheMeshThatM
     EXPECT_EQ(k3[0].value("verdict",""), "choose") << "a mesh within the threshold is reported, not warned: " << k3[0].dump();
 }
 
-// I3 (V-XC-ONE-TERM step 4): the plane-wave Vxc fit on a Becke mesh over GPW orbitals.  The ball's P rho is synthesized at the points, so
-// xc.rho fit runs and is reported; XC of rho[D] there is the delta cell, so xc.rho exact is REFUSED by name (user ruling 2026-11-14).
-TEST(SolidSetup, ThePlaneWaveFitOnABeckeMeshOverGPWOrbitalsRunsAtRhoFitAndRefusesRhoExact)
+// I3 (V-XC-ONE-TERM step 4): the plane-wave Vxc fit on a Becke mesh over GPW orbitals has NO runnable rho cell.  xc.rho fit is refused by pin 28
+// (the rho axis retired 2026-11-15: the ball's synthesis is the raster's rho[D] truncated to the ball), and XC of rho[D] there is the delta
+// cell, so xc.rho exact is refused by name too (user ruling 2026-11-14).  Each refusal names the cell that runs instead.
+TEST(SolidSetup, ThePlaneWaveFitOnABeckeMeshOverGPWOrbitalsRefusesBothRhoCells)
 {
-    const auto fitRows=XCRhoRows(XCRhoCell::Becke, Hamiltonian::XCρ::Fit, "Si PW ball at Becke rho fit", Hamiltonian::VxcFit::PlaneWave);
-    ASSERT_EQ(fitRows.size(), 1u);
-    EXPECT_NE(fitRows[0].find("at Becke points"), std::string::npos) << fitRows[0];
+    try { (void)XCRhoRows(XCRhoCell::Becke, Hamiltonian::XCρ::Fit, "Si PW ball at Becke rho fit", Hamiltonian::VxcFit::PlaneWave);
+          FAIL() << "the GPW ball at Becke points ran at xc.rho fit"; }
+    catch (const std::invalid_argument& e)
+    {
+        const std::string what=e.what();
+        EXPECT_NE(what.find("pin 28"), std::string::npos) << what;
+        EXPECT_NE(what.find("xc.fit Delta"), std::string::npos) << what;
+    }
     try { (void)XCRhoRows(XCRhoCell::Becke, Hamiltonian::XCρ::Exact, "Si PW ball at Becke rho exact", Hamiltonian::VxcFit::PlaneWave);
           FAIL() << "the GPW ball at Becke points ran at xc.rho exact"; }
     catch (const std::invalid_argument& e)
     {
         const std::string what=e.what();
         EXPECT_NE(what.find("state xc.fit Delta"), std::string::npos) << what;
-        EXPECT_NE(what.find("xc.rho fit"), std::string::npos) << what;
+        EXPECT_NE(what.find("uniform XC mesh"), std::string::npos) << what;
     }
 }
 
-// THE PERIODIC A1 FIT (V-XC-ONE-TERM step 6) at the policy layer: xc.fit Auxiliary is admitted on a GPW solid (it was refused until the
-// periodic realization), and its two rho cells file what they are -- xc.rho fit the variational projection, xc.rho exact the fitted-potential
-// warning (pin 32).
-TEST(SolidSetup, ThePeriodicA1FitIsAdmittedOnGPWAndItsRhoCellsReportThemselves)
+// THE PERIODIC A1 FIT (V-XC-ONE-TERM step 6) at the policy layer: xc.fit Auxiliary is admitted on a GPW solid, at xc.rho exact (the
+// fitted-potential warning, pin 32); xc.rho fit is refused by pin 28 (the rho axis retired 2026-11-15), over GPW and plane-wave orbitals alike:
+// the A1 set is incomplete whatever the orbitals.
+TEST(SolidSetup, ThePeriodicA1FitIsAdmittedAtRhoExactAndRefusedAtRhoFit)
 {
     using Hamiltonian::VxcFit; using Hamiltonian::XCρ;
-    const auto pRows=XCRhoRows(XCRhoCell::Becke, XCρ::Fit, "Si A1 rho fit", VxcFit::Auxiliary);
-    ASSERT_EQ(pRows.size(), 1u);
-    EXPECT_NE(pRows[0].find("Gaussian auxiliary fit's projection"), std::string::npos) << pRows[0];
     const auto wRows=XCRhoRows(XCRhoCell::GPWRaster, XCρ::Exact, "Si A1 rho exact", VxcFit::Auxiliary, "XCRhoFittedPotential");
     ASSERT_EQ(wRows.size(), 1u) << "the fitted-potential cell warns";
+    for (auto cell : {XCRhoCell::Becke, XCRhoCell::PlaneWaveRaster})
+        try { (void)XCRhoRows(cell, XCρ::Fit, "Si A1 rho fit", VxcFit::Auxiliary); FAIL() << "xc.rho fit on the A1 fit ran"; }
+        catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find("pin 28"), std::string::npos) << e.what(); }
 }
 
 // ... and what descends E along H refuses on the fitted-potential cell (H is not dE/dD, pin 32): a stated GDM or Ladder is refused by name
@@ -486,10 +492,9 @@ TEST(SolidSetup, ThePeriodicA1FittedPotentialCellRefusesGDMAndTheLadder)
 }
 
 // THE A1 FIT OVER PLANE-WAVE ORBITALS IS ADMITTED (a refusal flipped, step 6 READY 2, controller 2026-11-15): the fit samples rho[D] through the
-// delta basis on the XC points, which any orbital family serves (the first cut sampled it through the GPW pair collocation and refused plane
-// waves).  So the setup admits it and files its rho row.
+// delta basis on the XC points, which any orbital family serves.  At xc.rho exact it files the fitted-potential warning.
 TEST(SolidSetup, ThePeriodicA1FitOverPlaneWaveOrbitalsIsAdmitted)
 {
     using Hamiltonian::VxcFit; using Hamiltonian::XCρ;
-    EXPECT_EQ(XCRhoRows(XCRhoCell::PlaneWaveRaster, XCρ::Fit, "Si A1 over PW", VxcFit::Auxiliary).size(), 1u);
+    EXPECT_EQ(XCRhoRows(XCRhoCell::PlaneWaveRaster, XCρ::Exact, "Si A1 over PW", VxcFit::Auxiliary, "XCRhoFittedPotential").size(), 1u);
 }

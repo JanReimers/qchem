@@ -235,6 +235,42 @@ private:
 // The periodic HARTREE term is Vee_Fit<dcmplx> (qchem.Hamiltonian.Internal.Terms, V-ONE-OF-N 3b): the first-order fitted Hartree
 // term, generic over the fit basis, on the plane-wave density fitter.  Its response half is Vee_Response, beside it.
 
+//! \brief WHAT ONLY A BLOCH RUN HAS, on \c tVxc_DFT<dcmplx> (present on that instantiation only, like \c RealPullbackBase): the real
+//! TRIM block's cache (Step 3c) and the ALDA response kernel (doc/LinearResponsePlan.md R2).  A virtual cannot carry a \c requires
+//! clause, so the term writes each body ONCE (\c BlockOn, \c RefreshResponse, \c ResponseMatrix, constrained to <dcmplx>) and this
+//! mixin's overrides route to them.  It replaced the derived class \c Vxc_Quadrature (2026-11-15): a periodic XC term is the same
+//! term as a molecular one, with two more faces, not a subclass of it.
+template <class D> class Vxc_DFT_BlochFaces
+    : public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
+    , public virtual tResponse_HT<dcmplx>       // the ALDA kernel f_xc(rho0) on the same quadrature (R2)
+{
+public:
+    //! \name THE RESPONSE (doc/LinearResponsePlan.md R2/H3): \f$\delta v^\sigma(r_g)=\sum_{\sigma'}
+    //! f_{xc}^{\sigma\sigma'}(\rho_{0\uparrow},\rho_{0\downarrow})\,\delta\rho_{\sigma'}(r_g)\f$, gathered by the SAME
+    //! adjoint as \f$v_{xc}\f$ -- so the response is the derivative of exactly the operator the SCF used.  The
+    //! kernel arrays are built once per \a D0 serial; δρ is sampled per δ, uncached in the sampler
+    //! (\c DensitySampler::Sample).  SU(2): \f$\delta\rho_\uparrow=\delta\rho_\downarrow=\delta\rho/2\f$, the
+    //! ζ = 0 collapse.  Any q (R3): δρ and δv are complex, in the sampler's own representation of a Bloch-q
+    //! function (\c DensitySampler::Sample), and f_xc is periodic, so the pointwise product is too; the pair
+    //! adjoint \c DensitySampler::Matrix(bra, ket, ·, q) gathers it.  Complex blocks only.
+    //!@{
+    virtual void RefreshForDensity(const cbs_t*, const cChargeDensity* D0, const TransitionDensity<dcmplx>& delta) const override
+    {static_cast<const D&>(*this).RefreshResponse(D0, delta);}
+    virtual mat_t<dcmplx> GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s, const TransitionDensity<dcmplx>& delta) const override
+    {return static_cast<const D&>(*this).ResponseMatrix(bra, ket, s, delta);}
+    //!@}
+protected:
+    //! The real TRIM block (Step 3c; V1.35), on the sampler's periodic face.
+    virtual rsmat_t MakeMatrix(const robs_t* bs, const Spin& s, DensityID id) const override
+    {return static_cast<const D&>(*this).RealBlock(bs, s, id);}
+    //! The second irrep-keyed cache's build, for the term's own \c BuildBlocks (which owns both caches).
+    void BuildRealBlocks(const cbs_t* bs, const cChargeDensity* cd) const {Dynamic_HT_RealBlock_Imp::BuildBlocks(bs, cd);}
+};
+//! The <double> instantiation's stand-in: a molecular run has one block cache and no response face.
+struct NoBlochFaces { template <class B, class C> void BuildRealBlocks(const B*, const C*) const {} };
+template <class T, class D> using Vxc_DFT_BlochBase =
+    std::conditional_t<std::is_same_v<T,dcmplx>, Vxc_DFT_BlochFaces<D>, NoBlochFaces>;
+
 //! \brief THE exchange-correlation term of a periodic Kohn-Sham Hamiltonian -- ONE term for either imposed
 //! spin subgroup (V1.37 step 3; it replaced Vxc_Quadrature + Vxc_QuadraturePol + Vcorr_QuadraturePol),
 //! carrying ONE functional (a full LDA is a \c CompositeExFunctional of Dirac exchange + VWN correlation,
@@ -253,16 +289,17 @@ private:
 //! (\c PWFittedVxc) that duplicated this logic around its own ρ/H pair.  Two terms for one formula
 //! \f$H_{ij}=\sum_g w_g v(r_g)\chi_i\chi_j\f$: the difference between them was never the physics, only the
 //! evaluation order, which is exactly what \c DensitySampler's two implementations now hold.
-template <class T> class tVxc_Quadrature
+template <class T> class tVxc_DFT
     : public virtual tDynamic_HT<T>
     , protected      tDynamic_HT_Imp<T>
     , public virtual tRealSpaceResidual<T>   //!< AFTER the protected base: declared before it, libstdc++'s cross-cast from tDynamic_HT returns null
     , public virtual tGeometryGradient_HT<T>           // its force at fixed D (§13.2; lane B 2026-11-09): Imp/Vxc_Forces.C
     , public virtual tStatic_PC<T>                     // the per-block pullback client DM_Pullback walks
-    , public         RealPullbackBase<T,tVxc_Quadrature<T>>   // ... and on <dcmplx> the real TRIM block's
+    , public         RealPullbackBase<T,tVxc_DFT<T>>   // ... and on <dcmplx> the real TRIM block's
     , public virtual tStrainGradient_HT<T>             // its virial at fixed D (CellHalf_Design §5; lane H 2026-11-10): Imp/Vxc_Virials.C
     , public virtual tStatic_VC<T>                     // the per-block virial client DM_Virial walks
-    , public         RealVirialBase<T,tVxc_Quadrature<T>>     // ... and on <dcmplx> the real TRIM block's
+    , public         RealVirialBase<T,tVxc_DFT<T>>     // ... and on <dcmplx> the real TRIM block's
+    , public         Vxc_DFT_BlochBase<T,tVxc_DFT<T>>  // ... and on <dcmplx> the real TRIM block's cache and the ALDA response
 {
 public:
     //! \name THE VIRIAL AT FIXED D (doc/Records/CellHalf_Design.md §5).  The sampler's quadrature side, the pure dilation
@@ -292,11 +329,15 @@ public:
     typedef std::shared_ptr<const ChargeDensity::tDensitySampler<T>> sampler_t;   //!< const: every accessor is const (R2.9(i))
     //! \a g is the imposed spin subgroup: which rasters the sampler is asked for (its Rho / RhoPol caches
     //! are mutually exclusive on one engine, so the choice is fixed for the run).
-    tVxc_Quadrature(const xc_t&, sampler_t, SpinGroup g);
+    tVxc_DFT(const xc_t&, sampler_t, SpinGroup g) requires std::is_same_v<T,double>;
+    //! A Bloch run DEMANDS the periodic sampler: the real TRIM block and the response are on its periodic face (ONE engine, two views).
+    tVxc_DFT(const xc_t&, std::shared_ptr<const ChargeDensity::DensitySampler>, SpinGroup g) requires std::is_same_v<T,dcmplx>;
     //! Pre-warm the channel raster(s) on the quadrature's points for \a cd (the EAGER REFRESH PHASE): all the energy pass needs.
     virtual void          RefreshForDensity(const tChargeDensity<T>* cd) const override;
     //! \copydoc HT_BlockOwner::BuildBlocks
-    //! Builds v^sigma (\c BuildPotential) first: block-only state, so only a Fock refresh pays for it.
+    //! Builds v^sigma (\c BuildPotential) first: block-only state, so only a Fock refresh pays for it.  On <dcmplx> I OWN TWO
+    //! IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both (the compiler DEMANDS this override: an
+    //! ambiguous final overrider, rather than silently picking one mixin).
     virtual void          BuildBlocks(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const tDM_CD<T>*) const override;
     //! The spins the Fock loop asks for: the imposed subgroup's (V1.41 stage 3: BuildBlocks builds exactly these).
@@ -313,6 +354,16 @@ public:
     virtual std::ostream& Write(std::ostream&) const override;
 protected:
     virtual hmat_t<T> MakeMatrix(const tobs_t<T>*, const Spin&, DensityID) const override;
+    friend class Vxc_DFT_BlochFaces<tVxc_DFT<T>>;
+    //! The ONE block body (Bloch block, or a real TRIM block on \a sampler's periodic face): read the refresh's v^sigma, size tau, contract.
+    template <class U, class S> hmat_t<U> BlockOn(const S& sampler, const tobs_t<U>* bs, const Spin& s, DensityID id) const;
+    //! \name The Bloch faces' bodies (\c Vxc_DFT_BlochFaces routes to them)
+    //!@{
+    rsmat_t       RealBlock(const robs_t* bs, const Spin& s, DensityID id) const requires std::is_same_v<T,dcmplx>;
+    void          RefreshResponse(const cChargeDensity* D0, const TransitionDensity<dcmplx>& delta) const requires std::is_same_v<T,dcmplx>;
+    mat_t<dcmplx> ResponseMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s, const TransitionDensity<dcmplx>& delta) const
+        requires std::is_same_v<T,dcmplx>;
+    //!@}
     //! The two channel rasters of \a cd as the functional sees them: the sampler's Up/Down pair, or the
     //! folded doublet's one raster halved (borrowed reference + scratch, hence the pair of references).
     struct Rasters { const rvec_t& up; const rvec_t& dn; };
@@ -328,6 +379,7 @@ protected:
         DensityID id=DensityID(static_cast<const tChargeDensity<T>*>(nullptr));
         rvec_t v[2];
         std::optional<ChargeDensity::XCRhoSource> source;
+        bool densityIsRhoD=false;   //!< the density's own pin-28 answer (\c tChargeDensity::HasNoFitComponent), fail closed
         std::optional<double> groupResidual;
         rvec_t seedFxc[2];
         double seedN=0.0;
@@ -352,6 +404,7 @@ protected:
     //! many times per iteration, and a log emptied by each call would hand the trace an empty cell.
     mutable Refreshed itsRefreshed;   //!< the refresh's one current state (V1.41 stage 2)
     mutable std::optional<ChargeDensity::XCRhoSource> itsFockSource;
+    mutable bool itsFockDensityIsRhoD=false;              //!< the same build's density: rho[D] and nothing else?  (fail closed)
     mutable std::optional<double> itsFockGroupResidual;   //!< R2.1: the same build's density vs the imposed group (\c xcGroupResidual)
     qchem::LazyLock itsFockSourceLock;   //!< every Fock block writes it (the same value): concurrent blocks take turns
     //! The seed's consumer prefactors (SizeFourierSampling): P_E per channel = Integral |v_xc^sigma|, P_H = max_i <i| sum_t |f_xc^{st}| |i>.
@@ -361,51 +414,25 @@ protected:
     mutable size_t itsSamplingLastLoads=0;   //!< the slot's load count when the samp/τ column last read its window
     mutable double itsSamplingShown=0.0;     //!< ...and the value it read (repeated by an energy pass with no new samplings)
     qchem::LazyLock itsSamplingLock;
+    //! \brief A Bloch run's extra state: the same sampler through its periodic face, and the response state (R2):
+    //! \f$f_{xc}^{\sigma\sigma'}\f$ at the linearisation density, per point, and the last δ's \f$\delta v^\sigma\f$.
+    struct BlochState
+    {
+        std::shared_ptr<const ChargeDensity::DensitySampler> periodic;   //!< == itsSampler, through its periodic face
+        size_t  kernelVersion=size_t(-1);
+        rvec_t  fuu, fud, fdu, fdd;
+        size_t  deltaVersion=size_t(-1);
+        cvec_t  dvUp, dvDn;
+        rvec3_t deltaQ{0,0,0};   //!< the wave vector δv was sampled at (the raster adjoint needs it)
+    };
+    struct NoBlochState {};
+    [[no_unique_address]] mutable std::conditional_t<std::is_same_v<T,dcmplx>, BlochState, NoBlochState> itsBloch;
 };
 
-//! \brief The PERIODIC XC term: \c tVxc_Quadrature<dcmplx> plus what only a Bloch run has -- the real TRIM block's cache
-//! (Step 3c) and the ALDA response kernel (R2).  The name every periodic builder and test already spells.
-class Vxc_Quadrature
-    : public         tVxc_Quadrature<dcmplx>
-    , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
-    , public virtual tResponse_HT<dcmplx>       // the ALDA kernel f_xc(rho0) on the same quadrature (R2)
-{
-public:
-    //! \name THE RESPONSE (doc/LinearResponsePlan.md R2/H3): \f$\delta v^\sigma(r_g)=\sum_{\sigma'}
-    //! f_{xc}^{\sigma\sigma'}(\rho_{0\uparrow},\rho_{0\downarrow})\,\delta\rho_{\sigma'}(r_g)\f$, gathered by the SAME
-    //! adjoint as \f$v_{xc}\f$ -- so the response is the derivative of exactly the operator the SCF used.  The
-    //! kernel arrays are built once per \a D0 serial; δρ is sampled per δ, uncached in the sampler
-    //! (\c DensitySampler::Sample).  SU(2): \f$\delta\rho_\uparrow=\delta\rho_\downarrow=\delta\rho/2\f$, the
-    //! ζ = 0 collapse.  Any q (R3): δρ and δv are complex, in the sampler's own representation of a Bloch-q
-    //! function (\c DensitySampler::Sample), and f_xc is periodic, so the pointwise product is too; the pair
-    //! adjoint \c DensitySampler::Matrix(bra, ket, ·, q) gathers it.  Complex blocks only.
-    //!@{
-    using tVxc_Quadrature<dcmplx>::RefreshForDensity;
-    virtual void   RefreshForDensity(const cbs_t* wholeBasis, const cChargeDensity* D0,
-                                     const TransitionDensity<dcmplx>& delta) const override;
-    virtual mat_t<dcmplx> GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s,
-                             const TransitionDensity<dcmplx>& delta) const override;
-    //!@}
-    //! \copydoc HT_BlockOwner::BuildBlocks
-    //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
-    //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_BlockOwner base is for: two caches is a fact about
-    //! this term, and the term is what states it.
-    virtual void BuildBlocks(const cbs_t* bs, const cChargeDensity* cd) const override
-    { BuildPotential(bs, cd); tDynamic_HT_Imp<dcmplx>::BuildBlocks(bs, cd); Dynamic_HT_RealBlock_Imp::BuildBlocks(bs, cd); }
-    Vxc_Quadrature(const xc_t&, std::shared_ptr<const ChargeDensity::DensitySampler>, SpinGroup g);
-private:
-    using tVxc_Quadrature<dcmplx>::MakeMatrix;
-    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&, DensityID) const override;   // the real TRIM block (Step 3c; V1.35)
-    std::shared_ptr<const ChargeDensity::DensitySampler> itsPeriodic;   //!< the same sampler, through its periodic face
-    //! The response state (R2): \f$f_{xc}^{\sigma\sigma'}\f$ at the linearisation density, per point, and the
-    //! last δ's \f$\delta v^\sigma\f$.
-    mutable size_t itsKernelVersion=size_t(-1);
-    mutable rvec_t itsFuu, itsFud, itsFdu, itsFdd;
-    mutable size_t  itsDeltaVersion=size_t(-1);
-    mutable cvec_t  itsDvUp, itsDvDn;
-    mutable rvec3_t itsDeltaQ{0,0,0};   //!< the wave vector δv was sampled at (the raster adjoint needs it)
-};
+//! The periodic XC term: \c tVxc_DFT on Bloch blocks (its real TRIM block and ALDA response are \c Vxc_DFT_BlochFaces).
+using cVxc_DFT = tVxc_DFT<dcmplx>;
+//! The molecular / atom XC term.
+using rVxc_DFT = tVxc_DFT<double>;
 
 //! \brief THE XC term for a run whose \f$v_{xc}\f$ fit basis is \a fb -- ready to \c Add (ownership
 //! passes with release()).
@@ -427,7 +454,7 @@ MakeVxcTerm(std::vector<std::shared_ptr<ExFunctional>> parts,
 {
     std::shared_ptr<const ChargeDensity::DensitySampler> q=ChargeDensity::MakeDensitySampler(fb, std::move(quad));
     auto sum=std::make_shared<CompositeExFunctional>(std::move(parts));
-    return std::make_unique<Vxc_Quadrature>(sum, q, g);
+    return std::make_unique<cVxc_DFT>(sum, q, g);
 }
 
 } //namespace

@@ -297,7 +297,7 @@ ball), so every PW run's XC saw ρ[D] with its G_max..2G_max shell cut off; floo
 β-MnO₂ U = 0, 20 Ha: −87.8140996 → −87.8140395 (+60 μHa), now 33 μHa from QE converged on its XC grid (QE's DEFAULT
 36×36×24 grid is itself 107 μHa off its 72³ value -- the old "13 μHa" agreement was two errors cancelling).
 
-**Two exceptions (user, 2026-10-22), both transient:**
+**The exceptions (user, 2026-10-22: 1 and 2, both transient; 2026-11-15: 3 and 4):**
 1. **The SAD seed** has no D -- one iteration.
 2. **A G-dependent (Kerker-type) preconditioner** exists only in the fit's {G} representation, so its step cannot be taken on D.
    During such a step XC sees \f$\rho_{XC}=\tilde\rho_{mix}+(\rho[D]-\tilde\rho_{fit})\f$ (the CUSP DEFICIT, N4): the damped fitted
@@ -305,6 +305,15 @@ ball), so every PW run's XC saw ρ[D] with its G_max..2G_max shell cut off; floo
    ρ[D] (O₂ box: −30.71018173, the ρ[D] value to all digits).  Bare \f$\tilde\rho_{mix}\f$ is NOT this exception -- that is the
    +7.72 mHa.  Nor is the raw output ρ[D] alone: it strips the filter's damping from the XC channel (MnO AFM-II collapsed to
    −45.5 Ha vs −61.403; pin 18).  The part outside the fit needs no damping: no mixer acts outside the fit space.
+
+3. **CP2K parity** (user, 2026-11-15: *"We need the CP2K compatibility mode to keep working.  Very important for numeric checks and for testing
+   performance head to head.  So if our pins fight against this we need at have CP2K compatibility as an allowed exception."*).  Every route
+   `policy.cp2kCompat` sets must keep running under the check below.  Measured 2026-11-15: its routes feed XC through certified sources (the
+   raster pair route's ρ[D] under D-mixing, its raw shadow under Kerker/Pulay, exception 2), so no parity route needs an exception TODAY; a
+   parity route that ever does becomes a NAMED certified route ("CP2K parity"), printed in the XC ρ column and the run report -- never a silent
+   pass, never disabled.
+4. **`policy.xcFromDM`** (a declared deck key, off by default and under parity): XC sees a damped mix of ρ[D] through the retained D.  Certified
+   only as that named route (`DMsrc` in the XC ρ column).
 
 - A mixer with NO G-dependent filter mixes D itself, history and all -- \f$\rho[\sum_i c_iD_i]=\sum_i c_i\rho[D_i]\f$ pointwise -- so XC
   sees \f$\rho[D_{mix}]\f$ with no correction.  Linear D-mixing and direct minimisation (GDM) comply (O₂ box: linear −30.71018167/173).
@@ -320,8 +329,18 @@ ball), so every PW run's XC saw ρ[D] with its G_max..2G_max shell cut off; floo
 THROWS on the two violations the `XC ρ` column used to only mark: an inexact `fitted` ρ after the first iteration, and the `cusp`
 deficit beside a mixer with NO G-dependent filter (pure Pulay: right at the fixed point, wrong in form).  The gate that the crash
 works is `GPW_Si.Γ_Becke_Imp_Kerker_FitXC_Pin28Throws` (the old fitted-XC control).  The column now just names the source
-(DM, cusp, DMsrc, shadow, fit=); by-eye pairing: `cusp` sits beside `Ker` or `Pul+K` in `ρ_mix`.  Why a crash: this defect class
+(DM, cusp, DMsrc, shadow, fit=, fit=mix); by-eye pairing: `cusp` sits beside `Ker` or `Pul+K` in `ρ_mix`.  Why a crash: this defect class
 (fitted ρ / cut G into XC) came back several times while believed gone -- a mark is read by nobody, a throw by everyone.
+
+**FAIL CLOSED (user, 2026-11-15: *"we really need those run time checks to fire, because fitted rho's are constantly creeping back into Vxc.  It
+has happened 2 or 3 times now."*).**  Nothing has to remember to set a flag.  An XC energy enters the breakdown only through
+`EnergyBreakdown::AddXC`, carrying a certificate whose default is UNCERTIFIED, and `RequirePin28` throws on an uncertified one past the
+seed.  The certificate (`ChargeDensity::CertifiesRhoD`) is the AND of two positive answers: the DENSITY's `tChargeDensity::HasNoFitComponent()`
+(false by default; `IrrepCD_Core<T>` is the one override that answers true, and `tComposite_CD<T>` forwards and throws if its irreps disagree;
+user: *"I am very happy that D is only in one place"*), and the SAMPLER's source (DM or an exact fit).  Otherwise it must be one of the named
+routes above.  So a new density or sampler that never answers counts as fitted.  `UTHamiltonian VxcProductSpace.EverySamplersPin28Certificate…`
+measures every remaining sampler's ρ against the density's own pointwise ρ[D], so a false certificate fails too.  The ρ axis is retired: `xc.rho fit`
+on an inexact fit is refused at setup (`XCRhoProjectedRefused`), and the projecting samplers are deleted.
 
 Records: `OpenWork_History4.md` "ITEM 1 MEASURED" (MnO negatives, the collapse), `OpenWork.md` §3 "Kerker/Pulay as the
 DEFAULT mixer" and N4 (the O₂ and MnO arms).
@@ -347,12 +366,22 @@ offset against CP2K (now +0.16 mHa).  Record: `OpenWork_History5.md` "MnO accura
 A1 Gaussian auxiliary fit, plane waves on the raster, and any future one) and integration grid (Becke atom-centred,
 uniform cell mesh, the {G} raster) must assemble through the SAME XC term and the SAME fit-basis faces, with no type
 tests.  **A combination that throws or fails is an OOD DESIGN FLAW, never an unsupported option**: fix the interface
-it exposed, don't add a carve-out.  **The ONE legitimate refusal is SYMMETRY INCOMPATIBILITY** (user, 2026-10-31): the
-fit basis must be able to represent a field with the structure's symmetry.  A spherical (atom) fit basis cannot serve a
-molecule or a solid, and a Bloch/periodic basis needs a lattice.  That refusal is stated, not stumbled into: it is
-answered by a symmetry-compatibility question at the factory, before anything is built, and it names both symmetries.
-Anything else, such as a throw deep inside, an assert, a wrong number, or a refusal for any reason other than symmetry,
-is the flaw.  The A1 Gaussian fit is KEPT for this reason even if δ wins on accuracy and cost.
+it exposed, don't add a carve-out.  **There are exactly THREE legitimate refusals, each with ONE home** (user, 2026-10-31;
+amended 2026-11-15 to name the two later ones):
+- **(a) SYMMETRY, H_R ⊄ G**: a representation may not impose a symmetry the calculation lacks.  G is what the calculation
+  imposes on ρ (O(3) on the atom path, the point group on a molecule, a space group ⊇ T on a solid); H_R is what the
+  representation imposes ({e}, T for plane waves / lattice sums / a cell mesh, O(3) for a radial-only rule or the atom's
+  spherical set).  A cell is admissible iff H_fit ⊆ G and H_points ⊆ G.  Home: `Hamiltonian::AdmitVxc`, before anything is
+  built, naming both groups.  Each side answers for itself (stage 2, user ruling 2026-11-15 Q2): the structure by
+  `Structure::Admits(H)`, every fit class by `FIT_SF_ABS::Imposes()` (pure), and the built realization (the XC sampler,
+  fit space included) by `DensitySamplerBase::Imposes()`; the Vxc builders throw a `logic_error` when the built answer
+  differs from the pre-flight `Hamiltonian::ImposedBy`, so the table cannot drift from the classes.
+- **(b) the periodic-multipole CORRECTNESS LIMIT** (user, 2026-11-06): site multipoles on a periodic structure have a
+  conditionally convergent lattice sum, so the answer would depend on the order of summation.  Home: `Hamiltonian::AdmitVxc`.
+- **(c) NO ROUTE TO ρ[D]** (pin 28): a cell whose XC would see a fitted ρ.  Home: the pin-28 policy at setup
+  (`qchem.XCRhoPolicy`), with the library throwing below it and the SCF failing closed on an uncertified ρ.
+Each refusal is stated, not stumbled into.  Anything else, such as a throw deep inside, an assert, a wrong number, or a
+refusal for any other reason, is the flaw.  The A1 Gaussian fit is KEPT for this reason even if δ wins on accuracy and cost.
 It is a STRATEGY whose job includes keeping the framework honest, so "δ is better, delete A1" is not an available
 cleanup.  Earned by: on 2026-10-31 a δ fit on the molecular path threw (`tBasisSet<T>::CreateVxcFitBasisSet`).  The
 cause was that `DeltaFit_IBS` was hard-wired to `dcmplx`, and that `Fitting::Factory` used the scalar type as a proxy
@@ -360,9 +389,12 @@ for the metric (real ⇒ non-orthogonal, complex ⇒ orthogonal; both wrong).  T
 (closed shell) and 35 mHa (polarized O₂) against PySCF exact, which nobody could isolate because no second
 representation could run there.  Corollary: the scalar type T, the metric (`isOrtho`), the transform
 (`G_RasterTransform`) and the system kind are independent axes.  A factory dispatches on CAPABILITY, never on T or on
-what a class IS.  Gate: a parameterized UT over the product space (OOD V-XC-ONE-TERM).  Each cell either ASSEMBLES, or is REFUSED for
-symmetry incompatibility at the factory (a permanent, expected answer), or is an EXPECTED FAILURE naming its open
-defect row.  Only that last list may change, and it may only shrink.
+what a class IS.  Gate (UTHamiltonian `VxcProductSpace`; it replaced the cell table and its ratchet on 2026-11-15, once every cell had reached its
+target): (1) the RULE alone, a pure function over its 27 values (H_fit, H_points ∈ {e, T, O(3)} × the three G), what each
+representation imposes, and `AdmitVxc` agreeing with it over the whole space; (2) one H = dE/dD finite-difference gate per
+sampling strategy × grid kind (pair raster, PW ball on its raster and at Becke points, δ singles at Becke, uniform and radial
+points; the fitted potential is H ≠ dE/dD by design, pin 32), plus the pin-28 certificate gate; (3) about six end-to-end
+productions, each building its Hamiltonian and finding the one XC term in it.
 
 **The symmetry rule, stated precisely** (user, 2026-10-31: "a representation may not impose a symmetry the structure
 lacks").  Let **G** be the group the CALCULATION imposes on ρ, and hence on v_xc.  It is not the symmetry of the nuclear

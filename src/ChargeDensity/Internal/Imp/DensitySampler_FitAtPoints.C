@@ -150,10 +150,11 @@ static const BasisSet::Orbital_1E_IBS<double>& RequireBlock(const std::shared_pt
 }
 GaussianFitSpace::GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, BasisSet::FitQuadrature points)
     : GaussianFitSpace(RequireBlock(a1).Overlap(), [a1](const rvec3vec_t& R) {return rmat_t((*a1)(R));}, std::move(points),
-                       "the periodic A1 Gaussian set")
+                       "the periodic A1 Gaussian set", {.translations=true})   // lattice-summed at Gamma: T
 {}
-GaussianFitSpace::GaussianFitSpace(const rsmat_t& S, Evaluator eval, BasisSet::FitQuadrature points, std::string name)
-    : itsEval(std::move(eval)), itsPoints(std::move(points)), itsName(std::move(name))
+GaussianFitSpace::GaussianFitSpace(const rsmat_t& S, Evaluator eval, BasisSet::FitQuadrature points, std::string name,
+                                   qcMesh::ImposedSymmetry imposes)
+    : itsEval(std::move(eval)), itsPoints(std::move(points)), itsName(std::move(name)), itsImposes(imposes)
 {
     if (!itsEval) throw std::logic_error("GaussianFitSpace: needs the set's evaluator at points");
     if (!itsPoints.GetMesh() || itsPoints.GetMesh()->size()==0) throw std::logic_error("GaussianFitSpace: a point set with no points");
@@ -255,6 +256,12 @@ rvec_t GaussianFitSpace::Resample(const rvec_t& atPoints) const
     for (size_t g=0; g<wv.size(); g++) wv[g]=w[g]*atPoints[g];
     const rvec_t c=itsSinv*PhiT(itsPoints.GetMesh()->Points(), wv);
     return Phi(itsPoints.GetMesh()->Points(), c);
+}
+
+rvec_t GaussianFitSpace::AtPoints(const rvec_t&) const
+{
+    throw std::invalid_argument("GaussianFitSpace::AtPoints: "+itsName+" would hand XC its projection P rho, not rho[D] (doc/Pins.md pin 28; the "
+                                "projected cell was deleted with the rho axis, 2026-11-15) -- this fit space serves the fitted potential's v only");
 }
 
 void GaussianFitSpace::ReportHealthFacts() const {qchem::report::Set("metricGap", itsMetricGap);}

@@ -71,3 +71,31 @@ TEST(DensityLineage, SupersededHeadIsInactive)
     EXPECT_TRUE (B.isActive()) << "the live head is active";
     EXPECT_FALSE(A.isActive()) << "the superseded density is inactive -- the guard would fire on reuse";
 }
+
+// PIN 28's QUESTION FAILS CLOSED (user ruling 2026-11-15): only a density matrix's density answers HasNoFitComponent; a seed and a numeric
+// density keep the base answer (false); a composite forwards to its irreps, and an empty one has no D.  (A mixer's field, which can REACH a
+// D but is not one, keeps false too: FourierMixCD and PolarizedMixCD do not override it.)
+TEST(DensityPin28, OnlyADensityMatrixHasNoFitComponent)
+{
+    namespace L3 = ::qchem::BasisSet::Lattice;
+    UnitCell   cell(10.0);
+    cell.AddAtom(14, rvec3_t(0,0,0));
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 2.0));
+    const auto* ftbs = dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>((*bs)[0]);
+    ASSERT_TRUE(ftbs);
+    const auto OnePoint=std::make_shared<const qcMesh::Mesh>(rvec3vec_t{rvec3_t(0,0,0)}, rvec_t(1,1.0));
+
+    FiniteIrrepCD a;
+    EXPECT_TRUE(a.HasNoFitComponent()) << "IrrepCD_Core: the one place D lives";
+    tComposite_CD<double> composite;
+    EXPECT_FALSE(composite.HasNoFitComponent()) << "an empty composite has no D";
+    composite.Insert(std::make_unique<FiniteIrrepCD>(), Irrep());
+    composite.Insert(std::make_unique<FiniteIrrepCD>(), Irrep());
+    EXPECT_TRUE(composite.HasNoFitComponent()) << "a composite of density matrices forwards their answer";
+    NumericCD numeric(8.0, OnePoint);
+    EXPECT_FALSE(numeric.HasNoFitComponent()) << "a numeric density keeps the fail-closed default";
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(lat.GetStructure().get()));
+    SeedCD seed(fb, lat.GetUnitCell(), "LDA");
+    EXPECT_FALSE(seed.HasNoFitComponent()) << "the seed is a fitted density";
+}
