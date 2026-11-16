@@ -50,9 +50,9 @@ public:
     //! (min(k, 2(2l+1) - k) unpaired; NIST's LSD atoms and ions are high-spin).  \a shells must be representable (\c WhyNotRepresentable
     //! with fromLowestN false): a caller that did not check is a broken invariant, and THROWS std::logic_error.
     explicit Atom_EC(const ShellOccupations& shells);
-    //! The configuration this EC occupies, as subshells: each l's \c N[l] electrons filled from n = l+1 + (that l's shells in a core of
-    //! \a coreElectrons, filled in aufbau order) -- 0 for an all-electron atom, Z - q for a pseudo-atom.  What the run report prints.
-    ShellOccupations Shells(int coreElectrons=0) const;
+    //! The configuration this EC occupies, as subshells: each l's \c N[l] electrons filled from n = l+1 + (that l's shells in the core
+    //! the EC does not carry: none for an all-electron atom, the pseudopotential's for a pseudo-atom).  What the run report prints.
+    ShellOccupations Shells() const;
     virtual int    GetN(const Irrep&) const;  //Core + Valance
     virtual syms_t GetIrreps() const;
     virtual void   Display() const;
@@ -68,7 +68,8 @@ protected:
     //p^6, Na+ -> empty valence.  Unpaired counts are recomputed by Hund's rule on the adjusted valence shell.
     //\a zion is the pseudopotential's q: when it exceeds the neutral valence count the PP keeps SEMICORE shells, which are
     //added as closed shells (Nf) -- the outermost of the noble-gas core, highest n first (Na q9: 2s^2 2p^6; Mn q15: 3s^2 3p^6;
-    //Li q3: 1s^2).  A q that is not a whole-shell semicore split THROWS.
+    //Li q3: 1s^2).  When it is SMALLER (rule B, 2026-11-15) the valence's closed subshells go into the core, f^14 first then d^10
+    //(I q7: 5s^2 5p^5 over [Kr] 4d^10).  A q reached by neither whole-shell route THROWS.
     Atom_EC(int Z, int netCharge, int zion, ValenceOnly_t);
     void BuildNROccupations();
     void SetSplitOccupations(sym_t sp, sym_t su, int NCore, int gp, int gu, int Npair, int Nu);
@@ -80,6 +81,9 @@ protected:
 
     static const int FullShells[Nshell][LMax+2];
     ElCounts itsNs; //Total,core, valance and unpaired counts.
+    //! Per l, how many whole subshells lie BELOW the ones itsNs counts: 0 for an all-electron atom; for a pseudo-atom, that l's shells in
+    //! the core its pseudopotential replaces (Kr q8: s 3, p 2, d 1 -- the core [Ar] 3d^10 is no prefix of the Madelung filling).
+    int itsCoreShells[LMax+1]={0,0,0,0};
     size_t itsLMax,itsLValance;
     std::map<Irrep,size_t> itsOccupations; //Spin polarized list;
     std::map<Irrep,size_t> itsUnpolOccupations; //Spin un polarized list;

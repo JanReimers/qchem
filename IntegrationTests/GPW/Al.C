@@ -97,31 +97,36 @@ TEST(GPW_Al, Γ_Imp_Converges)
 }
 
 
-// THE AUTO SEED ON AN UNCOVERED SPECIES (user ruling 2026-11-12, "Core guess + WARN, both"): Al has no valence-library entry, so the
-// default seed resolves to the core-Hamiltonian guess with a WARN row, where until 2026-11-12 it threw at seed time (which is why
-// AlOptions states Uniform).  The claim is that the default RUNS and reaches the same imposed aufbau state as the Uniform-seeded gate above.
-TEST(GPW_Al, Γ_Imp_UncoveredSpeciesSeedsFromTheCoreGuess)
+// EVERY SEED REACHES THE SAME STATE (user ruling 2026-11-12, "Core guess + WARN, both"): the imposed aufbau state of the Uniform-seeded gate
+// above is the state, whatever the start.  Three starts: the stated Uniform opt-in, the stated core-Hamiltonian guess (what the Auto rule
+// takes for a species the seed library lacks; that branch is unit-tested in SolidSetup), and the Auto rule itself -- IonicSAD since the
+// valence library covers Al q3 (row 189, 2026-11-15; until then this case was the uncovered species, which until 2026-11-12 threw at seed
+// time, which is why AlOptions states Uniform).
+TEST(GPW_Al, Γ_Imp_EverySeedReachesTheSameAufbauState)
 {
     using qchem::ChargeDensity::SeedStrategy;
     const Material al=qchem::Materials::Get("Al_fcc");
     const Lattice_3D lat=LatticeOf(al);
     SCFParams par=Gates(40, 1e-8, std::nullopt); par.SmearingkT=0.0;   // tighter than AlGates' 1e-5, so each energy is the state's
-    double E[2]={0,0};
-    const SeedStrategy seeds[2]={SeedStrategy::Uniform, SeedStrategy::Default};   // the stated opt-in, then the Auto rule
-    for (int i=0;i<2;i++)
+    double E[3]={0,0,0};
+    const SeedStrategy seeds[3]   ={SeedStrategy::Uniform, SeedStrategy::CoreGuess, SeedStrategy::Default};
+    const SeedStrategy resolved[3]={SeedStrategy::Uniform, SeedStrategy::CoreGuess, SeedStrategy::IonicSAD};
+    const char* name[3]={"uniform", "core guess", "auto"};
+    for (int i=0;i<3;i++)
     {
         SolidCalcOptions o=AlOptions(al);
         o.seed=seeds[i];
-        GpwReport report(std::string("Al ")+(i ? "auto" : "uniform")+" seed "+o.label, par.Verbose);
+        GpwReport report(std::string("Al ")+name[i]+" seed "+o.label, par.Verbose);
         const auto setup=SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o);
-        EXPECT_EQ(setup->opts.seed, i ? SeedStrategy::CoreGuess : SeedStrategy::Uniform);
+        EXPECT_EQ(setup->opts.seed, resolved[i]) << name[i];
         qchem::SolidCalculation calc(setup, par);
         auto R=calc.Result();
-        ASSERT_TRUE(R) << (i ? "the core guess" : "the Uniform seed") << " must reach the imposed aufbau state";
+        ASSERT_TRUE(R) << "the " << name[i] << " seed must reach the imposed aufbau state";
         EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);
         E[i]=R->Energy();
     }
     EXPECT_NEAR(E[1], E[0], 1e-8) << "the core guess reaches the state the stated Uniform seed does";
+    EXPECT_NEAR(E[2], E[0], 1e-8) << "the Auto seed (IonicSAD) reaches the state the stated Uniform seed does";
 }
 
 

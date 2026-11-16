@@ -303,9 +303,11 @@ Atom_EC::Atom_EC(const ShellOccupations& shells)
     if (const std::string why=WhyNotRepresentable(shells, false); !why.empty())
         throw std::logic_error("Atom_EC: the stated configuration "+ConfigurationText(shells)+" is not representable ("+why+") -- the caller checks "
                                "WhyNotRepresentable first");
+    int lowestN[LMax+1]={0,0,0,0};
     for (const auto& o : shells)
     {
         if (o.l<0 || o.l>LMax) throw std::logic_error("Atom_EC: l="+std::to_string(o.l)+" is past LMax");
+        if (lowestN[o.l]==0 || o.n<lowestN[o.l]) lowestN[o.l]=o.n;
         if (o.count==SubshellCapacity(o.l)) itsNs.Nf[o.l]+=o.count;   // closed: core
         else { itsNs.Nv[o.l]=o.count; itsNs.Nu[o.l]=std::min(o.count, SubshellCapacity(o.l)-o.count); }   // the l's one open subshell: Hund
     }
@@ -314,26 +316,17 @@ Atom_EC::Atom_EC(const ShellOccupations& shells)
         itsNs.N[l]=itsNs.Nf[l]+itsNs.Nv[l];
         if (itsNs.N[l]>0) itsLMax=l;
         if (itsNs.Nv[l]>0) itsLValance=l;
+        if (lowestN[l]>0) itsCoreShells[l]=lowestN[l]-(l+1);   // a pseudo-atom's stated d^5 at 3d: none below; its 5s: four s below
     }
     BuildNROccupations();
 }
 
-ShellOccupations Atom_EC::Shells(int coreElectrons) const
+ShellOccupations Atom_EC::Shells() const
 {
-    // The core's shells per l, filled in aufbau order (a pseudo-atom's core is the noble gas below its valence, semicore excluded).
-    static const int aufbau[][2]={{1,0},{2,0},{2,1},{3,0},{3,1},{4,0},{3,2},{4,1},{5,0},{4,2},{5,1},{6,0},{4,3},{5,2},{6,1},{7,0}};
-    int coreShells[LMax+1]={0,0,0,0};
-    int left=coreElectrons;
-    for (const auto& sh : aufbau)
-    {
-        if (left<=0) break;
-        left-=SubshellCapacity(sh[1]); coreShells[sh[1]]++;
-    }
-    if (left!=0) throw std::logic_error("Atom_EC::Shells: a core of "+std::to_string(coreElectrons)+" electrons is not whole aufbau shells");
     ShellOccupations out;
     for (int l=0;l<=LMax;l++)
     {
-        int k=itsNs.N[l], n=l+1+coreShells[l];
+        int k=itsNs.N[l], n=l+1+itsCoreShells[l];
         while (k>0) { const int c=std::min(k, SubshellCapacity(l)); out.push_back({n,l,c}); k-=c; ++n; }
     }
     return out;
@@ -344,21 +337,14 @@ ShellOccupations Atom_EC::Shells(int coreElectrons) const
 // an ion (see the header): adjust the neutral valence by -netCharge electrons, then recompute the unpaired
 // count by Hund's rule on the (adjusted) valence shell.
 namespace {
-//! The SEMICORE closed shells a pseudopotential of valence \a zion keeps beyond the neutral valence \a nValence, as electron counts per
-//! l.  They are the OUTERMOST shells of the noble-gas core (Z - nValence electrons, filled in aufbau order), taken highest n first then
-//! highest l -- the energetic order of a core (Ag q19 keeps 4s^2 4p^6, not 3d).  THROWS when \a zion does not peel whole shells.
-std::vector<int> SemicoreShells(int Z, int nValence, int zion)
+//! The SEMICORE closed shells a pseudopotential keeps beyond the neutral valence, as electron counts per l: \a extra electrons peeled off
+//! the OUTERMOST shells of \a core (the noble-gas core plus any closed valence subshells folded into it, as (n, l)), highest n first then
+//! highest l -- the energetic order of a core (Ag q19 keeps 4s^2 4p^6, not 3d; Hf q12 keeps 5s^2 5p^6 over its folded 4f^14).  THROWS when
+//! \a extra does not peel whole shells.
+std::vector<int> SemicoreShells(int Z, int zion, std::vector<std::pair<int,int>> core, int extra)
 {
     std::vector<int> nf(LMax+1, 0);
-    int extra=zion-nValence;
     if (extra==0) return nf;
-    if (extra<0) throw std::invalid_argument("PseudoAtom_EC: Z="+std::to_string(Z)+" q="+std::to_string(zion)+" keeps FEWER electrons than "
-                                             "the neutral valence ("+std::to_string(nValence)+")");
-    static const int aufbau[][2]={{1,0},{2,0},{2,1},{3,0},{3,1},{4,0},{3,2},{4,1},{5,0},{4,2},{5,1},{6,0},{4,3},{5,2},{6,1},{7,0}};
-    std::vector<std::pair<int,int>> core;   // (n,l)
-    int nCore=0;
-    for (const auto& sh : aufbau) { if (nCore>=Z-nValence) break; core.push_back({sh[0],sh[1]}); nCore+=2*(2*sh[1]+1); }
-    if (nCore!=Z-nValence) throw std::logic_error("PseudoAtom_EC: the core of Z="+std::to_string(Z)+" is not whole aufbau shells");
     std::sort(core.begin(), core.end(), [](const auto& a, const auto& b){return a.first!=b.first ? a.first>b.first : a.second>b.second;});
     for (const auto& [n,l] : core)
     {
@@ -382,7 +368,38 @@ Atom_EC::Atom_EC(int Z, int netCharge, int zion, ValenceOnly_t)
 
     const size_t* vc=thePeriodicTable().GetValanceConfiguration(Z);  //Raw NEUTRAL valence electron counts per l
     int nv[LMax+1];
-    for (size_t l=0;l<=LMax;l++) nv[l]=int(vc[l]);
+    int nTable=0;
+    for (size_t l=0;l<=LMax;l++) { nv[l]=int(vc[l]); nTable+=nv[l]; }
+
+    // The noble-gas core below the periodic table's valence, as (n, l) subshells in aufbau order (always whole: the table's valence is
+    // counted from its noble gas).
+    static const int aufbau[][2]={{1,0},{2,0},{2,1},{3,0},{3,1},{4,0},{3,2},{4,1},{5,0},{4,2},{5,1},{6,0},{4,3},{5,2},{6,1},{7,0}};
+    std::vector<std::pair<int,int>> core;   // (n,l)
+    {
+        int nCore=0;
+        for (const auto& sh : aufbau) { if (nCore>=Z-nTable) break; core.push_back({sh[0],sh[1]}); nCore+=SubshellCapacity(sh[1]); }
+        if (nCore!=Z-nTable) throw std::logic_error("PseudoAtom_EC: the noble-gas core of Z="+std::to_string(Z)+" is not whole aufbau shells");
+    }
+    // RULE B (controller ruling 2026-11-15, row 189): a q SMALLER than the table's valence puts that valence's CLOSED subshells in its
+    // core, f^14 first then d^10, whole subshells only, while the count still exceeds q -- I q7 folds 4d^10 (5s^2 5p^5), W q6 4f^14
+    // (5d^4 6s^2), Au q1 4f^14 and 5d^10 (6s^1), Hf q12 4f^14 and then keeps the 5s 5p semicore below.  It keeps the ground state the
+    // table names (the GTH entry's own n_elec is its FITTING configuration: Tc q7 4d^6 5s^1, Gd q18 4f^8 -- not used), and every q that
+    // ran before is its unchanged branch.  A q with no closed subshell left to fold is REFUSED by name, never guessed.
+    const int q=zion<0 ? nTable : zion;
+    int nNeutral=nTable;
+    for (int l : {3,2})
+        while (nNeutral>q && nv[l]==SubshellCapacity(l))
+        {
+            int below=0; for (const auto& [n,lc] : core) if (lc==l) ++below;
+            core.push_back({l+1+below, l});
+            nv[l]-=SubshellCapacity(l); nNeutral-=SubshellCapacity(l);
+        }
+    if (nNeutral>q)
+        throw std::invalid_argument("PseudoAtom_EC: Z="+std::to_string(Z)+" q="+std::to_string(zion)+" keeps FEWER electrons than the neutral "
+                                    "valence ("+std::to_string(nNeutral)+" after folding every closed f^14 and d^10 subshell into the core), "
+                                    "and no closed subshell is left to fold");
+    int vNeutral[LMax+1];
+    for (size_t l=0;l<=LMax;l++) vNeutral[l]=nv[l];
 
     // Make the ion: add (anion) / remove (cation) -netCharge electrons.  Anion fills the lowest l that has
     // room (capacity 2(2l+1)); cation removes from the highest l that still has electrons.  Main-group ions
@@ -410,9 +427,22 @@ Atom_EC::Atom_EC(int Z, int netCharge, int zion, ValenceOnly_t)
 
     // The SEMICORE the pseudopotential keeps (closed shells below the valence): the ion was made on the valence shells above, so a
     // cation empties 3s before the semicore 2p is touched (Na+ q9 = 2s^2 2p^6).
-    int nNeutral=0;
-    for (size_t l=0;l<=LMax;l++) nNeutral+=int(vc[l]);
-    const std::vector<int> nf=SemicoreShells(Z, nNeutral, zion<0 ? nNeutral : zion);
+    const std::vector<int> nf=SemicoreShells(Z, zion, core, q-nNeutral);
+    // The core the pseudopotential REPLACES, per l: the neutral all-electron atom's electrons of that l minus this pseudo-atom's NEUTRAL
+    // valence of that l (semicore included), as whole subshells below it.  Its own decomposition, not a Madelung prefix of Z - q electrons:
+    // Kr q8 replaces [Ar] 3d^10 (28 e), Cs q9 [Kr] 4d^10 (46 e), Gd q18 [Kr] 4d^10 (46 e), none of which a filling in aufbau order reaches
+    // (that assumption made Shells() THROW for every such pseudo-atom, 2026-11-15).
+    {
+        const Atom_EC full(Z, NsOnly_t{});
+        for (int l=0;l<=int(LMax);l++)
+        {
+            const int coreE=full.itsNs.N[l]-(vNeutral[l]+nf[l]);
+            if (coreE<0 || coreE%SubshellCapacity(l)!=0)
+                throw std::logic_error("PseudoAtom_EC: Z="+std::to_string(Z)+" q="+std::to_string(zion)+": the core of l="+std::to_string(l)+" holds "
+                                       +std::to_string(coreE)+" electrons, not whole subshells");
+            itsCoreShells[l]=coreE/SubshellCapacity(l);
+        }
+    }
     for (size_t l=0;l<=LMax;l++)
     {
         itsNs.Nf[l]=nf[l];             //the semicore shells the PP keeps (0 for a valence-only q): the rest of the core is the PP's

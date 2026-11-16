@@ -158,6 +158,29 @@ TEST(Si_PP_U, Polarized)
     EXPECT_LE (cPol.Energy(), cUnpol.Energy() + 1e-9);     // spin polarization lowers (or ties) the open-shell E
 }
 
+// PSEUDO-ATOMS OVER A CORE NO MADELUNG FILLING REACHES, judged on CP2K's ATOM code (row 189, the valence seed library, 2026-11-15).  No
+// gate ran one before, and every one of them THREW: the configuration text assumed the core Z - q is a prefix of the aufbau filling
+// (Kr q8 replaces [Ar] 3d^10, Gd q18 [Kr] 4d^10), and a q smaller than the periodic table's valence was refused outright until rule B
+// (I q7 folds the closed 4d^10 into its core).  Each runs in the configuration the pseudo-atom derives -- Kr 4s^2 4p^6, Gd
+// 4f^7 5s^2 5p^6 5d^1 6s^2 (Hund, the periodic table's ground state; the GTH entry was fitted in 4f^8), I 5s^2 5p^5 -- and lands on CP2K
+// ATOM at the same GTH-PADE-q, configuration and multiplicity (GRID_POINTS 3000, 60 GTOs per l: scripts/gen-valence-seeds) to < 0.1 mHa
+// in the Gaussian High pool.  A wrong configuration or spin state misses by tens to hundreds of mHa.
+TEST(A_PP, AHeavyCorePseudoAtomIsItsCP2KAtom)
+{
+    struct Case { int Z, q; SpinGroup spin; double cp2k; };
+    for (const Case& c : {Case{36,  8, SpinGroup::UnPolarized, -18.436585},    // Kr q8 over [Ar] 3d^10
+                          Case{64, 18, SpinGroup::Polarized,  -108.028903},    // Gd q18 over [Kr] 4d^10, 4f^7 5d^1 high spin
+                          Case{53,  7, SpinGroup::Polarized,   -11.479589}})   // I q7 over [Kr] 4d^10 (rule B)
+    {
+        SCOPED_TRACE("Z="+std::to_string(c.Z)+" q="+std::to_string(c.q));
+        AtomCalculation calc(c.Z, c.Z-c.q, {.type = AtomType::Gaussian, .basisPool = High, .spin = c.spin, .pseudopotential = true},
+            {.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-6, .MergeTol = 1e-7});
+        EXPECT_TRUE(calc.IsConverged());
+        EXPECT_NEAR(calc.TotalCharge(), double(c.q), 1e-9);
+        EXPECT_NEAR(calc.Energy(), c.cp2k, 3e-4);   // ORACLE: CP2K ATOM (ours within 0.07 mHa)
+    }
+}
+
 // ---- THE PER-l KB ORACLE (the decisive unit-level measurement; s/p/d/f) ----
 // Compares the ATOMIC route's KB matrix (PP_NonLocal, mesh quadrature) against the analytic radial
 // reference, per angular channel, with NO SCF and NO basis-completeness confound.
