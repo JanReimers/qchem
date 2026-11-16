@@ -135,7 +135,7 @@ ElectronConfiguration* AtomCalculation::MakeConfiguration() const
     {
         if (IsDirac(itsOpts.model)) return new AtomDirac_EC(itsNe);
         Atom_EC* ec=itsOpts.pseudopotential ? new PseudoAtom_EC(itsZ, zion-itsNe, zion) : new Atom_EC(itsNe);
-        policy::Report("AtomConfiguration", el+" "+ConfigurationText(ec->Shells(core)), policy::Verdict::Choose,
+        policy::Report("AtomConfiguration", el+" "+ConfigurationText(ec->Shells()), policy::Verdict::Choose,
                        itsOpts.pseudopotential ? "unstated: the pseudo-ion rule (a cation empties s before d)"
                                                : "unstated: the isoelectronic neutral's configuration (right for an anion and a main-group cation; "
                                                  "a d- or f-block cation states its own)");
