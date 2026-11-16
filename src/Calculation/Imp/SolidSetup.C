@@ -358,7 +358,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // THE SEED: a stated one is honoured; Default takes THE Auto rule both setups share (qchem.SeedPolicy) -- a lattice seeds from the
     // valence library's superposition at its formal charges (stated, else derived: its Madelung field holds them), and a species the
     // library lacks takes the core guess with a WARN (it threw at seed time until 2026-11-12).
-    s->opts.seed=ResolveSeed(opts.seed, *st, {.densityFock = true, .periodic = st->HasTranslationSymmetry(), .chargesStated = !opts.siteCharges.empty(),
+    s->opts.seed=ResolveSeed(opts.seed, *st, {.densityFock = true, .periodic = st->Admits({.translations=true}), .chargesStated = !opts.siteCharges.empty(),
         .covered = [key=s->seedKey](int Z){ return SeedLibraryCovers(key, Z); }});
     ReportKSampling(lat);   // the k mesh against the calibrated spacing: a WARN names the mesh that meets it
 

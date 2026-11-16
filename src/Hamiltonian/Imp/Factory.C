@@ -123,22 +123,6 @@ namespace qchem::Hamiltonian
     static const std::string thePeriodicMultipole="site multipoles have no periodic form.  The lattice sum of their potentials is "
         "conditionally convergent, so an answer would depend on the order of summation -- state Delta on a periodic structure";
 
-    ImposedSymmetry GroupOf(const Structure& st)
-    {
-        return {.translations=st.HasTranslationSymmetry(), .fullRotation=st.HasFullRotationSymmetry()};
-    }
-    ImposedSymmetry ImposedBy(VxcFit fit, const Structure& st)
-    {
-        switch (fit)
-        {
-            case VxcFit::PlaneWave: return {.translations=true};
-            case VxcFit::Auxiliary: return GroupOf(st);   // lattice-summed on a solid, spherical on the atom path, atom-centred on a molecule
-            case VxcFit::Delta:
-            case VxcFit::Multipole:
-            case VxcFit::Auto:      return {};
-        }
-        throw std::logic_error("Hamiltonian::ImposedBy: a Vxc fit with no imposed group");
-    }
 
     //! The one wording of a pin-30 refusal: what imposes H_R, the structure's G, and what to state instead.
     static std::string SymmetryRefusal(const std::string& what, ImposedSymmetry H, ImposedSymmetry G, const std::string& instead)
@@ -151,15 +135,15 @@ namespace qchem::Hamiltonian
     Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure& st, VxcFit fit, const qcMesh::MeshParams& mp)
     {
         using R=Outcome<AdmittedVxc,std::string>;
-        if (st.HasTranslationSymmetry() && fit==VxcFit::Multipole) return R::Fail("the multipole Vxc fit: "+thePeriodicMultipole);
-        const ImposedSymmetry G=GroupOf(st);
+        if (st.Admits({.translations=true}) && fit==VxcFit::Multipole) return R::Fail("the multipole Vxc fit: "+thePeriodicMultipole);
+        const ImposedSymmetry G=GroupOf(st);   // for the wording only: the rule itself is the structure's own answer
         // THE RULE: H_fit within G and H_points within G.  Below each failure, the wording names the generator G lacks.
-        if (const ImposedSymmetry H=ImposedBy(fit,st); !(H<=G))
+        if (const ImposedSymmetry H=ImposedBy(fit,st); !st.Admits(H))
         {
             if (fit!=VxcFit::PlaneWave) throw std::logic_error("Hamiltonian::AdmitVxc: a refused Vxc fit with no wording");
             return R::Fail(SymmetryRefusal("the plane-wave Vxc fit", H, G, "state the Vxc fit Delta or Auxiliary"));
         }
-        if (const ImposedSymmetry H=qcMesh::ImposedBy(mp); !(H<=G))
+        if (const ImposedSymmetry H=qcMesh::ImposedBy(mp); !st.Admits(H))
         {
             if (H.translations && !G.translations)
                 return R::Fail(SymmetryRefusal("a uniform cell mesh", {.translations=true}, G,
@@ -175,7 +159,7 @@ namespace qchem::Hamiltonian
         const bool multipole=coulomb.fit==CoulombFit::Multipole;
         if (multipole)
         {
-            if (st.HasTranslationSymmetry()) return R::Fail("the multipole Coulomb fit: "+thePeriodicMultipole);
+            if (st.Admits({.translations=true})) return R::Fail("the multipole Coulomb fit: "+thePeriodicMultipole);
             if (coulomb.solver==CoulombSolver::DirectSum)
                 return R::Fail("a multipole fit's potential is the radial Poisson solve of its channels; a direct sum runs over points -- "
                                "state the solver RadialPoisson or Auto, or the fit Delta");

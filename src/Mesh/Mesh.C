@@ -243,6 +243,8 @@ struct ImposedSymmetry
 {
     bool translations=false;   //!< T: plane waves, lattice sums, a periodic cell mesh.
     bool fullRotation=false;   //!< O(3) about one centre: a radial-only rule, an l = 0 set about one site.
+    //! The same group: what the Vxc builder asks of a BUILT realization against the pre-flight's answer (pin 30 stage 2).
+    friend constexpr bool operator==(ImposedSymmetry, ImposedSymmetry) = default;
 };
 //! \f$H\subseteq G\f$: every generator \a h imposes, \a g has.
 constexpr bool operator<=(ImposedSymmetry h, ImposedSymmetry g)

@@ -182,17 +182,8 @@ export namespace qchem::Hamiltonian
     //=== The Vxc product space's symmetry rule (doc/Pins.md pin 30) ===================================
     //! The cell \c AdmitVxc admitted: the fit and the XC point set as stated.
     struct AdmittedVxc { VxcFit fit; qcMesh::UnitCellKind points; };
-    using qcMesh::ImposedSymmetry;
-    //! \brief G: the group the calculation imposes on rho, as far as admission needs it (pin 30) -- T on a lattice, O(3) on the atom path
-    //! (it spherically averages its open shell), neither on a molecule (its point group contains no T and no O(3)).  The ONE place the
-    //! structure's two symmetry answers are assembled into a group.
-    ImposedSymmetry GroupOf(const Structure&);
-    //! \brief What a Vxc fit imposes on this structure.  The family is named by the enum, but the group comes from the REALIZATION:
-    //! \c Auxiliary is the lineage's own fit -- lattice-summed (T) on a solid, the spherical set (O(3)) on the atom path, atom-centred
-    //! Gaussians ({e}) on a molecule.  The plane-wave ball imposes T everywhere; \c Delta and \c Multipole impose nothing beyond their
-    //! points (site multipoles are centred on every site, so they carry no group of their own); \c Auto resolves to a fit the structure
-    //! admits.
-    ImposedSymmetry ImposedBy(VxcFit, const Structure&);
+    // GroupOf and ImposedBy(VxcFit, Structure) live in qchem.Hamiltonian.Types (pin 30 stage 2): the Vxc builders check the BUILT
+    // realization against the same pre-flight answer, and they cannot see this module.
     //! \brief Is (structure x Vxc fit x XC point set) an ADMISSIBLE cell?  The rule (doc/Pins.md pin 30) is ONE check:
     //! \f$H_{fit}\subseteq G\f$ and \f$H_{points}\subseteq G\f$ (\c ImposedBy, \c GroupOf, \c qcMesh::ImposedBy).  Besides it, ONE
     //! correctness limit (user ruling 2026-11-06): a multipole fit on a periodic structure, whose lattice sum is conditionally convergent.

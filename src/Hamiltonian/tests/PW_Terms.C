@@ -79,7 +79,7 @@ qchem::Hamiltonian::cVxc_DFT* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hami
 }
 
 
-// The generalized IonIon Hamiltonian term: for a periodic Structure (HasTranslationSymmetry()) it routes the
+// The generalized IonIon Hamiltonian term: for a periodic Structure (Admits(T)) it routes the
 // ion-ion energy through the Ewald lattice sum (charges = the cell atoms' itsZ = the ion/valence charge),
 // rather than the conditionally-convergent direct pair sum used for finite molecules.
 namespace {
@@ -104,7 +104,7 @@ TEST(PW_Terms, VnnPeriodicUsesEwald)
     cell->AddAtom(4,rvec3_t(0.0,0.0,0.0));             // itsZ = Zion = 4 (Si valence)
     cell->AddAtom(4,rvec3_t(0.25,0.25,0.25));
     std::shared_ptr<const Structure> st=cell;
-    EXPECT_TRUE(st->HasTranslationSymmetry());
+    EXPECT_TRUE(st->Admits({.translations=true}));
 
     qchem::Hamiltonian::IonIon<double> vnn(st);
     EnergyBreakdown eb;

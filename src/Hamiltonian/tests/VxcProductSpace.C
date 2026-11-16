@@ -185,11 +185,12 @@ TEST(VxcProductSpace, TheProductionsBuildTheOneTerm)
     struct Finite {const char* name; std::shared_ptr<const Structure> st; VxcFit fit; Points points;};
     for (const auto& [name, st, fit, points] : {Finite{"molecule δ Becke (the default)", TheMolecule(), VxcFit::Delta,     Points::Becke},
                                                 Finite{"molecule A1 fitted potential",   TheMolecule(), VxcFit::Auxiliary, Points::Becke},
-                                                Finite{"atom δ radial (the default)",    TheAtom(),     VxcFit::Delta,     Points::Radial}})
+                                                Finite{"atom δ radial (the default)",    TheAtom(),     VxcFit::Delta,     Points::Radial},
+                                                Finite{"atom A1 fitted potential (O(3))", TheAtom(),    VxcFit::Auxiliary, Points::Becke}})
     {
         const qcMesh::MeshParams mesh=PointsFor(points);
         ASSERT_TRUE(Hamiltonian::AdmitVxc(*st, fit, mesh)) << name;
-        std::shared_ptr<const BasisSet::Real_BS> bs(st->HasFullRotationSymmetry()
+        std::shared_ptr<const BasisSet::Real_BS> bs(st->Admits({.fullRotation=true})
             ? BasisSet::Radial::Factory(BasisSet::Radial::BasisSetAccuracy::Low, BasisSet::Radial::Type::Gaussian, 7)
             : BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(), BasisSet::Gaussian::Engine::MnD,
                                           BasisSet::Gaussian::Angular::Cartesian));
@@ -218,6 +219,55 @@ TEST(VxcProductSpace, TheProductionsBuildTheOneTerm)
         std::unique_ptr<Hamiltonian::cHamiltonian> ham(Hamiltonian::Factory(SpinGroup::UnPolarized, lat.GetStructure(), bs.get(), coulombFit,
             Pseudopotential::PseudopotentialSet::Get("gth-lda-valence"), mesh, Hamiltonian::XCRoute(fit), {}, {}, {}));
         EXPECT_TRUE(HoldsTheOneTerm(*ham)) << name;
+    }
+}
+
+//! PIN 30 STAGE 2 (user ruling 2026-11-15 Q2): each structure answers \c Admits from its own group -- a molecule {e} only, a cell T, the atom
+//! O(3) -- and no structure admits T x O(3).  The two booleans this replaced made every client assemble the group.
+TEST(VxcProductSpace, EachStructureAdmitsExactlyItsOwnGroup)
+{
+    const ImposedSymmetry TxO3{.translations=true, .fullRotation=true};
+    struct Row {const char* name; std::shared_ptr<const Structure> st; bool t, o3;};
+    for (const auto& [name, st, t, o3] : {Row{"molecule", TheMolecule(), false, false}, Row{"solid", TheSolid(), true, false},
+                                          Row{"atom", TheAtom(), false, true}})
+    {
+        EXPECT_TRUE (st->Admits(E))     << name << " admits {e}";
+        EXPECT_EQ   (st->Admits(T),  t)  << name << " x T";
+        EXPECT_EQ   (st->Admits(O3), o3) << name << " x O(3)";
+        EXPECT_FALSE(st->Admits(TxO3))  << name << " x T x O(3)";
+        EXPECT_TRUE (Hamiltonian::GroupOf(*st)==ImposedSymmetry({.translations=t, .fullRotation=o3})) << name;
+    }
+}
+
+//! PIN 30 STAGE 2: every fit CLASS states what it imposes (\c BasisSet::FIT_SF_ABS::Imposes, pure), and the class each lineage builds for
+//! \c VxcFit::Auxiliary / \c PlaneWave answers what the pre-flight table says (\c Hamiltonian::ImposedBy).  The Vxc builders check the same
+//! thing on the whole built realization (the sampler) and throw a logic_error on a difference; the productions above run that check.
+TEST(VxcProductSpace, EveryFitClassStatesWhatItImposesAndItIsThePreflightAnswer)
+{
+    const qcMesh::MeshParams becke=PointsFor(Points::Becke);
+    {
+        const auto st=TheMolecule();
+        std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(),
+                                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+        std::unique_ptr<const BasisSet::rFIT_SF_ABS> a1(bs->CreateVxcFitBasisSet(st.get(), becke, VxcFit::Auxiliary));
+        EXPECT_TRUE(a1->Imposes()==E) << "the molecular A1 set: atom-centred Gaussians of every l";
+        EXPECT_TRUE(a1->Imposes()==Hamiltonian::ImposedBy(VxcFit::Auxiliary, *st));
+    }
+    {
+        const auto st=TheAtom();
+        std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Radial::Factory(BasisSet::Radial::BasisSetAccuracy::Low,
+                                                                              BasisSet::Radial::Type::Gaussian, 7));
+        std::unique_ptr<const BasisSet::rFIT_SF_ABS> a1(bs->CreateVxcFitBasisSet(st.get(), becke, VxcFit::Auxiliary));
+        EXPECT_TRUE(a1->Imposes()==O3) << "the atom path's A1 set: one centre, l = 0";
+        EXPECT_TRUE(a1->Imposes()==Hamiltonian::ImposedBy(VxcFit::Auxiliary, *st));
+    }
+    {
+        UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5});
+        Lattice_3D lat(cell, ivec3_t(1,1,1));
+        std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, 4.0));
+        std::unique_ptr<const BasisSet::cFIT_SF_ABS> pw(bs->CreateVxcFitBasisSet(&cell, PointsFor(Points::Uniform), VxcFit::PlaneWave));
+        EXPECT_TRUE(pw->Imposes()==T) << "plane waves on the reciprocal lattice";
+        EXPECT_TRUE(pw->Imposes()==Hamiltonian::ImposedBy(VxcFit::PlaneWave, cell));
     }
 }
 
