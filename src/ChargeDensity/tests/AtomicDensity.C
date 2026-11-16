@@ -179,6 +179,11 @@ const nlohmann::json& AELibrary()
     static const nlohmann::json lib=ReadJson(std::filesystem::path(CHARGEDENSITY_DATA_PATH)/"atomic_densities.json");
     return lib;
 }
+const nlohmann::json& ValenceLibrary()
+{
+    static const nlohmann::json lib=ReadJson(std::filesystem::path(CHARGEDENSITY_DATA_PATH)/"atomic_valence_densities.json");
+    return lib;
+}
 //! Hund's 2S of a configuration text ("[Ar] 3d^5 4s^1"): each partly filled subshell of 2l+1 orbitals holds min(n, 2(2l+1)-n) unpaired
 //! electrons (the noble-gas core is closed, so only the explicit subshells can be open).
 int HundUnpaired(const std::string& config)
@@ -260,5 +265,47 @@ TEST(AtomicDensity, EveryStampedAllElectronEntryIsItsOraclesAtomToTenPpm)
         }
         EXPECT_LE(std::abs(E-Eref), 1e-5*std::abs(Eref)) << "Z=" << Z << " charge +" << charge << " vs " << what << " " << Eref << ", E " << E;
         EXPECT_TRUE(e.value("converged", false)) << "Z=" << Z << " charge +" << charge;
+    }
+}
+
+// THE VALENCE (pseudopotential) LIBRARY, entry by entry (row 189, scripts/gen-valence-seeds): the stored charge is its Nelec; a POLARIZED
+// entry's pair is up-majority and sums to rho, and its moment is a whole number of unpaired electrons -- the Hund 2S of the configuration
+// it states when it states one (the generated entries; the 27 hand-made valgen entries before them state none).
+TEST(AtomicDensity, EveryValenceEntryHoldsItsChargeAndItsSpinPairAHundMoment)
+{
+    for (const auto& e : ValenceLibrary())
+    {
+        const int Z=e.at("Z"), Nelec=e.at("Nelec"), q=e.value("q", Nelec);
+        const std::string id="Z="+std::to_string(Z)+" q="+std::to_string(q)+" Nelec="+std::to_string(Nelec);
+        EXPECT_NEAR(e.at("charge").get<double>(), double(Nelec), Nelec*1e-3) << id;
+        if (!e.contains("rho_up")) continue;
+        const auto& rho=e.at("rho"); const auto& up=e.at("rho_up"); const auto& dn=e.at("rho_dn");
+        ASSERT_EQ(up.size(), rho.size()) << id;
+        ASSERT_EQ(dn.size(), rho.size()) << id;
+        for (size_t i=0;i<rho.size();i++)
+            EXPECT_NEAR(up[i].get<double>()+dn[i].get<double>(), rho[i].get<double>(), 1e-6*std::abs(rho[i].get<double>())+1e-12) << id << " node " << i;
+        const double m=e.at("moment");
+        EXPECT_GE(m, 0.0) << id << ": up-majority";
+        if (e.contains("config")) EXPECT_NEAR(m, double(HundUnpaired(e.at("config"))), 1e-2) << id << " " << e.at("config").get<std::string>();
+        else                      EXPECT_NEAR(m, std::round(m), 1e-2) << id << ": a whole number of unpaired electrons";
+    }
+}
+
+// Every STAMPED valence entry (Etot) is its pseudo-atom as a SECOND CODE solves it: CP2K's ATOM at the same GTH-PADE-q, configuration
+// and multiplicity, LDA_X + LDA_C_VWN, whose value the entry stamps (NIST has no pseudo-atoms).  The bound is 3 mHa: the two codes
+// agree to ~0.1 mHa on every converged atom, our Gaussian pool lies up to ~1 mHa above on a diffuse s (Cs q1), and a wrong spin state
+// or configuration misses by tens to hundreds of mHa (scripts/gen-valence-seeds).
+TEST(AtomicDensity, EveryStampedValenceEntryIsItsCP2KAtomToThreeMilliHartree)
+{
+    for (const auto& e : ValenceLibrary())
+    {
+        if (!e.contains("Etot")) continue;
+        const int Z=e.at("Z"), Nelec=e.at("Nelec"), q=e.at("q");
+        const std::string id="Z="+std::to_string(Z)+" q="+std::to_string(q)+" Nelec="+std::to_string(Nelec);
+        const std::string oracle=e.value("oracle", std::string());
+        ASSERT_EQ(oracle.rfind("CP2K ATOM", 0), 0u) << id << ": a pseudo-atom's oracle is a second code; stamp '" << oracle << "'";
+        const double Eref=std::stod(oracle.substr(oracle.find_last_of(' ')+1)), E=e.at("Etot");
+        EXPECT_LE(std::abs(E-Eref), 3e-3) << id << " vs " << oracle << ", E " << E;
+        EXPECT_TRUE(e.value("converged", false)) << id;
     }
 }

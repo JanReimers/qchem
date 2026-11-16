@@ -25,6 +25,7 @@ import qchem.Mesh;        // UnitCellKind
 import qchem.Mesh.XCPolicy;   // BeckeXCParams
 import qchem.Reporting;   // the policy rows the setup files
 import qchem.ChargeDensity.Seed;   // SeedStrategy (the Auto seed rule)
+import qchem.SeedPolicy;           // ResolveSeed (the Auto rule's uncovered branch, on a stated coverage)
 import qchem.CMath;                // Pi (the k-point spacing)
 
 using namespace qchem;
@@ -385,11 +386,21 @@ TEST(SolidSetup, TheAutoSeedIsIonicOnACoveredLatticeAndTheCoreGuessWithAWarnOnAn
     EXPECT_EQ(si[0].value("verdict",""), "choose");
     EXPECT_NE(si[0].value("reason","").find("Madelung"), std::string::npos) << si[0].dump();
 
-    const auto al=AutoSeedRows("Al_fcc", BasisSetData::VALENCE_LOWQ_SR, SeedStrategy::Default, "Al auto seed", s);
-    EXPECT_EQ(s, SeedStrategy::CoreGuess) << "Al has no valence-library entry: the core guess, not a throw";
+    // The uncovered branch, stated through the rule's own coverage question so it does not hang on what the library holds today (Al had no
+    // valence entry until row 189 filled the library, 2026-11-15, and this case named Al_fcc for that).
+    const auto mat=Materials::Get("Al_fcc");
+    { report::Run run("Al uncovered seed");
+      s=ResolveSeed(SeedStrategy::Default, *mat.cell, {.densityFock=true, .periodic=true, .chargesStated=false, .covered=[](int Z){ return Z!=13; }}); }
+    EXPECT_EQ(s, SeedStrategy::CoreGuess) << "a species the seed library lacks: the core guess, not a throw";
+    const auto al=PolicyRows("Al uncovered seed", "AutoSeed");
     ASSERT_EQ(al.size(), 1u);
     EXPECT_EQ(al[0].value("verdict",""), "warn");
     EXPECT_NE(al[0].value("decided","").find("Al"), std::string::npos) << "the warning names the missing species: " << al[0].dump();
+
+    const auto alLib=AutoSeedRows("Al_fcc", BasisSetData::VALENCE_LOWQ_SR, SeedStrategy::Default, "Al auto seed", s);
+    EXPECT_EQ(s, SeedStrategy::IonicSAD) << "the valence library covers Al q3: a covered lattice";
+    ASSERT_EQ(alLib.size(), 1u);
+    EXPECT_EQ(alLib[0].value("verdict",""), "choose") << alLib[0].dump();
 
     EXPECT_TRUE(AutoSeedRows("Al_fcc", BasisSetData::VALENCE_LOWQ_SR, SeedStrategy::Uniform, "Al stated seed", s).empty()) << "a stated seed files no Auto row";
     EXPECT_EQ(s, SeedStrategy::Uniform);

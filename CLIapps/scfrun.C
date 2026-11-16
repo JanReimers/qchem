@@ -404,6 +404,7 @@ static int Main(int argc, char** argv)
     {
         opts.pseudopotential = true;
         opts.valence         = valence;       // GTH Zion (electrons = Zion - net charge)
+        opts.spin            = pp;            // --pol P: the Hund pseudo-atom, whose --out entry carries the spin pair (as the all-electron atom)
     }
     else if (dft)
     {
@@ -435,24 +436,27 @@ static int Main(int argc, char** argv)
     if ((dft || ppmodel) && !out.empty())
     {
         const string functional = (model=="Xalpha"?"Xalpha":"LDA");
-        if (ppmodel)             // pseudo-VALENCE: the pseudo-atom's converged density IS the smooth valence density
-            DumpRadialDensity(calc.Density(), Z, valence-q, functional, out, rmin, rmax, ngrid, {{"kind","valence"}});
+        // A polarized run (--pol P) resolves its channels, and the entry carries the spin pair IonicSAD plants a moment with.
+        const auto* sr = dynamic_cast<const ChargeDensity::rSpinResolved_CD*>(&calc.Density());
+        const ChargeDensity::rChargeDensity* chUp = sr ? sr->GetChannel(Spin::Up  ) : nullptr;
+        const ChargeDensity::rChargeDensity* chDn = sr ? sr->GetChannel(Spin::Down) : nullptr;
+        if (pp==SpinGroup::Polarized && !(chUp && chDn)) { cout<<"scfrun: a polarized atom yielded no spin-resolved density"<<endl; return 1; }
+        // The provenance every generated entry carries: the caller's --entry tags, the run's energy and whether it converged, and the
+        // VALENCE CHARGE q of the neutral it belongs to (the reader's neutral is Nelec == q, so an ion with Nelec < q sits beside it).
+        const auto stamp=[&](int qNeutral){ nlohmann::json x=entryTags; x["Etot"]=E; x["converged"]=calc.IsConverged(); x["q"]=qNeutral; return x; };
+        if (ppmodel)             // pseudo-VALENCE: the pseudo-atom's converged density IS the smooth valence density; q = the GTH Zion
+        {
+            nlohmann::json x=stamp(valence); x["kind"]="valence";
+            DumpRadialDensity(calc.Density(), Z, valence-q, functional, out, rmin, rmax, ngrid, x, chUp, chDn);
+        }
         else if (valence>0)      // all-electron pseudo-VALENCE proxy: the outermost `valence` orbitals only
         {
             ValenceDensity vd = BuildValenceDensity(calc, valence);
             DumpRadialDensity(vd, Z, valence, functional, out, rmin, rmax, ngrid, {{"kind","valence"}});
         }
         else                     // full all-electron density (for the molecular SAD seed); a polarized run adds its spin pair
-        {
-            const auto* sr = dynamic_cast<const ChargeDensity::rSpinResolved_CD*>(&calc.Density());
-            const ChargeDensity::rChargeDensity* chUp = sr ? sr->GetChannel(Spin::Up  ) : nullptr;
-            const ChargeDensity::rChargeDensity* chDn = sr ? sr->GetChannel(Spin::Down) : nullptr;
-            if (pp==SpinGroup::Polarized && !(chUp && chDn)) { cout<<"scfrun: a polarized atom yielded no spin-resolved density"<<endl; return 1; }
             DumpRadialDensity(calc.Density(), Z, Z-q, functional, out, rmin, rmax, ngrid,
-                              [&]{ nlohmann::json x=entryTags; x["Etot"]=E; x["converged"]=calc.IsConverged();
-                                    x["q"]=Z;   // the all-electron "valence" charge: its neutral holds q=Z electrons, so an ion (Nelec<q) is not a second neutral
-                                    return x; }(), chUp, chDn);
-        }
+                              stamp(Z), chUp, chDn);   // the all-electron "valence" charge is Z: an ion (Nelec<Z) is not a second neutral
     }
     return 0;
 }

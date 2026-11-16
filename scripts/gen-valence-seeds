@@ -1,0 +1,401 @@
+#!/usr/bin/env python3
+"""gen-valence-seeds -- generate the VALENCE (pseudopotential) SAD seed library (src/ChargeDensity/Data/atomic_valence_densities.json),
+judged on CP2K's ATOM code at the same GTH pseudopotential.
+
+One entry per (element, q) of the GTH LDA table (src/Pseudopotential/Data/gth_potentials.json): the spherical pseudo-atom of the
+atom facade (scfrun --model PP --valence q, Gaussian High pool, LDA = Dirac + VWN5), in the pseudo-atom's derived configuration
+(PseudoAtom_EC: the neutral valence shells, plus the closed semicore shells a semicore q keeps).  An OPEN-SHELL atom runs POLARIZED
+(the Hund pseudo-atom) and its entry carries the spin pair rho_up/rho_dn (up-majority) that the IonicSAD seed plants a moment with;
+a closed shell runs unpolarized.  Its entry is stamped q = the GTH Zion, so an ion (Nelec < q) sits beside its neutral (Nelec = q).
+
+ION entries (--ions) are the charge states IonicSAD forms on the shipped structures (IONS below) that the library lacks, each in the
+pseudo-ion rule's configuration (PseudoAtom_EC: a transition metal's cation empties its s shell first, Mn3+ = 3d^4).
+
+ENTRIES ALREADY IN THE LIBRARY ARE KEPT AS THEY ARE (their (Z, q, Nelec) is skipped): a regenerated entry would move every run that
+reads it, and that is its own mover table.
+
+Each candidate run is JUDGED before it is written:
+  * the run CONVERGED (DIIS, or the DIIS->GDM Ladder on a retry), with the stated electron count;
+  * the ion is BOUND: its highest occupied eigenvalue is negative (a free LDA anion is not: its density would be the basis's);
+  * SPIN: a polarized run's moment is the Hund count of its configuration (sum over open subshells of n or 2(2l+1)-n);
+  * ENERGY: |E - E_CP2K| <= --tol (Ha, default 3 mHa), CP2K ATOM (mpirun -np 1 cp2k.psmp, PROGRAM_NAME ATOM) at the same GTH-PADE-q<Zion>, the same
+    configuration and multiplicity, LDA_X + LDA_C_VWN (= our Dirac + VWN5): a second code at the same Hamiltonian, so a wrong
+    configuration, a broken basis or a wrong spin state misses it.  CP2K ATOM's DEFAULTS are not converged enough to be an oracle:
+    its 400-point radial grid is 1.1 mHa high on Ti q12 and its default geometric basis 0.2 mHa high on Zn q12 (2026-11-15), so
+    the deck states GRID_POINTS 3000 and 60 GTOs per l (factor 1.6 from 0.01); then the two codes agree to ~0.1 mHa.  An ATOM run
+    that stops at MAX_ITER still prints an energy: that is no oracle (Zn q12 read 12.7 Ha off at the default 200 iterations).
+A failed judge is REPORTED and the entry is not written.  Prints the record table (Markdown) on stdout.
+
+usage: scripts/gen-valence-seeds [--ions] [--el Fe,Mn] [--lib src/ChargeDensity/Data/atomic_valence_densities.json]
+                                 [--scfrun build/Release/CLIapps/scfrun] [--tol 1e-3] [--dry]
+"""
+import argparse, json, os, re, subprocess, sys, tempfile
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LDEG = {'s': 2, 'p': 6, 'd': 10, 'f': 14}
+MADELUNG = '1s 2s 2p 3s 3p 4s 3d 4p 5s 4d 5p 6s 4f 5d 6p 7s 5f 6d 7p'.split()
+NOBLE = [(86, 'Rn'), (54, 'Xe'), (36, 'Kr'), (18, 'Ar'), (10, 'Ne'), (2, 'He')]
+NOBLE_Z = [(sym, ne) for ne, sym in NOBLE]
+_NIST = None
+CP2K = '/usr/bin/cp2k.psmp'
+GTH_FILE = os.path.expanduser('~/Code/cp2k/data/GTH_POTENTIALS')
+
+# THE CHARGE STATES IonicSAD FORMS ON THE SHIPPED STRUCTURES (src/Structure/Data/materials.json at the smallest-q set gth-lda-valence)
+# that the library lacks, from IonicFormalCharges (src/ChargeDensity/Imp/Seed.C), as (element, q, Nelec):
+#   LiMn2O4_spinel  Mn3+ beside Mn4+ (the tie-break splits Mn 3.5+)      -> Mn q7 Nelec 4
+#   FeS2_pyrite     Fe4+ S2- (the formal rule fills both S to a closed shell; the chemistry is Fe2+ S2^2-)
+#                                                                        -> Fe q8 Nelec 4, S q6 Nelec 8
+#   CsI_cscl        Cs+ (empty: no entry needed) I-                      -> I q7 Nelec 8
+# An anion is judged like any ion: if the free LDA anion is unbound it is refused and IonicSAD keeps the scaled neutral.
+IONS = [('Mn', 7, 4), ('Fe', 8, 4), ('S', 6, 8), ('I', 7, 8)]
+
+
+def gth_cases():
+    gth = json.load(open(os.path.join(ROOT, 'src/Pseudopotential/Data/gth_potentials.json')))
+    out = []
+    for el, v in gth.items():
+        if 'LDA' in v:
+            for q in sorted(int(k) for k in v['LDA'] if k != 'default'):
+                out.append((el, q, q))
+    return out
+
+
+def z_of(el):
+    syms = ('H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru '
+            'Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn '
+            'Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr').split()
+    return syms.index(el) + 1
+
+
+def run_config(stdout):
+    """Sum the LAST occupation table's numerators per subshell (both spin columns when polarized)."""
+    cfg = {}
+    for line in stdout.splitlines():
+        if 'Occ/Degen' in line:
+            cfg = {}
+            continue
+        cols = [c.strip() for c in line.strip().strip('|').split('|')]
+        if len(cols) not in (3, 6):
+            continue
+        m = re.match(r'(\d[spdf])\b', cols[2])
+        occ = [c for c in (cols[0], cols[3] if len(cols) == 6 else None) if c]
+        if not m or not all(re.match(r'^\d+/\d+$', o) for o in occ):
+            continue
+        cfg[m[1]] = cfg.get(m[1], 0) + sum(int(o.split('/')[0]) for o in occ)
+    return {k: v for k, v in cfg.items() if v}
+
+
+def highest_occupied(stdout):
+    """The LAST occupation table's highest OCCUPIED eigenvalue (either spin column), in Ha; None if no table was printed."""
+    top, seen = None, False
+    for line in stdout.splitlines():
+        if 'Occ/Degen' in line:
+            top, seen = None, True
+            continue
+        cols = [c.strip() for c in line.strip().strip('|').split('|')]
+        if not seen or len(cols) not in (3, 6) or not re.match(r'\d[spdf]\b', cols[2]):
+            continue
+        for occ, eps in ((cols[0], cols[1]),) + (((cols[3], cols[4]),) if len(cols) == 6 else ()):
+            if re.match(r'^\d+/\d+$', occ) and int(occ.split('/')[0]) > 0:
+                top = float(eps) if top is None else max(top, float(eps))
+    return top
+
+
+def order(cfg):
+    return sorted(cfg, key=lambda nl: (int(nl[0]), 'spdf'.index(nl[1])))
+
+
+def cfg_text(cfg):
+    return ' '.join(f'{nl}^{cfg[nl]}' for nl in order(cfg))
+
+
+def hund(cfg):
+    """The Hund unpaired count: per open subshell n electrons in g = 2l+1 orbitals give n (n <= g) or 2g - n."""
+    tot = 0
+    for nl, n in cfg.items():
+        g = LDEG[nl[1]] // 2
+        tot += n if n <= g else 2 * g - n
+    return tot
+
+
+def is_open(cfg):
+    return any(c < LDEG[nl[1]] for nl, c in cfg.items())
+
+
+def neutral_config(Z):
+    """The neutral atom's ground configuration {nl: count}: NIST's (doc/GSData/NIST-dftdata-tar.gz, Z 1-92), else the Madelung filling."""
+    global _NIST
+    if _NIST is None:
+        import tarfile
+        with tarfile.open(os.path.join(ROOT, 'doc/GSData/NIST-dftdata-tar.gz')) as t:
+            text = t.extractfile('dftdata/configurations').read().decode()
+        _NIST = {}
+        for line in text.splitlines():
+            m = re.match(r'\s*(\d+)\s+([A-Z][a-z]?)\s+(\[\w+\][^\[]*?)(\s{2,}|$)', line)
+            if m:
+                _NIST[int(m[1])] = m[3].strip()
+    full = {}
+    if Z in _NIST:
+        txt = _NIST[Z].replace('^', '')
+        ng = re.match(r'\[(\w+)\]', txt)[1]
+        left = dict(NOBLE_Z)[ng]
+        for nl in MADELUNG:
+            if left <= 0:
+                break
+            full[nl] = LDEG[nl[1]]
+            left -= LDEG[nl[1]]
+        for n, l, c in re.findall(r'(\d)([spdf])(\d+)', txt[txt.index(']') + 1:].replace(' ', ' ')):
+            full[n + l] = full.get(n + l, 0) + int(c)
+        return full
+    left = Z
+    for nl in MADELUNG:
+        if left <= 0:
+            break
+        full[nl] = min(left, LDEG[nl[1]])
+        left -= full[nl]
+    return full
+
+
+def physical(Z, el, q, cfg, neutral):
+    """Our pseudo-atom labels its orbitals by node count (n = l+1 for the lowest of each l: Al 3s^2 3p^1 prints 1s^2 2p^1).  The
+    PHYSICAL shells: per l, the core holds the neutral atom's electrons of that l minus our NEUTRAL pseudo-atom's valence of that l
+    (\a neutral, node labels), as the lowest shells of that l; a label's physical n is shifted up by that many core shells.  Returns ({physical nl: count}, CORE text)
+    or (None, why)."""
+    full = neutral_config(Z)
+    byl = {l: sum(c for nl, c in full.items() if nl[1] == l) for l in 'spdf'}
+    core = {}
+    shift = {}
+    for il, l in enumerate('spdf'):
+        ncore = byl[l] - sum(c for nl, c in neutral.items() if nl[1] == l)
+        if ncore < 0 or ncore % LDEG[l]:
+            return None, f'the core of {l} ({ncore} e) is not whole shells'
+        shift[l] = ncore // LDEG[l]
+        for k in range(shift[l]):
+            core[f'{il + 1 + k}{l}'] = LDEG[l]
+    if sum(core.values()) != Z - q:
+        return None, f'core {sum(core.values())} e, not Z - q = {Z - q}'
+    phys = {f'{int(nl[0]) + shift[nl[1]]}{nl[1]}': c for nl, c in cfg.items()}
+    for ne, sym in NOBLE:
+        filled, left = set(), ne
+        for nl in MADELUNG:
+            if left <= 0:
+                break
+            filled.add(nl)
+            left -= LDEG[nl[1]]
+        if ne <= Z - q and all(nl in core for nl in filled):
+            rest = [nl for nl in order(core) if nl not in filled]
+            return phys, ' '.join([f'[{sym}]'] + [f'{nl}{core[nl]}' for nl in rest])
+    return phys, (' '.join(f'{nl}{core[nl]}' for nl in order(core)) if core else 'none')
+
+
+def cp2k_energy(el, q, cfg, core, mult):
+    """CP2K ATOM at GTH-PADE-q<q>: the configuration's valence shells over its CORE, UKS high-spin (RKS when closed).  ATOM takes "(HS)"
+    and not a number when more than one subshell is open (atom_utils.F asserts mult == -2 there, Cr 3d^5 4s^1); HS is Hund's maximum
+    spin over every open subshell, the moment our pseudo-atom is judged on."""
+    lmax = max('spdf'.index(nl[1]) for nl in cfg)
+    conf = ' '.join(f'{nl}{cfg[nl]}' for nl in order(cfg))
+    inp = f"""&GLOBAL
+  PROJECT atom
+  RUN_TYPE ENERGY
+  PROGRAM_NAME ATOM
+&END GLOBAL
+&ATOM
+  ELEMENT {el}
+  ELECTRON_CONFIGURATION {'(HS) ' if mult > 1 else ''}CORE {conf}
+  CORE {core}
+  MAX_ANGULAR_MOMENTUM {max(lmax, 1)}
+  &OPTIMIZATION
+    MAX_ITER 1000
+    N_DIIS 8
+    EPS_SCF 1.e-8
+  &END OPTIMIZATION
+  &METHOD
+    METHOD_TYPE {'UKS' if mult > 1 else 'KOHN-SHAM'}
+    &XC
+      &XC_FUNCTIONAL
+        &LDA_X
+        &END LDA_X
+        &LDA_C_VWN
+        &END LDA_C_VWN
+      &END XC_FUNCTIONAL
+    &END XC
+  &END METHOD
+  &PP_BASIS
+    BASIS_TYPE GEOMETRICAL_GTO
+    NUM_GTO 60 60 60 60
+    GEOMETRICAL_FACTOR 1.6
+    GEO_START_VALUE 0.01
+    GRID_POINTS 3000
+  &END PP_BASIS
+  &POTENTIAL
+    PSEUDO_TYPE GTH
+    POTENTIAL_FILE_NAME {GTH_FILE}
+    POTENTIAL_NAME GTH-PADE-q{q}
+  &END POTENTIAL
+&END ATOM
+"""
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, 'atom.inp'), 'w').write(inp)
+        env = dict(os.environ, OMP_NUM_THREADS='1')
+        p = subprocess.run(['mpirun', '-np', '1', CP2K, '-i', 'atom.inp', '-o', 'atom.out'], cwd=d, env=env,
+                           capture_output=True, text=True, timeout=600)
+        out = open(os.path.join(d, 'atom.out')).read() if os.path.exists(os.path.join(d, 'atom.out')) else p.stdout + p.stderr
+    m = re.findall(r'Total Energy ::\s+(-?[0-9.]+)', out)
+    if 'No convergence' in out:
+        return None   # ATOM prints an energy even when its SCF stopped at MAX_ITER: that is no oracle
+    return float(m[-1]) if m else None
+
+
+def scfrun(exe, Z, q, nel, pol, out=None, tags=(), accel=''):
+    cmd = [exe, '--Z', str(Z), '--model', 'PP', '--valence', str(q), '--pol', pol, '--basis', 'Gaussian', '--acc', 'High',
+           '--maxiter', '300']
+    if q != nel:
+        cmd += ['--q', str(q - nel)]
+    if accel:
+        cmd += ['--accel', accel]
+    if out:
+        cmd += ['--out', out]
+        for t in tags:
+            cmd += ['--entry', t]
+    p = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+    m = re.search(r'RESULT\s+E=([-0-9.eE+]+)\s+iters=(\d+)\s+Nelec=([-0-9.eE+]+).*converged=(\w+)', p.stdout)
+    if not m:
+        why = (p.stderr.strip().splitlines() or p.stdout.strip().splitlines() or ['no output'])[-1]
+        return {'error': why[:160]}
+    return {'E': float(m[1]), 'iters': int(m[2]), 'Nelec': float(m[3]), 'converged': m[4] == 'yes',
+            'cfg': run_config(p.stdout), 'homo': highest_occupied(p.stdout)}
+
+
+def solve(exe, Z, q, nel, pol):
+    """One judged pseudo-atom: DIIS first, the Ladder when DIIS does not converge."""
+    r = scfrun(exe, Z, q, nel, pol)
+    if 'error' not in r and not r['converged']:
+        r2 = scfrun(exe, Z, q, nel, pol, accel='Ladder')
+        if 'error' not in r2 and r2['converged']:
+            r2['accel'] = 'Ladder'
+            return r2
+    r.setdefault('accel', '')
+    return r
+
+
+def splice(lib, entry):
+    """Append \a entry to the library TEXT in its style (one tab per level, nested one level in): every other byte is kept."""
+    text = open(lib).read()
+    rendered = '\n'.join('\t' + line for line in json.dumps(entry, indent='\t').splitlines())
+    end = text.rstrip().rfind('}')
+    open(lib + '.tmp', 'w').write(text[:end + 1] + ',\n' + rendered + text[end + 1:])
+    os.replace(lib + '.tmp', lib)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    ap.add_argument('--ions', action='store_true', help='the charge states IonicSAD forms on the shipped structures (IONS)')
+    ap.add_argument('--el', default=None, help='comma-separated elements (default: every GTH LDA element)')
+    ap.add_argument('--lib', default=os.path.join(ROOT, 'src/ChargeDensity/Data/atomic_valence_densities.json'))
+    ap.add_argument('--scfrun', default=os.path.join(ROOT, 'build/Release/CLIapps/scfrun'))
+    ap.add_argument('--tol', type=float, default=3e-3, help='|E - E_CP2K| bound in Ha (a wrong spin state or configuration misses by tens '
+                    'to hundreds of mHa; our Gaussian pool lies up to ~1 mHa ABOVE CP2K on a diffuse s, Cs q1)')
+    ap.add_argument('--dry', action='store_true', help='judge only, write nothing')
+    a = ap.parse_args()
+    cases = IONS if a.ions else gth_cases()
+    if a.el:
+        keep = set(a.el.split(','))
+        cases = [c for c in cases if c[0] in keep]
+    neutral_cfg = {}
+    gth = json.load(open(os.path.join(ROOT, 'src/Pseudopotential/Data/gth_potentials.json')))
+    have = {(e['Z'], e.get('q', e['Nelec']), e['Nelec']) for e in json.load(open(a.lib)) if e.get('functional') == 'LDA'}
+    print('| el | Z | q | Nelec | configuration | spin | E (Ha) | E CP2K ATOM | ΔE | moment | iters | note |')
+    print('|---|---|---|---|---|---|---|---|---|---|---|---|')
+    failed = []
+    for el, q, nel in cases:
+        Z = z_of(el)
+        if (Z, q, nel) in have:
+            print(f'| {el} | {Z} | {q} | {nel} | -- | -- | -- | -- | -- | -- | -- | kept (already in the library) |', flush=True)
+            continue
+        # The configuration and spin come from the run: an unpolarized probe names the occupied subshells, and an open one re-runs
+        # polarized.  The neutral's valence shells (for CP2K's CORE) come from the neutral probe of the same q.
+        probe = solve(a.scfrun, Z, q, nel, 'U')
+        if 'error' in probe:
+            failed.append((el, q, nel))
+            print(f"| {el} | {Z} | {q} | {nel} | -- | -- | -- | -- | -- | -- | -- | **NOT WRITTEN**: {probe['error']} |", flush=True)
+            continue
+        cfg = probe['cfg']
+        pol = 'P' if is_open(cfg) else 'U'
+        r = solve(a.scfrun, Z, q, nel, pol) if pol == 'P' else probe
+        why = []
+        if 'error' in r:
+            why.append(r['error'])
+        else:
+            if not r['converged']:
+                why.append('unconverged')
+            if abs(r['Nelec'] - nel) > 1e-6:
+                why.append(f"Nelec {r['Nelec']}")
+            if r['cfg'] != cfg:
+                why.append(f"polarized config {cfg_text(r['cfg'])}")
+            if r['homo'] is None:
+                why.append('no orbital table')
+            elif r['homo'] >= 0.0:
+                why.append(f"unbound (highest occupied ε {r['homo']:+.4f} Ha)")
+        nup = hund(cfg)
+        if (Z, q) not in neutral_cfg:
+            neutral_cfg[(Z, q)] = cfg if nel == q else solve(a.scfrun, Z, q, q, 'U').get('cfg', {})
+        phys, core = physical(Z, el, q, cfg, neutral_cfg[(Z, q)])
+        ctext = f'{cfg_text(phys)} [{core}]' if phys else f'{cfg_text(cfg)} (node labels)'
+        Ecp = cp2k_energy(el, q, phys, core, nup + 1) if phys and not why else None
+        dE = r['E'] - Ecp if Ecp is not None and 'E' in r else None
+        if not why:
+            if phys is None:
+                why.append(f'no CP2K configuration: {core}')
+            elif Ecp is None:
+                why.append('CP2K ATOM gave no converged energy')
+            elif abs(dE) > a.tol:
+                why.append(f'ΔE {dE:+.2e}')
+        Etxt = f"{r['E']:.6f}" if 'E' in r else '--'
+        Ectxt = f'{Ecp:.6f}' if Ecp is not None else '--'
+        dEtxt = f'{dE:+.2e}' if dE is not None else '--'
+        if why:
+            failed.append((el, q, nel))
+            print(f"| {el} | {Z} | {q} | {nel} | {ctext} | {pol} | {Etxt} | {Ectxt} | {dEtxt} | -- | {r.get('iters', '--')} | "
+                  f"**NOT WRITTEN**: {'; '.join(why)} |", flush=True)
+            continue
+        moment = ''
+        if not a.dry:
+            tags = [f'config={core} {cfg_text(phys)}', 'basis=Gaussian High (radial pseudo-atom, scfrun --model PP)',
+                    f'oracle=CP2K ATOM GTH-PADE-q{q} {Ecp:.6f}', f'deltaE={dE:+.3e}']
+            with tempfile.TemporaryDirectory() as d:
+                tmp = os.path.join(d, 'entry.json')
+                w = scfrun(a.scfrun, Z, q, nel, pol, out=tmp, tags=tags, accel=r['accel'])
+                if 'error' in w or abs(w['E'] - r['E']) > 1e-9:
+                    failed.append((el, q, nel))
+                    print(f'| {el} | {Z} | {q} | {nel} | {ctext} | {pol} | -- | -- | -- | -- | -- | **WRITE RUN DIFFERED** |')
+                    continue
+                e = json.load(open(tmp))[0]
+            if pol == 'P' and abs(e.get('moment', 0.0) - nup) > 1e-2:
+                failed.append((el, q, nel))
+                print(f"| {el} | {Z} | {q} | {nel} | {ctext} | {pol} | {Etxt} | {Ectxt} | {dEtxt} | {e.get('moment')} | "
+                      f"{r['iters']} | **NOT WRITTEN**: moment is not the Hund {nup} |", flush=True)
+                continue
+            if abs(e['charge'] - nel) > 1e-3 * nel:   # the log grid's quadrature is ~4e-4 relative (the unit gate's bound)
+                failed.append((el, q, nel))
+                print(f"| {el} | {Z} | {q} | {nel} | {ctext} | {pol} | {Etxt} | {Ectxt} | {dEtxt} | -- | {r['iters']} | "
+                      f"**NOT WRITTEN**: sampled charge {e['charge']:.4f} |", flush=True)
+                continue
+            splice(a.lib, e)
+            moment = f"{e['moment']:.4f}" if 'moment' in e else ''
+        notes = ['DIIS did not converge, the Ladder did'] if r['accel'] else []
+        ne = gth[el]['LDA'][str(q)]['n_elec']
+        if nel == q and [sum(c for nl, c in cfg.items() if nl[1] == l) for l in 'spdf'[:len(ne)]] != ne:
+            notes.append(f'the GTH entry was fitted in another configuration (n_elec {ne}); this is the periodic table ground state')
+        if dE > 1e-3:
+            notes.append(f'our Gaussian pool lies {dE*1e3:.2f} mHa above CP2K: a diffuse-tail basis gap')
+        note = '; '.join(notes)
+        print(f"| {el} | {Z} | {q} | {nel} | {ctext} | {pol} | {Etxt} | {Ectxt} | {dEtxt} | {moment} | {r['iters']} | {note} |",
+              flush=True)
+    if failed:
+        print(f'\nNOT WRITTEN: (el, q, Nelec) = {failed}', file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
