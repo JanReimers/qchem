@@ -135,6 +135,12 @@ namespace qchem::Hamiltonian
     Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure& st, VxcFit fit, const qcMesh::MeshParams& mp)
     {
         using R=Outcome<AdmittedVxc,std::string>;
+        // A MESH OPTION COMBINATION, not a symmetry refusal: a uniform cell mesh reads no angular rule, so a stated angular none
+        // (the radial-only set) would be silently ignored -- refused, never substituted (CLAUDE.md, user-reachable choices).
+        if (mp.cellKind==qcMesh::UnitCellKind::Uniform && mp.angular==qcMesh::AngularKind::None)
+            return R::Fail("the XC mesh: angular none (the radial-only point set) on a uniform cell mesh -- a uniform cell mesh reads no "
+                           "angular rule, so the stated angular would be ignored.  State cellKind Becke or Auto for the radial-only set, "
+                           "or drop angular none for the uniform mesh");
         if (st.Admits(ImposedSymmetry::Translations) && fit==VxcFit::Multipole) return R::Fail("the multipole Vxc fit: "+thePeriodicMultipole);
         const ImposedSymmetry G=GroupOf(st);   // for the wording only: the rule itself is the structure's own answer
         // THE RULE: H_fit within G and H_points within G.  Below each failure, the wording names the generator G lacks.

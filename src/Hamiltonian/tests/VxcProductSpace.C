@@ -11,6 +11,8 @@
 //   (a) SYMMETRY, H_R ⊄ G: a representation may not impose a symmetry the calculation lacks.  \c Hamiltonian::AdmitVxc.
 //   (b) the periodic-multipole CORRECTNESS LIMIT: a conditionally convergent lattice sum.  \c Hamiltonian::AdmitVxc.
 //   (c) pin 28, NO ROUTE TO ρ[D]: the pin-28 policy at setup, the library throwing below it (the certificate gate below).
+// Beside them, one MESH OPTION refusal that is not about symmetry: angular none on a uniform cell mesh (the uniform mesh reads no
+// angular rule, so the choice would be silently ignored).  \c Hamiltonian::AdmitVxc.
 //
 // THE GATE (pin 30, replacing the 39-row cell table and its ratchet 2026-11-15, every cell having reached its target):
 //   1. the RULE ALONE, a pure function: H_fit ⊆ G and H_points ⊆ G over all 27 values, what each representation imposes, and
@@ -132,7 +134,7 @@ TEST(VxcProductSpace, WhatEachRepresentationImposes)
     {
         qcMesh::MeshParams uniformRadial=PointsFor(Points::Uniform);
         uniformRadial.angular=qcMesh::AngularKind::None;
-        EXPECT_TRUE(eq(qcMesh::ImposedBy(uniformRadial), T)) << "a uniform cell mesh reads no angular rule: T, never a T x O(3)";
+        EXPECT_TRUE(eq(qcMesh::ImposedBy(uniformRadial), T)) << "a uniform cell mesh reads no angular rule: T, never a T x O(3) (AdmitVxc refuses the combination)";
     }
     EXPECT_TRUE(eq(qcMesh::ImposedBy(qcMesh::MeshParams{}),       E)) << "Auto: each structure resolves it to a mesh it admits";
 
@@ -177,6 +179,22 @@ TEST(VxcProductSpace, ThePeriodicMultipoleIsACorrectnessLimitNotASymmetryRefusal
     EXPECT_NE(a.Error().find("conditionally convergent"), std::string::npos) << a.Error();
     EXPECT_EQ(a.Error().find("H_R"), std::string::npos) << "not worded as a symmetry refusal: " << a.Error();
     EXPECT_TRUE(Hamiltonian::AdmitVxc(*TheMolecule(), VxcFit::Multipole, PointsFor(Points::Becke))) << "site multipoles on a molecule are fine";
+}
+
+//! A MESH OPTION REFUSAL, NOT A SYMMETRY ONE (controller ruling 2026-11-16): angular none on a uniform cell mesh is refused on every
+//! structure and fit, because the uniform mesh reads no angular rule -- admitting it would silently ignore a user's stated choice.
+TEST(VxcProductSpace, AngularNoneOnAUniformCellMeshIsRefusedAsAMeshCombination)
+{
+    qcMesh::MeshParams uniformRadial=PointsFor(Points::Uniform);
+    uniformRadial.angular=qcMesh::AngularKind::None;
+    for (const auto& st : {TheSolid(), TheMolecule(), TheAtom()})
+        for (VxcFit f : {VxcFit::Auto, VxcFit::Delta, VxcFit::Auxiliary, VxcFit::PlaneWave, VxcFit::Multipole})
+        {
+            const auto a=Hamiltonian::AdmitVxc(*st, f, uniformRadial);
+            ASSERT_FALSE(a) << qcMesh::Name(Hamiltonian::GroupOf(*st)) << " x " << Name(f);
+            EXPECT_NE(a.Error().find("reads no angular rule"), std::string::npos) << a.Error();
+            EXPECT_EQ(a.Error().find("H_R"), std::string::npos) << "not worded as a symmetry refusal: " << a.Error();
+        }
 }
 
 //! A FEW PRODUCTIONS: the defaults and the distinct realizations, each admitted by \c AdmitVxc and built through the public factory
