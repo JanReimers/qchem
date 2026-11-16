@@ -372,7 +372,10 @@ amended 2026-11-15 to name the two later ones):
   imposes on ρ (O(3) on the atom path, the point group on a molecule, a space group ⊇ T on a solid); H_R is what the
   representation imposes ({e}, T for plane waves / lattice sums / a cell mesh, O(3) for a radial-only rule or the atom's
   spherical set).  A cell is admissible iff H_fit ⊆ G and H_points ⊆ G.  Home: `Hamiltonian::AdmitVxc`, before anything is
-  built, naming both groups.
+  built, naming both groups.  Each side answers for itself (stage 2, user ruling 2026-11-15 Q2): the structure by
+  `Structure::Admits(H)`, every fit class by `FIT_SF_ABS::Imposes()` (pure), and the built realization (the XC sampler,
+  fit space included) by `DensitySamplerBase::Imposes()`; the Vxc builders throw a `logic_error` when the built answer
+  differs from the pre-flight `Hamiltonian::ImposedBy`, so the table cannot drift from the classes.
 - **(b) the periodic-multipole CORRECTNESS LIMIT** (user, 2026-11-06): site multipoles on a periodic structure have a
   conditionally convergent lattice sum, so the answer would depend on the order of summation.  Home: `Hamiltonian::AdmitVxc`.
 - **(c) NO ROUTE TO ρ[D]** (pin 28): a cell whose XC would see a fitted ρ.  Home: the pin-28 policy at setup
