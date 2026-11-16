@@ -49,8 +49,16 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
         std::shared_ptr<const DensitySampler> raster;
         if (ball && ball->HoldsEveryOrbitalPair()) raster=std::make_shared<const ProjectedDensitySampler>(fb);
         else                                       raster=std::make_shared<const PairDensitySampler>(fb);
-        // A POINT SET handed in with a ball (a Becke mesh, I3): XC is evaluated there, on top of the raster strategy's exact pair.
-        if (quad.GetMesh()) return std::make_shared<const FitAtPointsDensitySampler>(std::make_shared<const BallFitSpace>(fb, quad), raster, quad);
+        // A POINT SET handed in with a ball (a Becke mesh, I3): XC is evaluated there, on top of the raster strategy's exact pair -- ONLY where
+        // the ball holds every pair, so its synthesis IS rho[D].  Over GPW orbitals it would be the raster's rho[D] truncated to the ball: no
+        // path may project rho before XC (pin 28, the rho axis retired 2026-11-15).
+        if (quad.GetMesh())
+        {
+            if (!(ball && ball->HoldsEveryOrbitalPair()))
+                throw std::invalid_argument("MakeDensitySampler: the plane-wave ball at a point set over Gaussian (GPW) orbitals synthesizes the raster's "
+                                            "rho[D] truncated to the ball, not rho[D] (doc/Pins.md pin 28) -- the delta fit on those points is that cell");
+            return std::make_shared<const FitAtPointsDensitySampler>(std::make_shared<const BallFitSpace>(fb, quad), raster, quad);
+        }
         return raster;
     }
     return std::make_shared<const SinglesDensitySampler>(fb, std::move(quad));
@@ -58,13 +66,12 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
 
 std::shared_ptr<const DensitySampler>
 MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points,
-                        std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, bool projected)
+                        std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1)
 {
     if (!points.GetMesh()) throw std::logic_error("MakeAuxiliaryFitSampler: the periodic A1 fit needs the XC point set");
     if (!delta) throw std::logic_error("MakeAuxiliaryFitSampler: the periodic A1 fit samples rho[D] through the delta basis on the XC points");
     auto fit=std::make_shared<const GaussianFitSpace>(std::move(a1), points);
     auto inner=MakeDensitySampler(delta, points);
-    if (projected) return std::make_shared<const FitAtPointsDensitySampler>(fit, inner, points);
     return std::make_shared<const FittedPotentialDensitySampler>(fit, inner);
 }
 
@@ -72,9 +79,11 @@ std::shared_ptr<const tDensitySampler<double>>
 MakeDensitySampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, BasisSet::FitQuadrature quad)
 {
     assert(fb);
-    // A non-orthogonal (A1) fit is a PROJECTION P onto its span, and the projected strategy evaluates P rho on the XC mesh handed in
-    // (V-XC-ONE-TERM step 3).  The caller reaches it only for xc.rho "fit": the "exact" A1 cell is the fitted-v term, not a sampler.
-    if (!fb->isOrtho()) return std::make_shared<const OverlapProjectedDensitySampler>(fb, std::move(quad));
+    // A non-orthogonal (A1) fit's projection P rho is not rho[D]: it never reaches XC (pin 28; its projected strategy is deleted with the rho
+    // axis, 2026-11-15).  The A1 cell is the fitted-potential sampler, which samples rho[D] through the delta basis.
+    if (!fb->isOrtho())
+        throw std::invalid_argument("MakeDensitySampler: the non-orthogonal fit "+fb->Name()+" would hand XC its projection P rho, not rho[D] "
+                                    "(doc/Pins.md pin 28) -- its cell is MakeFittedPotentialSampler");
     return std::make_shared<const tSinglesDensitySampler<double>>(fb, std::move(quad));
 }
 

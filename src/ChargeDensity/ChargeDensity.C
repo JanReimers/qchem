@@ -287,6 +287,13 @@ public:
     //! Become the current head of \a l (called by the SCFIterator on each new working density).  No-op for
     //! untracked densities.
     virtual void JoinLineage(const LineagePtr&) {}
+    //! \brief PIN 28's QUESTION (user ruling 2026-11-15): is this density \f$\rho[D]\f$ of a density matrix and nothing else -- no fitted,
+    //! mixed, seeded or numeric component?  FAIL CLOSED: the default is false, so \c SeedCD / \c PolarizedSeedCD, \c NumericCD,
+    //! \c FourierMixCD, \c PolarizedMixCD, and any density added later that does not override it, count as fitted.  \c IrrepCD_Core<T> is the
+    //! ONE override (true, "D is only in one place"); \c tComposite_CD<T> forwards to its irreps and THROWS if they disagree.  A mixer that can
+    //! REACH a D (\c tDM_Sourced_CD) still answers false: reaching D is not being D.
+    //! Client: the XC term at its \f$V_{xc}\f$ build, so the SCF's \c RequirePin28 throws past the seed on a density that is not \f$\rho[D]\f$.
+    virtual bool HasNoFitComponent() const {return false;}
 };
 
 //! Mixin that makes a versioned density track its SCF lineage head (see Lineage).  Mixed into the top-level

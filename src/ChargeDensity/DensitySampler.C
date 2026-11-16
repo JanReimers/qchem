@@ -79,10 +79,7 @@ enum class XCRhoSource
     //! >= 4 Ecut) the fit is Parseval-exact -- \f$\rho[D]\f$ to roundoff.  Legal under pin 28.
     ExactFit,
     Fitted,       //!< an INEXACT fit / projected field (the seed, a bare \f$\tilde\rho_{mix}\f$, a truncated ball) -- legal only for the seed
-    //! \f$P\rho\f$ BY STATED CHOICE (\c xc.rho "fit" on an inexact fit, V-XC-ONE-TERM step 3): the variational projected cell, where XC sees
-    //! the fit's projection of \f$\rho[D]\f$ because the user asked for that functional.  An explicit, reported departure from pin 28 -- so
-    //! it is NOT \c Fitted, which marks a fitted \f$\rho\f$ nobody asked for.
-    Projected,
+    // (Projected, the stated-Pρ cell, is RETIRED with the ρ axis: user 2026-11-15, pin 28.)
 };
 //! The short label the SCF trace's "XC ρ" column prints for \a s.
 inline const char* ShortName(XCRhoSource s)
@@ -95,10 +92,40 @@ inline const char* ShortName(XCRhoSource s)
         case XCRhoSource::Shadow:      return "shadow";
         case XCRhoSource::ExactFit:    return "fit=";
         case XCRhoSource::Fitted:      return "fitted";
-        case XCRhoSource::Projected:   return "Pρ";
     }
     assert(false && "ShortName: unhandled XCRhoSource");
     return "?";
+}
+
+//! \brief THE PIN-28 CERTIFICATE of one \f$V_{xc}\f$ build, FAIL CLOSED (user ruling 2026-11-15; doc/Pins.md pin 28): the DENSITY's own answer
+//! (\a densityIsRhoD = \c tChargeDensity::HasNoFitComponent, true only for \c IrrepCD_Core and composites of it) AND how the SAMPLER handed
+//! it to XC (\a s), or one of pin 28's NAMED exception routes.  Certified:
+//!   - pointwise \f$\rho[D]\f$: \c DM or \c ExactFit (a fit that holds every pair) on a density that is \f$\rho[D]\f$;
+//!   - exception 2, the Kerker step: \c CuspDeficit (\f$\tilde\rho_{mix}+(\rho[D]-\tilde\rho_{fit})\f$; the SCF also checks a G filter
+//!     sits beside it), \c Shadow (its raster form: \f$\rho[D]\f$ collocated, mixed on the raster), and \c ExactFit on a MIXED density
+//!     (the cusp deficit of an exact fit is zero, so \f$\tilde\rho_{mix}\f$ IS that form; labelled "fit=mix");
+//!   - \c DMSource: \c policy.xcFromDM, a declared CP2K-deviation route (a damped mix of \f$\rho[D]\f$ via the retained D), certified only
+//!     as that named route and labelled so in the trace.
+//! Everything else -- \c Fitted, a \c DM label on a density that is not \f$\rho[D]\f$, any value added later and not listed -- is uncertified,
+//! and the SCF throws on it past the seed.
+inline bool CertifiesRhoD(XCRhoSource s, bool densityIsRhoD)
+{
+    switch (s)
+    {
+        case XCRhoSource::DM:          return densityIsRhoD;
+        case XCRhoSource::ExactFit:    return true;          // rho[D] when the density is; exception 2 with a zero deficit when it is mixed
+        case XCRhoSource::CuspDeficit:
+        case XCRhoSource::Shadow:
+        case XCRhoSource::DMSource:    return true;          // the named routes
+        case XCRhoSource::Fitted:      return false;
+    }
+    return false;
+}
+//! The trace's XC ρ label for one \f$V_{xc}\f$ build: the source's \c ShortName, except an exact fit of a MIXED density ("fit=mix", the
+//! exception-2 form) so the column shows which of \c CertifiesRhoD's cases certified it.
+inline const char* CertificateLabel(XCRhoSource s, bool densityIsRhoD)
+{
+    return s==XCRhoSource::ExactFit && !densityIsRhoD ? "fit=mix" : ShortName(s);
 }
 
 //! \brief THE XC QUADRATURE: ONE OBJECT WITH TWO ADJOINT-PAIRED FACES -- \f$\rho\f$ at the points from
@@ -267,20 +294,19 @@ std::shared_ptr<const DensitySampler>
 MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad={});
 
 //! \brief The REAL path's strategy (V-XC-ONE-TERM, 2026-10-31): a molecule's or an atom's δ basis -- points and nothing else,
-//! so SINGLES.  A non-orthogonal (A1 Gaussian) fit is a projection: the PROJECTED strategy, \f$P\rho\f$ evaluated on \a quad's mesh
-//! (step 3, 2026-11-10) -- the \c XCρ::Fit cell, which the caller states.
+//! so SINGLES.  A non-orthogonal (A1 Gaussian) fit THROWS \c invalid_argument: its projection \f$P\rho\f$ is not \f$\rho[D]\f$ and never
+//! reaches XC (pin 28; the projected strategy was deleted with the ρ axis, 2026-11-15) -- its cell is \c MakeFittedPotentialSampler.
 std::shared_ptr<const tDensitySampler<double>>
 MakeDensitySampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, BasisSet::FitQuadrature quad={});
 
 //! \brief THE PERIODIC A1 VXC FIT's strategies (V-XC-ONE-TERM step 6, lane S 2026-11-15), over \a a1: the REAL Gamma block of the A1 set on
 //! the cell's sites, built by the Hamiltonian's caller and held by the strategy (a real fit cannot pass the complex lineage's fit-basis
-//! factory without changing a tier-1 hub).  Both cells work on the XC points through \a delta, the delta basis on \a points (rho[D] there):
-//!   - \a projected (xc.rho fit, target A): XC of P rho, P rho = R rho[D] with R = Phi_X S^-1 Phi_X^T w; H = dE/dD exactly.
-//!   - not \a projected (xc.rho exact, target W): XC of rho[D], its v FITTED (R v) for H (pin 32: H is not dE/dD; the policy layer warns and
-//!     refuses what needs dE/dD).
+//! factory without changing a tier-1 hub).  The cell works on the XC points through \a delta, the delta basis on \a points: XC of rho[D], its
+//! v FITTED (R v, R = Phi_X S^-1 Phi_X^T w) for H (target W, pin 32: H is not dE/dD; the policy layer warns and refuses what needs dE/dD).
+//! (Its projected twin, XC of P rho, was deleted with the ρ axis, 2026-11-15: pin 28.)
 std::shared_ptr<const DensitySampler>
 MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points,
-                        std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, bool projected);
+                        std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1);
 
 //! \brief THE MOLECULAR / ATOM FITTED-POTENTIAL CELLS (target W; FittedVxc's retirement, lane S 2026-11-15): XC of rho[D] on \a points through
 //! \a delta (the delta basis on them: singles, E = sum_g w_g e(rho[D]) exactly), its v FITTED for H onto

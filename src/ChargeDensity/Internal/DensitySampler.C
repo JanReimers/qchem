@@ -475,63 +475,6 @@ private:
     mutable XCRhoSource itsSource=XCRhoSource::Fitted;
 };
 
-//! \brief THE PROJECTED STRATEGY OVER AN OVERLAP-METRIC FIT (the molecular / atom A1 Gaussian basis): XC sees \f$P\rho\f$ at the XC
-//! mesh's points, and \f$H\f$ is its exact adjoint (V-XC-ONE-TERM step 3, lane S 2026-11-10; the \c XCρ::Fit cell of a non-orthogonal
-//! \c VxcFit).
-//!
-//! With \f$\Phi_{ga}=f_a(r_g)\f$ the fit functions at the mesh points, \f$w_g\f$ the mesh weights, \f$S\f$ the fit basis's analytic
-//! overlap and \f$\langle ij|a\rangle\f$ its analytic 3-centre overlap:
-//!  - \f$p_a=\langle f_a|\rho\rangle=\sum_{ij}D_{ij}\langle ij|a\rangle\f$ (the density projects ITSELF: \c tChargeDensity::Project),
-//!    \f$c=S^{-1}p\f$, \f$P\rho(r_g)=(\Phi c)_g\f$;
-//!  - \f$E=\sum_g w_g\,e(P\rho(r_g))\f$;
-//!  - \f$H_{ij}=\partial E/\partial D_{ij}=\sum_a\big(S^{-1}\Phi^T(w\circ v)\big)_a\langle ij|a\rangle\f$, \f$v=e'(P\rho)\f$.
-//! The pair is exact for ANY mesh: the forward and the adjoint are the same analytic tensor and the same \f$\Phi,w\f$, so the derivative
-//! needs no quadrature accuracy (gate: UTHamiltonian VxcProductSpace, the A1 Pρ cell's finite difference).  What the mesh's accuracy
-//! decides is how well \f$\sum_g w_g e(P\rho)\f$ approximates \f$\int e(P\rho)\f$ -- the same question as on the \f$\delta\f$ route.
-//!
-//! A density without a matrix (a seed, a numeric atom sum) projects its FIELD on my mesh, \f$p=\Phi^T(w\circ\rho)\f$ (\c ProjectField):
-//! the iteration-0 \f$\rho\f$ only, whose energy is discarded.
-//!
-//! What this cell is NOT: \f$P\rho\neq\rho[D]\f$ (the A1 basis is incomplete), so it departs from pin 28 by the user's explicit choice
-//! (\c xc.rho "fit").  The policy layer reports that; this class reports \c XCRhoSource::Projected.
-class OverlapProjectedDensitySampler
-    : public virtual tDensitySampler<double>
-{
-public:
-    typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;
-    //! \a fb: a non-orthogonal fit basis that can evaluate its functions at points (\c Evaluatable_IBS<double>) and carries the overlap
-    //! metric (\c FIT_SF_NonOrtho); THROWS naming the face it lacks.  \a quad: the XC mesh (its points and weights ARE my quadrature).
-    OverlapProjectedDensitySampler(fbs_t fb, BasisSet::FitQuadrature quad);
-    ~OverlapProjectedDensitySampler();
-    double Integrate(const rvec_t& f) const override;
-    size_t NumPoints() const override;
-    const rvec_t& Rho(const rChargeDensity* cd) const override;
-    const rvec_t& RhoPol(const rChargeDensity* cd, const Spin& s) const override;
-    //! Always \c Projected: an A1 basis does not hold every orbital pair, so \f$P\rho\neq\rho[D]\f$, and the run asked for \f$P\rho\f$.
-    XCRhoSource RhoSource() const override {return XCRhoSource::Projected;}
-    std::optional<double> GroupResidual() const override {return std::nullopt;}
-    //! The atom-partitioned integrals of my mesh (the XC term's site moments), as on the \f$\delta\f$ route.
-    rvec_t SiteIntegrals(const rvec_t& f) const override;
-    //! \f$\langle i|P\,v|j\rangle\f$: a pure function of \a v (no dependency on the density sampled last).
-    rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
-private:
-    class Projector;                 //!< the \c PairProjector<double> a density projects itself onto (defined in the unit)
-    rvec_t SampleOne(const rChargeDensity* cd) const;   //!< \f$\Phi S^{-1}\langle f|\rho\rangle\f$
-    void Refresh   (const rChargeDensity* cd) const;
-    void RefreshPol(const rChargeDensity* cd) const;
-
-    fbs_t                                itsFitBasis;
-    const BasisSet::FIT_SF_NonOrtho*     itsMetric;   //!< the same object's overlap-metric face (S^-1, the 3-centre tensor)
-    BasisSet::FitQuadrature              itsQuad;     //!< the XC mesh
-    rmat_t                               itsPhi;      //!< f_a(r_g): points x functions, geometry-fixed
-    std::unique_ptr<Projector>           itsProjector;
-    mutable rvec_t itsRho;
-    mutable size_t itsRhoVersion=size_t(-1);
-    //! \warning As on the other strategies: the scalar and the spin caches have no cross-invalidation, so ONE engine answers one shape.
-    mutable rvec_t itsRhoUp, itsRhoDn;
-    mutable size_t itsPolVersion=size_t(-1);
-};
-
 
 //! \brief A FIT SPACE BETWEEN AN INNER STRATEGY'S POINTS AND THE XC POINTS (V-XC-ONE-TERM, lane S 2026-11-15): the one exact linear pair that
 //! carries the inner strategy's density (on its raster, or on the XC points themselves) into a fit space and out at the XC points, and its
@@ -549,6 +492,10 @@ public:
     virtual std::string Name() const=0;   //!< the report's and console's name for the fit space
     //! The fit space's own health facts, written one level in under the decorator's health scope (default: none).
     virtual void ReportHealthFacts() const {}
+    //! \brief THE PIN-28 CERTIFICATE of what \c AtPoints hands XC, given the raster's own \a rasterSource: \c ExactFit only where the fit
+    //! space reproduces the raster's field EXACTLY at the points (the plane-wave ball over a raster that is itself Parseval-exact in it);
+    //! every other case answers \c Fitted.  Default \c Fitted: a fit space that does not answer is NOT certified (fail closed).
+    virtual XCRhoSource SourceAtPoints(XCRhoSource rasterSource) const {(void)rasterSource; return XCRhoSource::Fitted;}
 };
 
 //! \brief THE PLANE-WAVE BALL as a fit space (I3, V-XC-ONE-TERM step 4): forward = the raster's forward FFT truncated to the ball and synthesized
@@ -562,6 +509,11 @@ public:
     BallFitSpace(std::shared_ptr<const BasisSet::cFIT_SF_ABS> fb, BasisSet::FitQuadrature points);
     rvec_t AtPoints(const rvec_t& onRaster) const override;
     rvec_t OnRaster(const rvec_t& atPoints) const override;
+    //! The ball reproduces any field inside it: rho_P = rho[D] exactly when the raster is an \c ExactFit (the ball holds every orbital pair,
+    //! plane-wave orbitals).  A raster rho[D] of a Gaussian block is NOT inside any ball, so the synthesis is a truncation: \c Fitted (and
+    //! \c MakeDensitySampler refuses to build it, pin 28).
+    XCRhoSource SourceAtPoints(XCRhoSource rasterSource) const override
+    {return rasterSource==XCRhoSource::ExactFit ? XCRhoSource::ExactFit : XCRhoSource::Fitted;}
     std::string Name() const override {return "the plane-wave ball";}
 private:
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsFitBasis;
@@ -594,11 +546,13 @@ public:
     //! \brief The same fit space over ANY Gaussian set with an analytic metric \a S and an evaluator \a eval at points: the molecular A1
     //! fit (FittedVxc's retirement, lane S 2026-11-15) and the periodic Gamma block alike.  \a name is the report's and console's.
     GaussianFitSpace(const rsmat_t& S, Evaluator eval, BasisSet::FitQuadrature points, std::string name);
-    rvec_t AtPoints(const rvec_t& rho) const override {return Resample(rho);}
+    //! ⛔ THROWS: a fitted rho never reaches XC (pin 28; the projected A1 cell was deleted with the ρ axis, 2026-11-15).  This fit space
+    //! serves only the fitted-potential cell's v (\c OnRaster).
+    rvec_t AtPoints(const rvec_t& rho) const override;
     rvec_t OnRaster(const rvec_t& v  ) const override {return Resample(v);}
     std::string Name() const override {return itsName;}
-    //! \brief R x = Phi_X S^-1 Phi_X^T (w x): \a x fitted onto the set in the XC quadrature and sampled back at the points.  The projected
-    //! cell's forward AND adjoint, and the fitted-potential cell's whole operation (A1 x rho[D]: v(rho[D]) fitted for H, pin 32).
+    //! \brief R x = Phi_X S^-1 Phi_X^T (w x): \a x fitted onto the set in the XC quadrature and sampled back at the points -- the
+    //! fitted-potential cell's whole operation (A1 x rho[D]: v(rho[D]) fitted for H, pin 32).
     rvec_t Resample(const rvec_t& atPoints) const;
     size_t NumFunctions() const {return itsSinv.rows();}
     //! \brief THE METRIC GAP ||S - Phi_X^T w Phi_X||_F / ||S||_F (controller 2026-11-15): R is self-adjoint in w whatever the mesh (so H = dE/dD
@@ -699,7 +653,9 @@ public:
     FitAtPointsDensitySampler(std::shared_ptr<const FitSpace> fit, std::shared_ptr<const DensitySampler> raster, BasisSet::FitQuadrature points);
     double Integrate(const rvec_t& f) const override;
     size_t NumPoints() const override {return itsPoints.GetMesh()->size();}
-    XCRhoSource RhoSource() const override {return itsRaster->RhoSource();}
+    //! What XC sees is the fit space's synthesis, so the FIT SPACE certifies it (never the raster's own source: the raster's rho[D] truncated
+    //! to a ball is not rho[D]).
+    XCRhoSource RhoSource() const override {return itsFit->SourceAtPoints(itsRaster->RhoSource());}
     std::optional<double> GroupResidual() const override {return std::nullopt;}
     const rvec_t& Rho(const cChargeDensity* cd) const override;
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
