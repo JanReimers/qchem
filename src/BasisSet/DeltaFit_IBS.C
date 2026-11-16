@@ -104,6 +104,8 @@ public:
     //! thing holding up a \f$\delta\f$-only FACE, and "my metric is diagonal" is a fact about this
     //! implementation, not a type other code needs to name.
     bool isOrtho() const override {return true;}
+    //! \f$\delta\f$ functions at points impose nothing of their own: the POINTS carry any group (\c qcMesh::ImposedBy).
+    qcMesh::ImposedSymmetry Imposes() const override {return {};}
     //! \brief How a REAL orbital block is evaluated at this basis's points, when its OWN basis set's factory says so (R1.0 step 2,
     //! user ruling 2026-11-14).  The atom's blocks are radial: the factory (\c Radial::BasisSet_HF) hands a closure that fills
     //! \f$\Phi_{gi}=R_i(|r_g|)\f$ from each block's radial face, the m count living in the occupation, so the atom SCF never asks a

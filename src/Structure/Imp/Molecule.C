@@ -74,7 +74,7 @@ qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams&
 {
     RefuseCellMesh(mp, "the atom-centred (molecule / atom) mesh");
     // The radial-only set imposes O(3): a library invariant here (the callers ask Hamiltonian::AdmitVxc first), so a THROW.
-    if (mp.angular==qcMesh::AngularKind::None && !atoms.HasFullRotationSymmetry())
+    if (!atoms.Admits(qcMesh::ImposedBy(mp)))   // past RefuseCellMesh, only the radial-only set's O(3) can fail
         throw std::invalid_argument("the atom-centred mesh: the radial-only point set (angular none) integrates one direction, exact only for a "
                                     "spherical integrand -- it imposes O(3), and this structure's group has no full rotation symmetry (doc/Pins.md pin 30)");
     const int beckeOrder=mp.beckeOrder;

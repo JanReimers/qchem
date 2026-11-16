@@ -41,7 +41,7 @@ import qchem.BasisSet.DeltaFit_IBS;              // DeltaFit_IBS -- the delta ba
 import qchem.BasisSet.G_FieldEvaluator;           // G_RasterTransform -- the uniform probe's own point count
 export import qchem.BasisSet.Conditioning;
 export import qchem.BasisSet.Lattice.BasisSet;    // VetStageTrim (pin 22)
-import qchem.Hamiltonian.Internal.PWTerms;        // Vxc_Quadrature (the XC probes)
+import qchem.Hamiltonian.Internal.PWTerms;        // cVxc_DFT (the XC probes)
 import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian;                         // cDynamic_HT, and a term's real block face
@@ -413,7 +413,7 @@ XCProbe UniformXCProbe(const GpwHandles& h, const std::shared_ptr<const Structur
     qcMesh::MeshParams mp; mp.relCutoff=std::max(exch->GridCutoffFactor(), corr->GridCutoffFactor());
     ChargeDensity::fitbasis_t vfb(h.bs->CreateVxcFitBasisSet(st.get(), mp));
     auto pair=ChargeDensity::MakeDensitySampler(vfb);   // raster fit basis -> the pair/collocation strategy
-    Hamiltonian::Vxc_Quadrature x(exch,pair,SpinGroup::UnPolarized), c(corr,pair,SpinGroup::UnPolarized);
+    Hamiltonian::cVxc_DFT x(exch,pair,SpinGroup::UnPolarized), c(corr,pair,SpinGroup::UnPolarized);
     EnergyBreakdown e; x.GetEnergy(e,h.cd); c.GetEnergy(e,h.cd);
     XCProbe p=ProbeXC("uniform", h, x, c, e);
     // Its own raster's size -- the same face the Hartree energy asks for its quadrature rule.
@@ -429,7 +429,7 @@ XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
     auto mesh=std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB));
     auto engine=SinglesEngineOver({mesh, {}});      // ONE quadrature, shared by the pair; free probe: no fold
-    Hamiltonian::Vxc_Quadrature x(exch,engine,SpinGroup::UnPolarized), c(corr,engine,SpinGroup::UnPolarized);
+    Hamiltonian::cVxc_DFT x(exch,engine,SpinGroup::UnPolarized), c(corr,engine,SpinGroup::UnPolarized);
     EnergyBreakdown e; x.GetEnergy(e,h.cd); c.GetEnergy(e,h.cd);
     XCProbe p=ProbeXC(label, h, x, c, e);
     p.nPts=mesh->size();                            // the mesh's own count, not a (nR x degree) rule

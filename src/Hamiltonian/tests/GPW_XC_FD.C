@@ -111,7 +111,7 @@ TEST(GPW_XC, PotentialConsistencyFD)
     auto VHof=[&](const chmat_t& D)->ΔG_Map { ΔG_Map v=Contract(ov,D); for (auto& [dm,c] : v) c*=grid.Recip().CoulombKernel(dm); return v; };
 
     auto rhoOf=[&](const chmat_t& D)->rvec_t { return grid.RhoOnGrid(Contract(ov,D)); };
-    auto Exc=[&](const rvec_t& rho)->double              // == Vxc_Quadrature::GetEnergy (both terms)
+    auto Exc=[&](const rvec_t& rho)->double              // == cVxc_DFT::GetEnergy (both terms)
     {
         rvec_t e(rho.size());
         for (size_t q=0;q<rho.size();q++)
@@ -121,7 +121,7 @@ TEST(GPW_XC, PotentialConsistencyFD)
         }
         return grid.Integral(e);
     };
-    auto Hxc=[&](const rvec_t& rho)->chmat_t             // == Vxc_Quadrature::MakeMatrix (both terms summed)
+    auto Hxc=[&](const rvec_t& rho)->chmat_t             // == cVxc_DFT::MakeMatrix (both terms summed)
     {
         rvec_t v(rho.size());
         for (size_t q=0;q<rho.size();q++)

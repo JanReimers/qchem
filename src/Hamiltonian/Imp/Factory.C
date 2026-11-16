@@ -123,24 +123,34 @@ namespace qchem::Hamiltonian
     static const std::string thePeriodicMultipole="site multipoles have no periodic form.  The lattice sum of their potentials is "
         "conditionally convergent, so an answer would depend on the order of summation -- state Delta on a periodic structure";
 
+
+    //! The one wording of a pin-30 refusal: what imposes H_R, the structure's G, and what to state instead.
+    static std::string SymmetryRefusal(const std::string& what, ImposedSymmetry H, ImposedSymmetry G, const std::string& instead)
+    {
+        return what+" imposes H_R = "+qcMesh::Name(H)+", and this structure's G (its "+
+               (G.translations ? "space group" : G.fullRotation ? "atom path's O(3)" : "point group")+") does not contain it -- "+
+               instead+" (doc/Pins.md pin 30)";
+    }
+
     Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure& st, VxcFit fit, const qcMesh::MeshParams& mp)
     {
         using R=Outcome<AdmittedVxc,std::string>;
-        if (st.HasTranslationSymmetry() && fit==VxcFit::Multipole) return R::Fail("the multipole Vxc fit: "+thePeriodicMultipole);
-        if (!st.HasTranslationSymmetry())
+        if (st.Admits({.translations=true}) && fit==VxcFit::Multipole) return R::Fail("the multipole Vxc fit: "+thePeriodicMultipole);
+        const ImposedSymmetry G=GroupOf(st);   // for the wording only: the rule itself is the structure's own answer
+        // THE RULE: H_fit within G and H_points within G.  Below each failure, the wording names the generator G lacks.
+        if (const ImposedSymmetry H=ImposedBy(fit,st); !st.Admits(H))
         {
-            static const std::string G="this finite structure's G (its point group; O(3) on the atom path) has no translations";
-            if (fit==VxcFit::PlaneWave)
-                return R::Fail("the plane-wave Vxc fit imposes the lattice translations (H_R = T), and "+G+
-                               " -- state the Vxc fit Delta or Auxiliary (doc/Pins.md pin 30)");
-            if (mp.cellKind==qcMesh::UnitCellKind::Uniform)
-                return R::Fail("a uniform cell mesh imposes the lattice translations (H_R = T), and "+G+
-                               " -- state the XC mesh cellKind Becke or Auto, the atom-centred mesh (doc/Pins.md pin 30)");
+            if (fit!=VxcFit::PlaneWave) throw std::logic_error("Hamiltonian::AdmitVxc: a refused Vxc fit with no wording");
+            return R::Fail(SymmetryRefusal("the plane-wave Vxc fit", H, G, "state the Vxc fit Delta or Auxiliary"));
         }
-        if (mp.angular==qcMesh::AngularKind::None && !st.HasFullRotationSymmetry())
-            return R::Fail("the radial-only point set (angular none) integrates one direction, exact only for a spherical integrand, so it "
-                           "imposes O(3) about its centre (H_R = O(3)), and this structure's G (a point group, or a space group) has no full "
-                           "rotation symmetry -- state an angular rule (Lebedev or GaussLegendre) (doc/Pins.md pin 30)");
+        if (const ImposedSymmetry H=qcMesh::ImposedBy(mp); !st.Admits(H))
+        {
+            if (H.translations && !G.translations)
+                return R::Fail(SymmetryRefusal("a uniform cell mesh", {.translations=true}, G,
+                                               "state the XC mesh cellKind Becke or Auto, the atom-centred mesh"));
+            return R::Fail(SymmetryRefusal("the radial-only point set (angular none: one direction at 4 pi, exact only for a spherical "
+                                           "integrand)", {.fullRotation=true}, G, "state an angular rule (Lebedev or GaussLegendre)"));
+        }
         return R::Ok({fit, mp.cellKind});
     }
     Outcome<CoulombRoute,std::string> AdmitCoulomb(const Structure& st, const CoulombRoute& coulomb, const qcMesh::MeshParams& mp, VxcFit fit)
@@ -149,7 +159,7 @@ namespace qchem::Hamiltonian
         const bool multipole=coulomb.fit==CoulombFit::Multipole;
         if (multipole)
         {
-            if (st.HasTranslationSymmetry()) return R::Fail("the multipole Coulomb fit: "+thePeriodicMultipole);
+            if (st.Admits({.translations=true})) return R::Fail("the multipole Coulomb fit: "+thePeriodicMultipole);
             if (coulomb.solver==CoulombSolver::DirectSum)
                 return R::Fail("a multipole fit's potential is the radial Poisson solve of its channels; a direct sum runs over points -- "
                                "state the solver RadialPoisson or Auto, or the fit Delta");

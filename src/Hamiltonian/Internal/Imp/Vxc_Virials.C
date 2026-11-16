@@ -24,10 +24,10 @@ const ChargeDensity::DensitySampler* PeriodicOf(const ChargeDensity::tDensitySam
 const ChargeDensity::DensitySampler* PeriodicOf(const ChargeDensity::tDensitySampler<double>*) {return nullptr;}
 } // namespace
 
-template <class T> std::string tVxc_Quadrature<T>::MissingVirial(const tbs_t<T>* bs, const Structure*) const
+template <class T> std::string tVxc_DFT<T>::MissingVirial(const tbs_t<T>* bs, const Structure*) const
 {
-    if (!bs) return "Vxc_Quadrature: no basis to differentiate";
-    if (!itsSampler->HasDilationVirial()) return "Vxc_Quadrature: no virial (its XC quadrature's points do not stay fractional under a strain)";
+    if (!bs) return "cVxc_DFT: no basis to differentiate";
+    if (!itsSampler->HasDilationVirial()) return "cVxc_DFT: no virial (its XC quadrature's points do not stay fractional under a strain)";
     std::string why;
     ForEachBlock(bs, [&](const auto* b)
     {
@@ -36,35 +36,35 @@ template <class T> std::string tVxc_Quadrature<T>::MissingVirial(const tbs_t<T>*
         bool can=false;
         if constexpr (std::is_same_v<BT,tobs_t<T>>) can=itsSampler->CanVirialMatrix(b);
         else if (const auto* p=PeriodicOf(itsSampler.get())) can=p->CanVirialMatrix(b);
-        if (!can) why="Vxc_Quadrature: no virial (its XC quadrature's route gives no matrix virial)";
+        if (!can) why="cVxc_DFT: no virial (its XC quadrature's route gives no matrix virial)";
     });
     return why;
 }
 
-template <class T> template <class U> rmat3d_t tVxc_Quadrature<T>::VirialBlock(const tobs_t<U>* bs, const Spin& s, const hmat_t<U>& D, const Structure* st) const
+template <class T> template <class U> rmat3d_t tVxc_DFT<T>::VirialBlock(const tobs_t<U>* bs, const Spin& s, const hmat_t<U>& D, const Structure* st) const
 {
     const rvec_t& v=itsRefreshed.v[s==Spin::Down ? 1 : 0];   // a folded doublet (Spin::None) is the field either channel sees: Up (as MakeMatrix)
-    if (v.size()==0) throw std::logic_error("tVxc_Quadrature::Virial: the refresh built no v_xc for spin "+std::to_string(int(s))+" (AddVirial checks the density first)");
+    if (v.size()==0) throw std::logic_error("tVxc_DFT::Virial: the refresh built no v_xc for spin "+std::to_string(int(s))+" (AddVirial checks the density first)");
     auto r=[&]
     {
         if constexpr (std::is_same_v<U,T>) return itsSampler->MakeMatrixVirial(bs, v, D, st);
         else
         {
             const auto* p=PeriodicOf(itsSampler.get());
-            if (!p) throw std::logic_error("tVxc_Quadrature::Virial: a real TRIM block needs the periodic sampler's real-block face");
+            if (!p) throw std::logic_error("tVxc_DFT::Virial: a real TRIM block needs the periodic sampler's real-block face");
             return p->MakeMatrixVirial(bs, v, D, st);
         }
     }();
-    if (!r) throw std::logic_error("tVxc_Quadrature::Virial: "+r.Error().why+" (MissingVirials() names it before a stress is asked)");
+    if (!r) throw std::logic_error("tVxc_DFT::Virial: "+r.Error().why+" (MissingVirials() names it before a stress is asked)");
     return *r;
 }
 
-template <class T> void tVxc_Quadrature<T>::AddVirial(rmat3d_t& V, const tDM_CD<T>* D, const Structure* st) const
+template <class T> void tVxc_DFT<T>::AddVirial(rmat3d_t& V, const tDM_CD<T>* D, const Structure* st) const
 {
     if (!(DensityID(D)==itsRefreshed.id))
-        throw std::logic_error("tVxc_Quadrature::AddVirial: the refresh built v_xc for another density (refresh with the basis for D first)");
+        throw std::logic_error("tVxc_DFT::AddVirial: the refresh built v_xc for another density (refresh with the basis for D first)");
     if (!itsSampler->HasDilationVirial())
-        throw std::logic_error("tVxc_Quadrature::AddVirial: the quadrature's points do not stay fractional (MissingVirials() names it first)");
+        throw std::logic_error("tVxc_DFT::AddVirial: the quadrature's points do not stay fractional (MissingVirials() names it first)");
     // The quadrature side: E_xc and Σ_σ ∫ v^σ ρ^σ on the SAME channel rasters GetEnergy integrates.
     rvec_t half;
     const Rasters r=ChannelRasters(D, half);
@@ -83,12 +83,12 @@ template <class T> void tVxc_Quadrature<T>::AddVirial(rmat3d_t& V, const tDM_CD<
     for (size_t a=1;a<=3;a++) V(a,a)+=dilation;
 }
 
-template std::string tVxc_Quadrature<double>::MissingVirial(const tbs_t<double>*, const Structure*) const;
-template std::string tVxc_Quadrature<dcmplx>::MissingVirial(const tbs_t<dcmplx>*, const Structure*) const;
-template void tVxc_Quadrature<double>::AddVirial(rmat3d_t&, const tDM_CD<double>*, const Structure*) const;
-template void tVxc_Quadrature<dcmplx>::AddVirial(rmat3d_t&, const tDM_CD<dcmplx>*, const Structure*) const;
-template rmat3d_t tVxc_Quadrature<double>::VirialBlock<double>(const tobs_t<double>*, const Spin&, const hmat_t<double>&, const Structure*) const;
-template rmat3d_t tVxc_Quadrature<dcmplx>::VirialBlock<dcmplx>(const tobs_t<dcmplx>*, const Spin&, const hmat_t<dcmplx>&, const Structure*) const;
-template rmat3d_t tVxc_Quadrature<dcmplx>::VirialBlock<double>(const tobs_t<double>*, const Spin&, const hmat_t<double>&, const Structure*) const;
+template std::string tVxc_DFT<double>::MissingVirial(const tbs_t<double>*, const Structure*) const;
+template std::string tVxc_DFT<dcmplx>::MissingVirial(const tbs_t<dcmplx>*, const Structure*) const;
+template void tVxc_DFT<double>::AddVirial(rmat3d_t&, const tDM_CD<double>*, const Structure*) const;
+template void tVxc_DFT<dcmplx>::AddVirial(rmat3d_t&, const tDM_CD<dcmplx>*, const Structure*) const;
+template rmat3d_t tVxc_DFT<double>::VirialBlock<double>(const tobs_t<double>*, const Spin&, const hmat_t<double>&, const Structure*) const;
+template rmat3d_t tVxc_DFT<dcmplx>::VirialBlock<dcmplx>(const tobs_t<dcmplx>*, const Spin&, const hmat_t<dcmplx>&, const Structure*) const;
+template rmat3d_t tVxc_DFT<dcmplx>::VirialBlock<double>(const tobs_t<double>*, const Spin&, const hmat_t<double>&, const Structure*) const;
 
 } // namespace qchem::Hamiltonian

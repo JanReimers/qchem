@@ -306,7 +306,7 @@ Verbatim; its section numbers are the first version's (§1's FD layer is now §6
         the leaf `inline` in its interface, the energy TU at the tree's flags, an AD TU at the AD flags.
 - **DERIVATIVES ARE ENZYME'S (user, 2026-11-08: "either 1) hand code all derivatives (and maintain them!!!) xor 2) Use Enzyme ... not some
   blend").**  **Enzyme is REQUIRED** (user ruling 2026-11-09: "Yes I think we make it required.  Seems like a small burden for a lot
-  of functionality."): configure stops without the plugin (root `CMakeLists.txt`: the pin 871de19f, a smoke derivative), so there is no
+  of functionality."): configure stops without the plugin (root `CMakeLists.txt`: the pin, cdd0d1c2 since 2026-11-13, found in `~/Code/Enzyme-<pin>`; a smoke derivative), so there is no
   build without forces and no "built without Enzyme" refusal.  (Before the ruling a build without Enzyme had energies and no forces.)
   - **The principle: ONE derivative method for every derivative, Enzyme** (user, 2026-11-08: "Clean (consistent) code dictates that all
     derivatives are done the same way.  BUT then Enzyme becomes non-optional.  So I say that temporarily we leave gradients as they are,

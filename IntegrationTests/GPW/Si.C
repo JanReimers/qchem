@@ -578,7 +578,7 @@ TEST(GPW_Si, Γ_Imp_eqUnfolded)
 //  Si/Gamma on the standard uniform route (the GPW_Si.Γ_Imp_CP2K recipe), then evaluate BOTH
 //  XC term pairs (Dirac + VWN5) on the SAME converged density:
 //    uniform -- the PAIR quadrature on the Vxc fit basis's FFT grid (the raw-collocation route);
-//    Becke   -- Vxc_Quadrature: rho(r) analytic at the atom-centred points, MatrixOverlap matrix.
+//    Becke   -- cVxc_DFT: rho(r) analytic at the atom-centred points, MatrixOverlap matrix.
 //  Angular rule: GaussLegendre (machine-exact algebraic degree at any L -- the audited Lebedev
 //  tables stop at L=11; see the Mesh_AngularDegree tests).
 //================================================================================================

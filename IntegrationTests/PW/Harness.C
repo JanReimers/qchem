@@ -61,7 +61,7 @@ using Pseudopotential::HGH_SeparablePotential;
 using Pseudopotential::GetGTH;
 using Pseudopotential::GTH_PP;
 
-// The Hartree term / Vxc_Quadrature now take their fit basis (from the basis's own factory) at construction, like
+// The Hartree term / cVxc_DFT now take their fit basis (from the basis's own factory) at construction, like
 // FittedVee/FittedVxc.  These low-level term tests build one straight from the plane-wave basis at hand.
 qchem::Hamiltonian::Vee_Fit<dcmplx>* NewPWHartree(const PlaneWave_IBS& pw)
 {
@@ -71,9 +71,9 @@ qchem::Hamiltonian::Vee_Fit<dcmplx>* NewPWHartree(const PlaneWave_IBS& pw)
 }
 // The XC term takes a QUADRATURE, and MakeDensitySampler reads off the strategy the fit basis supports --
 // here a plane-wave (raster) basis, so the pair/collocation one.
-qchem::Hamiltonian::Vxc_Quadrature* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamiltonian::Vxc_Quadrature::xc_t& xc)
+qchem::Hamiltonian::cVxc_DFT* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamiltonian::cVxc_DFT::xc_t& xc)
 {
-    return new qchem::Hamiltonian::Vxc_Quadrature(xc, qchem::ChargeDensity::MakeDensitySampler(
+    return new qchem::Hamiltonian::cVxc_DFT(xc, qchem::ChargeDensity::MakeDensitySampler(
         qchem::ChargeDensity::fitbasis_t(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}))), SpinGroup::UnPolarized);
 }
 

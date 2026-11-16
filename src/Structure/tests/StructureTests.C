@@ -353,15 +353,15 @@ TEST_F(StructureTests, EwaldFarApartHomeAtoms)
 TEST_F(StructureTests, PeriodicAnswersVsFinite)
 {
     Atom h(1,0,{0,0,0});
-    EXPECT_FALSE(h.HasTranslationSymmetry());
+    EXPECT_FALSE(h.Admits({.translations=true}));
     Molecule m;
     m.Insert(Site{1, {0,0,0}});
     m.Insert(Site{1, {0,0,1.4}});
-    EXPECT_FALSE(m.HasTranslationSymmetry());
+    EXPECT_FALSE(m.Admits({.translations=true}));
     FCCUnitCell si(10.26);
     si.AddAtom(14,{0,0,0});
     si.AddAtom(14,{0.25,0.25,0.25});
-    EXPECT_TRUE(si.HasTranslationSymmetry());
+    EXPECT_TRUE(si.Admits({.translations=true}));
 
     const auto f=[](int Z){return 0.5*Z;};
     EXPECT_EQ(h.G0Background(f), 0.0);                                   // finite: no background, exactly 0

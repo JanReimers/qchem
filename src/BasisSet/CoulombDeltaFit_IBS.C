@@ -49,6 +49,7 @@ public:
     }
     // --- the δ basis, unchanged
     bool   isOrtho        () const override {return itsDelta->isOrtho();}
+    qcMesh::ImposedSymmetry Imposes() const override {return itsDelta->Imposes();}   //!< the \f$\delta\f$ basis's ({e})
     rvec_t Overlap        (const ScalarFunction<double>& f) const override {return itsDelta->Overlap(f);}
     rvec_t OverlapDiagonal() const override {return itsDelta->OverlapDiagonal();}
     rvec_t Charge         () const override {return itsDelta->Charge();}

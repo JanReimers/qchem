@@ -177,6 +177,9 @@ public:
     //! The Vxc fit: its projection mesh, built from \a st and \a mp.
     EFit_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const Evaluator& e, const Structure& st, const qcMesh::MeshParams& mp)
         : Fit_IBS(st,mp), IrrepBasisSetImp<Evaluator>(cache, Symmetry::YFactory()), Evaluator(e) {};
+    //! A one-centre radial set of a single l: at l = 0 every function is spherical about the atom, so the set imposes O(3) (the atom
+    //! path's A1 Vxc fit, built from its s block); any other l carries no group ({e}).  doc/Pins.md pin 30.
+    virtual qcMesh::ImposedSymmetry Imposes() const override {return {.fullRotation = Evaluator::Getl()==0};}
     // d/dR (GeometryOptimizationPlan §13.2): a one-centre (atom) fit has no geometry to move.
     virtual bool CanPullbackRepulsion() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const rsmat_t&, const Structure*) const override

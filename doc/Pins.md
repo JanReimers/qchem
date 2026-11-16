@@ -366,12 +366,22 @@ offset against CP2K (now +0.16 mHa).  Record: `OpenWork_History5.md` "MnO accura
 A1 Gaussian auxiliary fit, plane waves on the raster, and any future one) and integration grid (Becke atom-centred,
 uniform cell mesh, the {G} raster) must assemble through the SAME XC term and the SAME fit-basis faces, with no type
 tests.  **A combination that throws or fails is an OOD DESIGN FLAW, never an unsupported option**: fix the interface
-it exposed, don't add a carve-out.  **The ONE legitimate refusal is SYMMETRY INCOMPATIBILITY** (user, 2026-10-31): the
-fit basis must be able to represent a field with the structure's symmetry.  A spherical (atom) fit basis cannot serve a
-molecule or a solid, and a Bloch/periodic basis needs a lattice.  That refusal is stated, not stumbled into: it is
-answered by a symmetry-compatibility question at the factory, before anything is built, and it names both symmetries.
-Anything else, such as a throw deep inside, an assert, a wrong number, or a refusal for any reason other than symmetry,
-is the flaw.  The A1 Gaussian fit is KEPT for this reason even if δ wins on accuracy and cost.
+it exposed, don't add a carve-out.  **There are exactly THREE legitimate refusals, each with ONE home** (user, 2026-10-31;
+amended 2026-11-15 to name the two later ones):
+- **(a) SYMMETRY, H_R ⊄ G**: a representation may not impose a symmetry the calculation lacks.  G is what the calculation
+  imposes on ρ (O(3) on the atom path, the point group on a molecule, a space group ⊇ T on a solid); H_R is what the
+  representation imposes ({e}, T for plane waves / lattice sums / a cell mesh, O(3) for a radial-only rule or the atom's
+  spherical set).  A cell is admissible iff H_fit ⊆ G and H_points ⊆ G.  Home: `Hamiltonian::AdmitVxc`, before anything is
+  built, naming both groups.  Each side answers for itself (stage 2, user ruling 2026-11-15 Q2): the structure by
+  `Structure::Admits(H)`, every fit class by `FIT_SF_ABS::Imposes()` (pure), and the built realization (the XC sampler,
+  fit space included) by `DensitySamplerBase::Imposes()`; the Vxc builders throw a `logic_error` when the built answer
+  differs from the pre-flight `Hamiltonian::ImposedBy`, so the table cannot drift from the classes.
+- **(b) the periodic-multipole CORRECTNESS LIMIT** (user, 2026-11-06): site multipoles on a periodic structure have a
+  conditionally convergent lattice sum, so the answer would depend on the order of summation.  Home: `Hamiltonian::AdmitVxc`.
+- **(c) NO ROUTE TO ρ[D]** (pin 28): a cell whose XC would see a fitted ρ.  Home: the pin-28 policy at setup
+  (`qchem.XCRhoPolicy`), with the library throwing below it and the SCF failing closed on an uncertified ρ.
+Each refusal is stated, not stumbled into.  Anything else, such as a throw deep inside, an assert, a wrong number, or a
+refusal for any other reason, is the flaw.  The A1 Gaussian fit is KEPT for this reason even if δ wins on accuracy and cost.
 It is a STRATEGY whose job includes keeping the framework honest, so "δ is better, delete A1" is not an available
 cleanup.  Earned by: on 2026-10-31 a δ fit on the molecular path threw (`tBasisSet<T>::CreateVxcFitBasisSet`).  The
 cause was that `DeltaFit_IBS` was hard-wired to `dcmplx`, and that `Fitting::Factory` used the scalar type as a proxy
@@ -379,9 +389,12 @@ for the metric (real ⇒ non-orthogonal, complex ⇒ orthogonal; both wrong).  T
 (closed shell) and 35 mHa (polarized O₂) against PySCF exact, which nobody could isolate because no second
 representation could run there.  Corollary: the scalar type T, the metric (`isOrtho`), the transform
 (`G_RasterTransform`) and the system kind are independent axes.  A factory dispatches on CAPABILITY, never on T or on
-what a class IS.  Gate: a parameterized UT over the product space (OOD V-XC-ONE-TERM).  Each cell either ASSEMBLES, or is REFUSED for
-symmetry incompatibility at the factory (a permanent, expected answer), or is an EXPECTED FAILURE naming its open
-defect row.  Only that last list may change, and it may only shrink.
+what a class IS.  Gate (UTHamiltonian `VxcProductSpace`; it replaced the cell table and its ratchet on 2026-11-15, once every cell had reached its
+target): (1) the RULE alone, a pure function over its 27 values (H_fit, H_points ∈ {e, T, O(3)} × the three G), what each
+representation imposes, and `AdmitVxc` agreeing with it over the whole space; (2) one H = dE/dD finite-difference gate per
+sampling strategy × grid kind (pair raster, PW ball on its raster and at Becke points, δ singles at Becke, uniform and radial
+points; the fitted potential is H ≠ dE/dD by design, pin 32), plus the pin-28 certificate gate; (3) about six end-to-end
+productions, each building its Hamiltonian and finding the one XC term in it.
 
 **The symmetry rule, stated precisely** (user, 2026-10-31: "a representation may not impose a symmetry the structure
 lacks").  Let **G** be the group the CALCULATION imposes on ρ, and hence on v_xc.  It is not the symmetry of the nuclear

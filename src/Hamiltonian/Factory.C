@@ -182,13 +182,14 @@ export namespace qchem::Hamiltonian
     //=== The Vxc product space's symmetry rule (doc/Pins.md pin 30) ===================================
     //! The cell \c AdmitVxc admitted: the fit and the XC point set as stated.
     struct AdmittedVxc { VxcFit fit; qcMesh::UnitCellKind points; };
-    //! \brief Is (structure x Vxc fit x XC point set) an ADMISSIBLE cell?  A representation may not impose a symmetry the
-    //! calculation lacks: plane waves and a uniform cell mesh impose the lattice translations T, which a FINITE structure (a
-    //! molecule or an atom) does not have.  A refusal is an expected answer to a user-reachable choice, so it is an Outcome
-    //! naming the imposed group H_R and the structure's G.  Every DFT factory below consults it and throws
-    //! \c std::invalid_argument with the same reason when handed a refused cell; a caller that wants the answer as a value
-    //! (a setup / deck pre-flight, UTHamiltonian VxcProductSpace) asks here first.  A cell the rule ADMITS but no code realizes
-    //! yet (A1 on a solid, PW on a Becke mesh) is not a refusal: it still throws \c std::logic_error, an open X cell of that UT.
+    // GroupOf and ImposedBy(VxcFit, Structure) live in qchem.Hamiltonian.Types (pin 30 stage 2): the Vxc builders check the BUILT
+    // realization against the same pre-flight answer, and they cannot see this module.
+    //! \brief Is (structure x Vxc fit x XC point set) an ADMISSIBLE cell?  The rule (doc/Pins.md pin 30) is ONE check:
+    //! \f$H_{fit}\subseteq G\f$ and \f$H_{points}\subseteq G\f$ (\c ImposedBy, \c GroupOf, \c qcMesh::ImposedBy).  Besides it, ONE
+    //! correctness limit (user ruling 2026-11-06): a multipole fit on a periodic structure, whose lattice sum is conditionally convergent.
+    //! A refusal is an expected answer to a user-reachable choice, so it is an Outcome naming the imposed group H_R and the structure's
+    //! G.  Every DFT factory below consults it and throws \c std::invalid_argument with the same reason when handed a refused cell; a
+    //! caller that wants the answer as a value (a setup / deck pre-flight, UTHamiltonian VxcProductSpace) asks here first.
     Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure&, VxcFit, const qcMesh::MeshParams&);
     //! The Hartree partner of \c AdmitVxc.  Refuses a multipole fit on a periodic structure, on the direct sum, and past its \f$l\f$ bound.
     Outcome<CoulombRoute,std::string> AdmitCoulomb(const Structure&, const CoulombRoute&, const qcMesh::MeshParams&, VxcFit=VxcFit::Auto);

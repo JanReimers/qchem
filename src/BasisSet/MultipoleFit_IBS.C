@@ -57,6 +57,8 @@ public:
     bool   UsesTrDV     () const override                                              {return Coulomb().UsesTrDV();}
 
     bool isOrtho() const override {return true;}   //!< no metric solve: see the file header
+    //! Channels on EVERY site, so no group of their own ({e}); periodic use is refused as a correctness limit, not by symmetry.
+    qcMesh::ImposedSymmetry Imposes() const override {return {};}
 
     //! \f$\langle f_a|f\rangle\f$: the moments of the \f$\delta\f$ projection, which is \f$w_gf(r_g)\f$.
     rvec_t Overlap(const ScalarFunction<double>& f) const override {return itsSites->Flatten(itsSites->Moments(itsDelta->Overlap(f)));}

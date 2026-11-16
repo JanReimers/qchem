@@ -11,7 +11,7 @@ module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
 import qchem.BasisSet.Orbital_PP_IBS;              // the closed-form species-field service (NeedsPPQuadrature)
 import qchem.BasisSet.ImplicitAngular_IBS;         // the radial capability (NeedsPPQuadrature)
-import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, Vxc_Quadrature + MakeDensitySampler (the periodic KS terms)
+import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, cVxc_DFT + MakeDensitySampler (the periodic KS terms)
 import qchem.Hamiltonian.Internal.IonIon;         // IonIon<T>: ion-ion energy (double molecular / dcmplx PW)
 import qchem.Hamiltonian.Internal.Kinetic;        // Kinetic<T>: kinetic energy (double molecular / dcmplx PW)
 import qchem.Hamiltonian.Internal.Hubbard;        // Hubbard_U: DFT+U (programme step 5)
@@ -74,6 +74,20 @@ template <class Fit, class Make> static std::shared_ptr<const Fit> BuildTermFit(
 //! (doc/Records/OpenWork_History5.md, the δ-vs-A1 table).  The fit stays one stated choice away (\c VxcFit::Auxiliary).
 static VxcFit MolecularVxcFit(VxcFit fit) {return fit==VxcFit::Auto ? VxcFit::Delta : fit;}
 
+//! \brief PIN 30 ADMISSION STAGE 2 (user ruling 2026-11-15 Q2): the BUILT realization must impose exactly what the pre-flight said.
+//! \c AdmitVxc ruled on \c ImposedBy(resolved, st), a table of what each fit family imposes; the sampler answers for the classes actually
+//! built (\c DensitySamplerBase::Imposes, the whole realization: on a solid the A1 cell is a delta basis inside a Gaussian fit space).
+//! A difference means the table drifted from the classes -- a broken invariant no caller can act on, so a \c logic_error.  \a resolved
+//! is the fit after \c Auto is resolved (Auto itself imposes nothing; what it resolves to may).
+template <class Sampler> static const Sampler& RequireImposesAsAdmitted(const Sampler& s, VxcFit resolved, const Structure& st)
+{
+    const ImposedSymmetry pre=ImposedBy(resolved, st), built=s.Imposes();
+    if (!(built==pre))
+        throw std::logic_error(std::string("Vxc builder: the built realization imposes H_R = ")+qcMesh::Name(built)+", but the admission "
+                               "ruled on H_R = "+qcMesh::Name(pre)+" (Hamiltonian::ImposedBy and the fit classes disagree; doc/Pins.md pin 30)");
+    return s;
+}
+
 //! The site structure of an atom-centred mesh built from \a mp, in the structure's own site order.
 static std::shared_ptr<const qcMesh::SiteMultipoles> MakeSiteMultipoles(const st_t& st, const qcMesh::Mesh& mesh, const qcMesh::MeshParams& mp, int lMax)
 {
@@ -114,7 +128,7 @@ private:
 };
 
 //! THE MOLECULAR / ATOM XC TERM (V-XC-ONE-TERM, 2026-10-31): every cell runs the ONE XC term the periodic path runs
-//! (\c tVxc_Quadrature<double>: E_xc by a quadrature on the run's XC mesh, H by its sampler's Matrix), the cell chosen by the sampler.
+//! (\c tVxc_DFT<double>: E_xc by a quadrature on the run's XC mesh, H by its sampler's Matrix), the cell chosen by the sampler.
 //! THE \f$\rho\f$ AXIS (\c XCρ, user ruling 2026-11-09):
 //!   - a δ basis on the XC points has an exact \f$P\f$, so both values are the one singles term;
 //!   - an incomplete fit (A1, multipole) at \c XCρ::Fit is REFUSED (pin 28; the ρ axis retired 2026-11-15: its projected cell is deleted);
@@ -149,7 +163,8 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, XCMeshShar
             return makeDelta();
         });
         auto sampler=ChargeDensity::MakeMultipoleFittedPotentialSampler(delta, quad, MakeSiteMultipoles(st, *quad.GetMesh(), mp, lMax));
-        return new tVxc_Quadrature<double>(sum, std::move(sampler), g);
+        RequireImposesAsAdmitted(*sampler, resolved, *st);
+        return new tVxc_DFT<double>(sum, std::move(sampler), g);
     }
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]() -> std::shared_ptr<const BasisSet::rFIT_SF_ABS>
     {
@@ -157,9 +172,15 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, XCMeshShar
         return std::shared_ptr<const BasisSet::rFIT_SF_ABS>(bs->CreateVxcFitBasisSet(st.get(), mp, resolved, &quad));
     });
     if (fb->isOrtho())
-        return new tVxc_Quadrature<double>(sum, ChargeDensity::MakeDensitySampler(fb, std::move(quad)), g);
+    {
+        auto sampler=ChargeDensity::MakeDensitySampler(fb, std::move(quad));
+        RequireImposesAsAdmitted(*sampler, resolved, *st);
+        return new tVxc_DFT<double>(sum, std::move(sampler), g);
+    }
     const auto delta=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc points", makeDelta);
-    return new tVxc_Quadrature<double>(sum, ChargeDensity::MakeFittedPotentialSampler(delta, quad, fb), g);
+    auto sampler=ChargeDensity::MakeFittedPotentialSampler(delta, quad, fb);
+    RequireImposesAsAdmitted(*sampler, resolved, *st);
+    return new tVxc_DFT<double>(sum, std::move(sampler), g);
 }
 
 //! The run's Coulomb fit from its slot (built by \a make on the first ask).
@@ -480,8 +501,11 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
         // EXCLUSIVE of "setup: XC-mesh Phi tables" (built inside, own bucket) -- so this reads as the term
         // assembly around them.
         qchem::report::Timed timed("setup: XC term assembly (Phi tables are its child)");
-        if (a1Sampler) Add(new Vxc_Quadrature(std::make_shared<CompositeExFunctional>(parts), a1Sampler, GetSpinGroup()));
-        else           Add(MakeVxcTerm(parts, XFitBasis, GetSpinGroup(), std::move(quadrature)).release());
+        // The sampler is made HERE (not inside MakeVxcTerm) so the built realization can be checked against the admission (pin 30 stage 2).
+        std::shared_ptr<const ChargeDensity::DensitySampler> sampler=a1Sampler ? a1Sampler
+                                                                    : ChargeDensity::MakeDensitySampler(XFitBasis, std::move(quadrature));
+        RequireImposesAsAdmitted(*sampler, resolved, *st);
+        Add(new cVxc_DFT(std::make_shared<CompositeExFunctional>(parts), std::move(sampler), GetSpinGroup()));
     }
     // DFT+U (programme step 5): one term carrying the whole manifold list, born on the forward/adjoint pair.
     if (!hubbard.empty()) Add(new Hubbard_U(st, std::move(hubbard), GetSpinGroup()));
