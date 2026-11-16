@@ -2986,6 +2986,157 @@ molecule past Ne on the Auto seed (hence the two new SCF gates).
 | 90 | Th | [Rn] 6d^2 7s^2 | P | Slater | -24353.845680 | +1.68e-03 | 2.0007 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^2 6s^2 6p^6 7s^2) |
 | 91 | Pa | [Rn] 5f^2 6d^1 7s^2 | P | Slater | -25001.318490 | +1.75e-03 | 3.0011 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^3 6s^2 6p^6 7s^2) |
 | 92 | U | [Rn] 5f^3 6d^1 7s^2 | P | Slater | -25658.472710 | +1.81e-03 | 4.0014 | 2 | ANOMALOUS (aufbau: 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4s^2 4p^6 4d^10 4f^14 5s^2 5p^6 5d^10 5f^4 6s^2 6p^6 7s^2) |
+**IONS (row 188, lane B 2026-11-15): the library holds the first cations and the oxide decks' higher cations beside each neutral; NO anions.**
+The atom takes a STATED configuration (`AtomCalcOptions::configuration`, `scfrun --config`, landed 01d978eb): before it an all-electron ion ran in its
+isoelectronic neutral's configuration (Fe⁺ as Mn's 3d⁵4s², 148 mHa off NIST's 3d⁶4s¹).  `scripts/gen-ae-seeds --cations | --ions` runs each ion in its
+stated configuration and judges it as the neutrals are (configuration = stated, |ΔE| ≤ 1e-5 relative of the oracle, converged) plus one new judge:
+**the ion is BOUND** (its highest occupied eigenvalue < 0).  An entry sits under (Z, Nelec = Z − q) and carries `q = Z` (the all-electron neutral's
+electron count), so the reader's "neutral is Nelec == q" rule never mistakes an ion for a second neutral; `scfrun --out` replaces only the same
+(Z, functional, Nelec, q).
+- **First cations, Z 2-92 (91), judged on NIST's LDA/LSD cation tables** (`dftdata/{LDA,LSD}/cations`, extracted to `src/Common/Data/nist{LDA,LSD}cations.json`
+  so the unit gate judges them independently): all 91 written, all on Slater High, ΔE from −0.3 μHa (Li⁺; Be⁺ −0.07 μHa: NIST's 1e-6 rounding) to
+  +1.84 mHa (U⁺).  Cu⁺ 3d¹⁰ limit-cycles on the DIIS start ([F,D] stuck at 18) and converges on the DIIS→GDM Ladder (+0.06 mHa); the generator retries
+  there and says so.
+- **The oxide decks' higher cations (11), judged on a SECOND CODE, PySCF** (controller ruling 2026-11-15: NIST does not tabulate them).  All written,
+  0.33-0.66 mHa BELOW PySCF (Sr²⁺ 3.75 mHa, on Gaussian): the unc-ano-rcc basis gap, the same 0.6 mHa PySCF sits above NIST on Fe and Fe⁺.
+- **THE PySCF RECIPE** (`scripts/pyscf_ion_oracle.py`, venv `~/Code/pyscf-env`): UKS, `xc = 'lda,vwn'` (Slater + VWN5, NIST's LDA), basis
+  `unc-ano-rcc` (uncontracted ANO-RCC), `grids.level = 7`, `conv_tol = 1e-10`, `max_cycle = 300`; `spin = 2S` with Hund high spin per open
+  subshell; the occupations are SET per (l, spin) block by overriding `get_occ`: each MO is assigned the l of its largest Mulliken weight, each
+  l block is filled from its lowest MO up with the configuration's per-spin count, and an open shell is spread EVENLY over its 2l+1 orbitals
+  (the spherical ensemble, the radial atom's state).  Validated on NIST: Fe [Ar] 3d⁶4s² −1261.222703 (+0.59 mHa) and Fe⁺ [Ar] 3d⁶4s¹ −1260.927122
+  (+0.62 mHa).  Any ion: `~/Code/pyscf-env/bin/python scripts/pyscf_ion_oracle.py Fe 2 "[Ar] 3d^6"`.
+- **NO ANIONS: a free LDA anion is UNBOUND.**  Every anion IonicSAD forms has a POSITIVE highest occupied level: F⁻ 2p +0.041/+0.043 Ha
+  (Slater/Gaussian), Cl⁻ 3p +0.0035, O²⁻ 2p +0.056/+0.162, S²⁻ 3p +0.057/+0.158 (LDA's self-interaction).  The density is then whatever the basis's
+  most diffuse functions confine: O²⁻ lands 135/57 mHa below PySCF, and F⁻ / Cl⁻ agreed with PySCF to 0.5 mHa only because both bases confine alike.
+  So the bound judge refuses all four, and IonicSAD keeps the scaled neutral for an anion.  In a crystal the Madelung field binds them: a
+  Watson-sphere anion is an open row.
+- **THE LIBRARY**: 92 → 194 entries (`atomic_densities.json` 2.15 → 4.7 MB); every neutral entry byte-identical.
+- **MOVERS** (lane-b, short + long + panel4t, against the same code without the library): **0 moved** -- short 0 of 1681 (lane-b-e89f3e1e),
+  long 0 of 19, panel4t 0 of 27 against main-a7da749a.  In the panel run `GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long`
+  was REFUSED ON RESOURCES at its pilot audit (row "A panel case's resource check reads a SHARED scope"; it refused again ALONE under
+  memsafe -H 6G, 2.38 GB headroom), and ALONE under -H 8G it passes with energy and iterations identical to the baseline (it is a
+  pseudopotential run: it never reads this library).  No gate reads an all-electron ION entry in an SCF: the molecular IonicSAD gate is water (O²⁻ has no entry, H⁺
+  no electrons), and every IonicSAD solid is a pseudopotential run (the valence library).  The library's own gates are the unit tests:
+  `AtomicDensity.EveryAllElectronEntryHoldsItsChargeAndItsSpinPairItsHundMoment` (charge, Hund moment, the reader's spin pair),
+  `...EveryStampedAllElectronEntryIsItsOraclesAtomToTenPpm` (NIST neutral / NIST cation / the stamped PySCF value; no anion),
+  `...AnAllElectronIonSitsBesideItsNeutral` (the reader's keying).
+
+First cations (`gen-ae-seeds --cations`):
+
+| Z | el | q | configuration (stated = run) | spin | basis | E (Ha) | oracle | ΔE vs oracle | moment | iters | note |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2 | He | +1 | 1s^1 | P | Slater | -1.941703 | NIST LSD cation | +1.99e-07 | 1.0004 | 6 |  |
+| 3 | Li | +1 | 1s^2 | U | Slater | -7.142818 | NIST LDA cation | -3.14e-07 |  | 5 |  |
+| 4 | Be | +1 | [He] 2s^1 | P | Slater | -14.115512 | NIST LSD cation | -7.00e-08 | 1.0004 | 6 |  |
+| 5 | B | +1 | [He] 2s^2 | U | Slater | -24.038274 | NIST LDA cation | +8.30e-07 |  | 7 |  |
+| 6 | C | +1 | [He] 2s^2 2p^1 | P | Slater | -37.037408 | NIST LSD cation | +4.78e-06 | 1.0004 | 7 |  |
+| 7 | N | +1 | [He] 2s^2 2p^2 | P | Slater | -53.585396 | NIST LSD cation | +1.06e-05 | 2.0007 | 7 |  |
+| 8 | O | +1 | [He] 2s^2 2p^3 | P | Slater | -74.016710 | NIST LSD cation | +1.15e-05 | 3.0011 | 7 |  |
+| 9 | F | +1 | [He] 2s^2 2p^4 | P | Slater | -98.450422 | NIST LSD cation | +5.34e-06 | 2.0007 | 7 |  |
+| 10 | Ne | +1 | [He] 2s^2 2p^5 | P | Slater | -127.418105 | NIST LSD cation | +8.50e-06 | 1.0004 | 8 |  |
+| 11 | Na | +1 | [He] 2s^2 2p^6 | U | Slater | -161.250330 | NIST LDA cation | +1.03e-05 |  | 24 |  |
+| 12 | Mg | +1 | [Ne] 3s^1 | P | Slater | -198.855655 | NIST LSD cation | +1.38e-05 | 1.0004 | 8 |  |
+| 13 | Al | +1 | [Ne] 3s^2 | U | Slater | -241.100587 | NIST LDA cation | +7.50e-06 |  | 8 |  |
+| 14 | Si | +1 | [Ne] 3s^2 3p^1 | P | Slater | -287.918758 | NIST LSD cation | +1.52e-05 | 1.0004 | 7 |  |
+| 15 | P | +1 | [Ne] 3s^2 3p^2 | P | Slater | -339.618431 | NIST LSD cation | +2.02e-05 | 2.0007 | 7 |  |
+| 16 | S | +1 | [Ne] 3s^2 3p^3 | P | Slater | -396.356516 | NIST LSD cation | +2.36e-05 | 3.0011 | 8 |  |
+| 17 | Cl | +1 | [Ne] 3s^2 3p^4 | P | Slater | -458.184547 | NIST LSD cation | +1.51e-05 | 2.0007 | 8 |  |
+| 18 | Ar | +1 | [Ne] 3s^2 3p^5 | P | Slater | -525.360423 | NIST LSD cation | +1.63e-05 | 1.0004 | 8 |  |
+| 19 | K | +1 | [Ne] 3s^2 3p^6 | U | Slater | -598.039485 | NIST LDA cation | +2.05e-05 |  | 2 |  |
+| 20 | Ca | +1 | [Ar] 4s^1 | P | Slater | -675.514007 | NIST LSD cation | +2.85e-05 | 1.0004 | 2 |  |
+| 21 | Sc | +1 | [Ar] 3d^1 4s^1 | P | Slater | -758.442618 | NIST LSD cation | +2.40e-05 | 2.0007 | 8 |  |
+| 22 | Ti | +1 | [Ar] 3d^2 4s^1 | P | Slater | -847.050677 | NIST LSD cation | +3.48e-05 | 3.0011 | 2 |  |
+| 23 | V | +1 | [Ar] 3d^4 | P | Slater | -941.523798 | NIST LSD cation | +3.99e-05 | 4.0014 | 9 |  |
+| 24 | Cr | +1 | [Ar] 3d^5 | P | Slater | -1041.944098 | NIST LSD cation | +2.80e-05 | 5.0018 | 2 |  |
+| 25 | Mn | +1 | [Ar] 3d^5 4s^1 | P | Slater | -1148.368906 | NIST LSD cation | +1.80e-05 | 6.0021 | 2 |  |
+| 26 | Fe | +1 | [Ar] 3d^6 4s^1 | P | Slater | -1260.927718 | NIST LSD cation | +2.80e-05 | 5.0018 | 2 |  |
+| 27 | Co | +1 | [Ar] 3d^8 | P | Slater | -1379.896404 | NIST LSD cation | +4.00e-05 | 2.0007 | 2 |  |
+| 28 | Ni | +1 | [Ar] 3d^9 | P | Slater | -1505.369995 | NIST LSD cation | +4.50e-05 | 1.0004 | 12 |  |
+| 29 | Cu | +1 | [Ar] 3d^10 | U | Slater | -1637.485077 | NIST LDA cation | +6.30e-05 |  | 3 | Slater: DIIS did not converge, the Ladder did |
+| 30 | Zn | +1 | [Ar] 3d^10 4s^1 | P | Slater | -1776.217819 | NIST LSD cation | +7.10e-05 | 1.0004 | 2 |  |
+| 31 | Ga | +1 | [Ar] 3d^10 4s^2 | U | Slater | -1921.629066 | NIST LDA cation | +7.40e-05 |  | 2 |  |
+| 32 | Ge | +1 | [Ar] 3d^10 4s^2 4p^1 | P | Slater | -2073.533262 | NIST LSD cation | +7.50e-05 | 1.0004 | 2 |  |
+| 33 | As | +1 | [Ar] 3d^10 4s^2 4p^2 | P | Slater | -2232.220293 | NIST LSD cation | +3.90e-05 | 2.0007 | 2 |  |
+| 34 | Se | +1 | [Ar] 3d^10 4s^2 4p^3 | P | Slater | -2397.770090 | NIST LSD cation | +3.70e-05 | 3.0011 | 16 |  |
+| 35 | Br | +1 | [Ar] 3d^10 4s^2 4p^4 | P | Slater | -2570.180684 | NIST LSD cation | +5.30e-05 | 2.0007 | 2 |  |
+| 36 | Kr | +1 | [Ar] 3d^10 4s^2 4p^5 | P | Slater | -2749.623468 | NIST LSD cation | +6.00e-05 | 1.0004 | 2 |  |
+| 37 | Rb | +1 | [Ar] 3d^10 4s^2 4p^6 | U | Slater | -2936.182978 | NIST LDA cation | +6.70e-05 |  | 39 |  |
+| 38 | Sr | +1 | [Kr] 5s^1 | P | Slater | -3129.240716 | NIST LSD cation | +8.50e-05 | 1.0003 | 2 |  |
+| 39 | Y | +1 | [Kr] 5s^2 | U | Slater | -3329.271439 | NIST LDA cation | +9.40e-05 |  | 2 |  |
+| 40 | Zr | +1 | [Kr] 4d^2 5s^1 | P | Slater | -3536.517026 | NIST LSD cation | +1.20e-04 | 3.0011 | 9 |  |
+| 41 | Nb | +1 | [Kr] 4d^4 | P | Slater | -3751.036790 | NIST LSD cation | +1.48e-04 | 4.0014 | 2 |  |
+| 42 | Mo | +1 | [Kr] 4d^5 | P | Slater | -3972.894175 | NIST LSD cation | +8.70e-05 | 5.0018 | 2 |  |
+| 43 | Tc | +1 | [Kr] 4d^5 5s^1 | P | Slater | -4202.066767 | NIST LSD cation | +9.60e-05 | 6.0021 | 2 |  |
+| 44 | Ru | +1 | [Kr] 4d^7 | P | Slater | -4438.767265 | NIST LSD cation | +1.10e-04 | 3.0011 | 2 |  |
+| 45 | Rh | +1 | [Kr] 4d^8 | P | Slater | -4683.055566 | NIST LSD cation | +1.22e-04 | 2.0007 | 2 |  |
+| 46 | Pd | +1 | [Kr] 4d^9 | P | Slater | -4935.023703 | NIST LSD cation | +1.32e-04 | 1.0004 | 2 |  |
+| 47 | Ag | +1 | [Kr] 4d^10 | U | Slater | -5194.755582 | NIST LDA cation | +1.43e-04 |  | 2 |  |
+| 48 | Cd | +1 | [Kr] 4d^10 5s^1 | P | Slater | -5462.065428 | NIST LSD cation | +1.54e-04 | 1.0004 | 2 |  |
+| 49 | In | +1 | [Kr] 4d^10 5s^2 | U | Slater | -5737.101285 | NIST LDA cation | +1.76e-04 |  | 2 |  |
+| 50 | Sn | +1 | [Kr] 4d^10 5s^2 5p^1 | P | Slater | -6019.696891 | NIST LSD cation | +2.07e-04 | 1.0004 | 2 |  |
+| 51 | Sb | +1 | [Kr] 4d^10 5s^2 5p^2 | P | Slater | -6310.085019 | NIST LSD cation | +2.50e-04 | 2.0007 | 2 |  |
+| 52 | Te | +1 | [Kr] 4d^10 5s^2 5p^3 | P | Slater | -6608.317049 | NIST LSD cation | +2.23e-04 | 3.0011 | 2 |  |
+| 53 | I | +1 | [Kr] 4d^10 5s^2 5p^4 | P | Slater | -6914.378661 | NIST LSD cation | +2.32e-04 | 2.0007 | 2 |  |
+| 54 | Xe | +1 | [Kr] 4d^10 5s^2 5p^5 | P | Slater | -7228.393937 | NIST LSD cation | +2.36e-04 | 1.0004 | 2 |  |
+| 55 | Cs | +1 | [Kr] 4d^10 5s^2 5p^6 | U | Slater | -7550.416501 | NIST LDA cation | +2.36e-04 |  | 2 |  |
+| 56 | Ba | +1 | [Xe] 6s^1 | P | Slater | -7879.920269 | NIST LSD cation | +2.53e-04 | 1.0003 | 2 |  |
+| 57 | La | +1 | [Xe] 5d^2 | P | Slater | -8217.403693 | NIST LSD cation | +2.51e-04 | 2.0007 | 2 |  |
+| 58 | Ce | +1 | [Xe] 4f^1 5d^2 | P | Slater | -8563.194515 | NIST LSD cation | +2.83e-04 | 3.0011 | 2 |  |
+| 59 | Pr | +1 | [Xe] 4f^3 6s^1 | P | Slater | -8917.518468 | NIST LSD cation | +3.51e-04 | 4.0014 | 2 |  |
+| 60 | Nd | +1 | [Xe] 4f^4 6s^1 | P | Slater | -9280.206782 | NIST LSD cation | +4.07e-04 | 5.0018 | 2 |  |
+| 61 | Pm | +1 | [Xe] 4f^5 6s^1 | P | Slater | -9651.435909 | NIST LSD cation | +4.67e-04 | 6.0021 | 2 |  |
+| 62 | Sm | +1 | [Xe] 4f^6 6s^1 | P | Slater | -10031.281900 | NIST LSD cation | +4.35e-04 | 7.0025 | 2 |  |
+| 63 | Eu | +1 | [Xe] 4f^7 6s^1 | P | Slater | -10419.819910 | NIST LSD cation | +4.89e-04 | 8.0028 | 2 |  |
+| 64 | Gd | +1 | [Xe] 4f^7 5d^1 6s^1 | P | Slater | -10816.800390 | NIST LSD cation | +5.33e-04 | 9.0032 | 2 |  |
+| 65 | Tb | +1 | [Xe] 4f^9 6s^1 | P | Slater | -11222.898660 | NIST LSD cation | +5.89e-04 | 6.0021 | 2 |  |
+| 66 | Dy | +1 | [Xe] 4f^10 6s^1 | P | Slater | -11637.765740 | NIST LSD cation | +6.39e-04 | 5.0018 | 2 |  |
+| 67 | Ho | +1 | [Xe] 4f^11 6s^1 | P | Slater | -12061.617790 | NIST LSD cation | +6.72e-04 | 4.0014 | 2 |  |
+| 68 | Er | +1 | [Xe] 4f^12 6s^1 | P | Slater | -12494.529250 | NIST LSD cation | +7.10e-04 | 3.0011 | 2 |  |
+| 69 | Tm | +1 | [Xe] 4f^13 6s^1 | P | Slater | -12936.574370 | NIST LSD cation | +7.42e-04 | 2.0007 | 2 |  |
+| 70 | Yb | +1 | [Xe] 4f^14 6s^1 | P | Slater | -13387.827220 | NIST LSD cation | +7.62e-04 | 1.0003 | 2 |  |
+| 71 | Lu | +1 | [Xe] 4f^14 6s^2 | U | Slater | -13847.986560 | NIST LDA cation | +7.84e-04 |  | 3 |  |
+| 72 | Hf | +1 | [Xe] 4f^14 5d^1 6s^2 | P | Slater | -14317.205550 | NIST LSD cation | +8.06e-04 | 1.0004 | 2 |  |
+| 73 | Ta | +1 | [Xe] 4f^14 5d^3 6s^1 | P | Slater | -14795.675430 | NIST LSD cation | +8.43e-04 | 4.0014 | 2 |  |
+| 74 | W | +1 | [Xe] 4f^14 5d^4 6s^1 | P | Slater | -15283.270170 | NIST LSD cation | +7.89e-04 | 5.0018 | 2 |  |
+| 75 | Re | +1 | [Xe] 4f^14 5d^5 6s^1 | P | Slater | -15780.099280 | NIST LSD cation | +8.34e-04 | 6.0021 | 2 |  |
+| 76 | Os | +1 | [Xe] 4f^14 5d^6 6s^1 | P | Slater | -16286.096800 | NIST LSD cation | +8.80e-04 | 5.0018 | 2 |  |
+| 77 | Ir | +1 | [Xe] 4f^14 5d^7 6s^1 | P | Slater | -16801.429660 | NIST LSD cation | +9.24e-04 | 4.0014 | 2 |  |
+| 78 | Pt | +1 | [Xe] 4f^14 5d^9 | P | Slater | -17326.304190 | NIST LSD cation | +9.88e-04 | 1.0004 | 2 |  |
+| 79 | Au | +1 | [Xe] 4f^14 5d^10 | U | Slater | -17860.510400 | NIST LDA cation | +1.04e-03 |  | 3 |  |
+| 80 | Hg | +1 | [Xe] 4f^14 5d^10 6s^1 | P | Slater | -18403.948850 | NIST LSD cation | +1.09e-03 | 1.0004 | 2 |  |
+| 81 | Tl | +1 | [Xe] 4f^14 5d^10 6s^2 | U | Slater | -18956.752450 | NIST LDA cation | +1.13e-03 |  | 3 |  |
+| 82 | Pb | +1 | [Xe] 4f^14 5d^10 6s^2 6p^1 | P | Slater | -19518.742810 | NIST LSD cation | +1.19e-03 | 1.0004 | 2 |  |
+| 83 | Bi | +1 | [Xe] 4f^14 5d^10 6s^2 6p^2 | P | Slater | -20090.132150 | NIST LSD cation | +1.24e-03 | 2.0007 | 2 |  |
+| 84 | Po | +1 | [Xe] 4f^14 5d^10 6s^2 6p^3 | P | Slater | -20670.953000 | NIST LSD cation | +1.32e-03 | 3.0011 | 2 |  |
+| 85 | At | +1 | [Xe] 4f^14 5d^10 6s^2 6p^4 | P | Slater | -21261.179560 | NIST LSD cation | +1.41e-03 | 2.0007 | 2 |  |
+| 86 | Rn | +1 | [Xe] 4f^14 5d^10 6s^2 6p^5 | P | Slater | -21860.910860 | NIST LSD cation | +1.51e-03 | 1.0004 | 2 |  |
+| 87 | Fr | +1 | [Xe] 4f^14 5d^10 6s^2 6p^6 | U | Slater | -22470.182300 | NIST LDA cation | +1.43e-03 |  | 2 |  |
+| 88 | Ra | +1 | [Rn] 7s^1 | P | Slater | -23088.504240 | NIST LSD cation | +1.53e-03 | 1.0003 | 2 |  |
+| 89 | Ac | +1 | [Rn] 7s^2 | U | Slater | -23716.242730 | NIST LDA cation | +1.65e-03 |  | 2 |  |
+| 90 | Th | +1 | [Rn] 6d^2 7s^1 | P | Slater | -24353.643140 | NIST LSD cation | +1.68e-03 | 3.0010 | 2 |  |
+| 91 | Pa | +1 | [Rn] 5f^2 7s^2 | P | Slater | -25001.047370 | NIST LSD cation | +1.79e-03 | 2.0007 | 2 |  |
+| 92 | U | +1 | [Rn] 5f^3 7s^2 | P | Slater | -25658.196870 | NIST LSD cation | +1.84e-03 | 3.0011 | 2 |  |
+
+Higher cations and anions (`gen-ae-seeds --ions`):
+
+| Z | el | q | configuration (stated = run) | spin | basis | E (Ha) | oracle | ΔE vs oracle | moment | iters | note |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 25 | Mn | +2 | [Ar] 3d^5 | P | Slater | -1147.768994 | PySCF unc-ano-rcc | -4.69e-04 | 5.0018 | 2 |  |
+| 25 | Mn | +3 | [Ar] 3d^4 | P | Slater | -1146.499480 | PySCF unc-ano-rcc | -4.58e-04 | 4.0014 | 2 |  |
+| 25 | Mn | +4 | [Ar] 3d^3 | P | Slater | -1144.557183 | PySCF unc-ano-rcc | -4.79e-04 | 3.0011 | 2 |  |
+| 26 | Fe | +2 | [Ar] 3d^6 | P | Slater | -1260.307826 | PySCF unc-ano-rcc | -5.27e-04 | 4.0014 | 2 |  |
+| 26 | Fe | +3 | [Ar] 3d^5 | P | Slater | -1259.137290 | PySCF unc-ano-rcc | -5.13e-04 | 5.0018 | 2 |  |
+| 27 | Co | +2 | [Ar] 3d^7 | P | Slater | -1379.216439 | PySCF unc-ano-rcc | -5.87e-04 | 3.0011 | 2 |  |
+| 28 | Ni | +2 | [Ar] 3d^8 | P | Slater | -1504.631978 | PySCF unc-ano-rcc | -6.64e-04 | 2.0007 | 9 |  |
+| 22 | Ti | +4 | [Ar] | U | Slater | -843.886014 | PySCF unc-ano-rcc | -3.33e-04 |  | 2 |  |
+| 23 | V | +3 | [Ar] 3d^2 | P | Slater | -939.819644 | PySCF unc-ano-rcc | -3.39e-04 | 2.0007 | 8 |  |
+| 23 | V | +4 | [Ar] 3d^1 | P | Slater | -938.088753 | PySCF unc-ano-rcc | -3.71e-04 | 1.0004 | 8 |  |
+| 38 | Sr | +2 | [Kr] | U | Gaussian | -3128.827056 | PySCF unc-ano-rcc | -3.75e-03 |  | 2 |  |
+| 9 | F | -1 | [Ne] | U | -- | -- | PySCF unc-ano-rcc | -- | -- | -- | **NOT WRITTEN**: Slater unbound (highest occupied ε +0.0409 Ha); Gaussian unbound (highest occupied ε +0.0434 Ha)  |
+| 8 | O | -2 | [Ne] | U | -- | -- | PySCF unc-ano-rcc | -- | -- | -- | **NOT WRITTEN**: Slater ΔE -1.35e-01, unbound (highest occupied ε +0.0555 Ha); Gaussian ΔE -5.71e-02, unbound (highest occupied ε +0.1616 Ha)  |
+| 17 | Cl | -1 | [Ar] | U | -- | -- | PySCF unc-ano-rcc | -- | -- | -- | **NOT WRITTEN**: Slater unbound (highest occupied ε +0.0035 Ha); Gaussian unbound (highest occupied ε +0.0035 Ha)  |
+| 16 | S | -2 | [Ar] | U | -- | -- | PySCF unc-ano-rcc | -- | -- | -- | **NOT WRITTEN**: Slater ΔE -7.89e-02, unbound (highest occupied ε +0.0570 Ha); Gaussian ΔE -2.02e-02, unbound (highest occupied ε +0.1584 Ha)  |
+
 ## ✅ Fields from a saved state, cheaply, on the structure-neutral face (lane G, landed 2026-11-13, merge 7c6e7597)
 
 The row (verbatim, from `doc/OpenWork.md`):

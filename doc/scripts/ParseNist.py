@@ -63,7 +63,10 @@ def main():
         ["/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/LDA/neutrals","doc/nistLDA.json"],
         ["/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/LSD/neutrals","doc/nistLSD.json"],
         ["/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/RLDA/neutrals","doc/nistRLDA.json"],
-        ["/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/ScRLDA/neutrals","doc/nistScRLDA.json"]
+        ["/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/ScRLDA/neutrals","doc/nistScRLDA.json"],
+        # the FIRST CATIONS (He+ .. U+), the oracle of the all-electron library's ion entries (OpenWork row 188, 2026-11-15)
+        ["/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/LDA/cations","src/Common/Data/nistLDAcations.json"],
+        ["/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/LSD/cations","src/Common/Data/nistLSDcations.json"],
            ]
     for path in paths:
         

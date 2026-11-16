@@ -10,14 +10,19 @@ Each candidate run is JUDGED before it is written (controller ruling 2026-11-13)
   * CONFIGURATION: the run's occupied subshells, summed over m and spin from its occupation table, equal NIST's;
   * ENERGY: |E - E_NIST| / |E_NIST| <= --tol against NIST's LDA (closed) or LSD (open) total energy -- a run that
     converged to another configuration or a broken basis misses it, which the charge integral cannot see;
-  * the run CONVERGED.
+  * the run CONVERGED;
+  * the ion is BOUND: its highest occupied eigenvalue is negative (a free LDA anion is not: its density would be the basis's).
 Two basis routes are tried, Slater High and Gaussian High (the radial atom solver's pools); the passing run closest to NIST is
 written.  Neither passing = the element is REPORTED and skipped, never written.
 
 The chosen entry is written by scfrun --out itself (one writer for the file format) with provenance stamped by --entry:
 config, basis, oracle and its delta.  Prints the record table (Markdown) on stdout.
 
-usage: scripts/gen-ae-seeds [--z 11-92] [--lib src/ChargeDensity/Data/atomic_densities.json] [--scfrun build/Release/CLIapps/scfrun]
+ION entries (OpenWork row 188) sit beside their neutral under (Z, Nelec = Z - q), each run in a STATED configuration (scfrun --config):
+  --cations   NIST's first cations Z 2-92 in NIST's cation configuration, judged on NIST's LDA/LSD cation tables;
+  --ions      the oxide decks' higher cations and the anions (IONS), judged on PySCF (scripts/pyscf_ion_oracle.py).
+
+usage: scripts/gen-ae-seeds [--cations | --ions] [--z 11-92] [--lib src/ChargeDensity/Data/atomic_densities.json] [--scfrun build/Release/CLIapps/scfrun]
                             [--tol 1e-5] [--dry]
 """
 import argparse, json, os, re, subprocess, sys, tarfile, tempfile
@@ -68,8 +73,34 @@ def nist_configurations(tgz):
         parts = re.split(r'\s{2,}', txt)
         if len(parts) == 1 and txt.startswith('[') and txt.find('[', 1) > 0:
             parts = [txt[:txt.find('[', 1)], txt[txt.find('[', 1):]]
-        out[int(m[1])] = (parts[0].strip(), expand(parts[0]))
+        out[int(m[1])] = (parts[0].strip(), expand(parts[0]), parts[1].strip() if len(parts) > 1 else '')
     return out
+
+
+def nist_cation_energy(tgz, Z, sym, oracle):
+    """NIST's first-cation total energy (dftdata/<LDA|LSD>/cations/<ZZ><El>)."""
+    with tarfile.open(tgz) as t:
+        text = t.extractfile(f'dftdata/{oracle}/cations/{Z:02d}{sym}').read().decode()
+    return float(re.search(r'Etot\s*=\s*(\S+)', text)[1])
+
+
+# THE OXIDE DECKS' HIGHER CATIONS AND THE ANIONS IonicSAD FORMS (controller ruling 2026-11-15): not in NIST, so judged on the second code
+# (scripts/pyscf_ion_oracle.py: PySCF UKS, the same spherical high-spin occupations, unc-ano-rcc; NIST-validated on Fe and Fe+ to 0.6 mHa).
+IONS = [(25, 2, '[Ar] 3d^5'), (25, 3, '[Ar] 3d^4'), (25, 4, '[Ar] 3d^3'),
+        (26, 2, '[Ar] 3d^6'), (26, 3, '[Ar] 3d^5'),
+        (27, 2, '[Ar] 3d^7'), (28, 2, '[Ar] 3d^8'),
+        (22, 4, '[Ar]'), (23, 3, '[Ar] 3d^2'), (23, 4, '[Ar] 3d^1'), (38, 2, '[Kr]'),
+        (9, -1, '[Ne]'), (8, -2, '[Ne]'), (17, -1, '[Ar]'), (16, -2, '[Ar]')]
+PYSCF = os.path.expanduser('~/Code/pyscf-env/bin/python')
+
+
+def pyscf_energy(sym, q, text):
+    p = subprocess.run([PYSCF, os.path.join(ROOT, 'scripts/pyscf_ion_oracle.py'), sym, str(q), text],
+                       capture_output=True, text=True, timeout=7200)
+    r = json.loads(p.stdout.strip().splitlines()[-1])
+    if not r['converged']:
+        raise RuntimeError(f'PySCF did not converge for {sym} q{q} {text}')
+    return r['E']
 
 
 def open_shell(cfg):
@@ -97,13 +128,35 @@ def run_config(stdout):
     return {k: v for k, v in cfg.items() if v}
 
 
+def highest_occupied(stdout):
+    """The LAST occupation table's highest OCCUPIED eigenvalue (either spin column), in Ha; None if no table was printed."""
+    top, seen = None, False
+    for line in stdout.splitlines():
+        if 'Occ/Degen' in line:
+            top, seen = None, True
+            continue
+        cols = [c.strip() for c in line.strip().strip('|').split('|')]
+        if not seen or len(cols) not in (3, 6) or not re.match(r'\d[spdf]\b', cols[2]):
+            continue
+        for occ, eps in ((cols[0], cols[1]),) + (((cols[3], cols[4]),) if len(cols) == 6 else ()):
+            if re.match(r'^\d+/\d+$', occ) and int(occ.split('/')[0]) > 0:
+                top = float(eps) if top is None else max(top, float(eps))
+    return top
+
+
 def cfg_text(cfg):
     order = sorted(cfg, key=lambda nl: (int(nl[0]), 'spdf'.index(nl[1])))
     return ' '.join(f'{nl}^{cfg[nl]}' for nl in order)
 
 
-def scfrun(exe, Z, pol, basis, out=None, tags=()):
+def scfrun(exe, Z, pol, basis, out=None, tags=(), q=0, config='', accel=''):
     cmd = [exe, '--Z', str(Z), '--model', 'LDA', '--pol', pol, '--basis', basis, '--acc', 'High', '--maxiter', '300']
+    if accel:
+        cmd += ['--accel', accel]
+    if q:
+        cmd += ['--q', str(q)]
+    if config:
+        cmd += ['--config', config]
     if out:
         cmd += ['--out', out]
         for t in tags:
@@ -112,36 +165,63 @@ def scfrun(exe, Z, pol, basis, out=None, tags=()):
     m = re.search(r'RESULT\s+E=([-0-9.eE+]+)\s+iters=(\d+).*converged=(\w+)', p.stdout)
     if not m:
         return None
-    return {'E': float(m[1]), 'iters': int(m[2]), 'converged': m[3] == 'yes', 'cfg': run_config(p.stdout)}
+    return {'E': float(m[1]), 'iters': int(m[2]), 'converged': m[3] == 'yes', 'cfg': run_config(p.stdout),
+            'homo': highest_occupied(p.stdout)}
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('--z', default='11-92')
+    ap.add_argument('--z', default=None, help='Z range (default 11-92 neutrals, 2-92 cations)')
+    ap.add_argument('--cations', action='store_true', help="NIST's first cations, in NIST's stated configuration, judged on NIST's cation tables")
+    ap.add_argument('--ions', action='store_true', help='the oxide decks\' higher cations and the anions (IONS), judged on PySCF')
     ap.add_argument('--lib', default=os.path.join(ROOT, 'src/ChargeDensity/Data/atomic_densities.json'))
     ap.add_argument('--scfrun', default=os.path.join(ROOT, 'build/Release/CLIapps/scfrun'))
     ap.add_argument('--tol', type=float, default=1e-5)
     ap.add_argument('--dry', action='store_true', help='judge only, write nothing')
     a = ap.parse_args()
-    lo, _, hi = a.z.partition('-')
-    Zs = range(int(lo), int(hi or lo) + 1)
+    tgz = os.path.join(ROOT, 'doc/GSData/NIST-dftdata-tar.gz')
     nist = {k: json.load(open(os.path.join(ROOT, f'src/Common/Data/nist{k}.json'))) for k in ('LDA', 'LSD')}
-    conf = nist_configurations(os.path.join(ROOT, 'doc/GSData/NIST-dftdata-tar.gz'))
-    print('| Z | el | configuration (NIST = run) | spin | basis | E (Ha) | ΔE vs NIST | moment | iters | note |')
-    print('|---|---|---|---|---|---|---|---|---|---|')
+    conf = nist_configurations(tgz)
+    sym_of = lambda Z: nist['LDA'][str(Z)]['Symbol']
+    # The cases: (Z, q, configuration text, oracle function(pol) -> (label, Eref)).  q = 0 runs DERIVED (the neutral rule, as before); an ion STATES.
+    cases = []
+    if a.ions:
+        for Z, q, text in IONS:
+            cases.append((Z, q, text, lambda pol, Z=Z, q=q, text=text: ('PySCF unc-ano-rcc', pyscf_energy(sym_of(Z), q, text))))
+    else:
+        lo, _, hi = (a.z or ('2-92' if a.cations else '11-92')).partition('-')
+        for Z in range(int(lo), int(hi or lo) + 1):
+            if a.cations:
+                text = conf[Z][2]
+                cases.append((Z, 1, text, lambda pol, Z=Z: ('NIST '+('LSD' if pol == 'P' else 'LDA')+' cation',
+                                                            nist_cation_energy(tgz, Z, sym_of(Z), 'LSD' if pol == 'P' else 'LDA'))))
+            else:
+                text = conf[Z][0]
+                cases.append((Z, 0, text, lambda pol, Z=Z: ('NIST '+('LSD' if pol == 'P' else 'LDA'),
+                                                            nist['LSD' if pol == 'P' else 'LDA'][str(Z)]['Etot'])))
+    print('| Z | el | q | configuration (stated = run) | spin | basis | E (Ha) | oracle | ΔE vs oracle | moment | iters | note |')
+    print('|---|---|---|---|---|---|---|---|---|---|---|---|')
     failed = []
-    for Z in Zs:
-        text, want = conf[Z]
+    for Z, q, text, oracle_of in cases:
+        want = expand(text)
         pol = 'P' if open_shell(want) else 'U'
-        oracle = 'LSD' if pol == 'P' else 'LDA'
-        Eref = nist[oracle][str(Z)]['Etot']
-        sym = nist['LDA'][str(Z)]['Symbol']
+        sym = sym_of(Z)
+        stated = text if q else ''
+        label, Eref = oracle_of(pol)
         tried = []
         for basis in ('Slater', 'Gaussian'):
-            r = scfrun(a.scfrun, Z, pol, basis)
+            r = scfrun(a.scfrun, Z, pol, basis, q=q, config=stated)
+            accel = ''
+            if r is not None and not r['converged']:
+                # The atom's DIIS start can limit-cycle under linear mixing and never reach its engage gate (Cu+ [Ar] 3d^10: [F,D] stuck
+                # at 18, 2026-11-15); the DIIS->GDM Ladder converges it (Cu+ +0.06 mHa vs NIST).  Retry there, and say so in the note.
+                r2 = scfrun(a.scfrun, Z, pol, basis, q=q, config=stated, accel='Ladder')
+                if r2 is not None and r2['converged']:
+                    r, accel = r2, 'Ladder'
             if r is None:
                 tried.append(f'{basis}: no result')
                 continue
+            r['accel'] = accel
             dE = r['E'] - Eref
             why = []
             if not r['converged']:
@@ -150,31 +230,40 @@ def main():
                 why.append('config ' + cfg_text(r['cfg']))
             if abs(dE) > a.tol * abs(Eref):
                 why.append(f'ΔE {dE:+.2e}')
+            # A free ion whose highest occupied level lies at or above zero is UNBOUND: its density is whatever the basis's most diffuse
+            # functions confine, not the ion's (LDA's self-interaction unbinds every anion IonicSAD forms: F- 2p +0.04, Cl- 3p +0.004,
+            # O2- 2p +0.06, S2- 3p +0.16 Ha, 2026-11-15).  An oracle in another basis can agree by accident (F-, Cl- within 0.5 mHa of
+            # PySCF), so the bound is judged on its own.  In a crystal the Madelung field binds them: a Watson-sphere ion is an OpenWork row.
+            if r['homo'] is None:
+                why.append('no orbital table')
+            elif r['homo'] >= 0.0:
+                why.append(f"unbound (highest occupied ε {r['homo']:+.4f} Ha)")
             tried.append((basis, r, dE, why))
         ok = [t for t in tried if isinstance(t, tuple) and not t[3]]
         notes = '; '.join(f'{t[0]} ' + ', '.join(t[3]) for t in tried if isinstance(t, tuple) and t[3]) \
             + '; '.join(t for t in tried if isinstance(t, str))
-        flag = f'ANOMALOUS (aufbau: {cfg_text(aufbau(Z))})' if aufbau(Z) != want else ''
+        flag = f'ANOMALOUS (aufbau: {cfg_text(aufbau(Z - q))})' if q == 0 and aufbau(Z) != want else ''
         if not ok:
-            failed.append(Z)
-            print(f'| {Z} | {sym} | {text} | {pol} | -- | -- | -- | -- | -- | **NOT WRITTEN**: {notes} {flag} |')
+            failed.append((Z, q))
+            print(f'| {Z} | {sym} | {q:+d} | {text} | {pol} | -- | -- | {label} | -- | -- | -- | **NOT WRITTEN**: {notes} {flag} |')
             continue
         basis, r, dE, _ = min(ok, key=lambda t: abs(t[2]))
         moment = ''
         if not a.dry:
-            tags = [f'config={text}', f'basis={basis} High (radial atom, scfrun)',
-                    f'oracle=NIST {oracle} {Eref:.6f}', f'deltaE={dE:+.3e}']
-            w = scfrun(a.scfrun, Z, pol, basis, out=a.lib, tags=tags)
+            tags = [f'config={text}', f'basis={basis} High (radial atom, scfrun)', f'oracle={label} {Eref:.6f}', f'deltaE={dE:+.3e}']
+            w = scfrun(a.scfrun, Z, pol, basis, out=a.lib, tags=tags, q=q, config=stated, accel=r['accel'])
             if w is None or abs(w['E'] - r['E']) > 1e-9:
-                failed.append(Z)
-                print(f'| {Z} | {sym} | {text} | {pol} | {basis} | -- | -- | -- | -- | **WRITE RUN DIFFERED** |')
+                failed.append((Z, q))
+                print(f'| {Z} | {sym} | {q:+d} | {text} | {pol} | {basis} | -- | {label} | -- | -- | -- | **WRITE RUN DIFFERED** |')
                 continue
-            e = next(x for x in json.load(open(a.lib)) if x['Z'] == Z and x['functional'] == 'LDA')
+            e = next(x for x in json.load(open(a.lib)) if x['Z'] == Z and x['functional'] == 'LDA' and x['Nelec'] == Z - q)
             moment = f"{e['moment']:.4f}" if 'moment' in e else ''
-        print(f"| {Z} | {sym} | {text} | {pol} | {basis} | {r['E']:.6f} | {dE:+.2e} | {moment} | {r['iters']} | "
+        if r['accel']:
+            notes = (notes + '; ' if notes else '') + f"{basis}: DIIS did not converge, the Ladder did"
+        print(f"| {Z} | {sym} | {q:+d} | {text} | {pol} | {basis} | {r['E']:.6f} | {label} | {dE:+.2e} | {moment} | {r['iters']} | "
               f"{flag}{'; ' if flag and notes else ''}{notes} |", flush=True)
     if failed:
-        print(f'\nNOT WRITTEN: Z = {failed}', file=sys.stderr)
+        print(f'\nNOT WRITTEN: (Z, q) = {failed}', file=sys.stderr)
         return 1
     return 0
 
