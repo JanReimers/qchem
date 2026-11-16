@@ -921,6 +921,37 @@ TEST(StatedConfiguration, IronCationIsItsOwnConfigurationNotManganeses)
     EXPECT_THROW(Atom_EC(ParseConfiguration("[Ne] 3s^1 5s^1").Value().All()), std::logic_error) << "an unchecked shape is a broken invariant";
 }
 
+// A PSEUDO-ATOM's configuration text names its PHYSICAL shells, over whatever core its pseudopotential replaces -- not only a Madelung
+// prefix of Z - q electrons.  Kr q8 replaces [Ar] 3d^10, Cs q9 [Kr] 4d^10: Shells() used to fill the core in aufbau order and THREW for
+// both (and for every lanthanide, actinide and 4d semicore q), so the atom facade could not run them (2026-11-15, row 189).
+TEST(StatedConfiguration, APseudoAtomNamesItsShellsOverTheCoreItsPseudopotentialReplaces)
+{
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(14, 0, 4).Shells()),  "3s^2 3p^2");
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(25, 0, 15).Shells()), "3s^2 3p^6 3d^5 4s^2") << "Mn q15: the semicore 3s 3p";
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(25, 3, 7).Shells()),  "3d^4")               << "Mn3+ q7: the cation empties 4s first";
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(36, 0, 8).Shells()),  "4s^2 4p^6")          << "Kr q8 over [Ar] 3d^10";
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(55, 0, 9).Shells()),  "5s^2 5p^6 6s^1")     << "Cs q9 over [Kr] 4d^10";
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(38, 0, 10).Shells()), "4s^2 4p^6 5s^2")     << "Sr q10 over [Ar] 3d^10";
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(55, 0, 1).Shells()),  "6s^1")               << "Cs q1 over [Xe]";
+}
+
+// RULE B (controller ruling 2026-11-15, row 189): a pseudopotential whose q is SMALLER than the periodic table's valence holds that valence's
+// closed f^14, then d^10, subshells in its core.  Before it, every such q was refused ("keeps FEWER electrons"), so the default smallest-q
+// set had no pseudo-atom for I, Ga, Zn, Cu or any 5d metal.  A q no whole-shell fold reaches is refused, never guessed.
+TEST(StatedConfiguration, ASmallQPseudopotentialFoldsTheClosedSubshellsItReplacesIntoItsCore)
+{
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(53, 0, 7).Shells()),  "5s^2 5p^5")          << "I q7 over [Kr] 4d^10";
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(31, 0, 3).Shells()),  "4s^2 4p^1")          << "Ga q3 over [Ar] 3d^10";
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(31, 0, 13).Shells()), "3d^10 4s^2 4p^1")    << "Ga q13 keeps its 3d";
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(30, 0, 2).Shells()),  "4s^2")               << "Zn q2";
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(29, 0, 1).Shells()),  "4s^1")               << "Cu q1";
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(74, 0, 6).Shells()),  "5d^4 6s^2")          << "W q6 over [Xe] 4f^14";
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(79, 0, 1).Shells()),  "6s^1")               << "Au q1 folds 4f^14 and 5d^10";
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(72, 0, 12).Shells()), "5s^2 5p^6 5d^2 6s^2") << "Hf q12 folds 4f^14, keeps the 5s 5p semicore";
+    EXPECT_EQ(ConfigurationText(PseudoAtom_EC(53, -1, 7).Shells()), "5s^2 5p^6")          << "I- q7";
+    EXPECT_THROW(PseudoAtom_EC(26, 0, 4), std::invalid_argument) << "Fe q4: 3d^6 4s^2 has no closed subshell to fold";
+}
+
 // THE TWO ROUTES AGREE: every neutral atom's derived EC, read back as subshells and stated again, occupies every irrep identically
 // (the stated route is the derived one wherever the derived one is right).
 TEST_F(ElectronConfigurationTests, EveryNeutralStatedAgainOccupiesEveryIrrepAsTheDerivedOne)

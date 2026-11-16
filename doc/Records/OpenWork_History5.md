@@ -3137,6 +3137,199 @@ Higher cations and anions (`gen-ae-seeds --ions`):
 | 17 | Cl | -1 | [Ar] | U | -- | -- | PySCF unc-ano-rcc | -- | -- | -- | **NOT WRITTEN**: Slater unbound (highest occupied ε +0.0035 Ha); Gaussian unbound (highest occupied ε +0.0035 Ha)  |
 | 16 | S | -2 | [Ar] | U | -- | -- | PySCF unc-ano-rcc | -- | -- | -- | **NOT WRITTEN**: Slater ΔE -7.89e-02, unbound (highest occupied ε +0.0570 Ha); Gaussian ΔE -2.02e-02, unbound (highest occupied ε +0.1584 Ha)  |
 
+**THE VALENCE (PSEUDOPOTENTIAL) SEED LIBRARY (row 189, lane B 2026-11-15): every GTH LDA (element, q) the pseudo-atom solves, judged on CP2K's ATOM code.**
+`scripts/gen-valence-seeds` runs the pseudo-atom of the atom facade (`scfrun --model PP --valence q`, Gaussian High pool, LDA = Dirac + VWN5) for each
+(element, q) of `gth_potentials.json`, in the configuration `PseudoAtom_EC` derives, polarized (Hund) when a subshell is open, and writes the entry
+(stamped q = Zion, `config`, `oracle`, `deltaE`, `Etot`, `converged`) only when it passes: converged with the stated electron count, BOUND
+(highest occupied ε < 0), the Hund moment, the sampled charge within 1e-3 relative, and **|E − E_CP2K| ≤ 3 mHa** against CP2K ATOM at the same
+GTH-PADE-q, configuration and multiplicity, LDA_X + LDA_C_VWN.  The 27 hand-made valgen entries are KEPT byte-identical (their keys are skipped).
+- **CP2K ATOM's DEFAULTS ARE NO ORACLE.**  Its 400-point radial grid sits 1.1 mHa high on Ti q12 (−57.941650 → −57.942743 at GRID_POINTS 3000) and
+  its default geometric basis 0.18 mHa high on Zn q12 (60 GTOs per l, factor 1.6 from 0.01: −60.412021 → −60.412201); at the stated settings the two
+  codes agree to ~0.1 mHa (up to 0.5 mHa, ours below, on the q ≥ 29 actinides, where CP2K's basis is still converging).  An ATOM run that stops at
+  MAX_ITER still prints an energy (Zn q12 read 12.7 Ha off at the default 200 iterations): the generator refuses it.  A configuration with more than
+  one open subshell takes `(HS)`, not a number (atom_utils.F asserts it: Cr 3d⁵4s¹).  Our pool lies ~1.1 mHa ABOVE CP2K on Cs q1 / q9 (a diffuse-6s
+  basis gap), the only case past 0.5 mHa.
+- **TWO DEFECTS IN THE PSEUDO-ATOM'S CONFIGURATION, FIXED.**  (1) `Atom_EC::Shells` (lane B's step-1 helper, 01d978eb) assumed the core Z − q is a
+  Madelung prefix, so every pseudo-atom over [Ar]3d¹⁰ / [Kr]4d¹⁰ / [Xe]4f¹⁴ THREW before its SCF: Kr/Xe/Rn q8, Rb q9, Sr q10, Cs q9, Ba q10, the 4d
+  semicore q's, every lanthanide and actinide (61 of 161).  The core per l is now the neutral all-electron atom's electrons of that l minus the
+  pseudo-atom's neutral valence of that l.  (2) **RULE B (controller ruling 2026-11-15)**: a q SMALLER than the periodic table's valence folds the
+  valence's closed f¹⁴, then d¹⁰, subshells into the core while the count exceeds q (I q7 → 5s²5p⁵, W q6 → 5d⁴6s², Au q1 → 6s¹, Hf q12 folds 4f¹⁴ and
+  keeps the 5s5p semicore); before it 38 q's were refused ("keeps FEWER electrons"), among them every smallest-q p-block element (Ga–Br, In–I, Tl–At),
+  Cu/Ag/Au q1, Zn/Cd/Hg q2 and the 5d metals.  Rule A (the GTH entry's own `n_elec`) was REJECTED: n_elec is the FITTING configuration, not the
+  ground state (Tc q7 4d⁶5s¹, Gd q18 4f⁸, Lr 6p¹); the generator notes each such entry.  Rule B changes nothing that ran before (the 44 working
+  neutrals are its unchanged branch).  Gates: `StatedConfiguration.APseudoAtomNamesItsShellsOverTheCoreItsPseudopotentialReplaces`,
+  `...ASmallQPseudopotentialFoldsTheClosedSubshellsItReplacesIntoItsCore`, and `A_PP.AHeavyCorePseudoAtomIsItsCP2KAtom` (Kr q8, Gd q18, I q7 RUN
+  through the facade against CP2K ATOM; no gate ran such an atom before).
+- **WRITTEN: 127 neutrals + 3 ions** (Mn³⁺ q7 and Fe⁴⁺ q8, the formal-charge targets of LiMn₂O₄ and FeS₂; I⁻ q7 is BOUND, −1.5 μHa from CP2K, CsI's
+  anion).  27 → 157 entries, 0.38 → 3.6 MB.  NOT WRITTEN: S²⁻ q6 (unbound, +0.158 Ha: the scaled neutral stays); 10 open-4f/5f atoms whose SCF does
+  not converge in 300 iterations (Tb q19, Dy q20, Er q22, Tm q23, Am q35, Cf q20/q38, Es q21, Fm q40, Md q41); Np/Cm/Bk (6), whose physical shells the
+  generator cannot name for CP2K above Z 92 (no NIST configuration; the Madelung filling has no 6d¹).  The nine hand-made open-shell neutrals without
+  a spin pair (H, C, N, F, Si, S, Ti, V, Fe q8) are kept as they are: regenerating them is its own mover table (OpenWork row 189).
+- **MOVERS (sweep of 2026-11-15 on a0d87be3 + this work):** short 1 of 1693, long 0 of 19, panel 0 of 27 against `main-e57f9392_panel4t`
+  (against the older `main-3e3c372c` MnO₂ Kerker_Pulay sits +1.9 μHa, which `main-e57f9392` already holds without this library).  The one short
+  mover was a PREMISE, not a number: `SolidSetup.TheAutoSeedIs…` and `GPW_Al.Γ_Imp_UncoveredSpeciesSeedsFromTheCoreGuess` named Al as the species
+  the library lacks, and the Auto rule now finds Al q3 and takes IonicSAD (same state, −1.9212136041, 13 iterations either way).  The unit case
+  now states the uncovered species through `ResolveSeed`'s own coverage function; the integration case became
+  `GPW_Al.Γ_Imp_EverySeedReachesTheSameAufbauState` (Uniform, stated core guess, Auto = IonicSAD; the core guess takes 11).  No gate runs
+  LiMn₂O₄ or FeS₂ (campaign decks only), and `PW_CsI.Γ_Anchor` is a plane-wave run that did not move.
+
+Neutrals (`gen-valence-seeds`; configurations in physical shells over the core the PP replaces):
+
+| el | Z | q | Nelec | configuration [core] | spin | E (Ha) | E CP2K ATOM | ΔE | moment | iters | note |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Ac | 89 | 11 | 11 | 6s^2 6p^6 6d^1 7s^2 [[Xe] 4f14 5d10] | P | -29.545461 | -29.545626 | +1.65e-04 | 1.0004 | 2 |  |
+| Ac | 89 | 29 | 29 | 5s^2 5p^6 5d^10 6s^2 6p^6 6d^1 7s^2 [[Kr] 4d10 4f14] | P | -374.897917 | -374.897940 | +2.33e-05 | 1.0004 | 7 |  |
+| Ag | 47 | 1 | 1 | 5s^1 [[Kr] 4d10] | P | -0.292236 | -0.292240 | +3.93e-06 | 1.0004 | 6 |  |
+| Ag | 47 | 11 | 11 | 4d^10 5s^1 [[Kr]] | P | -36.863659 | -36.863653 | -6.08e-06 | 1.0004 | 12 |  |
+| Ag | 47 | 19 | 19 | 4s^2 4p^6 4d^10 5s^1 [[Ar] 3d10] | P | -145.286366 | -145.286309 | -5.66e-05 | 1.0004 | 2 |  |
+| Al | 13 | 3 | 3 | 3s^2 3p^1 [[Ne]] | P | -1.949984 | -1.949985 | +1.58e-06 | 1.0004 | 7 |  |
+| Am | 95 | 17 | 17 | 5f^7 6s^2 6p^6 7s^2 [[Xe] 4f14 5d10] | P | -82.667412 | -82.667533 | +1.21e-04 | 7.0025 | 2 |  |
+| Am | 95 | 35 | 35 | 5s^2 5p^6 5d^10 5f^7 6s^2 6p^6 7s^2 [[Kr] 4d10 4f14] | P | -594.710465 | -- | -- | -- | 300 | **NOT WRITTEN**: unconverged |
+| Ar | 18 | 8 | 8 | 3s^2 3p^6 [[Ne]] | U | -21.060030 | -21.060021 | -9.31e-06 |  | 8 |  |
+| As | 33 | 5 | 5 | 4s^2 4p^3 [[Ar] 3d10] | P | -6.239870 | -6.239863 | -6.50e-06 | 3.0011 | 7 |  |
+| At | 85 | 7 | 7 | 6s^2 6p^5 [[Xe] 4f14 5d10] | P | -11.161903 | -11.161899 | -3.73e-06 | 1.0004 | 6 |  |
+| Au | 79 | 1 | 1 | 6s^1 [[Xe] 4f14 5d10] | P | -0.354046 | -0.354047 | +9.43e-07 | 1.0004 | 6 |  |
+| Au | 79 | 11 | 11 | 5d^10 6s^1 [[Xe] 4f14] | P | -33.155828 | -33.155816 | -1.20e-05 | 1.0004 | 2 |  |
+| Au | 79 | 19 | 19 | 5s^2 5p^6 5d^10 6s^1 [[Kr] 4d10 4f14] | P | -136.444884 | -136.444832 | -5.24e-05 | 1.0004 | 2 |  |
+| B | 5 | 3 | 3 | 2s^2 2p^1 [[He]] | P | -2.587046 | -2.587045 | -7.26e-07 | 1.0004 | 7 |  |
+| Ba | 56 | 2 | 2 | 6s^2 [[Xe]] | U | -0.558484 | -0.559026 | +5.42e-04 |  | 5 |  |
+| Ba | 56 | 10 | 10 | 5s^2 5p^6 6s^2 [[Kr] 4d10] | U | -25.511602 | -25.512116 | +5.15e-04 |  | 2 |  |
+| Be | 4 | 2 | 2 | 2s^2 [[He]] | U | -0.991242 | -0.991245 | +3.17e-06 |  | 7 |  |
+| Be | 4 | 4 | 4 | 1s^2 2s^2 [none] | U | -14.362445 | -14.362450 | +4.43e-06 |  | 7 |  |
+| Bi | 83 | 5 | 5 | 6s^2 6p^3 [[Xe] 4f14 5d10] | P | -5.502055 | -5.502055 | +2.79e-07 | 3.0011 | 7 |  |
+| Bk | 97 | 19 | 19 | 1s^2 2s^2 2p^6 3d^1 4f^8 (node labels) | P | -109.413976 | -- | -- | -- | 6 | **NOT WRITTEN**: no CP2K configuration: the core of d (29 e) is not whole shells |
+| Bk | 97 | 37 | 37 | 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4d^1 4f^8 (node labels) | P | -684.124056 | -- | -- | -- | 7 | **NOT WRITTEN**: no CP2K configuration: the core of d (19 e) is not whole shells |
+| Br | 35 | 7 | 7 | 4s^2 4p^5 [[Ar] 3d10] | P | -13.409252 | -13.409246 | -6.33e-06 | 1.0004 | 6 |  |
+| Ca | 20 | 2 | 2 | 4s^2 [[Ar]] | U | -0.659072 | -0.659213 | +1.41e-04 |  | 6 |  |
+| Ca | 20 | 10 | 10 | 3s^2 3p^6 4s^2 [[Ne]] | U | -36.656651 | -36.656783 | +1.33e-04 |  | 7 |  |
+| Cd | 48 | 2 | 2 | 5s^2 [[Kr] 4d10] | U | -0.963900 | -0.963904 | +3.83e-06 |  | 6 |  |
+| Cd | 48 | 12 | 12 | 4d^10 5s^2 [[Kr]] | U | -46.014870 | -46.014846 | -2.39e-05 |  | 11 |  |
+| Ce | 58 | 12 | 12 | 4f^1 5s^2 5p^6 5d^1 6s^2 [[Kr] 4d10] | P | -38.531215 | -38.531416 | +2.01e-04 | 2.0007 | 2 |  |
+| Cf | 98 | 20 | 20 | 5f^10 6s^2 6p^6 7s^2 [[Xe] 4f14 5d10] | P | -122.397411 | -- | -- | -- | 300 | **NOT WRITTEN**: unconverged |
+| Cf | 98 | 38 | 38 | 5s^2 5p^6 5d^10 5f^10 6s^2 6p^6 7s^2 [[Kr] 4d10 4f14] | P | -645.191815 | -- | -- | -- | 300 | **NOT WRITTEN**: unconverged |
+| Cl | 17 | 7 | 7 | 3s^2 3p^5 [[Ne]] | P | -14.911006 | -14.910999 | -7.03e-06 | 1.0004 | 8 |  |
+| Cm | 96 | 18 | 18 | 1s^2 2s^2 2p^6 3d^1 4f^7 (node labels) | P | -95.414676 | -- | -- | -- | 2 | **NOT WRITTEN**: no CP2K configuration: the core of d (29 e) is not whole shells |
+| Cm | 96 | 36 | 36 | 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4d^1 4f^7 (node labels) | P | -638.915135 | -- | -- | -- | 7 | **NOT WRITTEN**: no CP2K configuration: the core of d (19 e) is not whole shells |
+| Co | 27 | 9 | 9 | 3d^7 4s^2 [[Ar]] | P | -28.018271 | -28.018264 | -6.95e-06 | 3.0011 | 2 |  |
+| Co | 27 | 17 | 17 | 3s^2 3p^6 3d^7 4s^2 [[Ne]] | P | -145.164207 | -145.164147 | -5.97e-05 | 3.0011 | 2 |  |
+| Cr | 24 | 6 | 6 | 3d^5 4s^1 [[Ar]] | P | -9.869410 | -9.869420 | +1.03e-05 | 6.0021 | 2 |  |
+| Cr | 24 | 14 | 14 | 3s^2 3p^6 3d^5 4s^1 [[Ne]] | P | -86.633817 | -86.633794 | -2.30e-05 | 6.0021 | 2 |  |
+| Cs | 55 | 1 | 1 | 6s^1 [[Xe]] | P | -0.143719 | -0.144786 | +1.07e-03 | 1.0004 | 6 | our Gaussian pool lies 1.07 mHa above CP2K: a diffuse-tail basis gap |
+| Cs | 55 | 9 | 9 | 5s^2 5p^6 6s^1 [[Kr] 4d10] | P | -20.202497 | -20.203614 | +1.12e-03 | 1.0004 | 2 | our Gaussian pool lies 1.12 mHa above CP2K: a diffuse-tail basis gap |
+| Cu | 29 | 1 | 1 | 4s^1 [[Ar] 3d10] | P | -0.306865 | -0.306868 | +2.67e-06 | 1.0004 | 5 |  |
+| Cu | 29 | 11 | 11 | 3d^10 4s^1 [[Ar]] | P | -47.934187 | -47.934183 | -4.79e-06 | 1.0004 | 23 |  |
+| Cu | 29 | 19 | 19 | 3s^2 3p^6 3d^10 4s^1 [[Ne]] | P | -195.749741 | -195.749647 | -9.42e-05 | 1.0004 | 3 | DIIS did not converge, the Ladder did |
+| Dy | 66 | 20 | 20 | 4f^10 5s^2 5p^6 6s^2 [[Kr] 4d10] | P | -142.205934 | -- | -- | -- | 300 | **NOT WRITTEN**: unconverged |
+| Er | 68 | 22 | 22 | 4f^12 5s^2 5p^6 6s^2 [[Kr] 4d10] | P | -175.323312 | -- | -- | -- | 300 | **NOT WRITTEN**: unconverged |
+| Es | 99 | 21 | 21 | 5f^11 6s^2 6p^6 7s^2 [[Xe] 4f14 5d10] | P | -140.651466 | -- | -- | -- | 300 | **NOT WRITTEN**: unconverged |
+| Es | 99 | 39 | 39 | 5s^2 5p^6 5d^10 5f^11 6s^2 6p^6 7s^2 [[Kr] 4d10 4f14] | P | -782.565553 | -782.565291 | -2.62e-04 | 3.0011 | 30 |  |
+| Eu | 63 | 17 | 17 | 4f^7 5s^2 5p^6 6s^2 [[Kr] 4d10] | P | -93.084745 | -93.084940 | +1.95e-04 | 7.0025 | 2 |  |
+| Fe | 26 | 16 | 16 | 3s^2 3p^6 3d^6 4s^2 [[Ne]] | P | -123.318967 | -123.318922 | -4.49e-05 | 4.0014 | 2 |  |
+| Fm | 100 | 22 | 22 | 5f^12 6s^2 6p^6 7s^2 [[Xe] 4f14 5d10] | P | -160.017061 | -160.017067 | +5.44e-06 | 2.0007 | 2 |  |
+| Fm | 100 | 40 | 40 | 5s^2 5p^6 5d^10 5f^12 6s^2 6p^6 7s^2 [[Kr] 4d10 4f14] | P | -833.883535 | -- | -- | -- | 300 | **NOT WRITTEN**: unconverged |
+| Ga | 31 | 3 | 3 | 4s^2 4p^1 [[Ar] 3d10] | P | -2.128716 | -2.128716 | +7.26e-08 | 1.0004 | 6 |  |
+| Ga | 31 | 13 | 13 | 3d^10 4s^2 4p^1 [[Ar]] | P | -74.417044 | -74.417010 | -3.36e-05 | 1.0004 | 2 |  |
+| Gd | 64 | 18 | 18 | 4f^7 5s^2 5p^6 5d^1 6s^2 [[Kr] 4d10] | P | -108.028837 | -108.028903 | +6.53e-05 | 8.0028 | 2 | the GTH entry was fitted in another configuration (n_elec [4, 6, 0, 8]); this is the periodic table ground state |
+| Ge | 32 | 4 | 4 | 4s^2 4p^2 [[Ar] 3d10] | P | -3.829029 | -3.829031 | +1.54e-06 | 2.0007 | 7 |  |
+| He | 2 | 2 | 2 | 1s^2 [none] | U | -2.832762 | -2.832761 | -8.57e-07 |  | 7 |  |
+| Hf | 72 | 12 | 12 | 5s^2 5p^6 5d^2 6s^2 [[Kr] 4d10 4f14] | P | -49.874822 | -49.874827 | +5.24e-06 | 2.0007 | 2 |  |
+| Hg | 80 | 2 | 2 | 6s^2 [[Xe] 4f14 5d10] | U | -1.086292 | -1.086292 | +4.85e-07 |  | 6 |  |
+| Hg | 80 | 12 | 12 | 5d^10 6s^2 [[Xe] 4f14] | U | -41.147274 | -41.147259 | -1.52e-05 |  | 10 |  |
+| Ho | 67 | 21 | 21 | 4f^11 5s^2 5p^6 6s^2 [[Kr] 4d10] | P | -162.036003 | -162.036049 | +4.59e-05 | 3.0011 | 29 |  |
+| I | 53 | 7 | 7 | 5s^2 5p^5 [[Kr] 4d10] | P | -11.479595 | -11.479589 | -5.91e-06 | 1.0004 | 6 |  |
+| In | 49 | 3 | 3 | 5s^2 5p^1 [[Kr] 4d10] | P | -1.942861 | -1.942862 | +5.29e-07 | 1.0004 | 5 |  |
+| In | 49 | 13 | 13 | 4d^10 5s^2 5p^1 [[Kr]] | P | -56.272041 | -56.272021 | -1.94e-05 | 1.0004 | 2 |  |
+| Ir | 77 | 9 | 9 | 5d^7 6s^2 [[Xe] 4f14] | P | -20.031114 | -20.031105 | -9.43e-06 | 3.0011 | 8 |  |
+| Ir | 77 | 17 | 17 | 5s^2 5p^6 5d^7 6s^2 [[Kr] 4d10 4f14] | P | -105.921902 | -105.921868 | -3.40e-05 | 3.0011 | 2 |  |
+| K | 19 | 1 | 1 | 4s^1 [[Ar]] | P | -0.161314 | -0.161820 | +5.06e-04 | 1.0004 | 6 |  |
+| K | 19 | 9 | 9 | 3s^2 3p^6 4s^1 [[Ne]] | P | -28.214797 | -28.215317 | +5.20e-04 | 1.0004 | 2 |  |
+| Kr | 36 | 8 | 8 | 4s^2 4p^6 [[Ar] 3d10] | U | -18.436587 | -18.436585 | -1.65e-06 |  | 7 |  |
+| La | 57 | 11 | 11 | 5s^2 5p^6 5d^1 6s^2 [[Kr] 4d10] | P | -31.558141 | -31.558367 | +2.27e-04 | 1.0004 | 2 |  |
+| Lr | 103 | 25 | 25 | 5f^14 6s^2 6p^6 6d^1 7s^2 [[Xe] 4f14 5d10] | P | -224.051229 | -224.051143 | -8.57e-05 | 1.0004 | 7 | the GTH entry was fitted in another configuration (n_elec [4, 7, 0, 14]); this is the periodic table ground state |
+| Lr | 103 | 43 | 43 | 5s^2 5p^6 5d^10 5f^14 6s^2 6p^6 6d^1 7s^2 [[Kr] 4d10 4f14] | P | -1021.870000 | -1021.869493 | -5.07e-04 | 1.0004 | 7 | the GTH entry was fitted in another configuration (n_elec [6, 13, 10, 14]); this is the periodic table ground state |
+| Lu | 71 | 25 | 25 | 4f^14 5s^2 5p^6 5d^1 6s^2 [[Kr] 4d10] | P | -262.361718 | -262.361622 | -9.55e-05 | 1.0004 | 7 |  |
+| Md | 101 | 23 | 23 | 5f^13 6s^2 6p^6 7s^2 [[Xe] 4f14 5d10] | P | -179.977427 | -179.977414 | -1.30e-05 | 1.0004 | 2 |  |
+| Md | 101 | 41 | 41 | 5s^2 5p^6 5d^10 5f^13 6s^2 6p^6 7s^2 [[Kr] 4d10 4f14] | P | -783.106668 | -- | -- | -- | 300 | **NOT WRITTEN**: unconverged |
+| Mg | 12 | 2 | 2 | 3s^2 [[Ne]] | U | -0.833007 | -0.833025 | +1.80e-05 |  | 7 |  |
+| Mg | 12 | 10 | 10 | 2s^2 2p^6 3s^2 [[He]] | U | -63.099176 | -63.099170 | -5.37e-06 |  | 17 |  |
+| Mo | 42 | 6 | 6 | 4d^5 5s^1 [[Kr]] | P | -7.882578 | -7.882587 | +9.58e-06 | 6.0021 | 2 |  |
+| Mo | 42 | 14 | 14 | 4s^2 4p^6 4d^5 5s^1 [[Ar] 3d10] | P | -67.991243 | -67.991231 | -1.23e-05 | 6.0021 | 2 |  |
+| Nb | 41 | 5 | 5 | 4d^4 5s^1 [[Kr]] | P | -4.982442 | -4.982458 | +1.61e-05 | 5.0018 | 7 |  |
+| Nb | 41 | 13 | 13 | 4s^2 4p^6 4d^4 5s^1 [[Ar] 3d10] | P | -56.878336 | -56.878334 | -2.03e-06 | 5.0018 | 2 |  |
+| Nd | 60 | 14 | 14 | 4f^4 5s^2 5p^6 6s^2 [[Kr] 4d10] | P | -56.370919 | -56.371209 | +2.90e-04 | 4.0014 | 2 |  |
+| Ne | 10 | 8 | 8 | 2s^2 2p^6 [[He]] | U | -34.856672 | -34.856658 | -1.40e-05 |  | 20 |  |
+| Ni | 28 | 18 | 18 | 3s^2 3p^6 3d^8 4s^2 [[Ne]] | P | -169.058091 | -169.058015 | -7.53e-05 | 2.0007 | 2 |  |
+| No | 102 | 24 | 24 | 5f^14 6s^2 6p^6 7s^2 [[Xe] 4f14 5d10] | U | -201.466136 | -201.466104 | -3.27e-05 |  | 2 |  |
+| No | 102 | 42 | 42 | 5s^2 5p^6 5d^10 5f^14 6s^2 6p^6 7s^2 [[Kr] 4d10 4f14] | U | -946.302857 | -946.302467 | -3.90e-04 |  | 7 | DIIS did not converge, the Ladder did |
+| Np | 93 | 15 | 15 | 1s^2 2s^2 2p^6 3d^1 4f^4 (node labels) | P | -60.331927 | -- | -- | -- | 2 | **NOT WRITTEN**: no CP2K configuration: the core of d (29 e) is not whole shells |
+| Np | 93 | 33 | 33 | 1s^2 2s^2 2p^6 3s^2 3p^6 3d^10 4d^1 4f^4 (node labels) | P | -514.720708 | -- | -- | -- | 7 | **NOT WRITTEN**: no CP2K configuration: the core of d (19 e) is not whole shells |
+| Os | 76 | 8 | 8 | 5d^6 6s^2 [[Xe] 4f14] | P | -15.017792 | -15.017794 | +1.67e-06 | 4.0014 | 8 |  |
+| Os | 76 | 16 | 16 | 5s^2 5p^6 5d^6 6s^2 [[Kr] 4d10 4f14] | P | -92.194240 | -92.194213 | -2.70e-05 | 4.0014 | 2 |  |
+| P | 15 | 5 | 5 | 3s^2 3p^3 [[Ne]] | P | -6.467224 | -6.467223 | -1.55e-06 | 3.0011 | 7 |  |
+| Pa | 91 | 13 | 13 | 5f^2 6s^2 6p^6 6d^1 7s^2 [[Xe] 4f14 5d10] | P | -42.792756 | -42.792862 | +1.06e-04 | 3.0011 | 2 |  |
+| Pa | 91 | 31 | 31 | 5s^2 5p^6 5d^10 5f^2 6s^2 6p^6 6d^1 7s^2 [[Kr] 4d10 4f14] | P | -441.841826 | -441.841764 | -6.10e-05 | 3.0011 | 7 |  |
+| Pb | 82 | 4 | 4 | 6s^2 6p^2 [[Xe] 4f14 5d10] | P | -3.517384 | -3.517386 | +1.13e-06 | 2.0007 | 6 |  |
+| Pd | 46 | 10 | 10 | 4d^10 [[Kr]] | U | -28.792221 | -28.792208 | -1.33e-05 |  | 11 |  |
+| Pd | 46 | 18 | 18 | 4s^2 4p^6 4d^10 [[Ar] 3d10] | U | -126.836325 | -126.836272 | -5.27e-05 |  | 2 |  |
+| Pm | 61 | 15 | 15 | 4f^5 5s^2 5p^6 6s^2 [[Kr] 4d10] | P | -67.205060 | -67.205317 | +2.57e-04 | 5.0018 | 2 |  |
+| Po | 84 | 6 | 6 | 6s^2 6p^4 [[Xe] 4f14 5d10] | P | -8.010545 | -8.010542 | -2.90e-06 | 2.0007 | 6 |  |
+| Pr | 59 | 13 | 13 | 4f^3 5s^2 5p^6 6s^2 [[Kr] 4d10] | P | -46.854567 | -46.854892 | +3.25e-04 | 3.0011 | 2 |  |
+| Pt | 78 | 10 | 10 | 5d^9 6s^1 [[Xe] 4f14] | P | -26.070059 | -26.070050 | -8.84e-06 | 2.0007 | 2 |  |
+| Pt | 78 | 18 | 18 | 5s^2 5p^6 5d^9 6s^1 [[Kr] 4d10 4f14] | P | -120.908734 | -120.908691 | -4.29e-05 | 2.0007 | 2 |  |
+| Pu | 94 | 16 | 16 | 5f^6 6s^2 6p^6 7s^2 [[Xe] 4f14 5d10] | P | -70.903989 | -70.904127 | +1.38e-04 | 6.0021 | 2 |  |
+| Pu | 94 | 34 | 34 | 5s^2 5p^6 5d^10 5f^6 6s^2 6p^6 7s^2 [[Kr] 4d10 4f14] | P | -554.186702 | -554.186636 | -6.63e-05 | 6.0021 | 10 |  |
+| Rb | 37 | 1 | 1 | 5s^1 [[Kr]] | P | -0.155168 | -0.155822 | +6.54e-04 | 1.0004 | 6 |  |
+| Rb | 37 | 9 | 9 | 4s^2 4p^6 5s^1 [[Ar] 3d10] | P | -24.117698 | -24.118378 | +6.80e-04 | 1.0004 | 2 |  |
+| Re | 75 | 7 | 7 | 5d^5 6s^2 [[Xe] 4f14] | P | -10.914678 | -10.914688 | +1.06e-05 | 5.0018 | 8 |  |
+| Re | 75 | 15 | 15 | 5s^2 5p^6 5d^5 6s^2 [[Kr] 4d10 4f14] | P | -79.891497 | -79.891483 | -1.40e-05 | 5.0018 | 7 |  |
+| Rh | 45 | 9 | 9 | 4d^8 5s^1 [[Kr]] | P | -21.678536 | -21.678532 | -3.47e-06 | 3.0011 | 2 |  |
+| Rh | 45 | 17 | 17 | 4s^2 4p^6 4d^8 5s^1 [[Ar] 3d10] | P | -109.920027 | -109.919991 | -3.61e-05 | 3.0011 | 2 |  |
+| Rn | 86 | 8 | 8 | 6s^2 6p^6 [[Xe] 4f14 5d10] | U | -15.008982 | -15.008978 | -4.22e-06 |  | 7 |  |
+| Ru | 44 | 8 | 8 | 4d^7 5s^1 [[Kr]] | P | -16.116523 | -16.116525 | +1.45e-06 | 4.0014 | 2 |  |
+| Ru | 44 | 16 | 16 | 4s^2 4p^6 4d^7 5s^1 [[Ar] 3d10] | P | -94.530683 | -94.530655 | -2.79e-05 | 4.0014 | 2 |  |
+| Sb | 51 | 5 | 5 | 5s^2 5p^3 [[Kr] 4d10] | P | -5.487900 | -5.487897 | -3.00e-06 | 3.0011 | 7 |  |
+| Sc | 21 | 3 | 3 | 3d^1 4s^2 [[Ar]] | P | -1.623929 | -1.624001 | +7.15e-05 | 1.0004 | 7 |  |
+| Sc | 21 | 11 | 11 | 3s^2 3p^6 3d^1 4s^2 [[Ne]] | P | -46.460178 | -46.460227 | +4.91e-05 | 1.0004 | 2 |  |
+| Se | 34 | 6 | 6 | 4s^2 4p^4 [[Ar] 3d10] | P | -9.373518 | -9.373513 | -5.65e-06 | 2.0007 | 7 |  |
+| Sm | 62 | 16 | 16 | 4f^6 5s^2 5p^6 6s^2 [[Kr] 4d10] | P | -79.458135 | -79.458361 | +2.26e-04 | 6.0021 | 2 |  |
+| Sn | 50 | 4 | 4 | 5s^2 5p^2 [[Kr] 4d10] | P | -3.426561 | -3.426562 | +6.37e-07 | 2.0007 | 6 |  |
+| Sr | 38 | 10 | 10 | 4s^2 4p^6 5s^2 [[Ar] 3d10] | U | -30.710734 | -30.710968 | +2.34e-04 |  | 2 |  |
+| Ta | 73 | 5 | 5 | 5d^3 6s^2 [[Xe] 4f14] | P | -4.797802 | -4.797816 | +1.41e-05 | 3.0011 | 6 |  |
+| Ta | 73 | 13 | 13 | 5s^2 5p^6 5d^3 6s^2 [[Kr] 4d10 4f14] | P | -58.654380 | -58.654375 | -4.75e-06 | 3.0011 | 2 |  |
+| Tb | 65 | 19 | 19 | 4f^9 5s^2 5p^6 6s^2 [[Kr] 4d10] | P | -124.075100 | -- | -- | -- | 300 | **NOT WRITTEN**: unconverged |
+| Tc | 43 | 7 | 7 | 4d^5 5s^2 [[Kr]] | P | -11.585991 | -11.586026 | +3.47e-05 | 5.0018 | 8 | the GTH entry was fitted in another configuration (n_elec [1, 0, 6]); this is the periodic table ground state |
+| Tc | 43 | 15 | 15 | 4s^2 4p^6 4d^5 5s^2 [[Ar] 3d10] | P | -80.454553 | -80.454545 | -7.84e-06 | 5.0018 | 2 | the GTH entry was fitted in another configuration (n_elec [3, 6, 6]); this is the periodic table ground state |
+| Te | 52 | 6 | 6 | 5s^2 5p^4 [[Kr] 4d10] | P | -8.127204 | -8.127201 | -3.40e-06 | 2.0007 | 6 |  |
+| Th | 90 | 12 | 12 | 6s^2 6p^6 6d^2 7s^2 [[Xe] 4f14 5d10] | P | -35.642339 | -35.642412 | +7.25e-05 | 2.0007 | 2 |  |
+| Th | 90 | 30 | 30 | 5s^2 5p^6 5d^10 6s^2 6p^6 6d^2 7s^2 [[Kr] 4d10 4f14] | P | -408.621694 | -408.621616 | -7.80e-05 | 2.0007 | 6 |  |
+| Ti | 22 | 12 | 12 | 3s^2 3p^6 3d^2 4s^2 [[Ne]] | P | -57.942725 | -57.942757 | +3.20e-05 | 2.0007 | 8 |  |
+| Tl | 81 | 3 | 3 | 6s^2 6p^1 [[Xe] 4f14 5d10] | P | -2.063918 | -2.063917 | -1.19e-06 | 1.0004 | 5 |  |
+| Tl | 81 | 13 | 13 | 5d^10 6s^2 6p^1 [[Xe] 4f14] | P | -49.903044 | -49.903027 | -1.65e-05 | 1.0004 | 2 |  |
+| Tm | 69 | 23 | 23 | 4f^13 5s^2 5p^6 6s^2 [[Kr] 4d10] | P | -206.190146 | -- | -- | -- | 300 | **NOT WRITTEN**: unconverged |
+| U | 92 | 14 | 14 | 5f^3 6s^2 6p^6 6d^1 7s^2 [[Xe] 4f14 5d10] | P | -51.085927 | -51.086016 | +8.93e-05 | 4.0014 | 2 |  |
+| U | 92 | 32 | 32 | 5s^2 5p^6 5d^10 5f^3 6s^2 6p^6 6d^1 7s^2 [[Kr] 4d10 4f14] | P | -477.381687 | -477.381606 | -8.03e-05 | 4.0014 | 6 |  |
+| V | 23 | 13 | 13 | 3s^2 3p^6 3d^3 4s^2 [[Ne]] | P | -71.265571 | -71.265585 | +1.35e-05 | 3.0011 | 23 |  |
+| W | 74 | 6 | 6 | 5d^4 6s^2 [[Xe] 4f14] | P | -7.478569 | -7.478581 | +1.20e-05 | 4.0014 | 7 |  |
+| W | 74 | 14 | 14 | 5s^2 5p^6 5d^4 6s^2 [[Kr] 4d10 4f14] | P | -68.656328 | -68.656317 | -1.18e-05 | 4.0014 | 7 |  |
+| Xe | 54 | 8 | 8 | 5s^2 5p^6 [[Kr] 4d10] | U | -15.606971 | -15.606966 | -5.22e-06 |  | 7 |  |
+| Y | 39 | 3 | 3 | 4d^1 5s^2 [[Kr]] | P | -1.427143 | -1.427251 | +1.08e-04 | 1.0004 | 6 |  |
+| Y | 39 | 11 | 11 | 4s^2 4p^6 4d^1 5s^2 [[Ar] 3d10] | P | -38.232490 | -38.232572 | +8.27e-05 | 1.0004 | 2 |  |
+| Yb | 70 | 24 | 24 | 4f^14 5s^2 5p^6 6s^2 [[Kr] 4d10] | U | -234.045792 | -234.045776 | -1.69e-05 |  | 8 | DIIS did not converge, the Ladder did |
+| Zn | 30 | 2 | 2 | 4s^2 [[Ar] 3d10] | U | -1.030504 | -1.030508 | +3.88e-06 |  | 6 |  |
+| Zn | 30 | 12 | 12 | 3d^10 4s^2 [[Ar]] | U | -60.412229 | -60.412201 | -2.76e-05 |  | 2 |  |
+| Zn | 30 | 20 | 20 | 3s^2 3p^6 3d^10 4s^2 [[Ne]] | U | -225.222748 | -225.222663 | -8.49e-05 |  | 39 | DIIS did not converge, the Ladder did |
+| Zr | 40 | 4 | 4 | 4d^2 5s^2 [[Kr]] | P | -2.827818 | -2.827879 | +6.14e-05 | 2.0007 | 6 |  |
+| Zr | 40 | 12 | 12 | 4s^2 4p^6 4d^2 5s^2 [[Ar] 3d10] | P | -46.920783 | -46.920821 | +3.79e-05 | 2.0007 | 2 |  |
+
+Ions (`gen-valence-seeds --ions`):
+
+| el | Z | q | Nelec | configuration [core] | spin | E (Ha) | E CP2K ATOM | ΔE | moment | iters | note |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Mn | 25 | 7 | 4 | 3d^4 [[Ar]] | P | -12.508040 | -12.508036 | -3.75e-06 | 4.0014 | 2 |  |
+| Fe | 26 | 8 | 4 | 3d^4 [[Ar]] | P | -16.577277 | -16.577277 | -5.31e-08 | 4.0014 | 7 |  |
+| S | 16 | 6 | 8 | 3s^2 3p^6 [[Ne]] | U | -10.076416 | -- | -- | -- | 16 | **NOT WRITTEN**: unbound (highest occupied ε +0.1584 Ha) |
+| I | 53 | 7 | 8 | 5s^2 5p^6 [[Kr] 4d10] | U | -11.605818 | -11.605816 | -1.53e-06 |  | 8 |  |
+
 ## ✅ Fields from a saved state, cheaply, on the structure-neutral face (lane G, landed 2026-11-13, merge 7c6e7597)
 
 The row (verbatim, from `doc/OpenWork.md`):
