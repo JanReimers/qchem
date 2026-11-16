@@ -239,6 +239,10 @@ struct MeshParams
 //! calculation imposes on rho.  It lives here, beside \c MeshParams, because this is the lowest module that the point sets, the fit
 //! bases and the structures all see.  (A run whose fit is projected onto a point group's A1 would impose that group: the day one
 //! exists, this enum grows a point-group state, or gives way to a \c Group built from generators: doc/OpenWork.md section 2.)
+//!
+//! REAL SPACE ONLY: this is the symmetry a representation forces on the field in r.  Spin symmetry -- SU(2) on an unpolarized run,
+//! U(1) about the axis on a collinear polarized one -- is a SEPARATE axis and must never become a state here (user, 2026-11-16: "the
+//! three state enum is only about normal space ... it should not be conflated with spin space").
 enum class ImposedSymmetry
 {
     None,           //!< {e}: an atom-centred (Becke) mesh, a delta or multipole fit, a molecule's Gaussian A1 set.
