@@ -234,34 +234,44 @@ struct MeshParams
 //! translations T and the full rotation group O(3) about one centre.
 //!
 //! Every point set and every fit that exists imposes one of {e}, T or O(3); none imposes a finite point group.  So the group needs
-//! no general type, only these two flags, with \f$H\subseteq G\f$ as flag implication (\c operator<=).  The admission rule (pin 30)
+//! no general type, only these three states, with \f$H\subseteq G\f$ as their partial order (\c operator<=).  The admission rule (pin 30)
 //! is then ONE check, \f$H_{fit}\subseteq G\f$ and \f$H_{points}\subseteq G\f$ (\c Hamiltonian::AdmitVxc), where G is what the
 //! calculation imposes on rho.  It lives here, beside \c MeshParams, because this is the lowest module that the point sets, the fit
 //! bases and the structures all see.  (A run whose fit is projected onto a point group's A1 would impose that group: the day one
-//! exists, this value grows a point-group member.)
-struct ImposedSymmetry
+//! exists, this enum grows a point-group state, or gives way to a \c Group built from generators: doc/OpenWork.md section 2.)
+//!
+//! REAL SPACE ONLY: this is the symmetry a representation forces on the field in r.  Spin symmetry -- SU(2) on an unpolarized run,
+//! U(1) about the axis on a collinear polarized one -- is a SEPARATE axis and must never become a state here (user, 2026-11-16: "the
+//! three state enum is only about normal space ... it should not be conflated with spin space").
+enum class ImposedSymmetry
 {
-    bool translations=false;   //!< T: plane waves, lattice sums, a periodic cell mesh.
-    bool fullRotation=false;   //!< O(3) about one centre: a radial-only rule, an l = 0 set about one site.
-    //! The same group: what the Vxc builder asks of a BUILT realization against the pre-flight's answer (pin 30 stage 2).
-    friend constexpr bool operator==(ImposedSymmetry, ImposedSymmetry) = default;
+    None,           //!< {e}: an atom-centred (Becke) mesh, a delta or multipole fit, a molecule's Gaussian A1 set.
+    Translations,   //!< T: plane waves, lattice sums, a periodic cell mesh.
+    FullRotation,   //!< O(3) about one centre: a radial-only rule, an l = 0 set about one site.
 };
-//! \f$H\subseteq G\f$: every generator \a h imposes, \a g has.
-constexpr bool operator<=(ImposedSymmetry h, ImposedSymmetry g)
-{
-    return (!h.translations || g.translations) && (!h.fullRotation || g.fullRotation);
-}
-//! The group's name in a refusal: {e}, T, O(3), or T x O(3).
+//! There is no T x O(3) state: only a constant is both lattice-periodic and spherical, so no representation imposes both and no
+//! structure has both.  Three states, not two booleans (user, 2026-11-16: "I agree enum now").
+//! \f$H\subseteq G\f$, a PARTIAL order: {e} is in every group, each group contains itself, and T and O(3) are incomparable.
+constexpr bool operator<=(ImposedSymmetry h, ImposedSymmetry g) {return h==ImposedSymmetry::None || h==g;}
+//! The group's name in a refusal: {e}, T or O(3).
 inline const char* Name(ImposedSymmetry h)
 {
-    return h.translations ? (h.fullRotation ? "T x O(3)" : "T") : (h.fullRotation ? "O(3)" : "{e}");
+    switch (h)
+    {
+        case ImposedSymmetry::None:         return "{e}";
+        case ImposedSymmetry::Translations: return "T";
+        case ImposedSymmetry::FullRotation: return "O(3)";
+    }
+    return "?";
 }
-//! What a stated XC point set imposes: a uniform cell mesh imposes T; the radial-only set (\c AngularKind::None, one direction at
-//! \f$4\pi\f$, exact only for a spherical integrand) imposes O(3) about its centre; an atom-centred mesh (Becke) imposes nothing.
-//! \c UnitCellKind::Auto imposes nothing: each structure resolves it to the mesh it admits (Becke on a finite structure).
+//! What a stated XC point set imposes: a uniform cell mesh imposes T (it reads no angular rule, so \c angular does not enter); the
+//! radial-only set (\c AngularKind::None, one direction at \f$4\pi\f$, exact only for a spherical integrand) imposes O(3) about its
+//! centre; an atom-centred mesh (Becke) imposes nothing.  \c UnitCellKind::Auto imposes nothing beyond its angular rule: each
+//! structure resolves it to the mesh it admits (Becke on a finite structure).
 inline ImposedSymmetry ImposedBy(const MeshParams& mp)
 {
-    return {.translations = mp.cellKind==UnitCellKind::Uniform, .fullRotation = mp.angular==AngularKind::None};
+    if (mp.cellKind==UnitCellKind::Uniform) return ImposedSymmetry::Translations;
+    return mp.angular==AngularKind::None ? ImposedSymmetry::FullRotation : ImposedSymmetry::None;
 }
 
 //-- The uniform-mesh resolution bridge --------------------------------------------------------------

@@ -104,7 +104,7 @@ TEST(PW_Terms, VnnPeriodicUsesEwald)
     cell->AddAtom(4,rvec3_t(0.0,0.0,0.0));             // itsZ = Zion = 4 (Si valence)
     cell->AddAtom(4,rvec3_t(0.25,0.25,0.25));
     std::shared_ptr<const Structure> st=cell;
-    EXPECT_TRUE(st->Admits({.translations=true}));
+    EXPECT_TRUE(st->Admits(qcMesh::ImposedSymmetry::Translations));
 
     qchem::Hamiltonian::IonIon<double> vnn(st);
     EnergyBreakdown eb;

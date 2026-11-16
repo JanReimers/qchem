@@ -51,11 +51,12 @@ using VxcFit = BasisSet::VxcFit;
 //=== What a Vxc fit imposes (doc/Pins.md pin 30) ===
 using qcMesh::ImposedSymmetry;
 //! \brief G: the group the calculation imposes on rho, as far as admission needs it (pin 30) -- T on a lattice, O(3) on the atom path
-//! (it spherically averages its open shell), neither on a molecule (its point group contains no T and no O(3)).  Assembled from the structure's own \c Admits on each generator, for a refusal's wording
+//! (it spherically averages its open shell), neither on a molecule (its point group contains no T and no O(3)).  Read off the structure's own \c Admits on each generator, for a refusal's wording
 //! and for \c ImposedBy's Auxiliary row; the admission itself asks \c Structure::Admits.
 inline ImposedSymmetry GroupOf(const Structure& st)
 {
-    return {.translations=st.Admits({.translations=true}), .fullRotation=st.Admits({.fullRotation=true})};
+    return st.Admits(ImposedSymmetry::Translations) ? ImposedSymmetry::Translations
+         : st.Admits(ImposedSymmetry::FullRotation) ? ImposedSymmetry::FullRotation : ImposedSymmetry::None;
 }
 //! \brief What a Vxc fit imposes on this structure.  The family is named by the enum, but the group comes from the REALIZATION:
 //! \c Auxiliary is the lineage's own fit -- lattice-summed (T) on a solid, the spherical set (O(3)) on the atom path, atom-centred
@@ -69,11 +70,11 @@ inline ImposedSymmetry ImposedBy(VxcFit fit, const Structure& st)
 {
     switch (fit)
     {
-        case VxcFit::PlaneWave: return {.translations=true};
+        case VxcFit::PlaneWave: return ImposedSymmetry::Translations;
         case VxcFit::Auxiliary: return GroupOf(st);   // lattice-summed on a solid, spherical on the atom path, atom-centred on a molecule
         case VxcFit::Delta:
         case VxcFit::Multipole:
-        case VxcFit::Auto:      return {};
+        case VxcFit::Auto:      return ImposedSymmetry::None;
     }
     throw std::logic_error("Hamiltonian::ImposedBy: a Vxc fit with no imposed group");
 }

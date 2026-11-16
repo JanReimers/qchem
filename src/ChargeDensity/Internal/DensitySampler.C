@@ -594,7 +594,7 @@ public:
     rvec_t AtPoints(const rvec_t& rho) const override;
     rvec_t OnRaster(const rvec_t& v  ) const override {return Resample(v);}
     std::string Name() const override {return "the multipole channels";}
-    qcMesh::ImposedSymmetry Imposes() const override {return {};}   //!< channels on every site: no group of their own
+    qcMesh::ImposedSymmetry Imposes() const override {return qcMesh::ImposedSymmetry::None;}   //!< channels on every site: no group of their own
     rvec_t Resample(const rvec_t& atPoints) const;
 private:
     std::shared_ptr<const qcMesh::SiteMultipoles> itsSites;

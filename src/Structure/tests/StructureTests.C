@@ -12,6 +12,7 @@ using std::cout;
 using std::endl;
 
 import qchem.Structure;
+import qchem.Mesh;   // qcMesh::ImposedSymmetry (Structure::Admits)
 import qchem.UnitCell;
 import qchem.Lattice_3D;
 import qchem.Ewald;
@@ -353,15 +354,15 @@ TEST_F(StructureTests, EwaldFarApartHomeAtoms)
 TEST_F(StructureTests, PeriodicAnswersVsFinite)
 {
     Atom h(1,0,{0,0,0});
-    EXPECT_FALSE(h.Admits({.translations=true}));
+    EXPECT_FALSE(h.Admits(qcMesh::ImposedSymmetry::Translations));
     Molecule m;
     m.Insert(Site{1, {0,0,0}});
     m.Insert(Site{1, {0,0,1.4}});
-    EXPECT_FALSE(m.Admits({.translations=true}));
+    EXPECT_FALSE(m.Admits(qcMesh::ImposedSymmetry::Translations));
     FCCUnitCell si(10.26);
     si.AddAtom(14,{0,0,0});
     si.AddAtom(14,{0.25,0.25,0.25});
-    EXPECT_TRUE(si.Admits({.translations=true}));
+    EXPECT_TRUE(si.Admits(qcMesh::ImposedSymmetry::Translations));
 
     const auto f=[](int Z){return 0.5*Z;};
     EXPECT_EQ(h.G0Background(f), 0.0);                                   // finite: no background, exactly 0
