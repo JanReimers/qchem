@@ -150,7 +150,7 @@ static const BasisSet::Orbital_1E_IBS<double>& RequireBlock(const std::shared_pt
 }
 GaussianFitSpace::GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, BasisSet::FitQuadrature points)
     : GaussianFitSpace(RequireBlock(a1).Overlap(), [a1](const rvec3vec_t& R) {return rmat_t((*a1)(R));}, std::move(points),
-                       "the periodic A1 Gaussian set", {.translations=true})   // lattice-summed at Gamma: T
+                       "the periodic A1 Gaussian set", qcMesh::ImposedSymmetry::Translations)   // lattice-summed at Gamma: T
 {}
 GaussianFitSpace::GaussianFitSpace(const rsmat_t& S, Evaluator eval, BasisSet::FitQuadrature points, std::string name,
                                    qcMesh::ImposedSymmetry imposes)

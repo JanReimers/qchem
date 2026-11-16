@@ -83,7 +83,8 @@ qcMesh::MeshParams PointsFor(Points p)
 }
 
 //! The three groups admission sees, and one structure of each kind.
-const ImposedSymmetry E{}, T{.translations=true}, O3{.fullRotation=true};
+constexpr ImposedSymmetry E=ImposedSymmetry::None, T=ImposedSymmetry::Translations, O3=ImposedSymmetry::FullRotation;
+constexpr bool eq(ImposedSymmetry a, ImposedSymmetry b) {return a==b;}
 std::shared_ptr<const Structure> TheSolid()    {UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5}); return cell.Clone();}   // one Si, Γ
 std::shared_ptr<const Structure> TheMolecule()
 {
@@ -108,18 +109,16 @@ TEST(VxcProductSpace, TheAdmissionRuleIsHWithinG)
 {
     struct Named {ImposedSymmetry h; const char* name;};
     const Named groups[]={{E,"{e}"},{T,"T"},{O3,"O(3)"}};
-    auto same=[](ImposedSymmetry a, ImposedSymmetry b) {return a.translations==b.translations && a.fullRotation==b.fullRotation;};
     for (const auto& g : {groups[0], groups[1], groups[2]})   // molecule, solid, atom
     {
         for (const auto& hf : groups)
             for (const auto& hp : groups)
             {
-                const bool expected=(same(hf.h,E) || same(hf.h,g.h)) && (same(hp.h,E) || same(hp.h,g.h));
+                const bool expected=(eq(hf.h,E) || eq(hf.h,g.h)) && (eq(hp.h,E) || eq(hp.h,g.h));
                 EXPECT_EQ(hf.h<=g.h && hp.h<=g.h, expected) << "H_fit " << hf.name << ", H_points " << hp.name << ", G " << g.name;
             }
         EXPECT_STREQ(qcMesh::Name(g.h), g.name);
     }
-    EXPECT_STREQ(qcMesh::Name(ImposedSymmetry{true,true}), "T x O(3)");
 }
 
 //! WHAT EACH REPRESENTATION IMPOSES.  Point sets: a uniform cell mesh T, the radial-only set O(3), Becke and Auto nothing.  Fits: the
@@ -127,20 +126,24 @@ TEST(VxcProductSpace, TheAdmissionRuleIsHWithinG)
 //! path, atom-centred ({e}) on a molecule; δ, multipole and Auto nothing.  And G: T on a solid, O(3) on the atom, neither on a molecule.
 TEST(VxcProductSpace, WhatEachRepresentationImposes)
 {
-    auto same=[](ImposedSymmetry a, ImposedSymmetry b) {return a.translations==b.translations && a.fullRotation==b.fullRotation;};
-    EXPECT_TRUE(same(qcMesh::ImposedBy(PointsFor(Points::Becke)),   E));
-    EXPECT_TRUE(same(qcMesh::ImposedBy(PointsFor(Points::Uniform)), T));
-    EXPECT_TRUE(same(qcMesh::ImposedBy(PointsFor(Points::Radial)),  O3));
-    EXPECT_TRUE(same(qcMesh::ImposedBy(qcMesh::MeshParams{}),       E)) << "Auto: each structure resolves it to a mesh it admits";
+    EXPECT_TRUE(eq(qcMesh::ImposedBy(PointsFor(Points::Becke)),   E));
+    EXPECT_TRUE(eq(qcMesh::ImposedBy(PointsFor(Points::Uniform)), T));
+    EXPECT_TRUE(eq(qcMesh::ImposedBy(PointsFor(Points::Radial)),  O3));
+    {
+        qcMesh::MeshParams uniformRadial=PointsFor(Points::Uniform);
+        uniformRadial.angular=qcMesh::AngularKind::None;
+        EXPECT_TRUE(eq(qcMesh::ImposedBy(uniformRadial), T)) << "a uniform cell mesh reads no angular rule: T, never a T x O(3)";
+    }
+    EXPECT_TRUE(eq(qcMesh::ImposedBy(qcMesh::MeshParams{}),       E)) << "Auto: each structure resolves it to a mesh it admits";
 
     struct Kind {std::shared_ptr<const Structure> st; ImposedSymmetry G; const char* name;};
     for (const auto& [st, G, name] : {Kind{TheSolid(),T,"solid"}, Kind{TheMolecule(),E,"molecule"}, Kind{TheAtom(),O3,"atom"}})
     {
-        EXPECT_TRUE(same(Hamiltonian::GroupOf(*st), G)) << name;
-        EXPECT_TRUE(same(Hamiltonian::ImposedBy(VxcFit::PlaneWave, *st), T)) << name;
-        EXPECT_TRUE(same(Hamiltonian::ImposedBy(VxcFit::Auxiliary, *st), G)) << name << ": the lineage's own A1 fit carries its structure's group";
+        EXPECT_TRUE(eq(Hamiltonian::GroupOf(*st), G)) << name;
+        EXPECT_TRUE(eq(Hamiltonian::ImposedBy(VxcFit::PlaneWave, *st), T)) << name;
+        EXPECT_TRUE(eq(Hamiltonian::ImposedBy(VxcFit::Auxiliary, *st), G)) << name << ": the lineage's own A1 fit carries its structure's group";
         for (VxcFit f : {VxcFit::Delta, VxcFit::Multipole, VxcFit::Auto})
-            EXPECT_TRUE(same(Hamiltonian::ImposedBy(f, *st), E)) << name << " x " << Name(f);
+            EXPECT_TRUE(eq(Hamiltonian::ImposedBy(f, *st), E)) << name << " x " << Name(f);
     }
 }
 
@@ -153,7 +156,7 @@ TEST(VxcProductSpace, AdmitVxcAdmitsExactlyTheCellsTheRuleAdmits)
         for (VxcFit f : {VxcFit::Auto, VxcFit::Delta, VxcFit::Auxiliary, VxcFit::PlaneWave, VxcFit::Multipole})
             for (Points p : {Points::Becke, Points::Uniform, Points::Radial})
             {
-                const bool periodicMultipole=G.translations && f==VxcFit::Multipole;   // (b), not a symmetry reason
+                const bool periodicMultipole=G==T && f==VxcFit::Multipole;   // (b), not a symmetry reason
                 const bool rule=Hamiltonian::ImposedBy(f,*st)<=G && qcMesh::ImposedBy(PointsFor(p))<=G;
                 const auto a=Hamiltonian::AdmitVxc(*st, f, PointsFor(p));
                 EXPECT_EQ(bool(a), rule && !periodicMultipole) << qcMesh::Name(G) << " x " << Name(f) << " x " << Name(p)
@@ -190,7 +193,7 @@ TEST(VxcProductSpace, TheProductionsBuildTheOneTerm)
     {
         const qcMesh::MeshParams mesh=PointsFor(points);
         ASSERT_TRUE(Hamiltonian::AdmitVxc(*st, fit, mesh)) << name;
-        std::shared_ptr<const BasisSet::Real_BS> bs(st->Admits({.fullRotation=true})
+        std::shared_ptr<const BasisSet::Real_BS> bs(st->Admits(O3)
             ? BasisSet::Radial::Factory(BasisSet::Radial::BasisSetAccuracy::Low, BasisSet::Radial::Type::Gaussian, 7)
             : BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(), BasisSet::Gaussian::Engine::MnD,
                                           BasisSet::Gaussian::Angular::Cartesian));
@@ -223,10 +226,9 @@ TEST(VxcProductSpace, TheProductionsBuildTheOneTerm)
 }
 
 //! PIN 30 STAGE 2 (user ruling 2026-11-15 Q2): each structure answers \c Admits from its own group -- a molecule {e} only, a cell T, the atom
-//! O(3) -- and no structure admits T x O(3).  The two booleans this replaced made every client assemble the group.
+//! O(3).  (T x O(3) is not a state: only a constant is both periodic and spherical.)  The two booleans this replaced made every client assemble the group.
 TEST(VxcProductSpace, EachStructureAdmitsExactlyItsOwnGroup)
 {
-    const ImposedSymmetry TxO3{.translations=true, .fullRotation=true};
     struct Row {const char* name; std::shared_ptr<const Structure> st; bool t, o3;};
     for (const auto& [name, st, t, o3] : {Row{"molecule", TheMolecule(), false, false}, Row{"solid", TheSolid(), true, false},
                                           Row{"atom", TheAtom(), false, true}})
@@ -234,8 +236,7 @@ TEST(VxcProductSpace, EachStructureAdmitsExactlyItsOwnGroup)
         EXPECT_TRUE (st->Admits(E))     << name << " admits {e}";
         EXPECT_EQ   (st->Admits(T),  t)  << name << " x T";
         EXPECT_EQ   (st->Admits(O3), o3) << name << " x O(3)";
-        EXPECT_FALSE(st->Admits(TxO3))  << name << " x T x O(3)";
-        EXPECT_TRUE (Hamiltonian::GroupOf(*st)==ImposedSymmetry({.translations=t, .fullRotation=o3})) << name;
+        EXPECT_TRUE (Hamiltonian::GroupOf(*st)==(t ? T : o3 ? O3 : E)) << name;
     }
 }
 

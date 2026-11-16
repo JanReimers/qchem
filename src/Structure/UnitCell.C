@@ -118,7 +118,7 @@ public:
     double G0Background(const std::function<double(int Z)>& f) const override;
 
     //! A periodic cell's group contains T (and no O(3)).
-    bool Admits(qcMesh::ImposedSymmetry H) const override {return H<=qcMesh::ImposedSymmetry{.translations=true};}
+    bool Admits(qcMesh::ImposedSymmetry H) const override {return H<=qcMesh::ImposedSymmetry::Translations;}
 
     //! A periodic cell's real-space integration mesh; \c mp.cellKind selects the quadrature.
     //! \c UnitCellKind::Uniform -- a UNIFORM grid of \c mp.nUniform points per axis at cell-fractional

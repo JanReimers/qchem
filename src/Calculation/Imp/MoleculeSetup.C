@@ -88,7 +88,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     using qchem::ChargeDensity::SeedStrategy;
     const bool dft = qchem::Hamiltonian::IsDFT(opts.model);
     if (s->pp) s->seedKey=SeedKeyOf(*s->pp, *point);
-    s->seed = ResolveSeed(opts.seed, *point, {.densityFock = dft || !opts.pp.empty(), .periodic = point->Admits({.translations=true}),
+    s->seed = ResolveSeed(opts.seed, *point, {.densityFock = dft || !opts.pp.empty(), .periodic = point->Admits(qcMesh::ImposedSymmetry::Translations),
                                              .chargesStated = false, .covered = [key=s->seedKey](int Z){ return SeedLibraryCovers(key, Z); }});
 
     // THE XC MESH (pin 31; doc/GeometryOptimizationPlan.md §14.1): an axis left at 0 is unstated and takes the entry rung's; a mesh with

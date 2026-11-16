@@ -117,7 +117,7 @@ public:
     //! whole m count).  A Molecule of one site is not an Atom: the molecular path imposes a point group, never O(3).
     //! Replaces \c HasTranslationSymmetry + \c HasFullRotationSymmetry (pin 30 admission stage 2, user ruling 2026-11-15 Q2), which made
     //! every client assemble the group itself.
-    virtual bool   Admits(qcMesh::ImposedSymmetry H) const {return H<=qcMesh::ImposedSymmetry{};}
+    virtual bool   Admits(qcMesh::ImposedSymmetry H) const {return H<=qcMesh::ImposedSymmetry::None;}
 
     //! \brief The sites, read-only, in atom-index order (user ruling Q2: a by-value Site range).
     SiteRange Sites() const {return SiteRange(*this);}
@@ -167,7 +167,7 @@ public:
     virtual std::shared_ptr<Structure> Clone() const override {return std::make_shared<Atom>(*this);}
     virtual size_t GetNumAtoms      () const override {return 1;}
     //! The atom path imposes O(3): its open shell is spherically averaged, so its density is spherical (see the base's declaration).
-    virtual bool   Admits(qcMesh::ImposedSymmetry H) const override {return H<=qcMesh::ImposedSymmetry{.fullRotation=true};}
+    virtual bool   Admits(qcMesh::ImposedSymmetry H) const override {return H<=qcMesh::ImposedSymmetry::FullRotation;}
 
     //! A single atom's integration mesh: the atom-centred radial x angular grid (no Becke partitioning).
     virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
