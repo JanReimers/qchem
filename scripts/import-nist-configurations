@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""import-nist-configurations -- write NIST's first-cation configurations into the cation tables (an importer at the EDGE).
+
+The atom facade derives an all-electron cation's configuration at run time (OpenWork row 196, controller ruling 2026-11-16): a first
+cation (q = +1, Z <= 92) takes NIST's own, which no removal rule reproduces (V+ 3d^4, Y+ 5s^2, La+ 5d^2, Hf+ 5d^1 6s^2, U+ 5f^3 7s^2).
+The code reads only JSON (user 2026-11-16: "data files JSON inside, importers at the edge"), never the tarball, so this script copies
+the configuration column of the vendored doc/GSData/NIST-dftdata-tar.gz (dftdata/configurations, the cation column) into a `config`
+field of each entry of src/Common/Data/nist{LDA,LSD}cations.json.  Every other field is kept as it is; re-running is idempotent.
+
+usage: scripts/import-nist-configurations [--out-dir DIR]   (default: the two files in place)
+"""
+import argparse, json, os, re, sys, tarfile
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TGZ = os.path.join(ROOT, 'doc/GSData/NIST-dftdata-tar.gz')
+DATA = os.path.join(ROOT, 'src/Common/Data')
+
+
+def cation_configurations():
+    """Z -> NIST's first-cation configuration text, from dftdata/configurations (columns: Z, symbol, neutral, cation)."""
+    with tarfile.open(TGZ) as t:
+        text = t.extractfile('dftdata/configurations').read().decode()
+    out = {}
+    for line in text.splitlines():
+        m = re.match(r'\s*(\d+)\s+([A-Z][a-z]?)\s+(.*\S)', line)
+        if not m:
+            continue
+        txt = m[3]
+        parts = re.split(r'\s{2,}', txt)
+        if len(parts) == 1 and txt.startswith('[') and txt.find('[', 1) > 0:   # two bracketed columns run together
+            parts = [txt[:txt.find('[', 1)], txt[txt.find('[', 1):]]
+        if len(parts) > 1:
+            out[int(m[1])] = parts[1].strip()
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    ap.add_argument('--out-dir', default=DATA, help='where to write the two tables (default: in place)')
+    a = ap.parse_args()
+    conf = cation_configurations()
+    for kind in ('LDA', 'LSD'):
+        src = os.path.join(DATA, f'nist{kind}cations.json')
+        table = json.load(open(src))
+        missing = [Z for Z in table if int(Z) not in conf]
+        if missing:
+            sys.exit(f'{src}: NIST lists no cation configuration for Z {missing}')
+        for Z, entry in table.items():
+            entry['config'] = conf[int(Z)]
+        dst = os.path.join(a.out_dir, f'nist{kind}cations.json')
+        with open(dst, 'w') as f:
+            json.dump(table, f, indent=2, ensure_ascii=False)
+        print(f'{dst}: {len(table)} configurations')
+
+
+if __name__ == '__main__':
+    main()

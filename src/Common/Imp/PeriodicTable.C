@@ -8,6 +8,7 @@ module;
 #include <iostream>
 #include <set>
 #include <nlohmann/json.hpp>
+#include <stdexcept>
 
 module qchem.PeriodicTable;
 import qchem.Reporting;   // FormatGuard
@@ -143,6 +144,15 @@ PeriodicTableSaito::PeriodicTableSaito()
                 o.Energy_DFT=jse[o.Symbol].template get<double>();
             }
         }
+    }
+    // NIST's first-cation configurations (q = +1, Z 2..92; the LSD and LDA tables carry the same ones).
+    {
+        std::ifstream file(common_data_dir() / "nistLSDcations.json");
+        if (!file) throw std::runtime_error("PeriodicTable: cannot open "+(common_data_dir() / "nistLSDcations.json").string());
+        nlohmann::json jsondata;
+        file >> jsondata;
+        for (auto& jse:jsondata)
+            if (jse.contains("config")) elements[jse["Z"].template get<size_t>()-1].FirstCationConfig=jse["config"].template get<std::string>();
     }
     // Read in relativistic DHF data (total energy + spin-orbit split orbital eigenvalues).
     {

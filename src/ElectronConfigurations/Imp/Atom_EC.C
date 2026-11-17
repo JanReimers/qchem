@@ -297,6 +297,42 @@ std::string ConfigurationText(const ShellOccupations& shells)
     return t;
 }
 
+int HundMultiplicity(const ShellOccupations& shells)
+{
+    int unpaired=0;
+    for (const auto& o : shells) unpaired+=std::min(o.count, SubshellCapacity(o.l)-o.count);
+    return unpaired+1;
+}
+
+Outcome<ShellOccupations, std::string> CationByRemoval(int Z, int q)
+{
+    using R=Outcome<ShellOccupations, std::string>;
+    if (q<1)  return R::Fail("the removal rule derives a CATION: charge "+std::to_string(q)+" is not one");
+    if (q>=Z) return R::Fail("charge +"+std::to_string(q)+" leaves Z = "+std::to_string(Z)+" with no electrons");
+    // The neutral, as the periodic table fills it, split into its noble-gas core (the largest noble gas below Z) and the valence beyond it.
+    const std::pair<int,const char*> nobles[]={{86,"Rn"},{54,"Xe"},{36,"Kr"},{18,"Ar"},{10,"Ne"},{2,"He"}};
+    ShellOccupations core;
+    for (const auto& [zn,sym] : nobles) if (zn<Z) { core=NobleGasCores().at(sym); break; }
+    ShellOccupations valence;
+    for (auto o : Atom_EC(Z).Shells())
+    {
+        for (const auto& c : core) if (c.n==o.n && c.l==o.l) o.count-=c.count;
+        if (o.count>0) valence.push_back(o);
+    }
+    // Remove the valence first, then the core, each highest n first and highest l within an n.
+    auto byNDown=[](const auto& a, const auto& b){return a.n!=b.n ? a.n>b.n : a.l>b.l;};
+    std::sort(valence.begin(), valence.end(), byNDown);
+    std::sort(core.begin(), core.end(), byNDown);
+    int left=q;
+    for (ShellOccupations* part : {&valence, &core})
+        for (auto& o : *part) { const int take=std::min(left, o.count); o.count-=take; left-=take; }
+    ShellOccupations s=core;
+    s.insert(s.end(), valence.begin(), valence.end());
+    std::erase_if(s, [](const ShellOccupation& o){return o.count==0;});
+    std::sort(s.begin(), s.end(), [](const auto& a, const auto& b){return a.n!=b.n ? a.n<b.n : a.l<b.l;});
+    return R::Ok(s);
+}
+
 Atom_EC::Atom_EC(const ShellOccupations& shells)
 : itsLMax(0), itsLValance(0)
 {
