@@ -20,7 +20,7 @@ import qchem.BasisSet.Gaussian.Lattice.RasterLadder;   // ExponentAtCutoff, kRes
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH -> HGH local PP -> alpha_pp
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (element symbol -> Z)
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
-import qchem.SeedPolicy;   // ResolveSeed: the ONE Auto seed rule (shared with MoleculeSetup)
+import qchem.SetupDecisions;   // the structure-neutral decisions (spin channels, seed, Vxc admission), shared with MoleculeSetup
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (GaussianBasisRecipe::angular)
 import qchem.Policy;                           // policy::Refuse: each refusal files its row where it fires
 import qchem.Reporting;                         // report::Scope: the vet-stage trim files under basisTrim
@@ -131,16 +131,8 @@ static void RefuseUnrealizedRoutes(const SolidCalcOptions& o)
 
 std::pair<int,int> SpinChannelCounts(const SolidCalcOptions& o, int nel)
 {
-    const bool singlet = o.multiplicity==1 && !o.spinsShareFermi;
-    if (singlet && nel%2!=0)
-        policy::RefuseAs("SpinMultiplicity", "SolidCalcOptions: multiplicity 1 is the two-channel SINGLET (nUp = nDown), impossible with an odd Nelec "
-                                    +std::to_string(nel)+" -- state multiplicity 2 (a doublet), 0 (minimal spin), or spinsShareFermi true so"
-                                    " one Fermi level sets the channels (a metal)");
-    const int twoS = o.multiplicity>1 ? o.multiplicity-1 : (singlet ? 0 : nel%2);
-    if ((nel-twoS)%2!=0 || twoS>nel)
-        policy::RefuseAs("SpinMultiplicity", "SolidCalcOptions: multiplicity "+std::to_string(o.multiplicity)+" parity disagrees with Nelec "
-                                    +std::to_string(nel));
-    return {(nel+twoS)/2, (nel-twoS)/2};
+    const SpinChannels c=ResolveSpinChannels(o.multiplicity, nel, o.spinsShareFermi, "SolidCalcOptions");   // THE rule, every structure
+    return {c.nUp, c.nDown};
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -328,13 +320,10 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
                                         +", so a neutral"+(opts.charge!=0 ? "-at-that-charge" : "")+" cell holds "+std::to_string(derived)
                                         +".  A charged cell is legal only when STATED (SolidCalcOptions::charge); leave Nelec 0 to derive it");
     }
-    s->seedKey=SeedKeyOf(s->pp, *st);
-    s->seedKey.siteCharges=opts.siteCharges;
     // THE MAGNETIC ORDERING HAS ONE SOURCE (controller ruling 2026-11-12, OpenWork §3 "One magnetic ordering has TWO sources of truth"):
     // a STATED siteSpins is the run's ordering, and the seed reads it as the imposition does; the structure's per-atom spins are only the
     // default when siteSpins is absent.  Before, an inline cell without atom spins seeded every site +m, which the imposed AFM Shubnikov
     // group projected to m = 0 -- silently.  A stated ordering whose flips differ from the structure's is reported as the override it is.
-    s->seedKey.siteSpins=opts.siteSpins;
     if (!opts.siteSpins.empty())
     {
         std::string fromStructure, differs;
@@ -358,8 +347,12 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // THE SEED: a stated one is honoured; Default takes THE Auto rule both setups share (qchem.SeedPolicy) -- a lattice seeds from the
     // valence library's superposition at its formal charges (stated, else derived: its Madelung field holds them), and a species the
     // library lacks takes the core guess with a WARN (it threw at seed time until 2026-11-12).
-    s->opts.seed=ResolveSeed(opts.seed, *st, {.densityFock = true, .periodic = st->Admits(qcMesh::ImposedSymmetry::Translations), .chargesStated = !opts.siteCharges.empty(),
-        .covered = [key=s->seedKey](int Z){ return SeedLibraryCovers(key, Z); }});
+    // The library key carries the stated charge order and magnetic ordering (qchem.SetupDecisions, shared with MoleculeSetup).
+    {
+        const RunSeed seed=ResolveRunSeed(opts.seed, *st, &s->pp, /*densityFock: a periodic run is Kohn-Sham*/true, opts.siteCharges, opts.siteSpins);
+        s->opts.seed=seed.seed;
+        s->seedKey  =seed.key;
+    }
     ReportKSampling(lat);   // the k mesh against the calibrated spacing: a WARN names the mesh that meets it
 
     // THE RESOLVED IMPOSITION (doc/OpenWork.md N5, user 2026-08-26).  The caller's flag AND the policy's
@@ -443,8 +436,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
                                           theRunPolicy().BeckeXC());
     // The Vxc product space's admission (pin 30), asked of the Hamiltonian's rule HERE, before the Hamiltonian is built: the
     // Factory would throw the same reason later, after the basis and its fits.
-    if (const auto a=Hamiltonian::AdmitVxc(*st, opts.vxcFit, s->xcMesh); !a)
-        policy::Refuse("AdmitVxc", "the stated Vxc fit and XC mesh on this cell", a.Error());
+    RequireVxcAdmitted(*st, opts.vxcFit, s->xcMesh, "cell");
     {   // the rho axis, on the fit the Hamiltonian RESOLVES (Ham_PW_DFT: Auto -> Delta on a Becke mesh, else the plane-wave fit)
         using Hamiltonian::VxcFit;
         const bool becke=s->xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
