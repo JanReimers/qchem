@@ -7,6 +7,7 @@ add_executable(UTCalculation ../../Common/tests/gtestmain.C
     ValenceBasisGen.C   # the valence-basis generator (from IntegrationTests 2026-09-15, TE phase 5)
     SolidState.C        # saved periodic SCF states: save / exact resume / warm start / refusal (CK-1)
     MoleculeSetup.C     # the molecular run setup: spin promotion, valence count, refusals (step 7)
+    SetupDecisions.C    # the structure-neutral setup decisions, one rule for every structure (V-FACADE-SETUP)
     CalculationFacade.C # the front-end face: the ctor observer, levels, the spin density (lane G)
     MoleculeSession.C   # the molecular potential energy surface: reference == single point, carried step == fresh (step 8)
     MolecularRelaxation.C # REAL relaxations: the optimizer over a MoleculeSession, HF/DZVP, against PySCF minima (OpenWork §2)

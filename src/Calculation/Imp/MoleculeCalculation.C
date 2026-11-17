@@ -86,13 +86,12 @@ static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_
     return PG::SymmetryAdapt(rawShared, *st, opts.symmetryTol);
 }
 
-// Build the molecular electron configuration from the requested multiplicity 2S+1 (validated by MoleculeSetup::Resolve).
-// multiplicity<=0 is the minimal-spin default (closed-shell singlet for even Ne, doublet for odd, via Molecule_EC(Ne)).
-static Molecule_EC* MakeMoleculeEC(int Ne, int multiplicity)
+// Build the molecular electron configuration from the setup's spin channels (MoleculeSetup::Resolve, the rule every structure shares).
+// An unstated multiplicity is the minimal-spin default through Molecule_EC(Ne) (closed-shell singlet for even Ne, doublet for odd).
+static Molecule_EC* MakeMoleculeEC(const MoleculeSetup& setup)
 {
-    if (multiplicity <= 0) return new Molecule_EC(Ne);    // auto / minimal spin (historical behaviour)
-    const int twoS = multiplicity - 1;                    // = nUp - nDown
-    return new Molecule_EC((Ne + twoS) / 2, (Ne - twoS) / 2);   // (nUp, nDown)
+    if (setup.opts.multiplicity <= 0) return new Molecule_EC(setup.Ne);   // auto / minimal spin (historical behaviour)
+    return new Molecule_EC(setup.nUp, setup.nDown);
 }
 
 MoleculeCalculation::MoleculeCalculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Observer onIteration)
@@ -125,7 +124,7 @@ MoleculeCalculation::MoleculeCalculation(BuildOnly, std::shared_ptr<const Molecu
     , itsCarry(std::move(carry))
     , itsObserver(std::move(onIteration))
 {
-    itsEC    = MakeMoleculeEC(itsSetup->Ne, itsSetup->opts.multiplicity);
+    itsEC    = MakeMoleculeEC(*itsSetup);
     // The basis is NOT built here: BuildGraph builds it INSIDE an open run report's "basis" scope, so a basis with something
     // to announce does so as it is constructed (V1.14).
 }

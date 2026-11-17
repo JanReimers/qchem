@@ -3932,6 +3932,29 @@ public:
                                           t.at(gB*(gB+1)/2+gA), t.at(gD*(gD+1)/2+gC), out);
         NormFourC(A, *this, B, *this, C, *this, D, out);
     }
+    //! \brief THE THREADED CROSS-BLOCK ERI4 FILL'S INPUT (lane H 2026-11-16, OpenWork §3 "thread-safe only by the serial-phase rule"):
+    //! every group pair (gA of \a eA, gB of \a eB), its primitive pairs' charge distributions, [gA*nGroups(eB)+gB].  Looked up through
+    //! THIS evaluator's store, where the store overload of \c FourCGroupBlock (called on this evaluator) puts them, so the Ω are the
+    //! same objects and the fill the same bits.  SERIAL ONLY; read by \c FourCGroupBlock(ab, ..., cd, out) on the workers.
+    GroupPairΩ MakeGroupPairΩ(const NR_Evaluator& eA, const NR_Evaluator& eB) const
+    {
+        const auto& GA=eA.ShellGroups(); const auto& GB=eB.ShellGroups();
+        const std::vector<Shell>& sa=eA.Shells(); const std::vector<Shell>& sb=eB.Shells();
+        GroupPairΩ t(GA.size()*GB.size());
+        for (size_t ga=0;ga<GA.size();ga++) for (size_t gb=0;gb<GB.size();gb++)
+            t[ga*GB.size()+gb]=GaussianRF::PairTable(Primitives(), *eA.radials[sa[GA[ga].first].begin], *eB.radials[sb[GB[gb].first].begin]);
+        return t;
+    }
+    //! \c FourCGroupBlock with both pairs' Ω handed in (\a ab: slots A and B's, \a cd: slots C and D's, from \c MakeGroupPairΩ(eA,eB)):
+    //! no store is touched, so a worker may call it.  The same kernel body as the store overload, so the same bits.
+    void FourCGroupBlock(const PrimitivePairTable& ab, size_t gA, const NR_Evaluator& eB, size_t gB, const NR_Evaluator& eC, size_t gC,
+                         const NR_Evaluator& eD, size_t gD, const PrimitivePairTable& cd, double* out) const
+    {
+        const GroupSlot A(*this,gA), B(eB,gB), C(eC,gC), D(eD,gD);
+        GaussianRF::Repulsion4CGroupBlock(A.r.data(),A.m, B.r.data(),B.m, C.r.data(),C.m, D.r.data(),D.m,
+                                          A.p,A.n, B.p,B.n, C.p,C.n, D.p,D.n, ab, cd, out);
+        NormFourC(A, eB, B, eC, C, eD, D, out);
+    }
     //! The worker count for a group-block fill: \c QCHEM_OPENMP_THREADS (serial by default).  (A store never evicts, so the \c
     //! MakeGroupPairΩ pointers always outlive the fill: the old "one worker under a lattice cache budget" case is gone with S5.)
     static int GroupBlockThreads() {return PairThreads();}

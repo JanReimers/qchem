@@ -148,6 +148,48 @@ void ThreadedIsSerial(const std::vector<Atom>& atoms, const char* what, const st
     }
 }
 
+//! THE THREADED CROSS-BLOCK FILL (lane H 2026-11-16, OpenWork §3): Direct and Exchange of one block against ANOTHER (a symmetry-blocked
+//! run's irrep pairs) at \a workers threads give the serial J and K BIT FOR BIT.  The two blocks are the first blocks of \a atoms and of
+//! \a atoms with its last atom moved by 0.3 bohr (two different blocks of one shape, so neither is the "block against itself" path).
+void CrossThreadedIsSerial(std::vector<Atom> atoms, const char* what, const std::string& file, int workers)
+{
+    const Molecule mol1=Make(atoms);
+    atoms.back().R=atoms.back().R+rvec3_t(0.0,0.3,0.0);
+    const Molecule mol2=Make(atoms);
+    auto make=[&](const Molecule& m){return std::shared_ptr<const BasisSet::Real_BS>(
+        file.empty() ? Factory(BasisSetData::DZVP, &m, Engine::MnD, Angular::Cartesian) : FactoryFromFile(file, &m, Engine::MnD, Angular::Cartesian));};
+    const auto bs1=make(mol1), bs2=make(mol2);
+    auto first=[](const BasisSet::Real_BS& bs){for (auto b : const_cast<BasisSet::Real_BS&>(bs).Iterate<BasisSet::Real_OIBS>()) return b; return (const BasisSet::Real_OIBS*)nullptr;};
+    const auto* a=dynamic_cast<const BasisSet::Orbital_ERI4_IBS<double>*>(first(*bs1));
+    const auto* c=dynamic_cast<const BasisSet::Orbital_ERI4_IBS<double>*>(first(*bs2));
+    ASSERT_TRUE(a && c && a!=c) << what;
+    auto run=[&](int n, double& sec)
+    {
+        qchem::ScopedWorkerThreads scope(n);
+        EXPECT_EQ(MnD::GroupBlockThreads(), n) << what << ": the fill would not run at " << n << " workers (a vacuous gate)";
+        const auto t0=std::chrono::steady_clock::now();
+        std::pair<ERI4,ERI4> jk{a->MakeDirect(*c), a->MakeExchange(*c)};
+        sec=std::chrono::duration<double>(std::chrono::steady_clock::now()-t0).count();
+        return jk;
+    };
+    double t1=0, tn=0;
+    auto serial=run(1, t1);
+    auto threaded=run(workers, tn);
+    const size_t N=first(*bs1)->GetNumFunctions(), M=first(*bs2)->GetNumFunctions();
+    size_t differ=0, checked=0; double big=0.0;
+    for (size_t i=0;i<N;i++) for (size_t j=i;j<N;j++) for (size_t k=0;k<M;k++) for (size_t l=k;l<M;l++, checked++)
+    {
+        big=std::max(big, std::fabs(serial.first(i,j)(k,l)));
+        if (serial.first(i,j)(k,l)!=threaded.first(i,j)(k,l)) ++differ;
+    }
+    for (size_t i=0;i<N;i++) for (size_t j=i;j<N;j++) for (size_t k=0;k<M;k++) for (size_t l=k;l<M;l++)
+        if (serial.second(i,j)(k,l)!=threaded.second(i,j)(k,l)) ++differ;
+    std::printf("  [ERI4 cross threads] %-10s N %zu x %zu: %zu J and K entries, %zu differ; J+K serial %.2f s, %d workers %.2f s\n",
+                what, N, M, checked, differ, t1, workers, tn);
+    EXPECT_GT(big, 0.1) << what << ": the tensor is not trivially small";
+    EXPECT_EQ(differ, 0u) << what << ": the threaded cross-block fill is not the serial one bit for bit";
+}
+
 } // namespace
 
 TEST(M_ERI4Blocks, TheShellBlockedJAndKAreTheElementwiseOnes_H2O2) {BlockedIsElementwise({{8,{-1.322808,0,0}}, {8,{1.322808,0,0}}, {1,{-0.949557,1.520749,0.878005}}, {1,{0.949557,-1.520749,0.878005}}}, "H2O2 dzvp");}
@@ -164,4 +206,11 @@ TEST(M_ERI4Blocks, TheThreadedFillIsTheSerialOne)
 {
     ThreadedIsSerial({{8,{-1.322808,0,0}}, {8,{1.322808,0,0}}, {1,{-0.949557,1.520749,0.878005}}, {1,{0.949557,-1.520749,0.878005}}}, "H2O2 dzvp", "", 4);
     ThreadedIsSerial({{8,{0,0,0}}, {1,{0,0,1.832}}}, "OH molopt", "dzvp_molopt_gth.bsd", 4);
+}
+//! The threaded CROSS-BLOCK Direct and Exchange (one block against another) IS the serial fill, bit for bit: segmented (H2O2 dzvp) and
+//! general-contraction groups (OH DZVP-MOLOPT), at 4 workers.
+TEST(M_ERI4Blocks, TheThreadedCrossBlockFillIsTheSerialOne)
+{
+    CrossThreadedIsSerial({{8,{-1.322808,0,0}}, {8,{1.322808,0,0}}, {1,{-0.949557,1.520749,0.878005}}, {1,{0.949557,-1.520749,0.878005}}}, "H2O2 dzvp", "", 4);
+    CrossThreadedIsSerial({{8,{0,0,0}}, {1,{0,0,1.832}}}, "OH molopt", "dzvp_molopt_gth.bsd", 4);
 }

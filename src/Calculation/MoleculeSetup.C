@@ -199,6 +199,7 @@ struct MoleculeSetup
     //! The REFERENCE geometry, deep-copied (a periodic UnitCell stays periodic), with the TRUE atomic charges.
     std::shared_ptr<const Structure> reference;
     int    Ne = 0;             //!< electrons: the VALENCE count under a pseudopotential
+    int    nUp = 0, nDown = 0; //!< the electron count per spin channel, from \c opts.multiplicity (\c ResolveSpinChannels, the rule every structure shares)
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;   //!< \c Default resolved per model
     //! The seed library's key (\c SeedKeyOf): per element, the pseudopotential q of the run's pseudo-atom; unkeyed all-electron.
     qchem::ChargeDensity::SeedKey seedKey;
