@@ -1516,6 +1516,63 @@ TEST(GPW_Si, Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint_Panel)   // PAN
 }
 
 
+// ROUTE A's RELEASE PHASE (lane H 2026-11-17, controller: the response run's high-water must not exceed forceComplex's).  A Γ point is
+// a TRIM, so by default the ground state runs on REAL blocks and the facade's linear response on their complex siblings; the ground
+// state's real-block XC tables (the δ Vxc fit's, hence the Becke XC mesh stated here) are freed for the response
+// (BasisSet::RealTablesReleased).  The claims: the U is forceComplex's (the
+// response runs on the same functions); the release freed bytes; and NOTHING in the response asked for a released table (a rebuild
+// inside the phase would undo the saving silently, so the phase counts and reports it).
+TEST(GPW_Si, Γ_U_LinearResponseReleasesRealTables_Long)   // 166 s serial
+{
+    namespace fs=std::filesystem;
+    auto run=[](bool forceComplex, const std::string& tag)
+    {
+        const nlohmann::json scf={{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-8},{"minDeltaE",1e-11},{"minDeltaFD",1e-8},{"minVirial","off"},
+                                  {"minFD","off"},{"pulayDepth",8},{"pulayStart",3},{"kerkerG0",1.0},{"startingRelaxRo",0.3}};
+        const nlohmann::json deck={
+            {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
+            {"solid",{{"densityEcut",20.0},{"forceComplex",forceComplex},{"xcMesh",{{"cellKind","Becke"}}},
+                      {"hubbard",{{{"site",0},{"l",1},{"U_eV",0.0},{"projector","siteShells"}}}}}},
+            {"scf",scf}, {"postSCF",{{{"hubbardLinearResponse",{{"perturb",{0}}}}}}}};
+        qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
+        const fs::path dir=fs::temp_directory_path()/("qchem_it_si_lr_release_"+tag+"_"+std::to_string(::getpid()));
+        fs::remove_all(dir);
+        qchem::deck::Provenance pv; pv.codeVersion="it";
+        qchem::report::ClearGlobal();
+        const auto out=qchem::deck::Run(spec, pv, dir);
+        EXPECT_TRUE(out.converged) << tag << ": " << out.summary;
+        std::ifstream in(out.revision);
+        const nlohmann::json rec=nlohmann::json::parse(in);
+        fs::remove_all(dir);
+        // Every release phase the run met (one per response), from the run report.
+        std::vector<qchem::report::json> phases;
+        std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& j)
+        {
+            if (j.is_object())
+                for (auto it=j.begin(); it!=j.end(); ++it)
+                    if (it.key()=="responseRealTableRelease") phases.push_back(it.value()); else walk(it.value());
+            else if (j.is_array()) for (const auto& e : j) walk(e);
+        };
+        walk(qchem::report::GlobalReport());
+        const auto& lr=rec.at("results").at("postSCF").at(0);
+        EXPECT_TRUE(lr.at("ok").get<bool>()) << tag << ": " << lr.at("summary");
+        return std::make_pair(lr.at("U_eV").at(0).get<double>(), phases);
+    };
+    const auto [Ureal, phasesReal]=run(false, "real");
+    const auto [Ucplx, phasesCplx]=run(true,  "cplx");
+    std::cout << "[release gate] U real blocks " << std::setprecision(10) << Ureal << "  forceComplex " << Ucplx
+              << "  diff " << Ureal-Ucplx << " eV" << std::endl;
+    // Two independent SCFs, each converged to drho/N 1e-8: U agrees to their convergence, far inside the 1e-4 eV the U loop gates on.
+    EXPECT_NEAR(Ureal, Ucplx, 1e-6);
+    ASSERT_FALSE(phasesReal.empty()) << "the real-block response opened no release phase";
+    for (const auto& p : phasesReal)
+    {
+        EXPECT_GT(p.at("realTableBytesReleased").get<double>(), 0.0) << "the release freed nothing";
+        EXPECT_EQ(p.at("realTablesRebuiltInPhase").get<double>(), 0.0) << "the response asked for a released real table";
+    }
+    EXPECT_TRUE(phasesCplx.empty()) << "a forceComplex run has no real blocks and nothing to release";
+}
+
 // PANEL case 6 (OpenWork §3 "GDM false-converges on a carried stage whose Hamiltonian CHANGED", CLOSED 2026-10-29): the loop arm
 // of Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint_Panel under an EXPLICIT Ladder (DIIS -> GDM).  On 2026-10-26 a carried stage
 // started at [F,D] ~5e-7, GDM's drho gate passed with the state unmoved, and the loop ran 12 outer steps NOT converged.  The first

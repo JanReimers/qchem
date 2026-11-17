@@ -265,9 +265,13 @@ export namespace qchem::Hamiltonian
     //! \a hubbard: the DFT+U manifold list (empty = no Hubbard term).  \a fit carries the rho axis too (\c XCRoute; I3 and the periodic A1).
     //! \a vxcAux: the periodic A1 Vxc fit's real Gamma set -- the A1_exch set on the cell's sites as a GPW block at Gamma -- which a caller
     //! stating xc.fit Auxiliary builds (V-XC-ONE-TERM step 6: this library does not link the Gaussian factories); ignored otherwise.
+    //! \a vxcFitOut: when not null, receives the Vxc fit basis the XC term was built on, for a caller that runs PHASES over it (the solid
+    //! facade's linear response frees the fit's real-block tables for its lifetime, \c BasisSet::RealTableRelease).  An out-handle and
+    //! not a question on the cHamiltonian face, which is a tier-1 hub: which fit was built is a construction fact, the factory's.
     cHamiltonian* Factory(SpinGroup, const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit,
                           const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh,
                           XCRoute fit = {}, std::vector<HubbardManifold> hubbard = {}, const XCFunctional& xc = {},
-                          std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux = {});
+                          std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux = {},
+                          std::shared_ptr<const BasisSet::cFIT_SF_ABS>* vxcFitOut = nullptr);
 
 } // namespace

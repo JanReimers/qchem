@@ -49,6 +49,7 @@ import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `sc
 import qchem.SCFRecipe;                              // ReportRecipe: the recipe policy's row
 import qchem.DegenerateFillReport;                   // the `choose` row for a kT = 0 fill that shared a degenerate level
 import qchem.Hamiltonian.Factory;
+import qchem.BasisSet.RealTableRelease;           // RealTablesReleased: the response frees the ground state's real-block XC tables
 import qchem.RunPolicy;
 
 namespace qchem
@@ -79,6 +80,9 @@ struct SolidCalculation::Imp
     //! (structure, basis, species, functional, xcMesh, vxcFit), and a stage changes NONE of those, so ONE
     //! serves the whole schedule.  Declared BEFORE `scf` so it outlives every iterator built over it.
     std::unique_ptr<qchem::Hamiltonian::cHamiltonian>     ham;
+    //! The Vxc fit basis \c ham's XC term was built on, handed out by the Hamiltonian factory: the facade runs PHASES over it (the
+    //! linear response frees its real-block tables, \c BasisSet::RealTablesReleased).  Built and reset with \c ham.
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS>          vxcFit;
     //! OWNED HERE, and deliberately REPLACED per stage: a stage invalidates the Pulay/DIIS history and may
     //! change the accelerator TYPE outright (anneal on Ladder, finish on GDM).  Cheap to build, so that is
     //! correct -- unlike the Hamiltonian above, which was only ever rebuilt because of the `delete`.
@@ -659,7 +663,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
             itsImp->st, itsImp->bs.get(), itsImp->coulombFit, itsImp->setup->pp, xc, {opts.vxcFit, opts.xcRho}, hubbard,
-            qchem::Hamiltonian::ModelToXC(opts.model), a1));
+            qchem::Hamiltonian::ModelToXC(opts.model), a1, &itsImp->vxcFit));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
@@ -1232,7 +1236,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
         const Lattice_3D lat=*itsImp->lat;
         const auto mol=itsImp->mol;
         const SCFAccelerators::Type asked=itsImp->stageAccelAsked;
-        itsImp->spin.reset(); itsImp->scf.reset(); itsImp->accel.reset(); itsImp->cd.reset(); itsImp->ham.reset(); itsImp->ec.reset();
+        itsImp->spin.reset(); itsImp->scf.reset(); itsImp->accel.reset(); itsImp->cd.reset(); itsImp->ham.reset(); itsImp->vxcFit.reset(); itsImp->ec.reset();
         itsImp->bs.reset();
         BuildPoint(std::move(sized), lat, mol);
         BuildRun(nullptr, own, asked, itsImp->stageRecipe, /*restored*/false, /*exactResume*/false);
@@ -2184,7 +2188,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         // density to LINEAR mixing at relax 0.3 -- Si's energy pilot spent 39 iterations there.  A stated accelerator is obeyed.
         SCFAccelerators::Type asked=itsImp->stageAccelAsked;
         if (asked==SCFAccelerators::Type::Auto && params.SmearingkT==0.0) asked=SCFAccelerators::Type::Ladder;
-        itsImp->spin.reset(); itsImp->scf.reset(); itsImp->accel.reset(); itsImp->cd.reset(); itsImp->ham.reset(); itsImp->ec.reset();
+        itsImp->spin.reset(); itsImp->scf.reset(); itsImp->accel.reset(); itsImp->cd.reset(); itsImp->ham.reset(); itsImp->vxcFit.reset(); itsImp->ec.reset();
         itsImp->bs.reset();
         BuildPoint(std::move(sized), lat, mol);
         const SpinGroup g=itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
@@ -2771,6 +2775,22 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
                       << (std::find(channels.begin(), channels.end(), c)!=channels.end() ? "  perturbed" : "") << std::endl;
     const auto D0=wf->GetChargeDensity();
     const auto kernel=itsImp->ham->MakeResponseKernel(&responseBasis, D0.get());
+    // THE RELEASE PHASE (route A, controller 2026-11-17: the response run's high-water must not exceed forceComplex's).  The response
+    // runs on the siblings, so the ground state's REAL-block XC tables are dead weight for its lifetime (TiO₂ k222: 1.44 GB beside the
+    // siblings' 2.87 GB).  Two explicit steps (pin 11), after the last ground-state question (the eigenpair residual, above):
+    //   1. "everybody, use D0": the ground-state refresh at the linearisation density, so what the response needs FROM the real blocks
+    //      -- rho0 at the XC points, for f_xc(rho0) -- is sampled now, while their tables exist (the XC kernel reads it on its first q);
+    //   2. free the tables.  One asked for inside the phase is rebuilt and counted; the count is reported when the phase closes, with
+    //      this call (gate GPW_Si.Γ_U_LinearResponseReleasesRealTables_Long asserts 0).
+    std::optional<qchem::report::Scope> releaseScope;
+    std::optional<BasisSet::RealTablesReleased> released;
+    if (siblings)
+        if (const auto* r=dynamic_cast<const BasisSet::RealTableRelease*>(itsImp->vxcFit.get()))   // abstract -> abstract
+        {
+            releaseScope.emplace("responseRealTableRelease");
+            itsImp->ham->RefreshForDensity(itsImp->bs.get(), D0.get());
+            released.emplace(*r);
+        }
     // Each q's table is printed as that q finishes; the supercell summary (real-space blocks, U) once all are in.
     // U is printed, never consumed here (R4 owns consumption).
     using O=Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>;

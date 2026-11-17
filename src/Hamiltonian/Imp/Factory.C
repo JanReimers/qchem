@@ -288,11 +288,14 @@ namespace qchem::Hamiltonian
     cHamiltonian* Factory(SpinGroup p, const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit,
                           const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh, XCRoute fit,
                           std::vector<HubbardManifold> hubbard, const XCFunctional& xc,
-                          std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
+                          std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux,
+                          std::shared_ptr<const BasisSet::cFIT_SF_ABS>* vxcFitOut)
     {
         RequireAdmitted(*st,fit.fit,xcMesh);
-        return new Ham_PW_DFT(st, bs, coulombFit, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard), MakeXCParts(xc),
-                              std::move(vxcAux));
+        auto* h=new Ham_PW_DFT(st, bs, coulombFit, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard), MakeXCParts(xc),
+                               std::move(vxcAux));
+        if (vxcFitOut) *vxcFitOut=h->GetVxcFit();
+        return h;
     }
 
 }
