@@ -169,20 +169,20 @@ std::vector<Hamiltonian::PPFunctionalCheck> SolidSetup::PPFunctionalChecks() con
 // the way (the setup's own option checks, and the factories it calls) travels as a policy::Refused, which AdmitBy turns into a value.
 Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> SolidSetup::Admit(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                                                                            const SolidCalcOptions& opts,
-                                                                           const SCFAccelerators::SolidAcceleratorOptions& acc)
+                                                                           const AcceleratorOptions& acc)
 {
     return AdmitBy([&]{ return Resolve(lat, std::move(mol), opts, acc); });
 }
 Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> SolidSetup::Admit(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
                                                                            const SolidCalcOptions& opts,
-                                                                           const SCFAccelerators::SolidAcceleratorOptions& acc)
+                                                                           const AcceleratorOptions& acc)
 {
     return AdmitBy([&]{ return Resolve(lat, recipe, opts, acc); });
 }
 
 std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, std::shared_ptr<const BasisSet::Real_BS> mol,
                                                       const SolidCalcOptions& opts,
-                                                      const SCFAccelerators::SolidAcceleratorOptions& acc)
+                                                      const AcceleratorOptions& acc)
 {
     qchem::SetRunPolicy(opts.policy);   // D-ENV 6b: the policy is part of the run's options, installed ONCE here, before any factory consults it
     RefuseUnrealizedRoutes(opts);
@@ -191,7 +191,7 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, st
 
 std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, const GaussianBasisRecipe& recipe,
                                                       const SolidCalcOptions& opts,
-                                                      const SCFAccelerators::SolidAcceleratorOptions& acc)
+                                                      const AcceleratorOptions& acc)
 {
     qchem::SetRunPolicy(opts.policy);   // before the vet loop builds its Bloch blocks, as before every other factory
     RefuseUnrealizedRoutes(opts);      // before the basis is built: nothing is spent on a run that cannot go
@@ -297,11 +297,11 @@ static void ReportKSampling(const Lattice_3D& lat)
 
 std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                                                const SolidCalcOptions& opts,
-                                               const SCFAccelerators::SolidAcceleratorOptions& acc)
+                                               const AcceleratorOptions& acc)
 {
     std::shared_ptr<SolidSetup> s(new SolidSetup(Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.species), lat));
     s->opts=opts;
-    s->acc =acc;
+    s->acc =ResolveAcceleratorParams(acc, SCFAccelerators::AcceleratorParams{});   // the solid's defaults: the GPW production recipe
     s->mol =std::move(mol);
     const std::shared_ptr<const Structure> st=s->cell;
     RequireStatedMagneticOrdering(opts, *st);

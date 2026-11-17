@@ -129,7 +129,7 @@ TEST_P(A_PG_DFT, Energy)
     SCFParams p=dft_scf_params(c.Z);
     if (c.spin==SpinGroup::Polarized) p.SmearingkT=1e-4;
     MoleculeCalculation calc(MoleculeSetup::Resolve(atom, {.basis = "dzvp", .model = Model::Xalpha, .spin = c.spin,
-                            .xalpha = pt.GetSlaterAlpha(c.Z), .seed = ChargeDensity::SeedStrategy::CoreGuess}, {.eMax = c.Z*c.Z*0.08/32}), p);
+                            .xalpha = pt.GetSlaterAlpha(c.Z), .seed = ChargeDensity::SeedStrategy::CoreGuess}, {.diis = {.engageBelowFD = c.Z*c.Z*0.08/32}}), p);
     ASSERT_TRUE(calc.IsConverged());
     // dzvp is INCOMPLETE, so the energy is bounded from below by the near-complete reference: one-sided, with an allowance for the
     // reference's own basis error (a few ppm, see XalphaReference) so the variational check cannot fail on the reference's side.

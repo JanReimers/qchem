@@ -19,13 +19,14 @@ import qchem.BasisSet;                        // Real_BS (the molecular orbital 
 import qchem.BasisSet.Lattice.BasisSet;       // CellImages, GPWTolerances, ShellTrim
 import qchem.BasisSet.Gaussian.Point.Factory; // BasisSetData (the registered basis files)
 import qchem.Hamiltonian.Factory;             // HubbardManifold, VxcFit
-import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions
+import qchem.SCFAccelerator.Factory;          // Type, AcceleratorParams
 import qchem.ChargeDensity.Seed;              // SeedStrategy
 import qchem.ChargeDensity.AtomicDensity;     // SeedKey
 import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKind
 import qchem.Mesh.XCPolicy;                   // qcMesh::XCMeshDefault (the BeckeXCParams recipe under Auto)
 import qchem.RunPolicy;                       // RunPolicySpec
 import qchem.LASolver;                        // qchem::Ortho
+export import qchem.SetupDecisions;           // AcceleratorOptions (the accelerator block, every structure), the spin rule
 export import qchem.SCFRecipe;                // SCFRecipe (the stage's material regime, beside its accelerator)
 export import qchem.SetupRefusal;             // SetupRefusal + Outcome: the Admit door's failure half
 export import qchem.Symmetry.Spin;            // SpinGroup -- the imposed spin subgroup, a SolidCalcOptions field (R6)
@@ -368,31 +369,33 @@ struct SolidSetup
     //! α_max, and a GPW point is built over it; a plane-wave run ignores it.
     static Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> Admit(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                                                      const SolidCalcOptions& opts,
-                                                     const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+                                                     const AcceleratorOptions& acc = {});
     //! \c Admit from a basis RECIPE: the molecular basis is made at \a lat's geometry by \a recipe (its provenance checked against
     //! the run's set), after the vet-stage loop -- if the recipe asks for it -- has decided the trim, which is then frozen in
     //! \c recipe.  A setup with a recipe can rebuild its basis at moved atoms (a geometry step); one from a pre-built \a mol cannot.
     static Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> Admit(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
                                                      const SolidCalcOptions& opts,
-                                                     const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+                                                     const AcceleratorOptions& acc = {});
     //! \brief \c Admit, THROWING its refusal (a \c policy::Refused, a \c std::invalid_argument, with the refusal's sentence).  For CODE
     //! that states its own options -- the tests, the probes (\c gpwprobe), a campaign driver: there a refusal is the caller's programming
     //! error, which no one at run time can act on, so it throws (CLAUDE.md).  Never for user input: a deck, the GUI binding or a command
     //! line goes through \c Admit and reports the refusal.
     static std::shared_ptr<const SolidSetup> Resolve(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                                                      const SolidCalcOptions& opts,
-                                                     const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+                                                     const AcceleratorOptions& acc = {});
     //! \c Resolve from a basis RECIPE (\c Admit's recipe door, throwing; for code that states its own options).
     static std::shared_ptr<const SolidSetup> Resolve(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
                                                      const SolidCalcOptions& opts,
-                                                     const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+                                                     const AcceleratorOptions& acc = {});
     //! THE PRE-RUN PP / FUNCTIONAL CHECK (user 2026-11-12: track, warn and guide, mostly in the GUI): every element of the reference
     //! cell, its pseudopotential's fit (CP2K label + libxc ids) against \c opts.model, match yes/no, and the model to state to match it.  What the
     //! run will warn about, answered without running; a GUI reads it here and never recomputes it.  THROWS on a fit with no libxc mapping.
     std::vector<Hamiltonian::PPFunctionalCheck> PPFunctionalChecks() const;
 
     SolidCalcOptions                         opts;   //!< as asked, except \c ortho (a plane-wave run's default Cholesky becomes Orthonormal) and a \c Default seed (resolved)
-    SCFAccelerators::SolidAcceleratorOptions acc;    //!< as asked; a stage derives its own from it (a restored stage's Ladder rung)
+    //! The accelerator block as asked, resolved over the GPW production recipe (\c AcceleratorParams' defaults, the solid's
+    //! per-kind defaults); a stage derives its own from it (a restored stage's Ladder rung).
+    SCFAccelerators::AcceleratorParams acc;
     Pseudopotential::PseudopotentialSet      pp;     //!< \c opts.pp with the \c opts.species overrides applied
     //! The REFERENCE geometry: the lattice the setup was resolved at (the trim vetted, the imposed group detected), and its
     //! structure -- the one the reference basis is built over, held so it outlives that basis.
@@ -443,7 +446,7 @@ private:
         : pp(std::move(p)), reference(lat), cell(lat.GetStructure()) {}
     //! The decisions, shared by both \c Resolve overloads (the policy is already installed).
     static std::shared_ptr<SolidSetup> Decide(const Lattice_3D&, std::shared_ptr<const BasisSet::Real_BS> mol,
-                                              const SolidCalcOptions&, const SCFAccelerators::SolidAcceleratorOptions&);
+                                              const SolidCalcOptions&, const AcceleratorOptions&);
 };
 
 } //export namespace qchem

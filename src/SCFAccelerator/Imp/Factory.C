@@ -20,6 +20,11 @@ namespace qchem::SCFAccelerators
 
 SCFAccelerator* Factory(Type type,const nlohmann::json& js)
 {
+    // "EMax" is RETIRED (user ruling 2026-11-17, "removing keys is fine as long as we update all our decks accordingly"): the gate is
+    // on the residual [F,D], never an energy, so the old name was a trap (DIISParams::EngageBelowFD).  Refused, naming the new key.
+    if (js.contains("EMax"))
+        throw std::invalid_argument("SCFAccelerators::Factory: the json key \"EMax\" is retired -- it was never an energy maximum but the "
+                                    "[F,D] gate: spell it \"EngageBelowFD\"");
     SCFAccelerator* acc=0;
     switch (type)
     {
@@ -27,25 +32,25 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
         {
             size_t Nproj=js["NProj"].template get<size_t>();
             // "EMin" (the old DIISParams::FDMin) is still accepted in the json but was never read (D-DIIS-FDMIN).  DESIGNATED, so a
-            // field deleted from DIISParams cannot shift the rest: the positional {Nproj,EMax,EMin,SVTol} silently became
+            // field deleted from DIISParams cannot shift the rest: the positional {Nproj,EngageBelowFD,EMin,SVTol} silently became
             // SVTol=EMin, SVTolRel=SVTol when FDMin went, and moved every molecular DIIS run (Si2_PP_U, A_SL_HF_ion, 2026-10-30).
-            double EMax=js["EMax"].template get<double>(),SVTol=js["SVTol"].template get<double>();
+            double EngageBelowFD=js["EngageBelowFD"].template get<double>(),SVTol=js["SVTol"].template get<double>();
             double SVTolRel = js.contains("SVTolRel") ? js["SVTolRel"].template get<double>() : 0.0;   // absent = the old door (off)
-            acc=new SCFAcceleratorDIIS({.Nproj=Nproj, .EngageBelowFD=EMax, .SVTol=SVTol, .SVTolRel=SVTolRel});
+            acc=new SCFAcceleratorDIIS({.Nproj=Nproj, .EngageBelowFD=EngageBelowFD, .SVTol=SVTol, .SVTolRel=SVTolRel});
             break;
         }
         case Type::GDM:
         {
-            double EMax  = js.contains("EMax")  ? js["EMax"].template get<double>()  : 1e10;
+            double EngageBelowFD = js.contains("EngageBelowFD") ? js["EngageBelowFD"].template get<double>() : 1e10;
             double Trust = js.contains("Trust") ? js["Trust"].template get<double>() : 0.1;
-            acc=new SCFAcceleratorGDM({.EngageBelowFD=EMax, .Trust=Trust});
+            acc=new SCFAcceleratorGDM({.EngageBelowFD=EngageBelowFD, .Trust=Trust});
             break;
         }
         case Type::Ladder:
         {
             // DIIS does the heavy lifting; GDM finishes once DIIS runs out of steam.
             size_t Nproj = js.contains("NProj") ? js["NProj"].template get<size_t>() : 4;
-            double EMax  = js.contains("EMax")  ? js["EMax"].template get<double>()  : 1.0;
+            double EngageBelowFD = js.contains("EngageBelowFD") ? js["EngageBelowFD"].template get<double>() : 1.0;
             double SVTol = js.contains("SVTol") ? js["SVTol"].template get<double>() : 5e-9;
             double SVTolRel= js.contains("SVTolRel") ? js["SVTolRel"].template get<double>() : 0.0;
             double Trust   = js.contains("Trust")   ? js["Trust"].template get<double>()   : 0.1;
@@ -62,7 +67,7 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
                 else if (sg!="Error") throw std::invalid_argument("SCFAccelerators::Factory: Ladder signal '"+sg+"' is not Error or EnergyChange");
             }
             std::vector<std::unique_ptr<SCFAccelerator>> rungs;
-            { report::Row r("rungs"); rungs.emplace_back(new SCFAcceleratorDIIS({.Nproj=Nproj, .EngageBelowFD=EMax, .SVTol=SVTol, .SVTolRel=SVTolRel})); }
+            { report::Row r("rungs"); rungs.emplace_back(new SCFAcceleratorDIIS({.Nproj=Nproj, .EngageBelowFD=EngageBelowFD, .SVTol=SVTol, .SVTolRel=SVTolRel})); }
             { report::Row r("rungs"); rungs.emplace_back(new SCFAcceleratorGDM ({.EngageBelowFD=1e10, .Trust=Trust})); } //always steps once it is the active rung
             // "startOnGDM": the seed is a RESTORED state (a molecule's or an atom's exact resume): start on the GDM rung, as the solid
             // door's ladderStartOnGDM does, so DIIS does not step the restored density away (NaF, 2026-10-02).
@@ -80,9 +85,9 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
     return acc;
 }
 
-// The SOLID front door: the typed twin (see the interface doc).  Same scalar-agnostic managers as the
-// json door -- only the knob transport and the solid-tuned defaults differ.
-SCFAccelerator* Factory(Type type, const SolidAcceleratorOptions& o)
+// The TYPED front door (see the interface doc), every structure.  Same scalar-agnostic managers as the json door (kept for the
+// atom's accelerator-sweep escape hatch) -- only the knob transport differs.
+SCFAccelerator* Factory(Type type, const AcceleratorParams& o)
 {
     switch (type)
     {

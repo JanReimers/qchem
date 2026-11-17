@@ -2,7 +2,7 @@
 //
 // Example:
 //   scfrun --Z 5 --model HF  --pol P --basis Slater     --acc Low    --accel Ladder --floor 1e-4 --stall 5
-//   scfrun --Z 10 --model DHF --pol U --basis Slater_RKB --acc Medium --accel GDM    --emax 1e-3
+//   scfrun --Z 10 --model DHF --pol U --basis Slater_RKB --acc Medium --accel GDM    --engageBelowFD 1e-3
 //
 #include <iostream>
 #include <iomanip>
@@ -211,7 +211,7 @@ static int Main(int argc, char** argv)
         "\n"
         " Accelerator tuning (forwarded as JSON to the accelerator factory):\n"
         "  --nproj <int>      DIIS subspace size\n"
-        "  --emax <float>     GDM: start GDM steps once [F,D] < emax\n"
+        "  --engageBelowFD <float>  DIIS / GDM: start extrapolating once [F,D] < this (was --emax)\n"
         "  --trust <float>    GDM: trust radius (max geodesic angle per step)\n"
         "  --ethresh <float>  Ladder: hand off only while |dE/E| > ethresh\n"
         "  --stall <int>      Ladder: # no-improve steps before a stall hand-off\n"
@@ -278,7 +278,8 @@ static int Main(int argc, char** argv)
         else if (a=="--stall")   accj["stall"]=std::stoi(need(i));
         else if (a=="--switchat")accj["switchat"]=std::stod(need(i));
         else if (a=="--trust")   accj["Trust"]=std::stod(need(i));
-        else if (a=="--emax")    accj["EMax"]=std::stod(need(i));
+        else if (a=="--engageBelowFD") accj["EngageBelowFD"]=std::stod(need(i));
+        else if (a=="--emax")    { std::cerr<<"scfrun: --emax is retired (it was the [F,D] gate, never an energy): use --engageBelowFD"<<std::endl; return 1; }
         else if (a=="--nproj")   accj["NProj"]=(size_t)std::stoi(need(i));
         else if (a=="--minfd")   minfd=std::stod(need(i));
         else if (a=="--minde")   minde=std::stod(need(i));
@@ -352,13 +353,13 @@ static int Main(int argc, char** argv)
         else if (models.count(model)) copts.model=models[model];
         else { cout<<"molecular --model must be HF|LDA|Xalpha"<<endl; return 1; }
         AcceleratorOptions aopts; aopts.type=accel;
-        if (accj.contains("EMax"))  aopts.eMax =(double)accj["EMax"];
-        if (accj.contains("NProj")) aopts.nProj=(int)accj["NProj"];
-        if (accj.contains("Trust"))    aopts.trust         =(double)accj["Trust"];
-        if (accj.contains("ethresh"))  aopts.ladderEThresh =(double)accj["ethresh"];
-        if (accj.contains("stall"))    aopts.ladderStall   =(int)accj["stall"];
-        if (accj.contains("floor"))    aopts.ladderFloor   =(double)accj["floor"];
-        if (accj.contains("switchat")) aopts.ladderSwitchAt=(double)accj["switchat"];
+        if (accj.contains("EngageBelowFD")) aopts.diis.engageBelowFD=(double)accj["EngageBelowFD"];   // the standalone GDM gate follows it (unstated)
+        if (accj.contains("NProj")) aopts.diis.nProj=(size_t)(int)accj["NProj"];
+        if (accj.contains("Trust"))    { aopts.gdm.trust=(double)accj["Trust"]; aopts.ladder.gdm.trust=(double)accj["Trust"]; }   // both, as the json door read it
+        if (accj.contains("ethresh"))  aopts.ladder.eThresh =(double)accj["ethresh"];
+        if (accj.contains("stall"))    aopts.ladder.stall   =(int)accj["stall"];
+        if (accj.contains("floor"))    aopts.ladder.floor   =(double)accj["floor"];
+        if (accj.contains("switchat")) aopts.ladder.switchAt=(double)accj["switchat"];
         cout << "scfrun: mol="<<molname<<" model="<<model<<" mult="<<mult<<" basis="<<mbasis<<" accel="<<accel<<endl;
         Molecule mol = MakeMolecule(molname);
         // scfrun is the DRIVER, so it opens the report runs (a facade never does, user ruling D 2026-11-02): one for the ctor's

@@ -130,7 +130,8 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     AdmitRecipe(acc.recipe, /*kT: not read for a molecule*/0.0, /*molecule*/true);   // Auto | Insulator only (R4.1 ruling (c))
     s->accelerator = AcceleratorTypeByName(acc.type, "qchem::MoleculeCalculation");   // DIIS | GDM | Ladder, any other refused
     if (dft || !opts.pp.empty()) RefuseGradientConsumers(opts.vxcFit, opts.xcRho, acc.type);   // GDM needs H = dE/dD (pin 32)
-    s->eMax = DIISEngageGate(acc.eMax, point->GetNuclearCharge(), dft || !opts.pp.empty());   // DIIS from the start on a density Fock
+    s->eMax = DIISEngageGate(acc.diis.engageBelowFD.value_or(0.0), point->GetNuclearCharge(), dft || !opts.pp.empty());   // DIIS from the start on a density Fock
+    s->accParams = ResolveAcceleratorParams(acc, MolecularAcceleratorDefaults(s->eMax));
     return s;
 }
 
@@ -151,11 +152,5 @@ std::shared_ptr<const Structure> MoleculeSetup::PointStructure(const Structure& 
     return point;
 }
 
-nlohmann::json ToAcceleratorJson(const AcceleratorOptions& acc, double eMax)
-{
-    return {{"NProj",acc.nProj},{"EMax",eMax},{"EMin",acc.eMin},{"SVTol",acc.svTol},{"SVTolRel",acc.svTolRel},{"Trust",acc.trust},
-            {"ethresh",acc.ladderEThresh},{"stall",acc.ladderStall},{"floor",acc.ladderFloor},{"switchat",acc.ladderSwitchAt},
-            {"signal",acc.ladderSignal==SCFAccelerators::ScheduleSignal::EnergyChange ? "EnergyChange" : "Error"}};
-}
 
 } // namespace qchem

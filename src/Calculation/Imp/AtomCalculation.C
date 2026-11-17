@@ -252,15 +252,15 @@ void AtomCalculation::BuildGraph()
     // needs (DIIS/GDM/Ladder/directmin).  Z^2*0.08/32, was 0.1/32: the [F,D] it is compared against changed UNIT on
     // 2026-10-29 (the worst irrep, was sqrt(sum of squares) over the l-blocks -- user ruling), and on Kr the two differ by
     // ~0.8 at the engage step; unrescaled, DIIS engaged one step early and the Kr Libxc run went chaotic.
-    const double emax = DIISEngageGate(itsAcc.eMax, itsZ, /*the atom keeps the Z-scaled gate, DFT too*/false);
-    nlohmann::json jsacc = ToAcceleratorJson(itsAcc, emax);   // every knob of the chain; the escape hatch below merges over it
+    const double engageBelowFD = DIISEngageGate(itsAcc.diis.engageBelowFD.value_or(0.0), itsZ, /*the atom keeps the Z-scaled gate, DFT too*/false);
+    nlohmann::json jsacc = ToAcceleratorJson(ResolveAcceleratorParams(itsAcc, MolecularAcceleratorDefaults(engageBelowFD)));   // every knob; the escape hatch below merges over it
     const std::string ts = AcceleratorTag();
     if (itsOpts.accelerator.is_object() && !itsOpts.accelerator.empty())
         for (auto& [k,v] : itsOpts.accelerator.items()) jsacc[k]=v;
     if (itsStartOnGDM) { jsacc["startOnGDM"]=true; itsStartOnGDM=false; }   // the restored stage only (PrepareRestart)
     using AType = qchem::SCFAccelerators::Type;
     const bool directmin = (ts=="directmin" || ts=="DirectMin");
-    if (directmin) jsacc["EMax"]=1e10;   // GDM always steps; the direct-min loop seeds via diagonalize
+    if (directmin) jsacc["EngageBelowFD"]=1e10;   // GDM always steps; the direct-min loop seeds via diagonalize
     const AType atype = directmin ? AType::GDM : ts=="Ladder" ? AType::Ladder : ts=="GDM" ? AType::GDM : AType::DIIS;
     if (itsOpts.pseudopotential || itsOpts.xc.has_value() || H::IsDFT(itsOpts.model))   // GDM needs H = dE/dD (pin 32)
         RefuseGradientConsumers(itsOpts.vxcFit, itsOpts.xcRho, atype==AType::GDM ? "GDM" : atype==AType::Ladder ? "Ladder" : "DIIS");

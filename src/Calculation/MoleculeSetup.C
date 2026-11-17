@@ -7,7 +7,6 @@
 // because the setup is what reads it; qchem.MoleculeCalculation re-exports it.
 module;
 #include <memory>
-#include <nlohmann/json_fwd.hpp>   // ToAcceleratorJson's return type (defined in the Imp unit)
 #include <optional>
 #include <string>
 #include <utility>
@@ -21,6 +20,7 @@ import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration gr
 import qchem.ChargeDensity.Seed;   // SeedStrategy
 import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSet::Gaussian::Angular -- the ONE angular option, shared with SolidSetup
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (the resolved accelerator)
+export import qchem.SetupDecisions;   // AcceleratorOptions (the accelerator block, every structure), the spin rule
 export import qchem.SCFRecipe;         // SCFRecipe (AcceleratorOptions::recipe)
 export import qchem.Pseudopotential.Set;   // PseudopotentialSet -- the setup's resolved choice
 export import qchem.Accuracy;            // AccuracyTarget -- a CalcOptions field
@@ -126,48 +126,6 @@ struct CalcOptions
     AccuracyTarget accuracy = {};
 };
 
-//! The molecular accelerator chain's knobs (DIIS, GDM, the Ladder's hand-off; 2026-11-02: the GDM/Ladder ones were unreachable from
-//! the facade).  These were stringly-typed json keys grepped out of tests; here they are documented fields with defaults.
-//! eMax<=0 means "auto" -- the Z-scaled heuristic the molecular recipe has always used.  \c ToAcceleratorJson is the one
-//! translation to the factory's json door, shared by \c MoleculeCalculation and \c AtomCalculation.
-struct AcceleratorOptions
-{
-    int    nProj = 4;
-    double eMax  = 0.0;     //!< <=0 => Z*Z*0.1/32 (the proven molecular default)
-    double eMin  = 1e-7;
-    //! DIIS history prune (\c DIISParams).  SCALE-FREE since 2026-11-11 (user ruling "Yes, both"): the ABSOLUTE floor \c svTol is OFF
-    //! (it was 5e-9 on svMin(B), and B scales as |[F,D]|^2, so it purged the history once [F,D] < ~7e-5 and every molecular tail ran
-    //! on linear mixing), and the RELATIVE prune \c svTolRel (svMin(B) < svTolRel * max_i B_ii, the solid door's 1e-4) guards a
-    //! genuinely dependent history.  It needs the loop's other half: the linear D mixer makes no downward move while DIIS extrapolates
-    //! (\c tAdaptiveMixer::ExtrapolatedStep) -- the relative prune ALONE made it worse (H2O2 relaxation 483 -> 791 SCF iterations), the
-    //! pair took it to 181 (doc/Records/OpenWork_History5.md, "The molecular DIIS switches itself off").
-    double svTol    = 0.0;
-    double svTolRel = 1e-4;
-    //! GDM (standalone, and the Ladder's GDM rung): the trust radius -- the largest geodesic rotation (radians) per step.
-    double trust = 0.1;
-    //! LADDER only (DIIS -> GDM), the hand-off triggers (\c SCFAcceleratorLadder): energy still moving by more than \c ladderEThresh for
-    //! \c ladderStall non-improving steps (STALL, with \c ladderFloor as its low backstop), or the signal below \c ladderSwitchAt
-    //! (TAIL; 0 = no tail trigger).  The TAIL is ON by default (2026-11-02, lane G / the user's "Ladder is not laddering"): at the
-    //! json door's old switchat 0 a converging DIIS never stalls, so a molecular Ladder WAS plain DIIS (water, ethene LDA/dzvp:
-    //! GDM never engaged).  It hands off at |ΔE/E| < 1e-6, the CLAUDE.md rule and the solid Ladder's \c ladderSwitchAt.
-    double ladderEThresh  = 1e-8;
-    int    ladderStall    = 5;
-    double ladderFloor    = 1e-8;
-    double ladderSwitchAt = 1e-6;
-    //! What the tail trigger reads: |ΔE/E| (\c EnergyChange, default -- the rule is stated in energy) or [F,D] (\c Error).
-    SCFAccelerators::ScheduleSignal ladderSignal = SCFAccelerators::ScheduleSignal::EnergyChange;
-    //! SCF accelerator: "DIIS" (default) | "GDM" (direct minimisation, robust for hard/open-shell SCF) |
-    //! "Ladder" (auto None->DIIS->GDM).  A hard pseudopotential (open-shell atom, diffuse valence) that
-    //! limit-cycles under DIIS often converges under GDM or Ladder.
-    std::string type = "DIIS";
-    //! The SCF RECIPE by material regime (qchem.SCFRecipe; doc/SCFRobustnessPlan.md R4.1 as ruled for B5, ruling (c)): a molecule takes
-    //! \c Auto or \c Insulator only -- both are today's molecular recipe (\c type above + linear D-mixing), now printed.  MagneticInsulator
-    //! and Metal are REFUSED at \c Resolve: their Kerker+Pulay mixes in G space.
-    SCFRecipe recipe = SCFRecipe::Auto;
-};
-
-//! The json door's keys for \a acc, with \a eMax the RESOLVED DIIS engage gate (the caller's Z-scaled default when \c acc.eMax <= 0).
-nlohmann::json ToAcceleratorJson(const AcceleratorOptions& acc, double eMax);
 
 //! \brief THE RUN SETUP of a molecular calculation: \c CalcOptions as asked, plus every decision resolved from them ONCE.
 //!
@@ -204,7 +162,8 @@ struct MoleculeSetup
     //! The seed library's key (\c SeedKeyOf): per element, the pseudopotential q of the run's pseudo-atom; unkeyed all-electron.
     qchem::ChargeDensity::SeedKey seedKey;
     SCFAccelerators::Type accelerator = SCFAccelerators::Type::DIIS;   //!< \c acc.type, by name
-    double eMax = 0.0;         //!< \c acc.eMax, or the model's default when it was left <= 0
+    double eMax = 0.0;         //!< \c acc.diis.engageBelowFD, or the model's default when it was left unstated
+    SCFAccelerators::AcceleratorParams accParams;   //!< \c acc resolved over the molecular defaults (\c ResolveAcceleratorParams)
     //! THE RUN'S XC MESH: \c opts.mesh with an unstated axis at the entry rung (\c kMolecularMeshEntryRadial / \c kMolecularMeshEntryDegree), or the rung a pilot settled
     //! on (\c MoleculeCalculation::SizedSetup).  Every Hamiltonian of a point is built on this, never on \c opts.mesh.
     qcMesh::MeshParams mesh;
