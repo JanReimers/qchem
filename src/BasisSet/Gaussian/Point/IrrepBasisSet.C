@@ -463,6 +463,36 @@ private:
 //! tensors read one set instead of evaluating 0.75 N⁴ quartets between them against N⁴/8 unique.  A value is FourC at the CANONICAL
 //! permutation, so it agrees with another permutation's to roundoff (measured ≤ 1e-14 relative; tests/M_ERI4Blocks.C).  Geometry-fixed,
 //! so it may be built lazily and kept (CLAUDE.md: lazy caching only for what never changes).
+//! Run \a fill(task, scratch) over every task, on \c E::GroupBlockThreads() workers (QCHEM_OPENMP_THREADS; serial by default), one
+//! scratch vector per worker; the first exception any task throws is rethrown here.  The caller's tasks must write disjoint outputs.
+template <class E, class Task, class Fill> void RunGroupTasks(const std::vector<Task>& tasks, Fill& fill)
+{
+#ifdef QCHEM_OPENMP
+    if (const int nthreads=E::GroupBlockThreads(); nthreads>1)
+    {
+        std::exception_ptr firstEx;
+        #pragma omp parallel num_threads(nthreads)
+        {
+            std::vector<double> blk;   // one scratch per worker
+            #pragma omp for schedule(dynamic,1)
+            for (size_t i=0;i<tasks.size();i++)
+            {
+                try { fill(tasks[i], blk); }
+                catch (...)
+                {
+                    #pragma omp critical (group_tasks_throw)
+                    if (!firstEx) firstEx=std::current_exception();
+                }
+            }
+        }
+        if (firstEx) std::rethrow_exception(firstEx);
+        return;
+    }
+#endif
+    std::vector<double> blk;
+    for (const Task& t : tasks) fill(t, blk);
+}
+
 struct UniqueQuartets
 {
     std::vector<std::pair<size_t,size_t>> S;          //!< the shells, [begin, end)
@@ -645,11 +675,18 @@ protected:
             }
             // SHELL-BLOCKED against another block: the same entries, the same values (FourCBlock = FourC element for element).
             // GROUP-BLOCKED against another block (OpenWork §4): the same entries, the same values (a member of FourCGroupBlock = FourC).
+            // THREADED (lane H 2026-11-16; QCHEM_OPENMP_THREADS, serial by default): one task per bra group pair (ga <= gb) writes only
+            // its own J(a,b), so the fill is bit-identical at any thread count; the pairs' Ω are looked up HERE, serially, through aE's
+            // store (where the store overload put them), and the workers read the tables (OpenWork §3, the serial-phase rule).
             ERI4 J(aE.size(),cE.size());
             const auto SA=aE.ShellRanges(), SC=cE.ShellRanges();
             const auto& GA=aE.ShellGroups(); const auto& GC=cE.ShellGroups();
-            std::vector<double> blk;
-            for (size_t ga=0;ga<GA.size();ga++) for (size_t gb=ga;gb<GA.size();gb++)
+            const auto abΩ=aE.MakeGroupPairΩ(aE,aE), cdΩ=aE.MakeGroupPairΩ(cE,cE);
+            std::vector<std::pair<size_t,size_t>> tasks;
+            for (size_t ga=0;ga<GA.size();ga++) for (size_t gb=ga;gb<GA.size();gb++) tasks.push_back({ga,gb});
+            auto fill=[&](const std::pair<size_t,size_t>& t, std::vector<double>& blk)
+            {
+                const size_t ga=t.first, gb=t.second;
                 for (size_t gc=0;gc<GC.size();gc++) for (size_t gd=gc;gd<GC.size();gd++)
                 {
                     const size_t ma=GA[ga].second-GA[ga].first, mb=GA[gb].second-GA[gb].first, mc=GC[gc].second-GC[gc].first, md=GC[gd].second-GC[gd].first;
@@ -657,7 +694,7 @@ protected:
                     const size_t nc=SC[GC[gc].first].second-SC[GC[gc].first].first, nd=SC[GC[gd].first].second-SC[GC[gd].first].first;
                     const size_t n=na*nb*nc*nd;
                     blk.resize(ma*mb*mc*md*n);
-                    aE.FourCGroupBlock(ga, aE, gb, cE, gc, cE, gd, blk.data());   // (a a | c c) slots
+                    aE.FourCGroupBlock(abΩ[ga*GA.size()+gb], ga, aE, gb, cE, gc, cE, gd, cdΩ[gc*GC.size()+gd], blk.data());   // (a a | c c) slots
                     size_t m=0;
                     for (size_t ia=0;ia<ma;ia++) for (size_t ib=0;ib<mb;ib++) for (size_t ic=0;ic<mc;ic++) for (size_t id=0;id<md;id++,m++)
                     {
@@ -674,6 +711,8 @@ protected:
                         }
                     }
                 }
+            };
+            RunGroupTasks<E>(tasks, fill);
             return J;
         }
         else {
@@ -722,11 +761,18 @@ protected:
             }
             // SHELL-BLOCKED against another block, the packing below exactly (each K entry receives at most two halves).
             // GROUP-BLOCKED (OpenWork §4): a member quartet of FourCGroupBlock is FourCBlock's, so the packing below is unchanged.
+            // THREADED (lane H 2026-11-16): one task per (ga <= gc) writes only its own K(a,c), and inside a task the (gb, gd) order is the
+            // serial one, so each entry's halves are added in the same order: bit-identical at any thread count.  The (a,b) group pairs'
+            // Ω are looked up HERE, serially, through aE's store; both the bra (a b| and the ket |a b) read that one table.
             ERI4 K(aE.size(),bE.size());
             const auto SA=aE.ShellRanges(), SB=bE.ShellRanges();
             const auto& GA=aE.ShellGroups(); const auto& GB=bE.ShellGroups();
-            std::vector<double> gblk;
-            for (size_t ga=0;ga<GA.size();ga++) for (size_t gc=ga;gc<GA.size();gc++)
+            const auto abΩ=aE.MakeGroupPairΩ(aE,bE);
+            std::vector<std::pair<size_t,size_t>> tasks;
+            for (size_t ga=0;ga<GA.size();ga++) for (size_t gc=ga;gc<GA.size();gc++) tasks.push_back({ga,gc});
+            auto fill=[&](const std::pair<size_t,size_t>& t, std::vector<double>& gblk)
+            {
+                const size_t ga=t.first, gc=t.second;
                 for (size_t gb=0;gb<GB.size();gb++) for (size_t gd=0;gd<GB.size();gd++)
                 {
                     const size_t ma=GA[ga].second-GA[ga].first, mc=GA[gc].second-GA[gc].first, mb=GB[gb].second-GB[gb].first, md=GB[gd].second-GB[gd].first;
@@ -734,7 +780,7 @@ protected:
                     const size_t nb=SB[GB[gb].first].second-SB[GB[gb].first].first, nd=SB[GB[gd].first].second-SB[GB[gd].first].first;
                     const size_t n=na*nb*nc*nd;
                     gblk.resize(ma*mb*mc*md*n);
-                    aE.FourCGroupBlock(ga, bE, gb, aE, gc, bE, gd, gblk.data());   // (a b | a b) slots
+                    aE.FourCGroupBlock(abΩ[ga*GB.size()+gb], ga, bE, gb, aE, gc, bE, gd, abΩ[gc*GB.size()+gd], gblk.data());   // (a b | a b) slots
                     for (size_t xa=0;xa<ma;xa++) for (size_t xb=0;xb<mb;xb++) for (size_t xc=0;xc<mc;xc++) for (size_t xd=0;xd<md;xd++)
                     {
                         const size_t sa=GA[ga].first+xa, sc=GA[gc].first+xc, sb=GB[gb].first+xb, sd=GB[gd].first+xd;
@@ -757,6 +803,8 @@ protected:
                         }
                     }
                 }
+            };
+            RunGroupTasks<E>(tasks, fill);
             return K;
         }
         else {
