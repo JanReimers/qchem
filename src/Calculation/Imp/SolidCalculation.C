@@ -132,6 +132,9 @@ struct SolidCalculation::Imp
     //! them, so the grid report and the raster pilot ASK them (never a basis block).  Null on a plane-wave run.
     std::shared_ptr<const CrystalImposition>                  imposition;
     std::shared_ptr<const BasisSet::Gaussian::GpwRasterLadder> ladder;
+    //! The GPW point's params as handed to the factory (imposition and ladder included), kept for the one later build that must
+    //! be the SAME functions: the response's complex siblings of the real TRIM blocks (GPWResponseBasis).  Empty on a PW point.
+    std::optional<BasisSet::Lattice::GPWParams>             gpwParams;
     //! What the run's client consumes (\c SolidCalculation::Consumes): an energy, unless a SolidSession built this point.
     BasisSet::Gaussian::ClientConsumes consumes = BasisSet::Gaussian::ClientConsumes::Energy;
     //! The pilot audit has SETTLED this run's rasters (\c CalibrateRasters): \c setup->opts.tolerances are the final demands.
@@ -405,6 +408,13 @@ std::unique_ptr<SolidCalculation> SolidCalculation::Prepare(std::shared_ptr<cons
 }
 
 namespace {
+//! Does \a bs hold a REAL TRIM block inside its complex face (the mixed-scalar set the realness decision builds)?
+bool HasRealBlocks(const BasisSet::Complex_BS& bs)
+{
+    for (size_t i=0;i<bs.GetNumIBS();i++) if (bs.GetRealIBS(i)) return true;
+    return false;
+}
+
 //! A GPW point's imposition and raster ladder, resolved from the params' own statements of them and the run's PP, and written into
 //! \a p so the factory uses (and checks) them.  The ladder is sized for the local PP the Hamiltonian will build: the SAME builder
 //! (MakeMultiSpeciesLocal over the PP set's species), so V_loc long's audit row is a pure function of what the facade holds.
@@ -455,6 +465,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     if (S.planeWave)
     {
         qchem::report::Timed timed("setup: PW basis build");
+        itsImp->gpwParams.reset();
         itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.planeWaveEcut, S.siteSpins));   // {} unless a magnetic imposition
         std::cout<<"["<<opts.label<<" run] plane-wave orbital basis: Ecut "<<opts.planeWaveEcut<<" Ha, "
                  <<itsImp->bs->GetNumFunctions()<<" PWs at Γ"<<std::endl;
@@ -476,6 +487,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         ResolveGpwPoint(lat, mol, S.pp, p);
         itsImp->imposition=p.imposition;
         itsImp->ladder    =p.ladder;
+        itsImp->gpwParams =p;
         itsImp->bs.reset(L3::GPWFactory(lat, mol, p));
     }
     itsImp->coulombFit={};   // a new basis: its Coulomb fit is built afresh by the first Hamiltonian on it
@@ -2736,7 +2748,18 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     }
     const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
         {.acrossK=!itsImp->setup->opts.perKFermiLevels, .acrossSpin=itsImp->setup->opts.spinsShareFermi}, noise);
-    const auto frame=qchem::Response::MakeOrbitalFrame(ref, *wf);
+    // THE RESPONSE BASIS (OpenWork "LR on REAL TRIM blocks", route A): the response is complex throughout, so a ground state with
+    // REAL TRIM blocks hands it an all-complex view -- its complex blocks borrowed, each real block's complex SIBLING built from the
+    // same shells (GPWResponseBasis checks they are the same functions).  The siblings and their caches live for this call only.
+    std::unique_ptr<const BasisSet::Complex_BS> siblings;
+    if (HasRealBlocks(*itsImp->bs))
+    {
+        if (!itsImp->gpwParams)
+            throw std::logic_error("SolidCalculation::HubbardLinearResponse: a real TRIM block on a point that is not GPW");
+        siblings=BasisSet::Lattice::GPWResponseBasis(*itsImp->lat, itsImp->mol, *itsImp->gpwParams, *itsImp->bs);
+    }
+    const BasisSet::Complex_BS& responseBasis = siblings ? *siblings : *itsImp->bs;
+    const auto frame=qchem::Response::MakeOrbitalFrame(ref, *wf, responseBasis);
     const auto hp=qchem::Response::MakeHubbardProbe(ref, *wf, *hub, res);
     const bool resolved = res!=qchem::Response::HubbardResolution::Manifold;
     std::vector<size_t> channels;                                 // every channel of a perturbed manifold
@@ -2747,7 +2770,7 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
             std::cout << "[response] channel " << c << ": " << hp.probe.Label(c) << "  [" << hp.composition[c] << "]"
                       << (std::find(channels.begin(), channels.end(), c)!=channels.end() ? "  perturbed" : "") << std::endl;
     const auto D0=wf->GetChargeDensity();
-    const auto kernel=itsImp->ham->MakeResponseKernel(itsImp->bs.get(), D0.get());
+    const auto kernel=itsImp->ham->MakeResponseKernel(&responseBasis, D0.get());
     // Each q's table is printed as that q finishes; the supercell summary (real-space blocks, U) once all are in.
     // U is printed, never consumed here (R4 owns consumption).
     using O=Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>;
@@ -2775,7 +2798,7 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     std::optional<qchem::Response::OrbitalImages> images;
     if (littleGroupK)
     {
-        images=qchem::Response::MakeOrbitalImages(ref, *wf, itsImp->lat->ShubnikovOps(itsImp->setup->decoration));
+        images=qchem::Response::MakeOrbitalImages(ref, *wf, responseBasis, itsImp->lat->ShubnikovOps(itsImp->setup->decoration));
         images->Write(std::cout);
     }
     auto solved=qchem::Response::LinearResponse(ref, frame, *kernel, hp.probe, Nq, krylov, resolved ? channels : perturbed,
@@ -2865,13 +2888,12 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
             {.acrossK=!itsImp->setup->opts.perKFermiLevels, .acrossSpin=itsImp->setup->opts.spinsShareFermi}, std::numeric_limits<double>::quiet_NaN());
         const auto probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
         qchem::Response::BlockPairs D;                      // the state in its own MO basis: diag(occupation)
-        for (const Irrep& ir : wf->GetQNs())
+        for (const Irrep& ir : wf->GetQNs())   // occupations only: a real TRIM block and a complex one read alike
         {
-            const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf->GetOrbitals(ir));
-            if (!os) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: a real TRIM block (run with forceComplex)");
+            const Orbitals::Orbitals* os=wf->GetOrbitals(ir);
             qchem::Response::cmat_t X(os->GetNumOrbitals(), os->GetNumOrbitals(), dcmplx(0.0));
             size_t i=0;
-            for (const auto* o : os->Iterate<Orbitals::TOrbital<dcmplx>>()) {X(i,i)=o->GetOccupation(); i++;}
+            for (const auto* o : os->Iterate()) {X(i,i)=o->GetOccupation(); i++;}
             D.m.push_back(X);
         }
         const cvec_t n=probe.Measure(Symmetry::Invariant(), D);

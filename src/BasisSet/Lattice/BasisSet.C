@@ -135,6 +135,24 @@ struct GPWParams
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                        const GPWParams& p = {});
 
+//! \brief THE RESPONSE BASIS of a GPW point whose TRIM blocks were built REAL (OpenWork "LR on REAL TRIM blocks", route A,
+//! 2026-11-16): an all-complex view of \a ground, block for block in \a ground's order.  A complex block of \a ground is BORROWED
+//! as is; a real TRIM block is replaced by a COMPLEX SIBLING, \c Gaussian::tGPW_IBS<dcmplx>, built from the same shells -- the
+//! same \a mol, \a p's handed-in ladder and imposition, images and tolerances, the same Bloch irrep -- so it holds the same
+//! functions (a TRIM Bloch phase is ±1), and a real orbital coefficient vector of the ground block is a complex one of the sibling.
+//!
+//! WHY a view and not a second basis: the linear response is complex throughout (a q != 0 pair couples two real blocks through a
+//! complex δD), and its kernel walks a whole basis's complex blocks.  The ground state keeps its real blocks (measured on the TiO₂
+//! k222 deck: peak RSS 8.23 -> 5.13 GB, SCF 2067 -> 1145 s, Etot equal to 1e-11), and pays for the complex siblings only while a
+//! response runs: their per-instance caches (the δ fit's Φ tables, the integrals) die with the view.
+//!
+//! The view does NOT own \a ground: it must not outlive it.  \a p must carry the ground's \c imposition and \c ladder (the ones
+//! \a ground was built with), so the siblings are the ground's functions and not a rebuilt approximation of them.  THROWS when
+//! either is missing, when \a ground was not built from \a p's k-blocks, or when a sibling's overlap differs from its real
+//! block's by more than 1e-10 (relative): the "same functions" claim is checked, never assumed.
+std::unique_ptr<const Complex_BS> GPWResponseBasis(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                                                   const GPWParams& p, const Complex_BS& ground);
+
 //! \brief THE ONE BUILDER of a GPW point's raster ladder (V-BS-RASTER): the density grid and its multigrid levels from the k-independent
 //! inputs -- the cell, \a mol's exponent range (its one orbital block, as the evaluator reads it), \a p's densityEcut / cutoffFactor
 //! / ladderFactor / rasterFields / tol, and the local PP's sharpness \a ppSharpness (\c Gaussian::LocalPPSharpness; 0 = none known).

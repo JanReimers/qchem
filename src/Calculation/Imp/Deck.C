@@ -988,8 +988,9 @@ Materials::Material Resolve(RunSpec& spec)
             if (a.kind==PostAction::Kind::HubbardLinearResponse && a.littleGroupK && LooserThan(spec.Stages().back().scf.MinΔρPerElectron, kResponseReferenceMinΔρ))
                 throw std::runtime_error(who+"littleGroupK measures the reference's symmetry to 1e-6, so the final SCF stage must converge to "
                                          "scf.minDeltaRhoPerElectron <= 1e-9 (it is "+GateJson(spec.Stages().back().scf.MinΔρPerElectron).dump()+")");
-            if ((a.kind==PostAction::Kind::HubbardLinearResponse || lrLoop) && !spec.solid.forceComplex)
-                throw std::runtime_error(who+"needs the complex ansatz (the real-TRIM response face is not built); set solid.forceComplex true");
+            // (No forceComplex demand since 2026-11-16: a ground state with REAL TRIM blocks hands the response an all-complex view with
+            //  complex siblings of those blocks -- GPWResponseBasis.  solid.forceComplex stays a readable key; a stated true still forces
+            //  the complex ansatz for the whole run.)
             if (isResponse)             // the q points loop INSIDE the response, on the k-mesh's own differences
             {
                 const ivec3_t& q=a.nq;

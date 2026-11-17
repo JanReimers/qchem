@@ -546,6 +546,84 @@ Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const Bas
 {
     return new GPW_BasisSet(lat, std::move(mol), p);
 }
+namespace {
+//! The all-complex RESPONSE VIEW of a GPW point (\c GPWResponseBasis): \a ground's complex blocks borrowed, its real TRIM blocks
+//! replaced by complex siblings this view owns.  Every set-level answer is \a ground's (the same functions, block for block).
+class GPW_ResponseBasisSet : public virtual Complex_BS
+{
+public:
+    GPW_ResponseBasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol, const GPWParams& p,
+                         const Complex_BS& ground)
+        : itsGround(ground), itsSiblings(ground.GetNumIBS())
+    {
+        if (!p.imposition || !p.ladder)
+            throw std::invalid_argument("GPWResponseBasis: GPWParams must carry the ground basis's imposition and raster ladder "
+                                        "(the siblings are the ground's functions, not a rebuilt approximation of them)");
+        const std::vector<KBlock> blocks=BuildKBlocks(lat, p, *p.imposition);
+        if (blocks.size()!=ground.GetNumIBS())
+            throw std::invalid_argument("GPWResponseBasis: the ground basis was not built from these GPWParams' k-blocks");
+        const ivec3_t N=lat.GetLimits();
+        for (size_t i=0;i<blocks.size();i++)
+        {
+            const Orbital_1E_IBS<double>* real=ground.GetRealIBS(i);
+            if (!real) continue;                                  // a complex block: borrowed as is
+            const sym_t irrep=Symmetry::BlochFactory(N, blocks[i].ik, blocks[i].weight, p.kShift);
+            if (irrep->SequenceIndex()!=real->GetSymmetry().SequenceIndex())
+                throw std::logic_error("GPWResponseBasis: k-block "+std::to_string(i)+" is not the ground basis's block "
+                                       +std::to_string(i));
+            auto sib=std::make_unique<Gaussian::tGPW_IBS<dcmplx>>(itsCache, lat.GetUnitCell(), irrep, mol, p.ladder, p.images,
+                                                                 p.imposition->directDensity, p.tol);
+            CheckSameFunctions(i, *real, *sib);
+            itsSiblings[i]=std::move(sib);
+        }
+    }
+    virtual size_t   GetNumFunctions() const override {return itsGround.GetNumFunctions();}
+    virtual irrepv_t GetIrreps(const Spin& ms) const override {return itsGround.GetIrreps(ms);}
+    virtual const Symmetry::SymmetryImposition* GetImposition() const override {return itsGround.GetImposition();}
+    virtual size_t   GetNumIBS() const override {return itsGround.GetNumIBS();}
+    virtual std::ostream& Write(std::ostream& os) const override
+    {
+        for (size_t i=0;i<GetNumIBS();i++) os << *GetIBS(i);
+        return os;
+    }
+    size_t NumSiblings() const {size_t n=0; for (const auto& s : itsSiblings) n+=bool(s); return n;}
+protected:
+    virtual const obs_t* GetIBS(size_t i) const override {return itsSiblings[i] ? itsSiblings[i].get() : itsGround[i];}
+private:
+    //! The claim the view rests on -- a real coefficient vector of the ground block is one of the sibling -- checked on the overlap.
+    static void CheckSameFunctions(size_t i, const Orbital_1E_IBS<double>& real, const Orbital_1E_IBS<dcmplx>& sib)
+    {
+        const size_t n=real.GetNumFunctions();
+        if (sib.GetNumFunctions()!=n)
+            throw std::logic_error("GPWResponseBasis: the complex sibling of block "+std::to_string(i)+" has a different size");
+        const auto& Sr=real.Overlap();
+        const auto& Sc=sib.Overlap();
+        double scale=1.0, worst=0.0;
+        for (size_t a=0;a<n;a++)
+            for (size_t b=0;b<n;b++)
+            {
+                scale=std::max(scale, std::abs(double(Sr(a,b))));
+                worst=std::max(worst, std::abs(dcmplx(Sc(a,b))-dcmplx(double(Sr(a,b)))));
+            }
+        if (!(worst<=1e-10*scale))
+            throw std::logic_error("GPWResponseBasis: the complex sibling of real block "+std::to_string(i)+" is not the same "
+                                   "functions (max|S_sibling - S_real| = "+std::to_string(worst)+")");
+    }
+    const Complex_BS&                                    itsGround;
+    std::shared_ptr<BasisCache>                          itsCache=std::make_shared<BasisCache>();
+    std::vector<std::unique_ptr<Orbital_1E_IBS<dcmplx>>> itsSiblings;   //!< null = block i is the ground's (complex)
+};
+} // namespace
+
+std::unique_ptr<const Complex_BS> GPWResponseBasis(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                                                   const GPWParams& p, const Complex_BS& ground)
+{
+    auto rb=std::make_unique<GPW_ResponseBasisSet>(lat, std::move(mol), p, ground);
+    std::cout << "[response basis] " << rb->NumSiblings() << " of " << ground.GetNumIBS()
+              << " k-blocks are real TRIM blocks: complex siblings built for the response" << std::endl;
+    return rb;
+}
+
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                        double densityEcut, rvec3_t kShift, Gaussian::CellImages images, double cutoffFactor)
 {

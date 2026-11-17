@@ -57,6 +57,24 @@ template <class U> mat_t<U> Coefficients(const Orbitals::TOrbitals<U>& os, size_
 cmat_t ToComplex(const mat_t<double>& m) {cmat_t c(m.rows(),m.columns()); for (size_t i=0;i<m.rows();i++) for (size_t j=0;j<m.columns();j++) c(i,j)=m(i,j); return c;}
 cmat_t ToComplex(const mat_t<dcmplx>& m) {return m;}
 
+//! THE RESPONSE BLOCK of an orbital set (OpenWork "LR on REAL TRIM blocks", route A): the block of \a rb, the all-complex response
+//! view of the run's basis, on the same k as \a os's own block -- the block itself when that one is complex, its complex sibling
+//! when it is a real TRIM block.  Matched by k (the spatial irrep's sequence index), and checked for size.
+template <class U> const ChargeDensity::tobs_t<dcmplx>& ResponseBlock(const BasisSet::tBasisSet<dcmplx>& rb,
+                                                                      const Orbitals::TOrbitals<U>& os, const char* who)
+{
+    const auto* own=os.GetBasisSet();
+    if (!own) throw std::logic_error(std::string(who)+": an orbital block with no basis");
+    for (const auto* b : rb.Iterate<ChargeDensity::tobs_t<dcmplx>>())
+        if (b->GetSymmetry().SequenceIndex()==own->GetSymmetry().SequenceIndex())
+        {
+            if (b->GetNumFunctions()!=own->GetNumFunctions())
+                throw std::logic_error(std::string(who)+": the response basis's block on this k is not the orbitals' block");
+            return *b;
+        }
+    throw std::logic_error(std::string(who)+": the response basis has no block on this orbital block's k");
+}
+
 //! One Cartesian coordinate \f$r_i\f$ as a scalar field: the dipole operator's multiplicative kernel.
 class Coordinate : public ScalarFunction<double>
 {
@@ -115,6 +133,7 @@ template Reference MakeReference<double>(const WaveFunction::tWaveFunction<doubl
 template Reference MakeReference<dcmplx>(const WaveFunction::tWaveFunction<dcmplx>&, const OccupationConfig&, Reservoirs, double);
 
 OrbitalImages MakeOrbitalImages(const Reference& ref, const WaveFunction::cWaveFunction& wf,
+                                const BasisSet::tBasisSet<dcmplx>& responseBasis,
                                 const std::vector<Symmetry::SymOp>& ops, double tol)
 {
     struct Block { rvec3_t k; Spin s; const ChargeDensity::tobs_t<dcmplx>* bs; const BasisSet::OrbitalImageSource* img;
@@ -122,19 +141,14 @@ OrbitalImages MakeOrbitalImages(const Reference& ref, const WaveFunction::cWaveF
     std::vector<Block> blocks;
     ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)
     {
-        if constexpr (!std::is_same_v<U,dcmplx>)
-            throw std::logic_error("Response::MakeOrbitalImages: a REAL TRIM block -- run the ground state with forceComplex");
-        else
-        {
-            const auto* bs=dynamic_cast<const ChargeDensity::tobs_t<dcmplx>*>(os.GetBasisSet());
-            const auto* img=dynamic_cast<const BasisSet::OrbitalImageSource*>(os.GetBasisSet());   // abstract -> abstract
-            if (!bs || !img) throw std::logic_error("Response::MakeOrbitalImages: a block basis that cannot image its orbitals");
-            Block b{Symmetry::Lattice_3D::Getk(ir.sym), ir.ms, bs, img, Coefficients(os, bs->GetNumFunctions()),
-                    cmat_t(bs->Overlap()), rvec_t(os.GetNumOrbitals()), rvec_t(os.GetNumOrbitals())};
-            size_t i=0;
-            for (const auto* o : os.Iterate()) {b.e[i]=o->GetEigenEnergy(); b.f[i]=o->GetOccupation()/o->GetDegeneracy(); i++;}
-            blocks.push_back(std::move(b));
-        }
+        const auto& bs=ResponseBlock(responseBasis, os, "Response::MakeOrbitalImages");   // a real block's complex sibling
+        const auto* img=dynamic_cast<const BasisSet::OrbitalImageSource*>(&bs);              // abstract -> abstract
+        if (!img) throw std::logic_error("Response::MakeOrbitalImages: a block basis that cannot image its orbitals");
+        Block b{Symmetry::Lattice_3D::Getk(ir.sym), ir.ms, &bs, img, ToComplex(Coefficients(os, bs.GetNumFunctions())),
+                cmat_t(bs.Overlap()), rvec_t(os.GetNumOrbitals()), rvec_t(os.GetNumOrbitals())};
+        size_t i=0;
+        for (const auto* o : os.Iterate()) {b.e[i]=o->GetEigenEnergy(); b.f[i]=o->GetOccupation()/o->GetDegeneracy(); i++;}
+        blocks.push_back(std::move(b));
     });
     if (blocks.size()!=ref.NumBlocks()) throw std::invalid_argument("Response::MakeOrbitalImages: wf is not ref's wave function");
     auto same=[](const rvec3_t& a, const rvec3_t& b)
@@ -207,6 +221,22 @@ double EigenpairResidual(const WaveFunction::cWaveFunction& wf, Hamiltonian::cHa
                 i++;
             }
         }
+        else   // a REAL TRIM block: its Fock in its own scalar, through the face the SCF built it with
+        {
+            const auto* rh=dynamic_cast<const Hamiltonian::Ham_RealBlock*>(&H);   // abstract -> abstract
+            if (!rh) throw std::logic_error("Response::EigenpairResidual: a real TRIM block, and a Hamiltonian with no real-block face");
+            const auto* bs=os.GetBasisSet();
+            if (!bs) throw std::logic_error("Response::EigenpairResidual: an orbital block with no basis");
+            const rmat_t C=Coefficients(os, bs->GetNumFunctions());
+            const rmat_t CFC=blazem::trans(C)*rmat_t(rh->GetMatrix(bs, ir.ms, D.get(), wholeBasis))*C;
+            size_t i=0;
+            for (const auto* o : os.Iterate())
+            {
+                for (size_t j=0;j<CFC.columns();j++)
+                    worst=std::max(worst, std::abs(CFC(i,j)-(i==j ? o->GetEigenEnergy() : 0.0)));
+                i++;
+            }
+        }
     });
     return worst;
 }
@@ -231,6 +261,18 @@ template <class T> OrbitalFrame<T> MakeOrbitalFrame(const Reference& ref, const 
 }
 template OrbitalFrame<double> MakeOrbitalFrame<double>(const Reference&, const WaveFunction::tWaveFunction<double>&);
 template OrbitalFrame<dcmplx> MakeOrbitalFrame<dcmplx>(const Reference&, const WaveFunction::tWaveFunction<dcmplx>&);
+
+OrbitalFrame<dcmplx> MakeOrbitalFrame(const Reference& ref, const WaveFunction::cWaveFunction& wf,
+                                      const BasisSet::tBasisSet<dcmplx>& responseBasis)
+{
+    std::vector<FrameBlock<dcmplx>> blocks;
+    ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)
+    {
+        const auto& bs=ResponseBlock(responseBasis, os, "Response::MakeOrbitalFrame");
+        blocks.push_back({ir, &bs, ToComplex(Coefficients(os, bs.GetNumFunctions()))});
+    });
+    return OrbitalFrame<dcmplx>(ref, std::move(blocks));
+}
 
 template <class T> OperatorProbe MakeDipoleProbe(const Reference& ref, const OrbitalFrame<T>& frame,
                                                  const WaveFunction::tWaveFunction<T>& wf, const qcMesh::Mesh& mesh)
