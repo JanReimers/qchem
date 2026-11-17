@@ -132,6 +132,36 @@ TEST(M_DFT, OxygenTripletLDA)
     EXPECT_NEAR(calc.Energy(), -149.30067460, 1e-4) << "ORACLE: PySCF UKS, the same A1_coul Coulomb fit, exact XC";
 }
 
+// THE SPIN-RESOLVED MOLECULAR SAD SEED on the O2 triplet (OpenWork §2 "Molecular spin-resolved SAD seed", lane B 2026-11-16).  The O entry of
+// each seed library carries its Hund pair (moment 2): the valence O q6 under the GTH pseudopotential, the all-electron O since the light
+// open-shell neutrals were regenerated with their pairs (the same day).  So the polarized run's Auto seed (SAD) plants each O's triplet, scaled
+// by one factor to the run's moment nUp - nDown = 2 (two O triplets plant 4).  The claim: it reaches the triplet the core guess reaches.
+static void SpinResolvedSeedReachesTheCoreGuessState(const CalcOptions& base, const char* what)
+{
+    double E[2]={0,0};
+    const ChargeDensity::SeedStrategy seeds[2]={ChargeDensity::SeedStrategy::Default, ChargeDensity::SeedStrategy::CoreGuess};
+    for (int i=0;i<2;i++)
+    {
+        CalcOptions o=base;
+        o.seed=seeds[i];
+        MoleculeCalculation calc(MoleculeSetup::Resolve(MakeO2(), o));
+        ASSERT_TRUE(calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                       .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false})) << what << (i ? ": core guess" : ": spin-resolved SAD");
+        E[i]=calc.Energy();
+        std::cout << "[O2 triplet, " << what << "] " << (i ? "core guess" : "spin-resolved SAD") << ": E " << std::setprecision(12) << E[i]
+                  << ", " << calc.IterationCount() << " iterations" << std::endl;
+    }
+    EXPECT_NEAR(E[0], E[1], 1e-7) << what << ": the spin-resolved seed reaches the core guess's triplet";
+}
+TEST(M_DFT, OxygenTripletPP_TheSpinResolvedSeedReachesTheCoreGuessState)
+{
+    SpinResolvedSeedReachesTheCoreGuessState({.basis = "valence_lowq_vb", .model = Model::LDA, .multiplicity = 3, .pp = "gth-lda-valence"}, "PP");
+}
+TEST(M_DFT, OxygenTripletLDA_TheSpinResolvedSeedReachesTheCoreGuessState)
+{
+    SpinResolvedSeedReachesTheCoreGuessState({.basis = "dzvp", .model = Model::LDA, .multiplicity = 3}, "all-electron");
+}
+
 // REGRESSION for the O2-HF-triplet SEGV: the polarized level display (tCompositeWF::DisplayEigenPolarized) crashed on
 // an open-shell level present in only ONE spin channel (find() is UB-in-Release on a miss).  Fixed via
 // EnergyLevels::FindOrNull + labelling from the always-valid combined el.qns.  This runs it with Verbose ON

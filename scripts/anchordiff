@@ -4,30 +4,41 @@ a test that prints neither -- the molecular / atom gates -- falls back to the Et
 and two iteration counts: the summed iters= and the number of SCF trace rows.  They are not the same count, so both are
 compared: the PW prototypes print no trace, and the rows also count a solid's seed and pseudo-atom SCFs.  Atoms and molecules
 print iters= since V-FACADE-RESULT-LINE (2026-11-04), so a log older than that reads as moved on iters= alone for them.  Prints only the tests whose energy moved by more than --tol (Ha) or whose iteration count changed, sorted by |dE|; the
-summary line says how many tests each comparison could see.  Usage: anchordiff.py BASE.log NEW.log [--tol 1e-9]"""
+summary line says how many tests each comparison could see.  A qchem::BoundedSCF scope (a deliberately capped SCF, printed as
+`[bounded SCF] <why>` ... `[bounded SCF end]`) is not an anchor (CleanCode D-BOUNDED-ANCHOR, user 2026-11-17): the energies and
+iteration counts printed INSIDE it are skipped, and the test keeps its anchor from what it prints outside.  When both logs close
+their scopes, those outside values are compared; a test left with none, or whose scope only ONE log marks (a baseline that
+predates the markers cannot say which of its lines were inside), is listed as "bounded, not compared", never as a mover.  Usage: anchordiff.py BASE.log NEW.log [--tol 1e-9]"""
 import re, sys
 
 def parse(path):
-    out = {}; name = None; E = None; Et = None; iters = 0; rows = 0
+    # per test: (E, iters, rows, state), with state 'none' (no scope), 'scoped' (every scope closed: the values are the outside
+    # ones) or 'open' (a scope never closed, e.g. a log from before the closing marker: the outside values cannot be trusted)
+    out = {}; name = None; E = None; Et = None; iters = 0; rows = 0; opened = depth = 0
     head = re.compile(r'^\d+/\d+ Testing: (.+)$')
     etot = re.compile(r'Etot\s*=\s*(-?\d+\.\d+)')
     it   = re.compile(r'iters=(\d+)')
     row  = re.compile(r'^\s*\d+\s+(-?\d+\.\d{8,})\s')   # an SCF trace row: iteration, Etotal
     stage = re.compile(r' stage \d+/\d+\] ')
+    mark, close = '[bounded SCF] ', '[bounded SCF end]'
+    def state(): return 'none' if not opened else ('open' if depth else 'scoped')
     with open(path, encoding='utf-8', errors='replace') as f:
         for line in f:
             m = head.match(line.rstrip('\n'))
             if m:
-                if name is not None: out[name] = (E if E is not None else Et, iters, rows)
-                name, E, Et, iters, rows = m.group(1).strip(), None, None, 0, 0
+                if name is not None: out[name] = (E if E is not None else Et, iters, rows, state())
+                name, E, Et, iters, rows, opened, depth = m.group(1).strip(), None, None, 0, 0, 0, 0
                 continue
             if name is None: continue
+            if close in line: depth = max(depth-1, 0); continue
+            if mark in line: opened += 1; depth += 1; continue
+            if depth: continue
             for v in etot.findall(line): E = float(v)
             if (r := row.match(line)): Et = float(r.group(1)); rows += 1
             # a solid stage's summary line repeats the iteration count its result line already printed (MnO2 resume read 5 -> 10)
             if not stage.search(line):
                 for v in it.findall(line): iters += int(v)
-    if name is not None: out[name] = (E if E is not None else Et, iters, rows)
+    if name is not None: out[name] = (E if E is not None else Et, iters, rows, state())
     return out
 
 def main():
@@ -35,20 +46,26 @@ def main():
     tol = 1e-9
     if '--tol' in a: i = a.index('--tol'); tol = float(a[i+1]); del a[i:i+2]
     base, new = parse(a[0]), parse(a[1])
-    rows = []; common = set(base) & set(new); seenE = seenI = 0
+    rows = []; common = set(base) & set(new); seenE = seenI = 0; bounded = []; kept = []
     for t in sorted(common):
-        (Eb, ib, rb), (En, i_n, rn) = base[t], new[t]
+        (Eb, ib, rb, sb), (En, i_n, rn, sn) = base[t], new[t]
+        if sb != 'none' or sn != 'none':
+            if sb != 'scoped' or sn != 'scoped' or (Eb is None and En is None and not (ib or i_n or rb or rn)):
+                bounded.append(t); continue
+            kept.append(t)
         dE = None if Eb is None or En is None else En - Eb
         seenE += dE is not None
         seenI += bool(ib or i_n or rb or rn)
         if (dE is not None and abs(dE) > tol) or ib != i_n or rb != rn:
             rows.append((abs(dE) if dE is not None else -1, t, dE, ib, i_n, rb, rn))
     rows.sort(reverse=True)
-    print(f"{len(rows)} tests moved (|dE|>{tol:g} Ha or iteration count changed) of {len(common)} compared "
+    print(f"{len(rows)} tests moved (|dE|>{tol:g} Ha or iteration count changed) of {len(common)-len(bounded)} compared "
           f"({seenE} carry an energy, {seenI} an iteration count)")
     for _, t, dE, ib, i_n, rb, rn in rows:
         es = f"{dE:+.3e}" if dE is not None else "   n/a   "
         print(f"  {es}  iters {ib:>4} -> {i_n:<4}  rows {rb:>4} -> {rn:<4}  {t}")
+    if kept: print(f"bounded scope skipped, compared outside it ({len(kept)}):", ", ".join(kept))
+    if bounded: print(f"bounded, not compared ({len(bounded)}):", ", ".join(bounded))
     only = sorted(set(base) ^ set(new))
     if only: print("in one log only:", ", ".join(only[:20]))
 

@@ -119,8 +119,9 @@ double BetaSupportRadius(const SpeciesProjectorSet_R& sep, int Z, size_t p)
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                              std::shared_ptr<const GpwRasterLadder> ladder, const rvec3_t& kFrac, bool kIsReal, bool homeCellOnly,
-                             const GPWTolerances& tol)
-    : itsMol(std::move(mol))
+                             std::vector<Symmetry::Lattice_3D::DirectOp> symOps, const GPWTolerances& tol)
+    : itsSymOps(std::move(symOps))
+    , itsMol(std::move(mol))
     , itsTol(tol)
     , itsHomeOnly(homeCellOnly)
     , itsk(kFrac)

@@ -127,6 +127,43 @@ std::unique_ptr<AtomCalculation> AtomCalculation::Prepare(int Z, int charge, con
 // THE CONFIGURATION POLICY (OpenWork row "All-electron ION seeds", 2026-11-15): STATED (opts.configuration, NIST's notation) or derived --
 // the isoelectronic neutral all-electron, the pseudo-ion rule under a pseudopotential, the j-coupled one for Dirac.  Either way the run
 // report files the configuration the SCF occupies (policy AtomConfiguration: Choose when derived; a stated one that cannot run is REFUSED).
+// AN UNSTATED ALL-ELECTRON CATION (OpenWork row 196 step 3, controller ruling 2026-11-16): Fe+ is not Mn, so the isoelectronic neutral is the
+// wrong configuration.  Two branches, each named in the policy row with the Hund multiplicity it occupies:
+//  - q = +1, Z <= 92: NIST's first-cation configuration (thePeriodicTable().GetFirstCationConfiguration), which no rule reproduces;
+//  - q >= +2, or Z > 92 (NIST tabulates no first cation there): CationByRemoval, from the neutral, highest n first then highest l.
+// A result the radial atom cannot hold is REFUSED by name, never substituted.
+namespace {
+ElectronConfiguration* MakeCationConfiguration(int Z, const std::string& el, int q)
+{
+    const std::string ion=el+"+"+(q>1 ? std::to_string(q) : std::string());
+    const std::string& nist = q==1 ? thePeriodicTable().GetFirstCationConfiguration(Z) : std::string();
+    ShellOccupations shells;
+    std::string branch;
+    if (!nist.empty())
+    {
+        const auto parsed=ParseConfiguration(nist);
+        if (!parsed) throw std::logic_error("AtomCalculation: the shipped NIST first-cation configuration of "+el+" does not parse: "+parsed.Error());
+        shells=parsed.Value().All();
+        branch="NIST's first cation (q = +1, Z <= 92; dftdata/configurations)";
+    }
+    else
+    {
+        const auto removed=CationByRemoval(Z, q);
+        if (!removed) policy::Refuse("AtomConfiguration", ion+" unstated", removed.Error());
+        shells=removed.Value();
+        branch=std::string("the removal rule from the neutral (")+(q>1 ? "q >= +2" : "Z > 92: NIST tabulates no first cation")
+               +"; highest n first, highest l within an n)";
+    }
+    if (const std::string why=WhyNotRepresentable(shells, /*fromLowestN*/true); !why.empty())
+        policy::Refuse("AtomConfiguration", ion+" derived "+ConfigurationText(shells), why+"; state the configuration to run another");
+    const int mult=HundMultiplicity(shells);
+    policy::Report("AtomConfiguration", el+" "+ConfigurationText(shells)+" (multiplicity "+std::to_string(mult)+")", policy::Verdict::Choose,
+                   "unstated cation "+ion+": "+branch+"; Hund's high spin", std::nullopt,
+                   qchem::report::json{{"branch", q==1 && !nist.empty() ? "NISTFirstCation" : "RemovalRule"}, {"multiplicity", mult}});
+    return new Atom_EC(shells);
+}
+} // namespace
+
 ElectronConfiguration* AtomCalculation::MakeConfiguration() const
 {
     const std::string el=thePeriodicTable().GetSymbol(itsZ);
@@ -135,11 +172,13 @@ ElectronConfiguration* AtomCalculation::MakeConfiguration() const
     if (itsOpts.configuration.empty())
     {
         if (IsDirac(itsOpts.model)) return new AtomDirac_EC(itsNe);
+        const int q=itsZ-itsNe;
+        if (!itsOpts.pseudopotential && q>0) return MakeCationConfiguration(itsZ, el, q);
         Atom_EC* ec=itsOpts.pseudopotential ? new PseudoAtom_EC(itsZ, zion-itsNe, zion) : new Atom_EC(itsNe);
         policy::Report("AtomConfiguration", el+" "+ConfigurationText(ec->Shells()), policy::Verdict::Choose,
                        itsOpts.pseudopotential ? "unstated: the pseudo-ion rule (a cation empties s before d)"
-                                               : "unstated: the isoelectronic neutral's configuration (right for an anion and a main-group cation; "
-                                                 "a d- or f-block cation states its own)");
+                                               : "unstated: the isoelectronic neutral's configuration (a neutral atom, or an anion: its extra "
+                                                 "electrons fill the lowest open l)");
         return ec;
     }
     const std::string stated="configuration \""+itsOpts.configuration+"\"";

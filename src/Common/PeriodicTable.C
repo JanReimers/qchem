@@ -48,6 +48,7 @@ export
         double      Energy_HF;  //Saito, Shiro L. Hartree–Fock–Roothaan energies and expectation values for the neutral atoms He to Uuo: The B-spline expansion method, Atomic Data and Nuclear Data Tables, 95,6, 836--870
         double      Energy_DFT; //NIST https://math.nist.gov/DFTdata/atomdata/tables/ptable.html
         double      Energy_DHF=0.0; //Relativistic DHF total energy (TE_rel) from doc/DHF_GS_Energies_rel.json
+        std::string FirstCationConfig; //NIST's q = +1 configuration ("[Ar] 3d^4"); empty where NIST tabulates none (H, Z > 92)
         std::vector<OrbitalRecordSaito> Orbitals;
         std::vector<DHFOrbitalRecord>   DHFOrbitals;
     };
@@ -71,6 +72,11 @@ export
         double GetNumUnpairedElectrons(size_t Z) const {return get(Z).NUnpaired;}
         int    GetMaxL                (size_t Z) const {return get(Z).MaxL;}
         const size_t*   GetValanceConfiguration(size_t Z) const {return &(get(Z).ValConfig[0]);}
+        //! \brief NIST's configuration of the FIRST CATION (q = +1), in NIST's notation ("[Ar] 3d^4"), or EMPTY where NIST tabulates none
+        //! (H, and Z > 92).  It is the LDA/LSD ground state, which follows no removal rule (V+ 3d^4, Y+ 5s^2, La+ 5d^2, Hf+ 5d^1 6s^2,
+        //! U+ 5f^3 7s^2).  Read from the `config` field of src/Common/Data/nistLSDcations.json, which scripts/import-nist-configurations
+        //! copies from the vendored doc/GSData/NIST-dftdata-tar.gz (dftdata/configurations): an importer at the edge, JSON inside.
+        const std::string& GetFirstCationConfiguration(size_t Z) const {return get(Z).FirstCationConfig;}
     private:
         const ElementRecordSaito& get(size_t Z) const
         {

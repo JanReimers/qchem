@@ -596,3 +596,24 @@ Original rows:
 ### V-FACADE-STATE ✅ (lane A, 2026-11-09)
 
 | **V-FACADE-STATE** | save / restart / exact resume existed for solids only (`SolidState`, `SolidCalculation::Restart`); a molecular run could not be saved and resumed.  `UTCalculation` FacadeMatrix `SaveRestartRoundTrips` held this as an expected failure for atom and molecule | USER RULING on the shape (via lane G, 2026-11-02): the abstract `Calculation` has a virtual SaveState (and its restore) writing what every kind shares: the iterator's wave-function blocks (D/C/ε/f per Irrep), the run summary, the basis, the file framing.  Each concrete facade overrides, calls the base, and adds its own.  **DONE**: `qchem.SCFState` (the shared half), `Calculation::SaveState` / `JudgeState` / `RestartedFrom` public, the protected `RecordState` template method (the design's "protected SaveState(StateRecord&)", renamed so it does not hide the public one), `JudgeRestart`; the solid migrated onto it (format `qchem-state 2.0`, 1.x still read); molecule and atom `Restart` / `PrepareRestart`; both FacadeMatrix cells green.  Record: `OpenWork_History5.md` "A molecule's wavefunction cannot be saved or restarted" |
+
+### V-FACADE-SETUP ✅ (lane S, 2026-11-16)
+
+Landed on main as fcc7304e (lane commit 5d249e3f6), 0 movers.  New module `qchem.SetupDecisions` (`src/Calculation/SetupDecisions.C`):
+`ResolveSpinChannels` (the multiplicity -> nUp/nDown rule and its refusals, one wording for every kind), `ResolveRunSeed`,
+`AcceleratorTypeByName`, `DIISEngageGate`, `RequireVxcAdmitted`; `MoleculeSetup` and `SolidSetup` call it, the atom calls `DIISEngageGate`.
+Deliberately left: whether a multiplicity makes the run POLARIZED stays per facade (molecule > 1, solid >= 1: V-FACADE-OPTS); the atom has
+no setup yet and its unknown accelerator name still falls to DIIS (V-FACADE-PARITY decision 2, `side-session-notes` scope note).
+
+Original row:
+
+| **V-FACADE-SETUP** | `MoleculeSetup` and `SolidSetup` each re-derive the same decisions -- spin bookkeeping (`CalcOptions` multiplicity parity check vs `SolidSetup`'s `SpinChannelCounts`), seed choice, accelerator assembly -- so a fix to one (the multiplicity-1 odd-count refusal, f59c7f65) must be checked by hand against the other | the structure-neutral decisions in ONE place both setups call; structure-specific setup only for geometry (k-mesh, cell, symmetry detection) |
+
+### D4 ✅ (lane S, 2026-11-16)
+
+`GPW_Evaluator::SetSymmetryOps` is gone: the imposed crystal ops are the evaluator's ctor argument `symOps`, with NO default (a
+forgotten one is a compile error, never a silently free evaluator; the `GPW_IBS` factory ctor states `{}` for a free run).  0 movers.
+
+Original row:
+
+| **D4** | Most of this went with V-BS-SYMMETRY (the policy is `ResolveImposition`, `tBasisSet` only records it).  LEFT: `SetSymmetryOps` on `GPW_Evaluator` (`GPW_Evaluator.C:201`, called from the `GPW_IBS` ctor), a setter where a ctor argument belongs | Pass the ops through the evaluator's ctor · H2 D4 |

@@ -69,17 +69,24 @@ public:
     //! \param kIsReal is \a kFrac a TRIM point (Bloch phases exactly \f$\pm1\f$, block real)?  A FACT pried
     //!              out of the Bloch irrep (\c Symmetry::IsReal(), exact integer arithmetic) by the caller,
     //!              exactly like \a kFrac itself is \c Getk(irrep) -- this evaluator never re-derives
-    //!              realness from the float k (doc/RealComplexPlan.md Step 1).  Must match \a kFrac; the
-    //!              defaults (\f$\Gamma\f$, true) are consistent.
+    //!              realness from the float k (doc/RealComplexPlan.md Step 1).  Must match \a kFrac.
     //! \param homeCellOnly  the FINITE-molecule MODE: no lattice images anywhere (1E matrices == the finite
     //!              molecule's; KB bra = the raw home orbital) -- the molecule-in-a-periodic-box configuration
     //!              the finite==lattice gates compare against.  A MODE, not a radius: in the periodic mode
     //!              (default) every lattice sum is an \f$\varepsilon\f$-CONVERGED SERIES enumerated internally
     //!              per shell pair -- THERE IS NO CUT in r SPACE, and no radius parameter exists
     //!              (user pin; doc/Pins.md pin 1).
+    //! \param symOps  the run's IMPOSED crystal ops \f$\{W|\tau\}\f$ -- §3 policy-gated (doc/SymmetryUpgradePlan.md):
+    //!              \c GPW_IBS passes them NON-EMPTY only when the caller asserted imposition (imposeSymmetry); {} -- stated -- on a free run.
+    //!              Consumed by the T1 {G}-star reduced structure-factor assembly (\c MakeLocalPP / \c MakeLocalPPLong -- exact
+    //!              for the static \f$V_{loc}\f$ by construction: the ops were detected from these very atoms).  (The raster
+    //!              star-average no longer reads them: the run's group averages, 2026-11-09.)  A ctor argument with NO
+    //!              default since D4 (was the setter SetSymmetryOps): the factory gathers the ops, so a caller that forgets them
+    //!              is a compile error, never a silently free evaluator.
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
-                  std::shared_ptr<const GpwRasterLadder> ladder, const rvec3_t& kFrac = rvec3_t(0,0,0), bool kIsReal = true,
-                  bool homeCellOnly = false,
+                  std::shared_ptr<const GpwRasterLadder> ladder, const rvec3_t& kFrac, bool kIsReal,
+                  bool homeCellOnly,
+                  std::vector<Symmetry::Lattice_3D::DirectOp> symOps,   // NO default: a forgotten one must not build a free evaluator
                   const GPWTolerances& tol = {});     //!< the typed numerical tolerances (D-ENV step 5; was env reads inside)
     //! Polymorphic (reached by the Lattice::*_IBS mixins' Cast() cross-cast); out of line as the key function.
     virtual ~GPW_Evaluator();
@@ -200,14 +207,6 @@ public:
     //! Cache-key fragment: the molecular basis's ID + \f$k\f$ + translation count + the density-grid cutoff
     //! (the collocation tensor depends on the grid, so the framework cache key must pin it).
     std::string IDFragment() const;
-
-    //! \brief Thread the run's IMPOSED crystal ops \f$\{W|\tau\}\f$ into the evaluator -- §3 policy-gated
-    //! (doc/SymmetryUpgradePlan.md): \c GPW_IBS injects them NON-EMPTY only when the caller asserted
-    //! imposition (imposeSymmetry).  Consumed by (i) the T1 {G}-star reduced structure-factor assembly
-    //! (\c MakeLocalPP / \c MakeLocalPPLong -- exact for the static \f$V_{loc}\f$ by construction: the ops
-    //! were detected from these very atoms).  (The raster star-average no longer reads them: the run's group averages,
-    //! 2026-11-09.)
-    void SetSymmetryOps(std::vector<Symmetry::Lattice_3D::DirectOp> ops) {itsSymOps=std::move(ops);}
 
     //! The direct cell (geometry accessor -- the XC-quadrature factory needs the cell matrix the
     //! crystal ops act in).

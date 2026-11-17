@@ -197,7 +197,7 @@ protected:
     virtual PairProjection<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS& c) const override;
     virtual PairProjection<dcmplx> MakeOverlap3C  (const cFIT_SF_ABS& c) const override;
 
-    // (The ctor-injected crystal ops live on GPW_Evaluator -- SetSymmetryOps/SymmetryOps: the T1 {G}-star fold's.  The
+    // (The ctor-injected crystal ops live on GPW_Evaluator -- its symOps ctor argument / SymmetryOps: the T1 {G}-star fold's.  The
     //  raster star-average is the run's group's since 2026-11-09, not the basis's.)
 private:
     //! THROWS unless \a bra is built over my molecular AOs and \a rows x \a cols is bra x ket (finding 6).

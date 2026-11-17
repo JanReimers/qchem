@@ -54,4 +54,29 @@ void NumericCD::ReScale(double factor)
 }
 
 
+PolarizedNumericCD::PolarizedNumericCD(std::unique_ptr<NumericCD> up, std::unique_ptr<NumericCD> down)
+    : itsUp(std::move(up)), itsDn(std::move(down)), itsVersion(NextDensityVersion())
+{
+    if (!itsUp || !itsDn) throw std::logic_error("PolarizedNumericCD: both spin channels are required");
+}
+
+const tChargeDensity<double>* PolarizedNumericCD::GetChannel(const Spin& s) const
+{
+    if (s==Spin::Up)   return itsUp.get();
+    if (s==Spin::Down) return itsDn.get();
+    throw std::logic_error("PolarizedNumericCD::GetChannel: ask for Up or Down (None is the whole density, ChannelOf answers it)");
+}
+
+double  PolarizedNumericCD::operator()(const rvec3_t& r) const {return (*itsUp)(r)+(*itsDn)(r);}
+rvec3_t PolarizedNumericCD::Gradient  (const rvec3_t& r) const {return itsUp->Gradient(r)+itsDn->Gradient(r);}
+rvec_t  PolarizedNumericCD::OverlapWith(const VectorFunction<double>& g) const {return itsUp->OverlapWith(g)+itsDn->OverlapWith(g);}
+double  PolarizedNumericCD::GetTotalCharge() const {return itsUp->GetTotalCharge()+itsDn->GetTotalCharge();}
+
+void PolarizedNumericCD::ReScale(double factor)
+{
+    itsUp->ReScale(factor);
+    itsDn->ReScale(factor);
+    itsVersion=NextDensityVersion();
+}
+
 } //namespace

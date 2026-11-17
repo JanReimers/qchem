@@ -55,7 +55,10 @@ private:
 };
 
 //! \brief A DELIBERATELY bounded SCF, for this scope: cap hits are expected and not reported.  \a why is required -- say
-//! what the bounded loop is for (e.g. "the gate tests symmetry through 6 iterations, not convergence").
+//! what the bounded loop is for (e.g. "the gate tests symmetry through 6 iterations, not convergence").  The scope prints
+//! `[bounded SCF] <why>` when it opens and `[bounded SCF end]` when it closes; `scripts/anchordiff` skips the energies and
+//! iteration counts printed between the two (a loop stopped short is not an anchor: user 2026-11-17, CleanCode D-BOUNDED-ANCHOR),
+//! keeps the test's anchor from what it prints outside, and lists it as "bounded, not compared" when nothing is left.
 class BoundedSCF
 {
 public:

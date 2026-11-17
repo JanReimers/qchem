@@ -484,3 +484,46 @@ TEST(AtomConfiguration, AStatedConfigurationThatCannotRunIsRefusedBeforeAnySCF)
     o.configuration="[Ar] 3d^6 4s^1";
     EXPECT_NO_THROW((void)AtomCalculation::Prepare(26, 1, o)) << "Fe+ in NIST's configuration";
 }
+
+// AN UNSTATED ALL-ELECTRON CATION (row 196 step 3, controller ruling 2026-11-16): Fe+ is NIST's 3d^6 4s^1 (not Mn's 3d^5 4s^2), Fe2+ the
+// removal rule's 3d^6, each at Hund's multiplicity, and the policy row names the branch that fired with that multiplicity.  An anion keeps
+// the isoelectronic neutral.  Built only (Prepare): the configuration and its row are filed before any SCF.
+TEST(AtomConfiguration, AnUnstatedCationTakesNISTsFirstCationOrTheRemovalRuleAndSaysWhich)
+{
+    auto row=[](const std::string& runName, int Z, int charge)
+    {
+        {
+            qchem::report::Run run(runName);
+            (void)AtomCalculation::Prepare(Z, charge, {.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low, .model=Model::LDA,
+                                                       .spin=SpinGroup::Polarized});
+        }
+        std::vector<qchem::report::json> out;
+        std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& x)
+        {
+            if (!x.is_object()) return;
+            for (auto it=x.begin(); it!=x.end(); ++it)
+            {
+                if (it.key()=="policy" && it.value().is_array())
+                    for (const auto& r : it.value()) if (r.value("name","")=="AtomConfiguration") out.push_back(r);
+                walk(it.value());
+            }
+        };
+        const auto* filed=FiledRun(runName+"@");
+        if (filed) walk(*filed);
+        return out;
+    };
+    const auto fe1=row("cation Fe+", 26, 1);
+    ASSERT_EQ(fe1.size(), 1u);
+    EXPECT_EQ(fe1[0]["decided"], "Fe 1s^2 2s^2 2p^6 3s^2 3p^6 3d^6 4s^1 (multiplicity 6)") << fe1[0].dump(1);
+    EXPECT_EQ(fe1[0]["detail"]["branch"], "NISTFirstCation");
+    EXPECT_NE(fe1[0]["reason"].get<std::string>().find("NIST's first cation"), std::string::npos);
+    const auto fe2=row("cation Fe2+", 26, 2);
+    ASSERT_EQ(fe2.size(), 1u);
+    EXPECT_EQ(fe2[0]["decided"], "Fe 1s^2 2s^2 2p^6 3s^2 3p^6 3d^6 (multiplicity 5)") << fe2[0].dump(1);
+    EXPECT_EQ(fe2[0]["detail"]["branch"], "RemovalRule");
+    EXPECT_EQ(fe2[0]["detail"]["multiplicity"], 5);
+    const auto f1=row("anion F-", 9, -1);
+    ASSERT_EQ(f1.size(), 1u);
+    EXPECT_EQ(f1[0]["decided"], "F 1s^2 2s^2 2p^6");
+    EXPECT_NE(f1[0]["reason"].get<std::string>().find("isoelectronic neutral"), std::string::npos);
+}
