@@ -12,7 +12,7 @@ import qchem.PeriodicTable;   // thePeriodicTable (Z -> element symbol, for the 
 import qchem.Policy;          // policy::Refuse / Report: each policy files its row where it fires
 import qchem.XCRhoPolicy;     // ReportXCRho: the XC ρ-axis decision
 import qchem.ChargeDensity.AtomicDensity;   // HasAtomicDensity: the SAD seed's coverage
-import qchem.SeedPolicy;      // ResolveSeed: the ONE Auto seed rule (shared with SolidSetup)
+import qchem.SetupDecisions;  // the structure-neutral decisions (spin channels, seed, accelerator, Vxc admission), shared with SolidSetup
 import qchem.BasisSet.Gaussian.Point.Factory; // RegisteredBasis, BasisSetData: which registered files are all-electron
 import qchem.BasisSet.Gaussian.Point.BasisFiles; // BasisFileOfName: the basis name's file, for the coverage pre-flight
 import qchem.BasisCoverage;   // RequireBasisCovers: a basis lacking an element is refused before anything is built
@@ -70,14 +70,11 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
             RequireBasisCovers(BasisSet::Gaussian::BasisFileOfName(opts.basis), opts.basis, *point);
     }
 
-    // The multiplicity 2S+1 -> (nUp, nDown) must be realisable: 0 <= 2S <= Ne and Ne-2S even (fail loud, not a silent miscount).
-    if (opts.multiplicity > 0)
+    // The multiplicity 2S+1 -> (nUp, nDown): THE rule every structure shares (qchem.SetupDecisions), refusing an unrealisable one.
+    // A molecule has no shared Fermi level to offer (nullopt).
     {
-        const int twoS = opts.multiplicity - 1;
-        if (twoS > s->Ne || ((s->Ne - twoS) % 2) != 0)
-            policy::RefuseAs("SpinMultiplicity", "qchem::MoleculeCalculation: multiplicity " + std::to_string(opts.multiplicity) +
-                " (2S=" + std::to_string(twoS) + ") is incompatible with " + std::to_string(s->Ne) +
-                " electrons -- need 0 <= 2S <= Ne and Ne-2S even.");
+        const SpinChannels c=ResolveSpinChannels(opts.multiplicity, s->Ne, std::nullopt, "qchem::MoleculeCalculation");
+        s->nUp=c.nUp; s->nDown=c.nDown;
     }
 
     // Seed: an explicit opts.seed wins; otherwise THE Auto rule both setups share (qchem.SeedPolicy: a model whose iteration-0 Fock reads a
@@ -87,9 +84,11 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     // PP molecule read the all-electron densities, core included, and a species with no all-electron entry, Si, took the core guess).
     using qchem::ChargeDensity::SeedStrategy;
     const bool dft = qchem::Hamiltonian::IsDFT(opts.model);
-    if (s->pp) s->seedKey=SeedKeyOf(*s->pp, *point);
-    s->seed = ResolveSeed(opts.seed, *point, {.densityFock = dft || !opts.pp.empty(), .periodic = point->Admits(qcMesh::ImposedSymmetry::Translations),
-                                             .chargesStated = false, .covered = [key=s->seedKey](int Z){ return SeedLibraryCovers(key, Z); }});
+    {
+        const RunSeed seed=ResolveRunSeed(opts.seed, *point, s->pp ? &*s->pp : nullptr, dft || !opts.pp.empty());   // no charge order stated
+        s->seed   =seed.seed;
+        s->seedKey=seed.key;
+    }
 
     // THE XC MESH (pin 31; doc/GeometryOptimizationPlan.md §14.1): an axis left at 0 is unstated and takes the entry rung's; a mesh with
     // neither stated climbs from there at the converged D (MoleculeCalculation's pilot), only up.  A stated one is honoured and audited.
@@ -122,26 +121,16 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     // and the Hamiltonian are built: the Factory throws the same reason, but only once the work is done.
     if (dft || !opts.pp.empty())
     {
-        if (const auto a=Hamiltonian::AdmitVxc(*point, opts.vxcFit, s->mesh); !a)
-            policy::Refuse("AdmitVxc", "the stated Vxc fit and XC mesh on this molecule", a.Error());
+        RequireVxcAdmitted(*point, opts.vxcFit, s->mesh, "molecule");
         if (const auto a=Hamiltonian::AdmitCoulomb(*point, opts.coulomb, s->mesh, opts.vxcFit); !a)
             policy::Refuse("AdmitCoulomb", "the stated Hartree route on this molecule", a.Error());
         ReportXCRho(opts.vxcFit, opts.xcRho);   // the ρ axis (user ruling 2026-11-09): warns on the Gaussian x δ cell
     }
 
     AdmitRecipe(acc.recipe, /*kT: not read for a molecule*/0.0, /*molecule*/true);   // Auto | Insulator only (R4.1 ruling (c))
-    using AType = qchem::SCFAccelerators::Type;
-    if (acc.type!="DIIS" && acc.type!="GDM" && acc.type!="Ladder")
-        policy::RefuseAs("AcceleratorType", "qchem::MoleculeCalculation: unknown accelerator type \"" + acc.type +
-                                            "\" (expected DIIS | GDM | Ladder)");
-    s->accelerator = acc.type=="DIIS" ? AType::DIIS : acc.type=="GDM" ? AType::GDM : AType::Ladder;
+    s->accelerator = AcceleratorTypeByName(acc.type, "qchem::MoleculeCalculation");   // DIIS | GDM | Ladder, any other refused
     if (dft || !opts.pp.empty()) RefuseGradientConsumers(opts.vxcFit, opts.xcRho, acc.type);   // GDM needs H = dE/dD (pin 32)
-    // DFT (and the LSDA pseudopotential) need DIIS engaged from iteration 0: the default Z-scaled EMax gate keeps DIIS off and
-    // the SCF limit-cycles to a non-converged snapshot (the "M_Sym layout UB" mechanism, see M_DFT).  So default them to a high
-    // EMax ("DIIS from start") unless the caller pinned one.
-    const bool   dftLike = dft || !opts.pp.empty();
-    const int    Z       = point->GetNuclearCharge();
-    s->eMax = acc.eMax > 0.0 ? acc.eMax : (dftLike ? 100.0 : Z*Z*0.08/32);
+    s->eMax = DIISEngageGate(acc.eMax, point->GetNuclearCharge(), dft || !opts.pp.empty());   // DIIS from the start on a density Fock
     return s;
 }
 

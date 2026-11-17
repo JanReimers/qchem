@@ -14,6 +14,7 @@ module;
 #include <iomanip>
 module qchem.AtomCalculation;
 
+import qchem.SetupDecisions;   // DIISEngageGate: the engage gate every setup shares (V-FACADE-SETUP)
 import qchem.Hamiltonian.Factory;                   // Factory(...), IsDFT, XCFunctional (XC selector)
 import qchem.Policy;                                  // policy::PPFittedFunctional (the PP / functional match)
 import qchem.Pseudopotential.GTH_Potentials;          // GetGTH(...).fitted: the functional the pseudo-atom's PP was fitted with
@@ -212,7 +213,7 @@ void AtomCalculation::BuildGraph()
     // needs (DIIS/GDM/Ladder/directmin).  Z^2*0.08/32, was 0.1/32: the [F,D] it is compared against changed UNIT on
     // 2026-10-29 (the worst irrep, was sqrt(sum of squares) over the l-blocks -- user ruling), and on Kr the two differ by
     // ~0.8 at the engage step; unrescaled, DIIS engaged one step early and the Kr Libxc run went chaotic.
-    const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : itsZ*itsZ*0.08/32;
+    const double emax = DIISEngageGate(itsAcc.eMax, itsZ, /*the atom keeps the Z-scaled gate, DFT too*/false);
     nlohmann::json jsacc = ToAcceleratorJson(itsAcc, emax);   // every knob of the chain; the escape hatch below merges over it
     const std::string ts = AcceleratorTag();
     if (itsOpts.accelerator.is_object() && !itsOpts.accelerator.empty())
