@@ -3173,6 +3173,11 @@ GTH-PADE-q, configuration and multiplicity, LDA_X + LDA_C_VWN.  The 27 hand-made
   `GPW_Al.Γ_Imp_EverySeedReachesTheSameAufbauState` (Uniform, stated core guess, Auto = IonicSAD; the core guess takes 11).  No gate runs
   LiMn₂O₄ or FeS₂ (campaign decks only), and `PW_CsI.Γ_Anchor` is a plane-wave run that did not move.
 
+Landed as 8af34f41 (main bbb675988, 2026-11-16), the user approving the mover table (`side-session-notes/…/lane-b-valence-library-movers.md`); READY sweep on 8af34f412 against main-da87d5ce: short 1704/0, long 19/0, panel4t 27/0, 0 moved in all three.  Remainders (a)-(c) stay an OpenWork row ("The valence seed library's remainders").
+
+The row as it stood, verbatim:
+| **The valence (pseudopotential) seed library covers every GTH (element, q) the pseudo-atom solves: the remainders** (lane B 2026-11-13; library generated 2026-11-15) | **DONE on lane-b (2026-11-15), awaiting the user's OK on the mover table:** `scripts/gen-valence-seeds` wrote 127 neutrals + Mn³⁺ q7, Fe⁴⁺ q8, I⁻ q7 (27 → 157 entries), each judged on CP2K ATOM at the same GTH, configuration and multiplicity (~0.1 mHa; ≤ 3 mHa gate); with it two pseudo-atom configuration defects are fixed (`Atom_EC::Shells` threw on every non-Madelung core; rule B folds closed f¹⁴/d¹⁰ into a small-q core).  LEFT: (a) the nine hand-made open-shell neutrals have NO spin pair (H, C, N, F, Si, S, Ti, V, Fe q8): a polarized run seeds them moment-free; (b) 10 open-4f/5f atoms do not converge in 300 iterations (Tb, Dy, Er, Tm, Am q35, Cf, Es q21, Fm q40, Md q41) and Np/Cm/Bk have no configuration the generator can name for CP2K (Z > 92); (c) ions beyond the shipped structures' formal charges | (a) regenerate them polarized with `gen-valence-seeds` (drop their keys first) and take its own mover table; (b) the open-f atom on the Ladder/GDM or smeared, the Z > 92 shells from the periodic table's configuration; (c) only when a deck asks · `Records/OpenWork_History5.md`, "THE VALENCE (PSEUDOPOTENTIAL) SEED LIBRARY" |
+
 Neutrals (`gen-valence-seeds`; configurations in physical shells over the core the PP replaces):
 
 | el | Z | q | Nelec | configuration [core] | spin | E (Ha) | E CP2K ATOM | ΔE | moment | iters | note |
