@@ -138,6 +138,8 @@ template <class E> concept isShellBlock_HF_Evaluator = isHF_Evaluator<E> && requ
     {e.FourCGroupBlock(i, e, i, e, i, e, i, out)} -> std::same_as<void>;
     // the THREADED fill (OpenWork §3): the group pairs' Ω built serially, a worker-safe block on them, and how many workers may run it
     {e.FourCGroupBlock(e.MakeGroupPairΩ(), i, i, i, i, out)} -> std::same_as<void>;
+    // ... and the cross-block one (lane H 2026-11-16): any two blocks' group pairs, and a block reading both pairs' Ω from tables
+    {e.FourCGroupBlock(e.MakeGroupPairΩ(e, e)[i], i, e, i, e, i, e, i, e.MakeGroupPairΩ(e, e)[i], out)} -> std::same_as<void>;
     {E::GroupBlockThreads()} -> std::same_as<int>;
 };
 //! The 3-centre twin: a scalar DFT evaluator that also delivers a general-contraction GROUP TRIPLE of \c RepulsionThreeC / \c OverlapThreeC
