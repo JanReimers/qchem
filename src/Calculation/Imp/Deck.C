@@ -260,7 +260,7 @@ static SCFRecipe RecipeOf(const json& scf, const std::string& path)
 //! A stage's `scf` block as the record writes it: the knobs and the recipe.
 static json StageScfJson(const SCFParams& p, SCFRecipe r) {json j=ToJson(p); j["recipe"]=NameOf(r,kRecipe); return j;}
 
-//=== SolidAcceleratorOptions ===================================================================================================
+//=== AcceleratorParams ===================================================================================================
 static json DiisJson(const SCFAccelerators::DIISParams& d)
 { return {{"nProj",d.Nproj},{"engageBelowFD",d.EngageBelowFD},{"svTol",d.SVTol},{"svTolRel",d.SVTolRel}}; }
 static void DiisFromJson(const json& j, SCFAccelerators::DIISParams& d, const std::string& path)
@@ -277,13 +277,13 @@ static void GdmFromJson(const json& j, SCFAccelerators::GDMParams& g, const std:
     Fields f(j,path); f.Get("engageBelowFD",g.EngageBelowFD); f.Get("trust",g.Trust); f.Get("trustBackoff",g.TrustBackoff); f.Get("trustMin",g.TrustMin);
     f.Get("pcFloor",g.PCFloor); f.Get("aufbauTol",g.AufbauTol); f.Get("aufbauMaxRepicks",g.AufbauMaxRepicks); f.Done();
 }
-json ToJson(const SCFAccelerators::SolidAcceleratorOptions& o)
+json ToJson(const SCFAccelerators::AcceleratorParams& o)
 {
     return {{"diis",DiisJson(o.diis)},{"gdm",GdmJson(o.gdm)},
             {"ladder",{{"gdm",GdmJson(o.ladderGdm)},{"eThresh",o.ladderEThresh},{"stall",o.ladderStall},{"floor",o.ladderFloor},
                        {"switchAt",o.ladderSwitchAt},{"signal",NameOf(o.ladderSignal,kSignal)}}}};
 }
-void FromJson(const json& j, SCFAccelerators::SolidAcceleratorOptions& o)
+void FromJson(const json& j, SCFAccelerators::AcceleratorParams& o)
 {
     Fields f(j,"acceleratorOptions");
     if (j.contains("diis")) DiisFromJson(f.At("diis"),o.diis,"acceleratorOptions.diis"); else f.At("diis");
@@ -295,6 +295,41 @@ void FromJson(const json& j, SCFAccelerators::SolidAcceleratorOptions& o)
         if (l.contains("gdm")) GdmFromJson(lf.At("gdm"),o.ladderGdm,"acceleratorOptions.ladder.gdm"); else lf.At("gdm");
         lf.Get("eThresh",o.ladderEThresh); lf.Get("stall",o.ladderStall); lf.Get("floor",o.ladderFloor); lf.Get("switchAt",o.ladderSwitchAt);
         lf.GetEnum("signal",o.ladderSignal,kSignal);
+        lf.Done();
+    }
+    else f.At("ladder");
+    f.Done();
+}
+
+// The ACCELERATOR BLOCK (V-FACADE-PARITY P0b-1): a deck states only the knobs it means; the rest are the kind's defaults (a periodic
+// run: the GPW production recipe), filled by the setup -- and the RECORD writes the resolved, complete chain (ToJson(RunSpec)).
+template <class T> static void GetOpt(Fields& f, const json& j, const char* k, std::optional<T>& v)
+{ if (j.contains(k)) { T x{}; f.Get(k,x); v=x; } else f.At(k); }
+static void GdmOptFromJson(const json& j, AcceleratorOptions::GDM& g, const std::string& path)
+{
+    Fields f(j,path);
+    GetOpt(f,j,"engageBelowFD",g.engageBelowFD); GetOpt(f,j,"trust",g.trust); GetOpt(f,j,"trustBackoff",g.trustBackoff); GetOpt(f,j,"trustMin",g.trustMin);
+    GetOpt(f,j,"pcFloor",g.pcFloor); GetOpt(f,j,"aufbauTol",g.aufbauTol); GetOpt(f,j,"aufbauMaxRepicks",g.aufbauMaxRepicks);
+    f.Done();
+}
+void FromJson(const json& j, AcceleratorOptions& o)
+{
+    Fields f(j,"acceleratorOptions");
+    if (j.contains("diis"))
+    {
+        const json& d=f.At("diis"); Fields df(d,"acceleratorOptions.diis");
+        GetOpt(df,d,"nProj",o.diis.nProj); GetOpt(df,d,"engageBelowFD",o.diis.engageBelowFD); GetOpt(df,d,"svTol",o.diis.svTol); GetOpt(df,d,"svTolRel",o.diis.svTolRel);
+        df.Done();
+    }
+    else f.At("diis");
+    if (j.contains("gdm")) GdmOptFromJson(f.At("gdm"),o.gdm,"acceleratorOptions.gdm"); else f.At("gdm");
+    if (j.contains("ladder"))
+    {
+        const json& l=f.At("ladder");
+        Fields lf(l,"acceleratorOptions.ladder");
+        if (l.contains("gdm")) GdmOptFromJson(lf.At("gdm"),o.ladder.gdm,"acceleratorOptions.ladder.gdm"); else lf.At("gdm");
+        GetOpt(lf,l,"eThresh",o.ladder.eThresh); GetOpt(lf,l,"stall",o.ladder.stall); GetOpt(lf,l,"floor",o.ladder.floor); GetOpt(lf,l,"switchAt",o.ladder.switchAt);
+        if (l.contains("signal")) { SCFAccelerators::ScheduleSignal sg{}; lf.GetEnum("signal",sg,kSignal); o.ladder.signal=sg; } else lf.At("signal");
         lf.Done();
     }
     else f.At("ladder");
@@ -842,7 +877,7 @@ json ToJson(const RunSpec& r)
     j["schema"]=kSchemaVersion;   // a record (and the GUI's resolved deck) is schema 2: the options' structure-neutral keys at the top
     j["kmesh"]={r.kmesh.x,r.kmesh.y,r.kmesh.z}; j["basis"]=BasisJson(r.basis);
     j.update(ToJson(r.solid));    // the run's options: shared keys, accuracy and xc at the top, the periodic ones under `solid`
-    j["acceleratorOptions"]=ToJson(r.accel);
+    j["acceleratorOptions"]=ToJson(ResolveAcceleratorParams(r.accel, SCFAccelerators::AcceleratorParams{}));   // the record: the resolved chain, complete
     if (!r.state.save.empty() || !r.state.restartFrom.empty())
     {
         json st=json::object();

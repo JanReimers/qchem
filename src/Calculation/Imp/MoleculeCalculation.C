@@ -141,13 +141,13 @@ void MoleculeCalculation::BuildGraph()
 {
     namespace rpt = qchem::report;
     const CalcOptions& opts=itsSetup->opts;
-    const nlohmann::json jsacc = ToAcceleratorJson(itsSetup->acc, itsSetup->eMax);   // every knob of the chain, forwarded
+    // The setup's accelerator block resolved over the molecular defaults: the TYPED door, as the solid's (V-FACADE-PARITY P0b-1).
     // The facade sets the context, the accelerator files what it was built with (THE RUN REPORT): one `accelerators` row per
     // accelerator built in this run (a solid rebuilds one per stage), its Ladder rungs one level further in.
-    nlohmann::json jsrun = jsacc;
-    if (itsStartOnGDM) { jsrun["startOnGDM"]=true; itsStartOnGDM=false; }   // the restored stage only (PrepareRestart)
+    qchem::SCFAccelerators::AcceleratorParams params = itsSetup->accParams;
+    if (itsStartOnGDM) { params.ladderStartOnGDM=true; itsStartOnGDM=false; }   // the restored stage only (PrepareRestart)
     qchem::SCFAccelerators::SCFAccelerator* accel=nullptr;
-    { rpt::Row built("accelerators"); accel = qchem::SCFAccelerators::Factory(itsSetup->accelerator, jsrun); }
+    { rpt::Row built("accelerators"); accel = qchem::SCFAccelerators::Factory(itsSetup->accelerator, params); }
     const auto seed = itsSetup->seed;
 
     // The `basis` section is ASSEMBLED across layers, and since V1.14 it spans the basis's whole LIFE in this

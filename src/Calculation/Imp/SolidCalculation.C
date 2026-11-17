@@ -65,7 +65,7 @@ struct SolidCalculation::Imp
     std::shared_ptr<const SolidSetup>           setup;
     //! The accelerator options a STAGE starts from: \c setup->acc, except where a caller's stage overrides the Ladder's starting
     //! rung for its own duration (the FD chi's restart-like stages).  Per-run state, not a decision of the setup.
-    SCFAccelerators::SolidAcceleratorOptions    accOpts;
+    SCFAccelerators::AcceleratorParams    accOpts;
     //! The caller's per-iteration telemetry: the constructor's (or \c Restart's) \a onIteration, replaced by \c OnIteration.
     Observer                                    onIteration;
     std::shared_ptr<const Structure>            st;
@@ -950,7 +950,7 @@ void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe re
     // restored smeared or partial-eigensolve stage -> DIIS, the last two beside a linear step whose start is capped at 0.3 (Converge);
     // a NAMED MagneticInsulator / Metal stage -> Null in every column, its restore on K+P from iteration 1 (Q-R ruling (b), 2026-11-13).
     AdmitRecipe(recipe, params.SmearingkT, /*molecule*/false);
-    SCFAccelerators::SolidAcceleratorOptions ao=itsImp->accOpts;
+    SCFAccelerators::AcceleratorParams ao=itsImp->accOpts;
     const RecipeAccelerator chosen=ChooseAccelerator(recipe, kind, asked, params.SmearingkT, int(itsImp->setup->opts.numBands));
     T t=chosen.type;
     // THE FITTED-POTENTIAL CELL (the periodic A1 fit at xc.rho exact, V-XC-ONE-TERM step 6): H is not dE/dD (pin 32), so what descends E

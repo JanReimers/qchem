@@ -45,7 +45,7 @@ import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, MakeRasterL
 export import qchem.Hamiltonian.HubbardEstimator;   // ACBN0Estimate (EstimateHubbardU), HubbardEstimate (the loop)
 export import qchem.Response;                  // ChannelResponse / ResponseFailure (IndependentResponse, LinearResponsePlan R0)
 export import qchem.Response.Solver;           // SelfConsistentResponse / QMeshResponse + KrylovParams (HubbardLinearResponse)
-import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions, the typed solid door
+import qchem.SCFAccelerator.Factory;          // Type, AcceleratorParams, the typed solid door
 import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, IterationRow, EnergyBreakdown
 import qchem.ChargeDensity;                   // cDM_CD
 import qchem.ChargeDensity.Seed;              // SeedStrategy
@@ -280,7 +280,7 @@ public:
     //!
     //! No mixer or accelerator history is carried: a restart is a fresh stage.  With \c opts.momFromSeed the
     //! MOM reference is the restored density's own first fill, as for any seed.  A \c Ladder accelerator STARTS
-    //! ON ITS GDM RUNG for the restart's stage when \a params.SmearingkT is 0 (\c SolidAcceleratorOptions::ladderStartOnGDM):
+    //! ON ITS GDM RUNG for the restart's stage when \a params.SmearingkT is 0 (\c AcceleratorParams::ladderStartOnGDM):
     //! the DIIS rung's mixing would step a converged density away before the first energy is read.  A smeared restart
     //! starts on DIIS (GDM would engage on a restored integer D' and never apply the smearing).
     //! The setup's accelerator (\c opts.accelerator) drives the restored stage.  \a onIteration observes the restored stage from

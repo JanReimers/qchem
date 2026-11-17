@@ -13,17 +13,19 @@ export namespace qchem::SCFAccelerators
     enum class Type {DIIS,GDM,Ladder,Null,Auto};
 
     //! The molecular (\c double) front door.  Stringly-typed by history: the json keys came from test
-    //! scaffolding.  The typed \c SolidAcceleratorOptions below is the pattern to prefer for new callers.
+    //! scaffolding.  The typed \c AcceleratorParams below is the pattern to prefer for new callers.
     SCFAccelerator* Factory(Type,const nlohmann::json& js);
 
-    //=== The SOLID (dcmplx / Bloch) front door ========================================================
-    //! \brief What a solid run's accelerator chain is made of, defaulted to the GPW production recipe.
+    //=== The TYPED front door (every structure since V-FACADE-PARITY P0b-1, 2026-11-17) ===============
+    //! \brief What a run's accelerator chain is made of: concrete, every knob filled.  The member defaults are the GPW production
+    //! recipe; a structure's policy layer fills its OWN from the options tree (\c qchem::AcceleratorOptions, the per-kind defaults:
+    //! the molecule's Z-scaled DIIS gate, Nproj 4, ...), so this library states no structure.
     //!
     //! COMPOSES the public \c DIISParams / \c GDMParams / \c ScheduleSignal rather than restating their
     //! fields.  An earlier version flattened them into renamed scalars, which was a drift trap: a new knob
     //! on \c DIISParams would silently not reach this door.  If you are tuning DIIS, you are setting
     //! \c DIISParams -- there should be exactly one spelling of that.
-    struct SolidAcceleratorOptions
+    struct AcceleratorParams
     {
         //! Nproj, the [F,D] gates, the absolute SV prune, and -- ON for solids (see DIISParams::SVTolRel;
         //! the MnO run-32 dependent-history blow-up) -- the RELATIVE conditioning prune at 1e-4.
@@ -53,6 +55,6 @@ export namespace qchem::SCFAccelerators
     //! one differs only in how the knobs arrive (typed options vs json) and in its solid-tuned defaults.
     //! \c Ladder is the ionic-crystal recipe -- DIIS until it runs out of steam, then GDM, switching on
     //! ENERGY CHANGE rather than the residual.
-    SCFAccelerator* Factory(Type, const SolidAcceleratorOptions& = {});
+    SCFAccelerator* Factory(Type, const AcceleratorParams& = {});
 }
 

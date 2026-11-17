@@ -40,7 +40,7 @@ import qchem.UnitCell;
 import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSetData::SIPP_SR
 import qchem.SCFParams;
 import qchem.SCFIterator;                       // IterationRow
-import qchem.SCFAccelerator.Factory;            // SCFAccelerators::Type, SolidAcceleratorOptions
+import qchem.SCFAccelerator.Factory;            // SCFAccelerators::Type, AcceleratorParams
 import qchem.Reporting;
 import qchem.Types;
 
@@ -64,6 +64,15 @@ enum class Capability
 };
 
 //! THE EXPECTED FAILURES: the row whose work will make the cell hold; nullptr = the cell must hold now.
+//! The SAME non-default Ladder knobs for every kind (V-FACADE-PARITY P0b-1: one accelerator block; the molecule names its type in it).
+AcceleratorOptions LadderKnobs(const char* type="DIIS")
+{
+    AcceleratorOptions a; a.type=type;
+    a.diis.nProj=6; a.diis.engageBelowFD=0.05; a.diis.svTol=1e-8;
+    a.ladder.gdm.trust=0.2; a.ladder.eThresh=1e-7; a.ladder.stall=4; a.ladder.floor=1e-9; a.ladder.switchAt=1e-5;
+    return a;
+}
+
 const char* ExpectedFailure(Kind k, Capability c)
 {
     switch (c)
@@ -373,7 +382,7 @@ public:
     {
         // The atom states every knob -- but only through its stringly json escape hatch, in the json door's own key names.
         AtomCalcOptions o=Options();
-        o.accelerator={{"type","Ladder"}, {"NProj",6}, {"EMax",0.05}, {"SVTol",1e-8},
+        o.accelerator={{"type","Ladder"}, {"NProj",6}, {"EngageBelowFD",0.05}, {"SVTol",1e-8},
                        {"Trust",0.2}, {"ethresh",1e-7}, {"stall",4}, {"floor",1e-9}, {"switchat",1e-5}};
         { report::Run run(ID()+" build"); AtomCalculation::Prepare(Z, 0, o); }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
@@ -445,8 +454,7 @@ public:
     }
     std::string AcceleratorKnobsArrive() override
     {
-        { report::Run run(ID()+" build"); (void)MoleculeCalculation::Prepare(Setup({.nProj=6, .eMax=0.05, .svTol=1e-8, .trust=0.2, .ladderEThresh=1e-7, .ladderStall=4,
-                                              .ladderFloor=1e-9, .ladderSwitchAt=1e-5, .type="Ladder"})); }
+        { report::Run run(ID()+" build"); (void)MoleculeCalculation::Prepare(Setup(LadderKnobs("Ladder"))); }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
     }
     std::string SaveRestartRoundTrips() override
@@ -556,7 +564,7 @@ class SolidProbe : public FacadeProbe
         return p;
     }
     static std::shared_ptr<const SolidSetup> Setup(SCFAccelerators::Type type=SCFAccelerators::Type::Auto,
-                                                   const SCFAccelerators::SolidAcceleratorOptions& acc={})
+                                                   const AcceleratorOptions& acc={})
     {
         const auto mat=Materials::Get("Si_diamond");
         SolidCalcOptions o; o.Nelec=8; o.species=mat.species; o.densityEcut=20.0; o.label="matrix"; o.accelerator=type;
@@ -582,10 +590,7 @@ public:
     }
     std::string AcceleratorKnobsArrive() override
     {
-        SCFAccelerators::SolidAcceleratorOptions acc;
-        acc.diis.Nproj=6; acc.diis.EngageBelowFD=0.05; acc.diis.SVTol=1e-8;
-        acc.ladderGdm.Trust=0.2; acc.ladderEThresh=1e-7; acc.ladderStall=4; acc.ladderFloor=1e-9; acc.ladderSwitchAt=1e-5;
-        const auto setup=Setup(SCFAccelerators::Type::Ladder, acc);
+        const auto setup=Setup(SCFAccelerators::Type::Ladder, LadderKnobs());
         { report::Run run(ID(*setup)+" build"); SolidCalculation::Prepare(setup, {{Params(), SCFAccelerators::Type::Ladder}}); }
         return AcceleratorFiled(FiledRun(ID(*setup)+" build@"), ID(*setup)+" build@");
     }

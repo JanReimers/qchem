@@ -12,6 +12,7 @@ module;
 #include <optional>
 #include <string>
 #include <vector>
+#include <nlohmann/json.hpp>
 export module qchem.SetupDecisions;
 export import qchem.SeedPolicy;              // ResolveSeed, SeedKeyOf, SeedLibraryCovers: the seed's Auto rule (re-exported: one door)
 import qchem.ChargeDensity.Seed;             // SeedStrategy
@@ -19,7 +20,8 @@ import qchem.ChargeDensity.AtomicDensity;    // SeedKey
 import qchem.Structure;                      // Structure::Admits (does the structure repeat?)
 import qchem.Mesh;                           // qcMesh::ImposedSymmetry, MeshParams
 import qchem.Pseudopotential.Set;            // PseudopotentialSet: the run's pseudo-atoms key the seed library
-import qchem.SCFAccelerator.Factory;         // SCFAccelerators::Type
+export import qchem.SCFAccelerator.Factory;  // SCFAccelerators::Type, AcceleratorParams (the accelerator block resolves to it)
+export import qchem.SCFRecipe;               // SCFRecipe (AcceleratorOptions::recipe)
 import qchem.Hamiltonian.Factory;            // AdmitVxc, VxcFit
 import qchem.Policy;                         // policy::Refuse / RefuseAs
 export import qchem.Symmetry.Spin;           // SpinGroup: ResolveSpinGroup's answer
@@ -63,6 +65,107 @@ inline SpinChannels ResolveSpinChannels(int multiplicity, int nel, std::optional
 inline SpinGroup ResolveSpinGroup(SpinGroup stated, int multiplicity)
 {
     return multiplicity>1 ? SpinGroup::Polarized : stated;
+}
+
+//=== THE ACCELERATOR BLOCK ============================================================================================================
+//! \brief THE ACCELERATOR BLOCK of the options tree, every structure (V-FACADE-PARITY P0b-1, 2026-11-17; was the molecule's flat
+//! \c AcceleratorOptions and the solid's \c SolidAcceleratorOptions).  Every knob is OPTIONAL: unstated takes the KIND's default, which
+//! the kind's setup fills (\c ResolveAcceleratorParams) -- the molecule's and the atom's Z-scaled DIIS gate, Nproj 4 and a Ladder GDM rung
+//! that always steps; the solid's GPW production recipe (\c SCFAccelerators::AcceleratorParams' member defaults).  Those differences
+//! are per-kind DEFAULTS, logged for harmonizing (OpenWork "Per-kind defaults").  The knobs mirror \c DIISParams / \c GDMParams and
+//! the Ladder's triggers one to one, so a knob added there has one spelling here.
+struct AcceleratorOptions
+{
+    //! The accelerator BY NAME (molecule and atom; the solid's is \c SolidCalcOptions::accelerator until P0b-2): "DIIS" (default) |
+    //! "GDM" (direct minimisation, robust for hard/open-shell SCF) | "Ladder" (DIIS -> GDM).  Any other name is REFUSED at Admit.
+    std::string type = "DIIS";
+    //! The SCF RECIPE by material regime (qchem.SCFRecipe; doc/SCFRobustnessPlan.md R4.1 as ruled for B5, ruling (c)): a molecule takes
+    //! \c Auto or \c Insulator only; MagneticInsulator and Metal are REFUSED there (their Kerker+Pulay mixes in G space).
+    SCFRecipe recipe = SCFRecipe::Auto;
+    struct DIIS
+    {
+        std::optional<size_t> nProj;          //!< history depth
+        //! DIIS starts extrapolating once [F,D] < this.  A molecule's / atom's unstated gate is Z-scaled (\c DIISEngageGate).
+        std::optional<double> engageBelowFD;
+        //! The ABSOLUTE floor on svMin(B) (OFF for a molecule since 2026-11-11: B scales as |[F,D]|^2, so it purged the history once
+        //! [F,D] < ~7e-5) and the RELATIVE prune svMin(B) < svTolRel * max_i B_ii, which guards a genuinely dependent history (doc/Records/
+        //! OpenWork_History5.md, "The molecular DIIS switches itself off").
+        std::optional<double> svTol, svTolRel;
+    };
+    struct GDM
+    {
+        //! Engage the geodesic step once [F,D] < this.  A molecule's / atom's UNSTATED standalone-GDM gate is the DIIS gate (stated or
+        //! Z-scaled), as the flat \c eMax always was; the Ladder's GDM rung keeps its own (1e10 there: it always steps).
+        std::optional<double> engageBelowFD;
+        std::optional<double> trust;          //!< the largest geodesic rotation (radians) per step
+        std::optional<double> trustBackoff, trustMin, pcFloor, aufbauTol;
+        std::optional<int>    aufbauMaxRepicks;
+    };
+    DIIS diis;
+    GDM  gdm;      //!< standalone GDM
+    //! LADDER (DIIS -> GDM): its GDM rung and the hand-off triggers (\c SCFAcceleratorLadder): energy still moving by more than
+    //! \c eThresh for \c stall non-improving steps (STALL, \c floor its low backstop), or the signal below \c switchAt (TAIL; 0 = none;
+    //! 1e-6 by default, the CLAUDE.md rule).  \c signal: |ΔE/E| (\c EnergyChange) or [F,D] (\c Error).
+    struct Ladder
+    {
+        GDM gdm;
+        std::optional<double> eThresh;
+        std::optional<int>    stall;
+        std::optional<double> floor, switchAt;
+        std::optional<SCFAccelerators::ScheduleSignal> signal;
+        bool startOnGDM = false;   //!< the seed is a RESTORED state: start on the GDM rung (a restart's own decision, never a user's)
+    } ladder;
+};
+
+
+//! \brief \a kindDefaults with every knob \a acc STATES laid over it: the one place an accelerator block becomes concrete parameters.
+//! \brief The MOLECULE's and the ATOM's defaults (the chain they always ran): Nproj 4, the absolute SV floor off, the relative prune
+//! 1e-4, standalone GDM engaging at the same gate \a eMax as DIIS, trust 0.1, a Ladder GDM rung that always steps (gate 1e10).
+//! The json door's keys for \a p (the atom's accelerator-sweep escape hatch merges over them; nothing else uses the json door).
+
+inline SCFAccelerators::AcceleratorParams ResolveAcceleratorParams(const AcceleratorOptions& acc, SCFAccelerators::AcceleratorParams p)
+{
+    auto gdm=[](const AcceleratorOptions::GDM& g, SCFAccelerators::GDMParams& o)
+    {
+        if (g.engageBelowFD) o.EngageBelowFD=*g.engageBelowFD;
+        if (g.trust)         o.Trust=*g.trust;
+        if (g.trustBackoff)  o.TrustBackoff=*g.trustBackoff;
+        if (g.trustMin)      o.TrustMin=*g.trustMin;
+        if (g.pcFloor)       o.PCFloor=*g.pcFloor;
+        if (g.aufbauTol)     o.AufbauTol=*g.aufbauTol;
+        if (g.aufbauMaxRepicks) o.AufbauMaxRepicks=*g.aufbauMaxRepicks;
+    };
+    if (acc.diis.nProj)         p.diis.Nproj=*acc.diis.nProj;
+    if (acc.diis.engageBelowFD) p.diis.EngageBelowFD=*acc.diis.engageBelowFD;
+    if (acc.diis.svTol)         p.diis.SVTol=*acc.diis.svTol;
+    if (acc.diis.svTolRel)      p.diis.SVTolRel=*acc.diis.svTolRel;
+    gdm(acc.gdm, p.gdm);
+    gdm(acc.ladder.gdm, p.ladderGdm);
+    if (acc.ladder.eThresh)  p.ladderEThresh=*acc.ladder.eThresh;
+    if (acc.ladder.stall)    p.ladderStall=*acc.ladder.stall;
+    if (acc.ladder.floor)    p.ladderFloor=*acc.ladder.floor;
+    if (acc.ladder.switchAt) p.ladderSwitchAt=*acc.ladder.switchAt;
+    if (acc.ladder.signal)   p.ladderSignal=*acc.ladder.signal;
+    p.ladderStartOnGDM = p.ladderStartOnGDM || acc.ladder.startOnGDM;
+    return p;
+}
+
+inline SCFAccelerators::AcceleratorParams MolecularAcceleratorDefaults(double eMax)
+{
+    SCFAccelerators::AcceleratorParams p;
+    p.diis      = {.Nproj=4, .EngageBelowFD=eMax, .SVTol=0.0, .SVTolRel=1e-4};
+    p.gdm       = {.EngageBelowFD=eMax, .Trust=0.1};
+    p.ladderGdm = {.EngageBelowFD=1e10, .Trust=0.1};    // the rung always steps once it is the active one
+    p.ladderEThresh=1e-8; p.ladderStall=5; p.ladderFloor=1e-8; p.ladderSwitchAt=1e-6;
+    p.ladderSignal=SCFAccelerators::ScheduleSignal::EnergyChange;
+    return p;
+}
+
+inline nlohmann::json ToAcceleratorJson(const SCFAccelerators::AcceleratorParams& p)
+{
+    return {{"NProj",p.diis.Nproj},{"EngageBelowFD",p.diis.EngageBelowFD},{"SVTol",p.diis.SVTol},{"SVTolRel",p.diis.SVTolRel},{"Trust",p.ladderGdm.Trust},
+            {"ethresh",p.ladderEThresh},{"stall",p.ladderStall},{"floor",p.ladderFloor},{"switchat",p.ladderSwitchAt},
+            {"signal",p.ladderSignal==SCFAccelerators::ScheduleSignal::EnergyChange ? "EnergyChange" : "Error"}};
 }
 
 //=== THE SEED ===========================================================================================================================

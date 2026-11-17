@@ -97,16 +97,31 @@ TEST(MoleculeSetup, AnUnknownAcceleratorIsRefusedAtResolve)
     EXPECT_NE(refused.Error().reason.find("Anderson"), std::string::npos) << refused.Error().reason;
 }
 
-// EVERY KNOB OF THE MOLECULAR CHAIN REACHES THE FACTORY'S DOOR (2026-11-02): the GDM trust radius and the Ladder's hand-off triggers were
-// unreachable -- MoleculeCalculation passed only {NProj, EMax, EMin, SVTol}.  ToAcceleratorJson is the one translation both facades use; its
-// defaults are the door's own, so a molecule that sets none of them runs what it ran.
+// EVERY KNOB OF THE MOLECULAR CHAIN REACHES THE FACTORY'S DOOR (2026-11-02; the typed door since V-FACADE-PARITY P0b-1): a molecule that
+// states nothing runs what it always ran -- the molecular defaults over the Z-scaled gate -- and every stated knob lands in its field.
 TEST(MoleculeSetup, EveryAcceleratorKnobReachesTheFactoryDoor)
 {
-    const AcceleratorOptions def;
-    EXPECT_EQ(ToAcceleratorJson(def, 0.3), (nlohmann::json{{"NProj",4},{"EMax",0.3},{"EMin",1e-7},{"SVTol",0.0},{"SVTolRel",1e-4},{"Trust",0.1},
-                                                         {"ethresh",1e-8},{"stall",5},{"floor",1e-8},{"switchat",1e-6},{"signal","EnergyChange"}}));
-    AcceleratorOptions a; a.nProj=6; a.trust=0.25; a.ladderEThresh=2e-8; a.ladderStall=7; a.ladderFloor=3e-8; a.ladderSwitchAt=1e-6;
-    const nlohmann::json j=ToAcceleratorJson(a, 0.5);
-    EXPECT_EQ(j.at("NProj"), 6); EXPECT_EQ(j.at("EMax"), 0.5); EXPECT_EQ(j.at("Trust"), 0.25);
-    EXPECT_EQ(j.at("ethresh"), 2e-8); EXPECT_EQ(j.at("stall"), 7); EXPECT_EQ(j.at("floor"), 3e-8); EXPECT_EQ(j.at("switchat"), 1e-6);
+    const SCFAccelerators::AcceleratorParams def=ResolveAcceleratorParams(AcceleratorOptions{}, MolecularAcceleratorDefaults(0.3));
+    EXPECT_EQ(def.diis.Nproj, 4u); EXPECT_EQ(def.diis.EngageBelowFD, 0.3); EXPECT_EQ(def.diis.SVTol, 0.0); EXPECT_EQ(def.diis.SVTolRel, 1e-4);
+    EXPECT_EQ(def.gdm.EngageBelowFD, 0.3) << "the standalone GDM gate follows the DIIS gate, as the flat eMax always did";
+    EXPECT_EQ(def.gdm.Trust, 0.1); EXPECT_EQ(def.ladderGdm.EngageBelowFD, 1e10) << "the Ladder's GDM rung always steps";
+    EXPECT_EQ(def.ladderEThresh, 1e-8); EXPECT_EQ(def.ladderStall, 5); EXPECT_EQ(def.ladderFloor, 1e-8); EXPECT_EQ(def.ladderSwitchAt, 1e-6);
+    EXPECT_EQ(def.ladderSignal, SCFAccelerators::ScheduleSignal::EnergyChange);
+    AcceleratorOptions a; a.diis.nProj=6; a.ladder.gdm.trust=0.25; a.ladder.eThresh=2e-8; a.ladder.stall=7; a.ladder.floor=3e-8; a.ladder.switchAt=1e-6;
+    const SCFAccelerators::AcceleratorParams p=ResolveAcceleratorParams(a, MolecularAcceleratorDefaults(0.5));
+    EXPECT_EQ(p.diis.Nproj, 6u); EXPECT_EQ(p.diis.EngageBelowFD, 0.5); EXPECT_EQ(p.ladderGdm.Trust, 0.25); EXPECT_EQ(p.gdm.Trust, 0.1) << "stated for the rung only";
+    EXPECT_EQ(p.ladderEThresh, 2e-8); EXPECT_EQ(p.ladderStall, 7); EXPECT_EQ(p.ladderFloor, 3e-8); EXPECT_EQ(p.ladderSwitchAt, 1e-6);
+}
+
+// "EMax" was the [F,D] engage gate, never an energy: RETIRED from the accelerator json door (user ruling 2026-11-17), refused BY NAME with
+// the new spelling in the message; the door's keys (ToAcceleratorJson) spell it EngageBelowFD.
+TEST(MoleculeSetup, TheRetiredEMaxKeyIsRefusedNamingEngageBelowFD)
+{
+    using SCFAccelerators::Type;
+    try { delete SCFAccelerators::Factory(Type::DIIS, nlohmann::json{{"NProj",4},{"EMax",0.1},{"SVTol",0.0}}); FAIL() << "EMax must be refused"; }
+    catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find("EngageBelowFD"), std::string::npos) << e.what(); }
+    const nlohmann::json j=ToAcceleratorJson(MolecularAcceleratorDefaults(0.2));
+    EXPECT_FALSE(j.contains("EMax")); EXPECT_EQ(j.at("EngageBelowFD"), 0.2);
+    std::unique_ptr<SCFAccelerators::SCFAccelerator> ok(SCFAccelerators::Factory(Type::DIIS, j));
+    EXPECT_TRUE(ok);
 }
