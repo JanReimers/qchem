@@ -28,7 +28,7 @@ void ReportSCFCapHit(const std::string& what)
 BoundedSCF::BoundedSCF(const char* why)
 {
     assert(why && *why && "BoundedSCF: say why this SCF is deliberately bounded");
-    (void)why;
+    std::cout << "[bounded SCF] " << (why ? why : "") << std::endl;   // scripts/anchordiff reads this marker (D-BOUNDED-ANCHOR)
     ++g_bounded;
 }
 BoundedSCF::~BoundedSCF() {--g_bounded;}
