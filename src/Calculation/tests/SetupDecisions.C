@@ -36,6 +36,14 @@ TEST(SetupDecisions, TheSpinRuleOverEverySmallCount)
 }
 
 //! THE PARITY THE ROW WAS ABOUT: the solid's and the molecule's spin bookkeeping are the SAME rule, refusals included.
+// R6 (user, 2026-11-17): TWO ORTHOGONAL KNOBS, one rule for every structure -- the stated spin group, forced Polarized by a multiplicity > 1.
+TEST(SetupDecisions, AMultiplicityAboveOneForcesPolarizedAndNothingElseDoes)
+{
+    for (SpinGroup g : {SpinGroup::UnPolarized, SpinGroup::Polarized})
+        for (int m=0; m<=5; ++m)
+            EXPECT_EQ(ResolveSpinGroup(g, m), m>1 ? SpinGroup::Polarized : g) << "stated " << int(g) << ", multiplicity " << m;
+}
+
 TEST(SetupDecisions, TheMoleculeAndTheSolidCountSpinTheSameWay)
 {
     for (int Z : {3, 7, 8})   // Li, N, O: odd and even counts

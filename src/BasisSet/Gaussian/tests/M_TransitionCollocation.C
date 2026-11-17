@@ -317,7 +317,7 @@ TEST(GPWTolerances, DefaultsAreTodaysBehaviourAndTheRetiredEnvironmentIsIgnoredA
     for (const auto& r : set)
     {
         if (r.name=="GPW_SCREEN_EPS")  { sawScreen=true; EXPECT_EQ(r.deckKey,"solid.tolerances.screenEps"); }
-        if (r.name=="QCHEM_BECKE_NR")  { sawNR=true;     EXPECT_EQ(r.deckKey,"solid.xcMesh.nRadial"); }
+        if (r.name=="QCHEM_BECKE_NR")  { sawNR=true;     EXPECT_EQ(r.deckKey,"xc.mesh.nRadial"); }
     }
     EXPECT_TRUE(sawScreen && sawNR);
     EXPECT_EQ(GPWTolerances{}.screenEps, 1e-10) << "a retired variable must not reach the typed default";

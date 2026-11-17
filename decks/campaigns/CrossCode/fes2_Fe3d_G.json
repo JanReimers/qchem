@@ -4,6 +4,14 @@
   "chi/chi0/U from the finite-difference and linear-response post-actions at site 0; CP2K numbers in the HubbardUPlan table."
  ],
  "structure": "FeS2_pyrite",
+ "schema": 2,
+ "multiplicity": 1,
+ "spin": "Polarized",
+ "seed": "IonicSAD",
+ "ortho": "CholeskyPivoted",
+ "orthoTol": 0.0001,
+ "spins": [0,0,0,0,0,0,0,0,0,0,0,0],
+ "accelerator": "Null",
  "kmesh": [
   1,
   1,
@@ -15,13 +23,7 @@
   "angular": "spherical"
  },
  "solid": {
-  "multiplicity": 1,
-  "siteSpins": [0,0,0,0,0,0,0,0,0,0,0,0],
-  "seed": "IonicSAD",
-  "ortho": "CholeskyPivoted",
-  "orthoTol": 0.0001,
   "forceComplex": true,
-  "accelerator": "Null",
   "hubbard": [
    {
     "site": 0,

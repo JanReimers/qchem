@@ -5,18 +5,20 @@
     "Run:  rundeck decks/NiO_AFM2_acbn0.json --out $(scripts/rundir qchem6 NiO).  NB the scf block is the MnO free recipe as a STARTING POINT; match it to the banked NiO logs in qchem6-runs (D-ENV-RERUN)."
   ],
   "structure": "NiO_AFM2",
+  "schema": 2,
+  "multiplicity": 1,
+  "spin": "Polarized",
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.0001,
+  "imposeSymmetry": false,
+  "spins": [1,-1,0,0],
+  "accelerator": "Null",
   "basis": {
     "data": "VALENCE_LOWQ_VA",
     "angular": "spherical"
   },
   "solid": {
-    "multiplicity": 1,
-    "siteSpins": [1,-1,0,0],
-    "seed": "IonicSAD",
-    "ortho": "CholeskyPivoted",
-    "orthoTol": 0.0001,
-    "accelerator": "Null",
-    "imposeSymmetry": false,
     "hubbard": [
       {
         "site": 0,

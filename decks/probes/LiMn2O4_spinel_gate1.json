@@ -6,6 +6,13 @@
     "siteCharges STATES the IonicSAD charge order (2026-10-30): Mn4+ on Mn0/Mn1, Mn3+ on Mn2/Mn3 -- the order the electronegativity tie-break derived by ATOM INDEX before, so no number moves; edit it to seed another order."
   ],
   "structure": "LiMn2O4_spinel",
+  "schema": 2,
+  "multiplicity": 17,
+  "spin": "Polarized",
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.0001,
+  "spins": [0,0,1,1,1,1,0,0,0,0,0,0,0,0],
   "kmesh": [
     1,
     1,
@@ -16,12 +23,7 @@
     "angular": "spherical"
   },
   "solid": {
-    "multiplicity": 17,
-    "siteSpins": [0,0,1,1,1,1,0,0,0,0,0,0,0,0],
     "siteCharges": [1,1,4,4,3,3,-2,-2,-2,-2,-2,-2,-2,-2],
-    "seed": "IonicSAD",
-    "ortho": "CholeskyPivoted",
-    "orthoTol": 0.0001,
     "cutoffFactor": 2.0,
     "hubbard": [
       {

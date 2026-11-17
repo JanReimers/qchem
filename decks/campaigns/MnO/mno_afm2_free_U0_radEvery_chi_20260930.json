@@ -7,6 +7,15 @@
     "Result banked in the .cmd header: chi0=-4.6021304 chi=-3.1905158 (LR, chi/chi0=0.693) chi_FD=-3.2259878 (1.1% from LR); doc/HubbardUPlan.md.  Manifold: every shell (the default U_RADIAL)."
   ],
   "structure": "MnO_AFM2",
+  "schema": 2,
+  "multiplicity": 1,
+  "spin": "Polarized",
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.0001,
+  "imposeSymmetry": false,
+  "spins": [1,-1,0,0],
+  "accelerator": "Null",
   "kmesh": [
     1,
     1,
@@ -17,15 +26,8 @@
     "angular": "spherical"
   },
   "solid": {
-    "multiplicity": 1,
-    "siteSpins": [1,-1,0,0],
-    "seed": "IonicSAD",
-    "ortho": "CholeskyPivoted",
-    "orthoTol": 0.0001,
     "cutoffFactor": 2.0,
-    "imposeSymmetry": false,
     "forceComplex": true,
-    "accelerator": "Null",
     "hubbard": [
       {
         "site": 0,

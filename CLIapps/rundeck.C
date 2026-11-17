@@ -1,6 +1,6 @@
 // rundeck -- run a periodic SCF from an INPUT DECK (D-ENV step 6; doc/Records/EnvKnobInventory.md §9).
 //
-//   rundeck <deck.json> [--set path=value]... [--out DIR] [--code-version V] [--check]
+//   rundeck <deck.json> [--set path=value]... [--out DIR] [--code-version V] [--check] [--resolved]
 //   --check VETS the deck (resolve + postSCF pre-flight + build the lattice and basis) and exits 0 / 2 -- no SCF, no revision.
 //
 // The deck names a structure (a key of materials.json) and states the run; `--set` is the only ad-hoc override (applied before the deck
@@ -45,7 +45,7 @@ int main(int argc, char** argv)
     namespace fs=std::filesystem;
     try
     {
-        std::string deckPath, out=".", version="unversioned"; bool check=false;
+        std::string deckPath, out=".", version="unversioned"; bool check=false, resolved=false;
         std::vector<std::string> sets;
         for (int i=1; i<argc; ++i)
         {
@@ -55,6 +55,7 @@ int main(int argc, char** argv)
             else if (a=="--out")          out=next();
             else if (a=="--code-version") version=next();
             else if (a=="--check")        check=true;
+            else if (a=="--resolved")     resolved=true;
             else if (deckPath.empty() && a.rfind("--",0)!=0) deckPath=a;
             else throw std::runtime_error("unexpected argument '"+a+"'");
         }
@@ -71,6 +72,12 @@ int main(int argc, char** argv)
             qchem::report::ClearConsole();
         }
 
+        if (resolved)   // the deck as it will RUN: read, resolved against the structure files, written back (no basis, no SCF)
+        {
+            (void)qchem::deck::Resolve(spec);
+            std::cout<<qchem::deck::ToJson(spec).dump(2)<<"\n";
+            return 0;
+        }
         if (check)
         {
             const auto v=qchem::deck::Vet(spec, out);

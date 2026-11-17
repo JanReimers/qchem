@@ -22,6 +22,7 @@ import qchem.Pseudopotential.Set;            // PseudopotentialSet: the run's ps
 import qchem.SCFAccelerator.Factory;         // SCFAccelerators::Type
 import qchem.Hamiltonian.Factory;            // AdmitVxc, VxcFit
 import qchem.Policy;                         // policy::Refuse / RefuseAs
+export import qchem.Symmetry.Spin;           // SpinGroup: ResolveSpinGroup's answer
 
 export namespace qchem
 {
@@ -38,7 +39,7 @@ struct SpinChannels {int nUp = 0, nDown = 0;};
 //! \a spinsShareFermi -- an option only where the structure has it (a solid's metal: ONE Fermi level sets the channels, so the counts
 //! are only the split the occupations start from); \c nullopt where it is not one -- when true keeps the nel mod 2 split for a singlet
 //! on an odd count instead of refusing it, and when false the refusal names it as the way out.  \a who prefixes the refusal (the options
-//! struct the caller states).  Whether the run is then spin-POLARIZED is each facade's option semantics (V-FACADE-OPTS), not this rule.
+//! struct the caller states).  Whether the run is then spin-POLARIZED is \c ResolveSpinGroup, below.
 inline SpinChannels ResolveSpinChannels(int multiplicity, int nel, std::optional<bool> spinsShareFermi, const std::string& who)
 {
     const bool singlet = multiplicity==1 && !spinsShareFermi.value_or(false);
@@ -51,6 +52,17 @@ inline SpinChannels ResolveSpinChannels(int multiplicity, int nel, std::optional
         policy::RefuseAs("SpinMultiplicity", who+": multiplicity "+std::to_string(multiplicity)+" (2S="+std::to_string(twoS)
                                             +") parity disagrees with Nelec "+std::to_string(nel)+" -- need 0 <= 2S <= Nelec and Nelec-2S even");
     return {(nel+twoS)/2, (nel-twoS)/2};
+}
+
+//! \brief THE SPIN-GROUP RULE, every structure (user ruling R6, 2026-11-17, V-FACADE-PARITY): TWO ORTHOGONAL KNOBS.  The stated spin
+//! group says whether the channels may differ (\c Polarized: two independent channels, so a local moment m(r) may be nonzero with zero
+//! total moment -- an AFM crystal, a broken-symmetry dimer); the multiplicity says only S.  ONE rule ties them: a multiplicity > 1 is an
+//! open shell, which an unpolarized run cannot hold, so it FORCES \c Polarized.  A broken-symmetry or AFM singlet, molecule or solid,
+//! states \c Polarized with multiplicity 1.  (Until R6 the solid read multiplicity >= 1 as polarized and had no spin knob; a schema-1
+//! deck's \c solid.multiplicity keeps that meaning through the deck's translator.)
+inline SpinGroup ResolveSpinGroup(SpinGroup stated, int multiplicity)
+{
+    return multiplicity>1 ? SpinGroup::Polarized : stated;
 }
 
 //=== THE SEED ===========================================================================================================================

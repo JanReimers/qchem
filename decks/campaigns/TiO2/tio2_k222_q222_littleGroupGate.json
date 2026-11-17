@@ -6,6 +6,21 @@
   "minDeltaRhoPerElectron 1e-6 -> 1e-9 (2026-10-28): the banked r007 run used 1e-6 and kept 8 of 16 ops; the deck pre-flight now requires 1e-9 for littleGroupK."
  ],
  "structure": "TiO2_rutile",
+ "schema": 2,
+ "multiplicity": 1,
+ "spin": "Polarized",
+ "seed": "IonicSAD",
+ "ortho": "CholeskyPivoted",
+ "orthoTol": 0.0001,
+ "spins": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+ "accelerator": "Null",
  "kmesh": [
   2,
   2,
@@ -17,20 +32,7 @@
   "angular": "spherical"
  },
  "solid": {
-  "multiplicity": 1,
-  "siteSpins": [
-   0,
-   0,
-   0,
-   0,
-   0,
-   0
-  ],
-  "seed": "IonicSAD",
-  "ortho": "CholeskyPivoted",
-  "orthoTol": 0.0001,
   "forceComplex": true,
-  "accelerator": "Null",
   "hubbard": [
    {
     "site": 0,

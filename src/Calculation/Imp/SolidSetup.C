@@ -86,7 +86,7 @@ void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& s
     }
     // R2.5 (doc/SCFRobustnessPlan.md P2, 2026-10-30): an IMPOSED polarized run states it too, +U or not -- the imposition IS
     // the decoration (the Shubnikov group), and deriving it from the seed let SAD impose a ferrimagnet on MnO AFM-II.
-    const bool polarized = o.multiplicity>=1;
+    const bool polarized = ResolveSpinGroup(o.spin, o.multiplicity)==SpinGroup::Polarized;
     if (polarized && (!o.hubbard.empty() || o.imposeSymmetry) && !o.greyImposition)
         policy::RefuseAs("StatedMagneticOrdering", "SolidCalcOptions: a polarized run with a Hubbard manifold or an imposed symmetry must STATE its"
                                     " magnetic ordering -- siteSpins, one of +1/-1/0 per site ("+sites+"); all zeros for a"
@@ -121,7 +121,7 @@ void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st
 static void RefuseUnrealizedRoutes(const SolidCalcOptions& o)
 {
     if (o.model!=Hamiltonian::Model::LDA && o.model!=Hamiltonian::Model::PADE)
-        policy::Refuse("SolidFunctional", "solid.model "+Hamiltonian::Name(o.model)+" on a periodic cell",
+        policy::Refuse("SolidFunctional", "model "+Hamiltonian::Name(o.model)+" on a periodic cell",
                        "a periodic run is Kohn-Sham LDA with a pseudopotential; its functionals are LDA (Dirac + VWN5) and PADE -- state one");
     // (xc.fit Auxiliary on a periodic cell was refused here until V-XC-ONE-TERM step 6 realized the periodic A1 fit, 2026-11-15.)
     if (o.orbitalBasis==SolidCalcOptions::OrbitalBasis::PlaneWave && !(o.planeWaveEcut>0.0))
@@ -414,8 +414,8 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
         const bool magnetic=std::any_of(s->siteSpins.begin(), s->siteSpins.end(), [](int v){return v!=0;});
         if (s->imposed && !magnetic)
             policy::Refuse("PlaneWaveMagneticOnly", "basis.family planeWave with an imposed grey / spatial group",
-                           "the plane-wave route imposes only a MAGNETIC (Shubnikov) group so far -- state solid.siteSpins, or "
-                           "solid.imposeSymmetry false");
+                           "the plane-wave route imposes only a MAGNETIC (Shubnikov) group so far -- state spins, or "
+                           "imposeSymmetry false");
         // Plane waves ARE orthonormal: the default Cholesky would factor an identity S into two dense identity
         // factors per spin block.  A stated non-default ortho is obeyed (an A/B door).
         if (s->opts.ortho==qchem::Cholesky) s->opts.ortho=qchem::Orthonormal;
@@ -447,7 +447,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // DECISION 2 -- the spin bookkeeping.  multiplicity -> (nUp,nDown), with the parity check that catches
     // a singlet asked of an odd electron count BEFORE integer division silently empties a channel.
     const int nel  = s->opts.Nelec;   // the RESOLVED count (above)
-    s->polarized = opts.multiplicity>=1;
+    s->polarized = ResolveSpinGroup(opts.spin, opts.multiplicity)==SpinGroup::Polarized;   // THE rule, every structure (R6)
     std::tie(s->nUp, s->nDown)=SpinChannelCounts(opts, nel);
     // A partial eigensolve must leave EMPTY bands above the fuller channel (smearing and the gap need them).
     if (opts.numBands>0 && opts.numBands<=size_t(s->nUp))

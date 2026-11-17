@@ -5,6 +5,28 @@
   "Measured 2026-11-13 (6 threads): MagneticInsulator 11 iterations, first iterate -106.351423122, E -106.3514267282 = the cold run's -106.3514267289 on these grids, Ni moment 1.376.  The same restart as recipe Insulator (row 4) stops FALSELY at iteration 1 (drho 6.5e-13, [F,D] 6.9e-4, E 147 nHa high).  NMaxIter is above the budget so a slow restore fails on the BUDGET, not the cap."
  ],
  "structure": "NiO_AFM2",
+ "schema": 2,
+ "multiplicity": 1,
+ "spin": "Polarized",
+ "seed": "IonicSAD",
+ "ortho": "CholeskyPivoted",
+ "orthoTol": 0.0001,
+ "imposeSymmetry": false,
+ "spins": [
+   1,
+   -1,
+   0,
+   0
+  ],
+ "xc": { "mesh": {
+   "cellKind": "Becke",
+   "nRadial": 40,
+   "angularDegree": 29,
+   "angular": "Lebedev",
+   "angRot": 0.5,
+   "beckeOrder": 3,
+   "mhlM": 2
+  } },
  "kmesh": [
   2,
   2,
@@ -15,32 +37,12 @@
   "angular": "spherical"
  },
  "solid": {
-  "multiplicity": 1,
-  "siteSpins": [
-   1,
-   -1,
-   0,
-   0
-  ],
-  "seed": "IonicSAD",
-  "ortho": "CholeskyPivoted",
-  "orthoTol": 0.0001,
-  "imposeSymmetry": false,
   "cutoffFactor": 2.0,
   "tolerances": {
    "rasterX": 0.0,
    "vlocRasterX": 0.0,
    "xcRasterX": 0.0,
    "vlocEps": 1e-06
-  },
-  "xcMesh": {
-   "cellKind": "Becke",
-   "nRadial": 40,
-   "angularDegree": 29,
-   "angular": "Lebedev",
-   "angRot": 0.5,
-   "beckeOrder": 3,
-   "mhlM": 2
   }
  },
  "scf": {

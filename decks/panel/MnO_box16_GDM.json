@@ -5,18 +5,20 @@
   "degenerateLevelFill OrbitalByOrbital is STATED (D-DEGEN-FILL, 2026-11-08): the subject is GDM on the integer-occupation manifold, as CP2K OT's; the solid default shares the half-filled degenerate pi pair, a D' GDM declines to rotate."
  ],
  "structure": "MnO_box16",
+ "schema": 2,
+ "multiplicity": 6,
+ "spin": "Polarized",
+ "seed": "IonicSAD",
+ "ortho": "CholeskyPivoted",
+ "orthoTol": 0.0001,
+ "imposeSymmetry": false,
+ "accelerator": "GDM",
  "basis": {
   "data": "VALENCE_LOWQ_VA",
   "angular": "spherical"
  },
  "solid": {
-  "multiplicity": 6,
-  "seed": "IonicSAD",
-  "ortho": "CholeskyPivoted",
-  "orthoTol": 0.0001,
-  "imposeSymmetry": false,
-  "spinsShareFermi": false,
-  "accelerator": "GDM"
+  "spinsShareFermi": false
  },
  "scf": {
   "NMaxIter": 15,

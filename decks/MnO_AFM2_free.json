@@ -8,15 +8,15 @@
     "would be DIIS + linear -- so this deck stays bit-identical (doc/SCFRobustnessPlan.md R4.1 as ruled for B5)."
   ],
   "structure": "MnO_AFM2",
+  "schema": 2,
+  "multiplicity": 1,
+  "spin": "Polarized",
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 1e-4,
+  "imposeSymmetry": false,
+  "accelerator": "Null",
   "basis": { "data": "VALENCE_LOWQ_SR" },
-  "solid": {
-    "multiplicity": 1,
-    "seed": "IonicSAD",
-    "ortho": "CholeskyPivoted",
-    "orthoTol": 1e-4,
-    "accelerator": "Null",
-    "imposeSymmetry": false
-  },
   "scf": {
     "recipe": "MagneticInsulator",
     "NMaxIter": 200,

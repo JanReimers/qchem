@@ -7,6 +7,15 @@
     "MNO_U_RADIAL=ortho -> atomicRadial + orthoAtomic on both Mn d manifolds (HubbardU_OrthoAtomic);  MNO_SAVE=<path> -> state.save \"auto\" (the path is now <outDir>/states/<stem>.h5)."
   ],
   "structure": "MnO_AFM2",
+  "schema": 2,
+  "multiplicity": 1,
+  "spin": "Polarized",
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.0001,
+  "imposeSymmetry": false,
+  "spins": [1,-1,0,0],
+  "accelerator": "Null",
   "kmesh": [
     1,
     1,
@@ -17,15 +26,8 @@
     "angular": "spherical"
   },
   "solid": {
-    "multiplicity": 1,
-    "siteSpins": [1,-1,0,0],
-    "seed": "IonicSAD",
-    "ortho": "CholeskyPivoted",
-    "orthoTol": 0.0001,
     "cutoffFactor": 2.0,
-    "imposeSymmetry": false,
     "forceComplex": true,
-    "accelerator": "Null",
     "hubbard": [
       {
         "site": 0,

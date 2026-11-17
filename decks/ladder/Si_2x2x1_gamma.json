@@ -5,6 +5,9 @@
     "ONE rung per invocation: peak RSS is a process watermark.  Run serial for the scaling measurement: QCHEM_OPENMP_THREADS=1 rundeck <deck> --out $(scripts/rundir qchem6 Si)"
   ],
   "structure": "Si_diamond_2x2x1",
+  "schema": 2,
+  "seed": "Uniform",
+  "imposeSymmetry": true,
   "kmesh": [
     1,
     1,
@@ -14,9 +17,7 @@
     "data": "SIPP_SR"
   },
   "solid": {
-    "densityEcut": 20.0,
-    "imposeSymmetry": true,
-    "seed": "Uniform"
+    "densityEcut": 20.0
   },
   "scf": {
     "NMaxIter": 60,
