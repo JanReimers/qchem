@@ -31,12 +31,14 @@ Brief notes about module/library conventions, naming, and includes.
 
 ## Build & test
 
-- Build & test: `cd build/Release && ninja ITMain`, then `ctest -j8 -LE long` from `build/Release` (the 60 s-CPU `_Long` tier is `ctest -j3 -L long -LE "panel|periodic"`; a test whose name ENDS in `_Long` is in it, ruled 2026-10-02; plain `ctest` runs everything; the SCF convergence PANEL, `doc/SCFRobustnessPlan.md` §4, is `ctest -L panel`, run ON DEMAND under `~/Code/qchem6-runs/.heavy.lock` (hours; its `_Panel_Long` cases carry a 4 h ctest TIMEOUT), not in the routine long tier (user ruling 2026-10-30): its fast `_Panel` cases ride the regular sweep, its full tier `_Panel_Long` is labelled `long;panel`.  The PERIODIC tier (labels `long;periodic`, controller ruling 2026-10-30) holds the COLD `_Long` gates whose claim a cheap twin now carries -- an anchor resumed from a vendored state in `decks/states/`, an identity at a smaller mesh (list: `QCHEM_PERIODIC` in the root `CMakeLists.txt`); it runs WITH the panel, `ctest -L "panel|periodic"`, and before any vendored state is refreshed (by an explicit `cp` the cold gate prints, never as a sweep side effect).  A LANDING sweep = short serial + `-L long -LE "panel|periodic"` serial, plus `-L "panel|periodic"` only when the lane touches SCFAccelerator / SCFIterator / the mixers / Calculation's SCF path) — every
+- Build & test: `cd build/Release && ninja ITMain`, then `ctest -j4 -LE long` from `build/Release` (the 60 s-CPU `_Long` tier is `ctest -j3 -L long -LE "panel|periodic"`; a test whose name ENDS in `_Long` is in it, ruled 2026-10-02; plain `ctest` runs everything; the SCF convergence PANEL, `doc/SCFRobustnessPlan.md` §4, is `ctest -L panel`, run ON DEMAND under `~/Code/qchem6-runs/.heavy.lock` (hours; its `_Panel_Long` cases carry a 4 h ctest TIMEOUT), not in the routine long tier (user ruling 2026-10-30): its fast `_Panel` cases ride the regular sweep, its full tier `_Panel_Long` is labelled `long;panel`.  The PERIODIC tier (labels `long;periodic`, controller ruling 2026-10-30) holds the COLD `_Long` gates whose claim a cheap twin now carries -- an anchor resumed from a vendored state in `decks/states/`, an identity at a smaller mesh (list: `QCHEM_PERIODIC` in the root `CMakeLists.txt`); it runs WITH the panel, `ctest -L "panel|periodic"`, and before any vendored state is refreshed (by an explicit `cp` the cold gate prints, never as a sweep side effect).  A LANDING sweep = short serial + `-L long -LE "panel|periodic"` serial, plus `-L "panel|periodic"` only when the lane touches SCFAccelerator / SCFIterator / the mixers / Calculation's SCF path) — every
     gtest case (integration + library unit tests) runs as its own ctest test, load-balanced across
-    cores with longest-first scheduling after the first run.  **Use -j8, not -j16, on this 14 GB
-    box**: several GPW integration tests peak at 1-2 GB each, and a 16-way fan-out beside the
-    desktop app OOM-killed the session (2026-08-06).  Longest-first means -j8 costs little wall
-    time.  (ctest is for Claude/CI batch sweeps;
+    cores with longest-first scheduling after the first run.  **Use -j4 by default on this 14 GB
+    box: RAM, not threads, is the limit** (user 2026-10-21, re-ruled 2026-11-17): several GPW integration tests peak
+    at 1-2 GB each, and a 16-way fan-out beside the desktop app OOM-killed the session (2026-08-06).  Oversubscribing
+    threads is harmless ("if the machine ends up running 25 threads for an hour this is harmless.  RAM is bigger
+    issue"), so the CONTROLLER may raise -j for a critical-path lane's build that other lanes wait on; concurrent GPW
+    sweeps, not -j, are what to watch.  Longest-first means -j4 costs little wall time.  (ctest is for Claude/CI batch sweeps;
     the user drives tests through the C++ TestMate tree in VSCode, which discovers the same exes
     directly — keep `testMate.cpp.test.executables` in .vscode/settings.json matching any new
     test-exe names.)
@@ -44,7 +46,7 @@ Brief notes about module/library conventions, naming, and includes.
     the sweep stays green; the nightly `build/RelChecked` is then what breaks (2026-11-04/05: two nights, no assert-live tests ran).  After an import or
     re-export change, also `ninja -C build/RelChecked -k 0 allTests`, and check `~/Code/qchem6-runs/relchecked/*.summary` says more than BUILD FAILED.
 - **Heavy sweeps and overnight runs go through `scripts/memsafe`** (added 2026-08-17):
-    `scripts/memsafe ctest -j8` runs the command in a cgroup scope with `MemoryHigh=9G` (override
+    `scripts/memsafe ctest -j4` runs the command in a cgroup scope with `MemoryHigh=9G` (override
     `-H SIZE`; `-p` additionally shields it from the kernel OOM killer for unattended runs — asks sudo
     once at launch), so a RAM
     squeeze SWAPS the scope out and throttles it instead of killing it — invested work survives as a
@@ -63,9 +65,11 @@ Brief notes about module/library conventions, naming, and includes.
 - **A build tree WITHOUT OpenMP silently ignores `QCHEM_OPENMP_THREADS`.**  The /opt clang has no `omp.h`, so `find_package(OpenMP)` fails QUIETLY and every threaded region compiles serial; configure with apt's libomp (the flags in the root `CMakeLists.txt` comment: `-DOpenMP_CXX_FLAGS="-fopenmp -I/usr/lib/llvm-21/lib/clang/21/include" -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=/usr/lib/x86_64-linux-gnu/libomp.so`).  Check: `ldd build/Release/CLIapps/rundeck | grep omp`, and the run banner's `OpenMP regions=N`.  (qchem1's Release lacked it until 2026-10-27; the 2026-10-26 overnight NiO run is serial because of it.)
 - **To attribute anchor moves, diff two sweeps test by test**: keep each sweep's `build/Release/Testing/Temporary/LastTest.log`
     and run `scripts/anchordiff BASE.log NEW.log --tol 1e-10` (per test: last printed `Etot` and summed SCF iterations).
-    The pass/fail line hides moves inside a tolerance; this does not (the 2026-10-22 anchor batch ran on it).
+    The pass/fail line hides moves inside a tolerance; this does not (the 2026-10-22 anchor batch ran on it). A `BoundedSCF` prints `[bounded SCF] <why>` ... `[bounded SCF end]`; anchordiff skips what is printed inside
+    that scope and compares what the test prints outside it, listing a test as "bounded, not compared" only when nothing
+    is left outside (D-BOUNDED-ANCHOR, 2026-11-17: "looking at the energy or energy shifts after 2 iterations is meaningless").
 - For a quick focused run, invoking the exe directly still works: `./IntegrationTests/ITMain`
-    (filter `-A_*` for fast runs; a full `ctest -j8` pass is the regression anchor).
+    (filter `-A_*` for fast runs; a full `ctest -j4` pass is the regression anchor).
 - Calling ninja directly is fine. (I earlier suggested cmake only because ninja rebuilds were flaky —
     needing file-touches to trigger them. If ninja works well for you, use it.)
 - SCF integration tests (full SCF through the Calculation/AtomCalculation facades) live in
@@ -93,7 +97,13 @@ Brief notes about module/library conventions, naming, and includes.
     "passes" faster than its SCF could possibly run is a filter that matched nothing — `ctest -V` shows the
     exact command, run it by hand.  (The defect only ever caught tests through ctest: `ITMain` run directly,
     and the TestMate tree, always ran them.)
-- All restarts should either use GDM accelerator, or a DIIS->GDM ladder that switches to GDM when ΔE/E<1e-6.  Caveats: kT=0, i.e. not partial occupations.  If GDM is declined and it falls back the linear, just make sure the relax 0.2-0.3 (not 1.0!).  GDM now engages on unpolarized (occ=2) runs too (2026-10-01) -- ⚠ verified then on SINGLE-BLOCK runs only; a symmetry-blocked molecule with electrons in more than one irrep never engaged until lane B's da50a531 (2026-11-04: per-block nocc read off D', empty blocks passive, held fills keep each block's count; CH₄ C2v HF).  **MEASURED 2026-10-02 on NaF (`GPW_NaF.Γ_Imp_eqExactResume` / `Γ_Imp_eqColdStart`): from a converged state, or from a coarse-grid (Ecut 40) density onto the fine grid, standalone GDM starts at the answer (first iterate 4e-10 / 4e-8 Ha) and converges in 2 iterations; the Ladder's DIIS+Kerker rung steps the density away (1.3e-4 / 1.5e-4 Ha) and spends 4-5 iterations before handing off — 9 / 12 in all.**  So a restart test that shows DIIS wandering at ΔE/E<1e-6 is mis-set-up: use GDM for it, and pin a restart's first iterate (not just its iteration count).  Unmeasured: a restart whose density moved more (geometry, U) — may favour the Ladder.  RESOLVED 2026-10-21: `SolidCalculation::Restart` enters the Ladder at its GDM rung at kT = 0 (a smeared restart starts on DIIS: a restored integer D' would let GDM engage and never apply the smearing), so the NaF gates now run the production Ladder in 2 iterations.
+- **The SCF/mixing/accelerator guidance below is DISCOVERED BEST PRACTICE, not law** (2026-11-17): "discovered best practices that tend to be structure and possible chemistry (ionic, metallic, covalent) specific."  Each rule states where it was measured; data from another regime may override it (bring the data and the rule's scope).  Contrast the    design rules (no void*, no pointer keys) and doc/Pins.md, which are invariants.
+- All same geometry restarts should either use GDM accelerator, or a DIIS->GDM ladder that switches to GDM when ΔE/E<1e-6.  Caveats: 1) kT=0, i.e. not partial occupations. 2) Guidlines for restarts after a geometry optimization move are work in progress.  If GDM is declined and it falls back to linear -- or is WAITING to engage ([F,D] above its gate; F⁻, 2026-11-17) --
+the linear relax is capped at 0.2-0.3 (`DeclinedDirectMinRelax`, not 1.0!).  GDM now engages on unpolarized (occ=2) runs too (2026-10-01) -- ⚠ verified then on SINGLE-BLOCK runs only; a symmetry-blocked molecule with electrons in more than one irrep never engaged until lane B's da50a531 (2026-11-04: per-block nocc read off D', empty blocks passive, held fills keep each block's count; CH₄ C2v HF).  **MEASURED 2026-10-02 on NaF (`GPW_NaF.Γ_Imp_eqExactResume` / `Γ_Imp_eqColdStart`): from a converged state, or from a coarse-grid (Ecut 40) density onto the fine grid, standalone GDM starts at the answer (first iterate 4e-10 / 4e-8 Ha) and converges in 2 iterations; the Ladder's DIIS+Kerker rung steps the density away (1.3e-4 / 1.5e-4 Ha) and spends 4-5 iterations before handing off — 9 / 12 in all.**  So a restart test that shows DIIS wandering at ΔE/E<1e-6 is mis-set-up: use GDM for it, and pin a restart's first iterate (not just its iteration count).  Unmeasured: a restart whose density moved more (geometry, U) — may favour the Ladder.  MEASURED 2026-11-17 on the piloted radial ATOMS (Xe, U, Kr, Gd/Mn PP, cations; lane B): a RAISED-GRID re-convergence
+is a changed H, so the carried D is at the answer in E but not in [F,D] (3e-5..2e-2): there GDM needs 9-28 iterations
+and declines on open shells, while starting the linear step at the relax ceiling (1.0) halves the rounds
+(`AtomPilotWarmStart`).  NaF's coarse->fine 2-iteration GDM result above is a SOLID; the atom result differs -- scope, not contradiction.
+RESOLVED 2026-10-21: `SolidCalculation::Restart` enters the Ladder at its GDM rung at kT = 0 (a smeared restart starts on DIIS: a restored integer D' would let GDM engage and never apply the smearing), so the NaF gates now run the production Ladder in 2 iterations.
 - Always check [basis trim] on the console output, for diffuse-basis conditioning: every SCF run prints it now.  To trim, the deck states `basis.autoTrim:true` with `solid.orthoTol` > 0 (`basis.vet` is retired, refused by name).  We have lost a lot of time on this over this project.
 - For MnO and most of these TMOs (rocksalt AFM-II transition-metal monoxides), Kerker+Pulay density mixing
     converges a FREE (unimposed) run well; the Ladder/GDM/MOM accelerator stack tends to fight a smeared,
@@ -102,6 +112,10 @@ Brief notes about module/library conventions, naming, and includes.
     (doc/Benchmark.md, the CP2K-LOOP rows) — CONVERGES and holds AFM-II.  MnO AFM-II is hard to converge free
     but we have done it many times; reach for this recipe (or its close relatives already in doc/Benchmark.md)
     before re-deriving one from scratch.
+- **Deck keys** (2026-11-12 / 2026-11-17): a renamed key keeps reading as an alias; a key may be RETIRED (refused by
+    name, the message naming its new home) when the same change updates every deck in the repo, the GUI's deck writer
+    included -- "we have no customers right now so removing keys is fine as long as we update all our decks accordingly."
+    Banked `.rNNN.json` records that stop re-running are acceptable.
 
 ## Tests — naming and the DISABLED_ rule (from `doc/Records/TestSuitePlan.md`, ruled 2026-09-15)
 
@@ -149,6 +163,11 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     importing internals across library boundaries. Unit tests are allowed to cheat and import Internal stuff.
 - The only header in the project is `forward.H`. It is used to forward-declare unit test classes that
     need access to internals of certain library classes. Header files for submodules are used where appropriate.
+- **Function bodies belong in `Imp/XXX.C`; a module interface unit holds declarations, templates and `constexpr`
+    only** (user 2026-11-17).  Editing a body in an interface rewrites its BMI and recompiles every importer
+    (CleanCode D-BUILD-BLAST ranks the worst).  Bodies MAY sit in the interface while it is stabilizing -- a judgement
+    call, but for a lane working an N-step plan the end of the plan is the obvious point to move them; moving them
+    early is not a problem.
 
 ## Naming
 
