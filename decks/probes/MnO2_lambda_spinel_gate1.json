@@ -5,6 +5,13 @@
     "or regenerate the list.  Multiplicity = n_Mn*3+1 (FM, d-count derived; GATE1_MULT overrides).  U starts at 0."
   ],
   "structure": "MnO2_lambda_spinel",
+  "schema": 2,
+  "multiplicity": 13,
+  "spin": "Polarized",
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.0001,
+  "spins": [1,1,1,1,0,0,0,0,0,0,0,0],
   "kmesh": [
     1,
     1,
@@ -15,11 +22,6 @@
     "angular": "spherical"
   },
   "solid": {
-    "multiplicity": 13,
-    "siteSpins": [1,1,1,1,0,0,0,0,0,0,0,0],
-    "seed": "IonicSAD",
-    "ortho": "CholeskyPivoted",
-    "orthoTol": 0.0001,
     "cutoffFactor": 2.0,
     "hubbard": [
       {

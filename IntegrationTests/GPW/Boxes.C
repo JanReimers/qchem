@@ -488,7 +488,7 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
     const Material box=qchem::Materials::Get("Mn2_box7");     // Mn +m at 0, Mn -m at 1/2 (the AFM flip), a=7
     const Lattice_3D lat=LatticeOf(box);
     SolidCalcOptions o=OptionsFor(box, "Mn2 B2 AFM imposed");
-    o.multiplicity=1;
+    o.multiplicity=1; o.spin=SpinGroup::Polarized;
     o.siteSpins={+1,-1}; // stated (R2.5): the decoration the seed used to derive (Mn up, Mn down)
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;      // neutral Mn: the library's d5s2 spin pair
     o.imposeSymmetry=true;                                // S3 resolves the SHUBNIKOV group from the flips
@@ -537,7 +537,7 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_RowMomentsAreTheIterates)
     for (const bool kerker : {false, true})
     {
         SolidCalcOptions o=OptionsFor(box, kerker ? "Mn2 rows, Kerker+Pulay" : "Mn2 rows, Pulay on D");
-        o.multiplicity=1;
+        o.multiplicity=1; o.spin=SpinGroup::Polarized;
         o.siteSpins={+1,-1};
         o.seed=qchem::ChargeDensity::SeedStrategy::SAD;
         o.imposeSymmetry=true;
@@ -582,7 +582,7 @@ TEST(GPW_Mn2Box, k211_Becke_Pol_Smear_EqualsItsSupercellAtGamma_Long)   // ~4.5 
     {
         SolidCalcOptions o=OptionsFor(box, label);
         o.Nelec=nelec;
-        o.multiplicity=1;
+        o.multiplicity=1; o.spin=SpinGroup::Polarized;
         o.siteSpins=std::move(spins);
         o.seed=qchem::ChargeDensity::SeedStrategy::SAD;
         o.imposeSymmetry=false;
@@ -681,7 +681,7 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows_Panel)   // PANEL case 9: a c
 
     qchem::SolidCalcOptions o;
     o.label="Na2 AFM-seeded singlet";
-    o.Nelec=2; o.multiplicity=1;                              // the explicit two-channel singlet, nUp=nDn=1
+    o.Nelec=2; o.multiplicity=1; o.spin=SpinGroup::Polarized;                              // the explicit two-channel singlet, nUp=nDn=1
     o.siteSpins={+1,-1}; // stated (R2.5): the decoration the seed used to derive (the AFM +m/-m pair)
     o.species={{"Na",1}};
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;           // neutral Na: the library's 3s^1 spin pair
@@ -764,7 +764,7 @@ TEST(GPW_Na2Box, Γ_Pol_Null_Linear_SpinSeed_Converges_Panel)
     {
         qchem::SolidCalcOptions o;
         o.label=label;
-        o.Nelec=2; o.multiplicity=mult;
+        o.Nelec=2; o.multiplicity=mult; o.spin=mult>=1 ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized;   // 1 = the explicit two-channel singlet (R6)
         o.species={{"Na",1}};
         o.seed=qchem::ChargeDensity::SeedStrategy::SAD;      // neutral Na: the library's 3s^1 spin pair, the +m/-m seed
         o.accelerator=qchem::SCFAccelerators::Type::Null;

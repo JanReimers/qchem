@@ -5,6 +5,8 @@
     "for s in 0 0.125 0.25 0.375 0.5; do rundeck decks/probes/Si_single_k.json --set solid.kShift=[$s,$s,$s] --out $(scripts/rundir qchem6 Si); done"
   ],
   "structure": "Si_diamond",
+  "schema": 2,
+  "imposeSymmetry": true,
   "kmesh": [
     1,
     1,
@@ -15,7 +17,6 @@
   },
   "solid": {
     "densityEcut": 20.0,
-    "imposeSymmetry": true,
     "kShift": [
       0.25,
       0.25,

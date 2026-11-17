@@ -55,7 +55,7 @@ namespace
 {
 
 //! Reads ONE JSON object into a struct: each \c Get is optional (a missing key keeps the default), and \c Done REJECTS any key
-//! no \c Get asked for -- the typo guard.  \a path names the object in the message (`solid.xcMesh`).
+//! no \c Get asked for -- the typo guard.  \a path names the object in the message (`xc.mesh`).
 class Fields
 {
 public:
@@ -134,6 +134,7 @@ const auto kRecipe = NAMES(SCFRecipe, {"Auto",SCFRecipe::Auto}, {"Insulator",SCF
 const auto kSignal = NAMES(SCFAccelerators::ScheduleSignal, {"Error",SCFAccelerators::ScheduleSignal::Error}, {"EnergyChange",SCFAccelerators::ScheduleSignal::EnergyChange});
 const auto kSeed   = NAMES(SeedStrategy, {"Default",SeedStrategy::Default}, {"CoreGuess",SeedStrategy::CoreGuess}, {"Uniform",SeedStrategy::Uniform},
                                          {"SAD",SeedStrategy::SAD}, {"IonicSAD",SeedStrategy::IonicSAD});
+const auto kSpin   = NAMES(SpinGroup, {"UnPolarized",SpinGroup::UnPolarized}, {"Polarized",SpinGroup::Polarized});
 const auto kOrtho  = NAMES(Ortho, {"Cholesky",Cholesky}, {"Eigen",Eigen}, {"SVD",SVD}, {"Auto",Auto}, {"CholeskyPivoted",CholeskyPivoted}, {"Orthonormal",Orthonormal});
 const auto kCell   = NAMES(UnitCellKind, {"Uniform",UnitCellKind::Uniform}, {"Becke",UnitCellKind::Becke}, {"Auto",UnitCellKind::Auto});
 const auto kResolution = NAMES(Response::HubbardResolution, {"manifold",Response::HubbardResolution::Manifold},
@@ -391,59 +392,50 @@ void FromJson(const json& j, Hamiltonian::HubbardManifold& h, const std::string&
 }
 } // anon
 
+//! \brief THE RUN'S OPTIONS as a schema-2 deck writes them (V-FACADE-PARITY P0, 2026-11-17): the STRUCTURE-NEUTRAL keys at the top
+//! (the spin group and multiplicity, the electron count and charge, the pseudopotential set, the model, the seed, the orthogonalisation,
+//! the imposed symmetry, the per-site spins, the accelerator, the label, the accuracy target, the XC choices with their mesh), and the
+//! periodic-only ones in the \c solid sub-block.  \c ToJson(RunSpec) merges this object into the deck's top level.
 json ToJson(const SolidCalcOptions& o)
 {
     json species=json::array();
     for (const auto& s : o.species) species.push_back({s.first,s.second});
     json hub=json::array();
     for (const auto& h : o.hubbard) hub.push_back(ToJson(h));
-    json out={{"Nelec",o.Nelec},{"charge",o.charge},{"multiplicity",o.multiplicity},{"pp",o.pp},{"species",species},
-            {"model",Hamiltonian::Name(o.model)},
-            {"densityEcut",o.densityEcut},{"cutoffFactor",o.cutoffFactor},{"ladderFactor",o.ladderFactor},
+    json solid={{"densityEcut",o.densityEcut},{"cutoffFactor",o.cutoffFactor},{"ladderFactor",o.ladderFactor},
             {"images",NameOf(o.images,kImages)},{"kShift",{o.kShift.x,o.kShift.y,o.kShift.z}},
-            {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},
-            {"accuracy",o.accuracy.eps},{"policy",ToJson(o.policy)},{"hubbard",hub},
-            {"accelerator",NameOf(o.accelerator,kAcc)},{"perKFermiLevels",o.perKFermiLevels},{"imposeSymmetry",o.imposeSymmetry},{"xcMeshSymmetric",o.xcMeshSymmetric},
-            {"seed",NameOf(o.seed,kSeed)},{"ortho",NameOf(o.ortho,kOrtho)},{"orthoTol",o.orthoTol},{"numBands",o.numBands},{"forceComplex",o.forceComplex},
+            {"tolerances",ToJson(o.tolerances)},{"policy",ToJson(o.policy)},{"hubbard",hub},
+            {"perKFermiLevels",o.perKFermiLevels},{"xcMeshSymmetric",o.xcMeshSymmetric},
+            {"numBands",o.numBands},{"forceComplex",o.forceComplex},
             {"spinsShareFermi",o.spinsShareFermi},{"greyImposition",o.greyImposition},{"momFromSeed",o.momFromSeed},
-            {"siteSpins",o.siteSpins},{"siteCharges",o.siteCharges},{"label",o.label},{"saveStateTo",o.saveStateTo}};
-    if (o.accuracy.eta) out["accuracyCalibration"]={{"vlocLong",o.accuracy.eta->vlocLong},{"density",o.accuracy.eta->density}};   // stated only
-    if (o.accuracy.vlocRoutingEta!=BasisSet::Gaussian::GridAccuracy{}.vlocRoutingEta) out["accuracyCalibration"]["vlocRouting"]=o.accuracy.vlocRoutingEta;
-    if (o.accuracy.rungGateC!=BasisSet::Gaussian::GridAccuracy{}.rungGateC) out["accuracyCalibration"]["rungGateC"]=o.accuracy.rungGateC;
-    if (o.accuracy.relCutoffSafety!=BasisSet::Gaussian::GridAccuracy{}.relCutoffSafety) out["accuracyCalibration"]["relCutoffSafety"]=o.accuracy.relCutoffSafety;
-    if (o.accuracy.samplerEta!=BasisSet::Gaussian::GridAccuracy{}.samplerEta) out["accuracyCalibration"]["samplerEta"]=o.accuracy.samplerEta;
+            {"siteCharges",o.siteCharges}};
+    if (o.accuracy.eta) solid["accuracyCalibration"]={{"vlocLong",o.accuracy.eta->vlocLong},{"density",o.accuracy.eta->density}};   // stated only
+    if (o.accuracy.vlocRoutingEta!=BasisSet::Gaussian::GridAccuracy{}.vlocRoutingEta) solid["accuracyCalibration"]["vlocRouting"]=o.accuracy.vlocRoutingEta;
+    if (o.accuracy.rungGateC!=BasisSet::Gaussian::GridAccuracy{}.rungGateC) solid["accuracyCalibration"]["rungGateC"]=o.accuracy.rungGateC;
+    if (o.accuracy.relCutoffSafety!=BasisSet::Gaussian::GridAccuracy{}.relCutoffSafety) solid["accuracyCalibration"]["relCutoffSafety"]=o.accuracy.relCutoffSafety;
+    if (o.accuracy.samplerEta!=BasisSet::Gaussian::GridAccuracy{}.samplerEta) solid["accuracyCalibration"]["samplerEta"]=o.accuracy.samplerEta;
     if (o.accuracy.samplerResidualMargin!=BasisSet::Gaussian::GridAccuracy{}.samplerResidualMargin)
-        out["accuracyCalibration"]["samplerResidualMargin"]=o.accuracy.samplerResidualMargin;
+        solid["accuracyCalibration"]["samplerResidualMargin"]=o.accuracy.samplerResidualMargin;
     if (o.auditFootprint!=kAuditFootprintCalibration)
-        out["auditFootprint"]={{"eta",o.auditFootprint.eta},{"kappa",o.auditFootprint.kappa},{"bandLow",o.auditFootprint.bandLow},
-                               {"bandHigh",o.auditFootprint.bandHigh}};
+        solid["auditFootprint"]={{"eta",o.auditFootprint.eta},{"kappa",o.auditFootprint.kappa},{"bandLow",o.auditFootprint.bandLow},
+                                 {"bandHigh",o.auditFootprint.bandHigh}};
     if (o.beckeLadder!=qcMesh::BeckeLadderCalibration{})
-        out["beckeLadder"]={{"angularError53",o.beckeLadder.angularError53},{"angularFactor",o.beckeLadder.angularFactor},
-                            {"radialError100",o.beckeLadder.radialError100},{"radialFactor",o.beckeLadder.radialFactor},
-                            {"radialShare",o.beckeLadder.radialShare},{"angRot",o.beckeLadder.angRot}};
-    return out;
+        solid["beckeLadder"]={{"angularError53",o.beckeLadder.angularError53},{"angularFactor",o.beckeLadder.angularFactor},
+                              {"radialError100",o.beckeLadder.radialError100},{"radialFactor",o.beckeLadder.radialFactor},
+                              {"radialShare",o.beckeLadder.radialShare},{"angRot",o.beckeLadder.angRot}};
+    return {{"Nelec",o.Nelec},{"charge",o.charge},{"multiplicity",o.multiplicity},{"spin",NameOf(o.spin,kSpin)},
+            {"pp",o.pp},{"species",species},{"model",Hamiltonian::Name(o.model)},
+            {"seed",NameOf(o.seed,kSeed)},{"ortho",NameOf(o.ortho,kOrtho)},{"orthoTol",o.orthoTol},
+            {"imposeSymmetry",o.imposeSymmetry},{"spins",o.siteSpins},{"accelerator",NameOf(o.accelerator,kAcc)},
+            {"label",o.label},{"saveStateTo",o.saveStateTo},
+            {"accuracy",o.accuracy.eps},
+            {"xc",{{"fit",NameOf(o.vxcFit,kVxc)},{"rho",NameOf(o.xcRho,kRho)},{"mesh",ToJson(o.xcMesh)}}},
+            {"solid",solid}};
 }
-void FromJson(const json& j, SolidCalcOptions& o)
+
+static void SolidBlockFromJson(const json& j, SolidCalcOptions& o)
 {
     Fields f(j,"solid");
-    f.Get("Nelec",o.Nelec); f.Get("charge",o.charge); f.Get("multiplicity",o.multiplicity); f.Get("pp",o.pp);
-    {
-        std::string model=Hamiltonian::Name(o.model);
-        f.Get("model",model);
-        const auto m=Hamiltonian::ModelFromName(model);
-        if (!m) throw std::runtime_error("deck: 'solid.model' \""+model+"\" is not a model name (a periodic run takes \"LDA\" or \"PADE\")");
-        o.model=*m;
-    }
-    if (j.contains("species"))
-    {
-        o.species.clear();
-        for (const auto& s : f.At("species"))
-        {
-            if (!s.is_array() || s.size()!=2) throw std::runtime_error("deck: 'solid.species' entries are [\"Element\", valence], got "+s.dump());
-            o.species.emplace_back(s.at(0).get<std::string>(), s.at(1).get<int>());
-        }
-    }
-    else f.At("species");
     f.Get("densityEcut",o.densityEcut); f.Get("cutoffFactor",o.cutoffFactor); f.Get("ladderFactor",o.ladderFactor);
     if (j.contains("raster"))
         throw std::runtime_error("deck: 'solid.raster' is retired (C2 step 3, doc/GridEpsilonPlan.md §1): the rasters are SIZED from "
@@ -457,9 +449,8 @@ void FromJson(const json& j, SolidCalcOptions& o)
         o.kShift=rvec3_t(k.at(0).get<double>(),k.at(1).get<double>(),k.at(2).get<double>());
     }
     else f.At("kShift");
-    if (j.contains("xcMesh"))     FromJson(f.At("xcMesh"),o.xcMesh);         else f.At("xcMesh");
     if (j.contains("tolerances")) FromJson(f.At("tolerances"),o.tolerances); else f.At("tolerances");
-    f.Get("accuracy",o.accuracy.eps);
+    f.Get("accuracy",o.accuracy.eps);   // the DEPRECATED alias of the top-level `accuracy` (warned and both-refused by ReadRunOptions)
     if (!(o.accuracy.eps>=0.0)) throw std::runtime_error("deck: 'solid.accuracy' (Ha per atom on an energy run, per matrix element on a geometry run) "
                                                          "must be >= 0 (0 = no target: the rasters tolerances.rasterX ... state)");
     if (j.contains("beckeLadder"))   // STATED (expert): where a geometry run's pilot enters the Becke ladder
@@ -531,11 +522,139 @@ void FromJson(const json& j, SolidCalcOptions& o)
     if (j.contains("globalFermi"))           // RETIRED 2026-10-21 (D-FERMI-DEFAULT): never silently re-read with the opposite default
         throw std::runtime_error("deck: solid.globalFermi is RETIRED -- one Fermi level across the k-mesh is now the DEFAULT for a "
                                  "smeared run; delete the key (true), or set solid.perKFermiLevels true for the old per-k default (false)");
-    f.GetEnum("accelerator",o.accelerator,kAcc); f.Get("perKFermiLevels",o.perKFermiLevels); f.Get("imposeSymmetry",o.imposeSymmetry);
+    f.Get("perKFermiLevels",o.perKFermiLevels);
     f.Get("xcMeshSymmetric",o.xcMeshSymmetric);   // false = the plain atom-centred mesh: a displacement path needs it (SolidCalcOptions)
-    f.GetEnum("seed",o.seed,kSeed); f.GetEnum("ortho",o.ortho,kOrtho); f.Get("orthoTol",o.orthoTol); f.Get("numBands",o.numBands); f.Get("forceComplex",o.forceComplex);
+    f.Get("numBands",o.numBands); f.Get("forceComplex",o.forceComplex);
     f.Get("spinsShareFermi",o.spinsShareFermi); f.Get("greyImposition",o.greyImposition); f.Get("momFromSeed",o.momFromSeed);
-    f.Get("siteSpins",o.siteSpins); f.Get("siteCharges",o.siteCharges); f.Get("label",o.label); f.Get("saveStateTo",o.saveStateTo);
+    f.Get("siteCharges",o.siteCharges);
+    f.Done();
+}
+
+//! \brief THE SCHEMA-1 TRANSLATOR (V-FACADE-PARITY P0, 2026-11-17): the ONE place an old deck's layout is read.  Schema 1 kept the
+//! structure-neutral options inside \c solid; schema 2 states them at the top.  Each key's MEANING FOLLOWS ITS PLACE, so a deck (or a
+//! banked record, or the GUI's writer) keeps running exactly as before: a schema-1 \c solid.multiplicity >= 1 meant a POLARIZED run (the
+//! solid had no spin knob before R6), so it arrives as \c spin Polarized beside the same multiplicity.  A key stated at BOTH places is
+//! refused (which would run?); a deck stamped \c "schema": 2 refuses the old place, naming the new home.  Every key moved is listed in
+//! the run report.  No key is retired here: each schema-1 key has a schema-2 home.
+//! TRANSITIONAL (controller, 2026-11-17): it exists ONLY until the GUI's deck writer (qviz/backends/solid2_deck.py) writes schema 2.  The
+//! user ruled that day that keys may simply move ("FYI we have no customers right now so removing keys is fine as long as we update all
+//! our decks accordingly"), so the real fix is to REFUSE an old place, naming its new home; this layer kept the GUI running meanwhile.
+//! Retire it then (OpenWork "Retire the schema-1 deck translator").
+struct MovedKey { const char* old; const char* home; };   // solid.<old> -> <home> ("xc.mesh" = the xc object's mesh)
+constexpr MovedKey kSchema1Moves[] = {
+    {"Nelec","Nelec"}, {"charge","charge"}, {"multiplicity","multiplicity"}, {"pp","pp"}, {"species","species"}, {"model","model"},
+    {"seed","seed"}, {"ortho","ortho"}, {"orthoTol","orthoTol"}, {"imposeSymmetry","imposeSymmetry"}, {"siteSpins","spins"},
+    {"accelerator","accelerator"}, {"label","label"}, {"saveStateTo","saveStateTo"}, {"xcMesh","xc.mesh"}};
+
+json ToSchema2(json j)
+{
+    if (!j.is_object()) return j;
+    int schema=1;
+    if (j.contains("schema"))
+    {
+        if (!j.at("schema").is_number_integer() || (j.at("schema").get<int>()!=1 && j.at("schema").get<int>()!=2))
+            throw std::runtime_error("deck: 'schema' is 1 or 2 (absent = each key read at its place), got "+j.at("schema").dump());
+        schema=j.at("schema").get<int>();
+        j.erase("schema");
+    }
+    if (!j.contains("solid") || !j.at("solid").is_object()) return j;
+    json& solid=j["solid"];
+    auto homeHas=[&](const std::string& home) -> bool
+    { return home=="xc.mesh" ? (j.contains("xc") && j.at("xc").is_object() && j.at("xc").contains("mesh")) : j.contains(home); };
+    std::vector<std::string> moved;
+    for (const MovedKey& m : kSchema1Moves)
+    {
+        if (!solid.contains(m.old)) continue;
+        const std::string old=std::string("solid.")+m.old, home=m.home;
+        if (schema==2)
+            throw std::runtime_error("deck: '"+old+"' is the SCHEMA-1 place of '"+home+"' -- this deck states \"schema\": 2, so state it as '"+home+"'");
+        if (homeHas(home))
+            throw std::runtime_error("deck: '"+home+"' and '"+old+"' are both stated -- '"+old+"' is the schema-1 place of '"+home+"'; keep '"+home+"' only");
+        json v=solid.at(m.old); solid.erase(m.old);
+        if (home=="xc.mesh") j["xc"]["mesh"]=v; else j[home]=v;
+        moved.push_back(old+" -> "+home);
+        // R6: a schema-1 solid read multiplicity >= 1 as POLARIZED (it had no spin knob); keep that meaning.
+        if (home=="multiplicity" && v.is_number_integer() && v.get<int>()>=1)
+        {
+            if (j.contains("spin") && j.at("spin")!=json("Polarized"))
+                throw std::runtime_error("deck: '"+old+"' = "+v.dump()+" means a POLARIZED run in a schema-1 deck, but 'spin' says "+j.at("spin").dump()
+                                         +" -- state 'multiplicity' at the top beside the spin group you mean");
+            if (!j.contains("spin")) { j["spin"]="Polarized"; moved.push_back(old+" >= 1 -> spin Polarized (its schema-1 meaning)"); }
+        }
+    }
+    if (!moved.empty())
+    {
+        std::string w="[deck] schema-1 keys read at their old place (V-FACADE-PARITY P0; a record writes schema 2):";
+        for (const auto& m : moved) w+=" "+m+";";
+        report::Log(w);
+    }
+    return j;
+}
+
+//! The run's options from the (translated) deck: the top-level keys through \a f (the caller's typo guard), the \c solid sub-block.
+//! The ONE accuracy target and the XC choices are the RUN's (V-FACADE-ACCURACY, V-XC-ONE-TERM): the top-level `accuracy`, and `xc`
+//! with its fit basis, the density XC sees and the mesh.  `solid.accuracy` is accuracy's DEPRECATED alias: read, warned; both refused.
+void ReadRunOptions(Fields& f, const json& j, SolidCalcOptions& o)
+{
+    f.Get("Nelec",o.Nelec); f.Get("charge",o.charge); f.Get("multiplicity",o.multiplicity); f.GetEnum("spin",o.spin,kSpin); f.Get("pp",o.pp);
+    {
+        std::string model=Hamiltonian::Name(o.model);
+        f.Get("model",model);
+        const auto m=Hamiltonian::ModelFromName(model);
+        if (!m) throw std::runtime_error("deck: 'model' \""+model+"\" is not a model name (a periodic run takes \"LDA\" or \"PADE\")");
+        o.model=*m;
+    }
+    if (j.contains("species"))
+    {
+        o.species.clear();
+        for (const auto& s : f.At("species"))
+        {
+            if (!s.is_array() || s.size()!=2) throw std::runtime_error("deck: 'species' entries are [\"Element\", valence], got "+s.dump());
+            o.species.emplace_back(s.at(0).get<std::string>(), s.at(1).get<int>());
+        }
+    }
+    else f.At("species");
+    f.GetEnum("seed",o.seed,kSeed); f.GetEnum("ortho",o.ortho,kOrtho); f.Get("orthoTol",o.orthoTol);
+    f.Get("imposeSymmetry",o.imposeSymmetry); f.Get("spins",o.siteSpins); f.GetEnum("accelerator",o.accelerator,kAcc);
+    f.Get("label",o.label); f.Get("saveStateTo",o.saveStateTo);
+    if (j.contains("solid")) SolidBlockFromJson(f.At("solid"),o); else f.At("solid");
+    const bool solidStates = j.contains("solid") && j.at("solid").is_object() && j.at("solid").contains("accuracy");
+    if (j.contains("accuracy"))
+    {
+        if (solidStates)
+            throw std::runtime_error("deck: 'accuracy' and 'solid.accuracy' are both stated -- 'solid.accuracy' is the deprecated spelling of the "
+                                     "run's ONE accuracy target; keep the top-level 'accuracy' only");
+        double eps=o.accuracy.eps;
+        f.Get("accuracy",eps);
+        if (!(eps>=0.0)) throw std::runtime_error("deck: 'accuracy' (Ha per atom on an energy run, per matrix element on a geometry run) "
+                                                  "must be >= 0 (0 = no target: the rasters tolerances.rasterX ... state)");
+        o.accuracy.eps=eps;
+    }
+    else
+    {
+        f.At("accuracy");
+        if (solidStates)
+        {
+            const std::string w="[deck] WARNING: 'solid.accuracy' is deprecated -- the accuracy target is the run's: state it as the "
+                                "top-level 'accuracy' (V-FACADE-ACCURACY)";
+            std::fprintf(stderr,"%s\n",w.c_str());
+            report::Log(w);
+        }
+    }
+    if (j.contains("xc"))
+    {
+        Fields xf(f.At("xc"),"xc"); xf.GetEnum("fit",o.vxcFit,kVxc); xf.GetEnum("rho",o.xcRho,kRho);
+        if (j.at("xc").contains("mesh")) FromJson(xf.At("mesh"),o.xcMesh); else xf.At("mesh");
+        xf.Done();
+    }
+    else f.At("xc");
+}
+
+void FromJson(const json& jIn, SolidCalcOptions& o)
+{
+    const json j=ToSchema2(jIn);
+    Fields f(j,"options");
+    ReadRunOptions(f,j,o);
     f.Done();
 }
 
@@ -700,7 +819,7 @@ void BasisFromJson(const json& j, RunSpec::Basis& b)
         throw std::runtime_error("deck: basis.file AND basis.inline -- state one (an inline basis IS the file's text)");
     if (j.contains("vet"))
         throw std::runtime_error("deck: 'basis.vet' is retired (2026-11-04): the conditioning report now always runs -- for the vet-stage trim state "
-                                 "\"autoTrim\": true beside a solid.orthoTol > 0, and otherwise drop the key");
+                                 "\"autoTrim\": true beside an orthoTol > 0, and otherwise drop the key");
     f.GetEnum("family",b.family,kFamily); f.Get("ecut",b.ecut);
     if (j.contains("trim"))
     {
@@ -720,11 +839,9 @@ void BasisFromJson(const json& j, RunSpec::Basis& b)
 json ToJson(const RunSpec& r)
 {
     json j={{"structure", r.inlineStructure.is_null() ? json(r.structure) : r.inlineStructure}};
-    j["kmesh"]={r.kmesh.x,r.kmesh.y,r.kmesh.z}; j["basis"]=BasisJson(r.basis); j["solid"]=ToJson(r.solid);
-    // The ONE accuracy target is the RUN's (V-FACADE-ACCURACY): the record states it at the top level, never as `solid.accuracy`.
-    j["accuracy"]=j["solid"]["accuracy"]; j["solid"].erase("accuracy");
-    // THE XC CHOICES are the run's (like `accuracy`): which fit basis represents v_xc, and which density XC sees (user ruling 2026-11-09).
-    j["xc"]={{"fit",NameOf(r.solid.vxcFit,kVxc)},{"rho",NameOf(r.solid.xcRho,kRho)}};
+    j["schema"]=kSchemaVersion;   // a record (and the GUI's resolved deck) is schema 2: the options' structure-neutral keys at the top
+    j["kmesh"]={r.kmesh.x,r.kmesh.y,r.kmesh.z}; j["basis"]=BasisJson(r.basis);
+    j.update(ToJson(r.solid));    // the run's options: shared keys, accuracy and xc at the top, the periodic ones under `solid`
     j["acceleratorOptions"]=ToJson(r.accel);
     if (!r.state.save.empty() || !r.state.restartFrom.empty())
     {
@@ -744,8 +861,9 @@ json ToJson(const RunSpec& r)
     }
     return j;
 }
-void FromJson(const json& j, RunSpec& r)
+void FromJson(const json& jIn, RunSpec& r)
 {
+    const json j=ToSchema2(jIn);   // THE schema-1 translator: each key read at its place, meaning kept
     Fields f(j,"run");
     if (!j.contains("structure") || !(j.at("structure").is_string() || j.at("structure").is_object()))
         throw std::runtime_error("deck: 'structure' is required: a NAME from materials.json or molecules.json, or the cell itself "
@@ -769,7 +887,6 @@ void FromJson(const json& j, RunSpec& r)
         Fields sf(f.At("state"),"state"); sf.Get("save",r.state.save); sf.Get("restartFrom",r.state.restartFrom); sf.Done();
     }
     else f.At("state");
-    if (j.contains("solid")) FromJson(f.At("solid"),r.solid); else f.At("solid");
     if (j.contains("threads"))
     {
         Fields tf(f.At("threads"),"threads"); tf.Get("openmp",r.threads.openmp); tf.Get("blas",r.threads.blas); tf.Done();
@@ -777,39 +894,7 @@ void FromJson(const json& j, RunSpec& r)
             throw std::runtime_error("deck: 'threads' counts must be >= 0 (0 = the process's own: QCHEM_OPENMP_THREADS / QCHEM_BLAS_THREADS)");
     }
     else f.At("threads");
-    // THE ONE ACCURACY TARGET eps is the RUN's (V-FACADE-ACCURACY, user ruling 2026-11-03): the top-level `accuracy` key, copied into the
-    // options of the facade the deck builds (today always the solid's).  `solid.accuracy` is its DEPRECATED alias: read, and warned
-    // about.  Both stated is refused -- two statements of one number, and the deck would have to pick.
-    const bool solidStates = j.contains("solid") && j.at("solid").is_object() && j.at("solid").contains("accuracy");
-    if (j.contains("accuracy"))
-    {
-        if (solidStates)
-            throw std::runtime_error("deck: 'accuracy' and 'solid.accuracy' are both stated -- 'solid.accuracy' is the deprecated spelling of the "
-                                     "run's ONE accuracy target; keep the top-level 'accuracy' only");
-        double eps=r.solid.accuracy.eps;
-        f.Get("accuracy",eps);
-        if (!(eps>=0.0)) throw std::runtime_error("deck: 'accuracy' (Ha per atom on an energy run, per matrix element on a geometry run) "
-                                                  "must be >= 0 (0 = no target: the rasters tolerances.rasterX ... state)");
-        r.solid.accuracy.eps=eps;
-    }
-    else
-    {
-        f.At("accuracy");
-        if (solidStates)
-        {
-            const std::string w="[deck] WARNING: 'solid.accuracy' is deprecated -- the accuracy target is the run's: state it as the "
-                                "top-level 'accuracy' (V-FACADE-ACCURACY)";
-            std::fprintf(stderr,"%s\n",w.c_str());
-            report::Log(w);
-        }
-    }
-    // THE XC CHOICES (user ruling 2026-11-09, V-XC-ONE-TERM): `xc.fit` = the Vxc fit basis (was `solid.vxcFit`, refused by name above),
-    // `xc.rho` = "exact" (rho[D], the default) | "fit" (the fit's projection P rho).  The run's, copied into the facade's options.
-    if (j.contains("xc"))
-    {
-        Fields xf(f.At("xc"),"xc"); xf.GetEnum("fit",r.solid.vxcFit,kVxc); xf.GetEnum("rho",r.solid.xcRho,kRho); xf.Done();
-    }
-    else f.At("xc");
+    ReadRunOptions(f,j,r.solid);   // the run's options (shared keys, accuracy, xc, the solid block)
     if (j.contains("acceleratorOptions")) FromJson(f.At("acceleratorOptions"),r.accel); else f.At("acceleratorOptions");
     if (j.contains("postSCF"))
     {
@@ -873,7 +958,7 @@ Materials::Material Resolve(RunSpec& spec)
     if (spec.basis.autoTrim && !spec.basis.trim.empty())
         throw std::runtime_error("deck: basis.autoTrim and basis.trim are exclusive (an autoTrim computes the trim; a stated trim is the A/B for it)");
     if (spec.basis.autoTrim && spec.solid.orthoTol<=0.0)
-        throw std::runtime_error("deck: basis.autoTrim needs a solid.orthoTol > 0 to trim at -- at 0 it would drop nothing");
+        throw std::runtime_error("deck: basis.autoTrim needs an orthoTol > 0 to trim at -- at 0 it would drop nothing");
     // THE SPHERICAL VIEW ON A CARTESIAN-ONLY BLOCK (OpenWork, 2026-11-14): judged on the FILE the run reads -- the inlined text, a stated
     // basis.file, or the registered basis.data -- by what that file declares (`CARTESIAN-ONLY <elements>`), never by the label in
     // basis.data (which, beside a basis.file, is only a label: a spherical-safe file under the SR label used to be refused, and an SR
@@ -910,12 +995,12 @@ Materials::Material Resolve(RunSpec& spec)
     }
     // THE MAGNETIC ORDERING IS STATED (OpenWork §3, 2026-10-26): the facade's own check, run here so a deck is refused BEFORE a revision is claimed.
     try { RequireStatedMagneticOrdering(spec.solid, *m.cell); }
-    catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.siteSpins -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
+    catch (const std::invalid_argument& e) { throw std::runtime_error("deck: spins -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
     try { RequireConsistentSiteCharges(spec.solid, *m.cell); }
     catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.siteCharges -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
     // AUTO PICKS THE KIND, NOT THE RECIPE (OpenWork §3, 2026-10-26): the mesh policy's own refusal, run here so --check catches it too.
     try { (void)qcMesh::ResolveXCMesh(spec.solid.xcMesh); }
-    catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid."+std::string(e.what())); }
+    catch (const std::invalid_argument& e) { const std::string w=e.what(); throw std::runtime_error("deck: xc.mesh"+(w.rfind("xcMesh",0)==0 ? w.substr(6) : ": "+w)); }
 
     // PRE-FLIGHT of the postSCF list (each message names the action and what to change): the old probes found these out AFTER the SCF.
     {
@@ -1009,7 +1094,7 @@ Materials::Material Resolve(RunSpec& spec)
                     throw std::runtime_error(who+"perturb index "+std::to_string(j)+" is past the "+std::to_string(spec.solid.hubbard.size())+" manifolds in solid.hubbard");
         }
     }
-    // The material NAMES its pseudopotential set; a deck that left `solid.pp` at the facade default takes the material's.  `species` (the
+    // The material NAMES its pseudopotential set; a deck that left `pp` at the facade default takes the material's.  `species` (the
     // per-element overrides) is filled with the resolved vocabulary so the record states every valence actually used.
     if (spec.solid.pp==SolidCalcOptions{}.pp) spec.solid.pp=m.pp;
     if (spec.solid.species.empty()) spec.solid.species=m.species;
@@ -1025,7 +1110,7 @@ Materials::Material Resolve(RunSpec& spec)
     // THE SPIN BOOKKEEPING on the resolved count (the setup's own decision 2, run here so --check refuses an impossible request:
     // multiplicity 1 on an odd count once ran a silent doublet).
     try { (void)SpinChannelCounts(spec.solid, spec.solid.Nelec); }
-    catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.multiplicity -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
+    catch (const std::invalid_argument& e) { throw std::runtime_error("deck: multiplicity -- "+std::string(e.what()).substr(std::string("SolidCalcOptions: ").size())); }
     // THE MIXER'S OWN ADMISSION (the iterator's ResolveMixing), run here so --check refuses what the run would: Pulay with no pulayDepth,
     // Kerker with no kerkerG0, a density history beside a STATED Fock extrapolator (DIIS, Ladder).  A deck run is periodic (gSpace).  An
     // Auto accelerator is judged as the cold-stage policy's Null: on a RESTORED stage the run may pick DIIS / Ladder (MakeAccelerator), and
@@ -1178,7 +1263,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
     {
         bool resp=false; for (const auto& a : spec.postSCF) resp = resp || a.kind==RunSpec::PostAction::Kind::IndependentResponse || a.kind==RunSpec::PostAction::Kind::HubbardLinearResponse;
         if (resp && spec.solid.imposeSymmetry && spec.kmesh.x*spec.kmesh.y*spec.kmesh.z>1)
-            v.notes.push_back("a response with solid.imposeSymmetry on a k-mesh: if the imposed group REDUCES the mesh the response throws at run time (D5); the NiO AFM-II 2x2x2 Shubnikov group does not reduce it");
+            v.notes.push_back("a response with imposeSymmetry on a k-mesh: if the imposed group REDUCES the mesh the response throws at run time (D5); the NiO AFM-II 2x2x2 Shubnikov group does not reduce it");
         if (resp && LooserThan(spec.Stages().back().scf.MinΔρPerElectron, kResponseReferenceMinΔρ))
             v.notes.push_back("a response reference should converge to scf.minDeltaRhoPerElectron <= 1e-9 (a few more iterations; ρ_lost/N does not floor it): "
                               "at 1e-6 its orbitals carry ~1e-6 symmetry and eigenpair residuals");

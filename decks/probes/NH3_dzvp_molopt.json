@@ -62,12 +62,10 @@
   ],
   "pp": "gth-lda-valence"
  },
- "basis": {
-  "data": "dzvp_molopt_gth",
-  "angular": "spherical"
- },
- "solid": {
-  "species": [
+ "schema": 2,
+ "multiplicity": 1,
+ "spin": "Polarized",
+ "species": [
    [
     "N",
     5
@@ -77,16 +75,20 @@
     1
    ]
   ],
-  "multiplicity": 1,
-  "imposeSymmetry": false,
-  "xcMeshSymmetric": false,
-  "xcMesh": {
+ "imposeSymmetry": false,
+ "xc": { "mesh": {
    "cellKind": "Becke",
    "nRadial": 60,
    "mhlAlpha": 2.0,
    "angularDegree": 48,
    "angular": "GaussLegendre"
-  },
+  } },
+ "basis": {
+  "data": "dzvp_molopt_gth",
+  "angular": "spherical"
+ },
+ "solid": {
+  "xcMeshSymmetric": false,
   "densityEcut": 100.0
  },
  "scf": {

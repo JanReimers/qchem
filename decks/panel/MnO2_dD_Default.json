@@ -5,6 +5,21 @@
   "the SCF REFUSES it and the pilot restarts on rasters with e^-x <= lambda_min(S) (x 14.2). Measured 2026-11-01 (lane A): 1 refused + 24, Etot -93.4419391947."
  ],
  "structure": "MnO2_beta_A1AFM",
+ "schema": 2,
+ "multiplicity": 1,
+ "spin": "Polarized",
+ "seed": "IonicSAD",
+ "ortho": "CholeskyPivoted",
+ "orthoTol": 1e-07,
+ "imposeSymmetry": true,
+ "spins": [
+   1,
+   -1,
+   0,
+   0,
+   0,
+   0
+  ],
  "kmesh": [
   1,
   1,
@@ -17,10 +32,6 @@
   "autoTrim": false
  },
  "solid": {
-  "multiplicity": 1,
-  "seed": "IonicSAD",
-  "ortho": "CholeskyPivoted",
-  "orthoTol": 1e-07,
   "forceComplex": true,
   "hubbard": [
    {
@@ -127,16 +138,7 @@
     ],
     "projector": "pseudoAtomic"
    }
-  ],
-  "siteSpins": [
-   1,
-   -1,
-   0,
-   0,
-   0,
-   0
-  ],
-  "imposeSymmetry": true
+  ]
  },
  "postSCF": [],
  "schedule": [

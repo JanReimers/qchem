@@ -32,7 +32,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     s->opts=opts;
     s->acc =acc;
     // An open shell (2S>0) is unrestricted: it needs distinct up/down densities, so promote to polarized.
-    if (s->opts.multiplicity > 1) s->opts.spin = SpinGroup::Polarized;
+    s->opts.spin = ResolveSpinGroup(s->opts.spin, s->opts.multiplicity);   // THE rule, every structure (R6)
     // The pseudopotential front door builds a valence LDA Hamiltonian with the run's functional, LDA (Dirac + VWN5) or PADE (the
     // GTH-PADE PPs' own, 2026-11-12); any other model would be ignored, a SILENT substitution: refuse it, before anything is built.
     if (!opts.pp.empty() && opts.model != Model::LDA && opts.model != Model::PADE)

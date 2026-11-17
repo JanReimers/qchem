@@ -4,6 +4,21 @@
   "Restarts from its OWN converged state r015 (24 iterations, E -93.3837082), VENDORED as decks/states/MnO2_beta_A1AFM_r015_U0.h5 (the test resolves the relative path).  Before D5 (2026-10-29) iteration 1 opened 4 mHa off the saved E and the resume took 23; fixed: 4.  NMaxIter is above the budget so a slow resume fails on the BUDGET, not the cap."
  ],
  "structure": "MnO2_beta_A1AFM",
+ "schema": 2,
+ "multiplicity": 1,
+ "spin": "Polarized",
+ "seed": "IonicSAD",
+ "ortho": "CholeskyPivoted",
+ "orthoTol": 1e-07,
+ "imposeSymmetry": true,
+ "spins": [
+   1,
+   -1,
+   0,
+   0,
+   0,
+   0
+  ],
  "kmesh": [
   1,
   1,
@@ -17,10 +32,6 @@
  },
  "accuracy": 0.0,
  "solid": {
-  "multiplicity": 1,
-  "seed": "IonicSAD",
-  "ortho": "CholeskyPivoted",
-  "orthoTol": 1e-07,
   "forceComplex": true,
   "hubbard": [
    {
@@ -128,15 +139,6 @@
     "projector": "pseudoAtomic"
    }
   ],
-  "siteSpins": [
-   1,
-   -1,
-   0,
-   0,
-   0,
-   0
-  ],
-  "imposeSymmetry": true,
   "tolerances": {
    "rasterX": 16.0,
    "vlocRasterX": 16.0,

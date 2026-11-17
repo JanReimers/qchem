@@ -494,7 +494,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedReadsTheStatedOrdering)
 std::pair<SolidCalcOptions,SCFParams> ShubAnchorRecipe(const Material& mno, qchem::ChargeDensity::SeedStrategy seed, const std::string& label)
 {
     SolidCalcOptions o=OptionsFor(mno, label);
-    o.multiplicity=1;                                       // the explicit two-channel singlet: nUp=nDn=13
+    o.multiplicity=1; o.spin=SpinGroup::Polarized;                                       // the explicit two-channel singlet: nUp=nDn=13
     o.seed=seed;
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
     o.accelerator=qchem::SCFAccelerators::Type::Null;      // the deck-shaped loop: the history is on the density side
@@ -595,7 +595,7 @@ std::shared_ptr<const Real_BS> CP2KPlusUBasis(const Material& mno)
 std::pair<SolidCalcOptions,SCFParams> CP2KPlusURecipe(const Material& mno, double U_eV, const std::string& label)
 {
     SolidCalcOptions o=OptionsFor(mno, label);
-    o.multiplicity=1; o.siteSpins={+1,-1,0,0};   // stated (Mn up, Mn down, O non-magnetic): what IonicSAD derived, now the chemistry
+    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.siteSpins={+1,-1,0,0};   // stated (Mn up, Mn down, O non-magnetic): what IonicSAD derived, now the chemistry
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
     // THE CP2K-SHAPED LOOP (user, 2026-09-20: "we need 1) very close converged energies 2) similar SCF

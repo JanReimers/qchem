@@ -5,6 +5,18 @@
     "schedule.0.scf.smearingkT (NAFGDM_KT), schedule.*.scf.useMOM (NAFGDM_MOM), schedule.*.scf.NMaxIter (NAFGDM_NMAX), solid.densityEcut (NAF_ECUT)."
   ],
   "structure": "NaF_rocksalt",
+  "schema": 2,
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.0001,
+  "imposeSymmetry": true,
+  "xc": { "mesh": {
+      "cellKind": "Becke",
+      "nRadial": 20,
+      "mhlAlpha": 2.0,
+      "angularDegree": 11,
+      "angular": "GaussLegendre"
+    } },
   "kmesh": [
     2,
     2,
@@ -12,19 +24,6 @@
   ],
   "basis": {
     "data": "VALENCE_LOWQ_SR"
-  },
-  "solid": {
-    "imposeSymmetry": true,
-    "seed": "IonicSAD",
-    "ortho": "CholeskyPivoted",
-    "orthoTol": 0.0001,
-    "xcMesh": {
-      "cellKind": "Becke",
-      "nRadial": 20,
-      "mhlAlpha": 2.0,
-      "angularDegree": 11,
-      "angular": "GaussLegendre"
-    }
   },
   "schedule": [
     {

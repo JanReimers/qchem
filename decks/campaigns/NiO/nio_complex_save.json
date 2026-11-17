@@ -7,6 +7,14 @@
     "basis span chosen: VALENCE_LOWQ_VA spherical; function count not comparable (vet-stage trim)"
   ],
   "structure": "NiO_AFM2",
+  "schema": 2,
+  "multiplicity": 1,
+  "spin": "Polarized",
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.001,
+  "imposeSymmetry": true,
+  "spins": [1,-1,0,0],
   "kmesh": [
     2,
     2,
@@ -18,12 +26,6 @@
     "autoTrim": true
   },
   "solid": {
-    "multiplicity": 1,
-    "siteSpins": [1,-1,0,0],
-    "seed": "IonicSAD",
-    "imposeSymmetry": true,
-    "ortho": "CholeskyPivoted",
-    "orthoTol": 0.001,
     "hubbard": [
       {
         "site": 0,

@@ -28,6 +28,7 @@ import qchem.RunPolicy;                       // RunPolicySpec
 import qchem.LASolver;                        // qchem::Ortho
 export import qchem.SCFRecipe;                // SCFRecipe (the stage's material regime, beside its accelerator)
 export import qchem.SetupRefusal;             // SetupRefusal + Outcome: the Admit door's failure half
+export import qchem.Symmetry.Spin;            // SpinGroup -- the imposed spin subgroup, a SolidCalcOptions field (R6)
 export import qchem.AuditFootprint;           // AuditFootprintCalibration (the audit RSS policy's expert knob)
 export import qchem.Pseudopotential.Set;      // PseudopotentialSet -- the setup's resolved choice
 
@@ -70,11 +71,13 @@ struct SolidCalcOptions
     int Nelec = 0;
     //! The cell's stated NET CHARGE (electrons removed; -1 = one extra electron).  A charged cell is legal only when stated here.
     int charge = 0;
-    //! Spin multiplicity 2S+1.  0 (default) = minimal spin: the ζ=0 collapse for even \c Nelec, a doublet
-    //! for odd.  >=1 promotes to the SPIN-NATIVE two-channel run (nUp-nDown = 2S).  NB unlike the molecular
-    //! facade, 1 here means the EXPLICIT two-channel singlet (nUp=nDn) -- the ζ=0 cross-check of the
-    //! polarized machinery against the unpolarized anchors, not a shortcut to it.
+    //! Spin multiplicity 2S+1 -- S ONLY (R6, 2026-11-17: the same two knobs as the molecule, \c ResolveSpinGroup).  0 (default) =
+    //! minimal spin: a closed shell for even \c Nelec, a doublet for odd.  1 = the singlet (nUp = nDn).  > 1 forces \c spin Polarized.
     int multiplicity = 0;
+    //! The imposed spin subgroup: \c Polarized = the SPIN-NATIVE two-channel run, which an AFM or broken-symmetry singlet needs
+    //! (multiplicity 1 with \c Polarized is the explicit two-channel singlet, the ζ=0 cross-check of the polarized machinery against the
+    //! unpolarized anchors).  A multiplicity > 1 forces it.  Until R6 the solid had no such knob and read multiplicity >= 1 as polarized.
+    SpinGroup spin = SpinGroup::UnPolarized;
     //! The pseudopotential SET the run uses (src/Pseudopotential/Data/pseudopotentials.json; doc/CalcNetworkReview.md §4): per element
     //! the GTH valence variant, and the XC functional the entries were generated for.  Chosen ONCE here; the Hamiltonian's PP terms,
     //! the XC-grid sharpness gather, the +U projector and the saved-state fingerprint are all handed the same resolved value.
@@ -83,7 +86,7 @@ struct SolidCalcOptions
     //! semicore Mn q15 run) or adds it.  Empty (default) = the set as is.  Multi-species is the norm for a compound; a per-Z
     //! router PP is built over the elements of the structure so each atom gets its own GTH entry.
     std::vector<std::pair<std::string,int>> species;
-    //! The XC FUNCTIONAL (deck \c solid.model): LDA (Dirac + VWN5, the default) or PADE (the Goedecker-Teter-Hutter Padé LDA, libxc
+    //! The XC FUNCTIONAL (deck \c model): LDA (Dirac + VWN5, the default) or PADE (the Goedecker-Teter-Hutter Padé LDA, libxc
     //! LDA_XC_TETER93 = CP2K's XC_FUNCTIONAL PADE, the functional every GTH-PADE PP was fitted with; user ruling 2026-11-12).  STATED,
     //! never switched for you: a PP fitted with another functional than this one is a warn-and-run row (\c PPFittedFunctional).
     Hamiltonian::Model model = Hamiltonian::Model::LDA;
@@ -401,7 +404,7 @@ struct SolidSetup
     //! How \c mol was made, the trim FROZEN; empty when the caller handed a pre-built basis (that setup cannot follow moved atoms).
     std::optional<GaussianBasisRecipe>       recipe;
     bool planeWave = false;   //!< \c opts.orbitalBasis is PlaneWave
-    bool polarized = false;   //!< the spin-native two-channel run (\c opts.multiplicity >= 1)
+    bool polarized = false;   //!< the spin-native two-channel run (\c ResolveSpinGroup(opts.spin, opts.multiplicity))
     //! The caller's \c imposeSymmetry AND the run policy's permission (CP2K parity vetoes the capability).  Nothing reads
     //! \c opts.imposeSymmetry after Resolve, or the two would drift.
     bool imposed   = false;

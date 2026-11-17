@@ -68,7 +68,7 @@ SCFParams Params()
 }
 SolidCalcOptions Options(int multiplicity, bool forceComplex, const std::string& save)
 {
-    return SolidCalcOptions{.Nelec=8, .multiplicity=multiplicity, .species={{"Si",4}}, .densityEcut=20.0,
+    return SolidCalcOptions{.Nelec=8, .multiplicity=multiplicity, .spin=multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, .species={{"Si",4}}, .densityEcut=20.0,
                             .forceComplex=forceComplex, .label="ck1", .saveStateTo=save};
 }
 

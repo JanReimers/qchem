@@ -5,6 +5,12 @@
   "multiplicity 0 (UNPOLARIZED) because CP2K ran this d1 cell RKS (25 e: a UKS singlet is impossible).  multiplicity 1 on an odd count is a 13up/12dn DOUBLET, which at Gamma polarizes (V +2.6, 0.16 Ha below RKS) and is multi-stable under the FD alpha -- not the CP2K state (2026-10-21, SrVO3.r007/r009)."
  ],
  "structure": "SrVO3",
+ "schema": 2,
+ "multiplicity": 0,
+ "seed": "IonicSAD",
+ "ortho": "CholeskyPivoted",
+ "orthoTol": 0.0001,
+ "accelerator": "Null",
  "kmesh": [
   1,
   1,
@@ -16,12 +22,7 @@
   "angular": "spherical"
  },
  "solid": {
-  "multiplicity": 0,
-  "seed": "IonicSAD",
-  "ortho": "CholeskyPivoted",
-  "orthoTol": 0.0001,
   "forceComplex": true,
-  "accelerator": "Null",
   "hubbard": [
    {
     "site": 0,

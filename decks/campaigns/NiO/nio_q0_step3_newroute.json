@@ -12,6 +12,15 @@
     "RE-RUN FROM THIS DECK 2026-10-04 (rundeck, QCHEM_OPENMP_THREADS=10): EXACT RESUME of the FREE state, E -106.2023644 after 9 iterations, chi0/chi/U IDENTICAL to every printed digit and 13 kernel applications per channel -- record ~/Code/qchem6-runs/NiO/NiO_AFM2.r001.json, log nio_q0_step3_newroute_deckrerun.log."
   ],
   "structure": "NiO_AFM2",
+  "schema": 2,
+  "multiplicity": 1,
+  "spin": "Polarized",
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.001,
+  "imposeSymmetry": false,
+  "spins": [1,-1,0,0],
+  "accelerator": "Null",
   "kmesh": [
     2,
     2,
@@ -23,12 +32,6 @@
     "autoTrim": true
   },
   "solid": {
-    "multiplicity": 1,
-    "siteSpins": [1,-1,0,0],
-    "seed": "IonicSAD",
-    "imposeSymmetry": false,
-    "ortho": "CholeskyPivoted",
-    "orthoTol": 0.001,
     "hubbard": [
       {
         "site": 0,
@@ -79,8 +82,7 @@
         "orthoAtomic": true
       }
     ],
-    "forceComplex": true,
-    "accelerator": "Null"
+    "forceComplex": true
   },
   "scf": {
     "NMaxIter": 200,

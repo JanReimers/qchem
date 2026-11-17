@@ -361,7 +361,7 @@ TEST(SolidSetup, AStatedMagneticOrderingIsTheSeedsAndOverridesTheStructuresSpins
     auto resolve=[](const UnitCell& cell, std::vector<int> spins, const std::string& tag)
     {
         SolidCalcOptions o; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
-        o.multiplicity=1; o.imposeSymmetry=true; o.siteSpins=std::move(spins);
+        o.multiplicity=1; o.spin=SpinGroup::Polarized; o.imposeSymmetry=true; o.siteSpins=std::move(spins);
         report::Run run(tag);
         return SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_SR}, o)->seedKey.siteSpins;
     };

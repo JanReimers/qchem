@@ -41,7 +41,9 @@ export namespace qchem::deck
 using json = nlohmann::json;
 
 //! The schema version written into every deck.  Bumped when a key is RENAMED or its meaning changes (adding a key does not).
-inline constexpr int kSchemaVersion = 1;
+//! 2 (V-FACADE-PARITY P0, 2026-11-17): the structure-neutral options at the top, the periodic
+//! ones under `solid`.  Schema 1 is still READ, through ONE translator (each key's meaning follows its place; see \c FromJson(RunSpec)).
+inline constexpr int kSchemaVersion = 2;
 
 //! \name Typed option structs <-> JSON.  \c To* writes EVERY field (a resolved deck is complete); \c From* overwrites only
 //! the keys present and THROWS \c std::runtime_error on a key it does not know, naming the object path and the legal keys.
@@ -65,7 +67,7 @@ json ToJson(const SolidCalcOptions&);                    void FromJson(const jso
 //! the entry itself -- one \c materials.json entry (`lattice` as Bravais parameters or `vectors_bohr`, `atoms`; optional `name`,
 //! `pp`), built by the data file's own parser, so an inline copy of a named entry IS that material.  One key, so a deck cannot
 //! state both.
-//! \c solid.Nelec / \c solid.species left at their defaults (0 / empty) are DERIVED from the material; stated, they are honoured
+//! \c Nelec / \c species left at their defaults (0 / empty) are DERIVED from the material; stated, they are honoured
 //! (a charged cell, a different pseudopotential valence) -- and the resolved deck always records the values actually used.
 struct RunSpec
 {
@@ -91,7 +93,7 @@ struct RunSpec
         //! old bool "spherical" is read as its earlier spelling, so a record written before 2026-11-12 still runs.
         BasisSet::Gaussian::Angular angular=BasisSet::Gaussian::Angular::Cartesian;
         std::vector<Trim> trim;     //!< a STATED trim (built once, no vet loop)
-        bool autoTrim=false;        //!< the vet-stage trim at \c solid.orthoTol: near-dependent diffuse shells removed ONCE on the full k-mesh (exclusive with \c trim)
+        bool autoTrim=false;        //!< the vet-stage trim at \c orthoTol: near-dependent diffuse shells removed ONCE on the full k-mesh (exclusive with \c trim)
         //! The orbital basis FAMILY ("gaussian" | "planeWave", OpenWork §2 PW-1); copied into \c solid at run time.  A plane-wave run still
         //! builds the Gaussian \c data basis (the facade takes one; nothing in a plane-wave run reads it).
         SolidCalcOptions::OrbitalBasis family = SolidCalcOptions::OrbitalBasis::GPW;
@@ -148,7 +150,7 @@ struct RunSpec
 
     std::string      structure;       //!< a name in materials.json or molecules.json (the file's `structure` as a STRING) ...
     //! ... OR the entry itself (the file's `structure` as an OBJECT; null = a name): `{"lattice", "atoms", "name"?, "pp"?,
-    //! "comment"?}`; `pp` absent = \c solid.pp.  The magnetic decoration and charge order stay in \c solid (siteSpins,
+    //! "comment"?}`; `pp` absent = the run's \c pp.  The magnetic decoration and charge order stay in \c solid (siteSpins,
     //! siteCharges), as for a named structure.  Never both (\c Resolve throws).
     json             inlineStructure;
     //! The structure's name: \c structure, or the inline entry's `name` ("inline" when it has none) -- what the revisions and
@@ -162,7 +164,7 @@ struct RunSpec
     //! The accelerator chain's knobs, for every stage (the stage names WHICH accelerator; these say how it is tuned).  Deck key
     //! `acceleratorOptions`; default = the GPW production recipe (\c SolidAcceleratorOptions).
     SCFAccelerators::SolidAcceleratorOptions accel;
-    SCFParams        scf;             //!< the single-stage recipe (with \c solid.accelerator) ...
+    SCFParams        scf;             //!< the single-stage recipe (with the run's \c accelerator) ...
     SCFRecipe        scfRecipe = SCFRecipe::Auto;   //!< ... its `scf.recipe` (the material regime; qchem.SCFRecipe) ...
     std::vector<Stage> schedule;      //!< ... OR an annealed one; a deck gives one or the other (never both)
     std::vector<PostAction> postSCF;  //!< post-convergence actions, in order (empty = none)
@@ -170,7 +172,7 @@ struct RunSpec
     //! physics: a RESOURCE, so it never enters a state's fingerprint.  0 / absent = the process's own count (QCHEM_OPENMP_THREADS,
     //! QCHEM_BLAS_THREADS), today's behaviour.  \c Run holds the scope for the whole run; a caller of \c Build holds it per call.
     ThreadCounts threads;
-    //! The stages the run executes: \c schedule, or the one stage (\c scf, \c solid.accelerator).
+    //! The stages the run executes: \c schedule, or the one stage (\c scf, the run's \c accelerator).
     std::vector<Stage> Stages() const
     { return schedule.empty() ? std::vector<Stage>{{scf,solid.accelerator,scfRecipe}} : schedule; }
 };
@@ -239,7 +241,7 @@ struct BasisShells
     std::unique_ptr<BasisSet::Lattice::ShellConditioning> table;
     std::vector<bool> deckKept;       //!< the shells the deck's trim keeps: its stated basis.trim, or its autoTrim's frozen choice
     std::vector<bool> autoTrimKept;   //!< the REFERENCE: what the vet-stage trim keeps at \c floor
-    double            floor=0.0;      //!< solid.orthoTol when stated, else the conditioning report's floor
+    double            floor=0.0;      //!< orthoTol when stated, else the conditioning report's floor
     //! One question, \a kept a flag per shell (empty: the deck's own trim).  WRITES ITS RECORD one level in -- the driver opens
     //! the run (the GUI bridge: \c basisTrimAnalysis): the analysis, then \c floor, \c deckKept and the \c autoTrimKept reference.
     BasisSet::Lattice::ShellConditioning::Answer Analyze(std::vector<bool> kept) const;

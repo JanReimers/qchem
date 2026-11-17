@@ -38,6 +38,7 @@ import qchem.Orbitals;                         // TOrbitals/TOrbital -- the ACBN
 import qchem.Diagnostics;                      // u_bands: the per-band +U slot weights (QCHEM_DIAGNOSTICS=u_bands[=N])
 import qchem.BasisSet.Orbital_DFT_IBS;         // the block an orbital set lives on (EstimateHubbardU)
 import qchem.Environment;                   // WarnRetiredEnvironment (D-ENV step 6a)
+import qchem.SetupDecisions;                 // ResolveSpinGroup: the banner states the spin group the setup resolved (R6)
 import qchem.Mesh.XCPolicy;                     // BeckeXCParams / BeckeEntryRung and the rungs above (a geometry run's XC route and its nested ladder)
 import qchem.Mesh.BeckeClimb;                   // ClimbBeckeLadder: the pilot's one-round Becke climb at a fixed D
 import qchem.Policy;                            // policy::Report: a stated grid that misses eps reports itself (StatedDensityEcutMissesEps)
@@ -237,7 +238,7 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
 {
     const char* omp=std::getenv("OMP_NUM_THREADS");
     std::cout<<"["<<o.label<<" run] system: "<<nAtoms<<" atoms, "<<o.Nelec<<" valence e, multiplicity "
-             <<o.multiplicity<<(o.multiplicity>=1 ? " (POLARIZED)" : " (unpolarized)")
+             <<o.multiplicity<<(ResolveSpinGroup(o.spin, o.multiplicity)==SpinGroup::Polarized ? " (POLARIZED)" : " (unpolarized)")
              <<", seed="<<SeedName(o.seed)<<std::endl;
     std::cout<<"["<<o.label<<" run] grids: densityEcut="
              <<(o.densityEcut<0 ? std::string("auto") : std::to_string(o.densityEcut))
@@ -1400,7 +1401,7 @@ void SolidCalculation::RecordState(StateRecord& r, double kT) const
 
 SpinGroup SolidCalculation::StateSpin() const
 {
-    return itsImp->setup->opts.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+    return itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
 }
 const Structure& SolidCalculation::StateStructure() const {return *itsImp->st;}
 const std::optional<RestartSummary>& SolidCalculation::RestartedFrom() const {return itsImp->restartedFrom;}
@@ -1629,7 +1630,7 @@ qchem::report::json RestateKeys(const BasisSet::Gaussian::GPWTolerances& t, doub
     qchem::report::json j={{"accuracy",0},{"solid",{{"cutoffFactor",cutoffFactor},
                  {"tolerances",{{"rasterX",t.rasterX},{"vlocRasterX",t.vlocRasterX},{"xcRasterX",t.xcRasterX},{"vlocEps",t.vlocEps}}}}}};
     if (m.cellKind==qcMesh::UnitCellKind::Becke)
-        j["solid"]["xcMesh"]={{"cellKind","Becke"},{"nRadial",m.nRadial},{"angularDegree",m.angularDegree},
+        j["xc"]["mesh"]={{"cellKind","Becke"},{"nRadial",m.nRadial},{"angularDegree",m.angularDegree},
                               {"angular",m.angular==qcMesh::AngularKind::Lebedev ? "Lebedev" : "GaussLegendre"},{"angRot",m.angRot},
                               {"beckeOrder",m.beckeOrder},{"mhlM",m.mhl_m}};
     return j;

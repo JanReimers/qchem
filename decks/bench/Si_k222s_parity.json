@@ -6,6 +6,9 @@
     "Run (serial, as the benchmark is):  QCHEM_OPENMP_THREADS=1 rundeck <this deck> --out $(scripts/rundir qchem6 <Material>)"
   ],
   "structure": "Si_diamond",
+  "schema": 2,
+  "imposeSymmetry": true,
+  "accelerator": "Null",
   "kmesh": [
     2,
     2,
@@ -16,13 +19,11 @@
   },
   "solid": {
     "densityEcut": 20.0,
-    "imposeSymmetry": true,
     "kShift": [
       0.5,
       0.5,
       0.5
     ],
-    "accelerator": "Null",
     "policy": {
       "cp2kCompat": true
     }

@@ -5,6 +5,12 @@
   "multiplicity 0 = QE nspin 1.  Matched oracle: hp.x with k 1x1x1, nq 1x1x1 (~/Code/qe-runs/TiO2/tio2_G.*); the k4/q2 hp.x value is 4.637 eV."
  ],
  "structure": "TiO2_rutile",
+ "schema": 2,
+ "multiplicity": 0,
+ "seed": "IonicSAD",
+ "ortho": "CholeskyPivoted",
+ "orthoTol": 0.0001,
+ "accelerator": "Null",
  "kmesh": [
   1,
   1,
@@ -16,12 +22,7 @@
   "angular": "spherical"
  },
  "solid": {
-  "multiplicity": 0,
-  "seed": "IonicSAD",
-  "ortho": "CholeskyPivoted",
-  "orthoTol": 0.0001,
   "forceComplex": true,
-  "accelerator": "Null",
   "hubbard": [
    {
     "site": 0,
