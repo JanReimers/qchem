@@ -1378,7 +1378,7 @@ double MaxRel(const auto& a, const auto& b)
 }
 } // namespace
 
-TEST(ResponseRealTRIM, GPW_Si_k222_q211_Becke_RealBlocks_eqForceComplex)
+TEST(ResponseRealTRIM, GPW_Si_k222_q211_Becke_RealBlocks_eqForceComplex_Long)
 {
     auto cplx=SiK222Becke(true), real=SiK222Becke(false);
     ASSERT_TRUE(cplx->DidConverge());
