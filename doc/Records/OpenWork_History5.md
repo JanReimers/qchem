@@ -3534,3 +3534,22 @@ Landing: short 1735 / long 19, 0 movers vs main-2c09f492; RelChecked RC=0; all 6
 git history), acceptable under the user's 2026-11-17 ruling.  Left over: `log2deck.py` drafts still fail at the retired `scf.minDeltaRho`
 (OpenWork row "log2deck writes a deck rundeck refuses").
 
+
+## ✅ The radial atom's Dunlap fit metric is near-singular (closed, no behaviour change; lane B, 2026-11-17)
+
+Measured locally (an env switch in `EFit_IBS::MakeInvRepulsion`, reverted) on `A_DFT_heavy` SL/SG × Xe/U, A_DFT_atom SG_U/SL_U, `A_DFT_U.Libxc/Z36`, `Cation/*`:
+
+| floor | SL_Xe E−E_NIST | SG_Xe | SL_U | SG_U | note |
+|---|---|---|---|---|---|
+| eig 1e-12 (kept) | +0.2417 mHa | +3.8667 | +1.8107 | +3.8006 | Poisson − Dunlap −2.7e-6 … −5.2e-6 Ha |
+| eig 1e-13 / 1e-14 | +0.240 / +0.233 | +3.8667 | – | +3.8006 | SL_Xe SCF stalls at the cap ([F,D] 3e-4) |
+| eig 1e-10 | +0.139 | +3.867 | +0.383 | +3.773 | SL_U route gap 1.4 mHa |
+| eig 1e-8 | −19.3 | +3.18 | −567 | −160 | |
+| pivoted-Cholesky pruning 1e-8 | −58.4 | +1.03 | −1182 | −80.4 | |
+| pivoted-Cholesky pruning 1e-10 … 1e-14 | blow-ups 1e4 … 1e18 Ha | | | | kept block ~40 of 2022 functions, still cond 1e13 |
+
+Dunlap's robust Hartree 2⟨ρ|f⟩ − ⟨f|f⟩ is a lower bound on J: every mode lost lowers E.  No behaviour change; the bracket is recorded at `kMetricRelTol` (e718c4d8e).
+
+The row as it stood:
+
+| **The radial atom's Dunlap fit metric is near-singular, even on its own rung-0 fit** (lane B 2026-11-14) | the s-block-×2 fit's Coulomb metric (k|l) has modes below 1e-12 × its largest: Gaussian High drops 4-9 of 36-46, Slater High 1 of 21-22 (Au, Rn, U); the densified ladder rungs far more (U rung 4: 472 of 510).  The inverse is now an eigen-truncated pseudo-inverse that REPORTS each truncation (`coulombMetricModesDropped`, `coulombMetricFloor`); before 2026-11-14 it was a plain `inv` of the singular metric | decide whether the fit set should be pruned to a well-conditioned one (pivoted Cholesky, pin 21) instead of truncating the inverse; measure the energy either way · `src/BasisSet/Radial/IrrepBasisSet.C` |
