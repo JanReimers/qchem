@@ -163,6 +163,11 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     importing internals across library boundaries. Unit tests are allowed to cheat and import Internal stuff.
 - The only header in the project is `forward.H`. It is used to forward-declare unit test classes that
     need access to internals of certain library classes. Header files for submodules are used where appropriate.
+- **Function bodies belong in `Imp/XXX.C`; a module interface unit holds declarations, templates and `constexpr`
+    only** (user 2026-11-17).  Editing a body in an interface rewrites its BMI and recompiles every importer
+    (CleanCode D-BUILD-BLAST ranks the worst).  Bodies MAY sit in the interface while it is stabilizing -- a judgement
+    call, but for a lane working an N-step plan the end of the plan is the obvious point to move them; moving them
+    early is not a problem.
 
 ## Naming
 
