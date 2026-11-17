@@ -72,7 +72,7 @@ std::shared_ptr<const MoleculeSetup> BoronGDM()
 std::shared_ptr<const SolidSetup> SiGammaGDM(const char* label)
 {
     const auto mat=Materials::Get("Si_diamond");
-    SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.label=label;
+    RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.label=label;
     o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
     o.accelerator=SCFAccelerators::Type::GDM;
     return SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);

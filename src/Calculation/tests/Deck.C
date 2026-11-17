@@ -36,9 +36,9 @@ fs::path TmpDir(const char* tag)
 
 TEST(Deck, DefaultOptionsRoundTripExactlyAndAreComplete)
 {
-    SolidCalcOptions o;
+    RunOptions o;
     const json j=deck::ToJson(o);
-    SolidCalcOptions back; deck::FromJson(j,back);
+    RunOptions back; deck::FromJson(j,back);
     EXPECT_EQ(deck::ToJson(back), j);
     EXPECT_TRUE(j.at("solid").contains("tolerances")); EXPECT_TRUE(j.at("solid").at("tolerances").contains("screenEps"));   // a resolved deck lists every field
     EXPECT_EQ(j.at("seed"), "Default") << "the Auto rule, resolved by the setup (a lattice: IonicSAD)";
@@ -56,8 +56,8 @@ TEST(Deck, TheXCObjectHoldsTheFitAndTheRhoAndTheFlatVxcFitIsRetired)
     json d={{"structure","Si_diamond"},{"xc",{{"fit","Delta"}}}};
     deck::ApplySet(d, "xc.rho=fit");
     deck::RunSpec r; deck::FromJson(d, r);
-    EXPECT_EQ(r.solid.vxcFit, Hamiltonian::VxcFit::Delta);
-    EXPECT_EQ(r.solid.xcRho, Hamiltonian::XCρ::Fit);
+    EXPECT_EQ(r.opts.vxcFit, Hamiltonian::VxcFit::Delta);
+    EXPECT_EQ(r.opts.xcRho, Hamiltonian::XCρ::Fit);
     const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j, back); EXPECT_EQ(deck::ToJson(back), j);
     EXPECT_FALSE(j.at("solid").contains("vxcFit")) << "the record never writes the retired key";
     deck::RunSpec bad;
@@ -118,18 +118,18 @@ TEST(Deck, AcceleratorOptionsAreDeckKeysAndRoundTrip)
 
 TEST(Deck, NonDefaultValuesSurviveTheRoundTrip)
 {
-    SolidCalcOptions o;
-    o.Nelec=48; o.multiplicity=1; o.spin=SpinGroup::Polarized; o.species={{"Mn",15},{"O",6}}; o.kShift=rvec3_t(0.25,0,0.5);
-    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::CholeskyPivoted; o.imposeSymmetry=true; o.siteSpins={1,-1,0,0};
-    o.siteCharges={2,2,-2,-2};
-    o.tolerances.screenEps=1e-8; o.tolerances.mgridEcuts={53.3,17.8}; o.xcMesh.beckeEps=1e-7; o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
-    o.hubbard.push_back(HubbardU_OrthoAtomic(0,2,4.0));
+    RunOptions o;
+    o.Nelec=48; o.multiplicity=1; o.spin=SpinGroup::Polarized; o.species={{"Mn",15},{"O",6}}; o.solid.kShift=rvec3_t(0.25,0,0.5);
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::CholeskyPivoted; o.imposeSymmetry=true; o.spins={1,-1,0,0};
+    o.solid.siteCharges={2,2,-2,-2};
+    o.solid.tolerances.screenEps=1e-8; o.solid.tolerances.mgridEcuts={53.3,17.8}; o.xcMesh.beckeEps=1e-7; o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+    o.solid.hubbard.push_back(HubbardU_OrthoAtomic(0,2,4.0));
     const json j=deck::ToJson(o);
-    SolidCalcOptions back; deck::FromJson(j,back);
+    RunOptions back; deck::FromJson(j,back);
     EXPECT_EQ(deck::ToJson(back), j);
-    EXPECT_EQ(back.species.size(),2u); EXPECT_EQ(back.species[0].first,"Mn"); EXPECT_EQ(back.tolerances.screenEps,1e-8);
-    EXPECT_EQ(back.siteCharges,(std::vector<int>{2,2,-2,-2}));
-    ASSERT_EQ(back.hubbard.size(),1u); EXPECT_TRUE(back.hubbard[0].orthoAtomic); EXPECT_NEAR(back.hubbard[0].U,4.0/27.211386245988,1e-15);
+    EXPECT_EQ(back.species.size(),2u); EXPECT_EQ(back.species[0].first,"Mn"); EXPECT_EQ(back.solid.tolerances.screenEps,1e-8);
+    EXPECT_EQ(back.solid.siteCharges,(std::vector<int>{2,2,-2,-2}));
+    ASSERT_EQ(back.solid.hubbard.size(),1u); EXPECT_TRUE(back.solid.hubbard[0].orthoAtomic); EXPECT_NEAR(back.solid.hubbard[0].U,4.0/27.211386245988,1e-15);
 }
 
 // HubbardProjectorPlan D7 + increment 5: a manifold names its projector kind; the DEFAULT is pseudo-atomic, siteShells
@@ -138,16 +138,16 @@ TEST(Deck, NonDefaultValuesSurviveTheRoundTrip)
 TEST(Deck, AHubbardManifoldNamesItsProjectorKind)
 {
     using qchem::Hamiltonian::HubbardProjectorKind;
-    SolidCalcOptions o;
+    RunOptions o;
     deck::FromJson(json{{"solid",json{{"hubbard",{{{"site",0},{"l",2},{"U_eV",4.0}},{{"site",1},{"l",1},{"projector","siteShells"}}}}}}}, o);
-    ASSERT_EQ(o.hubbard.size(),2u);
-    EXPECT_EQ(o.hubbard[0].projector, HubbardProjectorKind::PseudoAtomic) << "the default since increment 5";
-    EXPECT_EQ(o.hubbard[1].projector, HubbardProjectorKind::SiteShells);
+    ASSERT_EQ(o.solid.hubbard.size(),2u);
+    EXPECT_EQ(o.solid.hubbard[0].projector, HubbardProjectorKind::PseudoAtomic) << "the default since increment 5";
+    EXPECT_EQ(o.solid.hubbard[1].projector, HubbardProjectorKind::SiteShells);
     const json j=deck::ToJson(o).at("solid").at("hubbard");
     EXPECT_EQ(j[0].at("projector"), "pseudoAtomic");
     EXPECT_EQ(j[1].at("projector"), "siteShells");
-    SolidCalcOptions back; deck::FromJson(json{{"solid",json{{"hubbard",j}}}}, back);
-    EXPECT_EQ(back.hubbard[1].projector, HubbardProjectorKind::SiteShells);
+    RunOptions back; deck::FromJson(json{{"solid",json{{"hubbard",j}}}}, back);
+    EXPECT_EQ(back.solid.hubbard[1].projector, HubbardProjectorKind::SiteShells);
     EXPECT_THROW(deck::FromJson(json{{"solid",json{{"hubbard",{{{"site",0},{"projector","pseudoatomic"}}}}}}}, o), std::runtime_error);
     EXPECT_NO_THROW(deck::FromJson(json{{"solid",json{{"hubbard",{{{"site",0},{"radial",json::array()},{"atomicRadial",false}}}}}}}, o));
     EXPECT_THROW(deck::FromJson(json{{"solid",json{{"hubbard",{{{"site",0},{"atomicRadial",true}}}}}}}, o), std::runtime_error);
@@ -156,8 +156,8 @@ TEST(Deck, AHubbardManifoldNamesItsProjectorKind)
 
 TEST(Deck, AMissingKeyKeepsTheDefaultAndAnUnknownKeyThrowsNamingTheLegalOnes)
 {
-    SolidCalcOptions o; deck::FromJson(json{{"Nelec",8}}, o);
-    EXPECT_EQ(o.Nelec,8); EXPECT_EQ(o.cutoffFactor,2.0);
+    RunOptions o; deck::FromJson(json{{"Nelec",8}}, o);
+    EXPECT_EQ(o.Nelec,8); EXPECT_EQ(o.solid.cutoffFactor,2.0);
     try { deck::FromJson(json{{"solid",json{{"tolerances",{{"screenEPS",1e-8}}}}}}, o); FAIL() << "a typo'd key must throw"; }
     catch (const std::runtime_error& e)
     {
@@ -172,14 +172,14 @@ TEST(Deck, AMissingKeyKeepsTheDefaultAndAnUnknownKeyThrowsNamingTheLegalOnes)
 
 TEST(Deck, SetAppliesADottedPathAndParsesTheValue)
 {
-    json d=deck::ToJson(SolidCalcOptions{});
+    json d=deck::ToJson(RunOptions{});
     deck::ApplySet(d,"solid.tolerances.screenEps=1e-8");
     deck::ApplySet(d,"imposeSymmetry=true");
     deck::ApplySet(d,"seed=Uniform");                 // a bare word is a string
     deck::ApplySet(d,"solid.kShift.1=0.5");                 // an array index
-    SolidCalcOptions o; deck::FromJson(d,o);
-    EXPECT_EQ(o.tolerances.screenEps,1e-8); EXPECT_TRUE(o.imposeSymmetry);
-    EXPECT_EQ(o.seed,qchem::ChargeDensity::SeedStrategy::Uniform); EXPECT_EQ(o.kShift.y,0.5);
+    RunOptions o; deck::FromJson(d,o);
+    EXPECT_EQ(o.solid.tolerances.screenEps,1e-8); EXPECT_TRUE(o.imposeSymmetry);
+    EXPECT_EQ(o.seed,qchem::ChargeDensity::SeedStrategy::Uniform); EXPECT_EQ(o.solid.kShift.y,0.5);
     EXPECT_THROW(deck::ApplySet(d,"noequals"),std::runtime_error);
     EXPECT_THROW(deck::ApplySet(d,"a..b=1"),std::runtime_error);
     EXPECT_THROW(deck::ApplySet(d,"solid.kShift.7=1"),std::runtime_error);
@@ -194,7 +194,7 @@ TEST(Deck, RevisionsAreNumberedNeverReusedAndTheFileIsTheCompleteRecord)
     EXPECT_EQ(a.filename(),"MnO.r001.json"); EXPECT_EQ(b.filename(),"MnO.r002.json"); EXPECT_EQ(c.filename(),"NaF.r001.json");
     EXPECT_TRUE(fs::exists(a)) << "a claim creates the file, so a parallel job sees the number as taken";
 
-    SolidCalcOptions o; o.Nelec=96; o.tolerances.screenEps=1e-8;
+    RunOptions o; o.Nelec=96; o.solid.tolerances.screenEps=1e-8;
     deck::Provenance pv; pv.commandLine="gpwprobe --deck in.json --set tolerances.screenEps=1e-8"; pv.overrides={"tolerances.screenEps=1e-8"};
     pv.codeVersion="abc123"; pv.ignoredEnvironment={"GPW_SCREEN_EPS"};
     deck::WriteRevision(b, json{{"solid",deck::ToJson(o)}}, pv);
@@ -213,8 +213,8 @@ TEST(Deck, RevisionsAreNumberedNeverReusedAndTheFileIsTheCompleteRecord)
     EXPECT_EQ(json::parse(std::ifstream(c2)).at("provenance").at("parent"),"MnO.r002.json");
 
     const json run=deck::LoadDeck(b,"abc123");          // header stripped; same code version = silent
-    SolidCalcOptions back; deck::FromJson(run.at("solid"),back);
-    EXPECT_EQ(back.Nelec,96); EXPECT_EQ(back.tolerances.screenEps,1e-8);
+    RunOptions back; deck::FromJson(run.at("solid"),back);
+    EXPECT_EQ(back.Nelec,96); EXPECT_EQ(back.solid.tolerances.screenEps,1e-8);
     fs::remove_all(dir);
 }
 
@@ -233,9 +233,9 @@ TEST(Deck, TheStructureIsANameAndTheMaterialSuppliesSpeciesAndElectrons)
 {
     deck::RunSpec r; deck::FromJson(json{{"structure","Si_diamond"},{"scf",{{"NMaxIter",50}}}}, r);
     EXPECT_EQ(r.scf.NMaxIter,50u);
-    EXPECT_EQ(r.solid.Nelec,0); EXPECT_TRUE(r.solid.species.empty()) << "unstated = derive";
+    EXPECT_EQ(r.opts.Nelec,0); EXPECT_TRUE(r.opts.species.empty()) << "unstated = derive";
     const auto m=deck::Resolve(r);
-    EXPECT_EQ(r.solid.Nelec,8); ASSERT_EQ(r.solid.species.size(),1u); EXPECT_EQ(r.solid.species[0].first,"Si");
+    EXPECT_EQ(r.opts.Nelec,8); ASSERT_EQ(r.opts.species.size(),1u); EXPECT_EQ(r.opts.species[0].first,"Si");
     EXPECT_EQ(m.cell->GetNumAtoms(),2u);
     const json resolved=deck::ToJson(r);                       // the record: complete, and it reloads to the same thing
     EXPECT_EQ(resolved.at("structure"),"Si_diamond"); EXPECT_EQ(resolved.at("Nelec"),8) << "schema 2: the electron count is a top-level key";
@@ -248,16 +248,16 @@ TEST(Deck, AStatedSpeciesValenceSetsTheDerivedElectronCount)
 {
     deck::RunSpec r; deck::FromJson(json{{"structure","NaF_rocksalt"},{"solid",{{"species",json::array({json::array({"Na",9}),json::array({"F",7})})}}}}, r);
     deck::Resolve(r);
-    EXPECT_EQ(r.solid.Nelec,16);
+    EXPECT_EQ(r.opts.Nelec,16);
     deck::RunSpec plain; deck::FromJson(json{{"structure","NaF_rocksalt"}}, plain);
     deck::Resolve(plain);
-    EXPECT_EQ(plain.solid.Nelec,8) << "the material's own q1 Na";
+    EXPECT_EQ(plain.opts.Nelec,8) << "the material's own q1 Na";
 }
 
 TEST(Deck, AStatedValenceOverridesTheMaterialAndBadStructuresAreRefused)
 {
     deck::RunSpec r; deck::FromJson(json{{"structure","Si_diamond"},{"solid",{{"Nelec",6}}}}, r);
-    deck::Resolve(r); EXPECT_EQ(r.solid.Nelec,6) << "an explicit Nelec (a charged cell) is honoured";
+    deck::Resolve(r); EXPECT_EQ(r.opts.Nelec,6) << "an explicit Nelec (a charged cell) is honoured";
     EXPECT_THROW(deck::FromJson(json{{"solid",json::object()}}, r), std::runtime_error);                 // structure is required
     EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"lattice",{{"a",10.0}}}}, r), std::runtime_error);   // no restating the structure
     deck::RunSpec bad; bad.structure="NoSuchMaterial";
@@ -293,13 +293,13 @@ TEST(Deck, ARunFromADeckEqualsTheSameRunBuiltByHand_Si_Gamma)
     // the record exists, is r001, and reloads to the SAME deck (defaults filled in, structure still a name)
     EXPECT_EQ(out.revision.filename(),"Si_diamond.r001.json");
     deck::RunSpec again; deck::FromJson(deck::LoadDeck(out.revision,"t"),again);
-    EXPECT_EQ(again.structure,"Si_diamond"); EXPECT_EQ(again.solid.Nelec,8) << "the resolved deck records the derived electron count";
+    EXPECT_EQ(again.structure,"Si_diamond"); EXPECT_EQ(again.opts.Nelec,8) << "the resolved deck records the derived electron count";
 
     // the SAME run assembled by hand: bit-identical energy, i.e. the deck path adds nothing
     const auto mat=Materials::Get("Si_diamond");
     Lattice_3D lat(*mat.cell, ivec3_t(1,1,1));
     std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, mat.cell.get()));
-    SolidCalcOptions o; o.Nelec=8; o.species=mat.species; o.densityEcut=20.0; o.imposeSymmetry=true; o.label=out.revision.stem().string();
+    RunOptions o; o.Nelec=8; o.species=mat.species; o.solid.densityEcut=20.0; o.imposeSymmetry=true; o.label=out.revision.stem().string();
     SolidCalculation calc(SolidSetup::Resolve(lat, mol, o), spec.scf);
     auto R=calc.Result(); ASSERT_TRUE(R);
     EXPECT_DOUBLE_EQ(R->Energy(), *out.energy);
@@ -320,52 +320,52 @@ TEST(Deck, ScfAndScheduleTogetherAreAmbiguousAndAScheduleRoundTrips)
 import qchem.RunPolicy;
 TEST(Deck, PolicyRecordsOnlyWhatWasStatedSoTheUmbrellaStillMeansWhatItSays)
 {
-    SolidCalcOptions o;
+    RunOptions o;
     EXPECT_EQ(deck::ToJson(o).at("solid").at("policy"), json({{"cp2kCompat",false}})) << "nothing stated: only the umbrella";
     deck::FromJson(json{{"solid",json{{"policy",{{"cp2kCompat",true},{"streamFold",true}}}}}}, o);
-    EXPECT_TRUE(o.policy.cp2kCompat); ASSERT_TRUE(o.policy.streamFold.has_value()); EXPECT_TRUE(*o.policy.streamFold);
-    EXPECT_FALSE(o.policy.dmLowRank.has_value());
+    EXPECT_TRUE(o.solid.policy.cp2kCompat); ASSERT_TRUE(o.solid.policy.streamFold.has_value()); EXPECT_TRUE(*o.solid.policy.streamFold);
+    EXPECT_FALSE(o.solid.policy.dmLowRank.has_value());
     EXPECT_EQ(deck::ToJson(o).at("solid").at("policy"), json({{"cp2kCompat",true},{"streamFold",true}}));
-    qchem::RunPolicy p(o.policy);
+    qchem::RunPolicy p(o.solid.policy);
     EXPECT_TRUE(p.StreamFold()) << "stated beats the umbrella"; EXPECT_FALSE(p.DMLowRank()) << "unstated follows the umbrella";
     EXPECT_THROW(deck::FromJson(json{{"solid",json{{"policy",{{"cp2kcompat",true}}}}}}, o), std::runtime_error);   // a typo'd route is refused
     // 6c: the xcFromDM route's controls ride the policy block (were QCHEM_XC_DM_MIX / _BOOST)
-    SolidCalcOptions c; deck::FromJson(json{{"solid",json{{"policy",{{"xcFromDM",true},{"xcDMMix",1.0},{"xcDMBoost",2.0}}}}}}, c);
-    qchem::RunPolicy pc(c.policy);
+    RunOptions c; deck::FromJson(json{{"solid",json{{"policy",{{"xcFromDM",true},{"xcDMMix",1.0},{"xcDMBoost",2.0}}}}}}, c);
+    qchem::RunPolicy pc(c.solid.policy);
     EXPECT_EQ(pc.XCDMMixOverride(),1.0); EXPECT_EQ(pc.XCDMBoost(),2.0); EXPECT_TRUE(pc.XCFromDM());
     EXPECT_EQ(qchem::RunPolicy{}.XCDMMixOverride(),-1.0) << "unset = no override"; EXPECT_EQ(qchem::RunPolicy{}.XCDMBoost(),1.0);
     EXPECT_EQ(deck::ToJson(c).at("solid").at("policy"), json({{"cp2kCompat",false},{"xcFromDM",true},{"xcDMMix",1.0},{"xcDMBoost",2.0}}));
-    json d=deck::ToJson(SolidCalcOptions{}); deck::ApplySet(d,"solid.policy.cp2kCompat=true"); deck::ApplySet(d,"solid.policy.beckeXC=true");
-    SolidCalcOptions viaSet; deck::FromJson(d,viaSet);
-    EXPECT_TRUE(viaSet.policy.cp2kCompat); EXPECT_TRUE(viaSet.policy.beckeXC.value_or(false)) << "--set policy.<route> states it";
+    json d=deck::ToJson(RunOptions{}); deck::ApplySet(d,"solid.policy.cp2kCompat=true"); deck::ApplySet(d,"solid.policy.beckeXC=true");
+    RunOptions viaSet; deck::FromJson(d,viaSet);
+    EXPECT_TRUE(viaSet.solid.policy.cp2kCompat); EXPECT_TRUE(viaSet.solid.policy.beckeXC.value_or(false)) << "--set policy.<route> states it";
 }
 
 // ---- D-ENV 6d.1: eV in the file / a.u. in RAM, basis trim+autoTrim, saved states with lineage ----
 TEST(Deck, UIsEvInTheFileAndAtomicUnitsInRamAndTheRecordReproducesTheBits)
 {
-    SolidCalcOptions o;
+    RunOptions o;
     deck::FromJson(json{{"solid",json{{"hubbard",{{{"site",0},{"l",2},{"U_eV",4.0},{"Uirrep_eV",{3.0,4.5}},{"alpha_eV",0.1},{"alphaUp_eV",0.25},{"alphaSlot_eV",{0.0,0.05}}}}}}}}, o);
-    ASSERT_EQ(o.hubbard.size(),1u);
-    EXPECT_DOUBLE_EQ(o.hubbard[0].U, 4.0/27.211386245988) << "RAM is atomic units";
-    EXPECT_DOUBLE_EQ(o.hubbard[0].Uirrep[1], 4.5/27.211386245988);
+    ASSERT_EQ(o.solid.hubbard.size(),1u);
+    EXPECT_DOUBLE_EQ(o.solid.hubbard[0].U, 4.0/27.211386245988) << "RAM is atomic units";
+    EXPECT_DOUBLE_EQ(o.solid.hubbard[0].Uirrep[1], 4.5/27.211386245988);
     const json j=deck::ToJson(o).at("solid").at("hubbard")[0];
     EXPECT_EQ(j.at("U_eV"),4.0) << "the record writes the eV the user wrote (shortest value that converts back to the same double)";
     EXPECT_EQ(j.at("Uirrep_eV")[1],4.5);
-    SolidCalcOptions back; deck::FromJson(deck::ToJson(o),back);
-    EXPECT_EQ(back.hubbard[0].U, o.hubbard[0].U) << "bit-for-bit: a revision file re-runs with the SAME U";
-    EXPECT_EQ(back.hubbard[0].Uirrep, o.hubbard[0].Uirrep);
-    EXPECT_EQ(back.hubbard[0].alpha, o.hubbard[0].alpha);
-    EXPECT_DOUBLE_EQ(o.hubbard[0].alphaUp, 0.25/27.211386245988); EXPECT_EQ(o.hubbard[0].alphaDown, 0.0);
-    EXPECT_EQ(back.hubbard[0].alphaUp, o.hubbard[0].alphaUp);
-    ASSERT_EQ(o.hubbard[0].alphaSlot.size(), 2u); EXPECT_DOUBLE_EQ(o.hubbard[0].alphaSlot[1], 0.05/27.211386245988);
-    EXPECT_EQ(back.hubbard[0].alphaSlot, o.hubbard[0].alphaSlot);
+    RunOptions back; deck::FromJson(deck::ToJson(o),back);
+    EXPECT_EQ(back.solid.hubbard[0].U, o.solid.hubbard[0].U) << "bit-for-bit: a revision file re-runs with the SAME U";
+    EXPECT_EQ(back.solid.hubbard[0].Uirrep, o.solid.hubbard[0].Uirrep);
+    EXPECT_EQ(back.solid.hubbard[0].alpha, o.solid.hubbard[0].alpha);
+    EXPECT_DOUBLE_EQ(o.solid.hubbard[0].alphaUp, 0.25/27.211386245988); EXPECT_EQ(o.solid.hubbard[0].alphaDown, 0.0);
+    EXPECT_EQ(back.solid.hubbard[0].alphaUp, o.solid.hubbard[0].alphaUp);
+    ASSERT_EQ(o.solid.hubbard[0].alphaSlot.size(), 2u); EXPECT_DOUBLE_EQ(o.solid.hubbard[0].alphaSlot[1], 0.05/27.211386245988);
+    EXPECT_EQ(back.solid.hubbard[0].alphaSlot, o.solid.hubbard[0].alphaSlot);
     EXPECT_THROW(deck::FromJson(json{{"solid",json{{"hubbard",{{{"site",0},{"U_Ha",0.1}}}}}}},o), std::runtime_error) << "the old spelling is refused, not guessed";
     // an arbitrary value round-trips exactly too
     for (double eV : {3.1,5.27,0.0,1e-3,7.123456789})
     {
-        SolidCalcOptions a; deck::FromJson(json{{"solid",json{{"hubbard",{{{"site",0},{"U_eV",eV}}}}}}},a);
-        SolidCalcOptions b; deck::FromJson(deck::ToJson(a),b);
-        EXPECT_EQ(a.hubbard[0].U,b.hubbard[0].U) << eV;
+        RunOptions a; deck::FromJson(json{{"solid",json{{"hubbard",{{{"site",0},{"U_eV",eV}}}}}}},a);
+        RunOptions b; deck::FromJson(deck::ToJson(a),b);
+        EXPECT_EQ(a.solid.hubbard[0].U,b.solid.hubbard[0].U) << eV;
     }
 }
 
@@ -674,20 +674,20 @@ TEST(Deck, GridAccuracyTargetRoundTripsAndRefusesNonPositive)
     auto read=[](json solid){ deck::RunSpec s; deck::FromJson(json{{"structure","Si_diamond"},{"solid",solid}},s); return s; };
     auto msg=[&](json solid){ try { read(solid); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
     const deck::RunSpec d=read(json::object());
-    EXPECT_EQ(d.solid.accuracy.eps, 1e-5);
-    EXPECT_FALSE(d.solid.accuracy.eta.has_value()) << "the default self-calibrates";
+    EXPECT_EQ(d.opts.accuracy.eps, 1e-5);
+    EXPECT_FALSE(d.opts.accuracy.eta.has_value()) << "the default self-calibrates";
     EXPECT_FALSE(deck::ToJson(d).at("solid").contains("accuracyCalibration")) << "an unstated calibration is not written as if stated";
     const deck::RunSpec r=read({{"accuracy",1e-6},{"accuracyCalibration",{{"vlocLong",0.1},{"density",0.01}}}});
-    EXPECT_EQ(r.solid.accuracy.eps, 1e-6);
-    ASSERT_TRUE(r.solid.accuracy.eta.has_value());
-    EXPECT_EQ(r.solid.accuracy.eta->vlocLong, 0.1);
-    EXPECT_EQ(r.solid.accuracy.eta->density, 0.01);
+    EXPECT_EQ(r.opts.accuracy.eps, 1e-6);
+    ASSERT_TRUE(r.opts.accuracy.eta.has_value());
+    EXPECT_EQ(r.opts.accuracy.eta->vlocLong, 0.1);
+    EXPECT_EQ(r.opts.accuracy.eta->density, 0.01);
     const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
     EXPECT_EQ(deck::ToJson(back),j);
-    EXPECT_TRUE(back.solid.accuracy==r.solid.accuracy);
+    EXPECT_TRUE(back.opts.accuracy==r.opts.accuracy);
     const deck::RunSpec z=read({{"accuracy",0.0},{"tolerances",{{"rasterX",16.0}}}});
-    EXPECT_EQ(z.solid.accuracy.eps, 0.0) << "0 = no target: the rasters as stated";
-    EXPECT_EQ(z.solid.tolerances.rasterX, 16.0);
+    EXPECT_EQ(z.opts.accuracy.eps, 0.0) << "0 = no target: the rasters as stated";
+    EXPECT_EQ(z.opts.solid.tolerances.rasterX, 16.0);
     EXPECT_NE(msg({{"accuracy",-1.0}}).find("solid.accuracy"),std::string::npos);
     EXPECT_NE(msg({{"accuracyCalibration",{{"density",-1.0}}}}).find("accuracyCalibration"),std::string::npos);
     EXPECT_NE(msg({{"accuracyCalibration",{{"vlocLong",2.0}}}}).find("delivered/bound"),std::string::npos) << "eta > 1 would claim the bound is optimistic";
@@ -700,7 +700,7 @@ TEST(Deck, TheAccuracyTargetIsTopLevelAndSolidAccuracyIsAWarnedAlias)
 {
     auto read=[](json j){ j["structure"]="Si_diamond"; deck::RunSpec s; deck::FromJson(j,s); return s; };
     const deck::RunSpec top=read({{"accuracy",3e-6}});
-    EXPECT_EQ(top.solid.accuracy.eps, 3e-6) << "the top-level key reaches the solid facade's options";
+    EXPECT_EQ(top.opts.accuracy.eps, 3e-6) << "the top-level key reaches the solid facade's options";
     const json rec=deck::ToJson(top);
     EXPECT_EQ(rec.at("accuracy").get<double>(), 3e-6) << "the record states it at the top level";
     EXPECT_FALSE(rec.at("solid").contains("accuracy")) << "and never as solid.accuracy";
@@ -710,7 +710,7 @@ TEST(Deck, TheAccuracyTargetIsTopLevelAndSolidAccuracyIsAWarnedAlias)
     testing::internal::CaptureStderr();
     const deck::RunSpec alias=read({{"solid",{{"accuracy",2e-6}}}});
     const std::string err=testing::internal::GetCapturedStderr();
-    EXPECT_EQ(alias.solid.accuracy.eps, 2e-6) << "the deprecated alias still works";
+    EXPECT_EQ(alias.opts.accuracy.eps, 2e-6) << "the deprecated alias still works";
     EXPECT_NE(err.find("'solid.accuracy' is deprecated"), std::string::npos) << err;
     EXPECT_FALSE(deck::ToJson(alias).at("solid").contains("accuracy")) << "a re-written record migrates to the top level";
 
@@ -732,30 +732,30 @@ TEST(Deck, AVlocRoutingCalibrationReachesTheEvaluatorAndAStatedVlocEpsWins)
 {
     auto read=[](json solid){ deck::RunSpec s; deck::FromJson(json{{"structure","Si_diamond"},{"solid",solid}},s); return s; };
     const deck::RunSpec d=read(json::object());
-    EXPECT_EQ(d.solid.accuracy.vlocRoutingEta, 10.0);
-    EXPECT_EQ(d.solid.accuracy.VlocEps(), 1e-5/10.0) << "the default is bit-identical to the old eps/10";
+    EXPECT_EQ(d.opts.accuracy.vlocRoutingEta, 10.0);
+    EXPECT_EQ(d.opts.accuracy.VlocEps(), 1e-5/10.0) << "the default is bit-identical to the old eps/10";
     const deck::RunSpec f=read({{"accuracyCalibration",{{"vlocRouting",2.0}}}});
-    EXPECT_EQ(f.solid.accuracy.vlocRoutingEta, 2.0);
-    EXPECT_FALSE(f.solid.accuracy.eta.has_value()) << "vlocRouting alone states no raster eta: the rasters stay self-calibrated";
-    EXPECT_EQ(d.solid.accuracy.rungGateC, 8.0) << "the rung gate's default";
+    EXPECT_EQ(f.opts.accuracy.vlocRoutingEta, 2.0);
+    EXPECT_FALSE(f.opts.accuracy.eta.has_value()) << "vlocRouting alone states no raster eta: the rasters stay self-calibrated";
+    EXPECT_EQ(d.opts.accuracy.rungGateC, 8.0) << "the rung gate's default";
     const deck::RunSpec g=read({{"accuracyCalibration",{{"rungGateC",6.0}}}});
-    EXPECT_EQ(g.solid.accuracy.rungGateC, 6.0);
-    EXPECT_FALSE(g.solid.accuracy.eta.has_value()) << "rungGateC alone states no raster eta either";
+    EXPECT_EQ(g.opts.accuracy.rungGateC, 6.0);
+    EXPECT_FALSE(g.opts.accuracy.eta.has_value()) << "rungGateC alone states no raster eta either";
     deck::RunSpec back; deck::FromJson(deck::ToJson(g),back);
-    EXPECT_EQ(back.solid.accuracy.rungGateC, 6.0) << "the record carries it";
-    EXPECT_EQ(d.solid.accuracy.relCutoffSafety, 2.0) << "the pair rule's stiffness, default";
+    EXPECT_EQ(back.opts.accuracy.rungGateC, 6.0) << "the record carries it";
+    EXPECT_EQ(d.opts.accuracy.relCutoffSafety, 2.0) << "the pair rule's stiffness, default";
     const deck::RunSpec rs=read({{"accuracyCalibration",{{"relCutoffSafety",3.0}}}});
-    EXPECT_EQ(rs.solid.accuracy.relCutoffSafety, 3.0);
-    EXPECT_FALSE(rs.solid.accuracy.eta.has_value()) << "relCutoffSafety alone states no raster eta";
-    { deck::RunSpec b2; deck::FromJson(deck::ToJson(rs),b2); EXPECT_EQ(b2.solid.accuracy.relCutoffSafety, 3.0) << "the record carries it"; }
+    EXPECT_EQ(rs.opts.accuracy.relCutoffSafety, 3.0);
+    EXPECT_FALSE(rs.opts.accuracy.eta.has_value()) << "relCutoffSafety alone states no raster eta";
+    { deck::RunSpec b2; deck::FromJson(deck::ToJson(rs),b2); EXPECT_EQ(b2.opts.accuracy.relCutoffSafety, 3.0) << "the record carries it"; }
     EXPECT_ANY_THROW(read({{"accuracyCalibration",{{"relCutoffSafety",0.0}}}})) << "a stiffness is > 0";
-    EXPECT_DOUBLE_EQ(f.solid.accuracy.VlocEps(), 5e-6);
-    { const json j=deck::ToJson(f); deck::RunSpec back; deck::FromJson(j,back); EXPECT_TRUE(back.solid.accuracy==f.solid.accuracy); }
+    EXPECT_DOUBLE_EQ(f.opts.accuracy.VlocEps(), 5e-6);
+    { const json j=deck::ToJson(f); deck::RunSpec back; deck::FromJson(j,back); EXPECT_TRUE(back.opts.accuracy==f.opts.accuracy); }
     EXPECT_FALSE(deck::ToJson(d).at("solid").contains("accuracyCalibration")) << "the default calibration is not written";
     EXPECT_FALSE(deck::ToJson(d).at("solid").contains("beckeLadder")) << "nor the default Becke ladder";
     const deck::RunSpec bl=read({{"beckeLadder",{{"angRot",1.1},{"angularFactor",0.5}}}});
-    EXPECT_EQ(bl.solid.beckeLadder.angRot, 1.1);
-    { deck::RunSpec back; deck::FromJson(deck::ToJson(bl),back); EXPECT_TRUE(back.solid.beckeLadder==bl.solid.beckeLadder) << "the record carries it"; }
+    EXPECT_EQ(bl.opts.solid.beckeLadder.angRot, 1.1);
+    { deck::RunSpec back; deck::FromJson(deck::ToJson(bl),back); EXPECT_TRUE(back.opts.solid.beckeLadder==bl.opts.solid.beckeLadder) << "the record carries it"; }
     EXPECT_ANY_THROW(read({{"beckeLadder",{{"angularFactor",1.0}}}})) << "a fall per rung is below 1";
     deck::RunSpec bad;
     EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"solid",{{"accuracyCalibration",{{"vlocRouting",0.0}}}}}},bad),std::runtime_error);
@@ -763,11 +763,11 @@ TEST(Deck, AVlocRoutingCalibrationReachesTheEvaluatorAndAStatedVlocEpsWins)
     const auto mat=Materials::Get("Si_diamond");
     Lattice_3D lat(*mat.cell, ivec3_t(1,1,1));
     std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, mat.cell.get()));
-    SolidCalcOptions o; o.Nelec=8; o.species=mat.species; o.densityEcut=20.0; o.label="vlocRouting";
+    RunOptions o; o.Nelec=8; o.species=mat.species; o.solid.densityEcut=20.0; o.label="vlocRouting";
     o.accuracy.eps=1e-5; o.accuracy.eta=BasisSet::Gaussian::AccuracyCalibration{}; o.accuracy.vlocRoutingEta=2.0;   // stated raster eta: no pilot
     const auto s=SolidSetup::Resolve(lat, mol, o);
-    EXPECT_DOUBLE_EQ(s->opts.tolerances.vlocEps, 5e-6) << "the evaluator is built from these tolerances";
-    EXPECT_TRUE(s->opts.tolerances.VlocEpsDerived());
+    EXPECT_DOUBLE_EQ(s->opts.solid.tolerances.vlocEps, 5e-6) << "the evaluator is built from these tolerances";
+    EXPECT_TRUE(s->opts.solid.tolerances.VlocEpsDerived());
     {   // the same options through a deck run, which files its report: the evaluator's grids section names the vlocEps that ran
         const fs::path dir=TmpDir("vlocrouting");
         json dj={{"structure","Si_diamond"},{"basis",{{"data","SIPP_SR"}}},{"accuracy",1e-5},
@@ -789,10 +789,10 @@ TEST(Deck, AVlocRoutingCalibrationReachesTheEvaluatorAndAStatedVlocEpsWins)
         fs::remove_all(dir);
     }
 
-    o.tolerances.vlocEps=3e-7;   // STATED: wins over the fraction
+    o.solid.tolerances.vlocEps=3e-7;   // STATED: wins over the fraction
     const auto t=SolidSetup::Resolve(lat, mol, o);
-    EXPECT_EQ(t->opts.tolerances.vlocEps, 3e-7);
-    EXPECT_FALSE(t->opts.tolerances.VlocEpsDerived());
+    EXPECT_EQ(t->opts.solid.tolerances.vlocEps, 3e-7);
+    EXPECT_FALSE(t->opts.solid.tolerances.VlocEpsDerived());
 }
 
 // The egg-box action (doc/GridEpsilonPlan.md §5 verdict 5): round-trips its shift, defaults to a generic 0.037 bohr, and is refused
@@ -1026,7 +1026,7 @@ TEST(Deck, TheRunsThreadsAreScopedReportedAndMoveNoEnergy)
 // report says the solver does not read the floor; a stated truncating ortho still receives it.
 TEST(Deck, OrthoTolIsTheTrimFloorAndReachesTheSolverOnlyWhenItTruncates)
 {
-    SolidCalcOptions o; o.orthoTol=1e-6;
+    RunOptions o; o.orthoTol=1e-6;
     EXPECT_EQ(o.SolverTruncation(), 0.0) << "Cholesky (the default) does not truncate";
     for (Ortho t : {Eigen, SVD, CholeskyPivoted}) { o.ortho=t; EXPECT_EQ(o.SolverTruncation(), 1e-6) << int(t); }
     for (Ortho t : {Auto, Orthonormal})          { o.ortho=t; EXPECT_EQ(o.SolverTruncation(), 0.0) << int(t); }
@@ -1050,7 +1050,7 @@ TEST(Deck, KeysStartingWithAnUnderscoreAreCommentsAndShippedDecksLoad)
 {
     deck::RunSpec r;
     deck::FromJson(json{{"_doc","a note"},{"structure","Si_diamond"},{"solid",{{"_why","x"},{"Nelec",8}}}}, r);
-    EXPECT_EQ(r.solid.Nelec,8);
+    EXPECT_EQ(r.opts.Nelec,8);
     EXPECT_FALSE(deck::ToJson(r).contains("_doc")) << "a record does not keep comments";
     // every deck shipped in decks/ parses and resolves (so a stale key in a recipe is caught by ctest, not by the next campaign)
     size_t n=0;
@@ -1135,7 +1135,7 @@ TEST(Deck, AnInlineStructureIsTheStructureKeyAsAnObjectAndRoundTrips)
     // resolved like a named one: the species and Nelec are derived from the set (solid.pp here; the entry's own `pp` if it has one)
     deck::RunSpec ref=SiDeck("Si_diamond");
     const auto mi=deck::Resolve(in), mn=deck::Resolve(ref);
-    EXPECT_EQ(in.solid.Nelec,ref.solid.Nelec); EXPECT_EQ(in.solid.species,ref.solid.species); EXPECT_EQ(in.solid.pp,ref.solid.pp);
+    EXPECT_EQ(in.opts.Nelec,ref.opts.Nelec); EXPECT_EQ(in.opts.species,ref.opts.species); EXPECT_EQ(in.opts.pp,ref.opts.pp);
     EXPECT_EQ(mi.cell->GetNumAtoms(),mn.cell->GetNumAtoms());
 
     // strict: a typo in the entry would build a DIFFERENT cell silently
@@ -1164,10 +1164,10 @@ TEST(Deck, AnyElementTheGTHDatabaseCoversResolvesOnTheDefaultSet)
              {"atoms",json::array({{{"el","Te"},{"frac",{0.0,0.0,0.0}}}, {{"el","F"},{"frac",{0.15,0.0,0.0}}}})}};
     deck::RunSpec r; deck::FromJson(json{{"structure",te}},r);
     (void)deck::Resolve(r);
-    std::map<std::string,int> q; for (const auto& [el,v] : r.solid.species) q[el]=v;
+    std::map<std::string,int> q; for (const auto& [el,v] : r.opts.species) q[el]=v;
     EXPECT_EQ(q.at("Te"),6) << "GTH-PADE-q6, the only LDA Te";
     EXPECT_EQ(q.at("F"),7);
-    EXPECT_EQ(r.solid.Nelec,13);
+    EXPECT_EQ(r.opts.Nelec,13);
 }
 
 TEST(Deck, AnInlineDeckAndItsNamedTwinBuildTheSameFingerprint)
@@ -1285,7 +1285,7 @@ TEST(Deck, ASchemaOneDeckKeepsItsMeaningThroughTheTranslator)
     const json v2={{"schema",2},{"structure","Si_diamond"},{"multiplicity",1},{"spin","Polarized"},{"seed","SAD"},{"spins",{0,0}},
                    {"xc",{{"mesh",{{"cellKind","Becke"},{"nRadial",50}}}}},{"solid",{{"densityEcut",30.0}}}};
     deck::RunSpec a, b; deck::FromJson(v1,a); deck::FromJson(v2,b);
-    EXPECT_EQ(a.solid.spin, SpinGroup::Polarized) << "schema 1: solid.multiplicity 1 was the polarized two-channel singlet";
+    EXPECT_EQ(a.opts.spin, SpinGroup::Polarized) << "schema 1: solid.multiplicity 1 was the polarized two-channel singlet";
     EXPECT_EQ(deck::ToJson(a), deck::ToJson(b)) << "the schema-1 deck and its schema-2 rewrite are the same run";
     (void)deck::Resolve(a); (void)deck::Resolve(b);
     EXPECT_EQ(deck::ToJson(a), deck::ToJson(b)) << "...resolved too";
@@ -1296,11 +1296,11 @@ TEST(Deck, ASchemaOneDeckKeepsItsMeaningThroughTheTranslator)
     deck::RunSpec again; deck::FromJson(rec,again); EXPECT_EQ(deck::ToJson(again), rec) << "a schema-2 record reloads to itself";
 
     deck::RunSpec u; deck::FromJson(json{{"structure","Si_diamond"},{"multiplicity",1}}, u);
-    EXPECT_EQ(u.solid.spin, SpinGroup::UnPolarized) << "R6: a top-level multiplicity 1 is S = 0, nothing more";
+    EXPECT_EQ(u.opts.spin, SpinGroup::UnPolarized) << "R6: a top-level multiplicity 1 is S = 0, nothing more";
     deck::RunSpec z; deck::FromJson(json{{"structure","Si_diamond"},{"solid",{{"multiplicity",0}}}}, z);
-    EXPECT_EQ(z.solid.spin, SpinGroup::UnPolarized) << "schema 1: multiplicity 0 was the zeta = 0 collapse";
+    EXPECT_EQ(z.opts.spin, SpinGroup::UnPolarized) << "schema 1: multiplicity 0 was the zeta = 0 collapse";
     deck::RunSpec t; deck::FromJson(json{{"structure","Si_diamond"},{"solid",{{"multiplicity",3}}}}, t);
-    EXPECT_EQ(t.solid.spin, SpinGroup::Polarized);
+    EXPECT_EQ(t.opts.spin, SpinGroup::Polarized);
 }
 
 TEST(Deck, AKeyAtBothPlacesOrAtItsOldPlaceInASchemaTwoDeckIsRefusedNamingItsHome)
@@ -1343,7 +1343,7 @@ TEST(Deck, ASchemaOneDeckAndItsSchemaTwoRewriteRunToTheSameAnswer_Si_Gamma)
 }
 
 // The controller's GUI gate: a deck in the EXACT shape the GUI's writer builds (qviz/backends/solid2_deck.py `to_deck`: an AFM crystal with
-// its moments in `solid.siteSpins`, `solid.multiplicity` 1, a Hubbard manifold per magnetic site, the accelerator / imposition / seed in
+// its moments in `solid.spins`, `solid.multiplicity` 1, a Hubbard manifold per magnetic site, the accelerator / imposition / seed in
 // `solid`) is read with its schema-1 meaning -- polarized -- and is the same run as its schema-2 rewrite.  The pre-P0 vs post-P0 RUN of
 // that shape (without the +U) is GPW_MnO.Γ_Shub_Pol_Smear_Ordering_Long: a schema-1 deck through deck::Run, bit-identical across P0.
 TEST(Deck, TheGuiWritersAfmDeckKeepsItsMeaning)
@@ -1356,9 +1356,9 @@ TEST(Deck, TheGuiWritersAfmDeckKeepsItsMeaning)
                    {"multiplicity",1},{"spin","Polarized"},{"spins",{1,-1,0,0}},{"accelerator","Null"},{"imposeSymmetry",true},{"seed","IonicSAD"},
                    {"solid",{{"hubbard",hub}}},{"scf",{{"smearingkT",0.005},{"NMaxIter",200}}},{"acceleratorOptions",{{"diis",{{"nProj",8}}}}}};
     deck::RunSpec a, b; deck::FromJson(gui,a); deck::FromJson(v2,b);
-    EXPECT_EQ(a.solid.spin, SpinGroup::Polarized) << "the GUI's AFM deck is the polarized run it always was";
-    EXPECT_EQ(a.solid.siteSpins, (std::vector<int>{1,-1,0,0}));
+    EXPECT_EQ(a.opts.spin, SpinGroup::Polarized) << "the GUI's AFM deck is the polarized run it always was";
+    EXPECT_EQ(a.opts.spins, (std::vector<int>{1,-1,0,0}));
     (void)deck::Resolve(a); (void)deck::Resolve(b);
     EXPECT_EQ(deck::ToJson(a), deck::ToJson(b));
-    EXPECT_NO_THROW(RequireStatedMagneticOrdering(a.solid, *Materials::Get("MnO_AFM2").cell)) << "its ordering is stated: the setup admits it";
+    EXPECT_NO_THROW(RequireStatedMagneticOrdering(a.opts, *Materials::Get("MnO_AFM2").cell)) << "its ordering is stated: the setup admits it";
 }

@@ -38,10 +38,10 @@ SCFParams Tight(double minΔρPerElectron=1e-8)
     p.NMaxIter=100; p.MinΔρPerElectron=minΔρPerElectron; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
     return p;
 }
-SolidCalcOptions SiGamma(bool imposed=false, bool statedRasters=true)
+RunOptions SiGamma(bool imposed=false, bool statedRasters=true)
 {
-    SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.imposeSymmetry=imposed; o.label="pes";
-    o.xcMeshSymmetric=false;   // a session's free setup: the plain XC mesh, the same at every geometry (SolidSession requires it)
+    RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.imposeSymmetry=imposed; o.label="pes";
+    o.solid.xcMeshSymmetric=false;   // a session's free setup: the plain XC mesh, the same at every geometry (SolidSession requires it)
     // The SESSION machinery's gates state the rasters (accuracy 0: the ball's own), so a session point and a single point sample on the
     // same grids -- C2 step 3 sizes them by what the client consumes (a session: matrix elements; a single point: the energy), which
     // SessionSizesItsRastersOnMatrixElements gates on its own.
@@ -56,8 +56,8 @@ const GaussianBasisRecipe kSiBasis{.data=BasisSet::Gaussian::BasisSetData::SIPP_
 //! Si at the reference with a cell STRAIN ALLOWANCE: every size decided on the reference grown by \a allowance (the frozen rule).
 std::shared_ptr<const SolidSetup> SiStrainSetup(double allowance)
 {
-    SolidCalcOptions o=SiGamma();
-    o.cellStrainAllowance=allowance;
+    RunOptions o=SiGamma();
+    o.solid.cellStrainAllowance=allowance;
     return SolidSetup::Resolve(Lattice_3D(UnitCell(*Materials::Get("Si_diamond").cell), ivec3_t(1,1,1)), kSiBasis, o);
 }
 //! The Si reference under the homogeneous strain F: the cell and the atoms ride it.
@@ -122,8 +122,8 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     // what an H-graded pilot raises here, in one round.  (A uniform XC raster cannot reach 1e-5 per element on Si at any affordable x --
     // 3e-5 at x 137, C2 step 3 -- which the pilot reports as NOT SETTLED with its advice; not a unit test's cost.)
     const auto mat=Materials::Get("Si_diamond");
-    SolidCalcOptions o=SiGamma(false, /*statedRasters*/false);
-    o.densityEcut=-1.0;
+    RunOptions o=SiGamma(false, /*statedRasters*/false);
+    o.solid.densityEcut=-1.0;
     // A STATED Becke mesh: the pilot audits it on the geometry run and reports it, never raises it (the grid is a user decision) -- the
     // facade's own choice, sized on the nested ladder, is GeometryRunPicksAndSizesTheBeckeMesh_Long.  (A bare cellKind Becke is
     // BeckeXCParams(), (40, 2.0, 29); this gate STATES a deliberately coarse (30, 1.0, Lebedev 5) one -- its subject is the raster terms,
@@ -163,16 +163,16 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     EXPECT_FALSE(single.PilotCost().statedOver) << "the energy run does not audit the Becke mesh (an H-run audit)";
     EXPECT_EQ(pes.Current()->PilotCost().rounds, 4) << "the rasters at the bound; the ball climbs cutoffFactor 2 -> 16";
     EXPECT_LE(pes.Current()->PilotCost().reconvergeIterations, 16u) << "9 serial / 13 at 4 threads, 0 stalls (2026-11-10, Δρ/N 1e-7)";
-    EXPECT_EQ(pes.Current()->SizedSetup()->opts.cutoffFactor, 16.0);
-    EXPECT_EQ(single.SizedSetup()->opts.cutoffFactor, 4.0) << "the energy run's ball: 1.2e-3 Ha at 2, 3.3e-6 at 4";
+    EXPECT_EQ(pes.Current()->SizedSetup()->opts.solid.cutoffFactor, 16.0);
+    EXPECT_EQ(single.SizedSetup()->opts.solid.cutoffFactor, 4.0) << "the energy run's ball: 1.2e-3 Ha at 2, 3.3e-6 at 4";
     const auto sizedH=pes.Current()->SizedSetup();
-    const auto& tE=sizedE->opts.tolerances; const auto& tH=sizedH->opts.tolerances;
+    const auto& tE=sizedE->opts.solid.tolerances; const auto& tH=sizedH->opts.solid.tolerances;
     EXPECT_GE(tH.rasterX, tE.rasterX);  EXPECT_GE(tH.vlocRasterX, tE.vlocRasterX);  EXPECT_GE(tH.xcRasterX, tE.xcRasterX);
     std::cout<<"[raster sizing] energy run x=("<<tE.rasterX<<", "<<tE.vlocRasterX<<", "<<tE.xcRasterX<<")  geometry run x=("
              <<tH.rasterX<<", "<<tH.vlocRasterX<<", "<<tH.xcRasterX<<")"<<std::endl;
     R[1].x+=0.05;
     ASSERT_TRUE(pes.ConvergeAt(ref.cell, R));
-    EXPECT_TRUE(pes.Current()->SizedSetup()->opts.tolerances==tH) << "a later point samples on the rasters the first point settled";
+    EXPECT_TRUE(pes.Current()->SizedSetup()->opts.solid.tolerances==tH) << "a later point samples on the rasters the first point settled";
 }
 
 // THE XC ROUTE FOLLOWS THE CONSUMER (user ruling 2026-11-01, pin 31): with NO deck change -- XC Auto, which routes a Si energy run to the
@@ -184,8 +184,8 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
 TEST(SolidSession, GeometryRunPicksAndSizesTheBeckeMesh_Long)
 {
     const auto mat=Materials::Get("Si_diamond");
-    SolidCalcOptions o=SiGamma(false, /*statedRasters*/false);
-    o.densityEcut=-1.0;
+    RunOptions o=SiGamma(false, /*statedRasters*/false);
+    o.solid.densityEcut=-1.0;
     const auto setup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), kSiBasis, o);
     ASSERT_EQ(setup->xcMesh.cellKind, qcMesh::UnitCellKind::Uniform) << "the premise: Auto routes this system's energy run to the uniform raster";
 
@@ -261,7 +261,7 @@ TEST(SolidSession, RefusalsAreOutcomesAndAWrongCountThrows)
     EXPECT_THROW((void)fixed.ConvergeAt(fr.cell, moved), std::invalid_argument);
 
     // A FREE setup whose XC mesh follows the group detected at each geometry would switch meshes along a path: refused at once.
-    SolidCalcOptions sym=SiGamma(); sym.xcMeshSymmetric=true;
+    RunOptions sym=SiGamma(); sym.solid.xcMeshSymmetric=true;
     const auto symSetup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), kSiBasis, sym);
     EXPECT_THROW(SolidSession(symSetup, {SCFStage{Tight(), SCFAccelerators::Type::Auto}}), std::invalid_argument);
 }
@@ -273,7 +273,7 @@ TEST(SolidSession, RefusalsAreOutcomesAndAWrongCountThrows)
 TEST(SolidSession, AStepOutOfTheTrimWindowIsRefusedAsBasisConditioning)
 {
     const auto mat=Materials::Get("Si_diamond");
-    SolidCalcOptions o=SiGamma();
+    RunOptions o=SiGamma();
     // The window: measured 2026-10-30, min eig S at Γ = 0.027 at the reference and 4.5e-4 squeezed to a quarter bond, so 1e-3
     // sits between them -- the reference vets clean, the squeezed point does not.
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-3;
@@ -339,7 +339,7 @@ TEST(SolidSession, AGeometryRunPairsTheSessionWithAMapThatKeepsItsGroup)
                      std::invalid_argument);
         // With one, the map is the cell map over the SAME group: cubic diamond keeps one strain (the breathing mode) and no Wyckoff
         // parameter, and every point asks for the stress as well as the forces.
-        SolidCalcOptions o=SiGamma(/*imposed*/true, /*statedRasters*/true); o.cellStrainAllowance=0.02;
+        RunOptions o=SiGamma(/*imposed*/true, /*statedRasters*/true); o.solid.cellStrainAllowance=0.02;
         const auto mat=Materials::Get("Si_diamond");
         auto cellRun=MakeSolidGeometryRun(SolidSetup::Resolve(Lattice_3D(UnitCell(*mat.cell), ivec3_t(1,1,1)), kSiBasis, o), stages, nullptr,
                                           SolidSession::Carry::AO, /*relaxCell*/true);

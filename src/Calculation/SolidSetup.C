@@ -4,7 +4,7 @@
 // asked, and every decision RESOLVED from them ONCE -- the pseudopotential set, the imposition (the run policy's veto applied),
 // the magnetic decoration, the XC quadrature (Auto resolved), the spin counts.  An immutable value, shared: a geometry point
 // (a SolidCalculation) is built FROM it and changes none of it, which is what lets a geometry optimizer move the atoms under one
-// fixed setup (step 8).  SolidCalcOptions lives here because the setup is what reads it; qchem.SolidCalculation re-exports it.
+// fixed setup (step 8).  RunOptions lives here because the setup is what reads it; qchem.SolidCalculation re-exports it.
 module;
 #include <memory>
 #include <optional>
@@ -29,7 +29,7 @@ import qchem.LASolver;                        // qchem::Ortho
 export import qchem.SetupDecisions;           // AcceleratorOptions (the accelerator block, every structure), the spin rule
 export import qchem.SCFRecipe;                // SCFRecipe (the stage's material regime, beside its accelerator)
 export import qchem.SetupRefusal;             // SetupRefusal + Outcome: the Admit door's failure half
-export import qchem.Symmetry.Spin;            // SpinGroup -- the imposed spin subgroup, a SolidCalcOptions field (R6)
+export import qchem.Symmetry.Spin;            // SpinGroup -- the imposed spin subgroup, a RunOptions field (R6)
 export import qchem.AuditFootprint;           // AuditFootprintCalibration (the audit RSS policy's expert knob)
 export import qchem.Pseudopotential.Set;      // PseudopotentialSet -- the setup's resolved choice
 
@@ -62,7 +62,7 @@ inline Hamiltonian::HubbardManifold HubbardU_OrthoAtomic(size_t site, int l, dou
     return M;
 }
 
-struct SolidCalcOptions
+struct RunOptions
 {
     //! \name The system
     //!@{
@@ -91,53 +91,18 @@ struct SolidCalcOptions
     //! LDA_XC_TETER93 = CP2K's XC_FUNCTIONAL PADE, the functional every GTH-PADE PP was fitted with; user ruling 2026-11-12).  STATED,
     //! never switched for you: a PP fitted with another functional than this one is a warn-and-run row (\c PPFittedFunctional).
     Hamiltonian::Model model = Hamiltonian::Model::LDA;
-    //!@}
-
-    //! \name The orbital basis FAMILY (doc/OpenWork.md §2 PW-1)
-    //!@{
-    //! \c GPW (default): periodic Gaussians over the ctor's molecular basis.  \c PlaneWave: plane waves at
-    //! \c planeWaveEcut, the SAME Hamiltonian stack (the terms ask the basis, never its family) -- with QE's
-    //! pseudopotential that makes a QE comparison a Hamiltonian-only one.  A PW run ignores the molecular
-    //! basis (its +U projectors are pseudo-atomic, basis-independent); the grid knobs below are GPW's.
-    //! First increment: Γ only, no imposition (the PW factory builds one Bloch block and no symmetry).
-    enum class OrbitalBasis { GPW, PlaneWave };
-    OrbitalBasis orbitalBasis = OrbitalBasis::GPW;
-    double planeWaveEcut = 0.0;   //!< Ha, the orbital cutoff \f$\tfrac12|k+G|^2<E_{cut}\f$ (QE's ecutwfc/2); PlaneWave only
-    //!@}
-
-    //! \name Grids (the efficiency lever for ionic systems)
-    //!@{
-    double densityEcut  = -1.0;   //!< <0 AUTO: floor at \c cutoffFactor*alpha_max (recommended).
-    double cutoffFactor = 2.0;    //!< C in that floor; 2 = the density's own product exponent.  The auto ball's START: the pilot judges it after.
-    double ladderFactor = 4.0;    //!< multigrid ladder gradation (DEPTH is automatic).
-    BasisSet::Gaussian::CellImages   images = BasisSet::Gaussian::CellImages::Periodic;
-    rvec3_t kShift = rvec3_t(0,0,0);
     //! \brief The XC real-space quadrature.  DEFAULT \c Auto = "you choose": the class costs a uniform
     //! mesh sized to this run's sharpness against the atom-centred Becke mesh and takes the cheaper, with
     //! a margin (V1.26/V2.4).  Pin \c cellKind to \c Uniform or \c Becke to overrule it and be obeyed --
     //! the grid is a user decision, and the library's job is only to warn about a dominated one.  The recipe fields default to
     //! \c BeckeXCParams()'s (\c qcMesh::XCMeshDefault), so stating ONLY \c cellKind Becke runs the calibrated mesh.
     qcMesh::MeshParams xcMesh=qcMesh::XCMeshDefault();
-    //! Where a geometry run's pilot enters the Becke ladder, and the rotation of its rules (expert deck `solid.beckeLadder`).
-    qcMesh::BeckeLadderCalibration beckeLadder;
-    //! The audit RSS policy's calibration: estimate = eta x byte count + kappa x raster points, and the band of measured / estimate it
-    //! refuses and warns on (expert deck `solid.auditFootprint`; the default carries its measurement record, \c kAuditFootprintCalibration).
-    AuditFootprintCalibration auditFootprint = kAuditFootprintCalibration;
-    //! The GPW basis's numerical TOLERANCES (local-PP G-ball eps, local-PP kappa, the HartreeOnly floor fraction, an explicit
-    //! multigrid cutoff list).  Tier-2 numerical policy, typed (D-ENV step 5): the defaults are today's behaviour, and the
-    //! environment (GPW_VLOC_EPS, ...) is applied on top as an OVERRIDE LAYER when the run resolves its options -- every
-    //! override is named on the run banner.
-    qchem::BasisSet::Gaussian::GPWTolerances tolerances = {};
     //! \brief The ONE grid accuracy target eps (deck `solid.accuracy`; Ha per atom on an energy run, per matrix element on a geometry
     //! run -- \c SolidCalculation::Consumes) and its calibration eta (expert, `solid.accuracyCalibration`), doc/GridEpsilonPlan.md §1.
     //! C2 step 3: the GPW raster demands (\c tolerances.rasterX ...) are DERIVED from it -- from the stated calibration at Resolve, or
     //! by the run's own pilot audit after its SCF (the default).  eps = 0 is NO target: the rasters are \c tolerances as stated (0 =
     //! the ball's own raster, CP2K's arrangement), and stating a raster demand with eps > 0 is refused (the target derives them).
     qchem::BasisSet::Gaussian::GridAccuracy accuracy = {};
-    //! The declared CP2K deviations (routes and accelerations CP2K does not run) -- the deck's `policy` block (D-ENV step 6b).  Unstated
-    //! routes take the qchem default, or CP2K's value under \c cp2kCompat; a stated one wins over the umbrella.  The facade INSTALLS it
-    //! (\c SetRunPolicy) as the first act of construction; the resolved table is printed on the run banner.  No environment variable sets it.
-    qchem::RunPolicySpec policy = {};
     //! WHICH fit basis represents v_xc -- ORTHOGONAL to the grid above.  \c Auto picks Delta whenever the
     //! plane-wave fit cannot serve (Becke grid, or a polarized run).
     Hamiltonian::VxcFit vxcFit = Hamiltonian::VxcFit::Auto;
@@ -146,12 +111,6 @@ struct SolidCalcOptions
     //! (>= 4 Ecut holds every pair); a stated \c Fit is reported there.  Over GPW orbitals no ball holds rho[D], so Fit on the plane-wave
     //! fit is REFUSED by name, never run as Exact (\c qchem.XCRhoPolicy, \c ReportSolidXCRho).
     Hamiltonian::XCρ xcRho = Hamiltonian::XCρ::Exact;
-    //! \brief DFT+U manifolds (programme step 5; doc/Pins.md pin 23): one entry per (site, l, U) -- the
-    //! manifold is an INPUT, never the transition metal's d shell by assumption.  \c U in HARTREE here as
-    //! everywhere inside the library; \c HubbardU(site, l, eV) below converts from the eV the literature
-    //! quotes.  Empty (default) = no Hubbard term.  Increment 1: shell-averaged U, Löwdin projectors,
-    //! occupations from \f$D_{out}\f$ (a declared CP2K deviation: they mix P).
-    std::vector<Hamiltonian::HubbardManifold> hubbard;
     //!@}
 
     //! \name Convergence machinery
@@ -167,12 +126,6 @@ struct SolidCalcOptions
     //! \c Auto (default) = the policy above, named and printed; \c MagneticInsulator / \c Metal fill Kerker+Pulay on a cold or carried
     //! stage and REFUSE kT = 0.  A stated accelerator or mixer knob beside it wins (a deviation, printed).
     SCFRecipe recipe = SCFRecipe::Auto;
-    //! A SMEARED run fills each k-block to its OWN chemical potential -- the non-default (D-FERMI-DEFAULT, user 2026-10-05,
-    //! landed 2026-10-21; was \c globalFermi, default false).  A k-point is a label, not a reservoir: per-k μ has no physical
-    //! counterpart in a crystal ("a very obscure feature for anyone to want"), and it produced SrVO3's wrong-sign χ0(q≠0) and
-    //! a ground state 15 mHa too high.  Default false = ONE μ across the k-mesh.  At kT = 0 every block keeps its prescribed
-    //! integer count either way (Crystal_EC never ranks across k); per SPIN channel μ stays \c spinsShareFermi's business.
-    bool perKFermiLevels = false;
     //! Impose the detected space group (IBZ k-fold + per-iteration density star-average + site-adapted
     //! Becke mesh).  OPT-IN (default \c false): it roughly doubles the XC grid, and see the warning below.
     //!
@@ -186,20 +139,6 @@ struct SolidCalcOptions
     //! so star-averaging each channel under it averages the magnetic sublattices together and silently
     //! demagnetises the run (doc/CleanupCandidates.md V1.28).
     bool imposeSymmetry = false;
-    //! FREE run: build the XC mesh invariant under the space group DETECTED at the run's geometry (KAxisPlan ruling 1: a free run
-    //! gets symmetric numerics, not a symmetric answer).  \c false = the plain atom-centred mesh, whatever the geometry's group --
-    //! what a \c SolidSession REQUIRES of a free setup: a step re-detects the group, so the invariant mesh would SWITCH along a path
-    //! (measured, NaF Γ, F along x, Becke(20,2,24): 48 ops / 16752 points on the site, 8 ops / 17536 off it; a 2.5e-5 Ha step at the
-    //! site and a 9.4e-5 Ha/bohr odd term the mirror forbids).  The plain mesh moves with the atoms and is the same kind of mesh at
-    //! every point; it is also ~2.2x fewer points there (7.6k).  Ignored on an imposed run (the imposed group's mesh is the run's).
-    //! WHY TWO MESHES (for whoever decides whether one can serve both): the INVARIANT mesh keeps a single-geometry free run's
-    //! INTEGRATOR group-equivariant, which ruling 1 consumes -- it reduces a free run by the ops whose measured
-    //! \f$\|D_{gk}-MD_kM^\dagger\|\f$ passes ~1e-6, and on a non-invariant mesh no op ever passed (F 5e-4, D 2e-3; GPW_IBS
-    //! itsMeshOps) -- so a session on the plain mesh gives that reduction up.  The PLAIN mesh keeps E continuous along a path that
-    //! BREAKS the group, which the invariant mesh cannot: its group, and so its points, change with the geometry.  The open question
-    //! (OpenWork, X): a session invariant under the group the WHOLE session keeps (a symmetry-preserving relaxation keeps its space
-    //! group), so one mesh serves both.
-    bool xcMeshSymmetric = true;
     //! The SCF seed.  \c Default = THE Auto rule both setups share (\c qchem.SeedPolicy, user 2026-11-12): on a lattice that is
     //! \c IonicSAD (V2.2, 2026-09-14), a superposition of the library's per-species
     //! valence densities at their formal charges (Na+ F-, Mn2+ O2-; an elemental solid is the neutral SAD).
@@ -221,46 +160,6 @@ struct SolidCalcOptions
     //! Cholesky, Auto (it finds its own gap) and Orthonormal take none.
     double SolverTruncation() const
     { return (ortho==qchem::Eigen || ortho==qchem::SVD || ortho==qchem::CholeskyPivoted) ? orthoTol : 0.0; }
-    //! THE CELL'S STRAIN ALLOWANCE s (linear, a fraction; the cell half's frozen rule, doc/Records/CellHalf_Design.md §3, ruled
-    //! 2026-11-10).  0 (default): the cell is fixed -- a geometry session refuses a moved cell (\c PESFailure::CellChange) and every size
-    //! is decided on the cell itself, as always.  > 0: every discrete size (G sets, raster and FFT counts, uniform-mesh divisions) is
-    //! decided ONCE on the SIZING BOX (1+s) A_ref and held as the cell strains (CP2K's CELL_REF), so E(cell) is smooth; a session then
-    //! follows any cell whose largest principal stretch from the reference is <= 1+s and refuses one beyond.  The price: the
-    //! reference point itself runs on sets sized for a cell s larger (a POLICY, reported).
-    double       cellStrainAllowance = 0.0;
-    //! Bands (eigenpairs) kept per Bloch block, QE's nbnd: 0 (default) = all of them.  > 0 = a PARTIAL eigensolve of the
-    //! lowest \c numBands -- a plane-wave block is thousands wide and the SCF occupies a few dozen.  Orthonormal basis only
-    //! (the plane-wave family); must exceed the larger spin channel's electron count; refused beside a direct minimiser
-    //! (GDM / the Ladder's GDM rung), which rotates into the WHOLE virtual space.
-    size_t       numBands = 0;
-    //! ANSATZ POLICY (doc/RealComplexPlan.md §6): force every Bloch block COMPLEX even where the run
-    //! admits real ones (a TRIM k-point under a realness-preserving Hamiltonian -- with the default
-    //! LDA stack every Γ / zone-boundary block runs REAL: real S/T/V/KB, real eigensolve, real
-    //! quadrature GEMMs).  The physics is identical either way (the 3c-3 acceptance gate pins ON==OFF
-    //! to machine precision); complex is the DOWNGRADE direction (§1), kept as the escape hatch for
-    //! complex-instability experiments and as the gate's A/B door.
-    //!
-    //! NOT needed for MOM any more (R2.21, 2026-08-17).  It used to be: a real block's MOM reference had
-    //! nowhere to live in a run-typed reference home, so switching \c SCFParams::UseMOM on threw mid-SCF
-    //! and the documented workaround was to come here and pay for an all-complex run.  The occupation
-    //! state now keys each block's reference by the BLOCK's scalar, so MOM runs REAL on a mixed mesh --
-    //! measured identical to the forced-complex twin (Si (3,1,1), ΔE = 1.8e-15) at the real run's cost.
-    //! No knob, and no surprise: turning MOM on no longer changes what the run is made of.
-    bool forceComplex = false;
-
-    //! \name Knobs the GPW test driver carried that this struct did not (2026-08-25)
-    //! Added so a periodic recipe can be stated in ONE place instead of being assembled across a test's
-    //! options struct, its run driver and its accelerator helper (user: "some parameters are set in TESTF,
-    //! some in RunGpw, some in MakeGpwAccelerator, all spread out by 100's of lines").
-    //!@{
-    //! One Fermi level shared by BOTH spin channels (the moment becomes an OUTPUT) rather than a fixed
-    //! per-channel electron count.
-    bool spinsShareFermi = false;
-    //! Impose the DETECTED grey group with the magnetic decoration suppressed -- the erasure control.
-    bool greyImposition  = false;
-    //! Pin the MOM reference to the SEED's own occupied subspace before iteration 1, so a hot stage's
-    //! CHARACTER continues, not just its density.
-    bool momFromSeed     = false;
     //! \brief THE MAGNETIC DECORATION: one entry per cell site, +1 / -1 / 0, naming which sublattice each
     //! site belongs to.  It is what makes an imposition SHUBNIKOV rather than merely spatial -- without it
     //! an "imposed AFM" run star-averages under the spatial group and the order is ERASED.
@@ -272,18 +171,7 @@ struct SolidCalcOptions
     //! reads it too (+1 majority up, -1 flipped, 0 no moment), overriding the structure's per-atom spins, which are only the
     //! default when it is absent.  The imposition reads it only when \c imposeSymmetry.
     //! \note \c greyImposition forces the empty decoration regardless -- that arm is the erasure control.
-    std::vector<int> siteSpins = {};
-    //! \note MANDATORY for a polarized run that carries a Hubbard manifold (OpenWork §3 "The magnetic decoration is
-    //! DERIVED FROM THE SEED", ruled 2026-10-23: the ordering is chemistry, stated like the Hubbard subspace, never
-    //! inferred -- a seed change must never change the imposed symmetry or the manifolds' site groups).  A
-    //! non-magnetic polarized run states all zeros.  See \c RequireStatedMagneticOrdering.
-    //! \brief THE CHARGE ORDER of an \c IonicSAD seed: one formal charge per cell site (Li +1, Mn +3 / +4, O -2 ...), summing to
-    //! zero.  EMPTY (the default) = DERIVED by the electronegativity heuristic (\c ChargeDensity::IonicFormalCharges), which is
-    //! right where every site of an element takes the same charge, but on a MIXED-VALENCE cell puts the charge states of
-    //! symmetry-equivalent sites by ATOM INDEX (LiMn₂O₄'s Mn³⁺/Mn⁴⁺ on the 16d sites): a charge order nobody chose.  State it, like
-    //! \c siteSpins, when the order matters.  Only the IonicSAD seed reads it (a stated order on another seed THROWS: nothing would
-    //! consume it).  See \c RequireConsistentSiteCharges.
-    std::vector<int> siteCharges = {};
+    std::vector<int> spins = {};
     // NB: the test driver's `realTRIMBlocks` is NOT added here -- it is \c forceComplex with the opposite
     // polarity (both feed GPWParams::hamPreservesReal).  One decision, one field.
     //! Names this run in its own console output -- the fingerprint, the stage banners, the order trace.
@@ -301,22 +189,140 @@ struct SolidCalcOptions
     //  caller-supplied POINT probe it replaced was a spin density, not a moment.)
     //!@}
     //!@}
+
+    //! \brief THE PERIODIC-ONLY OPTIONS (V-FACADE-PARITY P0b-2): the deck's `solid` block, one to one.  A non-periodic kind REFUSES
+    //! a stated one (it is not ignored).
+    struct Solid
+    {
+        //!@}
+
+        //! \name The orbital basis FAMILY (doc/OpenWork.md §2 PW-1)
+        //!@{
+        //! \c GPW (default): periodic Gaussians over the ctor's molecular basis.  \c PlaneWave: plane waves at
+        //! \c planeWaveEcut, the SAME Hamiltonian stack (the terms ask the basis, never its family) -- with QE's
+        //! pseudopotential that makes a QE comparison a Hamiltonian-only one.  A PW run ignores the molecular
+        //! basis (its +U projectors are pseudo-atomic, basis-independent); the grid knobs below are GPW's.
+        //! First increment: Γ only, no imposition (the PW factory builds one Bloch block and no symmetry).
+        enum class OrbitalBasis { GPW, PlaneWave };
+        OrbitalBasis orbitalBasis = OrbitalBasis::GPW;
+        double planeWaveEcut = 0.0;   //!< Ha, the orbital cutoff \f$\tfrac12|k+G|^2<E_{cut}\f$ (QE's ecutwfc/2); PlaneWave only
+        //!@}
+
+        //! \name Grids (the efficiency lever for ionic systems)
+        //!@{
+        double densityEcut  = -1.0;   //!< <0 AUTO: floor at \c cutoffFactor*alpha_max (recommended).
+        double cutoffFactor = 2.0;    //!< C in that floor; 2 = the density's own product exponent.  The auto ball's START: the pilot judges it after.
+        double ladderFactor = 4.0;    //!< multigrid ladder gradation (DEPTH is automatic).
+        BasisSet::Gaussian::CellImages   images = BasisSet::Gaussian::CellImages::Periodic;
+        rvec3_t kShift = rvec3_t(0,0,0);
+        //! Where a geometry run's pilot enters the Becke ladder, and the rotation of its rules (expert deck `solid.beckeLadder`).
+        qcMesh::BeckeLadderCalibration beckeLadder;
+        //! The audit RSS policy's calibration: estimate = eta x byte count + kappa x raster points, and the band of measured / estimate it
+        //! refuses and warns on (expert deck `solid.auditFootprint`; the default carries its measurement record, \c kAuditFootprintCalibration).
+        AuditFootprintCalibration auditFootprint = kAuditFootprintCalibration;
+        //! The GPW basis's numerical TOLERANCES (local-PP G-ball eps, local-PP kappa, the HartreeOnly floor fraction, an explicit
+        //! multigrid cutoff list).  Tier-2 numerical policy, typed (D-ENV step 5): the defaults are today's behaviour, and the
+        //! environment (GPW_VLOC_EPS, ...) is applied on top as an OVERRIDE LAYER when the run resolves its options -- every
+        //! override is named on the run banner.
+        qchem::BasisSet::Gaussian::GPWTolerances tolerances = {};
+        //! The declared CP2K deviations (routes and accelerations CP2K does not run) -- the deck's `policy` block (D-ENV step 6b).  Unstated
+        //! routes take the qchem default, or CP2K's value under \c cp2kCompat; a stated one wins over the umbrella.  The facade INSTALLS it
+        //! (\c SetRunPolicy) as the first act of construction; the resolved table is printed on the run banner.  No environment variable sets it.
+        qchem::RunPolicySpec policy = {};
+        //! \brief DFT+U manifolds (programme step 5; doc/Pins.md pin 23): one entry per (site, l, U) -- the
+        //! manifold is an INPUT, never the transition metal's d shell by assumption.  \c U in HARTREE here as
+        //! everywhere inside the library; \c HubbardU(site, l, eV) below converts from the eV the literature
+        //! quotes.  Empty (default) = no Hubbard term.  Increment 1: shell-averaged U, Löwdin projectors,
+        //! occupations from \f$D_{out}\f$ (a declared CP2K deviation: they mix P).
+        std::vector<Hamiltonian::HubbardManifold> hubbard;
+        //! A SMEARED run fills each k-block to its OWN chemical potential -- the non-default (D-FERMI-DEFAULT, user 2026-10-05,
+        //! landed 2026-10-21; was \c globalFermi, default false).  A k-point is a label, not a reservoir: per-k μ has no physical
+        //! counterpart in a crystal ("a very obscure feature for anyone to want"), and it produced SrVO3's wrong-sign χ0(q≠0) and
+        //! a ground state 15 mHa too high.  Default false = ONE μ across the k-mesh.  At kT = 0 every block keeps its prescribed
+        //! integer count either way (Crystal_EC never ranks across k); per SPIN channel μ stays \c spinsShareFermi's business.
+        bool perKFermiLevels = false;
+        //! FREE run: build the XC mesh invariant under the space group DETECTED at the run's geometry (KAxisPlan ruling 1: a free run
+        //! gets symmetric numerics, not a symmetric answer).  \c false = the plain atom-centred mesh, whatever the geometry's group --
+        //! what a \c SolidSession REQUIRES of a free setup: a step re-detects the group, so the invariant mesh would SWITCH along a path
+        //! (measured, NaF Γ, F along x, Becke(20,2,24): 48 ops / 16752 points on the site, 8 ops / 17536 off it; a 2.5e-5 Ha step at the
+        //! site and a 9.4e-5 Ha/bohr odd term the mirror forbids).  The plain mesh moves with the atoms and is the same kind of mesh at
+        //! every point; it is also ~2.2x fewer points there (7.6k).  Ignored on an imposed run (the imposed group's mesh is the run's).
+        //! WHY TWO MESHES (for whoever decides whether one can serve both): the INVARIANT mesh keeps a single-geometry free run's
+        //! INTEGRATOR group-equivariant, which ruling 1 consumes -- it reduces a free run by the ops whose measured
+        //! \f$\|D_{gk}-MD_kM^\dagger\|\f$ passes ~1e-6, and on a non-invariant mesh no op ever passed (F 5e-4, D 2e-3; GPW_IBS
+        //! itsMeshOps) -- so a session on the plain mesh gives that reduction up.  The PLAIN mesh keeps E continuous along a path that
+        //! BREAKS the group, which the invariant mesh cannot: its group, and so its points, change with the geometry.  The open question
+        //! (OpenWork, X): a session invariant under the group the WHOLE session keeps (a symmetry-preserving relaxation keeps its space
+        //! group), so one mesh serves both.
+        bool xcMeshSymmetric = true;
+        //! THE CELL'S STRAIN ALLOWANCE s (linear, a fraction; the cell half's frozen rule, doc/Records/CellHalf_Design.md §3, ruled
+        //! 2026-11-10).  0 (default): the cell is fixed -- a geometry session refuses a moved cell (\c PESFailure::CellChange) and every size
+        //! is decided on the cell itself, as always.  > 0: every discrete size (G sets, raster and FFT counts, uniform-mesh divisions) is
+        //! decided ONCE on the SIZING BOX (1+s) A_ref and held as the cell strains (CP2K's CELL_REF), so E(cell) is smooth; a session then
+        //! follows any cell whose largest principal stretch from the reference is <= 1+s and refuses one beyond.  The price: the
+        //! reference point itself runs on sets sized for a cell s larger (a POLICY, reported).
+        double       cellStrainAllowance = 0.0;
+        //! Bands (eigenpairs) kept per Bloch block, QE's nbnd: 0 (default) = all of them.  > 0 = a PARTIAL eigensolve of the
+        //! lowest \c numBands -- a plane-wave block is thousands wide and the SCF occupies a few dozen.  Orthonormal basis only
+        //! (the plane-wave family); must exceed the larger spin channel's electron count; refused beside a direct minimiser
+        //! (GDM / the Ladder's GDM rung), which rotates into the WHOLE virtual space.
+        size_t       numBands = 0;
+        //! ANSATZ POLICY (doc/RealComplexPlan.md §6): force every Bloch block COMPLEX even where the run
+        //! admits real ones (a TRIM k-point under a realness-preserving Hamiltonian -- with the default
+        //! LDA stack every Γ / zone-boundary block runs REAL: real S/T/V/KB, real eigensolve, real
+        //! quadrature GEMMs).  The physics is identical either way (the 3c-3 acceptance gate pins ON==OFF
+        //! to machine precision); complex is the DOWNGRADE direction (§1), kept as the escape hatch for
+        //! complex-instability experiments and as the gate's A/B door.
+        //!
+        //! NOT needed for MOM any more (R2.21, 2026-08-17).  It used to be: a real block's MOM reference had
+        //! nowhere to live in a run-typed reference home, so switching \c SCFParams::UseMOM on threw mid-SCF
+        //! and the documented workaround was to come here and pay for an all-complex run.  The occupation
+        //! state now keys each block's reference by the BLOCK's scalar, so MOM runs REAL on a mixed mesh --
+        //! measured identical to the forced-complex twin (Si (3,1,1), ΔE = 1.8e-15) at the real run's cost.
+        //! No knob, and no surprise: turning MOM on no longer changes what the run is made of.
+        bool forceComplex = false;
+
+        //! \name Knobs the GPW test driver carried that this struct did not (2026-08-25)
+        //! Added so a periodic recipe can be stated in ONE place instead of being assembled across a test's
+        //! options struct, its run driver and its accelerator helper (user: "some parameters are set in TESTF,
+        //! some in RunGpw, some in MakeGpwAccelerator, all spread out by 100's of lines").
+        //!@{
+        //! One Fermi level shared by BOTH spin channels (the moment becomes an OUTPUT) rather than a fixed
+        //! per-channel electron count.
+        bool spinsShareFermi = false;
+        //! Impose the DETECTED grey group with the magnetic decoration suppressed -- the erasure control.
+        bool greyImposition  = false;
+        //! Pin the MOM reference to the SEED's own occupied subspace before iteration 1, so a hot stage's
+        //! CHARACTER continues, not just its density.
+        bool momFromSeed     = false;
+        //! \note MANDATORY for a polarized run that carries a Hubbard manifold (OpenWork §3 "The magnetic decoration is
+        //! DERIVED FROM THE SEED", ruled 2026-10-23: the ordering is chemistry, stated like the Hubbard subspace, never
+        //! inferred -- a seed change must never change the imposed symmetry or the manifolds' site groups).  A
+        //! non-magnetic polarized run states all zeros.  See \c RequireStatedMagneticOrdering.
+        //! \brief THE CHARGE ORDER of an \c IonicSAD seed: one formal charge per cell site (Li +1, Mn +3 / +4, O -2 ...), summing to
+        //! zero.  EMPTY (the default) = DERIVED by the electronegativity heuristic (\c ChargeDensity::IonicFormalCharges), which is
+        //! right where every site of an element takes the same charge, but on a MIXED-VALENCE cell puts the charge states of
+        //! symmetry-equivalent sites by ATOM INDEX (LiMn₂O₄'s Mn³⁺/Mn⁴⁺ on the 16d sites): a charge order nobody chose.  State it, like
+        //! \c siteSpins, when the order matters.  Only the IonicSAD seed reads it (a stated order on another seed THROWS: nothing would
+        //! consume it).  See \c RequireConsistentSiteCharges.
+        std::vector<int> siteCharges = {};
+    } solid;
 };
 
 //! \brief REFUSES (\c policy::Refused, rows SiteSpins / StatedMagneticOrdering) unless \a o states its magnetic ordering where the run needs
 //! one: a polarized run carrying a Hubbard manifold must give \c siteSpins (\c greyImposition, the erasure control, is exempt), and a stated
 //! \c siteSpins must have one entry per site of \a st, each -1, 0 or +1.  User input, so the refusal reaches a caller as a \c SetupRefusal
 //! through \c SolidSetup::Admit; \c deck::Vet calls it too, so \c scripts/vet-decks catches a deck before it runs.
-void RequireStatedMagneticOrdering(const SolidCalcOptions& o, const Structure& st);
-//! \brief REFUSES (\c policy::Refused, row SiteCharges) unless a stated \c o.siteCharges has one entry per site of \a st, sums to zero
+void RequireStatedMagneticOrdering(const RunOptions& o, const Structure& st);
+//! \brief REFUSES (\c policy::Refused, row SiteCharges) unless a stated \c o.solid.siteCharges has one entry per site of \a st, sums to zero
 //! (formal charges conserve the cell's charge, as the derived ones do), and seeds an \c IonicSAD run.  Empty passes.  Called by the
 //! resolve phase and by \c deck::Vet, as \c RequireStatedMagneticOrdering is.
-void RequireConsistentSiteCharges(const SolidCalcOptions& o, const Structure& st);
+void RequireConsistentSiteCharges(const RunOptions& o, const Structure& st);
 //! \brief The electron count per spin channel, (nUp, nDown), for \a o.multiplicity and the RESOLVED electron count \a nel (decision 2).
 //! REFUSES (\c policy::Refused, row SpinMultiplicity) an impossible request: a multiplicity whose parity disagrees with \a nel or that exceeds it -- in particular multiplicity 1
-//! (the EXPLICIT two-channel singlet, nUp = nDown) on an odd \a nel, unless \c o.spinsShareFermi lets one Fermi level set the channels
+//! (the EXPLICIT two-channel singlet, nUp = nDown) on an odd \a nel, unless \c o.solid.spinsShareFermi lets one Fermi level set the channels
 //! (a metal: the counts are only the split the occupations start from).  Called by the resolve phase and by \c deck::Resolve.
-std::pair<int,int> SpinChannelCounts(const SolidCalcOptions& o, int nel);
+std::pair<int,int> SpinChannelCounts(const RunOptions& o, int nel);
 
 //! \brief HOW the molecular orbital basis of a GPW run is made at a geometry: the frozen RECIPE a geometry step rebuilds
 //! (doc/CalcNetworkReview.md §3.2 item 2, §7).
@@ -338,7 +344,7 @@ struct GaussianBasisRecipe
     //! \c Spherical wraps the MnD Cartesian lattice basis in the spherical lattice view (contaminant-free d/f).
     BasisSet::Gaussian::Angular       angular = BasisSet::Gaussian::Angular::Cartesian;
     //! The pair-loop tolerances \c Make BINDS on the basis it builds (D-ENV-TOL option A, 2026-10-31): set by \c SolidSetup::Resolve
-    //! from \c SolidCalcOptions::tolerances (the one source -- a caller's value here is replaced), frozen with the trim so a geometry
+    //! from \c RunOptions::tolerances (the one source -- a caller's value here is replaced), frozen with the trim so a geometry
     //! step's basis computes at the same setting.  The GPW evaluator checks them; it no longer sets them.
     BasisSet::Gaussian::GPWTolerances tolerances;
 
@@ -348,7 +354,7 @@ struct GaussianBasisRecipe
     std::shared_ptr<const BasisSet::Real_BS> Make(const Structure& cell, const Pseudopotential::PseudopotentialSet& pp) const;
 };
 
-//! \brief THE RUN SETUP of a periodic calculation: \c SolidCalcOptions as asked, plus every decision resolved from them ONCE.
+//! \brief THE RUN SETUP of a periodic calculation: \c RunOptions as asked, plus every decision resolved from them ONCE.
 //!
 //! WHAT IS HERE, AND WHAT IS NOT (doc/CalcNetworkReview.md §2).  A run splits into three lifetimes: the SETUP (the choices and
 //! what is resolved from them), the GEOMETRY POINT (the Bloch basis, S, the Hamiltonian's geometry-keyed terms, the electron
@@ -361,38 +367,38 @@ struct GaussianBasisRecipe
 struct SolidSetup
 {
     //! \brief THE ONE RESOLVE PHASE (doc/Pins.md pin 11), as an OUTCOME: the door for USER INPUT (a deck, a GUI form, a command line).
-    //! Installs \a opts.policy as the process run policy FIRST (every factory after it consults the policy), then decides.  Options
+    //! Installs \a opts.solid.policy as the process run policy FIRST (every factory after it consults the policy), then decides.  Options
     //! that contradict each other or the structure -- an unstated magnetic ordering, a multiplicity whose parity disagrees with
     //! \c Nelec, a stated Nelec the species disagree with, \c numBands too small, a route the code does not realize, a basis that does
     //! not cover the cell -- come back as a \c SetupRefusal naming the policy that refused (its row is in the run report too).  A
     //! broken invariant still throws.  \a mol: the molecular orbital basis at \a lat's geometry -- the XC-mesh sharpness reads its
     //! α_max, and a GPW point is built over it; a plane-wave run ignores it.
     static Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> Admit(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                                                     const SolidCalcOptions& opts,
+                                                     const RunOptions& opts,
                                                      const AcceleratorOptions& acc = {});
     //! \c Admit from a basis RECIPE: the molecular basis is made at \a lat's geometry by \a recipe (its provenance checked against
     //! the run's set), after the vet-stage loop -- if the recipe asks for it -- has decided the trim, which is then frozen in
     //! \c recipe.  A setup with a recipe can rebuild its basis at moved atoms (a geometry step); one from a pre-built \a mol cannot.
     static Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> Admit(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
-                                                     const SolidCalcOptions& opts,
+                                                     const RunOptions& opts,
                                                      const AcceleratorOptions& acc = {});
     //! \brief \c Admit, THROWING its refusal (a \c policy::Refused, a \c std::invalid_argument, with the refusal's sentence).  For CODE
     //! that states its own options -- the tests, the probes (\c gpwprobe), a campaign driver: there a refusal is the caller's programming
     //! error, which no one at run time can act on, so it throws (CLAUDE.md).  Never for user input: a deck, the GUI binding or a command
     //! line goes through \c Admit and reports the refusal.
     static std::shared_ptr<const SolidSetup> Resolve(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                                                     const SolidCalcOptions& opts,
+                                                     const RunOptions& opts,
                                                      const AcceleratorOptions& acc = {});
     //! \c Resolve from a basis RECIPE (\c Admit's recipe door, throwing; for code that states its own options).
     static std::shared_ptr<const SolidSetup> Resolve(const Lattice_3D& lat, const GaussianBasisRecipe& recipe,
-                                                     const SolidCalcOptions& opts,
+                                                     const RunOptions& opts,
                                                      const AcceleratorOptions& acc = {});
     //! THE PRE-RUN PP / FUNCTIONAL CHECK (user 2026-11-12: track, warn and guide, mostly in the GUI): every element of the reference
     //! cell, its pseudopotential's fit (CP2K label + libxc ids) against \c opts.model, match yes/no, and the model to state to match it.  What the
     //! run will warn about, answered without running; a GUI reads it here and never recomputes it.  THROWS on a fit with no libxc mapping.
     std::vector<Hamiltonian::PPFunctionalCheck> PPFunctionalChecks() const;
 
-    SolidCalcOptions                         opts;   //!< as asked, except \c ortho (a plane-wave run's default Cholesky becomes Orthonormal) and a \c Default seed (resolved)
+    RunOptions                         opts;   //!< as asked, except \c ortho (a plane-wave run's default Cholesky becomes Orthonormal) and a \c Default seed (resolved)
     //! The accelerator block as asked, resolved over the GPW production recipe (\c AcceleratorParams' defaults, the solid's
     //! per-kind defaults); a stage derives its own from it (a restored stage's Ladder rung).
     SCFAccelerators::AcceleratorParams acc;
@@ -406,7 +412,7 @@ struct SolidSetup
     std::shared_ptr<const BasisSet::Real_BS> mol;    //!< the molecular orbital basis at the REFERENCE geometry
     //! How \c mol was made, the trim FROZEN; empty when the caller handed a pre-built basis (that setup cannot follow moved atoms).
     std::optional<GaussianBasisRecipe>       recipe;
-    bool planeWave = false;   //!< \c opts.orbitalBasis is PlaneWave
+    bool planeWave = false;   //!< \c opts.solid.orbitalBasis is PlaneWave
     bool polarized = false;   //!< the spin-native two-channel run (\c ResolveSpinGroup(opts.spin, opts.multiplicity))
     //! The caller's \c imposeSymmetry AND the run policy's permission (CP2K parity vetoes the capability).  Nothing reads
     //! \c opts.imposeSymmetry after Resolve, or the two would drift.
@@ -430,14 +436,14 @@ struct SolidSetup
     BasisSet::Gaussian::ShellTrim MakeVetTrim(double orthoTol) const;
     qcMesh::MeshParams xcMesh;     //!< the XC quadrature, \c Auto RESOLVED (the facade's decision 1)
     int nUp = 0, nDown = 0;        //!< the electron counts per spin channel (decision 2: multiplicity -> (nUp, nDown))
-    //! \brief The GPW raster demands in \c opts.tolerances are FINAL (C2 step 3): stated (accuracy 0), derived from a stated calibration,
+    //! \brief The GPW raster demands in \c opts.solid.tolerances are FINAL (C2 step 3): stated (accuracy 0), derived from a stated calibration,
     //! or settled by a pilot audit (\c SolidCalculation::SizedSetup).  false = this setup's first SCF is the PILOT: it runs on the ball's
     //! own rasters and \c SolidCalculation sizes them from what it delivered.  A plane-wave run has no raster: true.
     bool rastersResolved = true;
     //! \brief WHO SET the raster demands this setup runs (the report's \c grids.rasterSource): the user (\c Stated, accuracy 0), a stated
     //! calibration at Resolve (\c Calibration), the pilot audit (\c Pilot: on the ball's own rasters until it raises them), a saved state
     //! sized for this eps (\c SavedState), or the start raised for an ill-conditioned overlap (\c Conditioning).  Every place that writes
-    //! \c opts.tolerances' raster demands writes this beside it; a reader of the grids can then tell a deck value from a measured one.
+    //! \c opts.solid.tolerances' raster demands writes this beside it; a reader of the grids can then tell a deck value from a measured one.
     enum class RasterSource { Stated, Calibration, Pilot, SavedState, Conditioning };
     RasterSource rasterSource = RasterSource::Stated;
 
@@ -446,7 +452,7 @@ private:
         : pp(std::move(p)), reference(lat), cell(lat.GetStructure()) {}
     //! The decisions, shared by both \c Resolve overloads (the policy is already installed).
     static std::shared_ptr<SolidSetup> Decide(const Lattice_3D&, std::shared_ptr<const BasisSet::Real_BS> mol,
-                                              const SolidCalcOptions&, const AcceleratorOptions&);
+                                              const RunOptions&, const AcceleratorOptions&);
 };
 
 } //export namespace qchem

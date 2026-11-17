@@ -5,12 +5,12 @@
 //   StreamFold  -> BasisSet/Lattice/Imp/BasisSet.C   (whether the collocation streams are orbit-folded)
 //   MixRhoM     -> ChargeDensity/Imp/DensityMixer.C     (which channel basis the G-space factories compose in)
 //   XCFromDM    -> Hamiltonian/Internal/Imp/PWTerms.C   (which rho the XC term is fed)
-//   SymmetryImposition -> Calculation/Imp/SolidCalculation.C (ANDed with SolidCalcOptions::imposeSymmetry)
+//   SymmetryImposition -> Calculation/Imp/SolidCalculation.C (ANDed with RunOptions::imposeSymmetry)
 //   BeckeXC     -> Calculation/Imp/SolidCalculation.C          (passed to qcMesh::ResolveXCMesh as allowBecke)
 //   DAwareScreen-> BasisSet/Lattice/Evaluators/GPW/Imp/Evaluator.C (WHICH LatticeScreener the evaluator builds)
 // Two further CP2K deviations are TYPED OPTIONS rather than env flags and are therefore NOT here:
 // the raster demands (0 = the ball's own raster, which IS CP2K's bet, vindicated by doc/OpenWork.md N2) and
-// SolidCalcOptions::cutoffFactor (C=2).  They are chosen by the caller and reported by the run banner
+// RunOptions::cutoffFactor (C=2).  They are chosen by the caller and reported by the run banner
 // beside these, so the printed table is still complete even though the mechanism differs.
 // (xcMesh WAS a third such typed option; 2026-08-28 promoted it to the table above -- it is 43% of the
 // MnO row, which is far too large a difference to leave resting on caller discipline.)
@@ -39,7 +39,7 @@ RunPolicy::RunPolicy(const RunPolicySpec& spec)
     itsXCFromDM   = Resolve("policy.xcFromDM", "Vxc fed rho[D] wholesale instead of rho_mix",
                             /*cp2k*/false, /*qchem default*/false, spec.xcFromDM, /*movesState*/true);
     // NB the qchem default here is TRUE meaning "obey the caller", not "impose": the option itself
-    // defaults off in SolidCalcOptions.  What CP2K parity forbids is the CAPABILITY, so that is what is
+    // defaults off in RunOptions.  What CP2K parity forbids is the CAPABILITY, so that is what is
     // tabled -- and the facade ANDs this with the caller's own flag.
     itsImpose     = Resolve("policy.imposeSymmetry", "space-group imposition available to the caller",
                             /*cp2k*/false, /*qchem default*/true, spec.imposeSymmetry, /*movesState*/false);

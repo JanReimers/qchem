@@ -6,7 +6,7 @@
 #include <utility>
 import qchem.SetupDecisions;
 import qchem.MoleculeCalculation;   // MoleculeSetup, CalcOptions
-import qchem.SolidSetup;            // SolidCalcOptions, SpinChannelCounts
+import qchem.SolidSetup;            // RunOptions, SpinChannelCounts
 import qchem.Structure;
 import qchem.Types;
 import qchem.SCFAccelerator.Factory;
@@ -52,7 +52,7 @@ TEST(SetupDecisions, TheMoleculeAndTheSolidCountSpinTheSameWay)
             Molecule atom; atom.Insert(Site{Z, rvec3_t(0,0,0)});
             const auto mol=MoleculeSetup::Admit(atom, {.basis="dzvp", .multiplicity=m});
             bool solidOK=true; std::pair<int,int> solid{0,0};
-            try { solid=SpinChannelCounts(SolidCalcOptions{.multiplicity=m}, Z); } catch (const std::invalid_argument&) { solidOK=false; }
+            try { solid=SpinChannelCounts(RunOptions{.multiplicity=m}, Z); } catch (const std::invalid_argument&) { solidOK=false; }
             ASSERT_EQ(bool(mol), solidOK) << "Z " << Z << ", m " << m;
             if (!mol) { EXPECT_EQ(mol.Error().policy, "SpinMultiplicity"); continue; }
             EXPECT_EQ(mol.Value()->nUp,   solid.first)  << "Z " << Z << ", m " << m;

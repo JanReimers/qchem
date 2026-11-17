@@ -170,7 +170,7 @@ TEST(SCFTrace, SolidPP_ShowsGridColumnsAndNoVirial)
         par.NMaxIter=2; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6; par.MinΔFD=std::nullopt;
         par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
         qchem::BoundedSCF bounded("the trace's columns are the subject: 2 iterations print them");
-        SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}), par);
+        SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}}), par);
         (void)calc.Result();   // NMaxIter=2: this deliberately does NOT converge -- the trace is the subject
     });
     const std::string h = HeaderLine(trace);
@@ -319,7 +319,7 @@ TEST(SCFTrace, SolidConsoleIsByteIdentical)
         SCFParams par;
         par.NMaxIter=4; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6; par.MinΔFD=std::nullopt;
         par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
-        SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}), par);
+        SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}}), par);
         (void)calc.Result();
     }));
     EXPECT_EQ(got, std::string(kSolidGolden));
@@ -420,7 +420,7 @@ TEST(SCFTrace, AnObserverExceptionLeavesConvergeUntouched)
             BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
                                         BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
         SCFParams par; par.NMaxIter=4; par.Verbose=false;
-        SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}), par, throwAt2);
+        SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}}), par, throwAt2);
         (void)calc.Result();
         ADD_FAILURE() << "the solid run did not stop";
     }

@@ -567,7 +567,7 @@ class SolidProbe : public FacadeProbe
                                                    const AcceleratorOptions& acc={})
     {
         const auto mat=Materials::Get("Si_diamond");
-        SolidCalcOptions o; o.Nelec=8; o.species=mat.species; o.densityEcut=20.0; o.label="matrix"; o.accelerator=type;
+        RunOptions o; o.Nelec=8; o.species=mat.species; o.solid.densityEcut=20.0; o.label="matrix"; o.accelerator=type;
         return SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)),
                                    GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o, acc);
     }

@@ -77,7 +77,7 @@ template <class T> LASolver<T>* LASolver<T>::
     {
     case qchem::Cholesky:
         // Cholesky does not truncate: a tolerance is not ITS input.  The callers pass one only to a truncating solver
-        // (SolidCalcOptions::SolverTruncation); the floor a user states is the trim's, reported by the facade (OpenWork §3, 2026-11-12).
+        // (RunOptions::SolverTruncation); the floor a user states is the trim's, reported by the facade (OpenWork §3, 2026-11-12).
         ret = new LASolverCholesky<T>();
         break;
     case qchem::Eigen:   ret = new LASolverEigen<T>(TruncationTolerance); break;

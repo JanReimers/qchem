@@ -176,7 +176,7 @@ TEST(PPFittedFunctional, ASetupAnswersTheCheckBeforeTheRun)
     for (const auto& c : mPADE->PPFunctionalChecks()) EXPECT_TRUE(c.match) << "GTH-PADE under PADE matches: " << c.element;
     EXPECT_TRUE(mAE->PPFunctionalChecks().empty()) << "an all-electron run has no PP to check";
 
-    SolidCalcOptions o;
+    RunOptions o;
     const auto sLDA=SolidSetup::Resolve(Lattice_3D(UnitCell(*Materials::Get("Si_diamond").cell), ivec3_t(1,1,1)),
                                         GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
     const auto sc=sLDA->PPFunctionalChecks();

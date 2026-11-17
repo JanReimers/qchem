@@ -501,7 +501,7 @@ TEST(HamiltonianForces, OnAGPWBlockEveryTermWithoutAPullbackNamesItself)
     SCFParams p; p.NMaxIter=100; p.MinΔρPerElectron=1e-6; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
     for (bool becke : {false, true})   // XC on the raster (Uniform), and on the Becke mesh (pin 31)
     {
-        SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.label="gpw forces"; o.accuracy.eps=0.0;   // stated rasters: no pilot (not the subject)
+        RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.label="gpw forces"; o.accuracy.eps=0.0;   // stated rasters: no pilot (not the subject)
         if (becke) o.xcMesh=qcMesh::BeckeXCParams(); else o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
         SolidCalculation c(SolidSetup::Resolve(Lattice_3D(UnitCell(*mat.cell), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o), p);
         ASSERT_TRUE(c.Result());
@@ -548,8 +548,8 @@ TEST(HamiltonianForces, OnPlaneWavesTheWholeForceIsTheFiniteDifferenceOfTheRecon
     SCFParams p; p.NMaxIter=60; p.MinΔρPerElectron=1e-7; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
     auto run=[&](const UnitCell& c)
     {
-        SolidCalcOptions o; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=20.0; o.label="pw forces";
-        o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=4.0;
+        RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="pw forces";
+        o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=4.0;
         return std::make_unique<SolidCalculation>(SolidSetup::Resolve(Lattice_3D(c, ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o), p);
     };
     const auto c0=run(cell);
@@ -614,8 +614,8 @@ Matrix3D<double> PWStressA()
 constexpr double kPWStressAllowance=0.02;
 std::shared_ptr<const SolidSetup> PWStressSetup()
 {
-    SolidCalcOptions o; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=20.0; o.label="pw stress";
-    o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=4.0; o.cellStrainAllowance=kPWStressAllowance;
+    RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="pw stress";
+    o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=4.0; o.solid.cellStrainAllowance=kPWStressAllowance;
     return SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
 }
 SCFParams PWStressParams()
@@ -709,8 +709,8 @@ TEST(HamiltonianStress, OnPlaneWavesTheWholeVirialIsTheStrainDerivativeOfTheReco
 // name themselves and are skipped here; a term that gains its virial joins the gate by answering.
 TEST(HamiltonianStress, OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFiniteDifference)
 {
-    SolidCalcOptions o; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=20.0; o.label="gpw stress"; o.accuracy.eps=0.0;   // stated rasters
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.cellStrainAllowance=kPWStressAllowance;
+    RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="gpw stress"; o.accuracy.eps=0.0;   // stated rasters
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.solid.cellStrainAllowance=kPWStressAllowance;
     const auto setup=SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
     SCFParams p=PWStressParams(); p.MinΔρPerElectron=1e-6;   // D is frozen: its convergence is not the subject
     SolidCalculation c0(setup, p);
@@ -751,8 +751,8 @@ TEST(HamiltonianStress, OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFini
 // themselves; the WHOLE force and stress against the re-converged energy wait on them.
 TEST(HamiltonianForces, OnRealTRIMBlocksAtK222EachTermsForceAndVirialAtFixedDAreItsEnergysFiniteDifference)
 {
-    SolidCalcOptions o; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=20.0; o.label="gpw k222"; o.accuracy.eps=0.0;   // stated rasters
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.cellStrainAllowance=kPWStressAllowance;
+    RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="gpw k222"; o.accuracy.eps=0.0;   // stated rasters
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.solid.cellStrainAllowance=kPWStressAllowance;
     const auto setup=SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(2,2,2)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
     SCFParams p=PWStressParams(); p.MinΔρPerElectron=1e-6;   // D is frozen: its convergence is not the subject
     SolidCalculation c0(setup, p);
@@ -878,8 +878,8 @@ TEST(ForceFacade, TheSharedEnergyWeightedSnapshotIsTheFacadesW)
 // ~/Code/qe-runs/Si/si_shear_e10.scf.{in,out} (pw.x, mpirun -np 1, 2026-11-10): E = −14.57926517 Ry, P = 373.33 kbar.
 TEST(HamiltonianStress, OnPlaneWavesSisStressIsQEs)
 {
-    SolidCalcOptions o; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=40.0; o.label="pw stress vs QE";
-    o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=10.0;
+    RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=40.0; o.label="pw stress vs QE";
+    o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=10.0;
     const auto setup=SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
     SolidCalculation c(setup, PWStressParams());
     ASSERT_TRUE(c.Result());
@@ -914,8 +914,8 @@ TEST(HamiltonianStress, OnPlaneWavesNaFsStressIsQEs)
     UnitCell cell(A);
     cell.AddAtom(11,rvec3_t(0.0,0.0,0.0));
     cell.AddAtom(9, rvec3_t(0.52,0.47,0.51));
-    SolidCalcOptions o; o.Nelec=8; o.species={{"Na",1},{"F",7}}; o.densityEcut=60.0; o.label="pw NaF stress vs QE";
-    o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=15.0;
+    RunOptions o; o.Nelec=8; o.species={{"Na",1},{"F",7}}; o.solid.densityEcut=60.0; o.label="pw NaF stress vs QE";
+    o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=15.0;
     // The Gaussian recipe is unread on a plane-wave basis, but it must still cover both elements.
     const auto setup=SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::VALENCE_LOWQ}, o);
     SolidCalculation c(setup, PWStressParams());

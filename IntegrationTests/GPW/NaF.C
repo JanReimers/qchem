@@ -94,7 +94,7 @@ TEST(GPW_NaF, Γ_Imp_Anchor)   // RE-ENABLED 2026-09-15: 15 s, converged in 23 i
     // campaign INSTRUMENT's and go with it to the probe binary (doc/TestSuitePlan.md §8).
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
     const Lattice_3D lat=LatticeOf(naf);
-    SolidCalcOptions o=NaFOptions(naf, "NaF GPW Gamma");
+    RunOptions o=NaFOptions(naf, "NaF GPW Gamma");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default (nR 40, degree 29): this anchor's number only, never a curvature (OpenWork "A curvature needs an XC-MESH ladder")
     o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
@@ -126,9 +126,9 @@ struct NaFRestartFixture
     bool        ok=false;
     std::string why;
 };
-SolidCalcOptions NaFAnchorOptions(const Material& naf, const std::string& label)
+RunOptions NaFAnchorOptions(const Material& naf, const std::string& label)
 {
-    SolidCalcOptions o=NaFOptions(naf, label);
+    RunOptions o=NaFOptions(naf, label);
     o.imposeSymmetry=true;
     o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default (nR 40, degree 29): this anchor's number only, never a curvature (OpenWork "A curvature needs an XC-MESH ladder")
     o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
@@ -151,10 +151,10 @@ const NaFRestartFixture& NaFRestart()
         r.finePath  =(dir/("naf_restart_fine."+pid+".h5")).string();
         {   // the CHEAP coarse stage: Ecut=40 is SUB-FLOOR (below C*alpha_max=80), so it needs a finer raster than its ball's own --
             // stated (accuracy 0): x 16, twice the ball's G_N (C2 step 3)
-            SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart coarse");
-            o.densityEcut=40.0;
+            RunOptions o=NaFAnchorOptions(naf, "NaF restart coarse");
+            o.solid.densityEcut=40.0;
             o.accuracy.eps=0.0;
-            o.tolerances.rasterX=o.tolerances.vlocRasterX=o.tolerances.xcRasterX=16.0;
+            o.solid.tolerances.rasterX=o.solid.tolerances.vlocRasterX=o.solid.tolerances.xcRasterX=16.0;
             o.saveStateTo=r.coarsePath;
             qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams());
             auto R=calc.Result();
@@ -162,7 +162,7 @@ const NaFRestartFixture& NaFRestart()
             r.coarseEnergy=R->Energy();
         }
         {   // the COLD fine reference (what Γ_Imp_Anchor runs), also saved for the exact-resume claim
-            SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart cold fine");
+            RunOptions o=NaFAnchorOptions(naf, "NaF restart cold fine");
             o.saveStateTo=r.finePath;
             qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams());
             auto R=calc.Result();
@@ -188,7 +188,7 @@ TEST(GPW_NaF, Γ_Imp_eqColdStart_Panel)   // PANEL case 2 (regime 5, WARM coarse
     EXPECT_NEAR(f.coarseEnergy, -24.4357, 0.01) << "the coarse seed stage must itself be the physical fixed point";
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
     const Lattice_3D lat=LatticeOf(naf);
-    SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart fine");          // auto densityEcut = the production grid
+    RunOptions o=NaFAnchorOptions(naf, "NaF restart fine");          // auto densityEcut = the production grid
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
     // Onto the cold fine run's SIZED setup (C2 step 3): its rasters are the production grid's, so the claim -- the first fine iterate is
@@ -225,7 +225,7 @@ TEST(GPW_NaF, Γ_Imp_eqExactResume_Panel)   // PANEL case 1 (regime 4, exact res
     qchem::IterationBudget budget(3, "NaF exact resume (regime 4)");
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
     const Lattice_3D lat=LatticeOf(naf);
-    SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart exact");
+    RunOptions o=NaFAnchorOptions(naf, "NaF restart exact");
     ASSERT_EQ(o.accelerator, qchem::SCFAccelerators::Type::Ladder);        // the production recipe; Restart enters at GDM
     std::vector<double> E;
     // Onto the cold fine run's SIZED setup, as above: a fresh Resolve is the ball's auto grid, which the saved state is not a fixed point of.
@@ -265,7 +265,7 @@ TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke intern
     // sharp-F system the UNIFORM raster is not element-converged at practical Ecut, which is this grid's
     // reason to exist; the gate here is Becke INTERNAL convergence (B40 vs a 2x-refined B80) plus the
     // energy-level agreement with the uniform route.
-    SolidCalcOptions o=NaFOptions(naf, "NaF Becke gate");
+    RunOptions o=NaFOptions(naf, "NaF Becke gate");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     GpwReport report("NaF "+o.label, false);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFGates());
@@ -294,9 +294,9 @@ TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke intern
 TEST(GPW_NaF, Γ_GeometryRunSizesItsBeckeMesh_Long)
 {
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
-    SolidCalcOptions o=NaFOptions(naf, "NaF geometry XC mesh");
+    RunOptions o=NaFOptions(naf, "NaF geometry XC mesh");
     o.imposeSymmetry=false;
-    o.xcMeshSymmetric=false;
+    o.solid.xcMeshSymmetric=false;
     o.xcMesh=qcMesh::MeshParams{.cellKind=qcMesh::UnitCellKind::Auto};
     SCFParams par=NaFAnchorParams(); par.MinΔρPerElectron=1e-6;
     const GaussianBasisRecipe sr2{.data=BasisSetData::VALENCE_LOWQ_SR2};
@@ -333,19 +333,19 @@ TEST(GPW_NaF, Γ_GeometryRunSizesItsBeckeMesh_Long)
 // site, and rocksalt's mirror through F makes E(+δ) = E(−δ) -- a second invariant that a path walked in ONE direction (carry from
 // −δ toward +δ) has to meet.  CAUGHT (2026-10-30, the claim's first run): a free run's XC mesh was built invariant under the group
 // DETECTED at each geometry -- 48 ops on the site, 8 off it -- so the mesh switched along the path: mirror 1.7e-5 Ha, Δ⁵ 5.9e-6;
-// a SolidSession now requires the plain atom-centred mesh (SolidCalcOptions::xcMeshSymmetric=false): 5e-10 and 2.0e-8.
+// a SolidSession now requires the plain atom-centred mesh (RunOptions::xcMeshSymmetric=false): 5e-10 and 2.0e-8.
 // NOT claimed: that the site is a minimum.  With GTH-q1 Na it is not, in CP2K either (a weak maximum, E'' ≈ -0.005 Ha/bohr² at k222
 // on a resolved grid; q9 Na gives +0.029 ours / +0.028 CP2K on the same basis) -- doc/OpenWork.md "A light-PP ion has NO restoring
 // force on its site".  (The -0.03 once quoted here was this run's raster egg-box: its rigid-translation control moves E 1e-5.)
 TEST(GPW_NaF, Γ_PathIsContinuous_Long)
 {
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
-    SolidCalcOptions o=NaFOptions(naf, "NaF PES path");
+    RunOptions o=NaFOptions(naf, "NaF PES path");
     o.imposeSymmetry=false;   // a displaced F lowers the group: an imposed session throws on it: a displaced-atom driver runs a lower-group setup
-    o.xcMeshSymmetric=false;  // ... and a free session's XC mesh must not follow the group detected at each point (see above)
+    o.solid.xcMeshSymmetric=false;  // ... and a free session's XC mesh must not follow the group detected at each point (see above)
     o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default: the CONTINUITY claim only -- a site curvature on it is 4-10x off (LiF/NaF, OpenWork "A curvature needs an XC-MESH ladder")
     o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
-    o.densityEcut     = 80.0;   // STATED, the old auto ball (2 alpha_max): the pilot would double it (Hartree 1.9e-2 over at 80 Ha) and the 20 serial points cost 2574 s, not ~600 -- the CONTINUITY claim does not need the ball converged, only fixed along the path
+    o.solid.densityEcut     = 80.0;   // STATED, the old auto ball (2 alpha_max): the pilot would double it (Hartree 1.9e-2 over at 80 Ha) and the 20 serial points cost 2574 s, not ~600 -- the CONTINUITY claim does not need the ball converged, only fixed along the path
     SCFParams par=NaFAnchorParams(); par.MinΔρPerElectron=1e-6;
     const GaussianBasisRecipe sr2{.data=BasisSetData::VALENCE_LOWQ_SR2};
     qchem::SolidSession pes(SolidSetup::Resolve(LatticeOf(naf), sr2, o), {SCFStage{par, o.accelerator}});

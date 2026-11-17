@@ -22,7 +22,7 @@ module;
 #include <nlohmann/json.hpp>
 export module qchem.Deck;
 
-import qchem.SolidCalculation;     // SolidCalcOptions
+import qchem.SolidCalculation;     // RunOptions
 export import qchem.StateView;     // View's answer: a deck run's saved state, drawn
 import qchem.SCFParams;            // SCFParams
 import qchem.SCFRecipe;            // SCFRecipe (a stage's `scf.recipe`)
@@ -59,7 +59,7 @@ json ToJson(const qcMesh::MeshParams&);                  void FromJson(const jso
 //! The solid options.  NOT serialized (not choices): \c Hubbard manifold \c siteOps / \c greyOps
 //! (derived by the facade from the structure).  A manifold's U is \c U_eV (and \c Uirrep_eV, \c alpha_eV): eV in the file, converted to Hartree on read; the writer picks the eV value that converts back to the SAME double.
 json ToJson(const RunPolicySpec&);                       void FromJson(const json&, RunPolicySpec&);
-json ToJson(const SolidCalcOptions&);                    void FromJson(const json&, SolidCalcOptions&);
+json ToJson(const RunOptions&);                    void FromJson(const json&, RunOptions&);
 //!@}
 
 //! \brief One run, as the deck states it.  The STRUCTURE is just a NAME (user, 2026-10-03): the key into `materials.json` (a
@@ -98,7 +98,7 @@ struct RunSpec
         bool autoTrim=false;        //!< the vet-stage trim at \c orthoTol: near-dependent diffuse shells removed ONCE on the full k-mesh (exclusive with \c trim)
         //! The orbital basis FAMILY ("gaussian" | "planeWave", OpenWork §2 PW-1); copied into \c solid at run time.  A plane-wave run still
         //! builds the Gaussian \c data basis (the facade takes one; nothing in a plane-wave run reads it).
-        SolidCalcOptions::OrbitalBasis family = SolidCalcOptions::OrbitalBasis::GPW;
+        RunOptions::Solid::OrbitalBasis family = RunOptions::Solid::OrbitalBasis::GPW;
         double ecut=0.0;            //!< Ha, the plane-wave orbital cutoff (QE's ecutwfc / 2); planeWave only
     };
     //! Saved states (CK-1).  \c save: empty = never, "auto" = `<outDir>/states/<stem>.h5` after every stage, else a path.  \c restartFrom: a REVISION
@@ -162,7 +162,7 @@ struct RunSpec
     ivec3_t          kmesh{1,1,1};    //!< Monkhorst-Pack divisions of the Brillouin zone
     Basis            basis;
     State            state;
-    SolidCalcOptions solid;           //!< the periodic-run options (used when \c structure is a cell)
+    RunOptions opts;            //!< the run's options (used when \c structure is a cell)
     //! The accelerator chain's knobs, for every stage (the stage names WHICH accelerator; these say how it is tuned).  Deck key
     //! `acceleratorOptions`: the stated knobs; an unstated one is the GPW production recipe's (\c AcceleratorParams), filled by the
     //! setup, and the record writes the resolved chain.
@@ -177,12 +177,12 @@ struct RunSpec
     ThreadCounts threads;
     //! The stages the run executes: \c schedule, or the one stage (\c scf, the run's \c accelerator).
     std::vector<Stage> Stages() const
-    { return schedule.empty() ? std::vector<Stage>{{scf,solid.accelerator,scfRecipe}} : schedule; }
+    { return schedule.empty() ? std::vector<Stage>{{scf,opts.accelerator,scfRecipe}} : schedule; }
 };
 json ToJson(const RunSpec&);
 //! Strict like the other readers: \c structure (a name or an inline object) is required; an unknown top-level key (or any nested one) throws.
 void FromJson(const json&, RunSpec&);
-//! \brief Resolve \a spec against the structure files (or its inline entry): returns the Material (cell + atoms + species) and FILLS \c spec.solid.Nelec /
+//! \brief Resolve \a spec against the structure files (or its inline entry): returns the Material (cell + atoms + species) and FILLS \c spec.opts.Nelec /
 //! \c species when they were left to derive, so \c ToJson(spec) afterwards is the complete record.  THROWS (listing the known names)
 //! on an unknown structure, and for a molecule name (molecular decks are the next increment).  Also PRE-FLIGHT-VALIDATES the deck's `postSCF` against
 //! the run (a response needs +U manifolds, a full k-mesh, the complex ansatz, a q-mesh dividing the k-mesh ...) so a deck that cannot work fails in

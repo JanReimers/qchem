@@ -76,7 +76,7 @@ inline SpinGroup ResolveSpinGroup(SpinGroup stated, int multiplicity)
 //! the Ladder's triggers one to one, so a knob added there has one spelling here.
 struct AcceleratorOptions
 {
-    //! The accelerator BY NAME (molecule and atom; the solid's is \c SolidCalcOptions::accelerator until P0b-2): "DIIS" (default) |
+    //! The accelerator BY NAME (molecule and atom; the solid's is \c RunOptions::accelerator until P0b-2): "DIIS" (default) |
     //! "GDM" (direct minimisation, robust for hard/open-shell SCF) | "Ladder" (DIIS -> GDM).  Any other name is REFUSED at Admit.
     std::string type = "DIIS";
     //! The SCF RECIPE by material regime (qchem.SCFRecipe; doc/SCFRobustnessPlan.md R4.1 as ruled for B5, ruling (c)): a molecule takes
@@ -185,7 +185,7 @@ inline RunSeed ResolveRunSeed(ChargeDensity::SeedStrategy stated, const Structur
     RunSeed r;
     if (pp) r.key=SeedKeyOf(*pp, st);
     r.key.siteCharges=siteCharges;
-    r.key.siteSpins  =siteSpins;
+    r.key.siteSpins=siteSpins;
     r.seed=ResolveSeed(stated, st, {.densityFock = densityFock, .periodic = st.Admits(qcMesh::ImposedSymmetry::Translations),
                                     .chargesStated = !siteCharges.empty(),
                                     .covered = [key=r.key](int Z){ return SeedLibraryCovers(key, Z); }});
