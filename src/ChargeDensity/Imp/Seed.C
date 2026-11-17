@@ -12,6 +12,7 @@ module;
 #include <cmath>
 #include <string>
 #include <functional>   // the per-Z valence-count source of the formal-charge rule
+#include <optional>     // the run's stated moment (the polarized molecular seed)
 
 module qchem.ChargeDensity.Seed;
 import qchem.PeriodicTable;                   // thePeriodicTable -> GetElectronegativity (the ionic heuristic)
@@ -150,71 +151,154 @@ template <class T> static tChargeDensity<T>* UniformSeed(const BasisSet::tBasisS
     return IrrepCD_Factory<T>(D0, block, irr);
 }
 
+//! One site of the molecular SAD superposition: its centre, its total radial density at its electron count with the amplitude scale
+//! (1, or the scaled-neutral fallback's target/base), and its Hund pair at that count when the library holds one.
+struct SADSite
+{
+    rvec3_t R;
+    std::shared_ptr<const RadialDensity> rho;            //!< the site's total
+    double scale=1.0;                                    //!< amplitude scale on rho (and on the pair)
+    std::shared_ptr<const RadialDensity> maj, min;       //!< the Hund pair (majority, minority), null when the library holds none
+    int spin=0;                                          //!< +1 / -1 (a flipped site) / 0 (no planted moment)
+};
+
+//! The site's total as the unpolarized seed has always inserted it: the recentred table, amplitude-scaled only when the scale is not 1.
+static std::shared_ptr<const ScalarFunction<double>> SiteTotal(const SADSite& site)
+{
+    auto rc=std::make_shared<const RecentredAtomicDensity>(site.rho, site.R);
+    if (site.scale==1.0) return rc;
+    return std::make_shared<const ScaledAtomicDensity>(rc, site.scale);
+}
+
+//! The spin-agnostic seed: the sum of every site's total (the molecular SAD seed as it was before the polarized one).
+static NumericCD* TotalSeed(const std::vector<SADSite>& sites, double N, std::shared_ptr<const qcMesh::Mesh> mesh)
+{
+    auto* cd=new NumericCD(N, std::move(mesh));
+    for (const auto& site : sites) cd->Insert(SiteTotal(site));
+    return cd;
+}
+
+//! The run's net moment nUp - nDown when its configuration FIXES each channel's count; nullopt when the channels share one reservoir
+//! (the moment is an output) or the basis has no spin channels.
+static std::optional<double> StatedMoment(const BasisSet::tBasisSet<double>* bs, const ElectronConfiguration* ec)
+{
+    const ReservoirPartition part=ec->GetPartition();
+    if (part.spansSpin) return std::nullopt;
+    const auto count=[&](Spin s)
+    {
+        const auto irs=bs->GetIrreps(s);
+        if (irs.empty()) return -1;
+        if (part.spansSpatial) return ec->GetN(irs[0]);
+        int n=0; for (const auto& irr : irs) n+=ec->GetN(irr);
+        return n;
+    };
+    const int up=count(Spin::Up), dn=count(Spin::Down);
+    if (up<0 || dn<0) return std::nullopt;
+    return double(up-dn);
+}
+
+//! THE POLARIZED molecular seed (see \c MakeSeedDensity): each channel the sum of the sites' channel densities.  A site's magnetization
+//! m = maj - min (sign = its spin) is scaled by ONE factor f so the planted net moment is the run's \a moment (when stated and the plant
+//! is not zero); its channels are rho/2 +- f m/2 = a maj + b min with a = (1+f)/2, b = (1-f)/2, swapped on a flipped site.  A pairless
+//! site splits rho/2.  Returns the spin-agnostic seed when nothing is planted: no pair, or a ferromagnetic plant scaled to a stated 0.
+static tChargeDensity<double>* PolarizedSeed(const std::vector<SADSite>& sites, double N, std::optional<double> moment,
+                                             std::shared_ptr<const qcMesh::Mesh> mesh)
+{
+    double planted=0; bool anyPair=false;
+    for (const auto& site : sites)
+        if (site.maj && site.spin!=0) { anyPair=true; planted+=site.spin*site.scale*(site.maj->Charge()-site.min->Charge()); }
+    // A planted 0 (an AFM pattern of flipped sites, a broken-symmetry singlet) keeps its pattern: no factor maps 0 to the stated moment.
+    const double f=(moment && std::abs(planted)>1e-8) ? *moment/planted : 1.0;
+    if (!anyPair || f==0.0) return TotalSeed(sites, N, std::move(mesh));   // nothing to plant: the spin-agnostic seed, as before
+    const double a=0.5*(1+f), b=0.5*(1-f);
+    const double M=f*planted;
+    auto up=std::make_unique<NumericCD>(0.5*(N+M), mesh);
+    auto dn=std::make_unique<NumericCD>(0.5*(N-M), mesh);
+    const auto scaled=[](std::shared_ptr<const RadialDensity> r, const rvec3_t& R, double c) -> std::shared_ptr<const ScalarFunction<double>>
+    {
+        return std::make_shared<const ScaledAtomicDensity>(std::make_shared<const RecentredAtomicDensity>(std::move(r), R), c);
+    };
+    for (const auto& site : sites)
+    {
+        if (!site.maj || site.spin==0)
+        {
+            up->Insert(scaled(site.rho, site.R, 0.5*site.scale));
+            dn->Insert(scaled(site.rho, site.R, 0.5*site.scale));
+            continue;
+        }
+        const auto& hi=site.spin>0 ? site.maj : site.min;   // the channel this site's majority lands in is Up unless it is flipped
+        const auto& lo=site.spin>0 ? site.min : site.maj;
+        up->Insert(scaled(hi, site.R, a*site.scale)); up->Insert(scaled(lo, site.R, b*site.scale));
+        dn->Insert(scaled(lo, site.R, a*site.scale)); dn->Insert(scaled(hi, site.R, b*site.scale));
+    }
+    return new PolarizedNumericCD(std::move(up), std::move(dn));
+}
+
 tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<double>* bs,
                                         const Structure* st, const ElectronConfiguration* ec, const qcMesh::MeshParams& quadrature,
-                                        const SeedKey& key)
+                                        const SeedKey& key, bool polarized)
 {
     assert(bs);
     assert(ec);
-    switch (s)
-    {
-    case SeedStrategy::Default:   // the molecular present-day behaviour
-    case SeedStrategy::CoreGuess:
-        return nullptr;   // density-independent core-Hamiltonian guess (today's cd=0)
-    case SeedStrategy::Uniform:
-        return UniformSeed<double>(bs, ec);
-    case SeedStrategy::SAD:
-    {
-        // Superposition of neutral atomic densities.  Drop each atom's recentred radial density into a NumericCD;
-        // FittedVee/FittedVxc consume it (Coulomb projection + rho(r)).  Each atom is the RUN's atom (SeedLibrary): the pseudo-atom at
-        // its q under a pseudopotential, the all-electron atom otherwise.
-        if (!st) throw std::logic_error("MakeSeedDensity: the SAD seed needs a Structure (atom Z + positions)");
-        // The seed is only a function on space, so it OWNS the points it integrates itself on (a Coulomb fit has none, doc/Pins.md):
-        // the run's XC mesh, reported one level into the seed's own context.
-        auto mesh=[&]{ qchem::report::Scope here("seedDensity"); return std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(quadrature)); }();
-        auto* cd = new NumericCD(st->GetNumElectrons(), std::move(mesh));
-        st->ForEachSite([&cd, &key](int Z, const rvec3_t& R, bool)
-        {
-            auto rad = std::make_shared<const RadialDensity>(GetAtomicDensity(Z, key.functional, SeedLibrary(key,Z), -1, key.Q(Z)));
-            cd->Insert(std::make_shared<const RecentredAtomicDensity>(rad, R));
-        });
-        return cd;
-    }
-    case SeedStrategy::IonicSAD:
-    {
-        // The SAD superposition at each site's FORMAL CHARGE (Li+ F-), the same charge rule as the periodic seed (SiteFormalCharges),
-        // from the run's library (SeedLibrary, as the SAD arm): a site's electron count is its pseudo-atom's (the valence density's
-        // charge at the key's q) under a pseudopotential, Z all-electron.  A charge state the library lacks is the neutral density
-        // amplitude-scaled to it (SeedCD's fallback); a stripped site (H+) carries nothing.  With every charge zero it IS the SAD seed.
-        // The molecule's own net charge is not distributed: the fit's charge constraint carries it, as for SAD.
-        if (!st) throw std::logic_error("MakeSeedDensity: the IonicSAD seed needs a Structure (atom Z + positions)");
-        const auto neutral=[&key](int Z){ return GetAtomicDensity(Z, key.functional, SeedLibrary(key,Z), -1, key.Q(Z)); };
-        // The electronegativity rule moves VALENCE electrons, whichever library: a pseudo-atom's whole count, an all-electron atom's
-        // periodic-table valence.  The site's own count (the base its charge is taken from) is the pseudo-atom's, or Z.
-        const auto nvalOf=[&](int Z){ return key.Q(Z)>=0 ? int(std::lround(neutral(Z).Charge())) : PeriodicValence(Z); };
-        const auto baseOf=[&](int Z){ return key.Q(Z)>=0 ? int(std::lround(neutral(Z).Charge())) : Z; };
-        std::vector<int> nval;
-        const std::vector<int> q=SiteFormalCharges(st, nvalOf, {}, nval);
-        auto mesh=[&]{ qchem::report::Scope here("seedDensity"); return std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(quadrature)); }();
-        auto* cd = new NumericCD(st->GetNumElectrons(), std::move(mesh));
-        size_t i=0;
-        st->ForEachSite([&](int Z, const rvec3_t& R, bool)
-        {
-            const int base=baseOf(Z), target=base-q[i++];   // the site's electron count in its charge state
-            if (target<=0) return;
-            const std::string lib=SeedLibrary(key,Z);
-            if (HasAtomicDensity(Z, key.functional, lib, target, key.Q(Z)))
-                cd->Insert(std::make_shared<const RecentredAtomicDensity>(
-                    std::make_shared<const RadialDensity>(GetAtomicDensity(Z, key.functional, lib, target, key.Q(Z))), R));
-            else
-                cd->Insert(std::make_shared<const ScaledAtomicDensity>(std::make_shared<const RecentredAtomicDensity>(
-                    std::make_shared<const RadialDensity>(neutral(Z)), R), double(target)/double(base)));
-        });
-        return cd;
-    }
-    default:
+    if (s==SeedStrategy::Default || s==SeedStrategy::CoreGuess) return nullptr;   // density-independent core-Hamiltonian guess (cd=0)
+    if (s==SeedStrategy::Uniform) return UniformSeed<double>(bs, ec);
+    if (s!=SeedStrategy::SAD && s!=SeedStrategy::IonicSAD)
         throw std::runtime_error("MakeSeedDensity: unknown SeedStrategy");   // see the IonicSAD arm (V1.19)
+    if (!st) throw std::logic_error("MakeSeedDensity: the SAD/IonicSAD seed needs a Structure (atom Z + positions)");
+
+    // SAD: the superposition of neutral atomic densities; each atom is the RUN's atom (SeedLibrary): the pseudo-atom at its q under a
+    // pseudopotential, the all-electron atom otherwise.  IonicSAD: the same at each site's FORMAL CHARGE (Li+ F-), from the same charge
+    // rule as the periodic seed (SiteFormalCharges): a site's electron count is its pseudo-atom's (the valence density's charge at the
+    // key's q) under a pseudopotential, Z all-electron; a charge state the library lacks is the neutral density amplitude-scaled to it
+    // (SeedCD's fallback); a stripped site (H+) carries nothing.  With every charge zero IonicSAD IS the SAD seed.  The molecule's own net
+    // charge is not distributed: the fit's charge constraint carries it.
+    const auto neutral=[&key](int Z){ return GetAtomicDensity(Z, key.functional, SeedLibrary(key,Z), -1, key.Q(Z)); };
+    std::vector<int> q;   // per-site formal charges (IonicSAD only)
+    if (s==SeedStrategy::IonicSAD)
+    {
+        // The electronegativity rule moves VALENCE electrons, whichever library: a pseudo-atom's whole count, an all-electron atom's
+        // periodic-table valence.
+        const auto nvalOf=[&](int Z){ return key.Q(Z)>=0 ? int(std::lround(neutral(Z).Charge())) : PeriodicValence(Z); };
+        std::vector<int> nval;
+        q=SiteFormalCharges(st, nvalOf, {}, nval);
     }
+    std::vector<SADSite> sites;
+    size_t i=0;
+    st->ForEachSite([&](int Z, const rvec3_t& R, bool flip)
+    {
+        const size_t site=i++;
+        const std::string lib=SeedLibrary(key,Z);
+        SADSite one{.R=R};
+        int target=-1;   // the site's electron count; -1 = the neutral (the library's first match)
+        if (s==SeedStrategy::IonicSAD)
+        {
+            // The site's own count (the base its charge is taken from) is the pseudo-atom's, or Z.
+            const int base=key.Q(Z)>=0 ? int(std::lround(neutral(Z).Charge())) : Z;
+            target=base-q[site];
+            if (target<=0) return;
+            if (!HasAtomicDensity(Z, key.functional, lib, target, key.Q(Z)))
+            {
+                one.rho=std::make_shared<const RadialDensity>(neutral(Z));
+                one.scale=double(target)/double(base);
+                target=-1;   // the scaled NEUTRAL: its pair (if any) is the neutral's, scaled alike
+            }
+        }
+        if (!one.rho) one.rho=std::make_shared<const RadialDensity>(GetAtomicDensity(Z, key.functional, lib, target, key.Q(Z)));
+        if (polarized && HasAtomicSpinPair(Z, key.functional, lib, target, key.Q(Z)))
+        {
+            auto [maj, min]=GetAtomicSpinPair(Z, key.functional, lib, target, key.Q(Z));
+            one.maj=std::make_shared<const RadialDensity>(std::move(maj));
+            one.min=std::make_shared<const RadialDensity>(std::move(min));
+            one.spin=key.siteSpins.empty() ? (flip ? -1 : +1) : key.siteSpins.at(site);   // a STATED ordering wins over the flips
+        }
+        sites.push_back(std::move(one));
+    });
+    // The seed is only a function on space, so it OWNS the points it integrates itself on (a Coulomb fit has none, doc/Pins.md):
+    // the run's XC mesh, reported one level into the seed's own context.
+    auto mesh=[&]{ qchem::report::Scope here("seedDensity"); return std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(quadrature)); }();
+    const double N=st->GetNumElectrons();
+    if (!polarized) return TotalSeed(sites, N, std::move(mesh));
+    return PolarizedSeed(sites, N, StatedMoment(bs, ec), std::move(mesh));
 }
 
 tChargeDensity<dcmplx>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<dcmplx>* bs,

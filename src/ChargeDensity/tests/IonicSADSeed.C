@@ -269,6 +269,70 @@ TEST(SADSeed, ItsChargeIsTheElectronCountTheDunlapFitIsConstrainedTo)
     EXPECT_EQ(seed->GetTotalCharge(), oh.GetNumElectrons());   // bit-equal: the same double the Dunlap term holds
 }
 
+// THE SPIN-RESOLVED MOLECULAR SAD SEED (OpenWork §2 "Molecular spin-resolved SAD seed", lane B 2026-11-16).  A polarized run's seed plants each
+// site's library Hund pair (Na: 3s^1, moment 1), scaled by ONE factor so its net moment is the configuration's nUp - nDown; the total is the
+// spin-agnostic seed's.  Na3: three sites plant 3, so a quartet keeps the pairs as they are and a doublet scales every magnetization by 1/3.
+// Na2: a singlet scales a ferromagnetic plant to 0, i.e. the spin-agnostic seed, as before; with one site FLIPPED the plant is already 0
+// (the broken-symmetry pattern), and it is kept.  An unpolarized run never sees a channel.
+TEST(SADSeed, APolarizedRunPlantsItsHundPairsAtItsStatedMoment)
+{
+    const auto molecule=[](int n, bool flipLast)
+    {
+        Molecule m;
+        const std::vector<rvec3_t> at=n==3 ? std::vector<rvec3_t>{rvec3_t(6.0,0,0), rvec3_t(-3.0,5.196,0), rvec3_t(-3.0,-5.196,0)}
+                                           : std::vector<rvec3_t>{rvec3_t(6.0,0,0), rvec3_t(-6.0,0,0)};
+        for (int i=0;i<n;i++) m.Insert(Site{11, at[i], 0.0, flipLast && i==n-1});
+        return m;
+    };
+    const auto seedOf=[](const Molecule& m, int nUp, int nDn, bool polarized)
+    {
+        const std::unique_ptr<BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, &m,
+                                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+        const Molecule_EC ec(nUp, nDn);
+        return std::unique_ptr<tChargeDensity<double>>(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &m, &ec, kSeedMesh, SeedKey{}, polarized));
+    };
+    ASSERT_TRUE(HasAtomicSpinPair(11, "LDA", "atomic_densities.json"));
+    const auto [maj, min]=GetAtomicSpinPair(11, "LDA", "atomic_densities.json");
+    const double m1=maj.Charge()-min.Charge();   // one Na's planted moment (~1)
+
+    const Molecule na3=molecule(3, false);
+    const auto plain=seedOf(na3, 17, 16, false);
+    EXPECT_EQ(ChannelOf(plain.get(), Spin::Up), nullptr) << "an unpolarized run's seed resolves no spin";
+    const std::vector<rvec3_t> pts{rvec3_t(6.0,0,0)+rvec3_t(0.3,-0.2,0.1), rvec3_t(6.0,0,0)+rvec3_t(1.5,0.4,-0.7), rvec3_t(0.2,0.1,0.4)};
+    for (auto [nUp, nDn] : {std::pair{18,15}, std::pair{17,16}})   // quartet (f = 1), doublet (f = 1/3)
+    {
+        const auto seed=seedOf(na3, nUp, nDn, true);
+        const auto* up=ChannelOf(seed.get(), Spin::Up);
+        const auto* dn=ChannelOf(seed.get(), Spin::Down);
+        ASSERT_TRUE(up && dn) << nUp << "/" << nDn << ": the polarized seed answers both channels";
+        EXPECT_NEAR(up->GetTotalCharge(), 0.5*(33+(nUp-nDn)), 1e-12) << "the up channel holds (N + 2S)/2";
+        EXPECT_NEAR(dn->GetTotalCharge(), 0.5*(33-(nUp-nDn)), 1e-12);
+        EXPECT_EQ(seed->GetTotalCharge(), 33.0);
+        const double f=(nUp-nDn)/(3*m1);
+        for (const rvec3_t& r : pts)
+        {
+            EXPECT_NEAR((*seed)(r), (*plain)(r), 1e-9*(*plain)(r)) << "the total is the spin-agnostic seed's";
+            EXPECT_GE((*dn)(r), 0.0);
+        }
+        // At a site, far from the others, the magnetization is the site's own pair scaled by f.
+        const rvec3_t r=pts[0];   // 0.3, -0.2, 0.1 from the site at (6, 0, 0)
+        const double dist=std::sqrt(0.3*0.3+0.2*0.2+0.1*0.1);
+        const double mSite=maj(dist)-min(dist);
+        EXPECT_NEAR((*up)(r)-(*dn)(r), f*mSite, 2e-3*std::abs(f*mSite)) << nUp << "/" << nDn;
+    }
+
+    const Molecule na2=molecule(2, false), na2afm=molecule(2, true);
+    EXPECT_EQ(ChannelOf(seedOf(na2, 11, 11, true).get(), Spin::Up), nullptr)
+        << "a ferromagnetic plant scaled to a stated moment 0 is the spin-agnostic seed";
+    const auto afm=seedOf(na2afm, 11, 11, true);
+    const auto* up=ChannelOf(afm.get(), Spin::Up);
+    const auto* dn=ChannelOf(afm.get(), Spin::Down);
+    ASSERT_TRUE(up && dn) << "a flipped site plants 0 already: the broken-symmetry pattern is kept";
+    const rvec3_t a(6.0,0,0), b(-6.0,0,0), d(0.3,0.2,-0.1);
+    EXPECT_GT((*up)(a+d)-(*dn)(a+d), 0.0) << "the unflipped site is up-majority";
+    EXPECT_NEAR((*up)(b-d)-(*dn)(b-d), -((*up)(a+d)-(*dn)(a+d)), 1e-9) << "the flipped site is its mirror (inversion: b - d)";
+}
+
 // A COULOMB FIT HAS NO INTEGRATION GRID (user 2026-11-11, doc/Pins.md); THE SAD SEED BRINGS ITS OWN, AND IT IS GONE ONCE THE SEED HAS
 // PROJECTED ("we might need a grid just to get started from SAD ... But the grid should then disappear as soon as iterations start").
 // The seed integrates itself against the A1_coul functions on the quadrature it owns, the Dunlap fitter turns that into Coulomb

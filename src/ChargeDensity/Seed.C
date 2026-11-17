@@ -80,9 +80,17 @@ enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 //! for a molecule and a solid); the default is unkeyed LDA (an all-electron run).
 //! \a quadrature (molecular): the mesh a matrix-free SAD seed integrates itself on -- a Coulomb fit has no grid of its own
 //! (doc/Pins.md), so the field that is only a function on space brings one; the run passes its XC mesh.
+//!
+//! \a polarized (molecular, the Hamiltonian's \c IsPolarized as for the periodic overload) upgrades the SAD/IonicSAD seeds to the
+//! two-channel \c PolarizedNumericCD: each site plants its library Hund pair at its electron count (swapped on a flipped site, a STATED
+//! \c key.siteSpins winning over the structure's flips), a pairless site rho/2.  THE SEED'S NET MOMENT IS THE RUN'S: where the
+//! configuration fixes each channel's count (a molecule's multiplicity), every site's magnetization is scaled by one factor so the
+//! planted moment equals nUp - nDown -- the twin of the fit's charge constraint, which scales the total to N.  So an O2 triplet plants
+//! 2 (two O triplets would plant 4), and a closed-shell polarized run (moment 0) gets the plain spin-agnostic seed, as before; a pattern
+//! that plants 0 itself (flipped sites, a broken-symmetry singlet) is kept as planted.
 tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<double>* bs,
                                         const Structure* st, const ElectronConfiguration* ec, const qcMesh::MeshParams& quadrature,
-                                        const SeedKey& key);
+                                        const SeedKey& key, bool polarized=false);
 tChargeDensity<dcmplx>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<dcmplx>* bs,
                                         const UnitCell& cell, const ElectronConfiguration* ec,
                                         bool polarized=false, const SeedKey& key=SeedKey{});

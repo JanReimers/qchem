@@ -132,6 +132,28 @@ TEST(M_DFT, OxygenTripletLDA)
     EXPECT_NEAR(calc.Energy(), -149.30067460, 1e-4) << "ORACLE: PySCF UKS, the same A1_coul Coulomb fit, exact XC";
 }
 
+// THE SPIN-RESOLVED MOLECULAR SAD SEED on the O2 triplet (OpenWork §2 "Molecular spin-resolved SAD seed", lane B 2026-11-16), under the GTH
+// pseudopotential: the valence library's O q6 entry carries its Hund pair (moment 2), so the polarized run's Auto seed (SAD) plants each O's
+// triplet, scaled by one factor to the run's moment nUp - nDown = 2 (two O triplets plant 4).  The claim: it reaches the triplet the core
+// guess reaches, the same state.
+TEST(M_DFT, OxygenTripletPP_TheSpinResolvedSeedReachesTheCoreGuessState)
+{
+    double E[2]={0,0};
+    size_t it[2]={0,0};
+    const ChargeDensity::SeedStrategy seeds[2]={ChargeDensity::SeedStrategy::Default, ChargeDensity::SeedStrategy::CoreGuess};
+    for (int i=0;i<2;i++)
+    {
+        MoleculeCalculation calc(MoleculeSetup::Resolve(MakeO2(), {.basis = "valence_lowq_vb", .model = Model::LDA, .multiplicity = 3,
+                                                                   .pp = "gth-lda-valence", .seed = seeds[i]}));
+        ASSERT_TRUE(calc.Converge({.NMaxIter = 80, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                       .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false})) << (i ? "core guess" : "spin-resolved SAD");
+        E[i]=calc.Energy(); it[i]=calc.IterationCount();
+        std::cout << "[O2 PP triplet] " << (i ? "core guess" : "spin-resolved SAD") << ": E " << std::setprecision(12) << E[i]
+                  << ", " << it[i] << " iterations" << std::endl;
+    }
+    EXPECT_NEAR(E[0], E[1], 1e-7) << "the spin-resolved seed reaches the core guess's triplet";
+}
+
 // REGRESSION for the O2-HF-triplet SEGV: the polarized level display (tCompositeWF::DisplayEigenPolarized) crashed on
 // an open-shell level present in only ONE spin channel (find() is UB-in-Release on a miss).  Fixed via
 // EnergyLevels::FindOrNull + labelling from the always-valid combined el.qns.  This runs it with Verbose ON
