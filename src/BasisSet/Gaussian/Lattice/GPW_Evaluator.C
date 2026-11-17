@@ -77,9 +77,16 @@ public:
     //!              (default) every lattice sum is an \f$\varepsilon\f$-CONVERGED SERIES enumerated internally
     //!              per shell pair -- THERE IS NO CUT in r SPACE, and no radius parameter exists
     //!              (user pin; doc/Pins.md pin 1).
+    //! \param symOps  the run's IMPOSED crystal ops \f$\{W|\tau\}\f$ -- §3 policy-gated (doc/SymmetryUpgradePlan.md):
+    //!              \c GPW_IBS passes them NON-EMPTY only when the caller asserted imposition (imposeSymmetry); {} on a free run.
+    //!              Consumed by the T1 {G}-star reduced structure-factor assembly (\c MakeLocalPP / \c MakeLocalPPLong -- exact
+    //!              for the static \f$V_{loc}\f$ by construction: the ops were detected from these very atoms).  (The raster
+    //!              star-average no longer reads them: the run's group averages, 2026-11-09.)  A ctor argument since D4
+    //!              (was the setter SetSymmetryOps, called once from the GPW_IBS ctor).
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                   std::shared_ptr<const GpwRasterLadder> ladder, const rvec3_t& kFrac = rvec3_t(0,0,0), bool kIsReal = true,
                   bool homeCellOnly = false,
+                  std::vector<Symmetry::Lattice_3D::DirectOp> symOps = {},
                   const GPWTolerances& tol = {});     //!< the typed numerical tolerances (D-ENV step 5; was env reads inside)
     //! Polymorphic (reached by the Lattice::*_IBS mixins' Cast() cross-cast); out of line as the key function.
     virtual ~GPW_Evaluator();
@@ -200,14 +207,6 @@ public:
     //! Cache-key fragment: the molecular basis's ID + \f$k\f$ + translation count + the density-grid cutoff
     //! (the collocation tensor depends on the grid, so the framework cache key must pin it).
     std::string IDFragment() const;
-
-    //! \brief Thread the run's IMPOSED crystal ops \f$\{W|\tau\}\f$ into the evaluator -- §3 policy-gated
-    //! (doc/SymmetryUpgradePlan.md): \c GPW_IBS injects them NON-EMPTY only when the caller asserted
-    //! imposition (imposeSymmetry).  Consumed by (i) the T1 {G}-star reduced structure-factor assembly
-    //! (\c MakeLocalPP / \c MakeLocalPPLong -- exact for the static \f$V_{loc}\f$ by construction: the ops
-    //! were detected from these very atoms).  (The raster star-average no longer reads them: the run's group averages,
-    //! 2026-11-09.)
-    void SetSymmetryOps(std::vector<Symmetry::Lattice_3D::DirectOp> ops) {itsSymOps=std::move(ops);}
 
     //! The direct cell (geometry accessor -- the XC-quadrature factory needs the cell matrix the
     //! crystal ops act in).
