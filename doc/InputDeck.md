@@ -78,7 +78,7 @@ cd build/Release && ninja rundeck                                  # the one CLI
     {"estimateHubbardU": {}},                                            // ACBN0 (U,J) from the last iterate
     {"hubbardLoop": {"maxOuter":8, "tolU_eV":1e-3}},                     // ACBN0 outer loop
     {"independentResponse": {"nq":2}},                                   // chi0 on an nq^3 q-mesh (nq must divide every kmesh division)
-    {"hubbardLinearResponse": {"nq":2, "perturb":[0,1], "tol":1e-8, "maxIter":200, "restart":40}},   // the self-consistent chi on an nq^3 q-mesh (default 1 = q=0 of this cell; needs forceComplex); U over the q-mesh's supercell
+    {"hubbardLinearResponse": {"nq":2, "perturb":[0,1], "tol":1e-8, "maxIter":200, "restart":40}},   // the self-consistent chi on an nq^3 q-mesh (default 1 = q=0 of this cell; real TRIM blocks are fine: complex siblings are built for the response); U over the q-mesh's supercell
     {"hubbardLinearResponse": {"perturb":[0], "resolve":"eigen"}},       // ORBITAL-RESOLVED: "manifold" (default, hp.x) | "slot" (one channel per +U slot = site irrep) |
                                                                          //   "eigen" (occupation eigen-orbitals inside each slot; QE orbital_resolved / Macke 2024).  perturb still names
                                                                          //   MANIFOLDS (all their channels are perturbed); prints a [response] channel table with each channel's composition
@@ -96,7 +96,7 @@ cd build/Release && ninja rundeck                                  # the one CLI
   ]
 }
 ```
-Pre-flight (`Resolve`, before any revision is claimed) refuses a deck that cannot work: no Hubbard manifold for a `postSCF`, a linear response without `forceComplex`, an `nq` that does not divide the k-mesh, a `perturb` index past the manifolds, `vet`+`trim`, ... .
+Pre-flight (`Resolve`, before any revision is claimed) refuses a deck that cannot work: no Hubbard manifold for a `postSCF`, an `nq` that does not divide the k-mesh, a `perturb` index past the manifolds, `vet`+`trim`, ... .
 It deliberately does NOT refuse "imposeSymmetry + a response": whether an imposed group reduces a k-mesh depends on the group (NiO AFM-II 2×2×2: 8 → 8); the response throws at run time if the mesh was reduced (`--check` prints a note).
 
 ## 4. Where things are
