@@ -40,6 +40,33 @@ export Outcome<StatedConfiguration, std::string> ParseConfiguration(const std::s
 export std::string WhyNotRepresentable(const ShellOccupations& shells, bool fromLowestN);
 //! NIST's notation for \a shells, sorted by (n, l) ("1s^2 2s^2 ... 3d^6 4s^1").
 export std::string ConfigurationText(const ShellOccupations& shells);
+//! The spin multiplicity 2S+1 that Hund's rule gives \a shells: each open subshell of k electrons carries min(k, 2(2l+1) - k) unpaired
+//! (the count \c Atom_EC(const ShellOccupations&) occupies; NIST's LSD atoms and ions are high-spin).
+export int HundMultiplicity(const ShellOccupations& shells);
+//! \brief THE CATION REMOVAL RULE (OpenWork row 196 step 3, controller ruling 2026-11-16): the configuration of \a Z's cation of charge \a q
+//! derived from the NEUTRAL's (the periodic table's, as \c Atom_EC(Z) occupies it) by removing \a q electrons from the VALENCE beyond its
+//! noble-gas core (the largest noble gas below Z), the HIGHEST n first and, within one n, the HIGHEST l first.  The atom facade takes it for an unstated all-electron cation with q >= +2, or Z > 92; a first cation
+//! (q = +1, Z <= 92) takes NIST's own configuration instead (\c thePeriodicTable().GetFirstCationConfiguration), since none of the rules
+//! below reproduces those.
+//!
+//! Checked by hand against the known ground configurations: Fe2+ 3d^6, Fe3+ 3d^5, Mn4+ 3d^3, Cr3+ 3d^3, Cu2+ 3d^9, Ni2+ 3d^8, V2+ 3d^3,
+//! Pd2+ 4d^8, Pt2+ 5d^8, Sn2+ 5s^2 (4d^10 kept), Pb4+ [Xe] 4f^14 5d^10, Ce3+ 4f^1, Ce4+ [Xe], Gd3+ 4f^7, U3+ 5f^3, Y2+ 4d^1; and the 11 oxide
+//! cations scripts/gen-ae-seeds STATES (Mn2+/3+/4+, Fe2+/3+, Co2+, Ni2+, Ti4+, V3+/4+, Sr2+) come out as stated (a unit gate holds it).
+//!
+//! Past the valence the same order strips the noble-gas core: by n, then l, which is the hydrogenic order a HIGHLY charged ion's levels
+//! follow (Nd20+ 4d^4, where the isoelectronic neutral Zr would say 4d^2 5s^2), and for N <= 18 electrons it is the isoelectronic neutral's
+//! configuration (every one-electron ion is 1s^1).
+//!
+//! Rejected:
+//!  - The removal rule for q = +1 too: wrong against NIST (our oracle) for V+, Co+, Ni+, Y+, La+, Hf+, U+ and more of its 91 first cations.
+//!  - Removing s before d (the textbook transition-metal rule) at every charge: Sn2+ would be 5p^2, not 5s^2.
+//!  - Starting q >= 2 from NIST's q = +1 configuration: Y2+ would be 5s^1 (from Y+ 5s^2), not 4d^1.
+//!  - One (n, l) order over the WHOLE atom, core and valence alike: Ce4+ would be 4f^1 5p^5 (the core's 5p sits at a higher n than the
+//!    valence 4f), not [Xe].  So the valence goes first, and only then the core.
+//!
+//! Refused (an Outcome: \a q comes from the caller's charge): q < 1 (not a cation) and q >= Z (no electrons left).  The result is always
+//! representable (each l loses its highest n first), but a caller still checks \c WhyNotRepresentable before building the EC.
+export Outcome<ShellOccupations, std::string> CationByRemoval(int Z, int q);
 
 export class Atom_EC : public virtual ElectronConfiguration
 {

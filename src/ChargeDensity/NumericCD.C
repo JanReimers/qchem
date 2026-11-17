@@ -65,4 +65,37 @@ private:
     size_t itsVersion;       //!< transient freshness serial (newCD cache check)
 };
 
+//! \brief The SPIN-POLARIZED molecular SAD seed: two channel \c NumericCD s (the matrix-free molecular twin of the plane-wave
+//! \c PolarizedSeedCD, doc/OldPlans/SCFSeedingPlan.md §10).  Each channel is a superposition of per-site channel densities -- a site's
+//! library Hund pair (majority, minority), swapped on a flipped site, or rho/2 where the library holds no pair -- assembled by
+//! \c MakeSeedDensity.  The spin-native XC engine reads the channels through the \c rSpinResolved_CD face; the total-density consumers
+//! (the Coulomb fit's \c OverlapWith, op(r)) see the up+down sum.  No density matrix, so none of the tDM_CD contract appears.
+class PolarizedNumericCD
+    : public virtual tChargeDensity<double>
+    , public virtual BasisSet::SelfIntegratingField
+    , public virtual tSpinResolved_CD<double>
+{
+public:
+    //! Takes the two channels (both required, on the SAME quadrature -- THROWS on null).
+    PolarizedNumericCD(std::unique_ptr<NumericCD> up, std::unique_ptr<NumericCD> down);
+
+    // tSpinResolved_CD -- the spin-native XC engine's channel access.
+    virtual const tChargeDensity<double>* GetChannel(const Spin&) const override;
+
+    // ScalarFunction -- the up+down total.
+    virtual double  operator()(const rvec3_t&) const override;
+    virtual rvec3_t Gradient  (const rvec3_t&) const override;
+    //! The total's overlap: the sum of the channels' (each on the shared quadrature).
+    virtual rvec_t  OverlapWith(const VectorFunction<double>& g) const override;
+
+    // tChargeDensity
+    virtual double GetTotalCharge() const override;
+    virtual size_t Version       () const override {return itsVersion;}
+    virtual void   ReScale(double factor) override;   //!< both channels alike (the fit's charge constraint)
+
+private:
+    std::unique_ptr<NumericCD> itsUp, itsDn;
+    size_t itsVersion;   //!< one serial for the pair
+};
+
 } //namespace

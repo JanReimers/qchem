@@ -3,6 +3,9 @@
 
 #include "gtest/gtest.h"
 #include <stdexcept>
+#include <string>
+#include <tuple>
+#include <vector>
 #include "tabulate/table.hpp"
 #include <iostream>
 
@@ -950,6 +953,79 @@ TEST(StatedConfiguration, ASmallQPseudopotentialFoldsTheClosedSubshellsItReplace
     EXPECT_EQ(ConfigurationText(PseudoAtom_EC(72, 0, 12).Shells()), "5s^2 5p^6 5d^2 6s^2") << "Hf q12 folds 4f^14, keeps the 5s 5p semicore";
     EXPECT_EQ(ConfigurationText(PseudoAtom_EC(53, -1, 7).Shells()), "5s^2 5p^6")          << "I- q7";
     EXPECT_THROW(PseudoAtom_EC(26, 0, 4), std::invalid_argument) << "Fe q4: 3d^6 4s^2 has no closed subshell to fold";
+}
+
+// AN UNSTATED ALL-ELECTRON CATION (row 196 step 3, controller ruling 2026-11-16).  NIST's 91 first cations (Z 2..92) are tabulated in the
+// periodic table, each parses, carries Z - 1 electrons and is one the radial atom holds; H and Z > 92 have none (the removal rule's).
+// A few of them follow no removal rule, which is why q = +1 is DATA.
+TEST(CationConfiguration, NISTsFirstCationsAreTabulatedAndEachIsRunnable)
+{
+    for (int Z=2; Z<=92; Z++)
+    {
+        const std::string& t=thePeriodicTable().GetFirstCationConfiguration(Z);
+        ASSERT_FALSE(t.empty()) << "Z " << Z;
+        const auto c=ParseConfiguration(t);
+        ASSERT_TRUE(c) << "Z " << Z << ": " << c.Error();
+        EXPECT_EQ(c.Value().CoreElectrons()+c.Value().NamedElectrons(), Z-1) << "Z " << Z << " " << t;
+        EXPECT_EQ(WhyNotRepresentable(c.Value().All(), true), "") << "Z " << Z << " " << t;
+    }
+    EXPECT_TRUE(thePeriodicTable().GetFirstCationConfiguration(1).empty());
+    EXPECT_TRUE(thePeriodicTable().GetFirstCationConfiguration(93).empty());
+    EXPECT_EQ(thePeriodicTable().GetFirstCationConfiguration(23), "[Ar] 3d^4")      << "V+: 4s moves INTO 3d";
+    EXPECT_EQ(thePeriodicTable().GetFirstCationConfiguration(39), "[Kr] 5s^2")      << "Y+: the d goes first";
+    EXPECT_EQ(thePeriodicTable().GetFirstCationConfiguration(92), "[Rn] 5f^3 7s^2") << "U+: the 6d goes";
+    for (int Z : {23, 27, 28, 39, 57, 72, 92})
+    {
+        const auto r=CationByRemoval(Z, 1);
+        ASSERT_TRUE(r) << r.Error();
+        EXPECT_NE(ConfigurationText(r.Value()), ConfigurationText(ParseConfiguration(thePeriodicTable().GetFirstCationConfiguration(Z)).Value().All()))
+            << "Z " << Z << ": the removal rule is NOT NIST's first cation (why q = +1 is data)";
+    }
+}
+
+namespace {
+std::string Removed(int Z, int q) { const auto r=CationByRemoval(Z, q); return r ? ConfigurationText(r.Value()) : "refused: "+r.Error(); }
+std::string Text(const char* stated) { return ConfigurationText(ParseConfiguration(stated).Value().All()); }
+}
+// THE REMOVAL RULE (q >= +2, or Z > 92): highest n first, highest l within an n, from the neutral.  The hand-checked ions of its doc comment,
+// with the two that sink the rejected alternatives (Sn2+ keeps 5s^2: s-before-d would empty it; Y2+ is 4d^1: NIST's Y+ 5s^2 would give 5s^1),
+// and the Hund multiplicity a derived open shell occupies.
+TEST(CationConfiguration, TheRemovalRuleGivesTheKnownGroundConfigurations)
+{
+    const std::vector<std::tuple<int,int,const char*,int>> ions={
+        {26,2,"[Ar] 3d^6",5}, {26,3,"[Ar] 3d^5",6}, {25,4,"[Ar] 3d^3",4}, {24,3,"[Ar] 3d^3",4}, {29,2,"[Ar] 3d^9",2}, {28,2,"[Ar] 3d^8",3},
+        {23,2,"[Ar] 3d^3",4}, {46,2,"[Kr] 4d^8",3}, {78,2,"[Xe] 4f^14 5d^8",3}, {50,2,"[Kr] 4d^10 5s^2",1}, {82,4,"[Xe] 4f^14 5d^10",1},
+        {58,3,"[Xe] 4f^1",2}, {58,4,"[Xe]",1}, {64,3,"[Xe] 4f^7",8}, {92,3,"[Rn] 5f^3",4}, {39,2,"[Kr] 4d^1",2}};
+    for (const auto& [Z,q,stated,mult] : ions)
+    {
+        EXPECT_EQ(Removed(Z,q), Text(stated)) << thePeriodicTable().GetSymbol(Z) << q << "+";
+        if (const auto r=CationByRemoval(Z,q)) EXPECT_EQ(HundMultiplicity(r.Value()), mult) << thePeriodicTable().GetSymbol(Z) << q << "+";
+    }
+}
+
+// The 11 oxide-deck cations scripts/gen-ae-seeds STATES come out of the removal rule as stated, and the four anions it states are their
+// isoelectronic neutrals: the derived and the stated routes agree wherever the library has an ion.
+TEST(CationConfiguration, TheDerivedRouteReproducesEveryIonTheSeedLibraryStates)
+{
+    const std::vector<std::tuple<int,int,const char*>> cations={
+        {25,2,"[Ar] 3d^5"}, {25,3,"[Ar] 3d^4"}, {25,4,"[Ar] 3d^3"}, {26,2,"[Ar] 3d^6"}, {26,3,"[Ar] 3d^5"}, {27,2,"[Ar] 3d^7"}, {28,2,"[Ar] 3d^8"},
+        {22,4,"[Ar]"}, {23,3,"[Ar] 3d^2"}, {23,4,"[Ar] 3d^1"}, {38,2,"[Kr]"}};
+    for (const auto& [Z,q,stated] : cations) EXPECT_EQ(Removed(Z,q), Text(stated)) << thePeriodicTable().GetSymbol(Z) << q << "+";
+    const std::vector<std::tuple<int,int,const char*>> anions={{9,-1,"[Ne]"}, {8,-2,"[Ne]"}, {17,-1,"[Ar]"}, {16,-2,"[Ar]"}};
+    for (const auto& [Z,q,stated] : anions) EXPECT_EQ(ConfigurationText(Atom_EC(Z-q).Shells()), Text(stated)) << thePeriodicTable().GetSymbol(Z) << -q << "-";
+}
+
+// Past the valence the rule strips the core in hydrogenic order (by n, then l): a one-electron ion is 1s^1 at any Z (Nd59+, Fm99+), N <= 18
+// is the isoelectronic neutral, and a highly charged Nd20+ is 4d^4 (Zr's 4d^2 5s^2 would be the neutral's order).  Refused: no cation, no
+// electrons left.
+TEST(CationConfiguration, PastTheValenceTheRemovalRuleStripsTheCoreInHydrogenicOrder)
+{
+    for (int Z : {2, 20, 60, 86, 100}) EXPECT_EQ(Removed(Z, Z-1), "1s^1") << "Z " << Z;
+    for (int N=1; N<=18; N++) EXPECT_EQ(Removed(26, 26-N), ConfigurationText(Atom_EC(N).Shells())) << "Fe with " << N << " electrons";
+    EXPECT_EQ(Removed(60, 20), Text("[Kr] 4d^4"));
+    EXPECT_FALSE(CationByRemoval(26, 0));
+    EXPECT_FALSE(CationByRemoval(26, -1));
+    EXPECT_FALSE(CationByRemoval(26, 26));
 }
 
 // THE TWO ROUTES AGREE: every neutral atom's derived EC, read back as subshells and stated again, occupies every irrep identically
