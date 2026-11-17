@@ -306,6 +306,8 @@ TEST(SCFTrace, MolecularConsoleIsByteIdentical)
 //! PulD mixing, the Null accelerator).
 TEST(SCFTrace, SolidConsoleIsByteIdentical)
 {
+    // The bounded scope wraps the CAPTURE, so its own markers ([bounded SCF] ... [bounded SCF end]) stay out of the golden trace.
+    qchem::BoundedSCF bounded("the golden trace: 4 iterations print every solid column");
     const std::string got=TraceBlock(CapturedTrace([]{
         FCCUnitCell cell(10.26);
         cell.AddAtom(14, {0,0,0});
@@ -317,7 +319,6 @@ TEST(SCFTrace, SolidConsoleIsByteIdentical)
         SCFParams par;
         par.NMaxIter=4; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6; par.MinΔFD=std::nullopt;
         par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
-        qchem::BoundedSCF bounded("the golden trace: 4 iterations print every solid column");
         SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}), par);
         (void)calc.Result();
     }));

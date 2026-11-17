@@ -31,7 +31,7 @@ BoundedSCF::BoundedSCF(const char* why)
     std::cout << "[bounded SCF] " << (why ? why : "") << std::endl;   // scripts/anchordiff reads this marker (D-BOUNDED-ANCHOR)
     ++g_bounded;
 }
-BoundedSCF::~BoundedSCF() {--g_bounded;}
+BoundedSCF::~BoundedSCF() {--g_bounded; std::cout << "[bounded SCF end]" << std::endl;}   // closes the scope for scripts/anchordiff
 
 void ReportSCFIterations(std::size_t n)
 {
