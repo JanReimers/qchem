@@ -268,7 +268,7 @@ MoleculeRequest molecule_request(const qcb_request* req)
     r.opts.multiplicity = req->multiplicity;
     if (req->meshRadial  > 0) qchem::MoleculeXCMesh(r.opts).nRadial       = req->meshRadial;
     if (req->meshAngular > 0) qchem::MoleculeXCMesh(r.opts).angularDegree = req->meshAngular;
-    r.acc.type = req->accelerator && *req->accelerator ? req->accelerator : "DIIS";
+    r.opts.accelerator = qchem::AcceleratorTypeByName(req->accelerator && *req->accelerator ? req->accelerator : "DIIS", "the GUI's accelerator");
     if (req->diisDepth    > 0)   r.acc.diis.nProj         = req->diisDepth;
     if (req->diisSVTol    > 0.0) r.acc.diis.svTol         = req->diisSVTol;
     if (req->diisEngageFD > 0.0) r.acc.diis.engageBelowFD = req->diisEngageFD;   // an unstated gdm gate follows it (the resolver)
@@ -628,7 +628,7 @@ int qcb_solid_field(const qcb_solid* h, int spin, int iterate, const int* n3, co
             proof.emplace(h->calc->Result());
             if (!*proof) throw std::runtime_error("the SCF did not converge, so there is no converged density (" + describe(proof->Error())
                                                   + "); its last iterate can be sampled instead");
-            f = spin ? proof->Value().SpinDensity() : &proof->Value().Density();
+            f = spin ? &proof->Value().SpinDensity() : &proof->Value().Density();
         }
         sample_box(f, n3, origin, spacing, out);
         return 1;
