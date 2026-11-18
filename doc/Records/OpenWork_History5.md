@@ -3553,3 +3553,42 @@ Dunlap's robust Hartree 2⟨ρ|f⟩ − ⟨f|f⟩ is a lower bound on J: every m
 The row as it stood:
 
 | **The radial atom's Dunlap fit metric is near-singular, even on its own rung-0 fit** (lane B 2026-11-14) | the s-block-×2 fit's Coulomb metric (k|l) has modes below 1e-12 × its largest: Gaussian High drops 4-9 of 36-46, Slater High 1 of 21-22 (Au, Rn, U); the densified ladder rungs far more (U rung 4: 472 of 510).  The inverse is now an eigen-truncated pseudo-inverse that REPORTS each truncation (`coulombMetricModesDropped`, `coulombMetricFloor`); before 2026-11-14 it was a plain `inv` of the singular metric | decide whether the fit set should be pruned to a well-conditioned one (pivoted Cholesky, pin 21) instead of truncating the inverse; measure the energy either way · `src/BasisSet/Radial/IrrepBasisSet.C` |
+
+## ✅ The atom pilot's re-convergence starts warm: policy AtomPilotWarmStart (lane B, 2026-11-17/18, d4d7be04e on lane-b)
+**The question** (the user, via the controller): the pilot's re-convergences start from the previous grid's converged density, so they should be short. Usually that means an accelerator-ladder problem, or ρ mixing that is too aggressive. It was measured per round before anything was proposed.
+
+**Measured** (an experiment switch in `PilotGrids`, since reverted). Each cell is the number of iterations per re-convergence. FD₁ is [F,D] at the carried D. E₁ − E_f is the first iterate against the re-converged energy.
+
+| atom (test) | run's start relax | FD₁ | E₁ − E_f | cold start (DIIS) | GDM / Ladder on GDM | relax ≤ 0.3 | start at 1.0 |
+|---|---|---|---|---|---|---|---|
+| Xe SL (A_DFT_heavy) | 0.1 | 2.4e-3 | −4.4e-8 | 15 | 28 | 11 | 7 |
+| Xe SG | 0.1 | 2.1e-3 | −2.3e-9 | 21 | 9 | 20 | 5 |
+| U SL | 0.1 | 2.1e-2 | −3.4e-5 | 10 | 14 | 10 | 7 |
+| U SG | 0.1 | 3.0e-3 | −8.2e-10 | 14 | 17 | 17 | 6 |
+| Fe⁺ SL / SG | 0.1 | 2.8e-5 / 1.3e-4 | ~3e-10 | 6 / 6 | 7 / 7 (declines: open shell) | 6 / 6 | 4 / 6 |
+| V⁺ SG | 0.1 | 7.1e-5 | −2e-10 | 6 | 8 (declines) | 6 | 7 |
+| Co⁺ SL / SG | 0.1 | 3.3e-5 / 1.4e-4 | ~3e-10 | 6 / 6 | 7 / 7 (declines) | 6 / 6 | 5 / 7 |
+| Kr Slater (A_DFT_U) | 0.5 | 3.4e-5 | −2.7e-10 | 6 | 11 | 6 | 6 |
+| Kr Gaussian | 0.5 | 7.2e-4 | +3.3e-10 | 3 | 3 | 3 | 3 |
+| Gd q18 PP (A_PP) | 1.0 | 1.8e-4 | +1.7e-10 | 6 | 12 (declines) | 7 | 6 |
+| Mn q7 PP (AtomPilot) | 1.0 | 6.0e-5 | +4e-11 | 4 | refused: GDM on the Auxiliary Vxc fit at xc.rho exact (pin 32) | 2 | 4 |
+
+The final energies of every variant agree to within 6e-10 Ha.
+
+**Reading:**
+- The carried D is at the answer in ENERGY.
+- It is not a resume in [F,D]: a raised grid changes H, so [F,D] starts 3e-5 to 2e-2 against a 1e-6 gate.
+- The cost was the cold-start DAMPING, not the accelerator. The mixer restarted at the run's `StartingRelaxRo` (0.1 for A_DFT, a far-from-seed recipe).
+- GDM was slower in 7 of 9 closed-shell rounds. It declines every open shell and is refused on the auxiliary-fit PP atom.
+- CLAUDE.md's "restarts use GDM" was measured on an EXACT resume (NaF, [F,D] ~4e-8), which is a different case.
+
+**Ruling** (the user, 2026-11-17): "I agree with your proposal. The Claude 'rules' are really just discovered best practices for certain solids. ..."
+- A pilot re-convergence starts its linear step at the run's relax ceiling, with the accelerator unchanged.
+- It is policy row `AtomPilotWarmStart` (`AtomCalculation::PilotWarmStart`). Its doc comment records where it was measured, as a scoped best practice.
+
+**Gate:** `A_DFT_pilot.SG_Xe_TheReconvergenceStartsAtTheAnswer`. It requires the first iterate within 1e-8, at most 6 iterations, and the policy row filed. Measured: 5 iterations, 2.1e-9.
+
+**Landing sweep** (lane-b, vs the row 3 sweep, tol 1e-10):
+- **Short:** 21 of 1702 moved, all piloted atoms (A_DFT_atom, A_DFT_heavy, A_DFT_ion). Iterations only, 851 → 730 summed, |dE| ≤ 6.0e-10.
+- **Long:** 0 of 18. **Panel:** 0 of 27.
+- **RelChecked:** clean.
