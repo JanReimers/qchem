@@ -24,7 +24,6 @@ export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>, cS
 export import qchem.ChargeDensity.RasterDensity;   // RasterDensity (the interim raw-raster face)
 export import qchem.ChargeDensity.AtomicDensity;          // RadialDensity, RecentredAtomicDensity, GetAtomicDensity
 import qchem.BasisSet.Orbital_DFT_IBS;                      // cFIT_CD_ABS (the density-fit basis it builds rho-tilde through)
-import qchem.Structure;                             // Structure, Atom
 import qchem.UnitCell;                              // UnitCell (the flip-group sub-cells of a channel seed)
 import qchem.ReciprocalLattice;                     // ReciprocalLattice (the seed's own Poisson metric B)
 import qchem.ScalarFunction;                        // ScalarFunction<double>

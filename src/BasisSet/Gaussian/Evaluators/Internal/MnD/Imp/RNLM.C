@@ -5,7 +5,6 @@ module;
 #include <vector>
 module qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.RNLM;
 import qchem.BasisSet.Gaussian.Evaluators.Internal.Boys.AuxillaryFJ;
-import qchem.IntPow;
 
 #define MAX 16
 

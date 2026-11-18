@@ -31,6 +31,7 @@ import qchem.VectorFunction;                          // VectorFunction<T> (the 
 import qchem.BasisSet.IrrepBasisSet;                  // IrrepBasisSet<T> (op()(r), GetNumFunctions)
 import qchem.BasisSet.Orbital_1E_IBS;                 // Orbital_1E_IBS<T> (MakeOverlap/MakeKinetic/MakeNuclear)
 import qchem.BasisSet.Orbital_DFT_IBS;                // Orbital_DFT_IBS<T,dcmplx> (MakeRepulsion3C/MakeOverlap3C) + PairProjection<dcmplx>
+import qchem.BasisSet.Internal.CachedIntegrals;   // the Cached* mixins the family lists beside its Make* (D-BASISCACHE-FANIN)
 import qchem.Structure;                               // Structure (MakeNuclear arg)
 import qchem.Types;                                   // cvec_t, cvec3vec_t, chmat_t, rvec3_t
 
@@ -157,7 +158,9 @@ protected:
 // Used by the ORBITAL bases (PlaneWave_IBS, GPW_IBS); an auxiliary fit basis does not carry these.
 template <class E, class T=dcmplx> requires isLattice_1E_Evaluator<E>
 class Orbital_1E_IBS
-    : public Irrep_IBS<E,T>
+    : public virtual BasisSet::CachedOverlap<T>   // Overlap() / Kinetic(): the Make* below, cached in the parent's cache (D-BASISCACHE-FANIN)
+    , public virtual BasisSet::CachedKinetic<T>
+    , public Irrep_IBS<E,T>
     , public virtual BasisSet::Orbital_1E_IBS<T>
 {
     using Irrep_IBS<E,T>::Cast;
@@ -223,7 +226,8 @@ private:
 // Orbital_DFT_IBS<T,TFit> two-axis face prepared.
 template <class E, class T=dcmplx> requires isLattice_DFT_Evaluator<E>
 class Orbital_DFT_IBS
-    : public virtual BasisSet::Orbital_DFT_IBS<T,dcmplx>
+    : public virtual BasisSet::CachedFit3C<T,dcmplx>   // Overlap3C / Repulsion3C cached in the parent's cache (D-BASISCACHE-FANIN)
+    , public virtual BasisSet::Orbital_DFT_IBS<T,dcmplx>
 {
 protected:
     virtual PairProjection<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS&) const override {return Cast().Repulsion3CTensor();}

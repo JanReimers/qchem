@@ -24,14 +24,8 @@
 #include <stdexcept>
 
 import qchem.Tests.GPW_Harness;      // the recipe vocabulary + the instruments shared with the gates
-import qchem.UnitCell;               // Supercell, BravaisCell (the MnO cell's named construction)
-import qchem.Matrix3D;
 import qchem.ChargeDensity;          // cSpinResolved_CD
-import qchem.ScalarFunction;
-import qchem.Symmetry.Spin;
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type
-import qchem.Blaze;                    // the complex arithmetic on the ΔG_Map entries
-import qchem.Types;
 
 using namespace qchem;
 using namespace qchem::tests::gpw;

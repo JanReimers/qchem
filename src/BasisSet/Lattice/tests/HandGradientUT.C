@@ -21,7 +21,6 @@ import qchem.BasisSet.Lattice.APW_IBS;
 import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;
-import qchem.Structure;
 import qchem.UnitCell;
 import qchem.Lattice_3D;
 import qchem.VectorFunction;

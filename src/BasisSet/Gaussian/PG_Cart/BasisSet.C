@@ -5,6 +5,7 @@ module;
 #include <functional>
 export module qchem.BasisSet.Gaussian.PG_Cart;
 export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
+import qchem.BasisSet.Internal.CachedIntegrals;   // the Cached* mixins the family lists beside its Make* (D-BASISCACHE-FANIN)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Block;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
@@ -153,7 +154,8 @@ public:
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS
-    : public virtual Fit_IBS
+    : public virtual CachedOverlap<double>   // Overlap(): the MakeOverlap below, cached in the parent's cache (D-BASISCACHE-FANIN)
+    , public virtual Fit_IBS
     , public Symmetry::IdentityRepresentation<double> 
     , public IrrepBasisSet
 {

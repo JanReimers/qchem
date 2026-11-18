@@ -10,7 +10,6 @@ module;
 #include <stdexcept>
 #include <vector>
 export module qchem.Math.SolidHarmonics;
-import qchem.Math;            // Pi
 import qchem.Math.Angular;    // SphericalShell, CartTerm, Monomial
 import qchem.Types;           // rvec3_t
 

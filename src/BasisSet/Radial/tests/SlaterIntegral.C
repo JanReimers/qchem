@@ -9,7 +9,6 @@
 
 import qchem.BasisSet.Radial.Factory;
 import qchem.BasisSet;
-import qchem.Constants;
 import qchem.Structure;
 import qchem.Mesh.Quadrature;           // qcMesh quadrature + ScalarField/BasisField
 import qchem.VectorFunction;

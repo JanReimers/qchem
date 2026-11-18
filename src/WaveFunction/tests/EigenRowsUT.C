@@ -5,7 +5,6 @@
 
 import qchem.WaveFunction.EigenRows;
 import qchem.Symmetry.Atom.Internal.SphericalQNs;   // Yl: a constructible atomic symmetry label
-import qchem.Types;
 
 using namespace qchem;
 using namespace qchem::WaveFunction;

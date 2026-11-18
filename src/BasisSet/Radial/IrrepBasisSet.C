@@ -17,6 +17,7 @@ import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.Fit_IBS;   // the shared Gaussian-family implementation base we DERIVE
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
+import qchem.BasisSet.Internal.CachedIntegrals;   // the Cached* mixins the family lists beside its Make* (D-BASISCACHE-FANIN)
 import qchem.BasisSet.Internal.Cache4;   // Cache4 / Cacheable4: the parent's Rk table (S5a)
 import qchem.BasisSet.Radial.Evaluators;
 import qchem.BasisSet.Internal.Cache4;
@@ -95,7 +96,8 @@ protected:
 //  Fit_IBS also uses Overlap.
 //
 template <is1E_Evaluator E> class Integrals_Overlap
-: public virtual BasisSet::Integrals_Overlap<double>
+: public virtual BasisSet::CachedOverlap<double>   // Overlap(): MakeOverlap() cached in the parent's cache (D-BASISCACHE-FANIN)
+, public virtual BasisSet::Integrals_Overlap<double>
 {
 public:
     // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
@@ -115,7 +117,8 @@ protected:
     }
 };
 template <is1E_Evaluator E> class Integrals_Kinetic
-: public virtual BasisSet::Integrals_Kinetic<double>
+: public virtual BasisSet::CachedKinetic<double>   // Kinetic(): MakeKinetic() cached in the parent's cache (D-BASISCACHE-FANIN)
+, public virtual BasisSet::Integrals_Kinetic<double>
 {
 public:
     // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
@@ -283,7 +286,8 @@ public:
 
 
 template <isDFT_Evaluator E> class Orbital_DFT_IBS
-    : public virtual BasisSet::Orbital_DFT_IBS<double>
+    : public virtual BasisSet::CachedFit3C<double>   // Overlap3C / Repulsion3C cached in the parent's cache (D-BASISCACHE-FANIN)
+    , public virtual BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
     virtual PairProjection<double> MakeOverlap3C  (const rFIT_SF_ABS& _c) const
@@ -377,7 +381,8 @@ public:
 };
 
 template <is1E_Evaluator E> class Orbital_RKBS_IBS
-    : public virtual BasisSet::Orbital_RKBS_IBS<double> 
+    : public virtual BasisSet::CachedOverlap<double>   // its MakeOverlap (the small-component metric) cached (D-BASISCACHE-FANIN)
+    , public virtual BasisSet::Orbital_RKBS_IBS<double> 
     , public Integrals_Kinetic<E>
     , public Integrals_Nuclear<E> //RKBS Evaluator overrides Inv_r1 definition
 {
