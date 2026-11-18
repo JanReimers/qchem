@@ -197,6 +197,8 @@ protected:
     virtual const Setup& GetSetup() const = 0;
     //! The run's options as the setup resolved them: \c scf is what \c Converge runs, \c saveStateTo where it checkpoints.
     const RunOptions& Options() const {return GetSetup().opts;}
+    //! The spin group the run's blocks are walked in (every saved state, carry and restore): the setup's resolved one (R6).
+    SpinGroup StateSpin() const {return GetSetup().opts.spin;}
     void Checkpoint(const std::string& path, const std::string& label) const;
     //! A schedule stage's setup edit this kind cannot apply: REFUSED naming the edit (the policy row \c StageSetup, doc/OpenWork.md
     //! "Setup-changing schedule stage").  THROWS \c policy::Refused, which \c Converge answers as an \c SCFFailure.

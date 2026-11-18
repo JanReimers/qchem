@@ -631,7 +631,6 @@ private:
     std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
     StateSummary            MakeStateSummary() const override;
     FingerprintMigration    StateMigration() const override {return MigrateSolidFingerprint;}
-    SpinGroup               StateSpin() const;   //!< the spin group the blocks are walked under (the setup's resolved spin group, R6)
     //!@}
     //!@}
     //! Stand up one stage's Hamiltonian + accelerator + iterator, seeded from \a carried when given.  \a params are the

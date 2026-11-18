@@ -447,7 +447,7 @@ const AtomCalculation::orbital_t* AtomCalculation::GetOrbital(size_t index, cons
 //====================================================================================================
 Calculation::StateIdentity AtomCalculation::MakeStateIdentity() const
 {
-    return {.Nelec=itsSetup->Ne, .spin=itsSetup->opts.spin, .multiplicity=0, .functional=FunctionalName(), .kT=itsLastkT};
+    return {.Nelec=itsSetup->Ne, .spin=StateSpin(), .multiplicity=0, .functional=FunctionalName(), .kT=itsLastkT};
 }
 
 std::string AtomCalculation::FunctionalName() const
@@ -463,7 +463,7 @@ std::vector<StateBlock> AtomCalculation::StateBlocks(bool withOrbitals) const
     const auto* wf = withOrbitals && itsScf ? itsScf->GetWaveFunction() : nullptr;
     if (withOrbitals && !wf) throw std::logic_error("AtomCalculation: no wave function yet (a saved state needs a Converge)");
     std::vector<StateBlock> out;   // spin irreps outer, basis blocks inner (the order the composite wave function builds)
-    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+    for (Spin s : SpinIrreps(StateSpin()))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
         {
             StateBlock b;
@@ -514,7 +514,7 @@ std::unique_ptr<qchem::ChargeDensity::rDM_CD> AtomCalculation::RestoredDensity()
     using namespace qchem::ChargeDensity;
     auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetImposition() ? itsBasis->GetImposition()->DensityGroup() : nullptr);
     size_t b=0;
-    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+    for (Spin s : SpinIrreps(StateSpin()))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
         {
             if (b>=itsRestored.size() || itsRestored[b].rows()!=ibs->GetNumFunctions())

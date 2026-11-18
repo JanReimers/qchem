@@ -1395,10 +1395,6 @@ void SolidCalculation::RecordState(StateRecord& r, double kT) const
     AddSolidKeys(r.fp, itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->bs, StateSpin(), id);
 }
 
-SpinGroup SolidCalculation::StateSpin() const
-{
-    return itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
-}
 const Structure& SolidCalculation::StateStructure() const {return *itsImp->st;}
 const std::optional<RestartSummary>& SolidCalculation::RestartedFrom() const {return itsImp->restartedFrom;}
 Calculation::StateIdentity SolidCalculation::MakeStateIdentity() const

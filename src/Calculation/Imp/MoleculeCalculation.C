@@ -368,7 +368,7 @@ std::vector<hmat_t<double>> MoleculeCalculation::BlockDensities(bool energyWeigh
     const auto* wf = itsScf ? itsScf->GetWaveFunction() : nullptr;
     if (!wf) throw std::logic_error("qchem::MoleculeCalculation: no wave function yet (a block density needs a Converge)");
     std::vector<hmat_t<double>> out;
-    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+    for (Spin s : SpinIrreps(StateSpin()))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
         {
             const size_t n=ibs->GetNumFunctions();
@@ -442,7 +442,7 @@ std::unique_ptr<qchem::ChargeDensity::rDM_CD> MoleculeCalculation::MakeCarriedDe
     using namespace qchem::ChargeDensity;
     auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetImposition() ? itsBasis->GetImposition()->DensityGroup() : nullptr);
     size_t b=0;
-    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+    for (Spin s : SpinIrreps(StateSpin()))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
         {
             if (b>=carry.D.size() || carry.D[b].rows()!=ibs->GetNumFunctions())
@@ -484,7 +484,7 @@ GridAuditResult MoleculeCalculation::MeshAudit(const qcMesh::MeshParams& referen
             R.ΔE+=eRun[t].E-eRef[t].E;
         }
         size_t channel=0;   // the carry's block order: spin irreps outer, basis blocks inner (BlockDensities')
-        for (Spin s : SpinIrreps(opts.spin))
+        for (Spin s : SpinIrreps(StateSpin()))
         {
             size_t block=0;
             for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
@@ -606,7 +606,7 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
             Probe p;
             for (const auto& te : h.MakeTermEnergies(d)) { p.E.push_back(te.E); p.climbed.push_back(climbHartree || te.entries!="Eee"); }
             p.H.resize(p.E.size());
-            for (Spin s : SpinIrreps(itsSetup->opts.spin))
+            for (Spin s : SpinIrreps(StateSpin()))
                 for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
                 {
                     auto blocks=h.MakeTermMatrices(ibs, s, d);
@@ -732,7 +732,7 @@ std::string MoleculeModelName(const MoleculeSetup& su)
 
 Calculation::StateIdentity MoleculeCalculation::MakeStateIdentity() const
 {
-    return {.Nelec=itsSetup->Ne, .spin=itsSetup->opts.spin, .multiplicity=itsSetup->opts.multiplicity,
+    return {.Nelec=itsSetup->Ne, .spin=StateSpin(), .multiplicity=itsSetup->opts.multiplicity,
             .functional=MoleculeModelName(*itsSetup), .kT=itsLastkT};
 }
 
@@ -742,7 +742,7 @@ std::vector<StateBlock> MoleculeCalculation::StateBlocks(bool withOrbitals) cons
     const auto* wf = withOrbitals && itsScf ? itsScf->GetWaveFunction() : nullptr;
     if (withOrbitals && !wf) throw std::logic_error("qchem::MoleculeCalculation: no wave function yet (a saved state needs a Converge)");
     std::vector<StateBlock> out;   // the carry's order: spin irreps outer, basis blocks inner
-    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+    for (Spin s : SpinIrreps(StateSpin()))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
         {
             StateBlock b;
