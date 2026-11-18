@@ -100,7 +100,7 @@ Compared Compare(const GeometryCacheTests::Snapshot& x, const GeometryCacheTests
 
 TEST(GeometryCache, AGeometryIterationBuildsANewCalculationAndNoCacheOutlivesItsGeometry)
 {
-    const auto setup=MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"), {.basis="dzvp", .model=Hamiltonian::Model::LDA});
+    const auto setup=MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"), {.model=Hamiltonian::Model::LDA, .molecule={.basis="dzvp"}});
     SCFParams scf;   // the default gate: the claim is about integrals, not the SCF tail
     std::vector<rvec3_t> R1, R2;
     GeometryCacheTests::Snapshot s1, s2, cold;

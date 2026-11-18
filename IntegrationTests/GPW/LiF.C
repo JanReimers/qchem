@@ -24,8 +24,9 @@ nlohmann::json LiFDeck(double dx)
         {"structure",{{"name","LiF_xcaudit"},{"lattice",{{"vectors_bohr",{{0.0,a,a},{a,0.0,a},{a,a,0.0}}}}},
                       {"atoms",{{{"el","Li"},{"frac",{-f,f,f}}},{{"el","F"},{"frac",{0.5,0.5,0.5}}}}}}},
         {"kmesh",{1,1,1}}, {"basis",{{"data","VALENCE_LOWQ_VA"},{"trim",{{{"Z",3},{"l",0},{"alpha",0.03}}}}}},
-        {"solid",{{"seed","IonicSAD"},{"imposeSymmetry",false},{"xcMeshSymmetric",false},{"species",nlohmann::json::array({nlohmann::json::array({"Li",1}),nlohmann::json::array({"F",7})})},
-                  {"xcMesh",{{"cellKind","Becke"}}},{"ortho","CholeskyPivoted"},{"orthoTol",1e-4}}},
+        {"seed","IonicSAD"},{"imposeSymmetry",false},{"species",nlohmann::json::array({nlohmann::json::array({"Li",1}),nlohmann::json::array({"F",7})})},
+        {"xc",{{"mesh",{{"cellKind","Becke"}}}}},{"ortho","CholeskyPivoted"},{"orthoTol",1e-4},
+        {"solid",{{"xcMeshSymmetric",false}}},
         {"scf",{{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7},{"minDeltaE",1e-10}}},
         {"postSCF",{{{"xcMeshAudit",nlohmann::json::object()}}}}};   // default reference (80, 48)
 }

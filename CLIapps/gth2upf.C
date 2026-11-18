@@ -81,15 +81,15 @@ int main(int argc, char** argv)
     if (out.empty()) out=element+".pz-gth-q"+std::to_string(Zion)+".UPF";
 
     // --- the pseudo-atom in the pool (every l up to 2; the EC occupies what the charge state fills) ---
-    AtomCalcOptions o;
-    o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=Zion;
+    RunOptions o;
+    o.atom.type=AtomType::Gaussian; o.atom.pseudopotential=true; o.atom.valence=Zion;
     const std::vector<double> pool=Pool(npool, emin, emax);
     // The pool's l range: the occupied l's of the valence configuration (an empty extra channel only costs
     // the SCF its convergence): d-block from Sc on carries l=2, the p-block l=1, H/He/alkali l=0.
     if (lmaxPool<0) lmaxPool = (Z>=21 && Z<=30) || (Z>=39 && Z<=48) || (Z>=57 && Z<=80) ? 2 : (Z<=2 || Z==3 || Z==11 || Z==19 || Z==37 || Z==55) ? 0 : 1;
-    for (int l=0;l<=lmaxPool;l++) o.exponentsByL.push_back({l, pool});
+    for (int l=0;l<=lmaxPool;l++) o.atom.exponentsByL.push_back({l, pool});
     SCFParams p; p.MinVirial=std::nullopt; p.NMaxIter=200; p.Verbose=std::getenv("GTH2UPF_VERBOSE")!=nullptr;
-    AtomCalculation atom(Z, Z-Zion, o, p);
+    AtomCalculation atom(AtomSetup::Resolve(Z, Z-Zion, o), p);
     if (!atom.IsConverged())
     {
         // A hard-aufbau lock, not a slow descent: some d-block neutrals (Cu 3d10-4s1, Cr 3d5-4s1) have two

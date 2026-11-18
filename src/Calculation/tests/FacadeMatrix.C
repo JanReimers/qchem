@@ -40,7 +40,7 @@ import qchem.UnitCell;
 import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSetData::SIPP_SR
 import qchem.SCFParams;
 import qchem.SCFIterator;                       // IterationRow
-import qchem.SCFAccelerator.Factory;            // SCFAccelerators::Type, SolidAcceleratorOptions
+import qchem.SCFAccelerator.Factory;            // SCFAccelerators::Type, AcceleratorParams
 import qchem.Reporting;
 import qchem.Types;
 
@@ -59,11 +59,22 @@ enum class Capability
     SaveRestartRoundTrips,      //!< a saved state restarts as an EXACT resume (the saved energy, in <= 3 iterations)
     DeckRoundTrips,             //!< a deck naming the structure builds the run, and its json reloads to the same deck
     LevelsAnswerTheState,       //!< the structure-neutral levels (Calculation::MakeLevels): ascending, Σ weight·f = N, at the k they belong to
-    ViewMatchesTheLiveState     //!< a saved state, DRAWN (StateView): rho, m, the levels and the orbitals equal the live run's; a moved atom,
+    ViewMatchesTheLiveState,    //!< a saved state, DRAWN (StateView): rho, m, the levels and the orbitals equal the live run's; a moved atom,
                                 //!< another basis, another kind and a missing file are REFUSED as Outcomes, never thrown
+    SetupRefusesAnUnrealisableRequest   //!< the setup's Admit door answers an unknown accelerator, an impossible spin and a foreign option
+                                        //!< with a SetupRefusal naming its policy -- a value, never a throw and never a silent substitution
 };
 
 //! THE EXPECTED FAILURES: the row whose work will make the cell hold; nullptr = the cell must hold now.
+//! The SAME non-default Ladder knobs for every kind (V-FACADE-PARITY P0b-1: one accelerator block; the molecule names its type in it).
+AcceleratorOptions LadderKnobs(const char* type="DIIS")
+{
+    AcceleratorOptions a; a.type=type;
+    a.diis.nProj=6; a.diis.engageBelowFD=0.05; a.diis.svTol=1e-8;
+    a.ladder.gdm.trust=0.2; a.ladder.eThresh=1e-7; a.ladder.stall=4; a.ladder.floor=1e-9; a.ladder.switchAt=1e-5;
+    return a;
+}
+
 const char* ExpectedFailure(Kind k, Capability c)
 {
     switch (c)
@@ -74,9 +85,10 @@ const char* ExpectedFailure(Kind k, Capability c)
         case Capability::ConvergeFilesTheScfHeader: return nullptr;
         case Capability::AcceleratorKnobsArrive:    return nullptr;
         case Capability::SaveRestartRoundTrips:     return nullptr;   // V-FACADE-STATE landed for the atom and the molecule, 2026-11-09
-        case Capability::DeckRoundTrips:            return k==Kind::Solid ? nullptr : "V-FACADE-OPTS";
+        case Capability::DeckRoundTrips:            return nullptr;   // the molecule and the atom joined the deck (V-FACADE-PARITY P0c)
         case Capability::LevelsAnswerTheState:      return nullptr;
         case Capability::ViewMatchesTheLiveState:   return nullptr;
+        case Capability::SetupRefusesAnUnrealisableRequest: return nullptr;   // the atom's setup and the solid's block type (V-FACADE-PARITY P1)
     }
     return nullptr;
 }
@@ -191,9 +203,15 @@ std::string DeckBuilds(const json& payload)
         const json once=deck::ToJson(spec);
         deck::RunSpec again; deck::FromJson(once, again);
         if (deck::ToJson(again)!=once) return "the deck's json does not reload to the same deck";
-        auto calc=deck::Build(spec);
-        if (!calc) return "deck::Build returned nothing";
-        if (calc->DidConverge()) return "deck::Build ran the SCF";
+        auto calc=deck::Prepare(spec);
+        if (!calc) return "deck::Prepare returned nothing";
+        // the test may cast to the concrete facade (CLAUDE.md: unit tests may cheat); P2's tCalculation gives every kind one query
+        bool ran=false;
+        if (auto* s=dynamic_cast<const SolidCalculation*>(calc.get()))         ran=s->DidConverge();
+        else if (auto* m=dynamic_cast<const MoleculeCalculation*>(calc.get())) ran=m->IsConverged();
+        else if (auto* a=dynamic_cast<const AtomCalculation*>(calc.get()))     ran=a->IsConverged();
+        else return "deck::Prepare built an unknown facade";
+        if (ran) return "deck::Prepare ran the SCF";
         return "";
     }
     catch (const std::exception& e) { return std::string("the deck refuses it: ")+e.what(); }
@@ -211,6 +229,7 @@ public:
     virtual std::string DeckRoundTrips()            = 0;
     virtual std::string LevelsAnswerTheState()      = 0;
     virtual std::string ViewMatchesTheLiveState()   = 0;
+    virtual std::string SetupRefusesAnUnrealisableRequest() = 0;
 
     std::string Check(Capability c)
     {
@@ -223,10 +242,25 @@ public:
             case Capability::DeckRoundTrips:            return DeckRoundTrips();
             case Capability::LevelsAnswerTheState:      return LevelsAnswerTheState();
             case Capability::ViewMatchesTheLiveState:   return ViewMatchesTheLiveState();
+            case Capability::SetupRefusesAnUnrealisableRequest: return SetupRefusesAnUnrealisableRequest();
         }
         return "unknown capability";
     }
 };
+
+//! The refusal's claim, for every kind: \a admit (a setup's Admit door) answers a refusal VALUE, filed under \a policy -- never a throw,
+//! never a setup.  "" when so.
+template <class F> std::string RefusedBy(const std::string& what, const std::string& policy, F&& admit)
+{
+    try
+    {
+        const auto r=admit();
+        if (r) return what+": ADMITTED; ";
+        if (r.Error().policy!=policy) return what+": refused by "+r.Error().policy+" ("+r.Error().reason+"), not "+policy+"; ";
+        return "";
+    }
+    catch (const std::exception& e) { return what+": THREW ("+e.what()+") instead of answering a refusal; "; }
+}
 
 //! The round trip's claim, for every kind (the solid's): an EXACT resume lands on the saved energy to 1e-8 within 3 iterations.
 std::string Resumed(bool converged, double E, double Esaved, size_t iters, size_t itersSaved, const std::optional<RestartSummary>& how)
@@ -353,38 +387,38 @@ std::string ViewFiled(const std::string& run)
 class AtomProbe : public FacadeProbe
 {
     static constexpr int Z=8;
-    static AtomCalcOptions Options() {return {.type=AtomType::Gaussian, .model=Model::LDA};}
+    static RunOptions Options() {return {.model=Model::LDA, .atom={.type=AtomType::Gaussian}};}
     static std::string ID() {return Atom(Z, 0.0, rvec3_t(0,0,0)).ID();}
 public:
     std::string PrepareFilesTheSetup() override
     {
         size_t rows=0;
-        { report::Run run(ID()+" build"); AtomCalculation::Prepare(Z, 0, Options(), {}, [&](const SCFIterator::IterationRow&){ rows++; }); }   // the probe is the DRIVER: it opens the runs, the facade writes into them (user ruling D)
+        { report::Run run(ID()+" build"); AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options()), [&](const SCFIterator::IterationRow&){ rows++; }); }   // the probe is the DRIVER: it opens the runs, the facade writes into them (user ruling D)
         return SetupFiled(FiledRun(ID()+" build@"), ID()+" build@", rows);
     }
     std::string ConvergeFilesTheScfHeader() override
     {
         std::unique_ptr<AtomCalculation> calc;
-        { report::Run run(ID()); calc=std::make_unique<AtomCalculation>(Z, 0, Options()); }
+        { report::Run run(ID()); calc=std::make_unique<AtomCalculation>(AtomSetup::Resolve(Z, 0, Options())); }
         if (!calc->IsConverged()) return "the O atom did not converge";
         return ScfHeaderFiled(FiledRun(ID()+"@"), ID()+"@");
     }
     std::string AcceleratorKnobsArrive() override
     {
         // The atom states every knob -- but only through its stringly json escape hatch, in the json door's own key names.
-        AtomCalcOptions o=Options();
-        o.accelerator={{"type","Ladder"}, {"NProj",6}, {"EMax",0.05}, {"SVTol",1e-8},
+        RunOptions o=Options();
+        o.atom.accelerator={{"type","Ladder"}, {"NProj",6}, {"EngageBelowFD",0.05}, {"SVTol",1e-8},
                        {"Trust",0.2}, {"ethresh",1e-7}, {"stall",4}, {"floor",1e-9}, {"switchat",1e-5}};
-        { report::Run run(ID()+" build"); AtomCalculation::Prepare(Z, 0, o); }
+        { report::Run run(ID()+" build"); AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, o)); }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
     }
     std::string SaveRestartRoundTrips() override
     {
         const std::string path=TempPath("facade_matrix_o_atom.h5");
-        AtomCalculation calc(Z, 0, Options());
+        AtomCalculation calc(AtomSetup::Resolve(Z, 0, Options()));
         if (!calc.IsConverged()) return "the O atom reference did not converge";
         calc.SaveState(path);
-        auto restarted=AtomCalculation::Restart(path, Z, 0, Options());
+        auto restarted=AtomCalculation::Restart(path, AtomSetup::Resolve(Z, 0, Options()));
         std::filesystem::remove(path);
         if (!restarted) return "the restart was refused: "+restarted.Error().details;
         return Resumed((*restarted)->IsConverged(), (*restarted)->Energy(), calc.Energy(), (*restarted)->IterationCount(),
@@ -393,7 +427,7 @@ public:
     std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","B"}});}   // the atom molecules.json carries
     std::string LevelsAnswerTheState() override
     {
-        AtomCalculation calc(Z, 0, Options());
+        AtomCalculation calc(AtomSetup::Resolve(Z, 0, Options()));
         if (!calc.IsConverged()) return "the O atom did not converge";
         return LevelsHold(calc, Z, true);
     }
@@ -402,10 +436,10 @@ public:
     std::string ViewMatchesTheLiveState() override
     {
         const std::string path=TempPath("facade_matrix_view_o_atom.h5");
-        AtomCalculation calc(Z, 0, Options());
+        AtomCalculation calc(AtomSetup::Resolve(Z, 0, Options()));
         if (!calc.IsConverged()) return "the O atom did not converge";
         calc.SaveState(path);
-        auto v=Opened("O view", [&]{ return AtomCalculation::ViewState(path, Z, 0, Options()); });
+        auto v=Opened("O view", [&]{ return AtomCalculation::ViewState(path, AtomSetup::Resolve(Z, 0, Options())); });
         std::string why;
         if (!v) why="the atom's own state was refused: "+v.Error().details+"; ";
         else
@@ -415,9 +449,18 @@ public:
                 if (!(*v)->Orbital(i)) why+="level "+std::to_string(i)+"'s orbital was refused; ";
             why+=ViewFiled("O view");
         }
-        why+=Refused("N's spec on O's state", [&]{ return AtomCalculation::ViewState(path, 7, 0, Options()); }, RestartRefusal::Why::Mismatch);
+        why+=Refused("N's spec on O's state", [&]{ return AtomCalculation::ViewState(path, AtomSetup::Resolve(7, 0, Options())); }, RestartRefusal::Why::Mismatch);
         std::filesystem::remove(path);
-        why+=Refused("a missing file", [&]{ return AtomCalculation::ViewState(path, Z, 0, Options()); }, RestartRefusal::Why::Unreadable);
+        why+=Refused("a missing file", [&]{ return AtomCalculation::ViewState(path, AtomSetup::Resolve(Z, 0, Options())); }, RestartRefusal::Why::Unreadable);
+        return why;
+    }
+    std::string SetupRefusesAnUnrealisableRequest() override
+    {
+        AcceleratorOptions bogus; bogus.type="Bogus";
+        std::string why;
+        why+=RefusedBy("an unknown accelerator", "AcceleratorType", [&]{ return AtomSetup::Admit(Atom(Z), Options(), bogus); });
+        why+=RefusedBy("a stated multiplicity", "ForeignOption", [&]{ RunOptions o=Options(); o.multiplicity=3; return AtomSetup::Admit(Atom(Z), o); });
+        why+=RefusedBy("two atoms", "AtomStructure", [&]{ return AtomSetup::Admit(StructureData::GetMolecule("H2O"), Options()); });
         return why;
     }
 };
@@ -426,7 +469,7 @@ class MoleculeProbe : public FacadeProbe
 {
     static std::shared_ptr<const MoleculeSetup> Setup(const AcceleratorOptions& acc={})
     {
-        return MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}, acc);
+        return MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"), {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}}, acc);
     }
     static std::string ID() {return StructureData::GetMolecule("H2O").ID();}
 public:
@@ -445,8 +488,7 @@ public:
     }
     std::string AcceleratorKnobsArrive() override
     {
-        { report::Run run(ID()+" build"); (void)MoleculeCalculation::Prepare(Setup({.nProj=6, .eMax=0.05, .svTol=1e-8, .trust=0.2, .ladderEThresh=1e-7, .ladderStall=4,
-                                              .ladderFloor=1e-9, .ladderSwitchAt=1e-5, .type="Ladder"})); }
+        { report::Run run(ID()+" build"); (void)MoleculeCalculation::Prepare(Setup(LadderKnobs("Ladder"))); }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
     }
     std::string SaveRestartRoundTrips() override
@@ -463,7 +505,11 @@ public:
         return Resumed((*restarted)->IsConverged(), (*restarted)->Energy(), saved->Energy(), (*restarted)->IterationCount(),
                        saved->IterationCount(), (*restarted)->RestartedFrom());
     }
-    std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","H2O"}});}
+    //! The probe's own H2O run, as a deck: the molecule's `basis` is the solid's key, read into RunOptions::Molecule.
+    std::string DeckRoundTrips()        override
+    {
+        return DeckBuilds({{"structure","H2O"}, {"model","LDA"}, {"pp","gth-lda-valence"}, {"basis",{{"data","dzvp"}}}});
+    }
     //! Plus the molecule's own field-carrying list: index i there is index i here (the binding samples orbital i by it).
     std::string LevelsAnswerTheState() override
     {
@@ -501,7 +547,7 @@ public:
         }
         {
             const auto o2=MoleculeSetup::Resolve(StructureData::GetMolecule("O2"),
-                                                 {.basis="dzvp", .model=Model::LDA, .multiplicity=3, .pp="gth-lda-valence"});
+                                                 {.multiplicity=3, .model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
             MoleculeCalculation calc(o2);
             if (!calc.IsConverged()) return why+"O2 (triplet) did not converge";
             calc.SaveState(path2);
@@ -525,7 +571,7 @@ public:
                 if (a++==1) m.R.x+=0.01;
                 moved.Insert(m);
             }
-            const auto movedSetup=MoleculeSetup::Resolve(moved, {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"});
+            const auto movedSetup=MoleculeSetup::Resolve(moved, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
             why+=Refused("H2O with H 1 moved 0.01 bohr", [&]{ return MoleculeCalculation::ViewState(path, movedSetup); },
                          RestartRefusal::Why::Mismatch, "atom 1 is 0.01 bohr");
             why+=Refused("H2O with H 1 moved 0.01 bohr", [&]{ return MoleculeCalculation::ViewState(path, movedSetup); },
@@ -533,16 +579,27 @@ public:
         }
         {
             const auto spherical=MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"),
-                                                        {.basis="dzvp", .model=Model::LDA, .angular=Angular::Spherical, .pp="gth-lda-valence"});
+                                                        {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp", .angular=Angular::Spherical}});
             why+=Refused("the spherical basis", [&]{ return MoleculeCalculation::ViewState(path, spherical); }, RestartRefusal::Why::Mismatch);
         }
         {
-            AtomCalculation atom(8, 0, {.type=AtomType::Gaussian, .model=Model::LDA});
+            AtomCalculation atom(AtomSetup::Resolve(8, 0, {.model=Model::LDA, .atom={.type=AtomType::Gaussian}}));
             atom.SaveState(atomPath);
             why+=Refused("an atom's state", [&]{ return MoleculeCalculation::ViewState(atomPath, Setup()); }, RestartRefusal::Why::Kind);
         }
         for (const auto& p : {path, path2, atomPath}) std::filesystem::remove(p);
         why+=Refused("a missing file", [&]{ return MoleculeCalculation::ViewState(path, Setup()); }, RestartRefusal::Why::Unreadable);
+        return why;
+    }
+    std::string SetupRefusesAnUnrealisableRequest() override
+    {
+        const Molecule h2o=StructureData::GetMolecule("H2O");
+        const RunOptions o={.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}};
+        AcceleratorOptions bogus; bogus.type="Bogus";
+        std::string why;
+        why+=RefusedBy("an unknown accelerator", "AcceleratorType", [&]{ return MoleculeSetup::Admit(h2o, o, bogus); });
+        why+=RefusedBy("a doublet on 8 valence electrons", "SpinMultiplicity", [&]{ RunOptions d=o; d.multiplicity=2; return MoleculeSetup::Admit(h2o, d); });
+        why+=RefusedBy("a stated Nelec", "ForeignOption", [&]{ RunOptions d=o; d.Nelec=8; return MoleculeSetup::Admit(h2o, d); });
         return why;
     }
 };
@@ -556,14 +613,14 @@ class SolidProbe : public FacadeProbe
         return p;
     }
     static std::shared_ptr<const SolidSetup> Setup(SCFAccelerators::Type type=SCFAccelerators::Type::Auto,
-                                                   const SCFAccelerators::SolidAcceleratorOptions& acc={})
+                                                   const AcceleratorOptions& acc={})
     {
         const auto mat=Materials::Get("Si_diamond");
-        SolidCalcOptions o; o.Nelec=8; o.species=mat.species; o.densityEcut=20.0; o.label="matrix"; o.accelerator=type;
+        RunOptions o; o.Nelec=8; o.species=mat.species; o.solid.densityEcut=20.0; o.label="matrix"; o.accelerator=type;
         return SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)),
                                    GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o, acc);
     }
-    static std::string ID(const SolidSetup& s) {return s.cell->ID();}
+    static std::string ID(const SolidSetup& s) {return s.structure->ID();}
 public:
     std::string PrepareFilesTheSetup() override
     {
@@ -582,10 +639,7 @@ public:
     }
     std::string AcceleratorKnobsArrive() override
     {
-        SCFAccelerators::SolidAcceleratorOptions acc;
-        acc.diis.Nproj=6; acc.diis.EngageBelowFD=0.05; acc.diis.SVTol=1e-8;
-        acc.ladderGdm.Trust=0.2; acc.ladderEThresh=1e-7; acc.ladderStall=4; acc.ladderFloor=1e-9; acc.ladderSwitchAt=1e-5;
-        const auto setup=Setup(SCFAccelerators::Type::Ladder, acc);
+        const auto setup=Setup(SCFAccelerators::Type::Ladder, LadderKnobs());
         { report::Run run(ID(*setup)+" build"); SolidCalculation::Prepare(setup, {{Params(), SCFAccelerators::Type::Ladder}}); }
         return AcceleratorFiled(FiledRun(ID(*setup)+" build@"), ID(*setup)+" build@");
     }
@@ -661,6 +715,19 @@ public:
         catch (const std::exception& e) { why+=std::string("the inline deck round trip threw: ")+e.what()+"; "; }
         return why;
     }
+    std::string SetupRefusesAnUnrealisableRequest() override
+    {
+        const auto mat=Materials::Get("Si_diamond");
+        const Lattice_3D lat(*mat.cell, ivec3_t(1,1,1));
+        const GaussianBasisRecipe recipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR};
+        RunOptions o; o.species=mat.species; o.solid.densityEcut=20.0; o.label="matrix";
+        AcceleratorOptions gdm; gdm.type="GDM";
+        std::string why;
+        why+=RefusedBy("a type in the accelerator block", "AcceleratorType", [&]{ return SolidSetup::Admit(lat, recipe, o, gdm); });
+        why+=RefusedBy("a singlet on 7 electrons", "SpinMultiplicity", [&]{ RunOptions d=o; d.Nelec=7; d.charge=1; d.multiplicity=1; return SolidSetup::Admit(lat, recipe, d); });
+        why+=RefusedBy("a molecule's basis", "ForeignOption", [&]{ RunOptions d=o; d.molecule.basis="dzvp"; return SolidSetup::Admit(lat, recipe, d); });
+        return why;
+    }
 };
 
 std::unique_ptr<FacadeProbe> Probe(Kind k)
@@ -686,6 +753,7 @@ const char* Name(Capability c)
         case Capability::DeckRoundTrips:            return "DeckRoundTrips";
         case Capability::LevelsAnswerTheState:      return "LevelsAnswerTheState";
         case Capability::ViewMatchesTheLiveState:   return "ViewMatchesTheLiveState";
+        case Capability::SetupRefusesAnUnrealisableRequest: return "SetupRefusesAnUnrealisableRequest";
     }
     return "?";
 }
@@ -702,7 +770,7 @@ std::vector<CellId> AllCells()
     for (Kind k : {Kind::Atom, Kind::Molecule, Kind::Solid})
         for (Capability c : {Capability::PrepareFilesTheSetup, Capability::ConvergeFilesTheScfHeader, Capability::AcceleratorKnobsArrive,
                              Capability::SaveRestartRoundTrips, Capability::DeckRoundTrips, Capability::LevelsAnswerTheState,
-                             Capability::ViewMatchesTheLiveState})
+                             Capability::ViewMatchesTheLiveState, Capability::SetupRefusesAnUnrealisableRequest})
             cells.push_back({k,c});
     return cells;
 }

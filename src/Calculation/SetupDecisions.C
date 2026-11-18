@@ -12,6 +12,7 @@ module;
 #include <optional>
 #include <string>
 #include <vector>
+#include <nlohmann/json.hpp>
 export module qchem.SetupDecisions;
 export import qchem.SeedPolicy;              // ResolveSeed, SeedKeyOf, SeedLibraryCovers: the seed's Auto rule (re-exported: one door)
 import qchem.ChargeDensity.Seed;             // SeedStrategy
@@ -19,7 +20,9 @@ import qchem.ChargeDensity.AtomicDensity;    // SeedKey
 import qchem.Structure;                      // Structure::Admits (does the structure repeat?)
 import qchem.Mesh;                           // qcMesh::ImposedSymmetry, MeshParams
 import qchem.Pseudopotential.Set;            // PseudopotentialSet: the run's pseudo-atoms key the seed library
-import qchem.SCFAccelerator.Factory;         // SCFAccelerators::Type
+export import qchem.SCFAccelerator.Factory;  // SCFAccelerators::Type, AcceleratorParams (the accelerator block resolves to it)
+export import qchem.SCFRecipe;               // SCFRecipe (AcceleratorOptions::recipe)
+export import qchem.RunOptions;              // AcceleratorOptions (the block ResolveAcceleratorParams reads)
 import qchem.Hamiltonian.Factory;            // AdmitVxc, VxcFit
 import qchem.Policy;                         // policy::Refuse / RefuseAs
 export import qchem.Symmetry.Spin;           // SpinGroup: ResolveSpinGroup's answer
@@ -65,6 +68,60 @@ inline SpinGroup ResolveSpinGroup(SpinGroup stated, int multiplicity)
     return multiplicity>1 ? SpinGroup::Polarized : stated;
 }
 
+//=== THE ACCELERATOR BLOCK ============================================================================================================
+//! The accelerator BLOCK (\c AcceleratorOptions) lives in \c qchem.RunOptions; its resolution is here.
+
+
+//! \brief \a kindDefaults with every knob \a acc STATES laid over it: the one place an accelerator block becomes concrete parameters.
+//! \brief The MOLECULE's and the ATOM's defaults (the chain they always ran): Nproj 4, the absolute SV floor off, the relative prune
+//! 1e-4, standalone GDM engaging at the same gate \a eMax as DIIS, trust 0.1, a Ladder GDM rung that always steps (gate 1e10).
+//! The json door's keys for \a p (the atom's accelerator-sweep escape hatch merges over them; nothing else uses the json door).
+
+inline SCFAccelerators::AcceleratorParams ResolveAcceleratorParams(const AcceleratorOptions& acc, SCFAccelerators::AcceleratorParams p)
+{
+    auto gdm=[](const AcceleratorOptions::GDM& g, SCFAccelerators::GDMParams& o)
+    {
+        if (g.engageBelowFD) o.EngageBelowFD=*g.engageBelowFD;
+        if (g.trust)         o.Trust=*g.trust;
+        if (g.trustBackoff)  o.TrustBackoff=*g.trustBackoff;
+        if (g.trustMin)      o.TrustMin=*g.trustMin;
+        if (g.pcFloor)       o.PCFloor=*g.pcFloor;
+        if (g.aufbauTol)     o.AufbauTol=*g.aufbauTol;
+        if (g.aufbauMaxRepicks) o.AufbauMaxRepicks=*g.aufbauMaxRepicks;
+    };
+    if (acc.diis.nProj)         p.diis.Nproj=*acc.diis.nProj;
+    if (acc.diis.engageBelowFD) p.diis.EngageBelowFD=*acc.diis.engageBelowFD;
+    if (acc.diis.svTol)         p.diis.SVTol=*acc.diis.svTol;
+    if (acc.diis.svTolRel)      p.diis.SVTolRel=*acc.diis.svTolRel;
+    gdm(acc.gdm, p.gdm);
+    gdm(acc.ladder.gdm, p.ladderGdm);
+    if (acc.ladder.eThresh)  p.ladderEThresh=*acc.ladder.eThresh;
+    if (acc.ladder.stall)    p.ladderStall=*acc.ladder.stall;
+    if (acc.ladder.floor)    p.ladderFloor=*acc.ladder.floor;
+    if (acc.ladder.switchAt) p.ladderSwitchAt=*acc.ladder.switchAt;
+    if (acc.ladder.signal)   p.ladderSignal=*acc.ladder.signal;
+    p.ladderStartOnGDM = p.ladderStartOnGDM || acc.ladder.startOnGDM;
+    return p;
+}
+
+inline SCFAccelerators::AcceleratorParams MolecularAcceleratorDefaults(double eMax)
+{
+    SCFAccelerators::AcceleratorParams p;
+    p.diis      = {.Nproj=4, .EngageBelowFD=eMax, .SVTol=0.0, .SVTolRel=1e-4};
+    p.gdm       = {.EngageBelowFD=eMax, .Trust=0.1};
+    p.ladderGdm = {.EngageBelowFD=1e10, .Trust=0.1};    // the rung always steps once it is the active one
+    p.ladderEThresh=1e-8; p.ladderStall=5; p.ladderFloor=1e-8; p.ladderSwitchAt=1e-6;
+    p.ladderSignal=SCFAccelerators::ScheduleSignal::EnergyChange;
+    return p;
+}
+
+inline nlohmann::json ToAcceleratorJson(const SCFAccelerators::AcceleratorParams& p)
+{
+    return {{"NProj",p.diis.Nproj},{"EngageBelowFD",p.diis.EngageBelowFD},{"SVTol",p.diis.SVTol},{"SVTolRel",p.diis.SVTolRel},{"Trust",p.ladderGdm.Trust},
+            {"ethresh",p.ladderEThresh},{"stall",p.ladderStall},{"floor",p.ladderFloor},{"switchat",p.ladderSwitchAt},
+            {"signal",p.ladderSignal==SCFAccelerators::ScheduleSignal::EnergyChange ? "EnergyChange" : "Error"}};
+}
+
 //=== THE SEED ===========================================================================================================================
 //! The run's resolved seed and the key of the seed library it reads.
 struct RunSeed
@@ -82,7 +139,7 @@ inline RunSeed ResolveRunSeed(ChargeDensity::SeedStrategy stated, const Structur
     RunSeed r;
     if (pp) r.key=SeedKeyOf(*pp, st);
     r.key.siteCharges=siteCharges;
-    r.key.siteSpins  =siteSpins;
+    r.key.siteSpins=siteSpins;
     r.seed=ResolveSeed(stated, st, {.densityFock = densityFock, .periodic = st.Admits(qcMesh::ImposedSymmetry::Translations),
                                     .chargesStated = !siteCharges.empty(),
                                     .covered = [key=r.key](int Z){ return SeedLibraryCovers(key, Z); }});

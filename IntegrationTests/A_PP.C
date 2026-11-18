@@ -3,9 +3,9 @@
 //
 // A pseudo-atom is the all-electron-basis atom with (a) the nuclear attraction replaced by the GTH local +
 // KB-separable nonlocal pseudopotential, (b) only the Zion valence electrons (PseudoAtom_EC).  Migrated off
-// QchemTester onto qchem::AtomCalculation via {.pseudopotential=true}: valence electrons = Z - charge, the
+// QchemTester onto qchem::AtomCalculation via {.atom={.pseudopotential=true}}: valence electrons = Z - charge, the
 // element is looked up from Z.  The molecular tests (Si2_PP_U, OSi_PP_U) ride qchem::MoleculeCalculation
-// {.pseudopotential=true}.  "Did the physics move" anchors (no oracle / Converged() guard -- the virial
+// {.atom={.pseudopotential=true}}.  "Did the physics move" anchors (no oracle / Converged() guard -- the virial
 // criterion does not apply to a PP and the absolute value is basis/fitting-limited).
 #include "gtest/gtest.h"
 #include <cmath>
@@ -21,7 +21,7 @@ import qchem.Hamiltonian.Internal.Terms;      // PP_NonLocal (the atomic KB asse
 import qchem.Pseudopotential.GTH_Potentials;   // HGH_SeparablePotential (the per-l KB oracle)
 import qchem.Mesh.Quadrature;                 // qcMesh::RadialMesh / MakeRadial (the radial reference)
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy
-import qchem.MoleculeCalculation;            // MoleculeCalculation, CalcOptions (molecular facade)
+import qchem.MoleculeCalculation;            // MoleculeCalculation, RunOptions (molecular facade)
 import qchem.SCFCap;                 // BoundedSCF (the Si2 routing check reads Enn on a bounded run)
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
@@ -38,7 +38,7 @@ using enum BasisSetAccuracy;
 TEST(Si_PP_U, Medium)
 {
     const int Z=14, val=4;
-    AtomCalculation calc(Z, Z-val, {.type = AtomType::Slater, .basisPool = Medium, .pseudopotential = true},
+    AtomCalculation calc(AtomSetup::Resolve(Z, Z-val, {.atom={.type=AtomType::Slater, .basisPool=Medium, .pseudopotential=true}}),
         {.NMaxIter = 120, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});  // virial off (N/A to PP)
 
     EXPECT_NEAR(calc.Energy(),      -3.7470398442, 1e-6);  // pinned (Slater/Medium, δ Vxc default 2026-10-31: was -3.747078054
@@ -63,7 +63,7 @@ TEST(Si_PP_U, Medium)
 TEST(Si2_PP_U, LargeSeparation)
 {
     const double R = 20.0;   // bohr -- large separation (near-isolated atoms)
-    const CalcOptions opt{.basis = "sipp", .model = Model::LDA, .pp = "gth-lda-valence"};
+    const RunOptions opt{.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="sipp"}};
     SCFParams par{.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-8, .MinFD = 1e-7};
     // kT 1e-2 is the stated recipe until the open row doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT" lands a finite-kT method
     par.SmearingkT=1e-2;     // the degenerate 3p (see above)
@@ -109,7 +109,7 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
     // kT 1e-2 (2026-10-31): with the fit bases' D shells back the Hartree is anisotropic and kT 1e-4 / 1e-3 slosh under every
     // accelerator; an exactly degenerate open shell needs kT above the splitting it re-opens (as GPW_SiBox and Si2_PP_U state).
     // open row: doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT"
-    MoleculeCalculation cOSi(MoleculeSetup::Resolve(osi, {.basis = "sipp", .model = Model::LDA, .pp = "gth-lda-valence", .multiplicity = 5}), SCFParams{.SmearingkT = 1e-2});
+    MoleculeCalculation cOSi(MoleculeSetup::Resolve(osi, {.multiplicity=5, .model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="sipp"}}), SCFParams{.SmearingkT = 1e-2});
 
     EXPECT_NEAR(cOSi.EnergyTerms()["Enn"], 24.0/R, 1e-6);   // per-species Zion routing: 6*4/R (not 16/R or 36/R)
     EXPECT_LT(cOSi.Energy(), 0.0);                       // a finite, bound total (sanity; not an accuracy claim)
@@ -124,7 +124,7 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
 // ~/Code/cp2k-runs/o_atom_q6.inp) -- we land 255 uHa away.  Old pin -13.967 was the broken KB route.
 TEST(O_PP_U, SlaterHigh)
 {
-    AtomCalculation calc(8, 8-6, {.type = AtomType::Slater, .basisPool = High, .pseudopotential = true},
+    AtomCalculation calc(AtomSetup::Resolve(8, 8-6, {.atom={.type=AtomType::Slater, .basisPool=High, .pseudopotential=true}}),
         {.NMaxIter = 150, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7,
          .StartingRelaxRo = 0.5, .MergeTol = 1e-7});
 
@@ -143,13 +143,13 @@ TEST(O_PP_U, SlaterHigh)
 TEST(Si_PP_U, Polarized)
 {
     const int Z=14, val=4;
-    const AtomCalcOptions opt{.type = AtomType::Slater, .basisPool = High, .spin = SpinGroup::Polarized, .pseudopotential = true};
+    const RunOptions opt{.spin=SpinGroup::Polarized, .atom={.type=AtomType::Slater, .basisPool=High, .pseudopotential=true}};
     const SCFParams       par{.NMaxIter = 150, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7,
                               .StartingRelaxRo = 0.5, .MergeTol = 1e-7};
-    AtomCalculation cPol(Z, Z-val, opt, par);
+    AtomCalculation cPol(AtomSetup::Resolve(Z, Z-val, opt), par);
 
-    AtomCalcOptions optU = opt; optU.spin = SpinGroup::UnPolarized;
-    AtomCalculation cUnpol(Z, Z-val, optU, par);
+    RunOptions optU = opt; optU.spin = SpinGroup::UnPolarized;
+    AtomCalculation cUnpol(AtomSetup::Resolve(Z, Z-val, optU), par);
 
     EXPECT_TRUE(cPol.IsConverged());                        // polarized PP SCF converges
     EXPECT_NEAR(cPol.TotalCharge(), 4.0, 1e-9);             // valence electron count
@@ -173,7 +173,7 @@ TEST(A_PP, AHeavyCorePseudoAtomIsItsCP2KAtom)
                           Case{53,  7, SpinGroup::Polarized,   -11.479589}})   // I q7 over [Kr] 4d^10 (rule B)
     {
         SCOPED_TRACE("Z="+std::to_string(c.Z)+" q="+std::to_string(c.q));
-        AtomCalculation calc(c.Z, c.Z-c.q, {.type = AtomType::Gaussian, .basisPool = High, .spin = c.spin, .pseudopotential = true},
+        AtomCalculation calc(AtomSetup::Resolve(c.Z, c.Z-c.q, {.spin=c.spin, .atom={.type=AtomType::Gaussian, .basisPool=High, .pseudopotential=true}}),
             {.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-6, .MergeTol = 1e-7});
         EXPECT_TRUE(calc.IsConverged());
         EXPECT_NEAR(calc.TotalCharge(), double(c.q), 1e-9);

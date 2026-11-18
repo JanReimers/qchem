@@ -64,8 +64,8 @@ TEST(SolidRelaxation, OnPlaneWavesSiReturnsToTheDiamondSite)
     UnitCell cell(Fcc(a));
     cell.AddAtom(14, rvec3_t(0.0,0.0,0.0));
     cell.AddAtom(14, rvec3_t(0.27,0.24,0.26));
-    SolidCalcOptions o; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=20.0; o.label="pw Si relax";
-    o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=4.0;
+    RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="pw Si relax";
+    o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=4.0;
     const auto setup=SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
     const auto r=Relax(setup, "Si2 PW");
     ASSERT_EQ(r.geometry.R.size(), 2u);

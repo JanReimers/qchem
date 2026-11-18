@@ -66,10 +66,9 @@ SCFParams Params()
     p.NMaxIter=80; p.MinΔρPerElectron=1e-7; p.MinΔE=1e-10; p.MinΔFD=1e-7; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
     return p;
 }
-SolidCalcOptions Options(int multiplicity, bool forceComplex, const std::string& save)
+RunOptions Options(int multiplicity, bool forceComplex, const std::string& save)
 {
-    return SolidCalcOptions{.Nelec=8, .multiplicity=multiplicity, .spin=multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, .species={{"Si",4}}, .densityEcut=20.0,
-                            .forceComplex=forceComplex, .label="ck1", .saveStateTo=save};
+    return RunOptions{.Nelec=8, .multiplicity=multiplicity, .spin=multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, .species={{"Si",4}}, .label="ck1", .saveStateTo=save, .solid={.densityEcut=20.0, .forceComplex=forceComplex}};
 }
 
 //! One converged-and-saved state per (spin, ansatz), built once for the whole suite.
@@ -120,12 +119,12 @@ TEST(SolidState, ASizedStateResumesOnItsOwnDensityBall)
 {
     const std::string path=TempPath("ck1_si_ball4.h5");
     SiRun si=Si(ivec3_t(1,1,1));
-    SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .cutoffFactor=4.0, .label="ck1", .saveStateTo=path};
+    RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .label="ck1", .saveStateTo=path, .solid={.cutoffFactor=4.0}};
     SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), Params());
     auto r0=calc.Result();
     ASSERT_TRUE(r0);
-    o.cutoffFactor=SolidCalcOptions{}.cutoffFactor; o.saveStateTo="";   // the resume's setup starts on the DEFAULT ball
-    ASSERT_NE(o.cutoffFactor, 4.0);
+    o.solid.cutoffFactor=RunOptions{}.solid.cutoffFactor; o.saveStateTo="";   // the resume's setup starts on the DEFAULT ball
+    ASSERT_NE(o.solid.cutoffFactor, 4.0);
     std::vector<double> E;
     auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), Params(),
                                      [&E](const SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
@@ -329,8 +328,8 @@ TEST(SolidState, ARestartAcrossTheLadderPrintsItsLineAndConverges)
 {
     const Saved& s=SavedState(0, false);
     SiRun si=Si(ivec3_t(2,2,2));
-    SolidCalcOptions o=Options(0, false, "");
-    o.ladderFactor=3.0;
+    RunOptions o=Options(0, false, "");
+    o.solid.ladderFactor=3.0;
     testing::internal::CaptureStdout();
     auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, o), Params());
     const std::string out=testing::internal::GetCapturedStdout();
@@ -432,8 +431,8 @@ TEST(SolidState, WarmStart_OtherGrid_StartsAtTheAnswer)
     // 1e-12 energy noise), a property of the accelerator, not of the restart.
     const Saved& s=SavedState(0, false);
     SiRun si=Si(ivec3_t(2,2,2));
-    SolidCalcOptions o=Options(0, false, "");
-    o.densityEcut=30.0;
+    RunOptions o=Options(0, false, "");
+    o.solid.densityEcut=30.0;
     std::vector<double> E;
     auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, o), Params(),
                                      [&E](const SCFIterator::IterationRow& p){ E.push_back(p.eb.GetTotalEnergy()); });
@@ -454,7 +453,7 @@ TEST(SolidState, LadderRestart_Smeared_StartsOnDIIS)
 {
     const Saved& s=SavedState(0, false);                     // a kT=0 state: the restart is a WARM start (kT differs)
     SiRun si=Si(ivec3_t(2,2,2));
-    SolidCalcOptions o=Options(0, false, "");
+    RunOptions o=Options(0, false, "");
     o.accelerator=SCFAccelerators::Type::Ladder;
     SCFParams p=Params();
     p.SmearingkT=0.02;
@@ -491,7 +490,7 @@ TEST(SolidState, SmearedExactResume_StartsAtTheSavedState)
         ASSERT_TRUE(r) << "the smeared Si reference must converge";
         saved=r->Energy();
     }
-    SolidCalcOptions o=Options(0, false, "");
+    RunOptions o=Options(0, false, "");
     std::vector<double> E;
     auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p,
                                      [&E](const SCFIterator::IterationRow& pr){ E.push_back(pr.eb.GetTotalEnergy()); });
@@ -518,9 +517,9 @@ void ExpectFieldMixerExactResume(double kerkerG0)
     SCFParams p=Params();
     p.Mixer=SCFParams::Mixing::Pulay; p.PulayDepth=8; p.PulayStart=2; p.KerkerG0=kerkerG0;
     const std::string path=TempPath("ck1_si_fieldmix_m1_"+std::to_string(int(kerkerG0*10))+".h5");
-    SolidCalcOptions o=Options(1, true, path);         // POLARIZED: the (ρ,m) mixer, as on the TiO2 / NiO campaign decks
+    RunOptions o=Options(1, true, path);         // POLARIZED: the (ρ,m) mixer, as on the TiO2 / NiO campaign decks
     o.accelerator=SCFAccelerators::Type::Null;
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);     // the singles route: rho[D] only through the N4 correction
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);     // the singles route: rho[D] only through the N4 correction
     double saved=0.0;
     {
         SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), p);
@@ -600,10 +599,10 @@ TEST(SolidState, RefusedOnAnotherKMesh_OrSpinGroup_OrMissingFile)
 //! A PLANE-WAVE state (OpenWork §3 "PW states cannot be saved (or restarted)", 2026-10-30): saved through the same fingerprint and
 //! block path as a Gaussian one, the cutoff standing in for the shells.  \a numBands > 0 is the partial eigensolve a production
 //! PW run uses, whose restored stage starts on DIIS (GDM needs every virtual).
-SolidCalcOptions PWOptions(size_t numBands, const std::string& save)
+RunOptions PWOptions(size_t numBands, const std::string& save)
 {
-    SolidCalcOptions o=Options(0, false, save);
-    o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=4.0; o.numBands=numBands; o.label="ck1pw";
+    RunOptions o=Options(0, false, save);
+    o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=4.0; o.solid.numBands=numBands; o.label="ck1pw";
     return o;
 }
 void ExpectPlaneWaveExactResume(size_t numBands)
@@ -642,10 +641,10 @@ TEST(SolidState, AnOverTargetSamplerIsFlaggedAndTightenedOnceAtTheNextSCF)
     SiRun si=Si(ivec3_t(1,1,1));
     SCFParams p=Params();
     p.Mixer=SCFParams::Mixing::Kerker; p.KerkerG0=1.0; p.StartingRelaxRo=0.4;   // Kerker at relax 1 diverges on this Si cell
-    SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .label="sampler"};
+    RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .label="sampler"};
     o.accelerator=SCFAccelerators::Type::Null;
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);     // the singles route: the N4 correction is NUFFT-sampled every iteration
-    o.accuracy.samplerEta=1e-3;   // ~150x below the measured 0.147: the NUFFT runs over its tau, by an error still far below what moves the SCF
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);     // the singles route: the N4 correction is NUFFT-sampled every iteration
+    o.solid.grid.samplerEta=1e-3;   // ~150x below the measured 0.147: the NUFFT runs over its tau, by an error still far below what moves the SCF
     std::vector<std::optional<double>> col;
     testing::internal::CaptureStdout();
     SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), p,
@@ -677,9 +676,9 @@ TEST(SolidState, TheDefaultSamplerCalibrationMeetsItsTarget)
     SiRun si=Si(ivec3_t(1,1,1));
     SCFParams p=Params();
     p.Mixer=SCFParams::Mixing::Kerker; p.KerkerG0=1.0; p.StartingRelaxRo=0.4;
-    SolidCalcOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .label="sampler"};
+    RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .label="sampler"};
     o.accelerator=SCFAccelerators::Type::Null;
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     std::vector<std::optional<double>> col;
     SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), p,
                           [&col](const SCFIterator::IterationRow& r){ col.push_back(r.eb.charge.samplingOverTau); });

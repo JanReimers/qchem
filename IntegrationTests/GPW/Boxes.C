@@ -44,7 +44,7 @@ import qchem.BasisSet.Lattice.BasisSet;       // GPWFactory (the GPW basis conta
 import qchem.BasisSet.Gaussian.Point.Factory;          // Gaussian::Factory, BasisSetData/Engine/Angular
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
 import qchem.Outcome;                           // Outcome<Converged,SCFFailure> -- the facade's result
-import qchem.RunPolicy;                         // SetRunPolicy / SolidCalcOptions::policy -- the declared-deviation A/B hatch (N5)
+import qchem.RunPolicy;                         // SetRunPolicy / RunOptions::policy -- the declared-deviation A/B hatch (N5)
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Tests.GPW_Harness;                   // THE HARNESS (IntegrationTests/GPW/Harness.C): Materials cells, gates, recipes, the XC probes
 import qchem.Materials;                           // Materials::Get -- the cells come from src/Structure/Data/materials.json (row MD)
@@ -68,7 +68,7 @@ import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eig
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
 import qchem.BasisSet.GMap;              // PairProjection<dcmplx> (the collocation weight tensor); SymmetryDefects (§3 diagnostic)
 import qchem.Pseudopotential.GTH_Potentials;      // GetGTH, GTH_PP (the PP model, for the matrix-trace probe)
-import qchem.MoleculeCalculation;                        // qchem::MoleculeCalculation, CalcOptions (finite reference)
+import qchem.MoleculeCalculation;                        // qchem::MoleculeCalculation, RunOptions (finite reference)
 import qchem.AtomCalculation;                    // AtomCalculation, AtomType, BasisSetAccuracy (Slater/High pseudo-atom ref)
 import qchem.Types;
 
@@ -97,11 +97,11 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
     // unsmeared only while the fit bases lacked their D shells (a spherical Hartree).  Compared on its INTERNAL energy, which is
     // what an integer-occupation box approaches (PySCF, the same basis/PP/Coulomb fit: -3.743668).
     // Open row: doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT".
-    MoleculeCalculation cSipp(MoleculeSetup::Resolve(si, {.basis = "sipp", .model = Model::LDA, .pp = "gth-lda-valence"}), SCFParams{.SmearingkT = 1e-2});
+    MoleculeCalculation cSipp(MoleculeSetup::Resolve(si, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="sipp"}}), SCFParams{.SmearingkT = 1e-2});
     ASSERT_TRUE(cSipp.Result());
     const double Esipp=cSipp.EnergyTerms().GetTotalEnergy()-cSipp.EnergyTerms()["MinusTS"];
     // Physical oracle (near-complete Slater/High, for context -- a different basis, not the GPW-correctness gate).
-    AtomCalculation cHi(14, 14-4, {.type=AtomType::Slater, .basisPool=BasisSetAccuracy::High, .pseudopotential=true});
+    AtomCalculation cHi(AtomSetup::Resolve(14, 14-4, {.atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::High, .pseudopotential=true}}));
     std::cout << "[Si finite] sipp="<<Esipp<<"  Slater/High="<<cHi.Energy()<<std::endl;
 
     // Box a=16 (was 11): the analytic collocation always includes the screened cross-cell pair products, so
@@ -117,11 +117,11 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
     // under Becke — fractional occupation restores the symmetric density.  Recorded in doc/GPWPlan1.md
     // (Becke remaining increments); this gate's PURPOSE is the PP box-independence check, so it keeps
     // its historical route.
-    SolidCalcOptions o=OptionsFor(box, "Si atom-in-box");
-    o.densityEcut=10.0; o.imposeSymmetry=true;
+    RunOptions o=OptionsFor(box, "Si atom-in-box");
+    o.solid.densityEcut=10.0; o.imposeSymmetry=true;
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
-    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;    // the finite-molecule mode
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+    o.solid.images=BasisSet::Gaussian::CellImages::HomeCellOnly;    // the finite-molecule mode
+    SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
     SCFParams par=TightGates(40);
     GpwReport report("Si "+o.label, par.Verbose);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par);
@@ -149,17 +149,17 @@ TEST(GPW_SiBox, Γ_Imp_Smear_eqFinite)
 {
     Molecule si; si.Insert(Site{14, {0,0,0}});
     // The finite twin at the SAME kT 1e-2 (2026-10-31), so free energy compares with free energy (see Γ_Uni_Imp_eqFinite above).
-    MoleculeCalculation cSipp(MoleculeSetup::Resolve(si, {.basis = "sipp", .model = Model::LDA, .pp = "gth-lda-valence"}), SCFParams{.SmearingkT = 1e-2});
+    MoleculeCalculation cSipp(MoleculeSetup::Resolve(si, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="sipp"}}), SCFParams{.SmearingkT = 1e-2});
     ASSERT_TRUE(cSipp.Result());
     const double Asipp=cSipp.Energy();   // the finite free energy A = E - TS: -3.781860
     const double Esipp=Asipp-cSipp.EnergyTerms()["MinusTS"];   // ...and its internal energy: -3.743669
 
     const Material box=qchem::Materials::Get("Si_box16");
     const Lattice_3D lat=LatticeOf(box);
-    SolidCalcOptions o=OptionsFor(box, "Si atom-in-box +smear");
-    o.densityEcut=10.0; o.imposeSymmetry=true;
+    RunOptions o=OptionsFor(box, "Si atom-in-box +smear");
+    o.solid.densityEcut=10.0; o.imposeSymmetry=true;
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
-    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
+    o.solid.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     SCFParams par=TightGates(60);
     par.SmearingkT=1e-2;
     GpwReport report("Si "+o.label, par.Verbose);
@@ -194,16 +194,16 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqUnfolded)
 {
     const Material box=qchem::Materials::Get("Si_box16");     // Pm-3m box, 48 ops; the atom sits on the cube centre
     const Lattice_3D lat=LatticeOf(box);                      // Γ-only: the T3.2 arming condition
-    SolidCalcOptions o=OptionsFor(box, "Si atom-in-box Γ open-shell fold A/B");
-    o.densityEcut=10.0; o.imposeSymmetry=true;
-    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;    // the finite-molecule mode of the parent gate
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;            // ditto: the rotating degenerate density and
+    RunOptions o=OptionsFor(box, "Si atom-in-box Γ open-shell fold A/B");
+    o.solid.densityEcut=10.0; o.imposeSymmetry=true;
+    o.solid.images=BasisSet::Gaussian::CellImages::HomeCellOnly;    // the finite-molecule mode of the parent gate
+    SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;            // ditto: the rotating degenerate density and
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;         //   a fixed-axis Becke grid do not mix
     SCFParams par=TightGates(40); par.SmearingkT=0.0;           // INTEGER AUFBAU -- the symmetry-broken D
     struct Arm { double charge, E; };
     auto arm=[&](const char* fold) -> Arm                       // last iterates: this gate pins ENERGY, not convergence
     {
-        o.policy.streamFold=(std::string(fold)=="1");   // the A/B arm states its route (D-ENV 6b)
+        o.solid.policy.streamFold=(std::string(fold)=="1");   // the A/B arm states its route (D-ENV 6b)
         GpwReport report("Si "+o.label, false);
         qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par);
         return {calc.LastIterateCharge(), calc.LastIterateTerms().GetTotalEnergy()};
@@ -246,18 +246,18 @@ TEST(GPW_NaBox, Γ_Imp_M2_eqFinite)
     // functions fit the smooth nodeless pseudo-orbitals poorly -- same reason the Si gate anchors on the
     // basis-matched sipp facade run.)
     Molecule na; na.Insert(Site{11, {0,0,0}});
-    MoleculeCalculation cRef(MoleculeSetup::Resolve(na, {.basis="valence_lowq_sr", .model = Model::LDA, .multiplicity=2, .pp="gth-lda-valence"}));
+    MoleculeCalculation cRef(MoleculeSetup::Resolve(na, {.multiplicity=2, .model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="valence_lowq_sr"}}));
     const double Eref=cRef.Energy();
     std::cout << "[Na finite] valence_lowq_sr LSDA doublet (q1)="<<Eref<<std::endl;
 
     // Box a=16 (the Si gate's size: cross-cell products of the most diffuse pair negligible).
     const Material box=qchem::Materials::Get("Na_box16");
     const Lattice_3D lat=LatticeOf(box);
-    SolidCalcOptions o=OptionsFor(box, "Na atom-in-box doublet");
+    RunOptions o=OptionsFor(box, "Na atom-in-box doublet");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.multiplicity=2;                                          // S=1/2: nUp=1, nDown=0
-    o.siteSpins={+1}; // stated (R2.5): the decoration the seed used to derive
-    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;   // the finite-molecule mode
+    o.spins={+1}; // stated (R2.5): the decoration the seed used to derive
+    o.solid.images=BasisSet::Gaussian::CellImages::HomeCellOnly;   // the finite-molecule mode
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;       // SEED PIN: Uniform has a stable wrong basin (header)
     GpwReport report("Na "+o.label, false);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), TightGates(40));
@@ -283,8 +283,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     // The finite twin is the δ route (2026-10-31; the molecular default since, stated here anyway): no Vxc fit, like the GPW it is
     // compared with.  With the fit bases' D shells back it is PySCF's A1_coul J-fit value (-29.999454) and within ~0.7 mHa of the
     // box (CP2K -29.998761); the auxiliary (A1) route sits ~0.1 Ha above it on this soft basis.
-    MoleculeCalculation cRef(MoleculeSetup::Resolve(o2mol, {.basis="sipp", .model = Model::LDA, .multiplicity=3, .vxcFit=Hamiltonian::VxcFit::Delta,
-                                                    .pp="gth-lda-valence"}));
+    MoleculeCalculation cRef(MoleculeSetup::Resolve(o2mol, {.multiplicity=3, .model=Model::LDA, .pp="gth-lda-valence", .vxcFit=Hamiltonian::VxcFit::Delta, .molecule={.basis="sipp"}}));
     const double Eref=cRef.Energy();
     {
         auto E=cRef.EnergyTerms();
@@ -295,7 +294,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
 
     const Material box=qchem::Materials::Get("O2_box16");   // the same d=2.282 dimer, centred in a 16-bohr box
     const Lattice_3D lat=LatticeOf(box);
-    SolidCalcOptions o=OptionsFor(box, "O2 in-box triplet");
+    RunOptions o=OptionsFor(box, "O2 in-box triplet");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.multiplicity=3;                                  // S=1: nUp=7, nDown=5
     // THE DENSITY CUTOFF IS STATED (2026-10-31): AUTO picks 4 Ha here -- from the basis's alpha_max = 2, ignoring the PP core
@@ -303,9 +302,9 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     // non-variational), which this gate "matched" only because the old 30/5 molecular mesh was as wrong (-30.736).  Measured:
     // 60 Ha -29.998793, 120 / 240 Ha -29.998767 = CP2K's -29.998761 (GPW, the same sipp O + GTH-PADE-q6, 16-bohr box, 400 Ry;
     // ~/Code/cp2k-runs/O2/O2_sipp_box16_*).  The auto rule is OpenWork §3 "Auto densityEcut ignores the PP core".
-    o.densityEcut=120.0;
-    o.siteSpins={+1,+1}; // stated (R2.5): the decoration the seed used to derive (the triplet's two O, parallel)
-    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
+    o.solid.densityEcut=120.0;
+    o.spins={+1,+1}; // stated (R2.5): the decoration the seed used to derive (the triplet's two O, parallel)
+    o.solid.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     GpwReport report("O "+o.label, false);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), TightGates(60));
     // No convergence guard (as before): the box's energy is what is compared, and it is compared as the
@@ -323,12 +322,12 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
 // with the N4 cusp deficit all agree; doc/Pins.md pin 28).  Measured 2026-10-26: -30.7101817389 in 21 iterations, XC ρ = DM x21.
 namespace
 {
-SolidCalcOptions O2PulayOnDOptions(const Material& box, const std::string& label)
+RunOptions O2PulayOnDOptions(const Material& box, const std::string& label)
 {
-    SolidCalcOptions o=OptionsFor(box, label);
+    RunOptions o=OptionsFor(box, label);
     o.imposeSymmetry=true; o.multiplicity=3;
-    o.siteSpins={+1,+1}; // stated (R2.5): the decoration the seed used to derive (the triplet's two O, parallel)
-    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
+    o.spins={+1,+1}; // stated (R2.5): the decoration the seed used to derive (the triplet's two O, parallel)
+    o.solid.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     o.accelerator=qchem::SCFAccelerators::Type::Null;   // no Fock history beside a density history
     return o;
 }
@@ -355,10 +354,10 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_Anchor_Panel)   // PANEL case 4 (regime 1, Pulay
     qchem::IterationBudget budget(32, "O2 box triplet, Pulay on D (regime 1; 25 measured, 2026-10-29 panel baseline)");
     const Material box=qchem::Materials::Get("O2_box16");
     const Lattice_3D lat=LatticeOf(box);
-    SolidCalcOptions o=O2PulayOnDOptions(box, "O2 in-box triplet, Pulay on D");
+    RunOptions o=O2PulayOnDOptions(box, "O2 in-box triplet, Pulay on D");
     // THE GRID IS A CONTROLLED VARIABLE ON THE PANEL (controller ruling 2026-10-31): the panel's subject is the accelerator, so the
     // rasters are STATED at what the pilot settles on (Γ_Imp_M3_Pulay_PilotSizesTheRaster gates the pilot and its cost).
-    o.accuracy.eps=0.0; o.tolerances.rasterX=kO2PulayRasterX; o.cutoffFactor=kO2PulayCutoffFactor; o.tolerances.vlocEps=kO2PulayVlocEps;
+    o.accuracy.eps=0.0; o.solid.tolerances.rasterX=kO2PulayRasterX; o.solid.cutoffFactor=kO2PulayCutoffFactor; o.solid.tolerances.vlocEps=kO2PulayVlocEps;
     std::vector<std::string> xcRho;
     const SCFParams par=O2PulayOnDParams();
     GpwReport report("O "+o.label, false);
@@ -384,7 +383,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_PilotSizesTheRaster)
 {
     const Material box=qchem::Materials::Get("O2_box16");
     const Lattice_3D lat=LatticeOf(box);
-    const SolidCalcOptions o=O2PulayOnDOptions(box, "O2 in-box triplet, Pulay on D, pilot");
+    const RunOptions o=O2PulayOnDOptions(box, "O2 in-box triplet, Pulay on D, pilot");
     GpwReport report("O "+o.label, false);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), O2PulayOnDParams());
     auto R=calc.Result();
@@ -396,8 +395,8 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_PilotSizesTheRaster)
     EXPECT_FALSE(cost.settled) << "the ball's O tail outruns the pilot's four rounds (OpenWork §3)";
     EXPECT_EQ(cost.rounds, 4);
     EXPECT_LE(cost.reconvergeIterations, 45u) << "three re-convergences from the audited D (37 measured 2026-11-02; 16 with the raster alone)";
-    EXPECT_NEAR(calc.SizedSetup()->opts.tolerances.rasterX, kO2PulayRasterX, 1e-6) << "the panel case states what this settles on";
-    EXPECT_EQ(calc.SizedSetup()->opts.cutoffFactor, kO2PulayCutoffFactor) << "and the ball it ends on";
+    EXPECT_NEAR(calc.SizedSetup()->opts.solid.tolerances.rasterX, kO2PulayRasterX, 1e-6) << "the panel case states what this settles on";
+    EXPECT_EQ(calc.SizedSetup()->opts.solid.cutoffFactor, kO2PulayCutoffFactor) << "and the ball it ends on";
     EXPECT_NEAR(R->Energy(), kO2PulayE, 1e-6) << "the pilot's re-converged point is the stated-grid panel case's";
 }
 
@@ -438,9 +437,7 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     // The finite twin is the δ route (2026-10-31; the molecular default since, stated here anyway): no Vxc fit, like the GPW.  With
     // the fit bases' D shells back it lands 1.5 mHa from the box at its auto cutoff and 0.03 mHa from the box's converged-cutoff
     // value (-14.63650); the auxiliary (A1) route sits 35 mHa above (the A1 Vxc fit on this sextet).
-    MoleculeCalculation cRef(MoleculeSetup::Resolve(mnmol, {.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr", .model = Model::LDA,
-                             .multiplicity=6, .angular = spherical ? Angular::Spherical : Angular::Cartesian,
-                             .vxcFit=Hamiltonian::VxcFit::Delta, .pp="gth-lda-valence"}));
+    MoleculeCalculation cRef(MoleculeSetup::Resolve(mnmol, {.multiplicity=6, .model=Model::LDA, .pp="gth-lda-valence", .vxcFit=Hamiltonian::VxcFit::Delta, .molecule={.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr", .angular=spherical ? Angular::Spherical : Angular::Cartesian}}));
     const double Eref=cRef.Energy();
     std::cout << "[Mn finite] "<<(sphBasis?"valence_lowq_sph":"valence_lowq_sr")<<" LSDA sextet (q7, "
               <<(spherical?"SPHERICAL":"CARTESIAN")
@@ -448,7 +445,7 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
 
     const Material box=qchem::Materials::Get("Mn_box16");
     const Lattice_3D lat=LatticeOf(box);
-    SolidCalcOptions o=MnBoxOptions(box, "Mn atom-in-box sextet");   // S=5/2 Hund: nUp=6, nDown=1
+    RunOptions o=MnBoxOptions(box, "Mn atom-in-box sextet");   // S=5/2 Hund: nUp=6, nDown=1
     SCFParams par=Gates(40, 1e-5, std::nullopt); par.SmearingkT=5e-3;
     // CARTESIAN d carries the s CONTAMINANT (x^2+y^2+z^2), so 8 d shells duplicate the 7-function s space
     // -- measured lambdaMin 1.15e-07 / cond 8.2e7 on this one-atom box, i.e. the basis is rank-deficient
@@ -487,14 +484,14 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
 {
     const Material box=qchem::Materials::Get("Mn2_box7");     // Mn +m at 0, Mn -m at 1/2 (the AFM flip), a=7
     const Lattice_3D lat=LatticeOf(box);
-    SolidCalcOptions o=OptionsFor(box, "Mn2 B2 AFM imposed");
+    RunOptions o=OptionsFor(box, "Mn2 B2 AFM imposed");
     o.multiplicity=1; o.spin=SpinGroup::Polarized;
-    o.siteSpins={+1,-1}; // stated (R2.5): the decoration the seed used to derive (Mn up, Mn down)
+    o.spins={+1,-1}; // stated (R2.5): the decoration the seed used to derive (Mn up, Mn down)
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;      // neutral Mn: the library's d5s2 spin pair
     o.imposeSymmetry=true;                                // S3 resolves the SHUBNIKOV group from the flips
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);         // coarse quadrature: symmetry, not accuracy
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     SCFParams par=Gates(6, 1e-9, std::nullopt);                   // BOUNDED: this gate tests symmetry through the loop, not convergence
     par.SmearingkT=5e-3;                                  // the open-d-manifold tie smoother
     par.StartingRelaxRo=0.45;
@@ -536,14 +533,14 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_RowMomentsAreTheIterates)
     const Lattice_3D lat=LatticeOf(box);
     for (const bool kerker : {false, true})
     {
-        SolidCalcOptions o=OptionsFor(box, kerker ? "Mn2 rows, Kerker+Pulay" : "Mn2 rows, Pulay on D");
+        RunOptions o=OptionsFor(box, kerker ? "Mn2 rows, Kerker+Pulay" : "Mn2 rows, Pulay on D");
         o.multiplicity=1; o.spin=SpinGroup::Polarized;
-        o.siteSpins={+1,-1};
+        o.spins={+1,-1};
         o.seed=qchem::ChargeDensity::SeedStrategy::SAD;
         o.imposeSymmetry=true;
         o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
         o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);
-        o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+        SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
         SCFParams par=Gates(3, 1e-9, std::nullopt);
         par.SmearingkT=5e-3;
         par.StartingRelaxRo=0.45;
@@ -580,18 +577,18 @@ TEST(GPW_Mn2Box, k211_Becke_Pol_Smear_EqualsItsSupercellAtGamma_Long)   // ~4.5 
     const Material box=qchem::Materials::Get("Mn2_box7");     // Mn +m at 0, Mn -m at 1/2 (B2 AFM), a=7
     auto recipe=[&](const std::string& label, std::vector<int> spins, int nelec)
     {
-        SolidCalcOptions o=OptionsFor(box, label);
+        RunOptions o=OptionsFor(box, label);
         o.Nelec=nelec;
         o.multiplicity=1; o.spin=SpinGroup::Polarized;
-        o.siteSpins=std::move(spins);
+        o.spins=std::move(spins);
         o.seed=qchem::ChargeDensity::SeedStrategy::SAD;
         o.imposeSymmetry=false;
-        o.xcMeshSymmetric=false;                              // the plain mesh: replicated exactly in the supercell
+        o.solid.xcMeshSymmetric=false;                              // the plain mesh: replicated exactly in the supercell
         o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
         o.accelerator=qchem::SCFAccelerators::Type::Null;
         o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);
-        o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
-        o.densityEcut=288.0;   // the two cells' rasters are NOT replicas (isotropic N from the longest edge: (27)^3 vs (54)^3), so the identity
+        SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+        o.solid.densityEcut=288.0;   // the two cells' rasters are NOT replicas (isotropic N from the longest edge: (27)^3 vs (54)^3), so the identity
                                // holds only as the density grid converges -- MEASURED at iteration 1: auto 72 Ha 1.4e-3, 144 Ha 5.8e-6, 288 Ha 7.7e-8
         return o;
     };
@@ -600,10 +597,10 @@ TEST(GPW_Mn2Box, k211_Becke_Pol_Smear_EqualsItsSupercellAtGamma_Long)   // ~4.5 
     par.SmearingkT=5e-3; par.StartingRelaxRo=0.45; par.UseMOM=false;
     qchem::BoundedSCF bounded("the identity holds at every iterate; 3 suffice to carry the k = 1/2 block through Fock, fill and mix");
 
-    const SolidCalcOptions op=recipe("Mn2 B2 AFM primitive k211", {+1,-1}, box.Nelec());
+    const RunOptions op=recipe("Mn2 B2 AFM primitive k211", {+1,-1}, box.Nelec());
     qchem::SolidCalculation prim(SolidSetup::Resolve(LatticeOf(box, ivec3_t(2,1,1)), MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), op), par);
     const UnitCell super=qchem::Supercell(*box.cell, ivec3_t(2,1,1));   // replica-major: Mn+ Mn- Mn+ Mn-
-    const SolidCalcOptions os=recipe("Mn2 B2 AFM 2x1x1 supercell Γ", {+1,-1,+1,-1}, 2*box.Nelec());
+    const RunOptions os=recipe("Mn2 B2 AFM 2x1x1 supercell Γ", {+1,-1,+1,-1}, 2*box.Nelec());
     qchem::SolidCalculation sup(SolidSetup::Resolve(Lattice_3D(super, ivec3_t(1,1,1)), MakeBasisLowQ(super, BasisSetData::VALENCE_LOWQ_SR), os), par);
     ASSERT_EQ(prim.IterationCount(), sup.IterationCount());
     const double Ep=prim.LastIterateTerms().GetTotalEnergy(), Es=sup.LastIterateTerms().GetTotalEnergy();
@@ -679,15 +676,15 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows_Panel)   // PANEL case 9: a c
     par.Mixer=SCFParams::Mixing::Linear;
     par.StartingRelaxRo=0.7;
 
-    qchem::SolidCalcOptions o;
+    qchem::RunOptions o;
     o.label="Na2 AFM-seeded singlet";
     o.Nelec=2; o.multiplicity=1; o.spin=SpinGroup::Polarized;                              // the explicit two-channel singlet, nUp=nDn=1
-    o.siteSpins={+1,-1}; // stated (R2.5): the decoration the seed used to derive (the AFM +m/-m pair)
+    o.spins={+1,-1}; // stated (R2.5): the decoration the seed used to derive (the AFM +m/-m pair)
     o.species={{"Na",1}};
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;           // neutral Na: the library's 3s^1 spin pair
     o.imposeSymmetry=true;                                    // S3 resolves the SHUBNIKOV group from the flips
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);             // coarse: this gate tests the POSTCONDITION
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);            // PINNED -- see the header (Auto would pick Uniform)
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);            // PINNED -- see the header (Auto would pick Uniform)
 
     const qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
     auto r=calc.Result();
@@ -762,7 +759,7 @@ TEST(GPW_Na2Box, Γ_Pol_Null_Linear_SpinSeed_Converges_Panel)
     par.Mixer=SCFParams::Mixing::Linear; par.StartingRelaxRo=0.3;
     auto options=[](int mult, const char* label)
     {
-        qchem::SolidCalcOptions o;
+        qchem::RunOptions o;
         o.label=label;
         o.Nelec=2; o.multiplicity=mult; o.spin=mult>=1 ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized;   // 1 = the explicit two-channel singlet (R6)
         o.species={{"Na",1}};
@@ -772,7 +769,7 @@ TEST(GPW_Na2Box, Γ_Pol_Null_Linear_SpinSeed_Converges_Panel)
     };
     double Eunpol=0.0;
     {
-        const qchem::SolidCalcOptions o=options(0, "Na2 UNPOLARIZED twin");   // multiplicity 0 = the zeta = 0 collapse
+        const qchem::RunOptions o=options(0, "Na2 UNPOLARIZED twin");   // multiplicity 0 = the zeta = 0 collapse
         SCFParams p=par; p.NMaxIter=100;
         const qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), p);
         auto r=calc.Result();
@@ -780,8 +777,8 @@ TEST(GPW_Na2Box, Γ_Pol_Null_Linear_SpinSeed_Converges_Panel)
         Eunpol=r->Energy();
     }
     qchem::IterationBudget budget(38, "Na2 box, polarized singlet from the AFM seed, linear 0.3 (OpenWork §3 Na2 row)");
-    qchem::SolidCalcOptions o=options(1, "Na2 AFM-seeded singlet, free");   // 1 = the EXPLICIT two-channel singlet
-    o.siteSpins={1,-1};                                                       // the +m/-m seed, stated
+    qchem::RunOptions o=options(1, "Na2 AFM-seeded singlet, free");   // 1 = the EXPLICIT two-channel singlet
+    o.spins={1,-1};                                                       // the +m/-m seed, stated
     const qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
     auto r=calc.Result();
     ASSERT_TRUE(r) << Why(r);

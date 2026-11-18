@@ -54,7 +54,7 @@ class A_HF_dfPin : public ::testing::TestWithParam<PinCase> {};
 TEST_P(A_HF_dfPin, SelfPin)
 {
     const PinCase c = GetParam();
-    AtomCalculation calc(c.Z, 0, {.type = c.type, .basisPool = c.acc, .model = Model::HF, .spin = SpinGroup::Polarized},
+    AtomCalculation calc(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::Polarized, .model=Model::HF, .atom={.type=c.type, .basisPool=c.acc}}),
                          HFParams(c));
     const double E = calc.Energy();
 
@@ -92,7 +92,7 @@ class A_HF_dfPin_HighValidation : public ::testing::TestWithParam<PinCase> {};
 TEST_P(A_HF_dfPin_HighValidation, VsSaito)
 {
     const PinCase c = GetParam();
-    AtomCalculation calc(c.Z, 0, {.type = c.type, .basisPool = High, .model = Model::HF, .spin = SpinGroup::Polarized},
+    AtomCalculation calc(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::Polarized, .model=Model::HF, .atom={.type=c.type, .basisPool=High}}),
                          HFParams(c));
     EXPECT_TRUE(calc.IsConverged());
     EXPECT_LT(RelativeHFError(calc.Energy(), c.Z), c.atol);   // atol here is the Saito relative-error bound

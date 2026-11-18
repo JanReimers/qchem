@@ -29,7 +29,7 @@ using StructureData::GetMolecule;
 TEST(CalculationFacade, TheConstructorsObserverSeesItsSCFFromTheFirstIteration)
 {
     std::vector<SCFIterator::IterationRow> steps;
-    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}), {},
+    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.molecule={.basis="dzvp"}}), {},
                      [&steps](const SCFIterator::IterationRow& p){ steps.push_back(p); });
     ASSERT_TRUE(calc.IsConverged());
     ASSERT_FALSE(steps.empty()) << "the observer must see the constructor's SCF, not only a later Converge";
@@ -45,7 +45,7 @@ TEST(CalculationFacade, AMoleculesXCMeshIsInTheRunReportByIterationOne)
 {
     bool seen=false, checked=false;
     qchem::report::Run run("H2O");   // the test is the driver: it opens the run the facade writes into (user ruling D, 2026-11-02)
-    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA}), {},
+    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}}), {},
                      [&](const SCFIterator::IterationRow& p)
                      {
                          if (p.iteration!=1) return;
@@ -68,7 +68,7 @@ TEST(CalculationFacade, APseudopotentialOnAGaussianBasisBuildsNoPPQuadrature)
 {
     bool built=true, stray=true;
     qchem::report::Run run("H2O");   // the driver's run (user ruling D, 2026-11-02)
-    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}), {},
+    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}}), {},
                      [&](const SCFIterator::IterationRow& p)
                      {
                          if (p.iteration!=1) return;
@@ -84,7 +84,7 @@ TEST(CalculationFacade, APseudopotentialOnAGaussianBasisBuildsNoPPQuadrature)
 
 TEST(CalculationFacade, LevelsListEveryMOAscendingAndTheOccupiedOnesAreTheOrbitals)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.molecule={.basis="dzvp"}}));
     ASSERT_TRUE(calc.IsConverged());
     const auto& levels=calc.GetLevels();
     ASSERT_GT(levels.size(), calc.NumOccupied()) << "the virtuals are listed too";
@@ -105,11 +105,11 @@ TEST(CalculationFacade, LevelsListEveryMOAscendingAndTheOccupiedOnesAreTheOrbita
 
 TEST(CalculationFacade, AnUnpolarizedSpinDensityIsTheZeroFieldAndAPolarizedOneIsNot)
 {
-    MoleculeCalculation closed(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}));
+    MoleculeCalculation closed(MoleculeSetup::Resolve(GetMolecule("H2O"), {.molecule={.basis="dzvp"}}));
     ASSERT_TRUE(closed.IsConverged());
     EXPECT_EQ(closed.GetSpinDensity()(rvec3_t(0.0, 0.0, 0.3)), 0.0);
 
-    MoleculeCalculation triplet(MoleculeSetup::Resolve(GetMolecule("O2"), {.basis="dzvp", .multiplicity=3}));
+    MoleculeCalculation triplet(MoleculeSetup::Resolve(GetMolecule("O2"), {.multiplicity=3, .molecule={.basis="dzvp"}}));
     ASSERT_TRUE(triplet.IsConverged());
     // The two unpaired π* electrons put the moment off the bond axis, around the atoms.
     EXPECT_GT(triplet.GetSpinDensity()(rvec3_t(0.8, 0.0, 1.141)), 1e-3);
@@ -127,7 +127,7 @@ TEST(CalculationFacade, AnUnpolarizedSpinDensityIsTheZeroFieldAndAPolarizedOneIs
 // carries the SCFFailure both facades share -- never a plausible energy as "the answer".
 TEST(CalculationFacade, ConvergeIsAnOutcomeTheAnswersLiveOnTheProof)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.molecule={.basis="dzvp"}}));
     auto R=calc.Result();
     ASSERT_TRUE(R) << R.Error().details;
     EXPECT_EQ(R->Energy(), calc.Energy());
@@ -139,7 +139,7 @@ TEST(CalculationFacade, ConvergeIsAnOutcomeTheAnswersLiveOnTheProof)
     EXPECT_NEAR(again->Energy(), R->Energy(), 1e-8) << "a re-converge from the converged state stays there";
 
     qchem::BoundedSCF bounded("the failure arm is the subject: one iteration cannot converge water");
-    MoleculeCalculation cut(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}), {.NMaxIter=1});
+    MoleculeCalculation cut(MoleculeSetup::Resolve(GetMolecule("H2O"), {.molecule={.basis="dzvp"}}), {.NMaxIter=1});
     auto F=cut.Result();
     ASSERT_FALSE(F);
     EXPECT_EQ(F.Error().why, SCFFailure::Why::NotConverged);
@@ -154,10 +154,10 @@ TEST(CalculationFacade, ConvergeIsAnOutcomeTheAnswersLiveOnTheProof)
 TEST(CalculationFacade, AStatedLinearCeilingBesideTheFockDIISConverges)
 {
     SCFParams p; p.StartingRelaxRo=0.2; p.MaxRelaxRo=0.3;
-    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA}), p);
+    MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}}), p);
     auto R=calc.Result();
     ASSERT_TRUE(R) << R.Error().details;
-    MoleculeCalculation free(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA}));
+    MoleculeCalculation free(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}}));
     ASSERT_TRUE(free.Result());
     EXPECT_NEAR(R->Energy(), free.Energy(), 1e-8) << "the ceiling changes the path, never the answer";
 }
@@ -180,7 +180,7 @@ const qchem::report::json* FiledRun(const std::string& prefix)
 //! iteration; the first Converge then reuses that graph and lands on the constructor's answer bit for bit.
 TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySCF)
 {
-    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"});
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
     size_t rows=0;
     std::unique_ptr<MoleculeCalculation> calc;
     { qchem::report::Run run(GetMolecule("H2O").ID()+" build"); calc=MoleculeCalculation::Prepare(setup, [&](const SCFIterator::IterationRow&){ rows++; }); }
@@ -224,7 +224,7 @@ TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySC
 //! not yet the answer; after the last iteration it IS the converged \c Density(), point for point.
 TEST(CalculationFacade, TheCurrentIteratesDensityIsSampledFromTheObserverAndEndsAsTheConvergedOne)
 {
-    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"});
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.molecule={.basis="dzvp"}});
     const rvec3_t on(0.0, 0.0, 0.3), off(0.0, 1.0, 1.2);
     std::vector<double> mid;
     std::unique_ptr<MoleculeCalculation> calc;
@@ -250,11 +250,11 @@ TEST(CalculationFacade, TheCurrentIteratesDensityIsSampledFromTheObserverAndEnds
 //! refused at Resolve, naming the registered bases that cover the structure.
 TEST(CalculationFacade, EveryDefaultBuildsAndAnUnstatedBasisIsRefusedNamingTheBasesThatCoverIt)
 {
-    for (const CalcOptions& opts : {CalcOptions{.basis="dzvp"}, CalcOptions{.basis="dzvp", .model=Model::LDA}})
+    for (const RunOptions& opts : {RunOptions{.molecule={.basis="dzvp"}}, RunOptions{.model=Model::LDA, .molecule={.basis="dzvp"}}})
     {
         std::unique_ptr<MoleculeCalculation> calc;
         EXPECT_NO_THROW(calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(GetMolecule("H2O"), opts)))
-            << "model " << int(opts.model) << ": a default failed to build";
+            << "model " << int(opts.model.value_or(Model::HF)) << ": a default failed to build";
     }
     try
     {
@@ -272,7 +272,7 @@ TEST(CalculationFacade, EveryDefaultBuildsAndAnUnstatedBasisIsRefusedNamingTheBa
 
 //! Two Gaussian auxiliary fits in one run: each files its fit basis and its private mesh in its own term, so neither overwrites the other
 //! (one grids.auxiliaryFit key did, until the terms got scopes; user ruling 2026-11-04).
-//! A STATED BASIS FILE (CalcOptions::basisFile, lane G 2026-11-10: the GUI's Basis Set Exchange downloads): the same file
+//! A STATED BASIS FILE (RunOptions::basisFile, lane G 2026-11-10: the GUI's Basis Set Exchange downloads): the same file
 //! contents at another path build the same calculation bit for bit; the report states the path and the checksum; a saved state
 //! refuses an EDITED file (the checksum, not the path, identifies it) and a run on the shipped name alone.
 TEST(CalculationFacade, AStatedBasisFileIsItsContentsAndASavedStateRefusesAnEditedOne)
@@ -285,10 +285,10 @@ TEST(CalculationFacade, AStatedBasisFileIsItsContentsAndASavedStateRefusesAnEdit
     fs::copy_file(copy, edited, fs::copy_options::overwrite_existing);
     std::ofstream(edited, std::ios::app) << "\nan edit after the last block\n";
 
-    MoleculeCalculation named(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}));
+    MoleculeCalculation named(MoleculeSetup::Resolve(GetMolecule("H2O"), {.molecule={.basis="dzvp"}}));
     std::unique_ptr<MoleculeCalculation> mine;
     { qchem::report::Run run("H2O basisFile"); mine=std::make_unique<MoleculeCalculation>(
-        MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .basisFile=copy.string()})); }
+        MoleculeSetup::Resolve(GetMolecule("H2O"), {.molecule={.basis="dzvp", .basisFile=copy.string()}})); }
     ASSERT_TRUE(named.IsConverged() && mine->IsConverged());
     EXPECT_DOUBLE_EQ(mine->Energy(), named.Energy()) << "the same contents are the same basis";
     EXPECT_EQ(mine->IterationCount(), named.IterationCount());
@@ -298,14 +298,14 @@ TEST(CalculationFacade, AStatedBasisFileIsItsContentsAndASavedStateRefusesAnEdit
     EXPECT_EQ((*run)["basis"]["checksum"].get<std::string>(), BasisSet::Gaussian::BasisFileChecksum(copy.string()));
 
     mine->SaveState(state.string());
-    auto judged=[&](const CalcOptions& o){ return MoleculeCalculation(MoleculeSetup::Resolve(GetMolecule("H2O"), o)).JudgeState(state.string()); };
-    const auto same=judged({.basis="dzvp", .basisFile=copy.string()});
+    auto judged=[&](const RunOptions& o){ return MoleculeCalculation(MoleculeSetup::Resolve(GetMolecule("H2O"), o)).JudgeState(state.string()); };
+    const auto same=judged({.molecule={.basis="dzvp", .basisFile=copy.string()}});
     ASSERT_TRUE(same) << same.Error().details;
     EXPECT_TRUE(same->empty()) << "the same file: an exact resume";
-    const auto ed=judged({.basis="dzvp", .basisFile=edited.string()});
+    const auto ed=judged({.molecule={.basis="dzvp", .basisFile=edited.string()}});
     ASSERT_FALSE(ed) << "an edited file passed as the same basis";
     EXPECT_NE(ed.Error().details.find("basis.fileChecksum"), std::string::npos) << ed.Error().details;
-    const auto shipped=judged({.basis="dzvp"});
+    const auto shipped=judged({.molecule={.basis="dzvp"}});
     ASSERT_FALSE(shipped) << "a state made on a stated file restarted a run on the shipped name";
     EXPECT_NE(shipped.Error().details.find("basis.fileChecksum"), std::string::npos) << shipped.Error().details;
     fs::remove_all(dir);
@@ -313,7 +313,7 @@ TEST(CalculationFacade, AStatedBasisFileIsItsContentsAndASavedStateRefusesAnEdit
 
 TEST(CalculationFacade, EachAuxiliaryFitFilesInItsOwnTerm)
 {
-    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary});
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .molecule={.basis="dzvp"}});
     { qchem::report::Run run("H2O fits build"); auto calc=MoleculeCalculation::Prepare(setup); }
     const auto* build=FiledRun("H2O fits build@");
     ASSERT_NE(build, nullptr) << "no filed build run";
@@ -333,16 +333,16 @@ TEST(CalculationFacade, EachAuxiliaryFitFilesInItsOwnTerm)
 //! The atom's Build -> Run twin.
 TEST(CalculationFacade, AnAtomsPrepareFilesItsSetupBeforeAnySCF)
 {
-    const AtomCalcOptions opts{.type=AtomType::Gaussian, .model=Model::LDA};
+    const RunOptions opts{.model=Model::LDA, .atom={.type=AtomType::Gaussian}};
     std::unique_ptr<AtomCalculation> calc;
-    { qchem::report::Run run(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build"); calc=AtomCalculation::Prepare(8, 0, opts); }
+    { qchem::report::Run run(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build"); calc=AtomCalculation::Prepare(AtomSetup::Resolve(8, 0, opts)); }
     const auto* build=FiledRun(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build@");
     ASSERT_NE(build, nullptr) << "no filed '<ID> build' run";
     EXPECT_TRUE(build->contains("basis") && (*build)["basis"].contains("perIrrep")) << build->dump(1);
     EXPECT_TRUE(build->contains("hamiltonian") && (*build)["hamiltonian"].contains("xcQuadrature")) << build->dump(1);
     EXPECT_FALSE(build->contains("scf") && (*build)["scf"].contains("standard")) << "the build run holds an SCF";
     ASSERT_TRUE(calc->Converge());
-    AtomCalculation once(8, 0, opts);
+    AtomCalculation once(AtomSetup::Resolve(8, 0, opts));
     EXPECT_DOUBLE_EQ(calc->Energy(), once.Energy());
     EXPECT_EQ(calc->IterationCount(), once.IterationCount());
 }
@@ -362,14 +362,14 @@ TEST(CalculationFacade, EveryFacadeCarriesTheAccuracyTargetAndSaysWhoConsumesIt)
     };
     {
         qchem::report::Run run("eps atom");
-        AtomCalculation calc(2, 0, {.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low, .accuracy={.eps=3e-6}});
+        AtomCalculation calc(AtomSetup::Resolve(2, 0, {.accuracy={.eps=3e-6}, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}}));
         const Calculation& base=calc;
         EXPECT_EQ(base.Consumes(), ClientConsumes::Energy);
     }
     expectReported("eps atom", 3e-6);
     {
         qchem::report::Run run("eps molecule");
-        MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .accuracy={.eps=4e-6}}), {});
+        MoleculeCalculation calc(MoleculeSetup::Resolve(GetMolecule("H2O"), {.accuracy={.eps=4e-6}, .molecule={.basis="dzvp"}}), {});
         const Calculation& base=calc;
         EXPECT_EQ(base.Consumes(), ClientConsumes::Energy);
     }
@@ -399,7 +399,7 @@ TEST(CalculationFacade, TheGaussianDeltaXCCellWarnsAndRefusesGDM)
         walk(j);
         return out;
     };
-    { qchem::report::Run run("H2O A1 rhoD resolve"); MoleculeSetup::Resolve(water, {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary}); }
+    { qchem::report::Run run("H2O A1 rhoD resolve"); MoleculeSetup::Resolve(water, {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .molecule={.basis="dzvp"}}); }
     const auto* warned=FiledRun("H2O A1 rhoD resolve@");
     ASSERT_NE(warned, nullptr);
     const auto w=rowsNamed(*warned, "XCRhoFittedPotential");
@@ -414,7 +414,7 @@ TEST(CalculationFacade, TheGaussianDeltaXCCellWarnsAndRefusesGDM)
     {
         try
         {
-            MoleculeSetup::Resolve(water, {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary}, {.type=type});
+            MoleculeSetup::Resolve(water, {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .molecule={.basis="dzvp"}}, {.type=type});
             ADD_FAILURE() << type << " on the Gaussian x δ cell was not refused";
         }
         catch (const std::invalid_argument& e)
@@ -427,7 +427,7 @@ TEST(CalculationFacade, TheGaussianDeltaXCCellWarnsAndRefusesGDM)
     { qchem::report::Run run("H2O A1 Prho resolve");
       try
       {
-          MoleculeSetup::Resolve(water, {.basis="dzvp", .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .xcRho=Hamiltonian::XCρ::Fit});
+          MoleculeSetup::Resolve(water, {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .xcRho=Hamiltonian::XCρ::Fit, .molecule={.basis="dzvp"}});
           ADD_FAILURE() << "xc.rho fit on the A1 fit was not refused";
       }
       catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find("pin 28"), std::string::npos) << e.what(); } }
@@ -446,9 +446,9 @@ TEST(CalculationFacade, AnAtomStatingLebedevDegreeZeroIsTheRadialOnlySetBitForBi
 {
     auto run=[](qcMesh::AngularKind angular, int degree)
     {
-        AtomCalcOptions o{.type=AtomType::Gaussian, .basisPool=BasisSetAccuracy::Low, .model=Model::LDA};
-        o.mesh.angular=angular; o.mesh.angularDegree=degree;
-        AtomCalculation calc(2, 0, o);
+        RunOptions o{.model=Model::LDA, .atom={.type=AtomType::Gaussian, .basisPool=BasisSetAccuracy::Low}};
+        AtomXCMesh(o).angular=angular; AtomXCMesh(o).angularDegree=degree;
+        AtomCalculation calc(AtomSetup::Resolve(2, 0, o));
         return std::pair{calc.Energy(), calc.IterationCount()};
     };
     const auto none  =run(qcMesh::AngularKind::None,    0);
@@ -457,7 +457,7 @@ TEST(CalculationFacade, AnAtomStatingLebedevDegreeZeroIsTheRadialOnlySetBitForBi
     EXPECT_EQ(legacy.first, none.first)   << "Lebedev at degree 0 on the atom must read as the radial-only set, bit for bit";
     EXPECT_EQ(legacy.second, none.second);
     EXPECT_EQ(loose.first, none.first)    << "the radial-only set does not read angularDegree";
-    EXPECT_EQ(AtomCalcOptions{}.mesh.angular, qcMesh::AngularKind::None) << "the atom's default XC mesh is the radial-only set";
+    EXPECT_EQ(kAtomMeshDefault.angular, qcMesh::AngularKind::None) << "the atom's default XC mesh is the radial-only set";
 }
 
 // A STATED CONFIGURATION (OpenWork row "All-electron ION seeds", 2026-11-15).  The atom refuses, before any SCF, a stated configuration
@@ -465,24 +465,24 @@ TEST(CalculationFacade, AnAtomStatingLebedevDegreeZeroIsTheRadialOnlySetBitForBi
 // Each refusal names the policy and its reason; a right one builds.
 TEST(AtomConfiguration, AStatedConfigurationThatCannotRunIsRefusedBeforeAnySCF)
 {
-    auto refused=[](int Z, int charge, const AtomCalcOptions& o, const char* expect)
+    auto refused=[](int Z, int charge, const RunOptions& o, const char* expect)
     {
-        try { (void)AtomCalculation::Prepare(Z, charge, o); ADD_FAILURE() << "must be refused: " << o.configuration; }
+        try { (void)AtomCalculation::Prepare(AtomSetup::Resolve(Z, charge, o)); ADD_FAILURE() << "must be refused: " << o.atom.configuration; }
         catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find(expect), std::string::npos) << e.what(); }
     };
-    const AtomCalcOptions lda{.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low, .model=Model::LDA, .spin=SpinGroup::Polarized};
-    AtomCalcOptions o=lda;
-    o.configuration="[Ar] 3d^6 4s^2"; refused(26, 1, o, "holds 26 electrons where the run carries 25");
-    o.configuration="[Ne] 3s^1 4s^1"; refused(12, 0, o, "open below the occupied 4s");
-    o.configuration="[Ar] 3d^6 4s^";  refused(26, 1, o, "has no electron count");
-    AtomCalcOptions dirac=lda; dirac.model=Model::DHF; dirac.configuration="[Ar] 3d^6 4s^1";
+    const RunOptions lda{.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}};
+    RunOptions o=lda;
+    o.atom.configuration="[Ar] 3d^6 4s^2"; refused(26, 1, o, "holds 26 electrons where the run carries 25");
+    o.atom.configuration="[Ne] 3s^1 4s^1"; refused(12, 0, o, "open below the occupied 4s");
+    o.atom.configuration="[Ar] 3d^6 4s^";  refused(26, 1, o, "has no electron count");
+    RunOptions dirac=lda; dirac.model=Model::DHF; dirac.atom.configuration="[Ar] 3d^6 4s^1";
     refused(26, 1, dirac, "Dirac");
-    AtomCalcOptions pp=lda; pp.type=AtomType::Gaussian; pp.pseudopotential=true; pp.valence=7;   // Mn2+ q7: 5 valence electrons, charge 25 - 5
-    pp.configuration="[Ne] 3s^2 3p^6 3d^5"; refused(25, 20, pp, "the pseudopotential replaces 18");
-    pp.configuration="[Ar] 3d^5";
-    EXPECT_NO_THROW((void)AtomCalculation::Prepare(25, 20, pp)) << "Mn2+ q7 stated as its valence over the PP's own [Ar] core";
-    o.configuration="[Ar] 3d^6 4s^1";
-    EXPECT_NO_THROW((void)AtomCalculation::Prepare(26, 1, o)) << "Fe+ in NIST's configuration";
+    RunOptions pp=lda; pp.atom.type=AtomType::Gaussian; pp.atom.pseudopotential=true; pp.atom.valence=7;   // Mn2+ q7: 5 valence electrons, charge 25 - 5
+    pp.atom.configuration="[Ne] 3s^2 3p^6 3d^5"; refused(25, 20, pp, "the pseudopotential replaces 18");
+    pp.atom.configuration="[Ar] 3d^5";
+    EXPECT_NO_THROW((void)AtomCalculation::Prepare(AtomSetup::Resolve(25, 20, pp))) << "Mn2+ q7 stated as its valence over the PP's own [Ar] core";
+    o.atom.configuration="[Ar] 3d^6 4s^1";
+    EXPECT_NO_THROW((void)AtomCalculation::Prepare(AtomSetup::Resolve(26, 1, o))) << "Fe+ in NIST's configuration";
 }
 
 // AN UNSTATED ALL-ELECTRON CATION (row 196 step 3, controller ruling 2026-11-16): Fe+ is NIST's 3d^6 4s^1 (not Mn's 3d^5 4s^2), Fe2+ the
@@ -494,8 +494,7 @@ TEST(AtomConfiguration, AnUnstatedCationTakesNISTsFirstCationOrTheRemovalRuleAnd
     {
         {
             qchem::report::Run run(runName);
-            (void)AtomCalculation::Prepare(Z, charge, {.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low, .model=Model::LDA,
-                                                       .spin=SpinGroup::Polarized});
+            (void)AtomCalculation::Prepare(AtomSetup::Resolve(Z, charge, {.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}}));
         }
         std::vector<qchem::report::json> out;
         std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& x)
@@ -535,17 +534,17 @@ TEST(AtomConfiguration, AnUnstatedCationTakesNISTsFirstCationOrTheRemovalRuleAnd
 TEST(AtomPilot, TheIterationCountIsTheRunsTotalAndThePilotsShareIsFiled)
 {
     size_t seen=0;
-    AtomCalcOptions o{.type=AtomType::Gaussian, .pseudopotential=true};   // PseudoAtomOrbital's own recipe (src/Calculation/Imp/PseudoAtomOrbital.C)
-    o.valence=7;
+    RunOptions o{.atom={.type=AtomType::Gaussian, .pseudopotential=true}};   // PseudoAtomOrbital's own recipe (src/Calculation/Imp/PseudoAtomOrbital.C)
+    o.atom.valence=7;
     o.vxcFit=Hamiltonian::VxcFit::Auxiliary;
     std::vector<double> pool;   // its 16-exponent pool, 0.05 .. 200
     for (int i=0;i<16;i++) pool.push_back(0.05*std::pow(200.0/0.05, i/15.0));
-    for (int l=0;l<=2;l++) o.exponentsByL.push_back({l, pool});
+    for (int l=0;l<=2;l++) o.atom.exponentsByL.push_back({l, pool});
     SCFParams p; p.MinVirial=std::nullopt; p.NMaxIter=120;
     std::unique_ptr<AtomCalculation> calc;
     {
         qchem::report::Run run("atom pilot iterations");
-        calc=AtomCalculation::Prepare(25, 25-7, o, {}, [&seen](const auto&){ ++seen; });
+        calc=AtomCalculation::Prepare(AtomSetup::Resolve(25, 25-7, o), [&seen](const auto&){ ++seen; });
         ASSERT_TRUE(calc->Converge(p));
     }
     const auto* filed=FiledRun("atom pilot iterations@");

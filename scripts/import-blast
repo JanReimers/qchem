@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+# import-blast -- the BLAST RADIUS of every C++20 module in a build tree (CleanCode D-BUILD-BLAST item 1, lane B 2026-11-18).
+#
+# The import graph is already on disk: CMake's module scan writes one P1689 `*.ddi` per TU (provides / requires).  A TU that
+# PROVIDES a module interface (or partition) writes its BMI; every TU that REQUIRES that module reads it.  The compile rules
+# carry no `restat`, so recompiling an interface unit rewrites its BMI and recompiles every importer, and THEIR BMIs in
+# turn: the rebuild a change causes is the transitive closure over ALL imports (`import` and `export import` alike), not
+# only over re-exports.  An implementation unit (`module qchem.X;`) requires qchem.X implicitly; the scan lists it.
+# Header dependencies (forward.H, the few quoted includes) come from ninja's own deps log (`ninja -t deps`).
+#
+# Usage:
+#   scripts/import-blast [-C BUILD] [--top N]               the table: module, its TUs' own units, direct and transitive importers
+#   scripts/import-blast [-C BUILD] --module M              one module: its direct importers, each with its OWN blast (which
+#                                                            import edge carries the fan-in), and the libraries reached
+#   scripts/import-blast [-C BUILD] --why M T               the shortest import chain from TU/module T down to module M
+#   scripts/import-blast [-C BUILD] --diff A..B [-v]        PREDICT the compiles a commit range causes, from the files it touches
+#   scripts/import-blast [-C BUILD] --diff WORKTREE [-v]    ... or the uncommitted edits (tracked changes and untracked files)
+#
+# --diff counts TU COMPILES (ninja's "Building CXX object" edges), not scans or links, against THIS build tree's graph: a
+# commit that adds a TU or a module, or changes imports, is approximated by today's graph (new files are listed apart).  A
+# CMakeLists change is flagged: CMake re-runs and may rebuild far more (new flags, a changed target).  BUILD defaults to
+# build/Release, relative to the repository root.
+import argparse, collections, glob, json, os, subprocess, sys
+
+def repo_root():
+    return subprocess.run(['git','rev-parse','--show-toplevel'],capture_output=True,text=True,check=True).stdout.strip()
+
+class Graph:
+    def __init__(self, build):
+        self.build=os.path.abspath(build)
+        db=json.loads(subprocess.run(['ninja','-C',self.build,'-t','compdb'],capture_output=True,text=True,check=True).stdout)
+        self.src={}                                      # TU output (build-relative) -> absolute source
+        for e in db:
+            if 'clang-scan-deps' in e['command'] or not e['output'].endswith('.o'): continue
+            f=e['file'] if os.path.isabs(e['file']) else os.path.normpath(os.path.join(e['directory'],e['file']))
+            self.src[e['output']]=f
+        self.provides={}                                 # module -> providing TU
+        self.requires=collections.defaultdict(set)      # TU -> modules
+        self.unit={}                                     # TU -> the module it provides (None for impl / plain TUs)
+        for f in glob.glob(os.path.join(self.build,'**','*.ddi'),recursive=True):
+            for r in json.load(open(f))['rules']:
+                out=r['primary-output']
+                if out not in self.src: continue          # an orphan .ddi of a deleted or renamed source: not in today's build
+                p=r.get('provides',[])
+                self.unit[out]=p[0]['logical-name'] if p else None
+                for x in p: self.provides[x['logical-name']]=out
+                for x in r.get('requires',[]): self.requires[out].add(x['logical-name'])
+        self.tus=sorted(self.unit)                       # the scanned (module-aware) TUs
+        self.dependents=collections.defaultdict(set)    # TU -> TUs that read its BMI
+        self.importers=collections.defaultdict(set)     # module -> TUs that require it directly
+        for t,ms in self.requires.items():
+            for m in ms:
+                self.importers[m].add(t)
+                if m in self.provides: self.dependents[self.provides[m]].add(t)
+        self.by_source=collections.defaultdict(set)     # absolute source -> TUs compiling it
+        for t,s in self.src.items(): self.by_source[s].add(t)
+        self._headers=None
+
+    def headers(self):                                   # absolute header -> TUs that include it (ninja's deps log)
+        if self._headers is None:
+            self._headers=collections.defaultdict(set)
+            out=subprocess.run(['ninja','-C',self.build,'-t','deps'],capture_output=True,text=True).stdout
+            cur=None
+            for line in out.splitlines():
+                if line and not line.startswith(' '):
+                    cur=line.split(':')[0].strip(); continue
+                h=line.strip()
+                if cur and h and cur.endswith('.o'):
+                    h=h if os.path.isabs(h) else os.path.normpath(os.path.join(self.build,h))
+                    if not h.endswith('.pcm'): self._headers[h].add(cur)
+        return self._headers
+
+    def closure(self, seeds):
+        seen=set(seeds); todo=list(seeds)
+        while todo:
+            for d in self.dependents.get(todo.pop(),()):
+                if d not in seen: seen.add(d); todo.append(d)
+        return seen
+
+    def lib(self, t):                                    # the CMake target a TU belongs to (its .dir)
+        for part in t.split('/'):
+            if part.endswith('.dir'): return part[:-4]
+        return '?'
+
+    def module_tus(self, m):                             # the module's own interface + partition units
+        return {t for n,t in self.provides.items() if n==m or n.startswith(m+':')}
+
+def table(g, top):
+    rows=[]
+    for m in sorted({n.split(':')[0] for n in g.provides}):
+        own=g.module_tus(m)
+        direct=set().union(*(g.importers.get(n,set()) for n in g.provides if n==m or n.startswith(m+':')))-own
+        blast=g.closure(own)-own
+        rows.append((len(blast),len(direct),m,len({g.lib(t) for t in blast})))
+    rows.sort(reverse=True)
+    n=len(g.tus)
+    print(f"{len(rows)} modules, {n} TUs in {os.path.relpath(g.build)}; blast = TUs a change to the module's interface recompiles (itself excluded)")
+    print(f"{'blast':>6} {'%':>4} {'direct':>6} {'libs':>4}  module")
+    for b,d,m,l in rows[:top] if top else rows:
+        print(f"{b:6d} {100*b/n:4.0f} {d:6d} {l:4d}  {m}")
+
+def module_report(g, m):
+    own=g.module_tus(m)
+    if not own: sys.exit(f"no module {m} in this build")
+    blast=g.closure(own)-own
+    names=[n for n in g.provides if n==m or n.startswith(m+':')]
+    direct=set().union(*(g.importers.get(n,set()) for n in names))-own
+    print(f"{m}: blast {len(blast)} TUs, {len(direct)} direct importers, {len({g.lib(t) for t in blast})} libraries")
+    rows=[]
+    for t in direct:
+        u=g.unit.get(t)
+        rows.append((len(g.closure({t}))-1 if u else 0, u or '(impl/plain) '+t, g.lib(t)))
+    rows.sort(reverse=True)
+    print("direct importers (an interface's own blast says how far the edge carries it):")
+    for b,u,l in rows: print(f"  {b:6d}  {u}  [{l}]")
+    libs=collections.Counter(g.lib(t) for t in blast)
+    print("blast by library: "+", ".join(f"{k} {v}" for k,v in libs.most_common()))
+
+def why(g, m, start):
+    target=g.module_tus(m)
+    if not target: sys.exit(f"no module {m} in this build")
+    starts=g.module_tus(start) or {t for t in g.tus if t.endswith(start) or g.src.get(t,'').endswith(start)}
+    if not starts: sys.exit(f"no TU or module {start}")
+    # BFS over requires from start down to m
+    prev={s:None for s in starts}; todo=collections.deque(starts)
+    while todo:
+        t=todo.popleft()
+        if t in target:
+            chain=[]
+            while t is not None: chain.append(g.unit.get(t) or t); t=prev[t]
+            print(" imports ".join(reversed(chain))); return
+        for x in sorted(g.requires.get(t,())):
+            p=g.provides.get(x)
+            if p and p not in prev: prev[p]=t; todo.append(p)
+    print(f"{start} does not reach {m}")
+
+def diff(g, rng, verbose):
+    root=repo_root()
+    if rng=='WORKTREE':                                  # the uncommitted edits: tracked changes against HEAD, plus untracked files
+        a,b='HEAD','the working tree'
+        names=subprocess.run(['git','-C',root,'diff','--name-status','--no-renames','HEAD'],capture_output=True,text=True,check=True).stdout.splitlines()
+        names+=['A\t'+f for f in subprocess.run(['git','-C',root,'ls-files','--others','--exclude-standard'],capture_output=True,text=True,check=True).stdout.split()]
+    else:
+        a,b=rng.split('..') if '..' in rng else (rng+'~1',rng)
+        names=subprocess.run(['git','-C',root,'diff','--name-status','--no-renames',a,b],capture_output=True,text=True,check=True).stdout.splitlines()
+    seeds=collections.defaultdict(set); unknown=[]; cmake=[]; added=[]
+    hdr=None
+    for line in names:
+        st,path=line.split('\t',1)
+        f=os.path.join(root,path)
+        if os.path.basename(path)=='CMakeLists.txt' or path.endswith('.cmake'): cmake.append(path); continue
+        if st=='A' and f not in g.by_source: added.append(path); continue
+        if f in g.by_source: seeds[path]|=g.by_source[f]; continue
+        if hdr is None: hdr=g.headers()
+        if f in hdr: seeds[path]|=hdr[f]; continue
+        if path.startswith(('src/','IntegrationTests/','CLIapps/','pybind/')) and path.endswith(('.C','.H','.h','.cpp','.hpp')): unknown.append(path)
+    allseeds=set().union(*seeds.values()) if seeds else set()
+    total=g.closure(allseeds)
+    print(f"{a}..{b}: {len(names)} files changed, {len(seeds)} reach this build's TUs")
+    print(f"PREDICTED: {len(total)} TU compiles of {len(g.tus)} (+{len(added)} new source file(s) not in this build's graph)")
+    per=sorted(((len(g.closure(s)),p,len(s)) for p,s in seeds.items()),reverse=True)
+    iface=[(n,p) for n,p,_ in per if any(g.unit.get(t) for t in seeds[p])]
+    print(f"interface units touched: {len(iface)}; the widest:")
+    for n,p in (iface if verbose else iface[:12]): print(f"  {n:6d}  {p}")
+    if verbose:
+        print("other touched sources (own TU only, or a header's includers):")
+        for n,p,_ in per:
+            if not any(g.unit.get(t) for t in seeds[p]): print(f"  {n:6d}  {p}")
+    if added: print("new files (not in this build's graph; each is at least its own compile): "+", ".join(added))
+    if cmake: print("CMake files changed (CMake re-runs; a flag or target change can rebuild more than predicted): "+", ".join(cmake))
+    if unknown: print("sources in no TU of this build (another config, or deleted): "+", ".join(unknown))
+
+def main():
+    ap=argparse.ArgumentParser(description=__doc__.split('\n')[1] if __doc__ else None)
+    ap.add_argument('-C',dest='build',default=None)
+    ap.add_argument('--top',type=int,default=0)
+    ap.add_argument('--module')
+    ap.add_argument('--why',nargs=2,metavar=('MODULE','FROM'))
+    ap.add_argument('--diff')
+    ap.add_argument('-v',action='store_true')
+    a=ap.parse_args()
+    g=Graph(a.build or os.path.join(repo_root(),'build','Release'))
+    if a.diff: diff(g,a.diff,a.v)
+    elif a.module: module_report(g,a.module)
+    elif a.why: why(g,*a.why)
+    else: table(g,a.top)
+
+if __name__=='__main__': main()

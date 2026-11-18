@@ -73,12 +73,12 @@ GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r, bool showIterat
 
     // --- validate: run the spherical pseudo-atom SCF in EXACTLY these per-l shells (LDA XC, GTH q=Zion).
     //     The atomic EC occupies only the l's the charge state fills; extra (polarization) l's ride along. ---
-    AtomCalcOptions o;
-    o.type            = AtomType::Gaussian;
-    o.pseudopotential = true;
-    o.valence         = Zion;
-    if (!r.accelerator.empty()) o.accelerator={{"type", r.accelerator}};
-    o.exponentsByL    = r.shells;           // per-l independent lists: validate exactly what is emitted
+    RunOptions o;
+    o.atom.type=AtomType::Gaussian;
+    o.atom.pseudopotential = true;
+    o.atom.valence         = Zion;
+    if (!r.accelerator.empty()) o.atom.accelerator={{"type", r.accelerator}};
+    o.atom.exponentsByL    = r.shells;           // per-l independent lists: validate exactly what is emitted
     SCFParams p; p.Verbose = showIterations; // print the per-iteration convergence trace when asked
     if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);   // the recipe's cap (see ValenceBasisRecipe::nMaxIter)
     GateOnEnergy(p);                          // the pseudo-atom SCF is FITTED (see GateOnEnergy)
@@ -86,7 +86,7 @@ GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r, bool showIterat
                                               //  replaces -Z/r), so |2+V/K| never -> 0: don't gate convergence on
                                               //  it here (this is the valence-gen backend only, NOT the system
                                               //  default -- the all-electron A_* path still uses the virial gate).
-    AtomCalculation atom(Z, charge, o, p);
+    AtomCalculation atom(AtomSetup::Resolve(Z, charge, o), p);
 
     // --- emit: the per-l shells as a Gaussian94 ELEMENT BLOCK (` EL 0 <shells> ****`) ---
     // The reader compares the file symbol against the UPPER-cased element (FindAtom), so upper-case it
@@ -110,16 +110,16 @@ double GenerateFloorEnergy(const ValenceBasisRecipe& r)
 
     // Same element/PP/charge, but a large accuracy-POOL Gaussian basis (no exponentsByL) -- the near-complete
     // reference the recipe's window is measured against.
-    AtomCalcOptions o;
-    o.type            = AtomType::Gaussian;
-    o.pseudopotential = true;
-    o.valence         = Zion;
-    if (!r.accelerator.empty()) o.accelerator={{"type", r.accelerator}};
-    o.basisPool        = BasisSetAccuracy::High;
+    RunOptions o;
+    o.atom.type=AtomType::Gaussian;
+    o.atom.pseudopotential = true;
+    o.atom.valence         = Zion;
+    if (!r.accelerator.empty()) o.atom.accelerator={{"type", r.accelerator}};
+    o.atom.basisPool        = BasisSetAccuracy::High;
     SCFParams p; p.MinVirial = std::nullopt;          // no virial gate under a PP (see GenerateValenceBasis)
     GateOnEnergy(p);
     if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);
-    try   { AtomCalculation atom(Z, charge, o, p); return atom.Energy(); }
+    try   { AtomCalculation atom(AtomSetup::Resolve(Z, charge, o), p); return atom.Energy(); }
     catch (...) { return NAN; }               // pool conditioning can fail for some elements -> "floor unavailable"
 }
 
@@ -133,17 +133,17 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     // The SAME pseudo-atom SCF the basis generator runs (identical shells/PP/functional) -- one validated SCF.
     // spinResolved runs it POLARIZED: the atomic EC assigns the Hund unpaired electrons (e.g. Mn q7 -> S=5/2),
     // and the converged density resolves its channels, which we sample alongside the total.
-    AtomCalcOptions o;
-    o.type            = AtomType::Gaussian;
-    o.pseudopotential = true;
-    o.valence         = Zion;
-    if (!r.accelerator.empty()) o.accelerator={{"type", r.accelerator}};
-    o.exponentsByL    = r.shells;
+    RunOptions o;
+    o.atom.type=AtomType::Gaussian;
+    o.atom.pseudopotential = true;
+    o.atom.valence         = Zion;
+    if (!r.accelerator.empty()) o.atom.accelerator={{"type", r.accelerator}};
+    o.atom.exponentsByL    = r.shells;
     if (r.spinResolved) o.spin = SpinGroup::Polarized;
     SCFParams p; p.MinVirial = std::nullopt;          // no virial gate under a PP (see GenerateValenceBasis)
     GateOnEnergy(p);
     if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);
-    AtomCalculation atom(Z, charge, o, p);
+    AtomCalculation atom(AtomSetup::Resolve(Z, charge, o), p);
 
     // The per-channel faces (spinResolved only): the polarized run's Density() answers its Up/Down channels
     // through the spin-resolved face (V1.37) -- an honest capability ask, no container type named.

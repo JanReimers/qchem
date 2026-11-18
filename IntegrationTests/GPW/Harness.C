@@ -23,7 +23,7 @@ module;
 #include <iostream>
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
 export module qchem.Tests.GPW_Harness;
-export import qchem.SolidCalculation;                    // SolidCalculation, SolidCalcOptions, SCFStage
+export import qchem.SolidCalculation;                    // SolidCalculation, RunOptions, SCFStage
 export import qchem.Materials;                           // Materials::Material / Get
 export import qchem.Lattice_3D;                          // Lattice_3D, UnitCell
 export import qchem.BasisSet;                            // Complex_BS, Real_BS
@@ -234,7 +234,7 @@ struct GpwHandles   // (kept as a name: the probes below take it) -- a NON-OWNIN
 
 //---------------------------------- the facade harness ----------------------------------
 using qchem::Materials::Material;
-using qchem::SolidCalcOptions;
+using qchem::RunOptions;
 
 //! The lattice a material's cell is run on: the k-mesh is the TEST's axis, never the material's.
 Lattice_3D LatticeOf(const Material& m, const ivec3_t& k=ivec3_t(1,1,1)) { return Lattice_3D(*m.cell, k); }
@@ -242,9 +242,9 @@ Lattice_3D LatticeOf(const Material& m, const ivec3_t& k=ivec3_t(1,1,1)) { retur
 //! The run options a material dictates -- its electron count and its pseudopotential vocabulary -- and a
 //! label.  Everything else (grid, k, symmetry, spin, kT, machinery) is stated at the call site: those are
 //! the axes a test is a point in, and the facade's defaults are the elided ones.
-SolidCalcOptions OptionsFor(const Material& m, const std::string& label)
+RunOptions OptionsFor(const Material& m, const std::string& label)
 {
-    SolidCalcOptions o;
+    RunOptions o;
     o.label=label; o.Nelec=m.Nelec(); o.species=m.species;
     return o;
 }
@@ -304,9 +304,9 @@ GpwHandles Handles(const qchem::SolidCalculation& calc)
 GpwHandles LastIterateHandles(const qchem::SolidCalculation& calc) { return {&calc.Basis(), calc.LastIterateDensity()}; }
 
 //---------------------------------- the named per-material recipes ----------------------------------
-SolidCalcOptions AlOptions(const Material& al, const std::string& label="Al FCC Gamma")
+RunOptions AlOptions(const Material& al, const std::string& label="Al FCC Gamma")
 {
-    SolidCalcOptions o=OptionsFor(al, label);
+    RunOptions o=OptionsFor(al, label);
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     // Uniform STATED (V2.2): Al has no entry in atomic_valence_densities.json yet, so the IonicSAD default
     // would throw at seed time.  valgen can generate one; until then this is the explicit opt-in.
@@ -324,9 +324,9 @@ std::shared_ptr<const Real_BS> MakeBasisNaFSR2(const Structure& st)
     return std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
         BasisSetData::VALENCE_LOWQ_SR2, &st, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
 }
-SolidCalcOptions NaFOptions(const Material& naf, const std::string& label)
+RunOptions NaFOptions(const Material& naf, const std::string& label)
 {
-    SolidCalcOptions o=OptionsFor(naf, label);
+    RunOptions o=OptionsFor(naf, label);
     o.accelerator=qchem::SCFAccelerators::Type::Ladder;
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
@@ -341,11 +341,11 @@ SCFParams NaFGates()
     return par;
 }
 //! The Mn sextet atom-in-box recipe (GPW_MnBox.Γ_M6_Smear_eqFinite): the finite-molecule mode, IonicSAD, pivoted ortho.
-SolidCalcOptions MnBoxOptions(const Material& box, const std::string& label)
+RunOptions MnBoxOptions(const Material& box, const std::string& label)
 {
-    SolidCalcOptions o=OptionsFor(box, label);
+    RunOptions o=OptionsFor(box, label);
     o.multiplicity=6;                                  // S=5/2 Hund: nUp=6, nDown=1
-    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
+    o.solid.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
     o.imposeSymmetry=false;
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;

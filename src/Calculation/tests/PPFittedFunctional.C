@@ -63,7 +63,7 @@ SCFParams Tight()
 double SiPseudoAtom(Model model, const std::string& tag)
 {
     report::Run run(tag);
-    AtomCalculation calc(14, 10, {.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Medium, .model=model, .pseudopotential=true}, Tight());
+    AtomCalculation calc(AtomSetup::Resolve(14, 10, {.model=model, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Medium, .pseudopotential=true}}), Tight());
     EXPECT_TRUE(calc.IsConverged()) << tag;
     return calc.Energy();
 }
@@ -167,16 +167,16 @@ TEST(PPFittedFunctional, ThePolicyIsSilentWhenTheyMatch)
 TEST(PPFittedFunctional, ASetupAnswersTheCheckBeforeTheRun)
 {
     using StructureData::GetMolecule;
-    const auto mLDA =MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA,  .pp="gth-lda-valence"});
-    const auto mPADE=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::PADE, .pp="gth-lda-valence"});
-    const auto mAE  =MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA});
+    const auto mLDA =MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
+    const auto mPADE=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::PADE, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
+    const auto mAE  =MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     const auto cc=mLDA->PPFunctionalChecks();
     ASSERT_EQ(cc.size(), 2u) << "H and O, each once";
     for (const auto& c : cc) {EXPECT_FALSE(c.match) << c.element; EXPECT_EQ(c.matchingModel, "PADE") << c.element;}
     for (const auto& c : mPADE->PPFunctionalChecks()) EXPECT_TRUE(c.match) << "GTH-PADE under PADE matches: " << c.element;
     EXPECT_TRUE(mAE->PPFunctionalChecks().empty()) << "an all-electron run has no PP to check";
 
-    SolidCalcOptions o;
+    RunOptions o;
     const auto sLDA=SolidSetup::Resolve(Lattice_3D(UnitCell(*Materials::Get("Si_diamond").cell), ivec3_t(1,1,1)),
                                         GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
     const auto sc=sLDA->PPFunctionalChecks();

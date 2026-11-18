@@ -96,8 +96,7 @@ TEST_P(A_DFT_atom, Energy)
     const AtomDFTCase c = GetParam();
     const auto& pt = thePeriodicTable();
     const Pool p = PoolFor(c.type, c.spin, c.Z);
-    AtomCalculation calc(c.Z, 0, {.type = c.type, .N = p.N, .emin = p.emin, .emax = p.emax,
-                                  .model = c.model, .spin = c.spin, .xalpha = pt.GetSlaterAlpha(c.Z)},
+    AtomCalculation calc(AtomSetup::Resolve(c.Z, 0, {.spin=c.spin, .model=c.model, .xalpha=pt.GetSlaterAlpha(c.Z), .atom={.type=c.type, .N=p.N, .emin=p.emin, .emax=p.emax}}),
                          dft_scf_params(c.Z));
     ASSERT_TRUE(calc.IsConverged()) << "the oracle comparison needs a converged energy";
     // LSDA against NIST (the same functional); Slater-Xalpha against PySCF's Xalpha in the radial code's state (the spherical ensemble).
@@ -128,8 +127,7 @@ TEST_P(A_PG_DFT, Energy)
     // 2P state), not the spherical ensemble -- so B is judged against the `pure` reference.  No-op on the s^1 atoms.
     SCFParams p=dft_scf_params(c.Z);
     if (c.spin==SpinGroup::Polarized) p.SmearingkT=1e-4;
-    MoleculeCalculation calc(MoleculeSetup::Resolve(atom, {.basis = "dzvp", .model = Model::Xalpha, .spin = c.spin,
-                            .xalpha = pt.GetSlaterAlpha(c.Z), .seed = ChargeDensity::SeedStrategy::CoreGuess}, {.eMax = c.Z*c.Z*0.08/32}), p);
+    MoleculeCalculation calc(MoleculeSetup::Resolve(atom, {.spin=c.spin, .model=Model::Xalpha, .xalpha=pt.GetSlaterAlpha(c.Z), .seed=ChargeDensity::SeedStrategy::CoreGuess, .molecule={.basis="dzvp"}}, {.diis = {.engageBelowFD = c.Z*c.Z*0.08/32}}), p);
     ASSERT_TRUE(calc.IsConverged());
     // dzvp is INCOMPLETE, so the energy is bounded from below by the near-complete reference: one-sided, with an allowance for the
     // reference's own basis error (a few ppm, see XalphaReference) so the variational check cannot fail on the reference's side.
@@ -152,9 +150,9 @@ struct HeavyCase { const char* name; AtomType type; int Z; SpinGroup spin; doubl
 static void PrintTo(const HeavyCase& c, std::ostream* os) { *os << c.name; }
 static double HeavyEnergy(const HeavyCase& c, Hamiltonian::CoulombFit route)
 {
-    AtomCalcOptions o{.type=c.type, .basisPool=BasisSetAccuracy::High, .model=Model::LDA, .spin=c.spin};
+    RunOptions o{.spin=c.spin, .model=Model::LDA, .atom={.type=c.type, .basisPool=BasisSetAccuracy::High}};
     o.coulomb.fit=route;
-    AtomCalculation calc(c.Z, 0, o, dft_scf_params(c.Z));
+    AtomCalculation calc(AtomSetup::Resolve(c.Z, 0, o), dft_scf_params(c.Z));
     EXPECT_TRUE(calc.IsConverged()) << c.name << ": the oracle comparison needs a converged energy";
     return calc.Energy();
 }
@@ -204,9 +202,9 @@ class A_DFT_ion : public ::testing::TestWithParam<IonCase> {};
 TEST_P(A_DFT_ion, AFirstCationInNISTsConfigurationLandsAboveNIST)
 {
     const IonCase c=GetParam();
-    AtomCalcOptions o{.type=c.type, .basisPool=BasisSetAccuracy::High, .model=Model::LDA, .spin=SpinGroup::Polarized};
-    o.configuration=c.configuration;
-    AtomCalculation calc(c.Z, 1, o, dft_scf_params(c.Z));
+    RunOptions o{.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=c.type, .basisPool=BasisSetAccuracy::High}};
+    o.atom.configuration=c.configuration;
+    AtomCalculation calc(AtomSetup::Resolve(c.Z, 1, o), dft_scf_params(c.Z));
     ASSERT_TRUE(calc.IsConverged()) << c.name << ": the oracle comparison needs a converged energy";
     const double dE=calc.Energy()-c.nist;
     printf("%s %s: E - E_NIST(cation) = %+.6f mHa (margin %.1f)\n", c.name, c.configuration, dE*1e3, c.margin*1e3);

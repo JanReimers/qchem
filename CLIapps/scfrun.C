@@ -2,7 +2,7 @@
 //
 // Example:
 //   scfrun --Z 5 --model HF  --pol P --basis Slater     --acc Low    --accel Ladder --floor 1e-4 --stall 5
-//   scfrun --Z 10 --model DHF --pol U --basis Slater_RKB --acc Medium --accel GDM    --emax 1e-3
+//   scfrun --Z 10 --model DHF --pol U --basis Slater_RKB --acc Medium --accel GDM    --engageBelowFD 1e-3
 //
 #include <iostream>
 #include <iomanip>
@@ -14,8 +14,8 @@
 #include <algorithm>
 #include <nlohmann/json.hpp>
 
-import qchem.AtomCalculation;             // AtomCalculation, AtomCalcOptions, AtomType, BasisSetAccuracy, Model, SpinGroup
-import qchem.MoleculeCalculation;                 // MoleculeCalculation, CalcOptions, AcceleratorOptions (the MOLECULAR facade)
+import qchem.AtomCalculation;             // AtomCalculation, RunOptions, AtomType, BasisSetAccuracy, Model, SpinGroup
+import qchem.MoleculeCalculation;                 // MoleculeCalculation, RunOptions, AcceleratorOptions (the MOLECULAR facade)
 import qchem.Structure;                    // Molecule, Atom (build a molecular geometry)
 import qchem.Hamiltonian.Factory;         // XCFunctional (the exchange-functional selector)
 import qchem.PeriodicTable;               // thePeriodicTable(): symbol / per-Z Slater alpha; RelativeHF/DHFError (Z-keyed oracle)
@@ -211,7 +211,7 @@ static int Main(int argc, char** argv)
         "\n"
         " Accelerator tuning (forwarded as JSON to the accelerator factory):\n"
         "  --nproj <int>      DIIS subspace size\n"
-        "  --emax <float>     GDM: start GDM steps once [F,D] < emax\n"
+        "  --engageBelowFD <float>  DIIS / GDM: start extrapolating once [F,D] < this (was --emax)\n"
         "  --trust <float>    GDM: trust radius (max geodesic angle per step)\n"
         "  --ethresh <float>  Ladder: hand off only while |dE/E| > ethresh\n"
         "  --stall <int>      Ladder: # no-improve steps before a stall hand-off\n"
@@ -278,7 +278,8 @@ static int Main(int argc, char** argv)
         else if (a=="--stall")   accj["stall"]=std::stoi(need(i));
         else if (a=="--switchat")accj["switchat"]=std::stod(need(i));
         else if (a=="--trust")   accj["Trust"]=std::stod(need(i));
-        else if (a=="--emax")    accj["EMax"]=std::stod(need(i));
+        else if (a=="--engageBelowFD") accj["EngageBelowFD"]=std::stod(need(i));
+        else if (a=="--emax")    { std::cerr<<"scfrun: --emax is retired (it was the [F,D] gate, never an energy): use --engageBelowFD"<<std::endl; return 1; }
         else if (a=="--nproj")   accj["NProj"]=(size_t)std::stoi(need(i));
         else if (a=="--minfd")   minfd=std::stod(need(i));
         else if (a=="--minde")   minde=std::stod(need(i));
@@ -347,18 +348,18 @@ static int Main(int argc, char** argv)
         // The molecular basis is a file stem (dzvp, valence_lowq_sr, ...): NO fallback -- an unstated one is the setup's refusal
         // (BasisUnstated), which names the bases that cover this molecule (one rule for every driver, 2026-11-07).
         const string& mbasis = basis;
-        CalcOptions copts; copts.basis=mbasis; copts.multiplicity=mult; copts.symmetry=sym;
+        RunOptions copts; copts.molecule.basis=mbasis; copts.multiplicity=mult; copts.imposeSymmetry=sym;
         if (dft) { copts.model=(model=="Xalpha")?Model::Xalpha:Model::LDA; if(model=="Xalpha") copts.xalpha=alpha>0?alpha:0.7; }
         else if (models.count(model)) copts.model=models[model];
         else { cout<<"molecular --model must be HF|LDA|Xalpha"<<endl; return 1; }
         AcceleratorOptions aopts; aopts.type=accel;
-        if (accj.contains("EMax"))  aopts.eMax =(double)accj["EMax"];
-        if (accj.contains("NProj")) aopts.nProj=(int)accj["NProj"];
-        if (accj.contains("Trust"))    aopts.trust         =(double)accj["Trust"];
-        if (accj.contains("ethresh"))  aopts.ladderEThresh =(double)accj["ethresh"];
-        if (accj.contains("stall"))    aopts.ladderStall   =(int)accj["stall"];
-        if (accj.contains("floor"))    aopts.ladderFloor   =(double)accj["floor"];
-        if (accj.contains("switchat")) aopts.ladderSwitchAt=(double)accj["switchat"];
+        if (accj.contains("EngageBelowFD")) aopts.diis.engageBelowFD=(double)accj["EngageBelowFD"];   // the standalone GDM gate follows it (unstated)
+        if (accj.contains("NProj")) aopts.diis.nProj=(size_t)(int)accj["NProj"];
+        if (accj.contains("Trust"))    { aopts.gdm.trust=(double)accj["Trust"]; aopts.ladder.gdm.trust=(double)accj["Trust"]; }   // both, as the json door read it
+        if (accj.contains("ethresh"))  aopts.ladder.eThresh =(double)accj["ethresh"];
+        if (accj.contains("stall"))    aopts.ladder.stall   =(int)accj["stall"];
+        if (accj.contains("floor"))    aopts.ladder.floor   =(double)accj["floor"];
+        if (accj.contains("switchat")) aopts.ladder.switchAt=(double)accj["switchat"];
         cout << "scfrun: mol="<<molname<<" model="<<model<<" mult="<<mult<<" basis="<<mbasis<<" accel="<<accel<<endl;
         Molecule mol = MakeMolecule(molname);
         // scfrun is the DRIVER, so it opens the report runs (a facade never does, user ruling D 2026-11-02): one for the ctor's
@@ -386,11 +387,11 @@ static int Main(int argc, char** argv)
          << " basis="<<basis<<" acc="<<acc<<" accel="<<accel<<" : "<<accj.dump()<<endl;
 
     // ---- run (one AtomCalculation, the model/functional/PP chosen by options) ----
-    AtomCalcOptions opts;
-    opts.type        = bases[basis];
-    opts.basisPool    = accs[acc];
-    opts.accelerator = accj;                  // full accelerator config (type + tuned knobs) -- the escape hatch
-    if (xcNRadial>0) opts.mesh.nRadial=xcNRadial;   // a stated XC radial count (default: sized from eps by the atom pilot)
+    RunOptions opts;
+    opts.atom.type   = bases[basis];
+    opts.atom.basisPool    = accs[acc];
+    opts.atom.accelerator = accj;                  // full accelerator config (type + tuned knobs) -- the escape hatch
+    if (xcNRadial>0) AtomXCMesh(opts).nRadial=xcNRadial;   // a stated XC radial count (default: sized from eps by the atom pilot)
     if (!coulombFit.empty())
     {
         using CF=qchem::Hamiltonian::CoulombFit;
@@ -402,8 +403,8 @@ static int Main(int argc, char** argv)
     opts.coulomb.lMax=hLMax;
     if (ppmodel)
     {
-        opts.pseudopotential = true;
-        opts.valence         = valence;       // GTH Zion (electrons = Zion - net charge)
+        opts.atom.pseudopotential = true;
+        opts.atom.valence         = valence;       // GTH Zion (electrons = Zion - net charge)
         opts.spin            = pp;            // --pol P: the Hund pseudo-atom, whose --out entry carries the spin pair (as the all-electron atom)
     }
     else if (dft)
@@ -413,14 +414,14 @@ static int Main(int argc, char** argv)
         else                   opts.model=Model::LDA;    // real LSDA: Dirac exchange + VWN5
     }
     else { opts.model = models[model]; opts.spin = pp; }   // HF / Dirac (AtomCalculation picks the EC from the model)
-    opts.configuration = configuration;   // stated (NIST notation), or empty = derived -- every model (Dirac refuses a stated one)
+    opts.atom.configuration = configuration;   // stated (NIST notation), or empty = derived -- every model (Dirac refuses a stated one)
 
     if (minro<0) minro=Z*1e-4;
     if (minfd<0) minfd=Z*2e-5;
     // electrons = Z - q normally; for a pseudo-ion, electrons = Zion - q  (charge so that Z-charge = that count).
     const int charge = ppmodel ? Z-(valence-q) : q;
     std::unique_ptr<AtomCalculation> calcp;   // scfrun opens the run (user ruling D, 2026-11-02: drivers own the runs)
-    { qchem::report::Run run("scfrun Z="+std::to_string(Z)); calcp=std::make_unique<AtomCalculation>(Z, charge, opts, makePar(minro, minfd)); }
+    { qchem::report::Run run("scfrun Z="+std::to_string(Z)); calcp=std::make_unique<AtomCalculation>(AtomSetup::Resolve(Z, charge, opts), makePar(minro, minfd)); }
     AtomCalculation& calc=*calcp;
 
     // ---- report ----

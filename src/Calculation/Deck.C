@@ -22,7 +22,8 @@ module;
 #include <nlohmann/json.hpp>
 export module qchem.Deck;
 
-import qchem.SolidCalculation;     // SolidCalcOptions
+import qchem.SolidCalculation;     // RunOptions
+export import qchem.Calculation;   // Calculation: what \c Prepare builds, whatever the structure
 export import qchem.StateView;     // View's answer: a deck run's saved state, drawn
 import qchem.SCFParams;            // SCFParams
 import qchem.SCFRecipe;            // SCFRecipe (a stage's `scf.recipe`)
@@ -50,14 +51,16 @@ inline constexpr int kSchemaVersion = 2;
 //!@{
 json ToJson(const BasisSet::Gaussian::GPWTolerances&);   void FromJson(const json&, BasisSet::Gaussian::GPWTolerances&);
 json ToJson(const SCFParams&);                           void FromJson(const json&, SCFParams&);
-//! The solid accelerator chain's knobs (\c SolidAcceleratorOptions: diis, gdm, ladder).  \c ladderStartOnGDM is NOT a key: the facade
+//! The solid accelerator chain's knobs (\c AcceleratorParams: diis, gdm, ladder).  \c ladderStartOnGDM is NOT a key: the facade
 //! decides it per stage (a restored kT = 0 stage starts on the GDM rung, \c SolidCalculation::Restart).
-json ToJson(const SCFAccelerators::SolidAcceleratorOptions&);   void FromJson(const json&, SCFAccelerators::SolidAcceleratorOptions&);
+json ToJson(const SCFAccelerators::AcceleratorParams&);   void FromJson(const json&, SCFAccelerators::AcceleratorParams&);
+//! The accelerator BLOCK: only the stated knobs (the rest are the kind's defaults, filled by its setup).
+void FromJson(const json&, AcceleratorOptions&);
 json ToJson(const qcMesh::MeshParams&);                  void FromJson(const json&, qcMesh::MeshParams&);
 //! The solid options.  NOT serialized (not choices): \c Hubbard manifold \c siteOps / \c greyOps
 //! (derived by the facade from the structure).  A manifold's U is \c U_eV (and \c Uirrep_eV, \c alpha_eV): eV in the file, converted to Hartree on read; the writer picks the eV value that converts back to the SAME double.
 json ToJson(const RunPolicySpec&);                       void FromJson(const json&, RunPolicySpec&);
-json ToJson(const SolidCalcOptions&);                    void FromJson(const json&, SolidCalcOptions&);
+json ToJson(const RunOptions&);                    void FromJson(const json&, RunOptions&);
 //!@}
 
 //! \brief One run, as the deck states it.  The STRUCTURE is just a NAME (user, 2026-10-03): the key into `materials.json` (a
@@ -96,7 +99,7 @@ struct RunSpec
         bool autoTrim=false;        //!< the vet-stage trim at \c orthoTol: near-dependent diffuse shells removed ONCE on the full k-mesh (exclusive with \c trim)
         //! The orbital basis FAMILY ("gaussian" | "planeWave", OpenWork §2 PW-1); copied into \c solid at run time.  A plane-wave run still
         //! builds the Gaussian \c data basis (the facade takes one; nothing in a plane-wave run reads it).
-        SolidCalcOptions::OrbitalBasis family = SolidCalcOptions::OrbitalBasis::GPW;
+        RunOptions::Solid::OrbitalBasis family = RunOptions::Solid::OrbitalBasis::GPW;
         double ecut=0.0;            //!< Ha, the plane-wave orbital cutoff (QE's ecutwfc / 2); planeWave only
     };
     //! Saved states (CK-1).  \c save: empty = never, "auto" = `<outDir>/states/<stem>.h5` after every stage, else a path.  \c restartFrom: a REVISION
@@ -160,10 +163,11 @@ struct RunSpec
     ivec3_t          kmesh{1,1,1};    //!< Monkhorst-Pack divisions of the Brillouin zone
     Basis            basis;
     State            state;
-    SolidCalcOptions solid;           //!< the periodic-run options (used when \c structure is a cell)
+    RunOptions opts;            //!< the run's options (used when \c structure is a cell)
     //! The accelerator chain's knobs, for every stage (the stage names WHICH accelerator; these say how it is tuned).  Deck key
-    //! `acceleratorOptions`; default = the GPW production recipe (\c SolidAcceleratorOptions).
-    SCFAccelerators::SolidAcceleratorOptions accel;
+    //! `acceleratorOptions`: the stated knobs; an unstated one is the GPW production recipe's (\c AcceleratorParams), filled by the
+    //! setup, and the record writes the resolved chain.
+    AcceleratorOptions accel;
     SCFParams        scf;             //!< the single-stage recipe (with the run's \c accelerator) ...
     SCFRecipe        scfRecipe = SCFRecipe::Auto;   //!< ... its `scf.recipe` (the material regime; qchem.SCFRecipe) ...
     std::vector<Stage> schedule;      //!< ... OR an annealed one; a deck gives one or the other (never both)
@@ -174,14 +178,24 @@ struct RunSpec
     ThreadCounts threads;
     //! The stages the run executes: \c schedule, or the one stage (\c scf, the run's \c accelerator).
     std::vector<Stage> Stages() const
-    { return schedule.empty() ? std::vector<Stage>{{scf,solid.accelerator,scfRecipe}} : schedule; }
+    { return schedule.empty() ? std::vector<Stage>{{scf,opts.accelerator,scfRecipe}} : schedule; }
 };
+//! \brief WHICH FACADE a deck drives, decided by its STRUCTURE alone (V-FACADE-PARITY P0c, 2026-11-17): a cell (a \c materials.json
+//! name or an inline entry) runs a \c SolidCalculation, a \c molecules.json entry a \c MoleculeCalculation -- or, when it holds ONE
+//! atom, an \c AtomCalculation (the radial atom: the exact route for a lone atom).  THROWS, listing every known name, on a miss.
+//! Each kind reads its own keys: the shared ones at the top, `basis` into its home (the solid's GPW recipe, the molecule's
+//! \c RunOptions::Molecule), the `atom` block the atom's; anything else a kind does not consume is refused (its options view, policy ForeignOption).
+enum class RunKind { Solid, Molecule, Atom };
+RunKind KindOf(const RunSpec&);
+//! The resolved record: EVERY field, per kind -- the solid's options with its defaults, a molecule's or an atom's with ITS defaults
+//! (model HF, all-electron, its XC mesh) and only the keys that kind consumes, so the record reloads to the same run.
 json ToJson(const RunSpec&);
 //! Strict like the other readers: \c structure (a name or an inline object) is required; an unknown top-level key (or any nested one) throws.
 void FromJson(const json&, RunSpec&);
-//! \brief Resolve \a spec against the structure files (or its inline entry): returns the Material (cell + atoms + species) and FILLS \c spec.solid.Nelec /
+//! \brief Resolve \a spec against the structure files (or its inline entry): returns the Material (cell + atoms + species) and FILLS \c spec.opts.Nelec /
 //! \c species when they were left to derive, so \c ToJson(spec) afterwards is the complete record.  THROWS (listing the known names)
-//! on an unknown structure, and for a molecule name (molecular decks are the next increment).  Also PRE-FLIGHT-VALIDATES the deck's `postSCF` against
+//! on an unknown structure, and for a molecule or an atom (\c Run / \c Vet / \c View / \c MakeBasisShells drive cells only so far: OpenWork
+//! "Deck: Run / Vet / View for a molecule or an atom"; \c Prepare builds every kind).  Also PRE-FLIGHT-VALIDATES the deck's `postSCF` against
 //! the run (a response needs +U manifolds, a full k-mesh, the complex ansatz, a q-mesh dividing the k-mesh ...) so a deck that cannot work fails in
 //! milliseconds, not after the SCF.
 Materials::Material Resolve(RunSpec& spec);
@@ -272,6 +286,12 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
 //! when the caller states a path, is the facade's).  \c state.restartFrom must be a PATH here (a revision stem needs \c Run's
 //! outDir); a refused restart THROWS, as in \c Run -- a deck never silently re-seeds.
 std::unique_ptr<SolidCalculation> Build(const RunSpec& spec, SolidCalculation::Observer onIteration = nullptr);
+
+//! \brief PREPARE a deck's calculation, ANY structure (V-FACADE-PARITY P0c): the solid's \c Build, the molecule's
+//! \c MoleculeSetup::Admit + \c MoleculeCalculation::Prepare, or the atom's \c AtomSetup::Admit + \c AtomCalculation::Prepare (its Z and charge the
+//! structure's).  Stops before the SCF, like \c Build.  A refused setup THROWS its sentence (policy and reason).  P4 folds \c Build
+//! into this (one factory shape); until then the solid-only callers (\c Run, the GUI binding) keep \c Build's concrete type.
+std::unique_ptr<Calculation> Prepare(const RunSpec& spec);
 //! \brief A DECK RUN'S SAVED STATE, DRAWN (lane G 2026-11-13): \a spec's setup resolved exactly as \c Build resolves it, then
 //! \c SolidCalculation::ViewState(\a statePath) -- the basis and the saved state, no Hamiltonian, no SCF.  The GUI's door for a
 //! reopened run: its revision's spec and its \c states/ file.  Refused (an Outcome) as \c Calculation::JudgeView refuses; a spec

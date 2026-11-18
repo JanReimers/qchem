@@ -3,7 +3,7 @@
 # aggregate library (it leans on the basis/Hamiltonian/accelerator/iterator pieces already linked
 # there).  The Imp #includes nlohmann/json for the two json factories, so the json include lands here.
 target_sources(qchem PRIVATE Imp/MoleculeCalculation.C Imp/Calculation.C
-    Imp/AtomCalculation.C Imp/SolidCalculation.C Imp/SolidSetup.C Imp/MoleculeSetup.C Imp/ValenceBasisGen.C Imp/Materials.C Imp/SolidState.C Imp/SCFState.C Imp/StateView.C Imp/Deck.C Imp/PseudoAtomOrbital.C Imp/AuditFootprint.C)
+    Imp/AtomCalculation.C Imp/SolidCalculation.C Imp/SolidSetup.C Imp/MoleculeSetup.C Imp/AtomSetup.C Imp/ValenceBasisGen.C Imp/Materials.C Imp/SolidState.C Imp/SCFState.C Imp/StateView.C Imp/Deck.C Imp/PseudoAtomOrbital.C Imp/AuditFootprint.C)
 # qchem.Materials reads the `pp` (pseudopotential set name) field of src/Structure/Data/materials.json at run time; the set is qchem.Pseudopotential.Set's.
 # The structure fields are qcStructure's (qchem.StructureData).
 target_compile_definitions(qchem PRIVATE ${StructureDataPath})
@@ -30,6 +30,8 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     Deck.C
     SCFFailure.C
     SetupRefusal.C
+    Setup.C                               # the common run setup (V-FACADE-PARITY P1)
+    AtomSetup.C                           # the radial atom's run setup (V-FACADE-PARITY P1, R3)
     SCFRecipeReport.C
     SCFRecipe.C
     DegenerateFill.C
@@ -38,6 +40,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     BasisCoverage.C
     XCRhoPolicy.C
     SeedPolicy.C
+    RunOptions.C                          # THE one options tree (V-FACADE-PARITY P0b-2)
     SetupDecisions.C                      # the structure-neutral setup decisions (V-FACADE-SETUP)
     AuditFootprint.C
     ERI4MemoryPolicy.C                    # the ERI4 RAM cap as a setup policy (IntegralCacheOwnershipPlan S6, ruling 6)

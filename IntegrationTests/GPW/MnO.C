@@ -411,7 +411,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
 // NiO AFM-II deck sent its cell INLINE without atom spins and stated siteSpins +-00: the imposition read siteSpins, the seed read
 // the structure, so the seed was ferromagnetic and the Shubnikov projector took its moment to 0 ("m_site 0.00000 at iteration 1").
 // The same chain on MnO AFM-II, at the seed level: a SPINLESS copy of the cell, through the run's own imposed engine.  Stated
-// siteSpins (SeedKey::siteSpins, which SolidSetup fills from SolidCalcOptions::siteSpins) must seed exactly the staggering the
+// siteSpins (SeedKey::siteSpins, which SolidSetup fills from RunOptions::siteSpins) must seed exactly the staggering the
 // material's spins seed; unstated, the spinless cell's moment is erased -- the defect, kept as this gate's control.
 TEST(GPW_MnO, Γ_Shub_Pol_SeedReadsTheStatedOrdering)
 {
@@ -491,15 +491,15 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedReadsTheStatedOrdering)
 // LONG (ruling 5: over the 60 s budget), hence the `_Long` suffix: it runs in the
 // `ctest -L long` tier (excluded by `ctest -LE long`), and in the TestMate tree like any other test.
 //! The anchor's recipe (above), seeded by \a seed -- ONE copy, so the IonicSAD twin below cannot drift from it.
-std::pair<SolidCalcOptions,SCFParams> ShubAnchorRecipe(const Material& mno, qchem::ChargeDensity::SeedStrategy seed, const std::string& label)
+std::pair<RunOptions,SCFParams> ShubAnchorRecipe(const Material& mno, qchem::ChargeDensity::SeedStrategy seed, const std::string& label)
 {
-    SolidCalcOptions o=OptionsFor(mno, label);
+    RunOptions o=OptionsFor(mno, label);
     o.multiplicity=1; o.spin=SpinGroup::Polarized;                                       // the explicit two-channel singlet: nUp=nDn=13
     o.seed=seed;
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
     o.accelerator=qchem::SCFAccelerators::Type::Null;      // the deck-shaped loop: the history is on the density side
     o.imposeSymmetry=true;                                  // S3: the Shubnikov group of the declared ordering
-    o.siteSpins={+1,-1,0,0};                                // the ordering is STATED (Mn up, Mn down, O non-magnetic): 24 Shubnikov ops
+    o.spins={+1,-1,0,0};                                // the ordering is STATED (Mn up, Mn down, O non-magnetic): 24 Shubnikov ops
     SCFParams par=Gates(200, 1e-6, std::nullopt);
     par.Δρmeasure=SCFParams::Measure::MaxΔD;               // CP2K's EPS_SCF measure (rule 3f)
     par.PulayDepth=8; par.PulayStart=5;
@@ -592,10 +592,10 @@ std::shared_ptr<const Real_BS> CP2KPlusUBasis(const Material& mno)
                                        BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian)));
 }
 //! The +U oracle gate's recipe at \a U_eV -- ONE copy, so the vendored-state twin cannot drift from the cold gate.
-std::pair<SolidCalcOptions,SCFParams> CP2KPlusURecipe(const Material& mno, double U_eV, const std::string& label)
+std::pair<RunOptions,SCFParams> CP2KPlusURecipe(const Material& mno, double U_eV, const std::string& label)
 {
-    SolidCalcOptions o=OptionsFor(mno, label);
-    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.siteSpins={+1,-1,0,0};   // stated (Mn up, Mn down, O non-magnetic): what IonicSAD derived, now the chemistry
+    RunOptions o=OptionsFor(mno, label);
+    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.spins={+1,-1,0,0};   // stated (Mn up, Mn down, O non-magnetic): what IonicSAD derived, now the chemistry
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
     // THE CP2K-SHAPED LOOP (user, 2026-09-20: "we need 1) very close converged energies 2) similar SCF
@@ -609,8 +609,8 @@ std::pair<SolidCalcOptions,SCFParams> CP2KPlusURecipe(const Material& mno, doubl
     // max|dD| 6e-8 against the deck's 44 (probe, `gpwprobe mno`, MNO_ACC=Null MNO_MOM=0 MNO_PULAY=8).
     o.accelerator=qchem::SCFAccelerators::Type::Null;
     o.imposeSymmetry=true;
-    o.policy.hubbardEigen=false;   // CP2K's form, a declared deviation: stated in the options (D-ENV 6b), not in the environment
-    if (U_eV>0.0) o.hubbard={HubbardU_SiteShells(0,2,U_eV), HubbardU_SiteShells(1,2,U_eV)};
+    o.solid.policy.hubbardEigen=false;   // CP2K's form, a declared deviation: stated in the options (D-ENV 6b), not in the environment
+    if (U_eV>0.0) o.solid.hubbard={HubbardU_SiteShells(0,2,U_eV), HubbardU_SiteShells(1,2,U_eV)};
     SCFParams par=Gates(200, 1e-6, std::nullopt);
     par.Δρmeasure=SCFParams::Measure::MaxΔD;             // CP2K's EPS_SCF measure (doc/Benchmark.md rule 3f)
     par.PulayDepth=8; par.PulayStart=5;                   // the density history, as NBUFFER 8
@@ -739,7 +739,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Ordering_Long)
     namespace fs=std::filesystem;
     const nlohmann::json deck={
         {"structure","MnO_AFM2"}, {"basis",{{"data","VALENCE_LOWQ_SR"}}},
-        {"solid",{{"multiplicity",1},{"seed","IonicSAD"},{"siteSpins",{1,-1,0,0}},{"ortho","CholeskyPivoted"},{"orthoTol",1e-4},{"accelerator","Null"},{"imposeSymmetry",true}}},
+        {"multiplicity",1},{"spin","Polarized"},{"seed","IonicSAD"},{"spins",{1,-1,0,0}},{"ortho","CholeskyPivoted"},{"orthoTol",1e-4},{"accelerator","Null"},{"imposeSymmetry",true},
         {"scf",{{"NMaxIter",200},{"minDeltaRhoPerElectron",1e-6},{"deltaRhoMeasure","MaxDeltaD"},{"minDeltaE","off"},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},
                 {"startingRelaxRo",0.45},{"mergeTol",1e-4},{"pulayDepth",8},{"pulayStart",5},{"kerkerG0",1.0},{"useMOM",false},{"smearingkT",5e-3}}}};
     qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
@@ -757,7 +757,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Ordering_Long)
     cellp->AddAtom(8,  {0.25,0.25,0.25});     cellp->AddAtom(8,  {0.75,0.75,0.75});
     Lattice_3D lat(*cellp, ivec3_t(1,1,1));
     qchem::deck::RunSpec resolved=spec; qchem::deck::Resolve(resolved);     // fills Nelec / species from the material, as the AFM arm's run did
-    SolidCalcOptions o=resolved.solid; o.multiplicity=11; o.siteSpins={+1,+1,0,0}; o.label="MnO FM Gamma (imposed)";
+    RunOptions o=resolved.opts; o.multiplicity=11; o.spins={+1,+1,0,0}; o.label="MnO FM Gamma (imposed)";
     const SCFParams par=spec.scf;
     GpwReport report("MnO FM", false);
     qchem::SolidCalculation fm(SolidSetup::Resolve(lat, MakeBasisLowQ(*cellp, BasisSetData::VALENCE_LOWQ_SR), o), par);

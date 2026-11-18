@@ -73,9 +73,9 @@ struct SolidCalculation::Imp
     //! pseudopotential set, the imposition, the decoration, the XC quadrature, the spin counts.  Shared and immutable: everything
     //! below it is this GEOMETRY POINT (structure, Bloch basis, EC, Hamiltonian) or its SCF STATE.
     std::shared_ptr<const SolidSetup>           setup;
-    //! The accelerator options a STAGE starts from: \c setup->acc, except where a caller's stage overrides the Ladder's starting
+    //! The accelerator options a STAGE starts from: \c setup->accParams, except where a caller's stage overrides the Ladder's starting
     //! rung for its own duration (the FD chi's restart-like stages).  Per-run state, not a decision of the setup.
-    SCFAccelerators::SolidAcceleratorOptions    accOpts;
+    SCFAccelerators::AcceleratorParams    accOpts;
     //! The caller's per-iteration telemetry: the constructor's (or \c Restart's) \a onIteration, replaced by \c OnIteration.
     Observer                                    onIteration;
     std::shared_ptr<const Structure>            st;
@@ -148,7 +148,7 @@ struct SolidCalculation::Imp
     std::shared_ptr<const BasisSet::Gaussian::GpwRasterLadder> ladder;
     //! What the run's client consumes (\c SolidCalculation::Consumes): an energy, unless a SolidSession built this point.
     BasisSet::Gaussian::ClientConsumes consumes = BasisSet::Gaussian::ClientConsumes::Energy;
-    //! The pilot audit has SETTLED this run's rasters (\c CalibrateRasters): \c setup->opts.tolerances are the final demands.
+    //! The pilot audit has SETTLED this run's rasters (\c CalibrateRasters): \c setup->opts.solid.tolerances are the final demands.
     bool rastersSettled = false;
     SolidCalculation::RasterPilotCost pilotCost;   //!< what the pilot cost (\c PilotCost)
     //! \brief The D's GENERATION: bumped by every SCF stage and every restored density, so an audit result can say which D it measured.
@@ -246,7 +246,7 @@ static const char* RasterSourceName(SolidSetup::RasterSource r)
 
 static const char* AccelName(SCFAccelerators::Type t) {return qchem::NameOf(t);}   // qchem.SCFRecipe
 // WHAT THE RUN IS MADE OF: system, grids, symmetry, threads, deviations.  Emitted once, from the ctor.
-static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& xc, size_t nAtoms,
+static void EmitRunBanner(const RunOptions& o, const qcMesh::MeshParams& xc, size_t nAtoms,
                           bool imposed, const std::vector<qchem::Hamiltonian::HubbardManifold>& hubbard)
 {
     const char* omp=std::getenv("OMP_NUM_THREADS");
@@ -254,9 +254,9 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
              <<o.multiplicity<<(ResolveSpinGroup(o.spin, o.multiplicity)==SpinGroup::Polarized ? " (POLARIZED)" : " (unpolarized)")
              <<", seed="<<SeedName(o.seed)<<std::endl;
     std::cout<<"["<<o.label<<" run] grids: densityEcut="
-             <<(o.densityEcut<0 ? std::string("auto") : std::to_string(o.densityEcut))
-             <<" C="<<o.cutoffFactor<<" raster x(density, V_long, XC L0)=("<<o.tolerances.rasterX<<", "<<o.tolerances.vlocRasterX
-             <<", "<<o.tolerances.xcRasterX<<")"
+             <<(o.solid.densityEcut<0 ? std::string("auto") : std::to_string(o.solid.densityEcut))
+             <<" C="<<o.solid.cutoffFactor<<" raster x(density, V_long, XC L0)=("<<o.solid.tolerances.rasterX<<", "<<o.solid.tolerances.vlocRasterX
+             <<", "<<o.solid.tolerances.xcRasterX<<")"
              <<" xcMesh="<<MeshName(xc.cellKind);
     // The radial/angular pair describes an ATOM-CENTRED mesh; printing it beside "Uniform" would be
     // stating a number that had no effect on the run, which is the opposite of self-description.
@@ -264,9 +264,9 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
     else                                          std::cout<<" (eCut="<<xc.eCut<<" Ha)";
     std::cout<<std::endl;
     // The ONE accuracy target and what it implies (doc/GridEpsilonPlan.md §1): the rigorous demand beside the knobs the sizing uses.
-    if (o.planeWaveEcut<=0.0) std::cout<<"["<<o.label<<" run] accuracy: "<<o.accuracy.Describe(o.tolerances)<<std::endl;
+    if (o.solid.planeWaveEcut<=0.0) std::cout<<"["<<o.label<<" run] accuracy: "<<o.solid.grid.Describe(o.solid.tolerances)<<std::endl;
     std::cout<<"["<<o.label<<" run] symmetry: "
-             <<(imposed ? (o.greyImposition ? "IMPOSED (grey -- the erasure control)"
+             <<(imposed ? (o.solid.greyImposition ? "IMPOSED (grey -- the erasure control)"
                                             : "IMPOSED (Shubnikov from the decoration)")
                         : "FREE")
              // A VETOED imposition must never be silent -- a caller who asked for one and did not get it
@@ -285,7 +285,7 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
     // eigenvalues vs CP2K's diagonal populations -- is the knob QCHEM_U_EIGEN on that banner).  What is
     // declared here beyond the manifolds is the one deviation that is neither: occupations from D_out, the
     // DM-backed source of the mixed density, where CP2K mixes P (same fixed point, different trajectory).
-    if (!o.hubbard.empty())
+    if (!o.solid.hubbard.empty())
     {
         // ORBITAL RESOLUTION (increment 2): a manifold with Uirrep carries one U per (site irrep, grey
         // parent) slot; the slot table itself -- which irrep is which, its dimension -- is the TERM's to say
@@ -400,7 +400,7 @@ void SolidCalculation::Start(std::shared_ptr<const SolidSetup> setup, const SCFP
 
 void SolidCalculation::BuildFirstStage(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel, SCFRecipe recipe)
 {
-    const Lattice_3D& reference=setup->reference;   // held by the setup, which the point keeps alive
+    const Lattice_3D& reference=setup->lattice;   // held by the setup, which the point keeps alive
     auto mol=setup->mol;
     BuildPoint(std::move(setup), reference, std::move(mol));
     BuildRun(nullptr, params, accel, recipe, /*restored*/false, /*exactResume*/false);
@@ -447,12 +447,12 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
                                   std::shared_ptr<const BasisSet::Real_BS> mol)
 {
     itsImp->setup       = std::move(setup);
-    itsImp->accOpts     = itsImp->setup->acc;
+    itsImp->accOpts     = itsImp->setup->accParams;
     itsImp->st          = lat.GetStructure();
     itsImp->lat.emplace(lat);
     itsImp->mol         = mol;
     const SolidSetup&       S    = *itsImp->setup;
-    const SolidCalcOptions& opts = S.opts;
+    const RunOptions& opts = S.opts;
 
     namespace L3 = BasisSet::Lattice;
     // THE WORKING-TYPE DECISION (doc/RealComplexPlan.md §3, Step 3c-3): a block is real ⇔ its irrep is
@@ -469,8 +469,8 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     if (S.planeWave)
     {
         qchem::report::Timed timed("setup: PW basis build");
-        itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.planeWaveEcut, S.siteSpins));   // {} unless a magnetic imposition
-        std::cout<<"["<<opts.label<<" run] plane-wave orbital basis: Ecut "<<opts.planeWaveEcut<<" Ha, "
+        itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.solid.planeWaveEcut, S.spins));   // {} unless a magnetic imposition
+        std::cout<<"["<<opts.label<<" run] plane-wave orbital basis: Ecut "<<opts.solid.planeWaveEcut<<" Ha, "
                  <<itsImp->bs->GetNumFunctions()<<" PWs at Γ"<<std::endl;
     }
     else
@@ -479,15 +479,15 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         // THE TOLERANCES are the typed value and nothing else (D-ENV step 6a: the environment is no longer an override layer; the retired
         // GPW_* variables are reported once and ignored).  A non-default value is named on the banner.
         qchem::WarnRetiredEnvironment();
-        const auto& tol=opts.tolerances;
+        const auto& tol=opts.solid.tolerances;
         if (!tol.Describe().empty())
             std::cout<<"["<<opts.label<<" run] GPW tolerances (non-default):"<<tol.Describe()<<std::endl;
         L3::GPWParams p{
-            .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor,
-            .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
-            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = tol,
+            .densityEcut = opts.solid.densityEcut, .cutoffFactor = opts.solid.cutoffFactor,
+            .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
+            .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = tol,
             .hamPreservesReal = S.realTRIMBlocks};
-        ResolveGpwPoint(lat, mol, S.pp, p);
+        ResolveGpwPoint(lat, mol, *S.pp, p);
         itsImp->imposition=p.imposition;
         itsImp->ladder    =p.ladder;
         itsImp->bs.reset(L3::GPWFactory(lat, mol, p));
@@ -526,8 +526,8 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
 
     // The electron configuration over THIS basis's k-blocks, from the setup's spin counts (decision 2).
     auto irreps = itsImp->bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry Sum_k)
-    itsImp->ec = std::make_unique<Crystal_EC>(irreps, S.nUp, S.nDown, !opts.perKFermiLevels, opts.spinsShareFermi);
-    itsImp->hubbard = opts.hubbard;   // the U the run will carry (BuildRun fills the groups and radials)
+    itsImp->ec = std::make_unique<Crystal_EC>(irreps, S.nUp, S.nDown, !opts.solid.perKFermiLevels, opts.solid.spinsShareFermi);
+    itsImp->hubbard = opts.solid.hubbard;   // the U the run will carry (BuildRun fills the groups and radials)
     // A run that will SAVE its state must be able to, and must say so NOW -- not after the SCF it was asked to protect (OpenWork
     // §3 "PW states cannot be saved", 2026-10-26: a 52-minute converged run banked nothing).  The fingerprint is exactly what a
     // save writes first, and everything it reads is built by this point.
@@ -535,7 +535,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         try { (void)Fingerprint(0.0); }
         catch (const std::logic_error& e)
         {
-            throw std::invalid_argument("SolidCalcOptions.saveStateTo: this run cannot save its state ("+std::string(e.what())+")");
+            throw std::invalid_argument("RunOptions.saveStateTo: this run cannot save its state ("+std::string(e.what())+")");
         }
 }
 
@@ -544,7 +544,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
 // GPW block at Gamma -- its analytic lattice-summed overlap and image-summed point values are the fit space's (ChargeDensity's
 // GaussianFitSpace).  Built HERE, the run's concrete wiring: the Hamiltonian library does not link the Gaussian factories, and the complex
 // lineage's fit-basis factory cannot return a real fit without changing a tier-1 hub (controller 2026-11-15).  Empty unless xc.fit Auxiliary.
-static std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> PeriodicA1Set(const SolidCalcOptions& o, const Structure& st)
+static std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> PeriodicA1Set(const RunOptions& o, const Structure& st)
 {
     if (o.vxcFit!=Hamiltonian::VxcFit::Auxiliary) return {};
     const auto& cell=dynamic_cast<const UnitCell&>(st);   // the facade's concrete wiring: a solid's structure IS its cell
@@ -591,10 +591,10 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
 {
     ++itsImp->dGeneration;   // a new seed or a restored D
     const SolidSetup&       S    = *itsImp->setup;
-    const SolidCalcOptions& opts = S.opts;
+    const RunOptions& opts = S.opts;
     const Lattice_3D&       lat  = *itsImp->lat;
-    const std::vector<int>& siteSpins = S.siteSpins;
-    const bool polarized        = S.polarized;
+    const std::vector<int>& siteSpins = S.spins;
+    const bool polarized        = S.Polarized();
     const bool imposed          = S.imposed;
 
     // THE HUBBARD MANIFOLDS' SITE GROUPS (step 5 increment 2): each manifold is labelled by the stabiliser of
@@ -602,16 +602,16 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     // same decoration the imposition uses, whether or not the run imposes: the site symmetry of the ordered
     // state is the physical question either way.  No longer derived from the seed (OpenWork §3, 2026-10-26):
     // a polarized +U run was refused at SolidSetup::Resolve without siteSpins.  A caller who filled siteOps by hand keeps them.
-    std::vector<qchem::Hamiltonian::HubbardManifold> hubbard=opts.hubbard;
+    std::vector<qchem::Hamiltonian::HubbardManifold> hubbard=opts.solid.hubbard;
     if (!hubbard.empty())
     {
         std::vector<int> decoration=siteSpins;
-        if (decoration.empty() && polarized && !opts.greyImposition) decoration=opts.siteSpins;
-        assert(!polarized || opts.greyImposition || !decoration.empty());
+        if (decoration.empty() && polarized && !opts.solid.greyImposition) decoration=opts.spins;
+        assert(!polarized || opts.solid.greyImposition || !decoration.empty());
         for (auto& M : hubbard)
         {
             if (M.projector==qchem::Hamiltonian::HubbardProjectorKind::PseudoAtomic && M.atomicFunction.empty())
-                M.atomicFunction=PseudoAtomicFunction(*itsImp->st, M.site, M.l, itsImp->setup->pp);
+                M.atomicFunction=PseudoAtomicFunction(*itsImp->st, M.site, M.l, *itsImp->setup->pp);
             if (M.siteOps.empty()) M.siteOps=lat.SiteRotations(M.site, decoration);
             // PARENTAGE is chemistry: the point group of the site's coordination polyhedron, not the
             // cell's grey stabiliser (which on the rhombohedral AFM-II supercell is D_3d too, and would
@@ -624,8 +624,8 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
         qchem::report::Scope hamiltonian("hamiltonian");   // its meshes and terms report one level in (user rulings 2026-11-02, 2026-11-04)
         // THE PP / FUNCTIONAL MATCH (user ruling 2026-11-12): warn, guide and run, never switch
-        policy::PPFittedFunctional(qchem::Hamiltonian::PPFunctionalChecks(itsImp->setup->pp, *itsImp->st,
-                                                                              qchem::Hamiltonian::ModelToXC(opts.model)));
+        policy::PPFittedFunctional(qchem::Hamiltonian::PPFunctionalChecks(*itsImp->setup->pp, *itsImp->st,
+                                                                              qchem::Hamiltonian::ModelToXC(*opts.model)));
         // THE ACCURACY a Fourier series sampled on the XC quadrature must meet (the rho-tilde sampler, step 2; pin 31): the run's
         // target for what its client consumes, the density gate its sampled residual is judged on, and the two GPW calibrations.
         // The XC term derives the one tolerance tau from it on the seed.  No target (eps 0) leaves it unset: the step-1 fixed width.
@@ -648,19 +648,19 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
             itsImp->samplingPending=0.0;
             xc.sampling.tauScale=itsImp->samplingTauScale;
             const bool onH=itsImp->consumes==BasisSet::Gaussian::ClientConsumes::MatrixElements;
-            xc.sampling.target        =opts.accuracy.Target(itsImp->consumes, itsImp->st->GetNumAtoms());
+            xc.sampling.target        =opts.solid.grid.Target(itsImp->consumes, itsImp->st->GetNumAtoms());
             xc.sampling.perElement    =onH;
             xc.sampling.residualGate  =(params.Δρmeasure==SCFParams::Measure::L1PerElectron && params.MinΔρPerElectron)
                                        ? *params.MinΔρPerElectron : 0.0;   // a MaxΔD gate is not an L1 of the sampled pair
-            xc.sampling.residualMargin=opts.accuracy.samplerResidualMargin;
-            xc.sampling.eta           =opts.accuracy.samplerEta;
+            xc.sampling.residualMargin=opts.solid.grid.samplerResidualMargin;
+            xc.sampling.eta           =opts.solid.grid.samplerEta;
         }
         const auto a1=PeriodicA1Set(opts, *itsImp->st);
-        if (a1) ReportPeriodicA1Cost(*a1, SizeReference("periodic A1 Vxc fit", opts.tolerances, 1.0, &xc), opts.label);
+        if (a1) ReportPeriodicA1Cost(*a1, SizeReference("periodic A1 Vxc fit", opts.solid.tolerances, 1.0, &xc), opts.label);
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, itsImp->setup->pp, xc, {opts.vxcFit, opts.xcRho}, hubbard,
-            qchem::Hamiltonian::ModelToXC(opts.model), a1));
+            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, *itsImp->setup->pp, xc, {opts.vxcFit, opts.xcRho}, hubbard,
+            qchem::Hamiltonian::ModelToXC(*opts.model), a1));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
@@ -711,7 +711,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         qchem::report::Timed timed("setup: seed + ortho (iterator ctor)");
         itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
             itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-            itsImp->lat->GetUnitCell(), seed.release(), opts.ortho, opts.SolverTruncation(), seedRole, opts.numBands);   // the iterator consumes it in Init
+            itsImp->lat->GetUnitCell(), seed.release(), *opts.ortho, opts.SolverTruncation(), seedRole, opts.solid.numBands);   // the iterator consumes it in Init
     }
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
@@ -721,7 +721,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     // MOM CONTINUATION FROM THE SEED (S0e): pin the reference to the seed's OWN freshly-filled occupied
     // subspace before iteration 1, so the CONFIGURATION the seed chose survives, not merely its density.
     // No-op unless SCFParams::UseMOM is also set.
-    if (opts.momFromSeed && !adopt) itsImp->scf->AdoptMOMReference(*itsImp->scf->GetWaveFunction());   // an adopted WF has no orbitals yet
+    if (opts.solid.momFromSeed && !adopt) itsImp->scf->AdoptMOMReference(*itsImp->scf->GetWaveFunction());   // an adopted WF has no orbitals yet
 
     // (T2's gate -- itsImp->setup->imposed -- was resolved by SolidSetup::Resolve: an imposition is an ASSERTION about the answer,
     // and only then is losing the order a contradiction rather than physics.)
@@ -953,7 +953,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() co
 }
 
 
-// THE ACCELERATOR: the caller's, or the Auto policy's (SolidCalcOptions::accelerator).  The iterator then resolves an Auto mixer
+// THE ACCELERATOR: the caller's, or the Auto policy's (RunOptions::accelerator).  The iterator then resolves an Auto mixer
 // against the accelerator built here (tSCFIterator::ResolveMixing asks ExtrapolatesFock()), so the two halves cannot disagree.
 void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe recipe, const SCFParams& params, SCFStageKind kind)
 {
@@ -963,8 +963,8 @@ void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe re
     // restored smeared or partial-eigensolve stage -> DIIS, the last two beside a linear step whose start is capped at 0.3 (Converge);
     // a NAMED MagneticInsulator / Metal stage -> Null in every column, its restore on K+P from iteration 1 (Q-R ruling (b), 2026-11-13).
     AdmitRecipe(recipe, params.SmearingkT, /*molecule*/false);
-    SCFAccelerators::SolidAcceleratorOptions ao=itsImp->accOpts;
-    const RecipeAccelerator chosen=ChooseAccelerator(recipe, kind, asked, params.SmearingkT, int(itsImp->setup->opts.numBands));
+    SCFAccelerators::AcceleratorParams ao=itsImp->accOpts;
+    const RecipeAccelerator chosen=ChooseAccelerator(recipe, kind, asked, params.SmearingkT, int(itsImp->setup->opts.solid.numBands));
     T t=chosen.type;
     // THE FITTED-POTENTIAL CELL (the periodic A1 fit at xc.rho exact, V-XC-ONE-TERM step 6): H is not dE/dD (pin 32), so what descends E
     // along H refuses.  A STATED GDM / Ladder is refused by name; the Auto policy's choice of one becomes DIIS, and says so.
@@ -984,8 +984,8 @@ void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe re
     }
     if (chosen.forceGDMRung) ao.ladderStartOnGDM=true;
     // A direct minimiser rotates the occupied block into the WHOLE virtual space, which a partial eigensolve never built.
-    if (itsImp->setup->opts.numBands>0 && (t==T::GDM || t==T::Ladder))
-        throw std::invalid_argument("SolidCalcOptions: numBands (a partial eigensolve) beside the GDM / Ladder accelerator -- "
+    if (itsImp->setup->opts.solid.numBands>0 && (t==T::GDM || t==T::Ladder))
+        throw std::invalid_argument("RunOptions: numBands (a partial eigensolve) beside the GDM / Ladder accelerator -- "
                                     "they need every virtual; use Null or DIIS, or numBands 0");
     itsImp->stageRecipe     = recipe;
     itsImp->stageKind       = kind;
@@ -1029,15 +1029,15 @@ void SolidCalculation::BuildStage(const std::string& why, SCFAccelerators::Type 
     itsImp->scf = carried
         ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->lat->GetUnitCell(), carried.release(), itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(),
-              qchem::SCFIterator::SeedRole::WorkingDensity, itsImp->setup->opts.numBands)
+              itsImp->lat->GetUnitCell(), carried.release(), *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(),
+              qchem::SCFIterator::SeedRole::WorkingDensity, itsImp->setup->opts.solid.numBands)
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->lat->GetUnitCell(), itsImp->setup->opts.seed, itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.numBands);
+              itsImp->lat->GetUnitCell(), itsImp->setup->opts.seed, *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.solid.numBands);
     // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
     // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on
     // survives the fresh wavefunction, exactly as the density does.
-    if (itsImp->setup->opts.momFromSeed)
+    if (itsImp->setup->opts.solid.momFromSeed)
         itsImp->scf->AdoptMOMReference(prev ? *prev->GetWaveFunction() : *itsImp->scf->GetWaveFunction());
     prev.reset();                            // the adoption copied what it needed
     // EVERY stage is observed, not just the first: this iterator is brand new, so the telemetry has to be
@@ -1221,7 +1221,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
         const double lmin=BasisSet::MinOverlapEigenvalue(*itsImp->bs);
         const BasisSet::Gaussian::RasterExponents had=itsImp->ladder->DeliveredRasterExponents();
         const double x=std::max({lmin>0.0 ? std::log(1.0/lmin) : 0.0, had.density, had.vlocLong, had.xcL0});
-        BasisSet::Gaussian::GPWTolerances t=itsImp->setup->opts.tolerances;
+        BasisSet::Gaussian::GPWTolerances t=itsImp->setup->opts.solid.tolerances;
         t.rasterX=std::max(t.rasterX,x); t.vlocRasterX=std::max(t.vlocRasterX,x); t.xcRasterX=std::max(t.xcRasterX,x);
         { report::FormatGuard keep(std::cout);
         std::cout<<"["<<itsImp->setup->opts.label<<" raster pilot] the first iterate was REFUSED on the ball's own rasters (x density "
@@ -1229,7 +1229,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
                  <<": restarting from the seed on rasters whose alias e^-x does not exceed it, x = "<<std::setprecision(4)<<x<<std::endl; }
         itsImp->startRaisedForConditioning=true;
         auto sized=std::make_shared<SolidSetup>(*itsImp->setup);
-        sized->opts.tolerances=t;
+        sized->opts.solid.tolerances=t;
         sized->rasterSource=SolidSetup::RasterSource::Conditioning;
         const Lattice_3D lat=*itsImp->lat;
         const auto mol=itsImp->mol;
@@ -1379,11 +1379,11 @@ void SolidCalculation::RecordState(StateRecord& r, double kT) const
     else                                                      xc<<" eCut="<<itsImp->setup->xcMesh.eCut;
     // A free run on the PLAIN mesh (xcMeshSymmetric=false, what a SolidSession needs) quadratures on different points: name it, so a
     // restart across the choice says the quadrature changed.  Only then -- every state written before the option keeps its string.
-    if (!itsImp->setup->imposed && !itsImp->setup->planeWave && !o.xcMeshSymmetric) xc<<" plain";
-    RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .ppSet=itsImp->setup->pp.Name(),
-                         .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
-                         .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol,
-                         .orbitalBasis=itsImp->setup->planeWave ? "planeWave" : "gaussian", .planeWaveEcut=o.planeWaveEcut};
+    if (!itsImp->setup->imposed && !itsImp->setup->planeWave && !o.solid.xcMeshSymmetric) xc<<" plain";
+    RunIdentity id{.species=itsImp->setup->pp->Species(*itsImp->st), .ppSet=itsImp->setup->pp->Name(),
+                         .hubbard=itsImp->hubbard, .densityEcut=o.solid.densityEcut, .cutoffFactor=o.solid.cutoffFactor,
+                         .xcMesh=xc.str(), .ortho=int(*o.ortho), .orthoTol=o.orthoTol,
+                         .orbitalBasis=itsImp->setup->planeWave ? "planeWave" : "gaussian", .planeWaveEcut=o.solid.planeWaveEcut};
     // The numerics that move the ground state (OpenWork §3 "A restart's fingerprint is incomplete" gap 2).  The fit is the one the
     // Hamiltonian RESOLVES (Ham_PW_DFT: Auto -> Delta on a Becke mesh, else the plane-wave fit).
     const bool becke=itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
@@ -1391,33 +1391,33 @@ void SolidCalculation::RecordState(StateRecord& r, double kT) const
     if (becke) id.beckeEps=itsImp->setup->xcMesh.beckeEps;
     if (!itsImp->setup->planeWave)
     {
-        const auto& t=o.tolerances;
+        const auto& t=o.solid.tolerances;
         {   // the raster demands (C2 step 3): what the run sampled on; every demand 0 is the ball's own rasters
             std::ostringstream r; r<<std::setprecision(6)<<"x="<<t.rasterX<<","<<t.vlocRasterX<<","<<t.xcRasterX;
             id.raster = t.rasterX==0.0 && t.vlocRasterX==0.0 && t.xcRasterX==0.0 ? std::string(BallRastersLabel) : r.str();
         }
-        id.ladderFactor=o.ladderFactor;
+        id.ladderFactor=o.solid.ladderFactor;
         id.gpwTolerances={{"vlocEps",{t.vlocEps}}, {"localPPRelCutoff",{t.localPPRelCutoff}}, {"relFieldSharp",{t.relFieldSharp}},
                           {"screenEps",{t.screenEps}}, {"fieldSharp",{t.fieldSharp}}, {"relCutoff",{t.relCutoff}},
                           {"densityEps",{t.densityEps}}, {"mgridEcuts",t.mgridEcuts}, {"rungGateC",{t.rungGateC}}, {"relCutoffSafety",{t.relCutoffSafety}},
                           {"rasterX",{t.rasterX}}, {"vlocRasterX",{t.vlocRasterX}}, {"xcRasterX",{t.xcRasterX}}, {"accuracyEps",{o.accuracy.eps}}};
     }
     // The run's OWN policy table, resolved from its stated spec (not the process's installed one, which a later run may have replaced).
-    for (const Deviation& d : RunPolicy(o.policy).Deviations())
+    for (const Deviation& d : RunPolicy(o.solid.policy).Deviations())
         if (d.movesState) id.policy[d.knob]=d.value;
     AddSolidKeys(r.fp, itsImp->lat->GetUnitCell().GetCellMatrix(), *itsImp->bs, StateSpin(), id);
 }
 
 SpinGroup SolidCalculation::StateSpin() const
 {
-    return itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+    return itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
 }
 const Structure& SolidCalculation::StateStructure() const {return *itsImp->st;}
 const std::optional<RestartSummary>& SolidCalculation::RestartedFrom() const {return itsImp->restartedFrom;}
 Calculation::StateIdentity SolidCalculation::MakeStateIdentity() const
 {
     const auto& o=itsImp->setup->opts;
-    return {.Nelec=o.Nelec, .spin=StateSpin(), .multiplicity=o.multiplicity, .functional=qchem::Hamiltonian::Name(o.model), .kT=itsImp->lastkT};   // the model's name, LDA or PADE (it was the PP set's functional)
+    return {.Nelec=o.Nelec, .spin=StateSpin(), .multiplicity=o.multiplicity, .functional=qchem::Hamiltonian::Name(*o.model), .kT=itsImp->lastkT};   // the model's name, LDA or PADE (it was the PP set's functional)
 }
 std::vector<StateBlock> SolidCalculation::StateBlocks(bool withOrbitals) const
 {
@@ -1452,9 +1452,9 @@ std::shared_ptr<const SolidSetup> SizedBySavedState(const std::shared_ptr<const 
     const auto cf=one("grids.cutoffFactor");
     if (!(eps && rx && vx && xx && *eps==setup->opts.accuracy.eps)) return nullptr;
     auto adopted=std::make_shared<SolidSetup>(*setup);
-    adopted->opts.tolerances.rasterX=*rx; adopted->opts.tolerances.vlocRasterX=*vx; adopted->opts.tolerances.xcRasterX=*xx;
-    const bool adoptBall = cf && !(setup->opts.densityEcut>0.0);  // a STATED densityEcut is the user's, never the pilot's
-    if (adoptBall) adopted->opts.cutoffFactor=*cf;
+    adopted->opts.solid.tolerances.rasterX=*rx; adopted->opts.solid.tolerances.vlocRasterX=*vx; adopted->opts.solid.tolerances.xcRasterX=*xx;
+    const bool adoptBall = cf && !(setup->opts.solid.densityEcut>0.0);  // a STATED densityEcut is the user's, never the pilot's
+    if (adoptBall) adopted->opts.solid.cutoffFactor=*cf;
     adopted->rastersResolved=true;
     adopted->rasterSource=SolidSetup::RasterSource::SavedState;
     std::ostringstream os;
@@ -1522,7 +1522,7 @@ SolidCalculation::PrepareRestartAs(const std::string& path, std::shared_ptr<cons
     // kT = 0 ONLY: a smeared stage restored from an integer state hands GDM an idempotent D', so GDM would ENGAGE and
     // minimise with integer occupations, never applying the smearing (measured 2026-10-21, Si k222 kT 0.02: 6 mHa off the
     // cold smeared run).  A smeared restart starts on DIIS, as it did before.
-    const Lattice_3D& reference=setup->reference;
+    const Lattice_3D& reference=setup->lattice;
     auto mol=setup->mol;
     c->BuildPoint(std::move(setup), reference, std::move(mol));
     c->itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;
@@ -1531,13 +1531,13 @@ SolidCalculation::PrepareRestartAs(const std::string& path, std::shared_ptr<cons
     SavedState state=saved.TakeValue();
     auto judged=c->JudgeRestart(state, params.SmearingkT, tag);
     if (!judged) return O::Fail(judged.Error());
-    auto cd=RestoreDensity(state, *c->itsImp->bs, c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized);
+    auto cd=RestoreDensity(state, *c->itsImp->bs, c->itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized);
     if (!cd) return refuse(cd.Error());
     const bool exact=judged->exact;
     c->itsImp->restartedFrom=*judged;
     c->BuildRun(cd.TakeValue(), params, accel, recipe, /*restored*/true, exact, adopt);
     // The restored stage's accelerator is BUILT (BuildRun consumed the GDM-rung start); later stages on this calculation start as asked.
-    c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->acc.ladderStartOnGDM;
+    c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->accParams.ladderStartOnGDM;
     if (exact && !adopt) c->itsImp->resumedFrom=state.summary.energy;   // the first Converge reports the resumed energy beside it
     return O::Ok(std::move(c));
 }
@@ -1590,7 +1590,7 @@ SolidCalculation::Adopt(const std::string& path, std::shared_ptr<const SolidSetu
 
 double SolidCalculation::AdoptSavedOrbitals(const SavedState& state, const SCFParams& params)
 {
-    const SolidCalcOptions& opts=itsImp->setup->opts;
+    const RunOptions& opts=itsImp->setup->opts;
     const std::vector<StateBlock> blocks=StateBlocks(false);   // the fingerprint judged them block for block against state.blocks
     if (blocks.size()!=state.blocks.size())
         throw std::logic_error("SolidCalculation::Adopt: "+std::to_string(state.blocks.size())+" saved blocks for "+std::to_string(blocks.size()));
@@ -1607,7 +1607,7 @@ double SolidCalculation::AdoptSavedOrbitals(const SavedState& state, const SCFPa
         // handed the orbitals with C.  V is read off the solver as its back-transform of the identity.
         hmat_t<dcmplx> S(n);
         for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) S(i,j)=sb.S(i,j);
-        const std::unique_ptr<LASolver<dcmplx>> frame(LASolver<dcmplx>::Factory(opts.ortho, opts.SolverTruncation()));
+        const std::unique_ptr<LASolver<dcmplx>> frame(LASolver<dcmplx>::Factory(*opts.ortho, opts.SolverTruncation()));
         frame->SetBasisOverlap(S);
         if (frame->GetOrthoDim()!=m)
             throw std::logic_error("SolidCalculation::Adopt: saved block "+std::to_string(b)+" holds "+std::to_string(m)+" orbitals on an orthonormal "
@@ -1640,7 +1640,7 @@ SolidCalculation::ViewState(const std::string& path, std::shared_ptr<const Solid
         if (auto adopted=SizedBySavedState(setup, *saved, why)) { qchem::report::Set("adopted", why); setup=std::move(adopted); }   // warm: an exact view
     }
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
-    const Lattice_3D& reference=setup->reference;
+    const Lattice_3D& reference=setup->lattice;
     auto mol=setup->mol;
     c->BuildPoint(std::move(setup), reference, std::move(mol));   // the basis the run used; BuildRun (the Hamiltonian) is never called
     auto judged=c->JudgeView(*saved);
@@ -1808,7 +1808,7 @@ BasisSet::Gaussian::GPWTolerances SolidCalculation::ReferenceRasters(double marg
     namespace L3 = BasisSet::Lattice;
     if (!itsImp->ladder) throw std::logic_error("SolidCalculation: the basis has no GPW raster to refine");
     const std::optional<BasisSet::Gaussian::RasterExponents> x=itsImp->ladder->DeliveredRasterExponents();
-    BasisSet::Gaussian::GPWTolerances t=itsImp->setup->opts.tolerances;
+    BasisSet::Gaussian::GPWTolerances t=itsImp->setup->opts.solid.tolerances;
     t.rasterX    =x->density+margin;
     t.vlocRasterX=(x->vlocLong>0.0 ? x->vlocLong : x->density)+margin;   // no own V_long ladder (the kappa-sweep path): it rides the density's
     // The XC raster's error falls as a POWER of x, not e^{-x} (Si, C2 step 3), so x + margin would leave the reference's own error a
@@ -1831,19 +1831,19 @@ AuditReferenceSize SolidCalculation::SizeReference(const std::string& name, cons
 {
     namespace L3 = BasisSet::Lattice;
     const SolidSetup&       S    = *itsImp->setup;
-    const SolidCalcOptions& opts = S.opts;
+    const RunOptions& opts = S.opts;
     AuditReferenceSize z;
     z.name=name;
     // THE LADDER ALONE, as CompareAtFixedD's reference states it (the same GPWParams, the same PP sharpness): its levels are the raster
     // points.  No imposition is resolved and no basis block is built -- sizing must not cost what it is guarding.
-    const bool autoBall = opts.densityEcut<0.0;
+    const bool autoBall = opts.solid.densityEcut<0.0;
     const L3::GPWParams p{
-        .densityEcut = autoBall ? opts.densityEcut : ballScale*opts.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.cutoffFactor : opts.cutoffFactor,
-        .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
-        .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = raster,
+        .densityEcut = autoBall ? opts.solid.densityEcut : ballScale*opts.solid.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.solid.cutoffFactor : opts.solid.cutoffFactor,
+        .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
+        .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
         .hamPreservesReal = S.realTRIMBlocks};
     const std::shared_ptr<const Structure> held=itsImp->lat->GetStructure();
-    const double ppSharpness=BasisSet::Gaussian::LocalPPSharpness(*held, *Pseudopotential::MakeMultiSpeciesLocal(S.pp.Species(*held), S.pp.Functional()));
+    const double ppSharpness=BasisSet::Gaussian::LocalPPSharpness(*held, *Pseudopotential::MakeMultiSpeciesLocal(S.pp->Species(*held), S.pp->Functional()));
     const auto ladder=L3::MakeRasterLadder(*itsImp->lat, itsImp->mol, p, ppSharpness);
     if (ladder->DensityGrid())
         for (const ivec3_t& N : ladder->Levels().N) z.rasterPoints+=double(N.x)*double(N.y)*double(N.z);
@@ -1856,7 +1856,7 @@ AuditReferenceSize SolidCalculation::SizeReference(const std::string& name, cons
         qcMesh::XCMeshSharpness sh;
         sh.cellEdge=cell.GetMaximumCellEdge();
         sh.nAtoms  =int(cell.GetNumAtoms());
-        sh.imposed =S.imposed || opts.xcMeshSymmetric;   // either way the mesh is the invariant one
+        sh.imposed =S.imposed || opts.solid.xcMeshSymmetric;   // either way the mesh is the invariant one
         z.meshPoints=double(qcMesh::BeckeMeshCost(m, sh));
     }
     else
@@ -1870,14 +1870,14 @@ AuditReferenceSize SolidCalculation::SizeReference(const std::string& name, cons
         const auto* r=bs.GetRealIBS(i);
         z.blocks.push_back({r ? r->GetNumFunctions() : bs[i]->GetNumFunctions(), r!=nullptr});
     }
-    z.spinChannels = S.polarized ? 2 : 1;
+    z.spinChannels = S.Polarized() ? 2 : 1;
     return z;
 }
 
 std::optional<ResourceRefusal> SolidCalculation::AdmitReference(const AuditReferenceSize& size, const std::string& when,
                                                                 const std::string& escape) const
 {
-    const AuditFootprint  f=EstimateAuditFootprint(size, itsImp->setup->opts.auditFootprint);
+    const AuditFootprint  f=EstimateAuditFootprint(size, itsImp->setup->opts.solid.auditFootprint);
     const AvailableMemory a=QueryAvailableMemory();
     const FootprintVerdict v=Judge(f, a.bytes);
     if (v==FootprintVerdict::Fits) return std::nullopt;
@@ -1907,14 +1907,14 @@ std::optional<ResourceRefusal> SolidCalculation::PilotPreflight() const
     std::optional<qcMesh::MeshParams> xcAngular, xcRadial;
     if (xcOnBecke)
     {
-        xcAngular=qcMesh::BeckeAngularRungAbove(xcCur, S.opts.beckeLadder, S.imposed);
+        xcAngular=qcMesh::BeckeAngularRungAbove(xcCur, S.opts.solid.beckeLadder, S.imposed);
         xcRadial =qcMesh::BeckeRadialRungAbove(xcCur);
     }
     auto withRung=[](std::string name, const std::optional<qcMesh::MeshParams>& rung) {return rung ? name+" + "+BeckeName(*rung) : name;};   // the round's names
     const std::string when="before the first SCF";
     if (auto r=AdmitReference(SizeReference(withRung("pilot reference (x + "+std::to_string(int(kReferenceMargin))+")", xcAngular),
                                             ReferenceRasters(kReferenceMargin), 1.0, xcAngular ? &*xcAngular : nullptr), when, kPilotEscape)) return r;
-    return AdmitReference(SizeReference(withRung("density ball x 2", xcRadial), S.opts.tolerances, 2.0, xcRadial ? &*xcRadial : nullptr), when, kPilotEscape);
+    return AdmitReference(SizeReference(withRung("density ball x 2", xcRadial), S.opts.solid.tolerances, 2.0, xcRadial ? &*xcRadial : nullptr), when, kPilotEscape);
 }
 
 Outcome<SolidCalculation::GridAuditResult, ResourceRefusal> SolidCalculation::GridAudit(double referenceMargin) const
@@ -1971,7 +1971,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     const G::ClientConsumes c=itsImp->consumes;
     const bool   onH   =c==G::ClientConsumes::MatrixElements;
     const size_t nAtoms=itsImp->lat->GetUnitCell().GetNumAtoms();
-    const double target=itsImp->setup->opts.accuracy.Target(c, nAtoms);
+    const double target=itsImp->setup->opts.solid.grid.Target(c, nAtoms);
     qchem::report::Timed timed("postSCF: raster pilot (reference basis + audit; re-converge when a raster rises)");
     const std::streamsize prec0=std::cout.precision();
     report::FormatGuard keepFormat(std::cout);   // exact restore on every exit (prec0 alone missed the flags and the early returns)
@@ -2002,7 +2002,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         std::optional<qcMesh::MeshParams> xcAngular, xcRadial;
         if (xcOnBecke)
         {
-            xcAngular=qcMesh::BeckeAngularRungAbove(xcCur, itsImp->setup->opts.beckeLadder, itsImp->setup->imposed);
+            xcAngular=qcMesh::BeckeAngularRungAbove(xcCur, itsImp->setup->opts.solid.beckeLadder, itsImp->setup->imposed);
             xcRadial =qcMesh::BeckeRadialRungAbove(xcCur);
         }
         auto withRung=[](std::string name, const std::optional<qcMesh::MeshParams>& rung) {return rung ? name+" + "+BeckeName(*rung) : name;};
@@ -2013,19 +2013,19 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             const std::string when="pilot round "+std::to_string(round);
             std::optional<ResourceRefusal> r=AdmitReference(SizeReference(withRung("pilot reference (x + "+std::to_string(int(kReferenceMargin))+")", xcAngular),
                                                                           ReferenceRasters(kReferenceMargin), 1.0, xcAngular ? &*xcAngular : nullptr), when, kPilotEscape);
-            if (!r) r=AdmitReference(SizeReference(withRung("density ball x 2", xcRadial), itsImp->setup->opts.tolerances, 2.0, xcRadial ? &*xcRadial : nullptr),
+            if (!r) r=AdmitReference(SizeReference(withRung("density ball x 2", xcRadial), itsImp->setup->opts.solid.tolerances, 2.0, xcRadial ? &*xcRadial : nullptr),
                                      when, kPilotEscape);
             if (r)
             {
                 std::cout<<tag<<"round "<<round<<"  REFUSED ON RESOURCES: the pilot stops here, NOT SETTLED -- "<<r->Summary()<<std::endl;
-                rounds.push_back({{"round",round},{"rasters",RasterName(itsImp->setup->opts.tolerances)},{"refused",Describe(r->footprint, r->available)}});
+                rounds.push_back({{"round",round},{"rasters",RasterName(itsImp->setup->opts.solid.tolerances)},{"refused",Describe(r->footprint, r->available)}});
                 itsImp->resourceRefusal=std::move(r);
                 break;
             }
         }
         const GridAuditResult R =CompareAtFixedD(ReferenceRasters(kReferenceMargin), rvec3_t(0,0,0), withRung("pilot reference (x + "+std::to_string(int(kReferenceMargin))+")", xcAngular),
                                                  xcAngular ? &*xcAngular : nullptr, 1.0, xcAngular ? &ΔHangular : nullptr);
-        const GridAuditResult Bl=CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), withRung("density ball x 2", xcRadial), xcRadial ? &*xcRadial : nullptr, 2.0,
+        const GridAuditResult Bl=CompareAtFixedD(itsImp->setup->opts.solid.tolerances, rvec3_t(0,0,0), withRung("density ball x 2", xcRadial), xcRadial ? &*xcRadial : nullptr, 2.0,
                                                  xcRadial ? &ΔHradial : nullptr);
         // R is GridAudit(kReferenceMargin) at this D exactly when its reference carries no XC rung (a postSCF gridAudit keeps the run's mesh).
         if (xcAngular) itsImp->pilotLastAudit.reset();
@@ -2035,7 +2035,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             itsImp->pilotLastAudit->reference=R.reference+" = "+RasterName(ReferenceRasters(kReferenceMargin));
             itsImp->pilotLastAuditGeneration=itsImp->dGeneration;
         }
-        G::GPWTolerances t=itsImp->setup->opts.tolerances;
+        G::GPWTolerances t=itsImp->setup->opts.solid.tolerances;
         double dDens=0.0, dV=0.0, dXC=0.0;
         rpt::json terms=rpt::json::array();
         std::cout<<std::scientific<<std::setprecision(3);
@@ -2050,7 +2050,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                 // it: Na k222s at density x 6 read |dE_xc| 1.2e-4 with its XC raster at x 28 AND at x 60, and 5e-8 once the density raster
                 // went to x 16 (C2 step 3).  So there the XC term raises the DENSITY raster, under the density's shape; above it only the
                 // nonlinearity of v_xc is left, and the XC raster's own power law sizes L0 (Si Gamma, density x 27).
-                if (x.density < itsImp->setup->opts.accuracy.Rigorous(G::kDensityTail)) { demand=&dDens; xRun=x.density; which="XC via rho (MEASURED)"; }
+                if (x.density < itsImp->setup->opts.solid.grid.Rigorous(G::kDensityTail)) { demand=&dDens; xRun=x.density; which="XC via rho (MEASURED)"; }
                 else                                                                    { demand=&dXC;   xRun=x.xcL0;    which="XC (MEASURED: no bound)"; }
             }
             if (!demand) continue;   // an analytic term: nothing on a raster
@@ -2090,7 +2090,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             // cached (the round's two references seed the cache, so a mesh that meets the target at once costs no extra build).  The XC term on
             // Becke depends on the mesh alone (above), so a reference on the run's own rasters isolates it.  A confirming round has no ratio from
             // the round before (that was another D): its estimate is d alone, as the addendum's replay ran it.
-            const bool stated=itsImp->setup->opts.xcMesh.cellKind!=qcMesh::UnitCellKind::Auto;
+            const bool stated=itsImp->setup->opts.xcMesh->cellKind!=qcMesh::UnitCellKind::Auto;
             auto key=[](const qcMesh::MeshParams& m)
             {
                 std::ostringstream os; os<<BeckeName(m)<<" rot "<<std::setprecision(17)<<m.angRot<<" kind "<<int(m.angular);
@@ -2107,11 +2107,11 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             auto ΔHat=[&](const qcMesh::MeshParams& m) -> const std::vector<hmat_t<dcmplx>>&
             {
                 if (auto it=ΔHof.find(key(m)); it!=ΔHof.end()) return it->second;
-                if (auto r=AdmitReference(SizeReference("Becke climb: "+BeckeName(m), itsImp->setup->opts.tolerances, 1.0, &m),
+                if (auto r=AdmitReference(SizeReference("Becke climb: "+BeckeName(m), itsImp->setup->opts.solid.tolerances, 1.0, &m),
                                           "Becke climb, pilot round "+std::to_string(round), kPilotEscape))
                     throw ClimbRefused{std::move(*r)};
                 std::vector<hmat_t<dcmplx>> d;
-                (void)CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), "Becke climb: "+BeckeName(m), &m, 1.0, &d);
+                (void)CompareAtFixedD(itsImp->setup->opts.solid.tolerances, rvec3_t(0,0,0), "Becke climb: "+BeckeName(m), &m, 1.0, &d);
                 ++built;
                 return ΔHof.emplace(key(m), std::move(d)).first->second;   // std::map: references stay valid across later inserts
             };
@@ -2135,7 +2135,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             };
             const int cap = (stated || round>0) ? 1 : 0;   // a stated mesh is only measured; a confirming round raises at most once
             qcMesh::BeckeClimbResult climb;
-            try { climb=qcMesh::ClimbBeckeLadder(xcCur, target, itsImp->setup->opts.beckeLadder, itsImp->setup->imposed, distance, cap); }
+            try { climb=qcMesh::ClimbBeckeLadder(xcCur, target, itsImp->setup->opts.solid.beckeLadder, itsImp->setup->imposed, distance, cap); }
             catch (ClimbRefused& c)
             {
                 std::cout<<tag<<"round "<<round<<"  REFUSED ON RESOURCES in the Becke climb: the pilot stops here, NOT SETTLED -- "<<c.r.Summary()<<std::endl;
@@ -2188,7 +2188,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         std::optional<double> ballNext;
         std::string ballOtherOver;   // a term the ball audit finds OVER that a bigger ball does not cure (it blocks SETTLED, honestly)
         {
-            const SolidCalcOptions& o=itsImp->setup->opts;
+            const RunOptions& o=itsImp->setup->opts;
             // THE BALL'S OWN TERM is Hartree (the ball is its quadrature): it alone decides whether the ball doubles.  EVERY OTHER TERM is judged
             // too (controller ruling 2026-11-02, the honest gate): a bigger ball also re-routes the local-PP LONG sweep over the multigrid levels,
             // and that row does NOT fall as the ball doubles -- it alternates (MnO geometry: +5.7e-5, -6.3e-5, +6.1e-5 at cutoffFactor 2, 4, 8,
@@ -2203,8 +2203,8 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                 else if (v>dOther) { dOther=v; otherTerm=T.entries+": "+T.label.substr(0, T.label.find('('));}
             }
             const std::string worst="Eee";
-            const bool   stated=o.densityEcut>0.0;
-            const std::string ball = stated ? "densityEcut "+std::to_string(o.densityEcut)+" Ha" : "cutoffFactor "+std::to_string(o.cutoffFactor);
+            const bool   stated=o.solid.densityEcut>0.0;
+            const std::string ball = stated ? "densityEcut "+std::to_string(o.solid.densityEcut)+" Ha" : "cutoffFactor "+std::to_string(o.solid.cutoffFactor);
             double est=d;   // the geometric tail over the doubling rungs, as for the Becke mesh (and, as there, only between two DIFFERENT balls)
             if (ballBefore && ballBefore->first!=ball && d<ballBefore->second) est=d/(1.0-d/ballBefore->second);
             ballBefore=std::pair{ball, d};
@@ -2212,7 +2212,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                      <<std::setprecision(3)<<d<<" ["<<worst<<"] (tail estimate "<<est<<") on "<<ball<<" against twice it  ";
             if (est<=target) std::cout<<"meets "<<target<<std::endl;
             else if (stated) { std::cout<<"OVER, and densityEcut is STATED: honoured (leave it auto to let the pilot size the ball)"<<std::endl; ballStatedOver=true; ballStatedMiss=est; }
-            else             { std::cout<<"OVER: the ball doubles (cutoffFactor "<<2.0*o.cutoffFactor<<")"<<std::endl; ballNext=2.0*o.cutoffFactor; }
+            else             { std::cout<<"OVER: the ball doubles (cutoffFactor "<<2.0*o.solid.cutoffFactor<<")"<<std::endl; ballNext=2.0*o.solid.cutoffFactor; }
             if (dOther>target)
             {
                 ballOtherOver=otherTerm;
@@ -2274,10 +2274,10 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         std::cout<<" and re-converging from this D"<<std::endl;
         const SavedState st=Carry();
         auto sized=std::make_shared<SolidSetup>(*itsImp->setup);
-        if (!(t==itsImp->setup->opts.tolerances)) sized->rasterSource=SolidSetup::RasterSource::Pilot;   // only xcMesh / the ball rising leaves the rasters' source
-        sized->opts.tolerances=t;
+        if (!(t==itsImp->setup->opts.solid.tolerances)) sized->rasterSource=SolidSetup::RasterSource::Pilot;   // only xcMesh / the ball rising leaves the rasters' source
+        sized->opts.solid.tolerances=t;
         if (xcMeshNext) sized->xcMesh=*xcMeshNext;
-        if (ballNext)   sized->opts.cutoffFactor=*ballNext;
+        if (ballNext)   sized->opts.solid.cutoffFactor=*ballNext;
         const Lattice_3D lat=*itsImp->lat;
         const auto mol=itsImp->mol;
         // A restart's accelerator (CLAUDE.md: restarts run GDM or the DIIS->GDM Ladder at kT = 0): an Auto stage would resolve a restored
@@ -2287,14 +2287,14 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         itsImp->spin.reset(); itsImp->scf.reset(); itsImp->accel.reset(); itsImp->cd.reset(); itsImp->ham.reset(); itsImp->ec.reset();
         itsImp->bs.reset();
         BuildPoint(std::move(sized), lat, mol);
-        const SpinGroup g=itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+        const SpinGroup g=itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
         auto cd=RestoreDensity(st, *itsImp->bs, g);
         if (!cd) throw std::logic_error("SolidCalculation::CalibrateRasters: the audited D does not restore onto the raised rasters: "+cd.Error().details);
         itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;
         const bool pilotStated = asked!=itsImp->stageAccelAsked;   // the Ladder above is the pilot's, not the caller's (the recipe's report says so)
         BuildRun(cd.TakeValue(), params, asked, itsImp->stageRecipe, /*restored*/true, /*exactResume*/false);
         if (pilotStated) itsImp->stageAskedBy="the raster pilot, a restored kT = 0 stage with no step cap";
-        itsImp->accOpts.ladderStartOnGDM = itsImp->setup->acc.ladderStartOnGDM;
+        itsImp->accOpts.ladderStartOnGDM = itsImp->setup->accParams.ladderStartOnGDM;
         {
             qchem::AuditSCF audit;   // the pilot's re-convergence: a panel budget prints it apart and does not gate on it (qchem.SCFCap)
             (void)Converge(params);
@@ -2316,12 +2316,12 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     rpt::json statedOver=rpt::json::array();
     if (ballStatedOver)
     {
-        const std::string ecut=std::to_string(itsImp->setup->opts.densityEcut);
+        const std::string ecut=std::to_string(itsImp->setup->opts.solid.densityEcut);
         std::cout<<tag<<"WARNING: the STATED densityEcut "<<ecut<<" Ha misses eps: the density ball delivers "<<miss(ballStatedMiss)<<std::endl;
         policy::Report("StatedDensityEcutMissesEps", "densityEcut "+ecut+" Ha kept as stated", policy::Verdict::Warn,
                        "the density-ball audit (the run against twice the ball, at the converged D) delivers "+miss(ballStatedMiss)
                        +": a stated grid is honoured and reported, never raised (pin 31 rule 3); leave densityEcut auto to let the pilot size it");
-        statedOver.push_back({{"grid","densityEcut"},{"value",itsImp->setup->opts.densityEcut},{"delivered",ballStatedMiss},{"target",target}});
+        statedOver.push_back({{"grid","densityEcut"},{"value",itsImp->setup->opts.solid.densityEcut},{"delivered",ballStatedMiss},{"target",target}});
     }
     if (xcStatedOver)
     {
@@ -2332,14 +2332,14 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                        +": a stated grid is honoured and reported, never raised (pin 31 rule 3); state xcMesh Auto to let the pilot size it");
         statedOver.push_back({{"grid","xcMesh"},{"value",mesh},{"delivered",xcStatedMiss},{"target",target}});
     }
-    const rpt::json restate=RestateKeys(itsImp->setup->opts.tolerances, itsImp->setup->opts.cutoffFactor, itsImp->setup->xcMesh);
+    const rpt::json restate=RestateKeys(itsImp->setup->opts.solid.tolerances, itsImp->setup->opts.solid.cutoffFactor, itsImp->setup->xcMesh);
     // NOT SETTLED keeps the grids it reached, so the keys still restate THIS run -- but not a run that met the target: the line says so.
     std::cout<<tag<<"a deck restates these grids"<<(itsImp->pilotCost.settled ? "" : " (NOT SETTLED: these miss the target)")<<" as: "
              <<restate.dump()<<std::endl;   // json writes each double round-trip exact
     std::cout<<tag<<"cost: "<<itsImp->pilotCost.rounds<<" audit round(s), "<<itsImp->pilotCost.reconvergeIterations
              <<" re-convergence iteration(s) beyond the run's own"<<std::endl;
     rpt::EmitSection("rasterPilot", rpt::json{{"consumes", onH ? "matrixElements" : "energy"},{"target",target},{"rounds",rounds},
-                                             {"rasters",RasterName(itsImp->setup->opts.tolerances)},
+                                             {"rasters",RasterName(itsImp->setup->opts.solid.tolerances)},
                                              {"xcMesh", itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(itsImp->setup->xcMesh) : std::string("uniform")},{"settled",itsImp->pilotCost.settled},{"statedOver",statedOver},{"restate",restate},
                                              {"auditRounds",itsImp->pilotCost.rounds},{"reconvergeIterations",(long)itsImp->pilotCost.reconvergeIterations},
                                              {"refusedOnResources",itsImp->resourceRefusal ? rpt::json(itsImp->resourceRefusal->Summary()) : rpt::json(nullptr)}});
@@ -2351,9 +2351,9 @@ Outcome<SolidCalculation::GridAuditResult, ResourceRefusal> SolidCalculation::XC
     if (itsImp->setup->planeWave) throw std::invalid_argument("SolidCalculation::XCMeshAudit: a plane-wave run has no GPW basis to rebuild");
     qchem::report::Timed timed("postSCF: XC-mesh audit (reference Hamiltonian + term matrices)");
     const std::string name = reference.cellKind==qcMesh::UnitCellKind::Becke ? BeckeName(reference) : std::string("uniform XC");
-    if (auto r=AdmitReference(SizeReference(name, itsImp->setup->opts.tolerances, 1.0, &reference), "postSCF xcMeshAudit", kAuditEscape))
+    if (auto r=AdmitReference(SizeReference(name, itsImp->setup->opts.solid.tolerances, 1.0, &reference), "postSCF xcMeshAudit", kAuditEscape))
         return O::Fail(std::move(*r));
-    return O::Ok(CompareAtFixedD(itsImp->setup->opts.tolerances, rvec3_t(0,0,0), name, &reference));
+    return O::Ok(CompareAtFixedD(itsImp->setup->opts.solid.tolerances, rvec3_t(0,0,0), name, &reference));
 }
 
 Outcome<SolidCalculation::GridAuditResult, ResourceRefusal> SolidCalculation::EggBox(const rvec3_t& shift) const
@@ -2370,9 +2370,9 @@ Outcome<SolidCalculation::GridAuditResult, ResourceRefusal> SolidCalculation::Eg
                                                               "not follow the shift -- gate the U = 0 twin");
     qchem::report::Timed timed("postSCF: egg-box (shifted basis + Hamiltonian + term matrices)");
     std::ostringstream os; os<<"shift ("<<shift.x<<", "<<shift.y<<", "<<shift.z<<") bohr";
-    if (auto r=AdmitReference(SizeReference("egg-box "+os.str(), S.opts.tolerances, 1.0, nullptr), "postSCF eggBox", kAuditEscape))
+    if (auto r=AdmitReference(SizeReference("egg-box "+os.str(), S.opts.solid.tolerances, 1.0, nullptr), "postSCF eggBox", kAuditEscape))
         return O::Fail(std::move(*r));
-    return O::Ok(CompareAtFixedD(S.opts.tolerances, shift, os.str()));
+    return O::Ok(CompareAtFixedD(S.opts.solid.tolerances, shift, os.str()));
 }
 
 SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisSet::Gaussian::GPWTolerances& raster, const rvec3_t& shift,
@@ -2381,11 +2381,11 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
 {
     namespace rpt=qchem::report;
     const SolidSetup&       S    = *itsImp->setup;
-    const SolidCalcOptions& opts = S.opts;
+    const RunOptions& opts = S.opts;
     const bool eggBox = norm(shift)>0.0;
     const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
     if (!wf) throw std::logic_error("SolidCalculation: no wave function yet (the audits run on a converged D)");
-    const SpinGroup g = S.polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+    const SpinGroup g = S.Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
     // The grid-audit verdicts of each side's rasters, ASKED of the basis that owns them (V-REPORT-WRITEONLY: never read back out of the
     // run report): the run's own here, the reference's once its V_long has run below (both are printed, so the predicted alias of
     // whichever side is the coarse one can be read -- the run need not be the side on the ball's own rasters).
@@ -2415,24 +2415,24 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
     std::shared_ptr<const BasisSet::Real_BS> molRef=itsImp->mol;
     if (eggBox)
     {
-        UnitCell cellR(S.reference.GetUnitCell());
+        UnitCell cellR(S.lattice.GetUnitCell());
         std::vector<rvec3_t> Rs; for (const Site& s : cellR.Sites()) Rs.push_back(s.R+shift);
         cellR.MoveSites(Rs);
-        latShifted.emplace(cellR, S.reference.GetLimits());
-        molRef=S.recipe->Make(*latShifted->GetStructure(), S.pp);
+        latShifted.emplace(cellR, S.lattice.GetLimits());
+        molRef=S.recipe->Make(*latShifted->GetStructure(), *S.pp);
     }
     const Lattice_3D& latRef = eggBox ? *latShifted : *itsImp->lat;
     const auto        stRef  = eggBox ? latShifted->GetStructure() : itsImp->st;
     {
         namespace L3 = BasisSet::Lattice;
         // The density ball: the run's, or ballScale x it -- on the knob that sets it (an auto ball is cutoffFactor x alpha_max).
-        const bool autoBall = opts.densityEcut<0.0;
+        const bool autoBall = opts.solid.densityEcut<0.0;
         L3::GPWParams p{
-            .densityEcut = autoBall ? opts.densityEcut : ballScale*opts.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.cutoffFactor : opts.cutoffFactor,
-            .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
-            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = raster,
+            .densityEcut = autoBall ? opts.solid.densityEcut : ballScale*opts.solid.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.solid.cutoffFactor : opts.solid.cutoffFactor,
+            .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
+            .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
             .hamPreservesReal = S.realTRIMBlocks};
-        ResolveGpwPoint(latRef, molRef, S.pp, p);   // the reference's own ladder (its rasters / ball differ), sized for the same PP
+        ResolveGpwPoint(latRef, molRef, *S.pp, p);   // the reference's own ladder (its rasters / ball differ), sized for the same PP
         ladderRef=p.ladder;
         bsRef.reset(L3::GPWFactory(latRef, molRef, p));
         if (rpt::Depth()>0)   // the reference's grids + verdicts, as setup files the run's
@@ -2441,8 +2441,8 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition);
         }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
-        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, S.pp, xcMesh ? *xcMesh : S.xcMesh, {opts.vxcFit, opts.xcRho}, itsImp->hubbard,
-                                                 qchem::Hamiltonian::ModelToXC(opts.model), PeriodicA1Set(opts, *stRef)));
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, *S.pp, xcMesh ? *xcMesh : S.xcMesh, {opts.vxcFit, opts.xcRho}, itsImp->hubbard,
+                                                 qchem::Hamiltonian::ModelToXC(*opts.model), PeriodicA1Set(opts, *stRef)));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);
     auto cdRef=RestoreDensity(st, *bsRef, g);
@@ -2481,7 +2481,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             const SavedBlock& sb=st.blocks[channel];
             hmat_t<dcmplx> S(sb.S.rows());
             for (size_t a=0;a<S.rows();a++) for (size_t b=a;b<S.rows();b++) S(a,b)=sb.S(a,b);
-            const std::unique_ptr<LASolver<dcmplx>> frame(LASolver<dcmplx>::Factory(opts.ortho, opts.SolverTruncation()));
+            const std::unique_ptr<LASolver<dcmplx>> frame(LASolver<dcmplx>::Factory(*opts.ortho, opts.SolverTruncation()));
             frame->SetBasisOverlap(S);
             const std::string spin = s==Spin::Up ? "up" : s==Spin::Down ? "down" : "none";
             auto fold=[&](const auto& a, const auto& b)
@@ -2542,9 +2542,9 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
     // REPORT, contemporaneously (pin 17): console table + the run report's `gridAudit` section.
     const std::streamsize prec0=std::cout.precision();
     report::FormatGuard keepFormat(std::cout);   // exact restore on every exit (prec0 alone missed the flags and the early returns)
-    if (eggBox) std::cout<<"[egg box] rigid translation at the converged D (fixed D: the SCF egg-box differs at second order), "<<RasterName(opts.tolerances)
+    if (eggBox) std::cout<<"[egg box] rigid translation at the converged D (fixed D: the SCF egg-box differs at second order), "<<RasterName(opts.solid.tolerances)
                          <<", "<<R.reference<<": analytic terms must read 0"<<std::endl;
-    else        std::cout<<"[grid audit] delivered error at the converged D: "<<RasterName(opts.tolerances)<<" (this run) vs "<<R.reference<<" (reference)"<<std::endl;
+    else        std::cout<<"[grid audit] delivered error at the converged D: "<<RasterName(opts.solid.tolerances)<<" (this run) vs "<<R.reference<<" (reference)"<<std::endl;
     std::cout<<std::scientific<<std::setprecision(3);
     rpt::json rows=rpt::json::array();
     for (const auto& t : R.terms)
@@ -2573,8 +2573,8 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             std::cout<<"[grid audit]   "<<who<<" "<<it.key()<<": "<<it.value().value("status",std::string())
                      <<" (predicted alias "<<it.value().value("alias",0.0)<<")"<<std::endl;
     std::cout<<std::defaultfloat<<std::setprecision(prec0);
-    rpt::EmitAt(eggBox ? "eggBox" : "gridAudit", eggBox ? R.reference : RasterName(opts.tolerances)+std::string("_vs_")+R.reference,
-                    rpt::json{{"run",RasterName(opts.tolerances)},{"reference",R.reference},{"terms",rows},
+    rpt::EmitAt(eggBox ? "eggBox" : "gridAudit", eggBox ? R.reference : RasterName(opts.solid.tolerances)+std::string("_vs_")+R.reference,
+                    rpt::json{{"run",RasterName(opts.solid.tolerances)},{"reference",R.reference},{"terms",rows},
                          {"maxAbsDH",R.maxAbsΔH},{"dE",R.ΔE},{"verdicts",verdicts},{"referenceVerdicts",refVerdicts}});
     return R;
 }
@@ -2582,7 +2582,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
 std::vector<qchem::Hamiltonian::ACBN0Estimate> SolidCalculation::EstimateHubbardU() const
 {
     std::unique_ptr<qchem::Hamiltonian::ACBN0Estimator> est=itsImp->ham->MakeACBN0Estimator();
-    if (!est) throw std::logic_error("SolidCalculation::EstimateHubbardU: this run carries no Hubbard manifold (SolidCalcOptions::hubbard)");
+    if (!est) throw std::logic_error("SolidCalculation::EstimateHubbardU: this run carries no Hubbard manifold (RunOptions::hubbard)");
     const auto* wf=itsImp->scf->GetWaveFunction();
     if (!wf) throw std::logic_error("SolidCalculation::EstimateHubbardU: no wave function yet");
     qchem::Response::FeedOccupiedOrbitals(*est, *wf);       // the orbital walk lives beside MakeReference (D4)
@@ -2645,7 +2645,7 @@ ManifoldWalk WalkManifolds(const qchem::WaveFunction::cWaveFunction& wf, const q
 std::vector<double> SolidCalculation::MakeHubbardMoments() const
 {
     const auto* hub=itsImp->ham ? itsImp->ham->GetHubbardChannels() : nullptr;
-    if (!hub) throw std::logic_error("SolidCalculation::MakeHubbardMoments: this run carries no Hubbard manifold (SolidCalcOptions::hubbard)");
+    if (!hub) throw std::logic_error("SolidCalculation::MakeHubbardMoments: this run carries no Hubbard manifold (RunOptions::hubbard)");
     const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
     if (!wf) throw std::logic_error("SolidCalculation::MakeHubbardMoments: no wave function yet");
     const ManifoldWalk W=WalkManifolds(*wf, *hub);
@@ -2797,7 +2797,7 @@ SolidCalculation::IndependentResponse(ivec3_t Nq) const
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
                                                              : std::numeric_limits<double>::quiet_NaN();
     qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
-        {.acrossK=!itsImp->setup->opts.perKFermiLevels, .acrossSpin=itsImp->setup->opts.spinsShareFermi}, noise);
+        {.acrossK=!itsImp->setup->opts.solid.perKFermiLevels, .acrossSpin=itsImp->setup->opts.solid.spinsShareFermi}, noise);
     qchem::Response::AmplitudeProbe probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
     auto r=qchem::Response::IndependentResponse(ref, probe, Nq);
     if (r) r->Write(std::cout, 27.211386245988, "1/eV");     // reported at its own activity (pin 17)
@@ -2830,7 +2830,7 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
         if (itsImp->bs->GetRealIBS(i))
             return Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>::Fail({qchem::Response::ResponseFailure::Why::Configuration,
                 "the setup built REAL TRIM blocks (no response was planned), and the linear response is complex-only: state the "
-                "response at setup (SolidCalcOptions::responseQMeshes; a deck does it from its postSCF) or set forceComplex"});
+                "response at setup (RunOptions::Solid::responseQMeshes; a deck does it from its postSCF) or set forceComplex"});
     if (perturbed.empty()) perturbed=DefaultPerturbed(*hub);
     const FrozenHubbard frozen(itsImp->ham->GetHubbardUTarget());
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
@@ -2857,7 +2857,7 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
         }
     }
     const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
-        {.acrossK=!itsImp->setup->opts.perKFermiLevels, .acrossSpin=itsImp->setup->opts.spinsShareFermi}, noise);
+        {.acrossK=!itsImp->setup->opts.solid.perKFermiLevels, .acrossSpin=itsImp->setup->opts.solid.spinsShareFermi}, noise);
     const auto frame=qchem::Response::MakeOrbitalFrame(ref, *wf);
     const auto hp=qchem::Response::MakeHubbardProbe(ref, *wf, *hub, res);
     const bool resolved = res!=qchem::Response::HubbardResolution::Manifold;
@@ -2984,7 +2984,7 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
         const auto* wf=itsImp->scf->GetWaveFunction();
         if (!wf) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: no wave function");
         const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
-            {.acrossK=!itsImp->setup->opts.perKFermiLevels, .acrossSpin=itsImp->setup->opts.spinsShareFermi}, std::numeric_limits<double>::quiet_NaN());
+            {.acrossK=!itsImp->setup->opts.solid.perKFermiLevels, .acrossSpin=itsImp->setup->opts.solid.spinsShareFermi}, std::numeric_limits<double>::quiet_NaN());
         const auto probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
         qchem::Response::BlockPairs D;                      // the state in its own MO basis: diag(occupation)
         for (const Irrep& ir : wf->GetQNs())
@@ -3097,18 +3097,18 @@ std::vector<Hamiltonian::TermEnergy> SolidCalculation::FrozenTermEnergiesAt(cons
 {
     const SavedState D=Carry();
     const SolidSetup& S=*itsImp->setup;
-    const Lattice_3D lat(cell, S.reference.GetLimits());
+    const Lattice_3D lat(cell, S.lattice.GetLimits());
     // The molecular basis AT the strained centres (a Gaussian's centre moves, its shape is kept): the setup's frozen recipe, as a session
     // step makes it.  A plane-wave basis does not read it.
     std::shared_ptr<const BasisSet::Real_BS> mol=itsImp->mol;
     if (!S.planeWave)
     {
         if (!S.recipe) throw std::logic_error("SolidCalculation::FrozenTermEnergiesAt: a Gaussian setup resolved from a pre-built basis cannot follow a strain");
-        mol=S.recipe->Make(*lat.GetStructure(), S.pp);
+        mol=S.recipe->Make(*lat.GetStructure(), *S.pp);
     }
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
     c->BuildPoint(itsImp->setup, lat, mol);
-    const SpinGroup g=c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+    const SpinGroup g=c->itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
     auto seed=RestoreDensity(D, *c->itsImp->bs, g);
     if (!seed) throw std::logic_error("SolidCalculation::FrozenTermEnergiesAt: the density does not fit the point: "+seed.Error().details);
     c->BuildRun(seed.TakeValue(), SCFParams{}, SCFAccelerators::Type::Auto, SCFRecipe::Auto, /*restored*/false, /*exactResume*/false);   // the Hamiltonian
@@ -3159,8 +3159,8 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
     if (!setup->rastersResolved && !setup->planeWave)
     {
         auto seeded=std::make_shared<SolidSetup>(*setup);
-        BasisSet::Gaussian::GridAccuracy rig=setup->opts.accuracy; rig.eta=BasisSet::Gaussian::AccuracyCalibration{};
-        seeded->opts.tolerances=rig.Stated(setup->opts.tolerances);
+        BasisSet::Gaussian::GridAccuracy rig=setup->opts.solid.grid; rig.eta=BasisSet::Gaussian::AccuracyCalibration{};
+        seeded->opts.solid.tolerances=rig.Stated(setup->opts.solid.tolerances);
         setup=std::move(seeded);
     }
     // ITS XC ROUTE FOLLOWS THE CONSUMER (user ruling 2026-11-01, pin 31): v_xc[rho] on a fixed uniform raster does not follow the atoms and
@@ -3171,7 +3171,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
     // to come, and that audit stays the gate.  A later point keeps the mesh the first one settled.  What stays at (40, 29) is an ENERGY point, not a
     // geometry one: a deck's own run before its `displace` builds that mesh seven times on MnO, once for its SCF and the rest for its raster pilot's
     // rebuilds of the same mesh, and no ladder is involved there.
-    if (!setup->planeWave && setup->opts.xcMesh.cellKind==qcMesh::UnitCellKind::Auto && theRunPolicy().BeckeXC())
+    if (!setup->planeWave && setup->opts.xcMesh->cellKind==qcMesh::UnitCellKind::Auto && theRunPolicy().BeckeXC())
     {
         const bool toBecke=setup->xcMesh.cellKind!=qcMesh::UnitCellKind::Becke;
         if (toBecke || !setup->rastersResolved)
@@ -3179,8 +3179,8 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
             auto becke=std::make_shared<SolidSetup>(*setup);
             if (toBecke) becke->xcMesh=qcMesh::BeckeXCParams();
             const double target=setup->opts.accuracy.eps;   // per matrix element on this consumer (GridAccuracy::Target)
-            if (!setup->rastersResolved) becke->xcMesh=qcMesh::BeckeEntryRung(becke->xcMesh, target, setup->opts.beckeLadder, setup->imposed);
-            const auto& b=setup->opts.beckeLadder;
+            if (!setup->rastersResolved) becke->xcMesh=qcMesh::BeckeEntryRung(becke->xcMesh, target, setup->opts.solid.beckeLadder, setup->imposed);
+            const auto& b=setup->opts.solid.beckeLadder;
             std::cout<<"[XC grid choice] the client consumes H (a geometry run): the XC mesh must follow the atoms -> "<<BeckeName(becke->xcMesh)
                      <<"  (no rigorous bound; calibrated entry: angular "<<b.angularError53*std::pow(b.angularFactor, (becke->xcMesh.angularDegree-53)/6.0)
                      <<", radial "<<b.radialError100*std::pow(b.radialFactor, (becke->xcMesh.nRadial-100)/20.0)<<", target "<<target<<")"<<std::endl;
@@ -3206,7 +3206,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
             // THE CARRY: the previous point's D, block for block, onto this point's basis -- the same recipe at moved atoms, so the
             // block layout (k, size, realness) is the one RestoreDensity asserts.  A WorkingDensity, NOT a restored one: the
             // Hamiltonian moved with the atoms, so the Auto policy's carried-stage branch (Null + Pulay on D) applies.
-            const SpinGroup g=c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+            const SpinGroup g=c->itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
             std::optional<SavedState> moved;
             if (lowdin) { moved=*carry; LowdinCarry(*moved, *c->itsImp->bs, g); carry=&*moved; }
             auto cd=RestoreDensity(*carry, *c->itsImp->bs, g);
@@ -3281,10 +3281,10 @@ SolidSession::SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<
     : itsSetup(std::move(setup)), itsSchedule(std::move(schedule)), itsObserver(std::move(onIteration)), itsCarry(carry)
 {
     if (itsSchedule.empty()) throw std::invalid_argument("SolidSession: an EMPTY schedule has no meaning -- pass at least one stage.");
-    if (!itsSetup->imposed && !itsSetup->planeWave && itsSetup->opts.xcMeshSymmetric)
+    if (!itsSetup->imposed && !itsSetup->planeWave && itsSetup->opts.solid.xcMeshSymmetric)
         throw std::invalid_argument("SolidSession: a FREE setup with xcMeshSymmetric=true builds its XC mesh invariant under the group "
                                     "detected at EACH geometry, so the mesh switches as the atoms move and the surface jumps -- resolve "
-                                    "the setup with SolidCalcOptions::xcMeshSymmetric=false (the plain atom-centred mesh)");
+                                    "the setup with RunOptions::xcMeshSymmetric=false (the plain atom-centred mesh)");
 }
 SolidSession::~SolidSession() = default;
 
@@ -3292,10 +3292,10 @@ SolidGeometryRun MakeSolidGeometryRun(std::shared_ptr<const SolidSetup> setup, s
                                       SolidCalculation::Observer onIteration, SolidSession::Carry carry, bool relaxCell)
 {
     if (!setup) throw std::invalid_argument("MakeSolidGeometryRun: no setup");
-    if (relaxCell && !(setup->opts.cellStrainAllowance>0.0))
-        throw std::invalid_argument("MakeSolidGeometryRun: a cell relaxation needs SolidCalcOptions::cellStrainAllowance > 0 -- every size is "
+    if (relaxCell && !(setup->opts.solid.cellStrainAllowance>0.0))
+        throw std::invalid_argument("MakeSolidGeometryRun: a cell relaxation needs RunOptions::cellStrainAllowance > 0 -- every size is "
                                     "frozen on the reference cell grown by it, so the session can follow the cell (CellHalf_Design §3)");
-    const std::vector<Symmetry::SymOp> ops=setup->KeptOps(setup->reference);
+    const std::vector<Symmetry::SymOp> ops=setup->KeptOps(setup->lattice);
     SolidGeometryRun run;
     run.surface=std::make_unique<SolidSession>(setup, std::move(schedule), std::move(onIteration), carry);
     // The map's symmetry check at the DETECTION tolerance (GetSpaceGroup's 1e-4, fractional), in bohr along the longest lattice vector:
@@ -3311,8 +3311,8 @@ SolidGeometryRun MakeSolidGeometryRun(std::shared_ptr<const SolidSetup> setup, s
 PESGeometry SolidSession::Reference() const
 {
     PESGeometry g;
-    g.cell=itsSetup->reference.GetUnitCell().GetCellMatrix();
-    itsSetup->cell->ForEachSite([&](int Z, const rvec3_t& r, bool){ g.R.push_back(r); g.Z.push_back(Z); });
+    g.cell=itsSetup->lattice.GetUnitCell().GetCellMatrix();
+    itsSetup->structure->ForEachSite([&](int Z, const rvec3_t& r, bool){ g.R.push_back(r); g.Z.push_back(Z); });
     return g;
 }
 const SolidCalculation* SolidSession::Current() const {return itsPoint ? itsPoint->calc.get() : nullptr;}
@@ -3352,7 +3352,7 @@ Outcome<FollowedCell, PESFailure> FollowCell(const SolidSetup& S, const rmat3d_t
 {
     using O=Outcome<FollowedCell, PESFailure>;
     using Why=PESFailure::Why;
-    const UnitCell& ref=S.reference.GetUnitCell();
+    const UnitCell& ref=S.lattice.GetUnitCell();
     const rmat3d_t& Aref=ref.GetCellMatrix();
     double dA=0.0, scale=0.0;
     for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) { dA=std::max(dA, std::fabs(A(i,j)-Aref(i,j))); scale=std::max(scale, std::fabs(Aref(i,j))); }
@@ -3362,10 +3362,10 @@ Outcome<FollowedCell, PESFailure> FollowCell(const SolidSetup& S, const rmat3d_t
         f.cell.MoveSites(R);
         return O::Ok(std::move(f));
     }
-    const double s=S.opts.cellStrainAllowance;
+    const double s=S.opts.solid.cellStrainAllowance;
     if (s==0.0)
         return O::Fail({Why::CellChange, "the cell moved (max |dA| = "+std::to_string(dA)+" bohr) and the setup states no strain allowance: its "
-                        "sizes were decided for ONE cell -- resolve it with SolidCalcOptions::cellStrainAllowance > 0 to let a geometry "
+                        "sizes were decided for ONE cell -- resolve it with RunOptions::cellStrainAllowance > 0 to let a geometry "
                         "run follow the cell (the frozen rule), or resolve a new setup at that cell"});
     const double stretch=LargestStretch(A*Invert(Aref));
     if (stretch>1.0+s)
@@ -3386,7 +3386,7 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     using O=Outcome<PESPoint, PESFailure>;
     using Why=PESFailure::Why;
     const SolidSetup& S=*itsSetup;
-    const UnitCell&   ref=S.reference.GetUnitCell();
+    const UnitCell&   ref=S.lattice.GetUnitCell();
     const size_t      nAtoms=ref.GetNumAtoms();
     if (R.size()!=nAtoms)
         throw std::invalid_argument("SolidSession::ConvergeAt: "+std::to_string(R.size())+" positions for "+std::to_string(nAtoms)+" atoms");
@@ -3420,13 +3420,13 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     const UnitCell& cellR=followed->cell;
     double moved=0.0;
     for (size_t a=0;a<nAtoms;a++) moved=std::max(moved, norm(R[a]-ref.Sites()[a].R));
-    const Lattice_3D latR(cellR, S.reference.GetLimits());
+    const Lattice_3D latR(cellR, S.lattice.GetLimits());
 
     // THE IMPOSED GROUP must survive (Q4): a geometry that lowers it is a NEW setup, the user's choice -- never a silent re-fold.  A
     // THROW, not an Outcome: every driver that moves atoms off the group runs a lower-group setup, so this is a wiring defect.
     if (S.imposed && (moved>0.0 || cellMoved))
     {
-        if (const size_t now=S.KeptOps(latR).size(), was=S.KeptOps(S.reference).size(); now<was)
+        if (const size_t now=S.KeptOps(latR).size(), was=S.KeptOps(S.lattice).size(); now<was)
             throw std::invalid_argument("SolidSession::ConvergeAt: these positions keep "+std::to_string(now)+" of the imposed group's "+std::to_string(was)
                                         +" operations -- step through a map that keeps the group (WyckoffMap, CellWyckoffMap), or resolve a new setup with the lower group");
     }
@@ -3450,12 +3450,12 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
             {
                 GaussianBasisRecipe r=recipe;
                 r.trim.shells.insert(r.trim.shells.end(), t.shells.begin(), t.shells.end());
-                return r.Make(*point->cell, S.pp);
+                return r.Make(*point->cell, *S.pp);
             };
             BasisSet::Lattice::VetTrimResult vet;
             {
                 qchem::report::Scope here("basisTrim");   // the re-vet files its verdict one level in (as SolidSetup's first vet)
-                vet=BasisSet::Lattice::VetStageTrim(latR, make, {.images=S.opts.images, .kShift=S.opts.kShift, .tol=recipe.tolerances}, S.opts.orthoTol);   // the tolerances make() binds
+                vet=BasisSet::Lattice::VetStageTrim(latR, make, {.images=S.opts.solid.images, .kShift=S.opts.solid.kShift, .tol=recipe.tolerances}, S.opts.orthoTol);   // the tolerances make() binds
             }
             if (!vet.trim.empty())
             {
@@ -3466,7 +3466,7 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
             }
             point->mol=std::move(vet.mol);
         }
-        else point->mol=recipe.Make(*point->cell, S.pp);
+        else point->mol=recipe.Make(*point->cell, *S.pp);
     }
 
     // THE CARRY, then release the previous point before building the next (one point's memory at a time).
