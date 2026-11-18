@@ -26,7 +26,6 @@ import qchem.BasisSet.Orbital_DFT_IBS;          // Orbital_DFT_IBS<U,dcmplx>, cF
 import qchem.BasisSet.PairProjection;           // GSpacePairProjectionIntegrator
 import qchem.BasisSet.G_FieldEvaluator;         // G_PoissonKernel, G_RasterTransform (the PW fit basis's own faces)
 import qchem.Blaze;                             // blazem::NarrowExact
-import qchem.Parallel;                          // LazyLock -- the per-block caches' guard
 import qchem.Reporting;                         // report::Timed
 import qchem.Structure;                         // the pullbacks' atoms
 

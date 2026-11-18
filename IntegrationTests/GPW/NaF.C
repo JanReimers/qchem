@@ -27,10 +27,8 @@
 #include <filesystem>
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
 
-import qchem.Structure;                          // Molecule, Atom
 import qchem.SCFCap;                             // IterationBudget: the convergence PANEL's budget (doc/SCFRobustnessPlan.md §4)
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
-import qchem.Matrix3D;                           // Matrix3D<double> (the rhombohedral AFM-II cell matrix)
 import qchem.Lattice_3D;                         // Lattice_3D
 import qchem.BasisSet;                           // Complex_BS, Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;            // Complex_OIBS (the overlap-spectrum diagnostic)
@@ -55,7 +53,6 @@ import qchem.SCFAccelerator.Factory;              // the PUBLIC complex accelera
 import qchem.WaveFunction;                       // cWaveFunction (the converged state)
 import qchem.Energy;                             // EnergyBreakdown
 import qchem.Symmetry.Irrep;                     // Irrep
-import qchem.Reporting;                          // report:: -- bracket the GPW run so grids/basis sections land
 import qchem.Symmetry.Spin;                      // Spin
 import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)

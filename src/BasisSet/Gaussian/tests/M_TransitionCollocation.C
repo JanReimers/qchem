@@ -29,7 +29,6 @@ import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalL
 import qchem.BasisSet;
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.UnitCell;
-import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
 

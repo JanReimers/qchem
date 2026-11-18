@@ -5,7 +5,6 @@
 #include <cmath>
 #include <vector>
 import qchem.AD.XCKernel;
-import qchem.Types;
 
 using namespace qchem;
 

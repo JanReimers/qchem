@@ -12,7 +12,6 @@ import qchem.BasisSet;
 import qchem.Structure;
 import qchem.Mesh.Quadrature;           // qcMesh quadrature + ScalarField/BasisField
 import qchem.VectorFunction;
-import qchem.Streamable;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.Blaze;
 using namespace qchem;
