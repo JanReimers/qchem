@@ -1,0 +1,182 @@
+#!/usr/bin/env python3
+# stale-imports -- a FAST TEXT HEURISTIC for stale `import X;` lines (CleanCode D-BUILD-BLAST item 3, lane B 2026-11-18).
+#
+# For every TU in a build tree and every plain `import X;` it writes, check whether ANY name X declares in its interface
+# (its own units and partitions, plus what X `export import`s, transitively: importing X brings those too) appears in the TU's
+# code.  None appears => the import is a SUSPECT.  It is a heuristic and REPORTS ONLY:
+#   - names are found by text (class / struct / enum / concept / using names, arrays, variables, function names, constexpr and
+#     enumerator-looking names in the interface), comments and string literals stripped; a generic name (`Get`, `size`)
+#     that X declares and the TU uses for another reason keeps the import (a false KEEP, the safe direction);
+#   - a TU can need X for a COMPLETE TYPE it only reaches through another module's signature (a member call on a returned
+#     object), or for an ADL operator a template instantiates (the Blaze trap, CLAUDE.md): a suspect is a candidate, not a verdict.
+# Confirm a suspect with the compiler: `scripts/importprobe` (-fsyntax-only per removal), and remove it only after the
+# asserts-live build too (`ninja -C build/RelChecked -k 0 allTests`): an import used only inside assert() looks stale to
+# every NDEBUG sweep (CLAUDE.md "Removing an import needs the asserts-live build too").  The asserts are in the text, so this
+# heuristic sees them as uses.
+#
+# Usage: scripts/stale-imports [-C BUILD] [--module REGEX] [--tsv OUT.tsv] [--verify SNAPSHOT [-j N]]
+#   prints the suspects grouped by imported module, widest blast first (a stale import of a wide module costs the most).
+#   --verify compiles each suspect's TU with THAT ONE import removed (-fsyntax-only, importprobe's command, no writes) in a
+#   FROZEN copy of the build tree (`cp -al build/Release SNAPSHOT`, so no rebuild swaps a BMI mid-run) and marks it
+#   `confirmed` (still compiles) or `needed`; the heuristic's precision is the confirmed share.  An interface unit's
+#   confirmed removal can still break a downstream template (the Blaze ADL trap), and none is checked with asserts live.
+import argparse, collections, importlib.machinery, importlib.util, os, re, sys
+
+here=os.path.dirname(os.path.abspath(__file__))
+_spec=importlib.util.spec_from_loader('import_blast', importlib.machinery.SourceFileLoader('import_blast', os.path.join(here,'import-blast')))
+ib=importlib.util.module_from_spec(_spec); _spec.loader.exec_module(ib)
+_spec2=importlib.util.spec_from_loader('importprobe', importlib.machinery.SourceFileLoader('importprobe', os.path.join(here,'importprobe')))
+ip=importlib.util.module_from_spec(_spec2); _spec2.loader.exec_module(ip)
+
+def verify(snapshot, suspects, jobs):
+    import concurrent.futures as cf, tempfile
+    snapshot=os.path.abspath(snapshot)
+    entries={e['file']:e for e in ip.compdb(snapshot)}
+    root=ib.repo_root()
+    def one(s):
+        m,f=s
+        e=entries.get(os.path.join(root,f))
+        if not e: return (m,f,'no-compile-entry')
+        lines=open(e['file']).read().split('\n')
+        with tempfile.TemporaryDirectory(prefix='stale-imports-') as tmp:
+            src=os.path.join(tmp,os.path.basename(f))
+            open(src,'w').write('\n'.join(lines))
+            if not ip.compiles(ip.syntax_cmd(e,snapshot,src),snapshot): return (m,f,'baseline-fail')
+            trial=[('// stale-imports: '+l) if re.match(r'^\s*import\s+'+re.escape(m)+r'\s*;',l) else l for l in lines]
+            open(src,'w').write('\n'.join(trial))
+            return (m,f,'confirmed' if ip.compiles(ip.syntax_cmd(e,snapshot,src),snapshot) else 'needed')
+    with cf.ThreadPoolExecutor(jobs) as ex: return list(ex.map(one, suspects))
+
+IMPORT=re.compile(r'^\s*import\s+([A-Za-z0-9_.]+)\s*;', re.M)
+REEXPORT=re.compile(r'^\s*export\s+import\s+([A-Za-z0-9_.:]+)\s*;', re.M)
+KEYWORDS=set('''if for while switch return sizeof alignof decltype static_cast dynamic_cast const_cast reinterpret_cast
+    noexcept requires operator template typename class struct enum union namespace using typedef new delete throw catch try
+    co_await co_return static_assert assert explicit constexpr consteval constinit auto void int double float bool char long short
+    unsigned signed const volatile mutable virtual override final public private protected friend inline export import module
+    default true false nullptr this'''.split())
+# Names a TU writes for reasons of its own: the project namespace, the std library's, and the private members (its*) no importer sees.
+STOPLIST=set('''qchem std size_t move swap data size begin end fill fixed flags precision get set min max abs sqrt exp log pow
+    value first second string vector map array tuple pair optional function shared_ptr unique_ptr make_shared make_unique'''.split())
+def usable(x): return x not in KEYWORDS and x not in STOPLIST and len(x)>2 and not x.startswith('its')
+DECL=[re.compile(r'\b(?:class|struct|union|concept)\s+([A-Za-z_]\w*)'),
+      re.compile(r'\benum(?:\s+class|\s+struct)?\s+([A-Za-z_]\w*)'),
+      re.compile(r'\busing\s+([A-Za-z_]\w*)\s*='),
+      re.compile(r'\btypedef\b[^;]*?\b([A-Za-z_]\w*)\s*;'),
+      re.compile(r'([A-Za-z_]\w*)\s*\('),                      # function (and constructor) names, calls in inline bodies too
+      re.compile(r'\b([A-Za-z_]\w*)\s*(?:=|\{)'),              # constexpr variables, enumerators, members with initializers
+      re.compile(r'\b([A-Za-z_]\w*)\s*,'),                     # enumerators in a list
+      re.compile(r'([^\W\d]\w*)\s*\[[^\]]*\]\s*='),                # arrays: SPDFG[]={...}
+      re.compile(r'([^\W\d]\w*)\s*=')]                          # any identifier, non-ASCII ones (kappa_names) included
+
+def strip(text):
+    text=re.sub(r'//[^\n]*','',text)
+    text=re.sub(r'/\*.*?\*/','',text,flags=re.S)
+    text=re.sub(r'R"(\w*)\(.*?\)\1"','""',text,flags=re.S)
+    return re.sub(r'"(?:\\.|[^"\\\n])*"','""',text)
+
+SCOPE=re.compile(r'\b(?:class|struct|union|namespace|enum|export|extern)\b[^;{}()]*$')
+
+def declarations(text):
+    """The text at DECLARATION depth: the contents of namespace / class / enum / export blocks are kept, a function body or a
+    brace initializer is dropped (its calls are not names the module declares)."""
+    out=[]; i=0; n=len(text); stack=[]; last=0
+    while i<n:
+        c=text[i]
+        if c=='{':
+            head=text[last:i]
+            keep=bool(SCOPE.search(head.split(';')[-1].split('}')[-1])) and not (stack and not stack[-1])
+            if not stack or stack[-1]: out.append(text[last:i])
+            stack.append(keep); last=i+1
+            if not keep:                                       # skip to the matching brace
+                depth=1; i+=1
+                while i<n and depth:
+                    depth+= (text[i]=='{') - (text[i]=='}'); i+=1
+                stack.pop(); last=i; out.append(';'); continue
+        elif c=='}':
+            if not stack or stack[-1]: out.append(text[last:i])
+            if stack: stack.pop()
+            last=i+1; out.append(';')
+        i+=1
+    out.append(text[last:])
+    return ''.join(out)
+
+def code_after_preamble(text):                                 # drop the global module fragment's #includes
+    return '\n'.join(l for l in text.splitlines() if not l.lstrip().startswith('#'))
+
+def main():
+    ap=argparse.ArgumentParser()
+    ap.add_argument('-C',dest='build',default=None)
+    ap.add_argument('--module',default=None,help='only imports of modules matching this regex')
+    ap.add_argument('--tsv',default=None)
+    ap.add_argument('--verify',default=None,metavar='SNAPSHOT')
+    ap.add_argument('-j',type=int,default=4)
+    a=ap.parse_args()
+    g=ib.Graph(a.build or os.path.join(ib.repo_root(),'build','Release'))
+    texts={}
+    def text(path):
+        if path not in texts:
+            try: texts[path]=strip(code_after_preamble(open(path,errors='replace').read()))
+            except OSError: texts[path]=''
+        return texts[path]
+    names_cache={}
+    def names(m, seen=None):                                    # every name module m makes visible to an importer
+        if m in names_cache: return names_cache[m]
+        seen=seen or set()
+        if m in seen: return set()
+        seen.add(m)
+        out=set()
+        for n,t in g.provides.items():
+            if n!=m and not n.startswith(m+':'): continue
+            src=g.src.get(t)
+            if not src: continue
+            body=declarations(text(src))
+            for rx in DECL:
+                out|={x for x in rx.findall(body) if usable(x)}
+            for r in REEXPORT.findall(open(src,errors='replace').read()):
+                if r.startswith(':'): continue
+                out|=names(r, seen)
+        names_cache[m]=out
+        return out
+    def exports_operators(m):                                  # a module whose operators a TU uses by ADL, invisible to a name match
+        for n,t in g.provides.items():
+            if (n==m or n.startswith(m+':')) and g.src.get(t) and re.search(r'\boperator\s*[^\s\w(]', declarations(text(g.src[t]))): return True
+        return False
+    words_cache={}
+    suspects=[]
+    sel=re.compile(a.module) if a.module else None
+    done=set()
+    for t,src in sorted(g.src.items()):
+        if src in done: continue
+        done.add(src)
+        raw=open(src,errors='replace').read() if os.path.exists(src) else ''
+        imports=IMPORT.findall(raw)
+        if not imports: continue
+        body=IMPORT.sub('',text(src))
+        words=set(re.findall(r'[A-Za-z_]\w*',body))
+        for m in imports:
+            if sel and not sel.search(m): continue
+            if m not in g.provides and not any(n.startswith(m+':') for n in g.provides): continue   # not a project module
+            if not (names(m) & words): suspects.append((m, os.path.relpath(src, ib.repo_root())))
+    blast={}
+    by=collections.defaultdict(list)
+    for m,f in suspects: by[m].append(f)
+    for m in by:
+        own=g.module_tus(m); blast[m]=len(g.closure(own)-own)
+    print(f"{len(suspects)} suspect stale imports in {len(done)} source files ({len(by)} modules); confirm each with scripts/importprobe "
+          "and the RelChecked build before removing it")
+    for m in sorted(by, key=lambda m:(-blast[m],m)):
+        print(f"{m}  (blast {blast[m]}): {len(by[m])}"+("   ⚠ exports operators: an ADL use is invisible to this heuristic" if exports_operators(m) else ""))
+        for f in sorted(by[m]): print(f"    {f}")
+    verdict={}
+    if a.verify:
+        for m,f,v in verify(a.verify, suspects, a.j): verdict[(m,f)]=v
+        c=collections.Counter(verdict.values())
+        print(f"VERIFIED with the compiler (one removal each, -fsyntax-only): "+", ".join(f"{k} {v}" for k,v in c.most_common()))
+        for (m,f),v in sorted(verdict.items(), key=lambda x:(x[1],x[0][1])):
+            if v!='confirmed': print(f"    {v:16s} {f}  import {m}")
+    if a.tsv:
+        with open(a.tsv,'w') as o:
+            o.write("file\timport\tblast\tverdict\n")
+            for m,f in sorted(suspects, key=lambda x:(x[1],x[0])): o.write(f"{f}\t{m}\t{blast[m]}\t{verdict.get((m,f),'')}\n")
+
+if __name__=='__main__': main()
