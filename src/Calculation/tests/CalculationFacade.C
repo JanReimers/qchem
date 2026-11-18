@@ -183,7 +183,7 @@ TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySC
     const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
     size_t rows=0;
     std::unique_ptr<MoleculeCalculation> calc;
-    { qchem::report::Run run(GetMolecule("H2O").ID()+" build"); calc=MoleculeCalculation::Prepare(setup, [&](const SCFIterator::IterationRow&){ rows++; }); }
+    { qchem::report::Run run(GetMolecule("H2O").ID()+" build"); calc=MoleculeCalculation::Prepare(setup, [&](const SCFIterator::IterationRow&){ rows++; }).TakeValue(); }
     EXPECT_EQ(rows, 0u) << "Prepare ran an SCF iteration";
     const auto* build=FiledRun(GetMolecule("H2O").ID()+" build@");
     ASSERT_NE(build, nullptr) << "no filed '<ID> build' run";
@@ -233,7 +233,7 @@ TEST(CalculationFacade, TheCurrentIteratesDensityIsSampledFromTheObserverAndEnds
         const auto rho=calc->MakeIterateDensity();
         if (row.iteration==2) mid={(*rho)(on), (*rho)(off)};
         EXPECT_EQ(calc->MakeIterateSpinDensity()->operator()(off), 0.0) << "unpolarized: the zero field";
-    });
+    }).TakeValue();
     EXPECT_THROW((void)calc->MakeIterateDensity(), std::logic_error) << "no iteration has run: nothing to sample";
     auto r=calc->Converge();
     ASSERT_TRUE(r) << r.Error().details;
@@ -253,7 +253,7 @@ TEST(CalculationFacade, EveryDefaultBuildsAndAnUnstatedBasisIsRefusedNamingTheBa
     for (const RunOptions& opts : {RunOptions{.molecule={.basis="dzvp"}}, RunOptions{.model=Model::LDA, .molecule={.basis="dzvp"}}})
     {
         std::unique_ptr<MoleculeCalculation> calc;
-        EXPECT_NO_THROW(calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(GetMolecule("H2O"), opts)))
+        EXPECT_NO_THROW(calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(GetMolecule("H2O"), opts)).TakeValue())
             << "model " << int(opts.model.value_or(Model::HF)) << ": a default failed to build";
     }
     try
@@ -314,7 +314,7 @@ TEST(CalculationFacade, AStatedBasisFileIsItsContentsAndASavedStateRefusesAnEdit
 TEST(CalculationFacade, EachAuxiliaryFitFilesInItsOwnTerm)
 {
     const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .molecule={.basis="dzvp"}});
-    { qchem::report::Run run("H2O fits build"); auto calc=MoleculeCalculation::Prepare(setup); }
+    { qchem::report::Run run("H2O fits build"); ASSERT_TRUE(MoleculeCalculation::Prepare(setup)); }
     const auto* build=FiledRun("H2O fits build@");
     ASSERT_NE(build, nullptr) << "no filed build run";
     ASSERT_TRUE(build->contains("hamiltonian")) << build->dump(1);
@@ -335,7 +335,7 @@ TEST(CalculationFacade, AnAtomsPrepareFilesItsSetupBeforeAnySCF)
 {
     const RunOptions opts{.model=Model::LDA, .atom={.type=AtomType::Gaussian}};
     std::unique_ptr<AtomCalculation> calc;
-    { qchem::report::Run run(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build"); calc=AtomCalculation::Prepare(AtomSetup::Resolve(8, 0, opts)); }
+    { qchem::report::Run run(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build"); calc=AtomCalculation::Prepare(AtomSetup::Resolve(8, 0, opts)).TakeValue(); }
     const auto* build=FiledRun(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build@");
     ASSERT_NE(build, nullptr) << "no filed '<ID> build' run";
     EXPECT_TRUE(build->contains("basis") && (*build)["basis"].contains("perIrrep")) << build->dump(1);
@@ -467,7 +467,14 @@ TEST(AtomConfiguration, AStatedConfigurationThatCannotRunIsRefusedBeforeAnySCF)
 {
     auto refused=[](int Z, int charge, const RunOptions& o, const char* expect)
     {
-        try { (void)AtomCalculation::Prepare(AtomSetup::Resolve(Z, charge, o)); ADD_FAILURE() << "must be refused: " << o.atom.configuration; }
+        // a refusal at Resolve throws (the setup's), one while building is Prepare's BuildRefusal (R9): either names the reason
+        try
+        {
+            auto built=AtomCalculation::Prepare(AtomSetup::Resolve(Z, charge, o));
+            if (built) { ADD_FAILURE() << "must be refused: " << o.atom.configuration; return; }
+            EXPECT_EQ(built.Error().policy, "AtomConfiguration");
+            EXPECT_NE(built.Error().reason.find(expect), std::string::npos) << built.Error().reason;
+        }
         catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find(expect), std::string::npos) << e.what(); }
     };
     const RunOptions lda{.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}};
@@ -480,9 +487,9 @@ TEST(AtomConfiguration, AStatedConfigurationThatCannotRunIsRefusedBeforeAnySCF)
     RunOptions pp=lda; pp.atom.type=AtomType::Gaussian; pp.atom.pseudopotential=true; pp.atom.valence=7;   // Mn2+ q7: 5 valence electrons, charge 25 - 5
     pp.atom.configuration="[Ne] 3s^2 3p^6 3d^5"; refused(25, 20, pp, "the pseudopotential replaces 18");
     pp.atom.configuration="[Ar] 3d^5";
-    EXPECT_NO_THROW((void)AtomCalculation::Prepare(AtomSetup::Resolve(25, 20, pp))) << "Mn2+ q7 stated as its valence over the PP's own [Ar] core";
+    EXPECT_TRUE(AtomCalculation::Prepare(AtomSetup::Resolve(25, 20, pp))) << "Mn2+ q7 stated as its valence over the PP's own [Ar] core";
     o.atom.configuration="[Ar] 3d^6 4s^1";
-    EXPECT_NO_THROW((void)AtomCalculation::Prepare(AtomSetup::Resolve(26, 1, o))) << "Fe+ in NIST's configuration";
+    EXPECT_TRUE(AtomCalculation::Prepare(AtomSetup::Resolve(26, 1, o))) << "Fe+ in NIST's configuration";
 }
 
 // AN UNSTATED ALL-ELECTRON CATION (row 196 step 3, controller ruling 2026-11-16): Fe+ is NIST's 3d^6 4s^1 (not Mn's 3d^5 4s^2), Fe2+ the
@@ -494,7 +501,7 @@ TEST(AtomConfiguration, AnUnstatedCationTakesNISTsFirstCationOrTheRemovalRuleAnd
     {
         {
             qchem::report::Run run(runName);
-            (void)AtomCalculation::Prepare(AtomSetup::Resolve(Z, charge, {.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}}));
+            EXPECT_TRUE(AtomCalculation::Prepare(AtomSetup::Resolve(Z, charge, {.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}})));
         }
         std::vector<qchem::report::json> out;
         std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& x)
@@ -544,7 +551,7 @@ TEST(AtomPilot, TheIterationCountIsTheRunsTotalAndThePilotsShareIsFiled)
     std::unique_ptr<AtomCalculation> calc;
     {
         qchem::report::Run run("atom pilot iterations");
-        calc=AtomCalculation::Prepare(AtomSetup::Resolve(25, 25-7, o), [&seen](const auto&){ ++seen; });
+        calc=AtomCalculation::Prepare(AtomSetup::Resolve(25, 25-7, o), [&seen](const auto&){ ++seen; }).TakeValue();
         ASSERT_TRUE(calc->Converge());
     }
     const auto* filed=FiledRun("atom pilot iterations@");

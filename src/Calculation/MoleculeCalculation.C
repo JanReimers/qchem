@@ -74,7 +74,9 @@ public:
     //! observes from that first iteration.  Until it runs, \c Result() says "did not converge in 0 iterations" and the energy /
     //! density / orbital accessors have nothing to read.
     //!@{
-    static std::unique_ptr<MoleculeCalculation> Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration = nullptr);
+    //! REFUSED (a value, R9) when a policy refuses while the graph is built (a 4-centre tensor that cannot fit in memory, a PP the run
+    //! cannot hold); its policy row is already filed.
+    static Outcome<std::unique_ptr<MoleculeCalculation>, BuildRefusal> Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration = nullptr);
     //!@}
 
     //! \name RESTART FROM A SAVED STATE (V-FACADE-STATE; \c SaveState / \c JudgeState are the base's)
@@ -275,6 +277,9 @@ private:
     const RunOptions& Options() const override;
     //! One stage: the recipe's report, the graph (\c Prepare's, reused once, else rebuilt), the SCF, the mesh pilot, the result line.
     bool RunStage(const SCFParams& params) override;
+    //! A schedule's stage (P4): on the setup's accelerator and recipe (\c AdmitStageOnSetup refuses another), from the density the last
+    //! stage reached once any SCF has run -- stage 0 of a \c Prepare'd graph runs on that graph, from the setup's seed.
+    void EnterStage(const SCFStage& stage, size_t index) override;
     //!@}
     //! \name THE PROOF'S ANSWERS (\c tCalculation's hooks): the one place a failure is ranked, so \c Converge() and \c Result() cannot drift
     //!@{

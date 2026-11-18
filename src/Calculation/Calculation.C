@@ -15,6 +15,7 @@ module;
 #include <functional>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 export module qchem.Calculation;
@@ -30,10 +31,39 @@ export import qchem.Outcome;    // Outcome<Converged, SCFFailure>
 import qchem.ScalarFunction;    // ScalarFunction<double> (the spin density's face)
 import qchem.ChargeDensity;     // tDM_CD<T> (the converged density)
 export import qchem.SCFParams;  // SCFParams (Converge's edit argument)
-import qchem.RunOptions;        // RunOptions (the setup's resolved options: Converge's settings, the checkpoint path)
+import qchem.Policy;            // policy::Refused: a schedule stage's refusal, answered as an SCFFailure
+export import qchem.Setup;      // Setup (a stage's optional setup) + RunOptions (Converge's settings, the checkpoint path) + SCFRecipe
 
 export namespace qchem
 {
+
+//! \brief ONE STAGE OF A SCHEDULE (V-FACADE-PARITY P4, R7): its own SCF parameters, accelerator and recipe, on every kind.
+//!
+//! A schedule is STRUCTURE-NEUTRAL (R7, user 2026-11-17: "I can imagine scheduled runs for any structure"): a descending-kT anneal, an
+//! eps ladder, a finish on another accelerator.  Each stage after the first starts from the density the stage before it reached, with
+//! every history (accelerator, mixer) dropped: a kT change must not carry stale DIIS history across the re-seed.  A \c vector, not a
+//! queue: immutable, printable up front, re-runnable.
+//!
+//! \c edit, when not empty, CHANGES the run's setup for this stage (R7 (2); user ruling 2026-11-18): a structure-neutral DELTA that each
+//! kind applies to its OWN concrete setup and re-admits, so no kind ever casts a base \c Setup to its own.  No kind applies one yet
+//! (the density must be carried onto the new point), so a non-empty edit is REFUSED naming it (doc/OpenWork.md "Setup-changing schedule
+//! stage").
+struct SetupEdit
+{
+    std::optional<double>    eps;     //!< the accuracy target (\c RunOptions::accuracy.eps): finer grids, everything sized from eps
+    std::optional<SpinGroup> spin;    //!< Pol -> UnPol (or back)
+    std::optional<ivec3_t>   kmesh;   //!< more k (a solid's Bloch mesh)
+    bool        Empty()    const {return !eps && !spin && !kmesh;}
+    std::string Describe() const;     //!< "eps -> 1e-08, spin -> UnPolarized": what a refusal names, and a schedule's printout
+};
+
+struct SCFStage
+{
+    SCFParams             params;                                     //!< this stage's parameters; \c SmearingkT is its temperature
+    SCFAccelerators::Type accelerator = SCFAccelerators::Type::Auto;  //!< per stage, so a recipe can anneal on DIIS and finish on GDM
+    SCFRecipe             recipe = SCFRecipe::Auto;   //!< per stage: the material regime (qchem.SCFRecipe), anneal under Metal, finish under Insulator
+    SetupEdit             edit;                       //!< empty = the run's own setup; anything else is refused today (see above)
+};
 
 //! \brief The abstract base of \c AtomCalculation, \c MoleculeCalculation and \c SolidCalculation (the template-method home).
 //!
@@ -161,6 +191,13 @@ protected:
     //! run's safety net.  EMPTY \a path = no checkpoint.  A failed WRITE WARNS under \a label and the run goes on: losing a finished
     //! SCF to a full disk would make the net the hazard (\c SaveState called directly throws as usual).
     void Checkpoint(const std::string& path, const std::string& label) const;
+    //! A schedule stage's setup edit this kind cannot apply: REFUSED naming the edit (the policy row \c StageSetup, doc/OpenWork.md
+    //! "Setup-changing schedule stage").  THROWS \c policy::Refused, which \c Converge answers as an \c SCFFailure.
+    [[noreturn]] void RefuseSetupEdit(const SetupEdit& edit, size_t index) const;
+    //! A molecule's or an atom's schedule stage runs on the accelerator and recipe its SETUP admitted (the admission's refusals ran on
+    //! those); a stage naming another is REFUSED by name (the policy row \c StageAccelerator), not run on a type nobody vetted.  \a resolved
+    //! is the setup's accelerator as resolved (\c Setup::accelerator); \c Auto and the options' own type both name it.
+    static void AdmitStageOnSetup(const SCFStage& stage, const RunOptions& opts, SCFAccelerators::Type resolved, const std::string& kind);
 };
 
 //! \brief The ZERO FIELD, analytic: \f$m(r)=0\f$, the spin density of an unpolarized run (user ruling R2, 2026-11-17: "Return zero is
@@ -227,6 +264,36 @@ public:
         return ConvergeStage(params);
     }
 
+    //! \brief RUN A SCHEDULE (V-FACADE-PARITY P4, R7): each stage in turn, every one checkpointed (\c ConvergeStage), each after the first
+    //! seeded from the density the one before it reached; \a edit (R10 (d)) applies to EVERY stage's params.  The outcome is the FINAL
+    //! stage's -- the honest one, since the earlier stages exist only to deliver a good starting density to it.  An empty schedule is a
+    //! caller error and throws; a stage the kind cannot run as stated (a setup edit, an accelerator a molecule's setup did not admit) is
+    //! REFUSED by name before it runs: the answer is an \c SCFFailure (\c StageRefused) naming the policy, and the schedule stops there.
+    Outcome<Converged, SCFFailure> Converge(const std::vector<SCFStage>& schedule, const SCFEdit& edit = {})
+    {
+        if (schedule.empty())
+            throw std::invalid_argument("Calculation::Converge: an EMPTY schedule has no meaning -- pass at least one stage, or call Converge()");
+        for (size_t s=0; s<schedule.size(); ++s)
+        {
+            SCFStage stage=schedule[s];
+            if (edit) edit(stage.params);
+            try
+            {
+                if (!stage.edit.Empty()) ApplySetupEdit(stage.edit, s);
+                EnterStage(stage, s);
+            }
+            catch (const policy::Refused& r)   // a deck can reach it: an Outcome, its policy row already filed
+            {
+                SCFFailure f; f.why=SCFFailure::Why::StageRefused; f.details="schedule stage "+std::to_string(s)+" REFUSED (policy "+r.Name()+"): "+r.what();
+                return Outcome<Converged, SCFFailure>::Fail(std::move(f));
+            }
+            (void)ConvergeStage(stage.params);
+            LeaveStage(s, schedule.size(), stage.params);
+        }
+        FinishSchedule(schedule.back().params);
+        return Result();
+    }
+
     //! \brief The outcome of the LAST attempt (a Prepare'd run that never converged says "did not converge in 0 iterations"): the
     //! answers, or the reason there are none.  \c [[nodiscard]] via \c Outcome.
     Outcome<Converged, SCFFailure> Result() const
@@ -252,7 +319,19 @@ protected:
     //! \brief Build, iterate and report ONE SCF stage on \a params (as run: the caller's edit applied).  FALSE when it was refused
     //! before any iteration (a resource refusal): there is no new state to checkpoint, and \c Result says why.
     virtual bool RunStage(const SCFParams& params) = 0;
+    //! \brief Stand up stage \a index of a schedule before it runs: stage 0 may run on what \c Prepare built; every later stage starts
+    //! from the density the stage before it reached, with fresh histories.  REFUSES (\c policy::Refuse; \c Converge answers it as an
+    //! \c SCFFailure) a stage the kind cannot run.
+    virtual void EnterStage(const SCFStage& stage, size_t index) = 0;
+    //! Apply stage \a index's setup \a edit to the kind's OWN setup and re-admit it (user ruling 2026-11-18).  No kind can carry its density
+    //! onto the edited point yet, so every kind refuses, naming the edit.
+    virtual void ApplySetupEdit(const SetupEdit& edit, size_t index) {RefuseSetupEdit(edit, index);}
+    //! After stage \a index of \a count ran: the kind's per-stage summary line (the solid's campaign line).  Nothing by default.
+    virtual void LeaveStage(size_t index, size_t count, const SCFParams& params) {(void)index; (void)count; (void)params;}
+    //! After the whole schedule: a pilot the kind runs once, at the final stage's density (the solid's raster pilot).  Nothing by default.
+    virtual void FinishSchedule(const SCFParams& last) {(void)last;}
     //!@}
+
     //! \name WHAT EACH KIND ANSWERS (read only through a \c Converged, so only after a converged attempt)
     //!@{
     //! Why the last attempt has no answer, its detectors ranked by the kind; EMPTY when it converged.

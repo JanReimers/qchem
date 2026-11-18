@@ -111,12 +111,17 @@ AtomCalculation::AtomCalculation(std::shared_ptr<const AtomSetup> setup, const S
     (void)ConvergeStage(params);
 }
 
-std::unique_ptr<AtomCalculation> AtomCalculation::Prepare(std::shared_ptr<const AtomSetup> setup, Observer onIteration)
+Outcome<std::unique_ptr<AtomCalculation>, BuildRefusal> AtomCalculation::Prepare(std::shared_ptr<const AtomSetup> setup, Observer onIteration)
 {
-    std::unique_ptr<AtomCalculation> c(new AtomCalculation(BuildOnly{}, std::move(setup), std::move(onIteration)));
-    c->BuildGraph();                                  // into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
+    std::unique_ptr<AtomCalculation> c;
+    try   // the configuration (the constructor) and the graph, into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
+    {
+        c.reset(new AtomCalculation(BuildOnly{}, std::move(setup), std::move(onIteration)));
+        c->BuildGraph();
+    }
+    catch (const policy::Refused& r) { return Outcome<std::unique_ptr<AtomCalculation>, BuildRefusal>::Fail(BuildRefusal{r.Name(), r.what()}); }   // its policy row is filed
     c->itsPrepared=true;
-    return c;
+    return Outcome<std::unique_ptr<AtomCalculation>, BuildRefusal>::Ok(std::move(c));
 }
 
 // THE CONFIGURATION POLICY (OpenWork row "All-electron ION seeds", 2026-11-15): STATED (opts.atom.configuration, NIST's notation) or derived --
@@ -323,6 +328,13 @@ void AtomCalculation::BuildGraph()
 }
 
 const RunOptions& AtomCalculation::Options() const {return itsSetup->opts;}
+
+void AtomCalculation::EnterStage(const SCFStage& stage, size_t index)
+{
+    AdmitStageOnSetup(stage, itsSetup->opts, itsSetup->accelerator, "atom");
+    if (index==0 && (itsPrepared || !itsScf)) return;   // the Prepare'd graph, from the setup's seed
+    itsCarried=itsScf->GetWaveFunction()->GetChargeDensity();   // the density reached drives the next stage's first Fock (as the pilot's)
+}
 
 bool AtomCalculation::RunStage(const SCFParams& params)
 {

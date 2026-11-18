@@ -95,6 +95,8 @@ struct SolidCalculation::Imp
     SCFAccelerators::Type                       stageAccelAsked = SCFAccelerators::Type::Auto;  //!< ...as ASKED: what an FD/U-loop stage re-resolves
     std::optional<RestartSummary>               restartedFrom;          //!< what PrepareRestart did (RestartedFrom), empty otherwise
     SCFRecipe                                   stageRecipe = SCFRecipe::Auto;  //!< the CURRENT stage's recipe, as asked (qchem.SCFRecipe)
+    double                                      stageKT = 0.0;  //!< the CURRENT stage's kT, as built (a schedule's stage 0 runs on it only at this kT)
+    bool                                        stageIterated = false;  //!< the current stage's graph has iterated (a schedule's stage 0 then rebuilds)
     SCFStageKind                                stageKind = SCFStageKind::Cold; //!< what the CURRENT stage starts from
     std::string                                 stageAskedBy;                   //!< who stated a non-Auto accelerator when it was not the caller ("" = the caller)
     std::vector<std::string>                    stageDeviations;                //!< the stated knobs beside a named recipe (its report)
@@ -393,16 +395,18 @@ void SolidCalculation::BuildFirstStage(std::shared_ptr<const SolidSetup> setup, 
     BuildRun(nullptr, params, accel, recipe, /*restored*/false, /*exactResume*/false);
 }
 
-std::unique_ptr<SolidCalculation> SolidCalculation::Prepare(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule,
-                                                            Observer onIteration)
+Outcome<std::unique_ptr<SolidCalculation>, BuildRefusal> SolidCalculation::Prepare(std::shared_ptr<const SolidSetup> setup, Observer onIteration)
 {
-    if (schedule.empty())
-        throw std::runtime_error("SolidCalculation::Prepare: an EMPTY schedule has no meaning -- pass at least one stage.");
+    using O=Outcome<std::unique_ptr<SolidCalculation>, BuildRefusal>;
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
     c->itsImp->onIteration=std::move(onIteration);   // before BuildRun: it attaches the observer ahead of iteration 1
     qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
-    c->BuildFirstStage(std::move(setup), schedule.front().params, schedule.front().accelerator, schedule.front().recipe);
-    return c;
+    const SCFParams params=setup->opts.scf;
+    const SCFAccelerators::Type accel=setup->opts.accelerator;
+    const SCFRecipe recipe=setup->opts.recipe;
+    try { c->BuildFirstStage(std::move(setup), params, accel, recipe); }
+    catch (const policy::Refused& r) { return O::Fail(BuildRefusal{r.Name(), r.what()}); }   // its policy row is already filed
+    return O::Ok(std::move(c));
 }
 
 namespace {
@@ -973,6 +977,8 @@ void SolidCalculation::MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe re
         throw std::invalid_argument("RunOptions: numBands (a partial eigensolve) beside the GDM / Ladder accelerator -- "
                                     "they need every virtual; use Null or DIIS, or numBands 0");
     itsImp->stageRecipe     = recipe;
+    itsImp->stageKT         = params.SmearingkT;
+    itsImp->stageIterated   = false;
     itsImp->stageKind       = kind;
     itsImp->stageAskedBy.clear();
     const bool restored     = kind==SCFStageKind::Restored;
@@ -1062,27 +1068,26 @@ void SolidCalculation::AttachProbes()
     });
 }
 
-Outcome<SolidCalculation::Converged, SCFFailure>
-SolidCalculation::Converge(const std::vector<SCFStage>& schedule)
+void SolidCalculation::EnterStage(const SCFStage& stage, size_t index)
 {
-    if (schedule.empty())
-        throw std::runtime_error("SolidCalculation::Converge: an EMPTY anneal schedule has no meaning -- "
-                                 "pass at least one stage, or use the single-SCFParams overload.");
-    Outcome<Converged, SCFFailure> last = Outcome<Converged, SCFFailure>::Fail(SCFFailure{});
-    for (size_t s=0; s<schedule.size(); ++s)
-    {
-        if (s>0)   // stage 0's graph is already standing (the ctor built it); later stages re-seed from it
-            BuildStage("annealed schedule stage "+std::to_string(s), schedule[s].accelerator, schedule[s].recipe, std::move(itsImp->cd), schedule[s].params);
-        last = ConvergeStage(schedule[s].params);
-        EmitStageSummary(itsImp->setup->opts.label, s, schedule.size(), schedule[s].params.SmearingkT,
-                         itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
-    }
-    if (!itsImp->setup->rastersResolved && !itsImp->rastersSettled)
-    {
-        CalibrateRasters(schedule.back().params);   // C2 step 3: the pilot, after the FINAL stage
-        return Result();                          // the re-converged point's
-    }
-    return last;   // the FINAL stage's -- the earlier ones exist to feed it
+    const bool standing = !itsImp->stageIterated && stage.accelerator==itsImp->stageAccelAsked && stage.recipe==itsImp->stageRecipe
+                       && stage.params.SmearingkT==itsImp->stageKT;
+    if (index==0 && standing) return;   // the graph Prepare (or the last rebuild) stood up for exactly this stage
+    // a later stage re-seeds from the one before it; a stage 0 that the standing graph was not built for starts over: from the seed when
+    // nothing has iterated yet, else from the density reached
+    BuildStage("schedule stage "+std::to_string(index), stage.accelerator, stage.recipe,
+               itsImp->stageIterated || index>0 ? std::move(itsImp->cd) : nullptr, stage.params);
+}
+
+void SolidCalculation::LeaveStage(size_t index, size_t count, const SCFParams& params)
+{
+    EmitStageSummary(itsImp->setup->opts.label, index, count, params.SmearingkT, itsImp->converged, itsImp->scf->GetIterationCount(),
+                     itsImp->scf->GetEnergy());
+}
+
+void SolidCalculation::FinishSchedule(const SCFParams& last)
+{
+    if (!itsImp->setup->rastersResolved && !itsImp->rastersSettled) CalibrateRasters(last);   // C2 step 3: the pilot, after the FINAL stage
 }
 
 namespace {
@@ -1272,6 +1277,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::IterateStage(
                        + " PulayDepth="+std::to_string(resolved.PulayDepth)+" NMaxIter="+std::to_string(params.NMaxIter);
     itsImp->samplingScfWorst=0.0; itsImp->samplingScfFirstOver=0;
     itsImp->scf->Iterate(params);
+    itsImp->stageIterated=true;   // a schedule's stage 0 no longer finds this graph fresh
     if (itsImp->samplingScfWorst>1.0)   // never silent: reported here, acted on (once) at the next SCF boundary
     {
         std::cout<<"["<<itsImp->setup->opts.label<<" XC sampling] OVER TARGET in this SCF: worst delivered "<<itsImp->samplingScfWorst

@@ -66,7 +66,9 @@ public:
     //! basis.perIrrep) -- into the CALLER'S report run (a facade never opens one, user ruling D 2026-11-02); no SCF.  Run it with
     //! \c Converge(params), whose FIRST call reuses this graph.  Until then the accessors have no SCF to read.
     //!@{
-    static std::unique_ptr<AtomCalculation> Prepare(std::shared_ptr<const AtomSetup> setup, Observer onIteration = nullptr);
+    //! REFUSED (a value, R9) when a policy refuses while the graph is built (a 4-centre tensor that cannot fit in memory, a PP the run
+    //! cannot hold); its policy row is already filed.
+    static Outcome<std::unique_ptr<AtomCalculation>, BuildRefusal> Prepare(std::shared_ptr<const AtomSetup> setup, Observer onIteration = nullptr);
     //!@}
     //! \name RESTART FROM A SAVED STATE (V-FACADE-STATE; \c SaveState / \c JudgeState are the base's)
     //! The atomic twins of \c MoleculeCalculation::Restart / \c PrepareRestart, built from a setup as the constructor is:
@@ -128,6 +130,9 @@ private:
     const RunOptions& Options() const override;
     //! One stage: the recipe's report, the graph (\c Prepare's, reused once, else rebuilt), the SCF, the grid pilot, the result line.
     bool RunStage(const SCFParams& params) override;
+    //! A schedule's stage (P4): on the setup's accelerator and recipe (\c AdmitStageOnSetup refuses another), from the density the last
+    //! stage reached once any SCF has run -- stage 0 of a \c Prepare'd graph runs on that graph, from the setup's seed.
+    void EnterStage(const SCFStage& stage, size_t index) override;
     //!@}
     //! \name THE PROOF'S ANSWERS (\c tCalculation's hooks)
     //!@{

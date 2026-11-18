@@ -11,6 +11,7 @@ module;
 #include <vector>
 module qchem.Calculation;
 import qchem.Reporting;
+import qchem.Policy;             // policy::Refuse: a schedule stage a kind cannot run as stated
 
 namespace qchem
 {
@@ -120,6 +121,38 @@ void Calculation::Checkpoint(const std::string& path, const std::string& label) 
     {
         std::cout << "["<<label<<"] WARNING: state NOT saved to "<<path<<": "<<e.what()<<std::endl;
     }
+}
+
+std::string SetupEdit::Describe() const
+{
+    std::ostringstream os;
+    const char* sep="";
+    if (eps)   { os<<sep<<"eps -> "<<*eps; sep=", "; }
+    if (spin)  { os<<sep<<"spin -> "<<(*spin==SpinGroup::Polarized ? "Polarized" : "UnPolarized"); sep=", "; }
+    if (kmesh) { os<<sep<<"kmesh -> "<<kmesh->x<<"x"<<kmesh->y<<"x"<<kmesh->z; }
+    return os.str();
+}
+
+void Calculation::RefuseSetupEdit(const SetupEdit& edit, size_t index) const
+{
+    policy::Refuse("StageSetup", "schedule stage "+std::to_string(index)+": this "+StateKind()+" cannot apply the setup edit "+edit.Describe(),
+                   "no kind carries its density onto an edited setup yet (doc/OpenWork.md \"Setup-changing schedule stage\"): run the edited "
+                   "setup as its own calculation, from a saved state (PrepareRestart judges what carries)");
+}
+
+void Calculation::AdmitStageOnSetup(const SCFStage& stage, const RunOptions& opts, SCFAccelerators::Type resolved, const std::string& kind)
+{
+    using T=SCFAccelerators::Type;
+    const bool sameAccel = stage.accelerator==T::Auto ? opts.accelerator==T::Auto || opts.accelerator==resolved
+                                                      : stage.accelerator==opts.accelerator || stage.accelerator==resolved;
+    if (!sameAccel)
+        policy::Refuse("StageAccelerator", std::string("a ")+kind+" schedule stage on accelerator "+NameOf(stage.accelerator)
+                       +" (the setup runs "+NameOf(resolved)+")",
+                       "a "+kind+" runs every stage on the accelerator its setup admitted (doc/OpenWork.md \"per-stage accelerator on a "
+                       "molecule or an atom\"): state it in the setup, or name the setup's in each stage");
+    if (stage.recipe!=SCFRecipe::Auto && stage.recipe!=opts.recipe)
+        policy::Refuse("StageAccelerator", std::string("a ")+kind+" schedule stage on another recipe than its setup's",
+                       "a "+kind+" runs every stage under the recipe its setup states: state it in the setup");
 }
 
 Outcome<std::vector<std::string>, RestartRefusal> Calculation::JudgeState(const std::string& path) const

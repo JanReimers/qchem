@@ -99,13 +99,18 @@ MoleculeCalculation::MoleculeCalculation(std::shared_ptr<const MoleculeSetup> se
     (void)ConvergeStage(scf);                         // so Energy()/Density() are ready on return; Result() is its outcome
 }
 
-std::unique_ptr<MoleculeCalculation> MoleculeCalculation::Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration)
+Outcome<std::unique_ptr<MoleculeCalculation>, BuildRefusal> MoleculeCalculation::Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration)
 {
     const Structure& ref=*setup->structure;
-    std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, std::move(setup), ref, nullptr, std::move(onIteration)));
-    c->BuildGraph();                                  // into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
+    std::unique_ptr<MoleculeCalculation> c;
+    try   // the configuration (the constructor) and the graph, into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
+    {
+        c.reset(new MoleculeCalculation(BuildOnly{}, std::move(setup), ref, nullptr, std::move(onIteration)));
+        c->BuildGraph();
+    }
+    catch (const policy::Refused& r) { return Outcome<std::unique_ptr<MoleculeCalculation>, BuildRefusal>::Fail(BuildRefusal{r.Name(), r.what()}); }   // its policy row is filed
     c->itsPrepared=true;
-    return c;
+    return Outcome<std::unique_ptr<MoleculeCalculation>, BuildRefusal>::Ok(std::move(c));
 }
 
 MoleculeCalculation::MoleculeCalculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, const Structure& at,
@@ -213,6 +218,14 @@ void MoleculeCalculation::BuildGraph()
 }
 
 const RunOptions& MoleculeCalculation::Options() const {return itsSetup->opts;}
+
+void MoleculeCalculation::EnterStage(const SCFStage& stage, size_t index)
+{
+    AdmitStageOnSetup(stage, itsSetup->opts, itsSetup->accelerator, "molecule");
+    if (index==0 && (itsPrepared || !itsScf)) return;   // the Prepare'd graph, from the setup's seed
+    itsCarry=std::make_unique<const Carry>(MakeCarry());   // the density reached, block for block onto the same basis
+    itsCarryExact=false;
+}
 
 bool MoleculeCalculation::RunStage(const SCFParams& asked)
 {
