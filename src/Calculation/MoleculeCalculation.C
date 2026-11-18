@@ -103,10 +103,9 @@ public:
     //! report one level in, under the scope its caller opened (a \c report::Section "view").
     static Outcome<std::unique_ptr<StateView>, RestartRefusal> ViewState(const std::string& path, std::shared_ptr<const MoleculeSetup> setup);
 
-    //! Re-run the SCF (e.g. with tighter tolerances) and hand back the ANSWERS or the REASON (it was a bool until 2026-10-31).
-    //! Invalidates references previously handed out by Density()/HOMO()/Orbital()/Orbitals() -- the wave function is rebuilt --
-    //! and any \c Converged from an earlier attempt.  \c [[nodiscard]] via \c Outcome.
-    Outcome<Converged, SCFFailure> Converge(const SCFParams& params = {});
+    //! \c Converge(edit) is the base's template method (V-FACADE-PARITY P3): the setup's \c opts.scf, edited by a one-field override
+    //! (R10).  It invalidates references previously handed out by Density()/HOMO()/Orbital()/Orbitals() -- the wave function is
+    //! rebuilt -- and any \c Converged from an earlier attempt.
     //! \c Result() (the base's): the outcome of the last attempt -- the constructor's, for a caller that never re-converges.
 
     //! Live per-iteration telemetry.  Set BEFORE a Converge() call to observe it (the ctor's initial
@@ -271,6 +270,12 @@ private:
     bool   itsCarryExact = false;   //!< \c itsCarry is an EXACT RESUME (\c PrepareRestart): the first Fock is built from it
     bool   itsStartOnGDM = false;   //!< the next accelerator built is a Ladder started on its GDM rung (an exact resume at kT = 0), once
     double itsLastkT     = 0.0;     //!< the last Converge's smearing (the saved state's scf.kT)
+    //! \name \c Converge's STEPS (\c tCalculation's hooks)
+    //!@{
+    const RunOptions& Options() const override;
+    //! One stage: the recipe's report, the graph (\c Prepare's, reused once, else rebuilt), the SCF, the mesh pilot, the result line.
+    bool RunStage(const SCFParams& params) override;
+    //!@}
     //! \name THE PROOF'S ANSWERS (\c tCalculation's hooks): the one place a failure is ranked, so \c Converge() and \c Result() cannot drift
     //!@{
     std::optional<SCFFailure>             MakeFailure()      const override;

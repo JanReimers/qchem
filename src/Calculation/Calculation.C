@@ -12,6 +12,7 @@
 // from its own setup), judged here (\c JudgeRestart): read, refuse, compare, carry across moved atoms.
 module;
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -28,6 +29,8 @@ export import qchem.SCFFailure; // SCFFailure: why an attempt has no answer (Res
 export import qchem.Outcome;    // Outcome<Converged, SCFFailure>
 import qchem.ScalarFunction;    // ScalarFunction<double> (the spin density's face)
 import qchem.ChargeDensity;     // tDM_CD<T> (the converged density)
+export import qchem.SCFParams;  // SCFParams (Converge's edit argument)
+import qchem.RunOptions;        // RunOptions (the setup's resolved options: Converge's settings, the checkpoint path)
 
 export namespace qchem
 {
@@ -153,6 +156,11 @@ protected:
     //! The largest atom move (bohr) a view accepts: the positions must be the SAME numbers, so this is a round-off guard, not a
     //! physics tolerance.  A deck -> json -> deck round trip reproduces them bit-exactly (FacadeMatrix ViewMatchesTheLiveState).
     static constexpr double kViewMoveTol = 1e-10;
+
+    //! \brief THE CHECKPOINT (CK-1), every kind's (V-FACADE-PARITY P3): \c SaveState to \a path, converged or not -- the unattended
+    //! run's safety net.  EMPTY \a path = no checkpoint.  A failed WRITE WARNS under \a label and the run goes on: losing a finished
+    //! SCF to a full disk would make the net the hazard (\c SaveState called directly throws as usual).
+    void Checkpoint(const std::string& path, const std::string& label) const;
 };
 
 //! \brief The ZERO FIELD, analytic: \f$m(r)=0\f$, the spin density of an unpolarized run (user ruling R2, 2026-11-17: "Return zero is
@@ -203,6 +211,22 @@ public:
         const tCalculation* itsCalc;
     };
 
+    //! \brief AN EDIT OF THE SETUP'S SCF SETTINGS (R10 (d), 2026-11-17): it starts from the setup's \c opts.scf and changes only
+    //! the fields it names, so the setup's eps, kT and mixer survive a one-field override.  One line at the call site:
+    //! \c calc.Converge([](SCFParams& p){ p.NMaxIter=60; }).  (A whole \c SCFParams in its place would reset every OTHER field to its
+    //! library default -- the hazard R10 retired.)
+    using SCFEdit = std::function<void(SCFParams&)>;
+    //! \brief THE TEMPLATE METHOD (V-FACADE-PARITY P3): run the SETUP's SCF settings (R10: they live in \c RunOptions::scf, never in
+    //! this call), edited by \a edit when one is given; checkpoint the state; answer the outcome.  Every kind's \c Converge is this one:
+    //! the steps it calls are the kind's (\c RunStage) and the base's (\c Checkpoint, \c Result).  The stage's params AS RUN are what
+    //! the run report's `scf` header files, so an edit is visible there.  Invalidates any \c Converged from an earlier attempt.
+    Outcome<Converged, SCFFailure> Converge(const SCFEdit& edit = {})
+    {
+        SCFParams params=Options().scf;
+        if (edit) edit(params);
+        return ConvergeStage(params);
+    }
+
     //! \brief The outcome of the LAST attempt (a Prepare'd run that never converged says "did not converge in 0 iterations"): the
     //! answers, or the reason there are none.  \c [[nodiscard]] via \c Outcome.
     Outcome<Converged, SCFFailure> Result() const
@@ -213,6 +237,22 @@ public:
     }
 
 protected:
+    //! \brief ONE STAGE, the same steps on every kind: the kind runs it (\c RunStage), the base checkpoints it (CK-1: after every
+    //! stage, converged or not, when \c saveStateTo is set) and answers it.  \c Converge runs one; a kind's own multi-stage driver (the
+    //! solid's annealed schedule, its +U loop, its raster pilot) runs one per stage, so each is checkpointed alike.
+    Outcome<Converged, SCFFailure> ConvergeStage(const SCFParams& params)
+    {
+        if (RunStage(params)) Checkpoint(Options().saveStateTo, Options().label);
+        return Result();
+    }
+    //! \name THE STEPS EACH KIND TAKES (\c Converge's)
+    //!@{
+    //! The run's options as the setup resolved them: \c scf is what \c Converge runs, \c saveStateTo where it checkpoints.
+    virtual const RunOptions& Options() const = 0;
+    //! \brief Build, iterate and report ONE SCF stage on \a params (as run: the caller's edit applied).  FALSE when it was refused
+    //! before any iteration (a resource refusal): there is no new state to checkpoint, and \c Result says why.
+    virtual bool RunStage(const SCFParams& params) = 0;
+    //!@}
     //! \name WHAT EACH KIND ANSWERS (read only through a \c Converged, so only after a converged attempt)
     //!@{
     //! Why the last attempt has no answer, its detectors ranked by the kind; EMPTY when it converged.

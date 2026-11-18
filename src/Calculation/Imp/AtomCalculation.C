@@ -108,7 +108,7 @@ static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, int Z, const Electr
 AtomCalculation::AtomCalculation(std::shared_ptr<const AtomSetup> setup, const SCFParams& params)
     : AtomCalculation(BuildOnly{}, std::move(setup), nullptr)
 {
-    (void)Converge(params);
+    (void)ConvergeStage(params);
 }
 
 std::unique_ptr<AtomCalculation> AtomCalculation::Prepare(std::shared_ptr<const AtomSetup> setup, Observer onIteration)
@@ -322,7 +322,9 @@ void AtomCalculation::BuildGraph()
     // (directmin => AType::GDM above, whose WantsLineSearch() drives the direct-min loop -- no SetDirectMin needed.)
 }
 
-Outcome<AtomCalculation::Converged, SCFFailure> AtomCalculation::Converge(const SCFParams& params)
+const RunOptions& AtomCalculation::Options() const {return itsSetup->opts;}
+
+bool AtomCalculation::RunStage(const SCFParams& params)
 {
     // The atomic SCF writes into the CALLER'S report run, as every facade does (user ruling D, 2026-11-02): scfrun, valgen, the
     // valence-basis generator and the tests that read the report open it.  With no run open every write is a no-op.
@@ -343,7 +345,7 @@ Outcome<AtomCalculation::Converged, SCFFailure> AtomCalculation::Converge(const 
     // (No end-of-run cache snapshot since S6: each owner-held table reported its own bytes under `cache` where it was filled.)
     RebuildSampling();
     ReportResult("atom "+thePeriodicTable().GetSymbol(itsSetup->Z), ok, itsIterations, itsDensity->GetTotalCharge(), itsScf->GetEnergy(), 0.0, pilotIterations);
-    return Result();
+    return true;
 }
 
 std::optional<SCFFailure> AtomCalculation::MakeFailure() const
@@ -547,7 +549,7 @@ Outcome<std::unique_ptr<AtomCalculation>, RestartRefusal>
 AtomCalculation::Restart(const std::string& path, std::shared_ptr<const AtomSetup> setup, const SCFParams& params, Observer onIteration)
 {
     auto R=PrepareRestart(path, std::move(setup), params, std::move(onIteration));
-    if (R) (void)R.Value()->Converge(params);
+    if (R) (void)R.Value()->ConvergeStage(params);
     return R;
 }
 

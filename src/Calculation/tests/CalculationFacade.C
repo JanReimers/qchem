@@ -134,7 +134,7 @@ TEST(CalculationFacade, ConvergeIsAnOutcomeTheAnswersLiveOnTheProof)
     EXPECT_EQ(R->IterationCount(), calc.IterationCount());
     EXPECT_EQ(&R->Density(), &calc.Density());
 
-    auto again=calc.Converge({.NMaxIter=60});
+    auto again=calc.Converge([](SCFParams& p){ p.NMaxIter=60; });
     ASSERT_TRUE(again);
     EXPECT_NEAR(again->Energy(), R->Energy(), 1e-8) << "a re-converge from the converged state stays there";
 
@@ -540,12 +540,12 @@ TEST(AtomPilot, TheIterationCountIsTheRunsTotalAndThePilotsShareIsFiled)
     std::vector<double> pool;   // its 16-exponent pool, 0.05 .. 200
     for (int i=0;i<16;i++) pool.push_back(0.05*std::pow(200.0/0.05, i/15.0));
     for (int l=0;l<=2;l++) o.atom.exponentsByL.push_back({l, pool});
-    SCFParams p; p.MinVirial=std::nullopt; p.NMaxIter=120;
+    o.scf.MinVirial=std::nullopt; o.scf.NMaxIter=120;
     std::unique_ptr<AtomCalculation> calc;
     {
         qchem::report::Run run("atom pilot iterations");
         calc=AtomCalculation::Prepare(AtomSetup::Resolve(25, 25-7, o), [&seen](const auto&){ ++seen; });
-        ASSERT_TRUE(calc->Converge(p));
+        ASSERT_TRUE(calc->Converge());
     }
     const auto* filed=FiledRun("atom pilot iterations@");
     ASSERT_TRUE(filed);

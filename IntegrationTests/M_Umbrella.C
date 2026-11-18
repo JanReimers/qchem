@@ -19,7 +19,7 @@ TEST(M_Umbrella, FrontDoorViaUmbrella)
 
     // qchem::MoleculeCalculation + RunOptions designated init  (qchem.MoleculeCalculation, re-exported)
     qchem::MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Converge(SCFParams{.NMaxIter = 20}));   // SCFParams visible (via qchem.SCFIterator); the Outcome door
+    ASSERT_TRUE(calc.Converge([](SCFParams& p){ p.NMaxIter = 20; }));   // SCFParams visible; a one-field edit (R10); the Outcome door
 
     const double E_ref = -76.022903;
     EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);

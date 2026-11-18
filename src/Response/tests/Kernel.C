@@ -301,8 +301,8 @@ rmat_t FD_Polarizability(MoleculeCalculation& calc, double h)
 //! The FD kernel INSIDE the solver reproduces the analytic HF polarisability (and so PySCF's).
 TEST(ResponsePolarizability, HF_FD_Kernel_eqAnalytic)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(*Water(), {.molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Converge(tight));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(*Water(), {.scf=tight, .molecule={.basis="dzvp"}}));
+    ASSERT_TRUE(calc.Converge());   // re-converged on the setup's tight scf
     auto analytic=calc.StaticPolarizability(dipoleMesh);
     ASSERT_TRUE(analytic.IsOk()) << analytic.Error().detail;
     const rmat_t fd=FD_Polarizability(calc, 1e-3);
@@ -321,8 +321,8 @@ TEST(ResponsePolarizability, HF_FD_Kernel_eqAnalytic)
 TEST(ResponsePolarizability, LDA_FD_Kernel_vsPySCF)
 {
     const double pyscf[3]={3.44581010, 7.33075620, 5.91599197};   // PySCF RKS lda,vwn / dzvp(cart) CPKS
-    MoleculeCalculation calc(MoleculeSetup::Resolve(*Water(), {.model=Hamiltonian::Model::LDA, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Converge(tight));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(*Water(), {.model=Hamiltonian::Model::LDA, .scf=tight, .molecule={.basis="dzvp"}}));
+    ASSERT_TRUE(calc.Converge());
     const rmat_t a=FD_Polarizability(calc, 1e-4);
     const rmat_t b=FD_Polarizability(calc, 1e-3);
     for (size_t i=0;i<3;i++)

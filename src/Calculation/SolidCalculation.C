@@ -279,10 +279,9 @@ public:
     SolidCalculation(const SolidCalculation&)            = delete;   // owns raw resources
     SolidCalculation& operator=(const SolidCalculation&) = delete;
 
-    //! \brief Re-run the SCF (e.g. with tighter tolerances) and hand back the ANSWERS or the REASON.
-    //! Invalidates any \c Converged handed out by an earlier attempt.
-    //! \c [[nodiscard]] via \c Outcome: dropping the result is a compile-time warning.
-    Outcome<Converged, SCFFailure> Converge(const SCFParams& params = {});
+    //! \brief \c Converge(edit), the base's template method (V-FACADE-PARITY P3): ONE stage on the setup's \c opts.scf, edited by the
+    //! caller's one-field override (R10), checkpointed, answered.  Brought in beside the schedule overload below, which would hide it.
+    using tCalculation<dcmplx>::Converge;
     //! \brief Run an ANNEALED schedule: each stage in turn, seeded from the one before it.
     //!
     //! The outcome is the FINAL stage's -- which is the honest one, since the earlier stages exist only to
@@ -660,8 +659,15 @@ private:
     //! and the stage \a kind (qchem.SCFRecipe: \c ChooseAccelerator), and record them for the banner, the recipe's report and for the
     //! stages that re-resolve it.  THROWS (policy::Refuse) on a recipe that refuses the stage's kT.
     void MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe recipe, const SCFParams& params, SCFStageKind kind);
-    //! \c Converge(params) after the stage's own adjustment (a restored Auto stage's linear step capped at 0.3).
-    Outcome<Converged, SCFFailure> ConvergeStage(const SCFParams& params);
+    //! \name \c Converge's STEPS (\c tCalculation's hooks)
+    //!@{
+    const RunOptions& Options() const override;
+    //! One stage: the audit RSS preflight (FALSE = refused before any iteration), the restored step and the recipe's knobs, then
+    //! \c IterateStage (and its one conditioning-aware restart).
+    bool RunStage(const SCFParams& params) override;
+    //!@}
+    //! The stage's SCF after its own adjustment (a restored Auto stage's linear step capped at 0.3): iterate, take the density, report.
+    Outcome<Converged, SCFFailure> IterateStage(const SCFParams& params);
     //! \name THE PROOF'S ANSWERS (\c tCalculation's hooks): the one place a failure is ranked, so \c Converge() and \c Result() cannot drift
     //!@{
     std::optional<SCFFailure>             MakeFailure()      const override;

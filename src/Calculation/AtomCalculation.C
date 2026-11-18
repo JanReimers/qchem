@@ -88,9 +88,8 @@ public:
     static Outcome<std::unique_ptr<StateView>, RestartRefusal>
         ViewState(const std::string& path, std::shared_ptr<const AtomSetup> setup);
 
-    //! Run the SCF (the first call reuses a \c Prepare'd graph) and hand back the ANSWERS or the REASON (a bool until V-FACADE-PARITY P2).
-    //! Invalidates any \c Converged from an earlier attempt.  \c [[nodiscard]] via \c Outcome.  \c Result() (the base's) re-reads it.
-    Outcome<Converged, SCFFailure> Converge(const SCFParams& params = {});
+    //! \c Converge(edit) is the base's template method (V-FACADE-PARITY P3): the setup's \c opts.scf, edited by a one-field override
+    //! (R10); the first call reuses a \c Prepare'd graph.  \c Result() (the base's) re-reads its outcome.
     void OnIteration(Observer obs);
 
     double                 Energy()      const;
@@ -124,6 +123,12 @@ private:
     std::string AcceleratorTag() const;   //!< the accelerator type the setup resolved, as the scf header names it
     bool itsPrepared = false;             //!< \c Prepare built the graph: the next Converge reuses it instead of rebuilding
     void RebuildSampling();
+    //! \name \c Converge's STEPS (\c tCalculation's hooks)
+    //!@{
+    const RunOptions& Options() const override;
+    //! One stage: the recipe's report, the graph (\c Prepare's, reused once, else rebuilt), the SCF, the grid pilot, the result line.
+    bool RunStage(const SCFParams& params) override;
+    //!@}
     //! \name THE PROOF'S ANSWERS (\c tCalculation's hooks)
     //!@{
     std::optional<SCFFailure>             MakeFailure()      const override;

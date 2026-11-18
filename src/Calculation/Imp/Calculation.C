@@ -112,6 +112,16 @@ void Calculation::SaveState(const std::string& path) const
               << (r.summary.converged ? "" : "  (NOT converged -- a restart will say so)") << std::endl;
 }
 
+void Calculation::Checkpoint(const std::string& path, const std::string& label) const
+{
+    if (path.empty()) return;
+    try { SaveState(path); }
+    catch (const std::exception& e)
+    {
+        std::cout << "["<<label<<"] WARNING: state NOT saved to "<<path<<": "<<e.what()<<std::endl;
+    }
+}
+
 Outcome<std::vector<std::string>, RestartRefusal> Calculation::JudgeState(const std::string& path) const
 {
     using O=Outcome<std::vector<std::string>, RestartRefusal>;

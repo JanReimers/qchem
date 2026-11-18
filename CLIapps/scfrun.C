@@ -352,6 +352,7 @@ static int Main(int argc, char** argv)
         if (dft) { copts.model=(model=="Xalpha")?Model::Xalpha:Model::LDA; if(model=="Xalpha") copts.xalpha=alpha>0?alpha:0.7; }
         else if (models.count(model)) copts.model=models[model];
         else { cout<<"molecular --model must be HF|LDA|Xalpha"<<endl; return 1; }
+        copts.scf=makePar(minro<0?1e-4:minro, minfd<0?1e-5:minfd);   // the requested re-converge's settings live in the setup (R10)
         AcceleratorOptions aopts; copts.accelerator=AcceleratorTypeByName(accel, "scfrun --accel");   // the type's one home: the options (V-FACADE-PARITY P2)
         if (accj.contains("EngageBelowFD")) aopts.diis.engageBelowFD=(double)accj["EngageBelowFD"];   // the standalone GDM gate follows it (unstated)
         if (accj.contains("NProj")) aopts.diis.nProj=(size_t)(int)accj["NProj"];
@@ -372,7 +373,7 @@ static int Main(int argc, char** argv)
             mcalcp=std::make_unique<MoleculeCalculation>(setup.TakeValue());
         }
         MoleculeCalculation& mcalc=*mcalcp;
-        { qchem::report::Run run(mol.ID()); (void)mcalc.Converge(makePar(minro<0?1e-4:minro, minfd<0?1e-5:minfd)); }   // the RESULT line reports converged yes/no
+        { qchem::report::Run run(mol.ID()); (void)mcalc.Converge(); }   // the RESULT line reports converged yes/no
         cout << "RESULT  E="<<std::setprecision(10)<<mcalc.Energy()
              << "  iters="<<mcalc.IterationCount()
              << "  converged="<<(mcalc.IsConverged()?"yes":"no") << endl;

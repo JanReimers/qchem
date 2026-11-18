@@ -990,7 +990,7 @@ json ToJson(const RunSpec& r)
             j["state"]=st;
         }
         if (r.threads!=ThreadCounts{}) j["threads"]={{"openmp",r.threads.openmp},{"blas",r.threads.blas}};
-        if (r.schedule.empty()) j["scf"]=StageScfJson(r.scf,r.opts.recipe);
+        if (r.schedule.empty()) j["scf"]=StageScfJson(r.opts.scf,r.opts.recipe);
         else
         {
             json st=json::array();
@@ -1013,7 +1013,7 @@ json ToJson(const RunSpec& r)
     }
     if (!r.postSCF.empty()) { json a=json::array(); for (const auto& x : r.postSCF) a.push_back(PostJson(x)); j["postSCF"]=a; }
     if (r.threads!=ThreadCounts{}) j["threads"]={{"openmp",r.threads.openmp},{"blas",r.threads.blas}};   // stated only: absent = the process's
-    if (r.schedule.empty()) j["scf"]=StageScfJson(r.scf,r.opts.recipe);    // one stage: the record says it once
+    if (r.schedule.empty()) j["scf"]=StageScfJson(r.opts.scf,r.opts.recipe);    // one stage: the record says it once
     else
     {
         json st=json::array();
@@ -1078,7 +1078,7 @@ void FromJson(const json& jIn, RunSpec& r)
     else f.At("postSCF");
     if (j.contains("scf") && j.contains("schedule"))
         throw std::runtime_error("deck: give 'scf' (one stage) OR 'schedule' (an annealed recipe), not both -- which would run?");
-    if (j.contains("scf")) { FromJson(f.At("scf"),r.scf); r.opts.recipe=RecipeOf(j.at("scf"),"scf"); } else f.At("scf");
+    if (j.contains("scf")) { FromJson(f.At("scf"),r.opts.scf); r.opts.recipe=RecipeOf(j.at("scf"),"scf"); } else f.At("scf");
     if (j.contains("schedule"))
     {
         r.schedule.clear(); size_t i=0;

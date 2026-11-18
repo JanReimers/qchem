@@ -96,7 +96,7 @@ MoleculeCalculation::MoleculeCalculation(std::shared_ptr<const MoleculeSetup> se
                          const SCFParams& scf, Observer onIteration, bool geometryPoint)
     : MoleculeCalculation(BuildOnly{}, std::move(setup), at, std::move(carry), std::move(onIteration), geometryPoint)
 {
-    (void)Converge(scf);                              // so Energy()/Density() are ready on return; Result() is its outcome
+    (void)ConvergeStage(scf);                         // so Energy()/Density() are ready on return; Result() is its outcome
 }
 
 std::unique_ptr<MoleculeCalculation> MoleculeCalculation::Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration)
@@ -212,7 +212,9 @@ void MoleculeCalculation::BuildGraph()
     }
 }
 
-Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converge(const SCFParams& asked)
+const RunOptions& MoleculeCalculation::Options() const {return itsSetup->opts;}
+
+bool MoleculeCalculation::RunStage(const SCFParams& asked)
 {
     // The SCF writes into the CALLER'S report run: a facade never opens one (user ruling D, 2026-11-02 -- drivers own the
     // runs, the caller sets the context one level up).  With no run open every write is a no-op.
@@ -259,7 +261,7 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
 
     ReportResult("molecule", itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
                  itsSetup->opts.accuracy.Target(Consumes(), itsStructure->GetNumAtoms()));
-    return Result();
+    return true;
 }
 
 std::optional<SCFFailure> MoleculeCalculation::MakeFailure() const
@@ -830,7 +832,7 @@ Outcome<std::unique_ptr<MoleculeCalculation>, RestartRefusal>
 MoleculeCalculation::Restart(const std::string& path, std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Observer onIteration)
 {
     auto R=PrepareRestart(path, std::move(setup), scf, std::move(onIteration));
-    if (R) (void)R.Value()->Converge(scf);   // the restored stage, on the graph PrepareRestart built
+    if (R) (void)R.Value()->ConvergeStage(scf);   // the restored stage, on the graph PrepareRestart built
     return R;
 }
 
