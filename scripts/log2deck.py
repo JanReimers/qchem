@@ -88,13 +88,17 @@ def parse(path):
     return d
 
 def deck(d, src, basis_data, spherical):
-    sol = {"multiplicity": d['mult'], "seed": "IonicSAD", "imposeSymmetry": d['imposed']}
+    # Schema 2 (doc/InputDeck.md §3): the structure-neutral options at the TOP, only the periodic-only ones in `solid`.  The banner's
+    # runs predate R6, when a solid's multiplicity >= 1 meant a POLARIZED run, so that is stated as "spin": "Polarized" beside it.
+    top = {"multiplicity": d['mult'], "seed": "IonicSAD", "imposeSymmetry": d['imposed']}
+    if d['mult'] >= 1: top["spin"] = "Polarized"
+    sol = {}
     if d['grey']: sol["greyImposition"] = True
-    if 'ortho' in d: sol["ortho"], sol["orthoTol"] = d['ortho'], d['orthoTol']
+    if 'ortho' in d: top["ortho"], top["orthoTol"] = d['ortho'], d['orthoTol']
     if d.get('xc'):
         k, nr, L = d['xc']
-        if k == "Uniform": sol["xcMesh"] = {"cellKind": "Uniform"}
-        elif (nr, L) != (40, 29): sol["xcMesh"] = {"cellKind": "Becke", "nRadial": nr, "angularDegree": L, **({"angular": "GaussLegendre"} if L < 29 else {})}
+        if k == "Uniform": top["xc"] = {"mesh": {"cellKind": "Uniform"}}
+        elif (nr, L) != (40, 29): top["xc"] = {"mesh": {"cellKind": "Becke", "nRadial": nr, "angularDegree": L, **({"angular": "GaussLegendre"} if L < 29 else {})}}
     if d.get('hubbard'): sol["hubbard"] = d['hubbard']
     if d['post']: sol["forceComplex"] = True
     st = d['stages'] or [dict(G0=1.0, depth=8, start=5, alpha=0.45, acc="Null", kT=5e-3, mom=False, nmax=200)]
@@ -106,13 +110,13 @@ def deck(d, src, basis_data, spherical):
         if len(st) > 1 and i + 1 < len(st): scf["stopOnAccelExhausted"] = True
         stages.append({"accelerator": s['acc'], "scf": scf})
     basis = {"data": basis_data, "spherical": spherical}
-    if d.get('vet'): basis["autoTrim"] = True; sol["orthoTol"] = d['vetTol']
+    if d.get('vet'): basis["autoTrim"] = True; top["orthoTol"] = d['vetTol']
     out = {"_doc": ["DRAFT reconstructed from the banner of " + src + " (scripts/log2deck.py, D-ENV-RERUN 2026-10-04): the original `gpwprobe` environment command was not saved.",
                     "NOT in the banner, ASSUMED: convergence threshold minDeltaRho=1e-6 on the default measure, mergeTol 1e-4, the minDelta{E,FD}/minVirial/minFD gates off (1e30).",
                     "Judge these against the run's author before trusting a re-run's numbers.  `rundeck --check` has vetted that it parses, resolves and builds its lattice and basis."] + d['_notes'],
-           "structure": d['structure'], "kmesh": d['kmesh'], "basis": basis, "solid": sol}
+           "schema": 2, "structure": d['structure'], "kmesh": d['kmesh'], "basis": basis, **top, "solid": sol}
     if len(stages) == 1:
-        out["scf"] = stages[0]["scf"]; sol["accelerator"] = stages[0]["accelerator"]
+        out["scf"] = stages[0]["scf"]; out["accelerator"] = stages[0]["accelerator"]
     else:
         out["schedule"] = stages
     if d['post']: out["postSCF"] = d['post']

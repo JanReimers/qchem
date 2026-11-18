@@ -595,64 +595,38 @@ static void SolidBlockFromJson(const json& j, RunOptions& o)
     f.Done();
 }
 
-//! \brief THE SCHEMA-1 TRANSLATOR (V-FACADE-PARITY P0, 2026-11-17): the ONE place an old deck's layout is read.  Schema 1 kept the
-//! structure-neutral options inside \c solid; schema 2 states them at the top.  Each key's MEANING FOLLOWS ITS PLACE, so a deck (or a
-//! banked record, or the GUI's writer) keeps running exactly as before: a schema-1 \c solid.multiplicity >= 1 meant a POLARIZED run (the
-//! solid had no spin knob before R6), so it arrives as \c spin Polarized beside the same multiplicity.  A key stated at BOTH places is
-//! refused (which would run?); a deck stamped \c "schema": 2 refuses the old place, naming the new home.  Every key moved is listed in
-//! the run report.  No key is retired here: each schema-1 key has a schema-2 home.
-//! TRANSITIONAL (controller, 2026-11-17): it exists ONLY until the GUI's deck writer (qviz/backends/solid2_deck.py) writes schema 2.  The
-//! user ruled that day that keys may simply move ("FYI we have no customers right now so removing keys is fine as long as we update all
-//! our decks accordingly"), so the real fix is to REFUSE an old place, naming its new home; this layer kept the GUI running meanwhile.
-//! Retire it then (OpenWork "Retire the schema-1 deck translator").
+//! \brief THE SCHEMA CHECK: a deck is SCHEMA 2 (V-FACADE-PARITY P0, 2026-11-17: the structure-neutral options at the top, only the
+//! periodic-only ones in \c solid).  The schema-1 translator that read an old deck's layout is RETIRED (2026-11-18): the GUI's writer
+//! writes schema 2 and migrates a saved schema-1 block at load, and the user ruled that keys may move ("we have no customers right now so
+//! removing keys is fine as long as we update all our decks accordingly"; a banked \c .rNNN.json record that stops resolving is accepted).
+//! So a stated \c "schema": 1, or a key at its schema-1 place (\c solid.multiplicity, ...), is REFUSED by name, naming its schema-2 home
+//! and doc/InputDeck.md §3 -- never read with a guessed meaning.  Returns \a j without its \c schema stamp (the readers' field lists do
+//! not carry it).
 struct MovedKey { const char* old; const char* home; };   // solid.<old> -> <home> ("xc.mesh" = the xc object's mesh)
-constexpr MovedKey kSchema1Moves[] = {
+constexpr MovedKey kSchema1Places[] = {
     {"Nelec","Nelec"}, {"charge","charge"}, {"multiplicity","multiplicity"}, {"pp","pp"}, {"species","species"}, {"model","model"},
     {"seed","seed"}, {"ortho","ortho"}, {"orthoTol","orthoTol"}, {"imposeSymmetry","imposeSymmetry"}, {"siteSpins","spins"},
     {"accelerator","accelerator"}, {"label","label"}, {"saveStateTo","saveStateTo"}, {"xcMesh","xc.mesh"}};
 
-json ToSchema2(json j)
+json RequireSchema2(json j)
 {
     if (!j.is_object()) return j;
-    int schema=1;
     if (j.contains("schema"))
     {
-        if (!j.at("schema").is_number_integer() || (j.at("schema").get<int>()!=1 && j.at("schema").get<int>()!=2))
-            throw std::runtime_error("deck: 'schema' is 1 or 2 (absent = each key read at its place), got "+j.at("schema").dump());
-        schema=j.at("schema").get<int>();
+        if (j.at("schema")==json(1))
+            throw std::runtime_error("deck: schema 1 is RETIRED (2026-11-18) -- the structure-neutral options now sit at the top "
+                                     "(solid.multiplicity -> multiplicity, solid.siteSpins -> spins, solid.xcMesh -> xc.mesh, ...) and a "
+                                     "schema-1 solid.multiplicity >= 1 is stated as \"spin\": \"Polarized\" beside it; see doc/InputDeck.md §3");
+        if (j.at("schema")!=json(2))
+            throw std::runtime_error("deck: 'schema' is 2 (or absent), got "+j.at("schema").dump()+"; see doc/InputDeck.md §3");
         j.erase("schema");
     }
-    if (!j.contains("solid") || !j.at("solid").is_object()) return j;
-    json& solid=j["solid"];
-    auto homeHas=[&](const std::string& home) -> bool
-    { return home=="xc.mesh" ? (j.contains("xc") && j.at("xc").is_object() && j.at("xc").contains("mesh")) : j.contains(home); };
-    std::vector<std::string> moved;
-    for (const MovedKey& m : kSchema1Moves)
-    {
-        if (!solid.contains(m.old)) continue;
-        const std::string old=std::string("solid.")+m.old, home=m.home;
-        if (schema==2)
-            throw std::runtime_error("deck: '"+old+"' is the SCHEMA-1 place of '"+home+"' -- this deck states \"schema\": 2, so state it as '"+home+"'");
-        if (homeHas(home))
-            throw std::runtime_error("deck: '"+home+"' and '"+old+"' are both stated -- '"+old+"' is the schema-1 place of '"+home+"'; keep '"+home+"' only");
-        json v=solid.at(m.old); solid.erase(m.old);
-        if (home=="xc.mesh") j["xc"]["mesh"]=v; else j[home]=v;
-        moved.push_back(old+" -> "+home);
-        // R6: a schema-1 solid read multiplicity >= 1 as POLARIZED (it had no spin knob); keep that meaning.
-        if (home=="multiplicity" && v.is_number_integer() && v.get<int>()>=1)
-        {
-            if (j.contains("spin") && j.at("spin")!=json("Polarized"))
-                throw std::runtime_error("deck: '"+old+"' = "+v.dump()+" means a POLARIZED run in a schema-1 deck, but 'spin' says "+j.at("spin").dump()
-                                         +" -- state 'multiplicity' at the top beside the spin group you mean");
-            if (!j.contains("spin")) { j["spin"]="Polarized"; moved.push_back(old+" >= 1 -> spin Polarized (its schema-1 meaning)"); }
-        }
-    }
-    if (!moved.empty())
-    {
-        std::string w="[deck] schema-1 keys read at their old place (V-FACADE-PARITY P0; a record writes schema 2):";
-        for (const auto& m : moved) w+=" "+m+";";
-        report::Log(w);
-    }
+    if (j.contains("solid") && j.at("solid").is_object())
+        for (const MovedKey& m : kSchema1Places)
+            if (j.at("solid").contains(m.old))
+                throw std::runtime_error(std::string("deck: 'solid.")+m.old+"' is the RETIRED schema-1 place of '"+m.home+"' -- state it as '"
+                                         +m.home+"'"+(std::string(m.old)=="multiplicity" ? " (and \"spin\": \"Polarized\" for a polarized run: "
+                                                       "schema 1 read multiplicity >= 1 as polarized)" : "")+"; see doc/InputDeck.md §3");
     return j;
 }
 
@@ -762,7 +736,7 @@ void ReadRunOptions(Fields& f, const json& j, RunOptions& o)
 
 void FromJson(const json& jIn, RunOptions& o)
 {
-    const json j=ToSchema2(jIn);
+    const json j=RequireSchema2(jIn);
     Fields f(j,"options");
     ReadRunOptions(f,j,o);
     f.Done();
@@ -1050,7 +1024,7 @@ json ToJson(const RunSpec& r)
 }
 void FromJson(const json& jIn, RunSpec& r)
 {
-    const json j=ToSchema2(jIn);   // THE schema-1 translator: each key read at its place, meaning kept
+    const json j=RequireSchema2(jIn);   // schema 2 only: a schema-1 deck is refused by name
     Fields f(j,"run");
     if (!j.contains("structure") || !(j.at("structure").is_string() || j.at("structure").is_object()))
         throw std::runtime_error("deck: 'structure' is required: a NAME from materials.json or molecules.json, or the cell itself "
