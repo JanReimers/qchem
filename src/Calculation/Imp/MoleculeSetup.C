@@ -27,6 +27,7 @@ RunOptions MoleculeOptions(const RunOptions& asked)
     const RunOptions def;
     auto refuse=[](const std::string& what, const std::string& why)
     { policy::Refuse("ForeignOption", what+" stated for a MOLECULE", why); };
+    if (!(asked.atom==def.atom))   refuse("the `atom` block", "it holds the radial atom's options (its exponent pool, its pseudo-atom) -- drop it");
     if (!(asked.solid==def.solid))
         refuse("the `solid` block", "it holds periodic-only options a molecule cannot run -- drop it");
     if (asked.Nelec!=0)     refuse("Nelec", "a molecule counts its electrons from the structure and its charge -- drop it");

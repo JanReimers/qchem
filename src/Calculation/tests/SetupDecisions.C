@@ -7,6 +7,8 @@
 import qchem.SetupDecisions;
 import qchem.MoleculeCalculation;   // MoleculeSetup, RunOptions
 import qchem.SolidSetup;            // RunOptions, SpinChannelCounts
+import qchem.AtomCalculation;       // AtomOptions
+import qchem.StructureData;         // GetMolecule
 import qchem.Structure;
 import qchem.Types;
 import qchem.SCFAccelerator.Factory;
@@ -74,4 +76,35 @@ TEST(SetupDecisions, TheDIISEngageGate)
     EXPECT_EQ(DIISEngageGate(0.5, 26, true),  0.5) << "a stated gate is honoured";
     EXPECT_EQ(DIISEngageGate(0.0, 26, true),  100.0) << "a density Fock engages from the start";
     EXPECT_DOUBLE_EQ(DIISEngageGate(0.0, 10, false), 100*0.08/32) << "the Z-scaled gate";
+}
+
+// V-FACADE-PARITY P0b-2: ONE options tree, and every kind REFUSES (policy ForeignOption) what it does not consume -- a stated
+// block or field another kind owns is never silently ignored.  The defaults that differ by kind are filled by the kind.
+TEST(SetupDecisions, EachKindRefusesAnotherKindsBlockAndFillsItsOwnDefaults)
+{
+    auto refusal=[](auto&& f) -> std::string { try { f(); return "NO THROW"; } catch (const std::exception& e) { return e.what(); } };
+    RunOptions solidBlock; solidBlock.solid.densityEcut=20.0;
+    RunOptions molBlock;   molBlock.molecule.basis="dzvp";
+    RunOptions atomBlock;  atomBlock.atom.basisPool=BasisSetAccuracy::Low;
+    EXPECT_NE(refusal([&]{ (void)MoleculeOptions(solidBlock); }).find("`solid` block"), std::string::npos);
+    EXPECT_NE(refusal([&]{ (void)MoleculeOptions(atomBlock); }).find("`atom` block"), std::string::npos);
+    EXPECT_NE(refusal([&]{ (void)SolidOptions(atomBlock); }).find("`atom` block"), std::string::npos);
+    EXPECT_NE(refusal([&]{ (void)SolidOptions(molBlock); }).find("`molecule` block"), std::string::npos);
+    EXPECT_NE(refusal([&]{ (void)AtomOptions(molBlock); }).find("`molecule` block"), std::string::npos);
+    EXPECT_NE(refusal([&]{ (void)AtomOptions(solidBlock); }).find("`solid` block"), std::string::npos);
+    // ... and through the Admit door, as an Outcome
+    const Molecule h2=StructureData::GetMolecule("H2O");
+    RunOptions m=solidBlock; m.molecule.basis="dzvp";
+    const auto admitted=MoleculeSetup::Admit(h2, m);
+    ASSERT_FALSE(admitted) << "a stated solid block is refused at the door";
+    EXPECT_EQ(admitted.Error().policy, "ForeignOption");
+    // the defaults each kind fills
+    EXPECT_EQ(*MoleculeOptions(RunOptions{}).model, Hamiltonian::Model::HF);
+    EXPECT_EQ(*SolidOptions(RunOptions{}).model,    Hamiltonian::Model::LDA);
+    EXPECT_EQ(*AtomOptions(RunOptions{}).model,     Hamiltonian::Model::HF);
+    EXPECT_EQ(*SolidOptions(RunOptions{}).pp, "gth-lda-valence"); EXPECT_EQ(*MoleculeOptions(RunOptions{}).pp, "");
+    EXPECT_EQ(*SolidOptions(RunOptions{}).ortho, qchem::Cholesky); EXPECT_EQ(*AtomOptions(RunOptions{}).ortho, qchem::Auto);
+    EXPECT_EQ(AtomOptions(RunOptions{}).xcMesh->angular, qcMesh::AngularKind::None) << "the atom's radial-only set";
+    RunOptions eps; eps.accuracy.eps=3e-6;
+    EXPECT_EQ(SolidOptions(eps).solid.grid.eps, 3e-6) << "the grid's eps is the run's ONE accuracy target";
 }

@@ -176,6 +176,7 @@ RunOptions SolidOptions(const RunOptions& asked)
     auto refuse=[](const std::string& what, const std::string& why)
     { policy::Refuse("ForeignOption", what+" stated for a PERIODIC run", why); };
     if (!(asked.molecule==def.molecule)) refuse("the `molecule` block", "a periodic run's basis is its recipe (deck `basis`) -- drop it");
+    if (!(asked.atom==def.atom))         refuse("the `atom` block", "it holds the radial atom's options -- drop it");
     if (asked.xalpha!=def.xalpha)        refuse("xalpha", "a periodic run is LDA or PADE; Xalpha is the molecular facade's");
     if (!(asked.coulomb==def.coulomb))   refuse("coulomb", "a periodic run's Hartree route is its density ball, not a stated route");
     if (asked.symmetryTol!=def.symmetryTol) refuse("symmetryTol", "a periodic run detects its space group at the lattice's own tolerance");
