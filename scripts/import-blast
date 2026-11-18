@@ -14,6 +14,7 @@
 #                                                            import edge carries the fan-in), and the libraries reached
 #   scripts/import-blast [-C BUILD] --why M T               the shortest import chain from TU/module T down to module M
 #   scripts/import-blast [-C BUILD] --diff A..B [-v]        PREDICT the compiles a commit range causes, from the files it touches
+#   scripts/import-blast [-C BUILD] --diff WORKTREE [-v]    ... or the uncommitted edits (tracked changes and untracked files)
 #
 # --diff counts TU COMPILES (ninja's "Building CXX object" edges), not scans or links, against THIS build tree's graph: a
 # commit that adds a TU or a module, or changes imports, is approximated by today's graph (new files are listed apart).  A
@@ -135,8 +136,13 @@ def why(g, m, start):
 
 def diff(g, rng, verbose):
     root=repo_root()
-    a,b=rng.split('..') if '..' in rng else (rng+'~1',rng)
-    names=subprocess.run(['git','-C',root,'diff','--name-status','--no-renames',a,b],capture_output=True,text=True,check=True).stdout.splitlines()
+    if rng=='WORKTREE':                                  # the uncommitted edits: tracked changes against HEAD, plus untracked files
+        a,b='HEAD','the working tree'
+        names=subprocess.run(['git','-C',root,'diff','--name-status','--no-renames','HEAD'],capture_output=True,text=True,check=True).stdout.splitlines()
+        names+=['A\t'+f for f in subprocess.run(['git','-C',root,'ls-files','--others','--exclude-standard'],capture_output=True,text=True,check=True).stdout.split()]
+    else:
+        a,b=rng.split('..') if '..' in rng else (rng+'~1',rng)
+        names=subprocess.run(['git','-C',root,'diff','--name-status','--no-renames',a,b],capture_output=True,text=True,check=True).stdout.splitlines()
     seeds=collections.defaultdict(set); unknown=[]; cmake=[]; added=[]
     hdr=None
     for line in names:
