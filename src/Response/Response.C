@@ -42,21 +42,13 @@ template <class T> Reference MakeReference(const WaveFunction::tWaveFunction<T>&
 //! \f$|(C^\dagger F C)_{ij}-\varepsilon_i\delta_{ij}|\f$ over every complex block (Hartree), with \f$F=F[D]\f$ built by \a H over
 //! \a wholeBasis.  The sum over states R0 ASSUMES zero; a converged SCF gives its convergence noise.  Consumed by the response,
 //! which REFUSES a reference far from that (OpenWork §3, 2026-10-27: GDM once handed out virtuals labelled with other virtuals'
-//! energies, 2.7 Ha off, and chi0 came out 400x too small).  A REAL (TRIM) block counts too, measured in its own scalar through
-//! the Hamiltonian's real-block face (\c Ham_RealBlock): it is half the reference of a real-TRIM ground state.  THROWS on a real
-//! block when \a H has no real-block face (it could not have built that block's Fock either) -- never a silent skip.
+//! energies, 2.7 Ha off, and chi0 came out 400x too small).  A real (TRIM) block is skipped: the response refuses those anyway.
 double EigenpairResidual(const WaveFunction::cWaveFunction& wf, Hamiltonian::cHamiltonian& H,
                          const BasisSet::tBasisSet<dcmplx>* wholeBasis);
 //! \brief The AO <-> MO bridge of \a wf, block-aligned with \a ref (which must be \a wf's reference, and outlive
 //! the frame).  THROWS on a block whose scalar or basis is not the run's T (a real TRIM block inside a complex run
 //! is R2's business).
 template <class T> OrbitalFrame<T> MakeOrbitalFrame(const Reference& ref, const WaveFunction::tWaveFunction<T>& wf);
-//! \brief The complex AO <-> MO bridge of a run whose ground state has REAL TRIM blocks (OpenWork "LR on REAL TRIM blocks", route
-//! A): every block on \a responseBasis, the all-complex view of \a wf's basis (\c BasisSet::Lattice::GPWResponseBasis), matched by
-//! k-block.  A real block's coefficients are carried over complexified -- the sibling holds the same functions.  \a responseBasis
-//! must outlive the frame.  THROWS when a block of \a wf has no block of the same k and size in \a responseBasis.
-OrbitalFrame<dcmplx> MakeOrbitalFrame(const Reference& ref, const WaveFunction::cWaveFunction& wf,
-                                      const BasisSet::tBasisSet<dcmplx>& responseBasis);
 
 //! \brief The three DIPOLE channels x, y, z: \f$\hat O_i=r_i\f$ (origin at 0; a neutral system's polarisability
 //! does not depend on it), as a totally symmetric (\c Invariant) perturbation -- the CPHF/CPKS probe of stage R1.
@@ -101,10 +93,8 @@ HubbardProbe MakeHubbardProbe(const Reference& ref, const WaveFunction::cWaveFun
 //! every block -- the image block \f$k'=W^{-T}k\f$ (spin flipped by a σ op), \f$U=C_{k'}^\dagger S_{k'}M_g(k)C_k\f$ from the basis's
 //! \c OrbitalImage -- and KEPT only if U maps orbitals onto orbitals of the same eigenvalue and occupation and is unitary, each
 //! to \a tol.  Measurement, not imposition: a state that broke an op loses it here.  \a ref must be \a wf's reference.
-//! Every block is imaged on \a responseBasis (the all-complex view, as \c MakeOrbitalFrame; \a wf's own basis when it has no real
-//! block).  THROWS on a block basis without the \c OrbitalImage face.
+//! THROWS on a real (TRIM) block (the response serves complex blocks only) or a block basis without the \c OrbitalImage face.
 OrbitalImages MakeOrbitalImages(const Reference& ref, const WaveFunction::cWaveFunction& wf,
-                                const BasisSet::tBasisSet<dcmplx>& responseBasis,
                                 const std::vector<Symmetry::SymOp>& ops, double tol=1e-6);
 
 //! \brief FEED \a est the occupied orbitals of every block of \a wf (coefficients, physical occupations, BZ weight, spin) -- ACBN0's

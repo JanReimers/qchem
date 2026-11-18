@@ -50,11 +50,20 @@ import qchem.SCFRecipeReport;                        // ReportSCFRecipe: the `sc
 import qchem.SCFRecipe;                              // ReportRecipe: the recipe policy's row
 import qchem.DegenerateFillReport;                   // the `choose` row for a kT = 0 fill that shared a degenerate level
 import qchem.Hamiltonian.Factory;
-import qchem.BasisSet.RealTableRelease;           // RealTablesReleased: the response frees the ground state's real-block XC tables
 import qchem.RunPolicy;
 
 namespace qchem
 {
+namespace {
+//! The occupation rule a stage's \a params state, as the iterator converts it: what the response's reference reads (lastOccupation).
+qchem::OccupationConfig OccupationOf(const SCFParams& params)
+{
+    return {.useMOM=params.UseMOM, .momStartIter=(int)params.MOMStartIter, .kT=params.SmearingkT, .momPenalty=params.MOMSmearPenalty,
+            .degenerate=params.DegenerateLevels==SCFParams::DegenerateLevelFill::Shared
+                        ? qchem::OccupationConfig::DegenerateLevels::Shared : qchem::OccupationConfig::DegenerateLevels::OrbitalByOrbital,
+            .levelTol=params.MergeTol};
+}
+} // namespace
 
 
 //---------------------------------------------------------------------------------------------------
@@ -81,9 +90,6 @@ struct SolidCalculation::Imp
     //! (structure, basis, species, functional, xcMesh, vxcFit), and a stage changes NONE of those, so ONE
     //! serves the whole schedule.  Declared BEFORE `scf` so it outlives every iterator built over it.
     std::unique_ptr<qchem::Hamiltonian::cHamiltonian>     ham;
-    //! The Vxc fit basis \c ham's XC term was built on, handed out by the Hamiltonian factory: the facade runs PHASES over it (the
-    //! linear response frees its real-block tables, \c BasisSet::RealTablesReleased).  Built and reset with \c ham.
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS>          vxcFit;
     //! OWNED HERE, and deliberately REPLACED per stage: a stage invalidates the Pulay/DIIS history and may
     //! change the accelerator TYPE outright (anneal on Ladder, finish on GDM).  Cheap to build, so that is
     //! correct -- unlike the Hamiltonian above, which was only ever rebuilt because of the `delete`.
@@ -112,6 +118,9 @@ struct SolidCalculation::Imp
     //! (doc/LinearResponsePlan.md E1).  The commutator is the final iteration's [F,D].
     qchem::OccupationConfig lastOccupation;
     double lastCommutator = std::numeric_limits<double>::quiet_NaN();
+    //! The eigenpair residual \c Adopt measured on the orbitals it installed (Hartree): the response's reference gate, already met, so
+    //! a response on those orbitals (the iterator has run no iteration since) does not build the same Fock again.  Empty otherwise.
+    std::optional<double> adoptedResidual;
     double lastDensityChange = std::numeric_limits<double>::quiet_NaN();   //!< the last iteration's Δρ (the saved state's residual)
     std::optional<qchem::SCFIterator::IterationRow> lastRow;   //!< the last iterate's row: a run that misses its gates says by how much
     double charge    = 0.0;
@@ -137,9 +146,6 @@ struct SolidCalculation::Imp
     //! them, so the grid report and the raster pilot ASK them (never a basis block).  Null on a plane-wave run.
     std::shared_ptr<const CrystalImposition>                  imposition;
     std::shared_ptr<const BasisSet::Gaussian::GpwRasterLadder> ladder;
-    //! The GPW point's params as handed to the factory (imposition and ladder included), kept for the one later build that must
-    //! be the SAME functions: the response's complex siblings of the real TRIM blocks (GPWResponseBasis).  Empty on a PW point.
-    std::optional<BasisSet::Lattice::GPWParams>             gpwParams;
     //! What the run's client consumes (\c SolidCalculation::Consumes): an energy, unless a SolidSession built this point.
     BasisSet::Gaussian::ClientConsumes consumes = BasisSet::Gaussian::ClientConsumes::Energy;
     //! The pilot audit has SETTLED this run's rasters (\c CalibrateRasters): \c setup->opts.tolerances are the final demands.
@@ -413,13 +419,6 @@ std::unique_ptr<SolidCalculation> SolidCalculation::Prepare(std::shared_ptr<cons
 }
 
 namespace {
-//! Does \a bs hold a REAL TRIM block inside its complex face (the mixed-scalar set the realness decision builds)?
-bool HasRealBlocks(const BasisSet::Complex_BS& bs)
-{
-    for (size_t i=0;i<bs.GetNumIBS();i++) if (bs.GetRealIBS(i)) return true;
-    return false;
-}
-
 //! A GPW point's imposition and raster ladder, resolved from the params' own statements of them and the run's PP, and written into
 //! \a p so the factory uses (and checks) them.  The ladder is sized for the local PP the Hamiltonian will build: the SAME builder
 //! (MakeMultiSpeciesLocal over the PP set's species), so V_loc long's audit row is a pure function of what the facade holds.
@@ -460,8 +459,8 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     // (TRIM) ∧ every term preserves realness.  This composition root builds the LDA GPW stack --
     // kinetic, the PP trio, Hartree, XC -- every member of which PreservesReal(), so the term half is
     // TRUE here; it is asserted against the constructed Hamiltonian below, so a future term that
-    // breaks realness must also flip this forecast.  forceComplex is the §6 ansatz-policy downgrade.
-    const bool hamPreservesReal = !opts.forceComplex;
+    // breaks realness must also flip this forecast.  The ansatz half -- forceComplex, or a planned response (k AND q) -- is the
+    // setup's ONE decision, S.realTRIMBlocks (user ruling 2026-11-18); every GPWParams below reads it.
     // ★ THE FACADE'S SETUP IS BUCKETED (doc/ParallelAndOraclePlan.md 1.1, 2026-09-06).  Every MnO row drives
     // SolidCalculation directly, and until now only the phases INSIDE these calls were timed -- so the basis
     // build, the Hamiltonian ctor's non-mesh half, the seed and the ortho landed in no bucket at all.  That
@@ -470,7 +469,6 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     if (S.planeWave)
     {
         qchem::report::Timed timed("setup: PW basis build");
-        itsImp->gpwParams.reset();
         itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.planeWaveEcut, S.siteSpins));   // {} unless a magnetic imposition
         std::cout<<"["<<opts.label<<" run] plane-wave orbital basis: Ecut "<<opts.planeWaveEcut<<" Ha, "
                  <<itsImp->bs->GetNumFunctions()<<" PWs at Γ"<<std::endl;
@@ -488,11 +486,10 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
             .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
             .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = tol,
-            .hamPreservesReal = hamPreservesReal};
+            .hamPreservesReal = S.realTRIMBlocks};
         ResolveGpwPoint(lat, mol, S.pp, p);
         itsImp->imposition=p.imposition;
         itsImp->ladder    =p.ladder;
-        itsImp->gpwParams =p;
         itsImp->bs.reset(L3::GPWFactory(lat, mol, p));
     }
     itsImp->coulombFit={};   // a new basis: its Coulomb fit is built afresh by the first Hamiltonian on it
@@ -590,7 +587,7 @@ static void ReportPeriodicA1Cost(const BasisSet::Orbital_1E_IBS<double>& a1, con
 
 // THE SECOND HALF: the Hamiltonian, the seed (the caller's when given -- a restored state), the iterator.
 void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params,
-                                SCFAccelerators::Type accel, SCFRecipe recipe, bool restored, bool exactResume)
+                                SCFAccelerators::Type accel, SCFRecipe recipe, bool restored, bool exactResume, bool adopt)
 {
     ++itsImp->dGeneration;   // a new seed or a restored D
     const SolidSetup&       S    = *itsImp->setup;
@@ -598,7 +595,6 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     const Lattice_3D&       lat  = *itsImp->lat;
     const std::vector<int>& siteSpins = S.siteSpins;
     const bool polarized        = S.polarized;
-    const bool hamPreservesReal = !opts.forceComplex;   // the BuildPoint forecast, restated for the assert below
     const bool imposed          = S.imposed;
 
     // THE HUBBARD MANIFOLDS' SITE GROUPS (step 5 increment 2): each manifold is labelled by the stabiliser of
@@ -664,12 +660,12 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
             itsImp->st, itsImp->bs.get(), itsImp->coulombFit, itsImp->setup->pp, xc, {opts.vxcFit, opts.xcRho}, hubbard,
-            qchem::Hamiltonian::ModelToXC(opts.model), a1, &itsImp->vxcFit));
+            qchem::Hamiltonian::ModelToXC(opts.model), a1));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
     // that its terms cannot serve.
-    assert((!hamPreservesReal || itsImp->ham->PreservesReal()) &&
+    assert((!S.realTRIMBlocks || itsImp->ham->PreservesReal()) &&
            "SolidCalculation: the term stack no longer preserves realness -- update the forecast above");
 
     // DECISION 3 -- the accelerator, by policy (Auto pairs it with the mixer), through the public typed door.
@@ -686,6 +682,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     // silently skip.  Measured before it is consumed, the baseline is the seed's own.
     const bool polarizedHam = itsImp->ham->GetSpinGroup()==SpinGroup::Polarized;
     const auto seedRole = !seed       ? qchem::SCFIterator::SeedRole::Guess
+                        : adopt       ? qchem::SCFIterator::SeedRole::Adopted
                         : exactResume ? qchem::SCFIterator::SeedRole::ExactResume
                         :               qchem::SCFIterator::SeedRole::WorkingDensity;   // restored = carried
     if (!seed)   // a RESTORED state arrives pre-built (Restart); otherwise the strategy the options name
@@ -724,7 +721,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     // MOM CONTINUATION FROM THE SEED (S0e): pin the reference to the seed's OWN freshly-filled occupied
     // subspace before iteration 1, so the CONFIGURATION the seed chose survives, not merely its density.
     // No-op unless SCFParams::UseMOM is also set.
-    if (opts.momFromSeed) itsImp->scf->AdoptMOMReference(*itsImp->scf->GetWaveFunction());
+    if (opts.momFromSeed && !adopt) itsImp->scf->AdoptMOMReference(*itsImp->scf->GetWaveFunction());   // an adopted WF has no orbitals yet
 
     // (T2's gate -- itsImp->setup->imposed -- was resolved by SolidSetup::Resolve: an imposition is an ASSERTION about the answer,
     // and only then is losing the order a contradiction rather than physics.)
@@ -1237,7 +1234,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
         const Lattice_3D lat=*itsImp->lat;
         const auto mol=itsImp->mol;
         const SCFAccelerators::Type asked=itsImp->stageAccelAsked;
-        itsImp->spin.reset(); itsImp->scf.reset(); itsImp->accel.reset(); itsImp->cd.reset(); itsImp->ham.reset(); itsImp->vxcFit.reset(); itsImp->ec.reset();
+        itsImp->spin.reset(); itsImp->scf.reset(); itsImp->accel.reset(); itsImp->cd.reset(); itsImp->ham.reset(); itsImp->ec.reset();
         itsImp->bs.reset();
         BuildPoint(std::move(sized), lat, mol);
         BuildRun(nullptr, own, asked, itsImp->stageRecipe, /*restored*/false, /*exactResume*/false);
@@ -1277,11 +1274,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
     { qchem::report::Section scf("scf"); ReportSCFRecipe(resolved, AccelName(itsImp->stageAccel)); }
     ReportRecipe(itsImp->setup->opts.label, itsImp->stageRecipe, itsImp->stageKind, itsImp->stageAccelAsked, itsImp->stageAccel,
                  resolved, itsImp->stageDeviations, itsImp->stageAskedBy);   // the policy that chose them, and why (its `policy` row)   // the run report's "what recipe am I running" header, as every facade files it
-    itsImp->lastOccupation = {.useMOM=params.UseMOM, .momStartIter=(int)params.MOMStartIter,
-                              .kT=params.SmearingkT, .momPenalty=params.MOMSmearPenalty,
-                              .degenerate=params.DegenerateLevels==SCFParams::DegenerateLevelFill::Shared
-                                          ? qchem::OccupationConfig::DegenerateLevels::Shared : qchem::OccupationConfig::DegenerateLevels::OrbitalByOrbital,
-                              .levelTol=params.MergeTol};   // the iterator's own conversion
+    itsImp->lastOccupation = OccupationOf(params);
     itsImp->lastkT     = params.SmearingkT;
     itsImp->lastRecipe = std::string("accel=")+AccelName(itsImp->stageAccel)+" kT="+std::to_string(params.SmearingkT)
                        + " MOM="+(params.UseMOM?"on":"off")+" KerkerG0="+std::to_string(resolved.KerkerG0)
@@ -1473,6 +1466,14 @@ std::shared_ptr<const SolidSetup> SizedBySavedState(const std::shared_ptr<const 
 }
 } //anonymous namespace
 
+namespace {
+//! THE RESPONSE'S REFERENCE GATE (OpenWork §3, 2026-10-27): the largest |C^H F C - diag eps| a reference may carry, Hartree.  chi0's
+//! relative error is ~ residual / response gap: 1e-4 keeps it <~1e-3 on a 0.1 Ha gap and still refuses a mislabel (O(0.1-1) Ha) by
+//! >1000x.  Measured: Si k211 1e-10 (diagonalizing) / 8e-9 (GDM-finished); NiO k222 GDM restart 1.03e-5 (its [F,D] noise 2.4e-6) --
+//! a 1e-5 bound refused that healthy state.  Shared by the response and by Adopt's verify, which IS that gate met in advance.
+constexpr double kReferenceEigenpairGate=1e-4;
+} // namespace
+
 Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
 SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params,
                           Observer onIteration)
@@ -1489,6 +1490,13 @@ SolidCalculation::Restart(const std::string& path, std::shared_ptr<const SolidSe
 Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
 SolidCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params,
                                  Observer onIteration)
+{
+    return PrepareRestartAs(path, std::move(setup), params, std::move(onIteration), /*adopt*/false);
+}
+
+Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
+SolidCalculation::PrepareRestartAs(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params,
+                                   Observer onIteration, bool adopt)
 {
     using O=Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>;
     const SCFAccelerators::Type accel=setup->opts.accelerator;
@@ -1527,11 +1535,98 @@ SolidCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const 
     if (!cd) return refuse(cd.Error());
     const bool exact=judged->exact;
     c->itsImp->restartedFrom=*judged;
-    c->BuildRun(cd.TakeValue(), params, accel, recipe, /*restored*/true, exact);
+    c->BuildRun(cd.TakeValue(), params, accel, recipe, /*restored*/true, exact, adopt);
     // The restored stage's accelerator is BUILT (BuildRun consumed the GDM-rung start); later stages on this calculation start as asked.
     c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->acc.ladderStartOnGDM;
-    if (exact) c->itsImp->resumedFrom=state.summary.energy;   // the first Converge reports the resumed energy beside it
+    if (exact && !adopt) c->itsImp->resumedFrom=state.summary.energy;   // the first Converge reports the resumed energy beside it
     return O::Ok(std::move(c));
+}
+
+Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
+SolidCalculation::Adopt(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params, Observer onIteration)
+{
+    std::optional<double> resid;
+    if (params.UseMOM) resid=std::numeric_limits<double>::quiet_NaN();   // a MOM fill needs a reference the state does not carry
+    else
+    {
+        auto R=PrepareRestartAs(path, setup, params, onIteration, /*adopt*/true);
+        if (!R) return R;
+        SolidCalculation& c=*R.Value();
+        auto saved=ReadSolidState(path);   // read once more for its orbitals (PrepareRestart consumed its copy judging the fingerprint)
+        if (!saved) throw std::logic_error("SolidCalculation::Adopt: the state PrepareRestart read is no longer readable at "+path);
+        resid=c.AdoptSavedOrbitals(*saved, params);
+        const std::string tag="["+c.itsImp->setup->opts.label+" adopt] ";
+        std::ostringstream os; os<<std::scientific<<std::setprecision(2)<<*resid;
+        if (*resid<=kReferenceEigenpairGate)
+        {
+            const double E=c.itsImp->scf->GetEnergy().GetTotalEnergy();
+            const std::string decided="the saved state ADOPTED: its orbitals installed as this run's, no SCF iteration";
+            const std::string reason="promote-and-verify (the two-run split, user ruling 2026-11-18): the eigenpair residual max|C^H F C - diag eps| "
+                                     +os.str()+" Ha meets the response's reference gate 1e-4, on one Fock build";
+            policy::Report("AdoptState", decided, policy::Verdict::Choose, reason);
+            std::cout<<tag<<decided<<" -- "<<reason<<std::endl;
+            {
+                std::ostringstream e; e<<std::setprecision(12)<<E<<" Ha (saved "<<saved->summary.energy<<")";
+                std::cout<<tag<<"adopted state's energy "<<e.str()<<std::endl;
+            }
+            qchem::report::Set("eigenpairResidual", *resid);
+            qchem::report::Set("energy", E);
+            qchem::report::Set("savedEnergy", saved->summary.energy);
+            qchem::report::Set("scfIterations", c.itsImp->scf->GetIterationCount());
+            c.itsImp->adoptedResidual=*resid;
+            return R;
+        }
+    }   // the adopting calculation is DESTROYED before the restart builds its own
+    std::ostringstream os; os<<std::scientific<<std::setprecision(2)<<*resid;
+    const std::string decided="the saved state CONVERGED as a restart, not adopted";
+    const std::string reason=params.UseMOM ? "a MOM run's fill depends on a reference the saved state does not carry"
+                           : std::isnan(*resid) ? "the state saved no orbitals to adopt"
+                           : std::isinf(*resid) ? "this run's occupation rule does not reproduce the saved occupations at the saved energies"
+                           : "its orbitals miss the response's reference gate 1e-4 on their own Fock (residual "+os.str()+" Ha)";
+    policy::Report("AdoptState", decided, policy::Verdict::Warn, reason);
+    std::cout<<"[policy] WARNING ["<<setup->opts.label<<" adopt] "<<decided<<" -- "<<reason<<std::endl;
+    return Restart(path, std::move(setup), params, std::move(onIteration));
+}
+
+double SolidCalculation::AdoptSavedOrbitals(const SavedState& state, const SCFParams& params)
+{
+    const SolidCalcOptions& opts=itsImp->setup->opts;
+    const std::vector<StateBlock> blocks=StateBlocks(false);   // the fingerprint judged them block for block against state.blocks
+    if (blocks.size()!=state.blocks.size())
+        throw std::logic_error("SolidCalculation::Adopt: "+std::to_string(state.blocks.size())+" saved blocks for "+std::to_string(blocks.size()));
+    using Block=qchem::SCFIterator::SolidSCFIterator::AdoptedBlock;
+    std::vector<Block> adopted;
+    for (size_t b=0;b<blocks.size();b++)
+    {
+        const SavedBlock& sb=state.blocks[b];
+        if (sb.C.columns()==0) return std::numeric_limits<double>::quiet_NaN();   // no orbitals saved: nothing to adopt
+        const size_t n=blocks[b].n(), m=sb.C.columns();
+        if (sb.C.rows()!=n || sb.S.rows()!=n)
+            throw std::logic_error("SolidCalculation::Adopt: saved block "+std::to_string(b)+" does not match this run's block");
+        // C' = V^H S C on the block's own LASolver (V^H S V = 1): the orthonormal-frame coefficients a diagonalisation would have
+        // handed the orbitals with C.  V is read off the solver as its back-transform of the identity.
+        hmat_t<dcmplx> S(n);
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) S(i,j)=sb.S(i,j);
+        const std::unique_ptr<LASolver<dcmplx>> frame(LASolver<dcmplx>::Factory(opts.ortho, opts.SolverTruncation()));
+        frame->SetBasisOverlap(S);
+        if (frame->GetOrthoDim()!=m)
+            throw std::logic_error("SolidCalculation::Adopt: saved block "+std::to_string(b)+" holds "+std::to_string(m)+" orbitals on an orthonormal "
+                                   "frame of "+std::to_string(frame->GetOrthoDim()));
+        const mat_t<dcmplx> V=frame->BackTransform(mat_t<dcmplx>(blazem::IdentityMatrix<dcmplx>(m)));
+        const mat_t<dcmplx> SC=mat_t<dcmplx>(S)*sb.C;
+        rvec_t e(m), f(m);
+        for (size_t i=0;i<m;i++) {e[i]=sb.eps.at(i); f[i]=sb.f.at(i);}
+        Block blk; blk.irrep=blocks[b].irrep; blk.C=sb.C; blk.Cprime=mat_t<dcmplx>(blazem::ctrans(V)*SC); blk.e=e; blk.f=f;
+        adopted.push_back(std::move(blk));
+    }
+    const double dfMax=itsImp->scf->AdoptConvergedOrbitals(adopted, params);
+    // The fill is the SCF's last one again, at the saved energies: it reproduces the saved occupations to round-off, or the state is
+    // not this run's (another kT, another rule) and is not adopted.
+    if (!(dfMax<=1e-8)) return std::numeric_limits<double>::infinity();
+    itsImp->lastOccupation = OccupationOf(params);
+    itsImp->lastCommutator = std::numeric_limits<double>::quiet_NaN();   // no iteration measured one: UNMEASURED, never 0
+    const auto* wf=itsImp->scf->GetWaveFunction();
+    return qchem::Response::EigenpairResidual(*wf, *itsImp->ham, itsImp->bs.get());
 }
 
 Outcome<std::unique_ptr<StateView>, RestartRefusal>
@@ -1746,7 +1841,7 @@ AuditReferenceSize SolidCalculation::SizeReference(const std::string& name, cons
         .densityEcut = autoBall ? opts.densityEcut : ballScale*opts.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.cutoffFactor : opts.cutoffFactor,
         .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
         .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = raster,
-        .hamPreservesReal = !opts.forceComplex};
+        .hamPreservesReal = S.realTRIMBlocks};
     const std::shared_ptr<const Structure> held=itsImp->lat->GetStructure();
     const double ppSharpness=BasisSet::Gaussian::LocalPPSharpness(*held, *Pseudopotential::MakeMultiSpeciesLocal(S.pp.Species(*held), S.pp.Functional()));
     const auto ladder=L3::MakeRasterLadder(*itsImp->lat, itsImp->mol, p, ppSharpness);
@@ -2189,7 +2284,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         // density to LINEAR mixing at relax 0.3 -- Si's energy pilot spent 39 iterations there.  A stated accelerator is obeyed.
         SCFAccelerators::Type asked=itsImp->stageAccelAsked;
         if (asked==SCFAccelerators::Type::Auto && params.SmearingkT==0.0) asked=SCFAccelerators::Type::Ladder;
-        itsImp->spin.reset(); itsImp->scf.reset(); itsImp->accel.reset(); itsImp->cd.reset(); itsImp->ham.reset(); itsImp->vxcFit.reset(); itsImp->ec.reset();
+        itsImp->spin.reset(); itsImp->scf.reset(); itsImp->accel.reset(); itsImp->cd.reset(); itsImp->ham.reset(); itsImp->ec.reset();
         itsImp->bs.reset();
         BuildPoint(std::move(sized), lat, mol);
         const SpinGroup g=itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
@@ -2336,7 +2431,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             .densityEcut = autoBall ? opts.densityEcut : ballScale*opts.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.cutoffFactor : opts.cutoffFactor,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
             .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.xcMeshSymmetric, .tol = raster,
-            .hamPreservesReal = !opts.forceComplex};
+            .hamPreservesReal = S.realTRIMBlocks};
         ResolveGpwPoint(latRef, molRef, S.pp, p);   // the reference's own ladder (its rasters / ball differ), sized for the same PP
         ladderRef=p.ladder;
         bsRef.reset(L3::GPWFactory(latRef, molRef, p));
@@ -2729,6 +2824,13 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     //  response symmetrizes -- the transition density is (k+q, k) pairs contracted through the B2 faces, which have
     //  no fold or star-average in them.  The step-1 refusal of an imposed raster / Γ-only run is retired with the
     //  R2 composite route it guarded; gate GPW_Si_ImposedGamma_Raster_eqFreeChi.  §3d finding 5.)
+    // THE ANSATZ WAS DECIDED AT SETUP, from k and q (SolidSetup::realTRIMBlocks, user ruling 2026-11-18): a run that did not plan this
+    // response built its TRIM blocks real, and the response face is complex-only.  Refused by name, never re-typed here.
+    for (size_t i=0;i<itsImp->bs->GetNumIBS();i++)
+        if (itsImp->bs->GetRealIBS(i))
+            return Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>::Fail({qchem::Response::ResponseFailure::Why::Configuration,
+                "the setup built REAL TRIM blocks (no response was planned), and the linear response is complex-only: state the "
+                "response at setup (SolidCalcOptions::responseQMeshes; a deck does it from its postSCF) or set forceComplex"});
     if (perturbed.empty()) perturbed=DefaultPerturbed(*hub);
     const FrozenHubbard frozen(itsImp->ham->GetHubbardUTarget());
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
@@ -2739,9 +2841,12 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     // a mislabel (O(0.1-1) Ha) by >1000x.  Measured: Si k211 1e-10 (diagonalizing) / 8e-9 (GDM-finished); NiO k222 GDM restart
     // 1.03e-5 (its [F,D] noise 2.4e-6) -- a 1e-5 bound refused that healthy state.
     {
-        const double resid=qchem::Response::EigenpairResidual(*wf, *itsImp->ham, itsImp->bs.get());
-        std::cout << "[response] reference eigenpair residual max|C^H F C - diag eps| = " << resid << " Ha" << std::endl;
-        if (!(resid<=1e-4))
+        // An ADOPTED state met this gate on its own Fock when it was installed, and no iteration has moved it since: not built again.
+        const bool adopted=itsImp->adoptedResidual && itsImp->scf->GetIterationCount()==0;
+        const double resid=adopted ? *itsImp->adoptedResidual : qchem::Response::EigenpairResidual(*wf, *itsImp->ham, itsImp->bs.get());
+        std::cout << "[response] reference eigenpair residual max|C^H F C - diag eps| = " << resid << " Ha"
+                  << (adopted ? " (measured when the state was adopted)" : "") << std::endl;
+        if (!(resid<=kReferenceEigenpairGate))
         {
             std::ostringstream os;
             os << "the wave function's orbitals are not eigenpairs of their own Fock (max|C^H F C - diag eps| = " << resid
@@ -2753,18 +2858,7 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     }
     const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
         {.acrossK=!itsImp->setup->opts.perKFermiLevels, .acrossSpin=itsImp->setup->opts.spinsShareFermi}, noise);
-    // THE RESPONSE BASIS (OpenWork "LR on REAL TRIM blocks", route A): the response is complex throughout, so a ground state with
-    // REAL TRIM blocks hands it an all-complex view -- its complex blocks borrowed, each real block's complex SIBLING built from the
-    // same shells (GPWResponseBasis checks they are the same functions).  The siblings and their caches live for this call only.
-    std::unique_ptr<const BasisSet::Complex_BS> siblings;
-    if (HasRealBlocks(*itsImp->bs))
-    {
-        if (!itsImp->gpwParams)
-            throw std::logic_error("SolidCalculation::HubbardLinearResponse: a real TRIM block on a point that is not GPW");
-        siblings=BasisSet::Lattice::GPWResponseBasis(*itsImp->lat, itsImp->mol, *itsImp->gpwParams, *itsImp->bs);
-    }
-    const BasisSet::Complex_BS& responseBasis = siblings ? *siblings : *itsImp->bs;
-    const auto frame=qchem::Response::MakeOrbitalFrame(ref, *wf, responseBasis);
+    const auto frame=qchem::Response::MakeOrbitalFrame(ref, *wf);
     const auto hp=qchem::Response::MakeHubbardProbe(ref, *wf, *hub, res);
     const bool resolved = res!=qchem::Response::HubbardResolution::Manifold;
     std::vector<size_t> channels;                                 // every channel of a perturbed manifold
@@ -2775,23 +2869,7 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
             std::cout << "[response] channel " << c << ": " << hp.probe.Label(c) << "  [" << hp.composition[c] << "]"
                       << (std::find(channels.begin(), channels.end(), c)!=channels.end() ? "  perturbed" : "") << std::endl;
     const auto D0=wf->GetChargeDensity();
-    const auto kernel=itsImp->ham->MakeResponseKernel(&responseBasis, D0.get());
-    // THE RELEASE PHASE (route A, controller 2026-11-17: the response run's high-water must not exceed forceComplex's).  The response
-    // runs on the siblings, so the ground state's REAL-block XC tables are dead weight for its lifetime (TiO₂ k222: 1.44 GB beside the
-    // siblings' 2.87 GB).  Two explicit steps (pin 11), after the last ground-state question (the eigenpair residual, above):
-    //   1. "everybody, use D0": the ground-state refresh at the linearisation density, so what the response needs FROM the real blocks
-    //      -- rho0 at the XC points, for f_xc(rho0) -- is sampled now, while their tables exist (the XC kernel reads it on its first q);
-    //   2. free the tables.  One asked for inside the phase is rebuilt and counted; the count is reported when the phase closes, with
-    //      this call (gate GPW_Si.Γ_U_LinearResponseReleasesRealTables_Long asserts 0).
-    std::optional<qchem::report::Scope> releaseScope;
-    std::optional<BasisSet::RealTablesReleased> released;
-    if (siblings)
-        if (const auto* r=dynamic_cast<const BasisSet::RealTableRelease*>(itsImp->vxcFit.get()))   // abstract -> abstract
-        {
-            releaseScope.emplace("responseRealTableRelease");
-            itsImp->ham->RefreshForDensity(itsImp->bs.get(), D0.get());
-            released.emplace(*r);
-        }
+    const auto kernel=itsImp->ham->MakeResponseKernel(itsImp->bs.get(), D0.get());
     // Each q's table is printed as that q finishes; the supercell summary (real-space blocks, U) once all are in.
     // U is printed, never consumed here (R4 owns consumption).
     using O=Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>;
@@ -2819,7 +2897,7 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     std::optional<qchem::Response::OrbitalImages> images;
     if (littleGroupK)
     {
-        images=qchem::Response::MakeOrbitalImages(ref, *wf, responseBasis, itsImp->lat->ShubnikovOps(itsImp->setup->decoration));
+        images=qchem::Response::MakeOrbitalImages(ref, *wf, itsImp->lat->ShubnikovOps(itsImp->setup->decoration));
         images->Write(std::cout);
     }
     auto solved=qchem::Response::LinearResponse(ref, frame, *kernel, hp.probe, Nq, krylov, resolved ? channels : perturbed,
@@ -2909,12 +2987,13 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
             {.acrossK=!itsImp->setup->opts.perKFermiLevels, .acrossSpin=itsImp->setup->opts.spinsShareFermi}, std::numeric_limits<double>::quiet_NaN());
         const auto probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
         qchem::Response::BlockPairs D;                      // the state in its own MO basis: diag(occupation)
-        for (const Irrep& ir : wf->GetQNs())   // occupations only: a real TRIM block and a complex one read alike
+        for (const Irrep& ir : wf->GetQNs())
         {
-            const Orbitals::Orbitals* os=wf->GetOrbitals(ir);
+            const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf->GetOrbitals(ir));
+            if (!os) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: a real TRIM block (run with forceComplex)");
             qchem::Response::cmat_t X(os->GetNumOrbitals(), os->GetNumOrbitals(), dcmplx(0.0));
             size_t i=0;
-            for (const auto* o : os->Iterate()) {X(i,i)=o->GetOccupation(); i++;}
+            for (const auto* o : os->Iterate<Orbitals::TOrbital<dcmplx>>()) {X(i,i)=o->GetOccupation(); i++;}
             D.m.push_back(X);
         }
         const cvec_t n=probe.Measure(Symmetry::Invariant(), D);

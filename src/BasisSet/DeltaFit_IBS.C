@@ -34,12 +34,10 @@ module;
 #include <string>
 #include <type_traits> // std::is_same_v (the same-scalar table cache)
 #include <utility>
-#include <atomic>
 export module qchem.BasisSet.DeltaFit_IBS;
 export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary                    // cFIT_SF_ABS + Integrals_Overlap3C + FitQuadrature
-export import qchem.BasisSet.RealTableRelease;     // RealTableRelease: route A's response frees my real blocks' tables for its lifetime
 export import qchem.BasisSet.Transition_DFT_IBS;   // Transition_Overlap3C: the (k+q, k) pair on my Φ tables (LinearResponsePlan B2)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep)
@@ -60,13 +58,8 @@ template <class Self, class T> class DeltaPeriodicFaces {};
 template <class Self> class DeltaPeriodicFaces<Self,dcmplx>
     : public virtual Integrals_Overlap3C<double,dcmplx>  // a REAL TRIM block (3c-3), in real arithmetic
     , public virtual Transition_Overlap3C            // a (k+q, k) transition density on my points (the Becke/δ XC route)
-    , public virtual RealTableRelease                // free the real TRIM blocks' tables for a phase that does not use them
 {
 public:
-    //! \copydoc BasisSet::RealTableRelease::BeginRealTableRelease
-    size_t BeginRealTableRelease() const override {return Self_().BeginRealReleaseImp();}
-    //! \copydoc BasisSet::RealTableRelease::EndRealTableRelease
-    size_t EndRealTableRelease  () const override {return Self_().EndRealReleaseImp();}
     //! \copydoc BasisSet::Integrals_Overlap3C::Overlap3C
     const PairProjection<double>& Overlap3C(const Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Self_().RealTensor(orb);}
     //! \copydoc BasisSet::Transition_Overlap3C::TransitionForward
@@ -210,8 +203,6 @@ private:
     //! The real-block tensor (\c DeltaPeriodicFaces' 3c-3 overload) and the transition pair's bodies: periodic-axis work,
     //! reached only through that base.
     const PairProjection<double>& RealTensor(const Orbital_DFT_IBS<double,dcmplx>& orb) const {return Tensor(itsO3R, itsPhiR, orb);}
-    size_t        BeginRealReleaseImp() const;   //!< free itsPhiR, open the phase; the bytes freed
-    size_t        EndRealReleaseImp  () const;   //!< close the phase; the real tables rebuilt inside it
     cvec_t        TransitionForwardImp(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
                                        const mat_t<dcmplx>& dD) const;
     mat_t<dcmplx> TransitionAdjointImp(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
@@ -239,18 +230,6 @@ private:
     InstanceSlotMap<mat_t<double>> itsPhiR;   //!< real TRIM blocks' tables (3c-3)
     InstanceSlotMap<PairProjection<dcmplx>> itsO3;   //!< the Bloch blocks' 3-centre tensors, built on itsPhi
     InstanceSlotMap<PairProjection<double>> itsO3R;  //!< ...and the real TRIM blocks', on itsPhiR
-    //! \brief The real-table RELEASE PHASE (\c RealTableRelease): open while a client runs a phase that needs no real block's table.  A
-    //! real table filled while it is open is counted (it undoes the release).  Atomics, since the fills run on the parallel Fock pass; a
-    //! copy of the fit starts outside any phase.
-    struct ReleasePhase
-    {
-        std::atomic<bool>   open{false};
-        std::atomic<size_t> rebuilt{0};
-        ReleasePhase() = default;
-        ReleasePhase(const ReleasePhase&) {}
-        ReleasePhase& operator=(const ReleasePhase&) = delete;
-    };
-    mutable ReleasePhase itsRealRelease;
     FitQuadrature itsQuad;   //!< the mesh + its orbit fold + the Shubnikov spin tags
     RealPointValues itsRealValues;   //!< the factory's evaluation of a real block at my points, or empty (\c RealPointValues)
 };

@@ -246,6 +246,13 @@ struct SolidCalcOptions
     //! measured identical to the forced-complex twin (Si (3,1,1), ΔE = 1.8e-15) at the real run's cost.
     //! No knob, and no surprise: turning MOM on no longer changes what the run is made of.
     bool forceComplex = false;
+    //! \brief THE LINEAR RESPONSES THIS RUN WILL RUN, one q-mesh each (empty = none).  The ansatz is decided ONCE, at setup, from k AND
+    //! q (user ruling 2026-11-18, OpenWork "LR on REAL TRIM blocks", option 1): a response's δD at q != 0 couples block k to block k+q
+    //! through a complex phase, so a run that will run one builds EVERY block complex from the start -- never a real ground state that
+    //! is later re-typed, rebuilt or released.  q = 0 alone counts too: the response face is complex-only (route B, typing each object
+    //! from its own quantum numbers, is the hub change that would lift it).  \c SolidSetup::realTRIMBlocks is the decision.  A deck
+    //! fills this from its postSCF responses; code that calls \c SolidCalculation::HubbardLinearResponse states it (or \c forceComplex).
+    std::vector<ivec3_t> responseQMeshes = {};
 
     //! \name Knobs the GPW test driver carried that this struct did not (2026-08-25)
     //! Added so a periodic recipe can be stated in ONE place instead of being assembled across a test's
@@ -408,6 +415,10 @@ struct SolidSetup
     //! The caller's \c imposeSymmetry AND the run policy's permission (CP2K parity vetoes the capability).  Nothing reads
     //! \c opts.imposeSymmetry after Resolve, or the two would drift.
     bool imposed   = false;
+    //! \brief THE ANSATZ, decided ONCE from k and q (user ruling 2026-11-18): a TRIM block may run REAL (\c GPWParams::hamPreservesReal;
+    //! a non-TRIM block is complex regardless).  False when \c opts.forceComplex is stated or \c opts.responseQMeshes plans a response.
+    //! The run's ONE source of the decision: nothing reads \c opts.forceComplex after Resolve.
+    bool realTRIMBlocks = true;
     //! The imposition's MAGNETIC DECORATION (one +1/-1/0 per site; what makes the group Shubnikov): stated, or -- for an imposed
     //! polarized run without +U only -- derived from the seed.  EMPTY when the run imposes nothing or imposes the grey group.
     std::vector<int> siteSpins;

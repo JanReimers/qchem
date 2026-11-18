@@ -133,10 +133,6 @@ public:
                XCRoute fit={}, SpinGroup g=SpinGroup::UnPolarized,
                std::vector<HubbardManifold> hubbard={}, std::vector<std::shared_ptr<ExFunctional>> xc={},
                std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux={});   //!< the periodic A1 Vxc fit's real Gamma set (xc.fit Auxiliary)
-    //! The Vxc fit basis the XC term was built on (null before BuildTerms).  For the FACTORY only, which hands it to a caller that runs
-    //! phases over it (\c Factory's \a vxcFitOut: the facade's response frees the fit's real-block tables).  Why the factory cannot
-    //! ask the cHamiltonian face: that face is a tier-1 hub, and the fit is a construction fact, not a question about the Hamiltonian.
-    const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& GetVxcFit() const;
 private:
     //! \a xc: the functional's parts; EMPTY = Dirac + VWN5, the default LDA (every ctor but the facade's leaves it so).
     void BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const Pseudopotential::LocalPotential* loc,
@@ -151,7 +147,6 @@ private:
                       XCRoute fit={}, std::vector<HubbardManifold> hubbard={},
                       std::vector<std::shared_ptr<ExFunctional>> xc={},
                       std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux={});
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS>               itsVxcFit;      //!< the XC term's fit basis, as built (GetVxcFit)
     std::shared_ptr<const Pseudopotential::LocalPotential>     itsOwnedLocal;  //!< owned model (convenience ctors); null for explicit
     std::shared_ptr<const Pseudopotential::SeparablePotential> itsOwnedSep;
 };

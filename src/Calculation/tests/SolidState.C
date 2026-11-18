@@ -553,14 +553,19 @@ TEST(SolidState, ExactResume_KerkerPulay_Null_StartsAtTheSavedState_Panel) {Expe
 
 TEST(SolidState, RealnessCrossesBothWays)
 {
-    // Complex-saved -> real run (D at a TRIM point is real) and real-saved -> forced-complex run: both WARM
-    // (blocks.real differs), both land on the saved energy.
+    // Complex-saved -> real run (D at a TRIM point is real) and real-saved -> forced-complex run: the working type is REPRESENTATION,
+    // not physics (user ruling 2026-11-18), so with nothing else changed both are EXACT resumes and land on the saved energy.  (When
+    // blocks.real was a warm entry, TiO₂ k222 real -> complex took 9 iterations through the warm seed role against 3 exact.)
     for (bool savedComplex : {true, false})
     {
         const Saved& s=SavedState(savedComplex ? 1 : 0, savedComplex);
         SiRun si=Si(ivec3_t(2,2,2));
         auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, Options(savedComplex ? 1 : 0, !savedComplex, "")), Params());
         ASSERT_TRUE(c) << c.Error().details;
+        ASSERT_TRUE((*c)->RestartedFrom());
+        EXPECT_TRUE((*c)->RestartedFrom()->exact) << (savedComplex ? "complex -> real" : "real -> complex") << " is a warm start: a "
+            << "representation change classified as physics";
+        for (const auto& w : (*c)->RestartedFrom()->warm) ADD_FAILURE() << "warm entry: " << w;
         auto r=(*c)->Result();
         ASSERT_TRUE(r);
         EXPECT_NEAR(r->Energy(), s.energy, 1e-8);

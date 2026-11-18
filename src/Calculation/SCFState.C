@@ -130,7 +130,8 @@ struct SavedState
 void AddStructure(StateFingerprint&, const Structure&);
 //! REFUSE electrons.Nelec, spinGroup; WARM functional, spin.multiplicity.
 void AddElectrons(StateFingerprint&, int Nelec, SpinGroup, int multiplicity, const std::string& functional);
-//! REFUSE blocks.ms, blocks.n, blocks.irrep (the spatial labels, joined); WARM blocks.real (a working-type change promotes D exactly).
+//! REFUSE blocks.ms, blocks.n, blocks.irrep (the spatial labels, joined).  No entry for a block's working type: representation, not
+//! physics (a real block widens exactly; a complex one narrows only when Im D is zero to round-off, judged on load).
 void AddBlocks(StateFingerprint&, const std::vector<StateBlock>&);
 //! The orbital SHELLS of an atom-centred Gaussian basis (\c AoShellSource), in the order given: REFUSE basis.shellL / Components /
 //! Primitives / exponents / coefficients, WARM basis.shellCenters (they follow the atoms).  THROWS if \a blocks is empty or a

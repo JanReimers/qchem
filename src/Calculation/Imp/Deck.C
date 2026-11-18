@@ -43,6 +43,7 @@ import qchem.Outcome;
 import qchem.BasisSet.Lattice.BasisSet;   // VetStageTrim, GPWParams
 import qchem.BasisSet.Gaussian.Point.ShellTrim;
 import qchem.RunPolicy;
+import qchem.Policy;                        // policy::Report: the two-run split files its row
 import qchem.PeriodicTable;                 // the material's element symbols, for an inlined basis
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94Import;   // SubsetBasis: the elements a deck inlines
 import qchem.Mesh.XCPolicy;                 // ResolveXCMesh (a recipe field under cellKind Auto is refused at resolve)
@@ -1073,9 +1074,8 @@ Materials::Material Resolve(RunSpec& spec)
             if (a.kind==PostAction::Kind::HubbardLinearResponse && a.littleGroupK && LooserThan(spec.Stages().back().scf.MinΔρPerElectron, kResponseReferenceMinΔρ))
                 throw std::runtime_error(who+"littleGroupK measures the reference's symmetry to 1e-6, so the final SCF stage must converge to "
                                          "scf.minDeltaRhoPerElectron <= 1e-9 (it is "+GateJson(spec.Stages().back().scf.MinΔρPerElectron).dump()+")");
-            // (No forceComplex demand since 2026-11-16: a ground state with REAL TRIM blocks hands the response an all-complex view with
-            //  complex siblings of those blocks -- GPWResponseBasis.  solid.forceComplex stays a readable key; a stated true still forces
-            //  the complex ansatz for the whole run.)
+            // (No forceComplex demand: the setup decides the ansatz ONCE from k and q -- PlannedResponseQMeshes, below -- and a real
+            //  ground state hands a response its state through the two-run split, user ruling 2026-11-18.)
             if (isResponse)             // the q points loop INSIDE the response, on the k-mesh's own differences
             {
                 const ivec3_t& q=a.nq;
@@ -1282,9 +1282,51 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
 // postSCF displace: the deck's own setup (re-resolved: an UNSIZED one, so the session's reference pilot sizes it on max|dH_ij|), the
 // reference at the deck's positions, then each point -- all through ONE SolidSession, so every point shares the reference's frozen
 // basis recipe and rasters.  The main run is not reused: it was sized as an Energy.  No saved state (the main run's file is the deck's).
-static std::shared_ptr<const SolidSetup> SetupOf(const RunSpec&, const Materials::Material&, const std::vector<SCFStage>&);
+//! WHICH RUN of a deck a setup is admitted for (the two-run split, user ruling 2026-11-18).  The ansatz is decided ONCE per run, from k
+//! and q: \c Whole and \c Response state the deck's planned linear responses (every block complex, \c SolidSetup::realTRIMBlocks);
+//! \c GroundState states none, so its TRIM blocks run real.
+enum class RunPart {Whole, GroundState, Response};
+static std::shared_ptr<const SolidSetup> SetupOf(const RunSpec&, const Materials::Material&, const std::vector<SCFStage>&,
+                                                 RunPart part=RunPart::Whole);
 // Build's body with the setup's refusal as a value (Run reports it, Build throws it); defined beside Build.
-static Outcome<std::unique_ptr<SolidCalculation>, SetupRefusal> PrepareOf(const RunSpec& specIn, SolidCalculation::Observer onIteration);
+static Outcome<std::unique_ptr<SolidCalculation>, SetupRefusal> PrepareOf(const RunSpec& specIn, SolidCalculation::Observer onIteration,
+                                                                          RunPart part=RunPart::Whole);
+// Run #2 of the split: the deck's RESPONSE setup, the saved ground state at \a statePath adopted on it (SolidCalculation::Adopt).
+static std::unique_ptr<SolidCalculation> AdoptOf(const RunSpec& specIn, const std::string& statePath);
+
+//! The q-meshes of the deck's planned LINEAR responses (a hubbardLinearResponse, a linear-response U loop), once each: what the
+//! setup decides the ansatz from.  (An independentResponse is not one: chi0 runs on real TRIM blocks.)
+static std::vector<ivec3_t> PlannedResponseQMeshes(const RunSpec& spec)
+{
+    std::vector<ivec3_t> out;
+    for (const auto& a : spec.postSCF)
+    {
+        const bool lrLoop = a.kind==PostAction::Kind::HubbardLoop && a.estimator==SolidCalculation::HubbardLoop::Estimator::LinearResponse;
+        if (a.kind!=PostAction::Kind::HubbardLinearResponse && !lrLoop) continue;
+        bool known=false;
+        for (const ivec3_t& q : out) known = known || (q.x==a.nq.x && q.y==a.nq.y && q.z==a.nq.z);
+        if (!known) out.push_back(a.nq);
+    }
+    return out;
+}
+//! \brief Does the deck run as TWO runs (user ruling 2026-11-18)?  Run #1, the SCF and every action before the first linear response,
+//! on a setup with no response planned (real TRIM blocks: the SCF ~1.3x faster and lighter, TiO₂ k222 1619 vs 2139 s); run #2, the
+//! responses, on a complex setup that ADOPTS run #1's converged state (no SCF).  Only when it can work: a linear response is planned,
+//! nothing forces complex anyway, no U loop re-runs a complex SCF (a linear-response loop), and nothing after the first response
+//! needs an SCF'd run (only responses follow it).  Otherwise the deck is one run, complex from the start when a response is planned.
+static bool SplitsAtResponse(const RunSpec& spec)
+{
+    if (spec.solid.forceComplex || PlannedResponseQMeshes(spec).empty()) return false;
+    bool inResponses=false;
+    for (const auto& a : spec.postSCF)
+    {
+        if (a.kind==PostAction::Kind::HubbardLoop && a.estimator==SolidCalculation::HubbardLoop::Estimator::LinearResponse) return false;
+        const bool response = a.kind==PostAction::Kind::HubbardLinearResponse || a.kind==PostAction::Kind::IndependentResponse;
+        if (a.kind==PostAction::Kind::HubbardLinearResponse) inResponses=true;
+        if (inResponses && !response) return false;
+    }
+    return true;
+}
 struct DisplaceResult
 {
     struct Point { std::optional<double> energy; size_t iterations=0; std::string failure; };
@@ -1366,6 +1408,9 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     if (!spec.state.save.empty())
     {
         if (spec.state.save=="auto") { fs::create_directories(outDir/"states"); spec.state.save=(outDir/"states"/(stem+".h5")).string(); }
+        // A STATED path's directory too: a missing one made the save WARN after the whole SCF and the run read CONVERGED with no state
+        // written (OpenWork §3, TiO₂ 2026-11-18: a 26-min run lost).
+        else if (const fs::path dir=fs::path(spec.state.save).parent_path(); !dir.empty()) fs::create_directories(dir);
     }
     if (!restartPath.empty()) spec.state.restartFrom=restartPath;   // Build takes a path: the stem was this outDir's
     const std::vector<SCFStage> stages=ScheduleToRun(spec);
@@ -1373,7 +1418,10 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     qchem::report::Begin(stem);
     qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
     const Close close;
-    auto prepared=PrepareOf(spec, nullptr);   // ONE path with the GUI's (Build): built, then converged here
+    // THE TWO-RUN SPLIT (SplitsAtResponse): run #1 is the ground state on a setup with no response planned (real TRIM blocks); the
+    // responses run on run #2, which adopts run #1's state (below, at the first linear response).
+    const bool split=SplitsAtResponse(spec);
+    auto prepared=PrepareOf(spec, nullptr, split ? RunPart::GroundState : RunPart::Whole);   // ONE path with the GUI's (Build): built, then converged here
     if (!prepared)
     {   // REFUSED by the setup: the outcome says so and the record (claimed above) files it -- no SCF ran, so no postSCF action did either
         out.summary="REFUSED (policy "+prepared.Error().policy+"): "+prepared.Error().reason;
@@ -1382,7 +1430,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         std::ofstream os(out.revision,std::ios::trunc); os<<rec.dump(2)<<"\n";
         return out;
     }
-    const std::unique_ptr<SolidCalculation> calc=prepared.TakeValue();
+    std::unique_ptr<SolidCalculation> calc=prepared.TakeValue();   // not const: the split replaces run #1 by run #2
     (void)calc->Converge(stages);
     if (auto R=calc->Result())
     {
@@ -1398,6 +1446,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     // postSCF: each action on the converged calculation, in order, each reporting itself; the summaries go in the revision's `results`.  A failed
     // action (a response gate, an unconverged FD step) is a RESULT, not an exception: the remaining actions still run.
     json results=json::array();
+    bool handedOver=false;   // the split's run #2 has replaced run #1
     for (const auto& a : spec.postSCF)
     {
         RunOutcome::PostResult pr; pr.action=PostName(a.kind);
@@ -1412,6 +1461,40 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         }
         std::cout<<"["<<stem<<"] postSCF: "<<pr.action<<(out.converged ? "" : "  (the SCF did NOT converge -- a diagnostic only)")<<std::endl;
         using K=PostAction::Kind;
+        // THE HAND-OVER (the two-run split, user ruling 2026-11-18): at the first linear response, run #1's converged state goes to
+        // file, run #1 is DESTROYED (its real tables with it), and run #2 -- the response setup, every block complex -- adopts the state
+        // with one Fock check and no SCF (SolidCalculation::Adopt).  Every action from here on is a response (SplitsAtResponse).
+        if (split && a.kind==K::HubbardLinearResponse && !handedOver && out.converged)
+        {
+            handedOver=true;
+            bool real=false;
+            for (size_t i=0;i<calc->Basis().GetNumIBS();i++) real = real || calc->Basis().GetRealIBS(i)!=nullptr;
+            if (!real)
+            {
+                const std::string decided="ONE run serves the responses: the ground state has no real TRIM block to hand over";
+                policy::Report("ResponseSplit", decided, policy::Verdict::Choose, "every k of this mesh is complex already");
+                std::cout<<"[policy] "<<decided<<std::endl;
+            }
+            else
+            {
+                std::string path=spec.state.save;   // the run saved its final state there after its last Converge
+                if (path.empty())
+                {
+                    fs::create_directories(outDir/"states");
+                    path=(outDir/"states"/(stem+".groundstate.h5")).string();
+                    calc->SaveState(path);
+                }
+                const std::string decided="TWO runs: the real ground state hands its state to a complex response run (no SCF in it)";
+                const std::string reason="the ansatz is decided once per run from k and q: the ground state keeps its real TRIM blocks (faster, "
+                                         "lighter), the response needs complex ones; run #1 is destroyed before run #2 is built, and run #2 "
+                                         "adopts the state, verified by one Fock build ("+path+")";
+                policy::Report("ResponseSplit", decided, policy::Verdict::Choose, reason);
+                std::cout<<"[policy] "<<decided<<" -- "<<reason<<std::endl;
+                calc.reset();                 // run #1's objects die with it
+                qchem::report::Scope run2("responseRun");   // run #2's build and its adoption report one level in, under the hand-over
+                calc=AdoptOf(spec, path);     // run #2
+            }
+        }
         switch (a.kind)
         {
         case K::EstimateHubbardU:
@@ -1601,16 +1684,18 @@ std::vector<SCFStage> ScheduleToRun(const RunSpec& spec)
 // refusal as its outcome and files it in the record; the doors whose signatures carry no refusal (Build, View, MakeBasisShells: the GUI
 // binding calls them) say it as the deck's own refusal, a throw naming the policy -- the deck's convention for every key it refuses.
 static Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> AdmitSetup(const RunSpec& spec, const Materials::Material& mat,
-                                                                           const std::vector<SCFStage>& stages)
+                                                                           const std::vector<SCFStage>& stages, RunPart part=RunPart::Whole)
 {
     Lattice_3D lat(*mat.cell, spec.kmesh);
     SolidCalcOptions so=spec.solid; so.accelerator=stages.front().accelerator; so.recipe=stages.front().recipe;
+    so.responseQMeshes = part==RunPart::GroundState ? std::vector<ivec3_t>{} : PlannedResponseQMeshes(spec);
     return SolidSetup::Admit(lat, RecipeOf(spec.basis), so, spec.accel);
 }
 static std::string Refusal(const SetupRefusal& r) {return "deck: the setup refused the deck (policy "+r.policy+"): "+r.reason;}
-static std::shared_ptr<const SolidSetup> SetupOf(const RunSpec& spec, const Materials::Material& mat, const std::vector<SCFStage>& stages)
+static std::shared_ptr<const SolidSetup> SetupOf(const RunSpec& spec, const Materials::Material& mat, const std::vector<SCFStage>& stages,
+                                                 RunPart part)
 {
-    auto S=AdmitSetup(spec, mat, stages);
+    auto S=AdmitSetup(spec, mat, stages, part);
     if (!S) throw std::runtime_error(Refusal(S.Error()));
     return S.TakeValue();
 }
@@ -1622,7 +1707,8 @@ std::unique_ptr<SolidCalculation> Build(const RunSpec& specIn, SolidCalculation:
     return C.TakeValue();
 }
 
-static Outcome<std::unique_ptr<SolidCalculation>, SetupRefusal> PrepareOf(const RunSpec& specIn, SolidCalculation::Observer onIteration)
+static Outcome<std::unique_ptr<SolidCalculation>, SetupRefusal> PrepareOf(const RunSpec& specIn, SolidCalculation::Observer onIteration,
+                                                                          RunPart part)
 {
     using R=Outcome<std::unique_ptr<SolidCalculation>, SetupRefusal>;
     namespace fs=std::filesystem;
@@ -1643,7 +1729,7 @@ static Outcome<std::unique_ptr<SolidCalculation>, SetupRefusal> PrepareOf(const 
         spec.solid.saveStateTo=spec.state.save;
     }
     const std::vector<SCFStage> stages=ScheduleToRun(spec);
-    auto admitted=AdmitSetup(spec, mat, stages);
+    auto admitted=AdmitSetup(spec, mat, stages, part);
     if (!admitted) return R::Fail(admitted.Error());
     const auto setup=admitted.TakeValue();
     if (r.empty()) return R::Ok(SolidCalculation::Prepare(setup, stages, std::move(onIteration)));
@@ -1651,6 +1737,18 @@ static Outcome<std::unique_ptr<SolidCalculation>, SetupRefusal> PrepareOf(const 
     auto P=SolidCalculation::PrepareRestart(r, setup, stages.front().params, std::move(onIteration));
     if (!P) throw std::runtime_error("deck: state.restartFrom "+r+" refused: "+P.Error().details);
     return R::Ok(P.TakeValue());
+}
+
+static std::unique_ptr<SolidCalculation> AdoptOf(const RunSpec& specIn, const std::string& statePath)
+{
+    RunSpec spec=specIn;
+    const Materials::Material mat=Resolve(spec);
+    spec.solid.orbitalBasis=spec.basis.family; spec.solid.planeWaveEcut=spec.basis.ecut;   // as Build
+    spec.solid.saveStateTo.clear();   // run #2 converges nothing to save (a fallback restart re-saves nothing either)
+    const std::vector<SCFStage> stages=ScheduleToRun(spec);
+    auto A=SolidCalculation::Adopt(statePath, SetupOf(spec, mat, stages, RunPart::Response), stages.back().params);
+    if (!A) throw std::runtime_error("deck: the response run could not adopt the ground state "+statePath+": "+A.Error().details);
+    return A.TakeValue();
 }
 
 Outcome<std::unique_ptr<StateView>, RestartRefusal> View(const RunSpec& specIn, const std::string& statePath)

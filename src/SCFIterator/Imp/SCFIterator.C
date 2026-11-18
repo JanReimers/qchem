@@ -28,6 +28,7 @@ import qchem.SCFAccelerator;
 
 import qchem.WaveFunction;
 import qchem.WaveFunction.Factory;
+import qchem.Orbitals;            // TOrbitals<U>: AdoptConvergedOrbitals installs a saved state's orbitals
 
 import qchem.Hamiltonian;
 import qchem.Hamiltonian.Factory;  // build a DFT sibling for the HF/DHF SAD bootstrap (molecular, double-only)
@@ -178,6 +179,17 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
     itsIterationCount=0;
     itsConverged=false;
     itsLineage=std::make_shared<qchem::ChargeDensity::Lineage>();   // one lineage per SCF run (see SetWorkingCD)
+    // AN ADOPTED STATE (SeedRole::Adopted): the converged D is the working density as it stands, and nothing is built from it -- its
+    // orbitals arrive through AdoptConvergedOrbitals, and the caller's one Fock build is the check.
+    if (role==SeedRole::Adopted)
+    {
+        auto* dm=dynamic_cast<tDM_CD<T>*>(seed);   // abstract -> abstract
+        if (!dm) throw std::logic_error("SCFIterator: an Adopted seed must be matrix-backed (a converged state of this graph)");
+        seedOwner.release();
+        SetWorkingCD(cd_t(dm));
+        itsAdopting=true;
+        return;
+    }
 
     // HF/DHF can't build a Fock from a matrix-FREE seed: their exact-exchange K needs the density MATRIX
     // (Vxc::MakeMatrix asserts the density is a rDM_CD).  So if the seed has no matrix (a SAD fit) and this
@@ -411,6 +423,9 @@ template <class T> SCFParams tSCFIterator<T>::ResolveMixing(const SCFParams& p) 
 
 template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
 {
+    if (itsAdopting)
+        throw std::logic_error("SCFIterator::Iterate: an iterator built to ADOPT a converged state (SeedRole::Adopted) never iterates -- "
+                               "a state that fails its check is restarted on a fresh iterator");
     itsIterationCount=0;   // a hand-off decided before the first iteration (the exact resume below) reads iteration 0
     const SCFParams ipar=[&]
     {
@@ -1489,6 +1504,76 @@ template <class T> std::string tSCFIterator<T>::FirstEnergyRefusal(const EnergyB
           "electrons-at-infinity limit 0 that any ground state of a finite system lies below";
     return os.str();
 }
+// THE INSTALL STEP OF PROMOTE-AND-VERIFY (see the declaration).  Each block's orbitals take the saved coefficients, energies and
+// occupations directly: UpdateOrbitals is the same call a diagonalisation ends in, and the occupations are set one by one (the saved
+// f IS the converged fill, so no policy re-decides it).
+template <class T> double tSCFIterator<T>::AdoptConvergedOrbitals(const std::vector<AdoptedBlock>& blocks, const SCFParams& params)
+{
+    if (!itsAdopting) throw std::logic_error("SCFIterator::AdoptConvergedOrbitals: this iterator was not built to adopt a state (SeedRole::Adopted)");
+    if (params.UseMOM) throw std::invalid_argument("SCFIterator::AdoptConvergedOrbitals: a MOM run's fill depends on a reference the saved state does not carry");
+    const auto qns=itsWaveFunction->GetQNs();
+    if (blocks.size()!=qns.size())
+        throw std::invalid_argument("SCFIterator::AdoptConvergedOrbitals: "+std::to_string(blocks.size())+" blocks for a wave function of "
+                                    +std::to_string(qns.size()));
+    auto install=[](auto& os, const auto& C, const auto& Cp, const rvec_t& e, const rvec_t& f)
+    {
+        const size_t m=e.size();
+        if (C.columns()!=m || Cp.rows()!=m || Cp.columns()!=m || f.size()!=m)
+            throw std::invalid_argument("SCFIterator::AdoptConvergedOrbitals: a block's C, C', e and f do not agree on its orbital count");
+        os.UpdateOrbitals(C, Cp, e);
+        if (os.GetNumOrbitals()!=m) throw std::logic_error("SCFIterator::AdoptConvergedOrbitals: the block did not take the orbitals it was given");
+    };
+    for (const Irrep& ir : qns)
+    {
+        const AdoptedBlock* b=nullptr;
+        for (const auto& x : blocks)
+            if (x.irrep.SequenceIndex()==ir.SequenceIndex())
+            {
+                if (b) throw std::invalid_argument("SCFIterator::AdoptConvergedOrbitals: a block named twice");
+                b=&x;
+            }
+        if (!b) throw std::invalid_argument("SCFIterator::AdoptConvergedOrbitals: a block of the wave function has no adopted orbitals");
+        Orbitals::Orbitals* os=itsWaveFunction->GetOrbitals(ir);
+        if (auto* t=dynamic_cast<Orbitals::TOrbitals<T>*>(os))   // abstract -> abstract
+            install(*t, b->C, b->Cprime, b->e, b->f);
+        else if constexpr (std::is_same_v<T,dcmplx>)
+        {
+            auto* r=dynamic_cast<Orbitals::TOrbitals<double>*>(os);   // a real TRIM block of a complex run
+            if (!r) throw std::logic_error("SCFIterator::AdoptConvergedOrbitals: an orbital block that is neither real nor complex");
+            auto real=[](const mat_t<dcmplx>& M)
+            {
+                mat_t<double> R(M.rows(), M.columns());
+                for (size_t i=0;i<M.rows();i++) for (size_t j=0;j<M.columns();j++)
+                {
+                    if (M(i,j).imag()!=0.0)
+                        throw std::invalid_argument("SCFIterator::AdoptConvergedOrbitals: a REAL block handed a complex state (Im C != 0)");
+                    R(i,j)=M(i,j).real();
+                }
+                return R;
+            };
+            install(*r, real(b->C), real(b->Cprime), b->e, b->f);
+        }
+        else throw std::logic_error("SCFIterator::AdoptConvergedOrbitals: an orbital block of a different scalar");
+    }
+    // THE FILL, under the run's own rule (as Iterate assembles it), at the saved energies: the SCF's last fill again.
+    itsOccPolicy = qchem::MakeOccupationPolicy<T>(
+        {.useMOM=false, .momStartIter=(int)params.MOMStartIter, .kT=params.SmearingkT, .momPenalty=params.MOMSmearPenalty,
+         .degenerate=params.DegenerateLevels==SCFParams::DegenerateLevelFill::Shared ? qchem::OccupationConfig::DegenerateLevels::Shared
+                                                                                    : qchem::OccupationConfig::DegenerateLevels::OrbitalByOrbital,
+         .levelTol=params.MergeTol}, itsOccState);
+    itsWaveFunction->FillOrbitals(*itsOccPolicy, params.MergeTol);
+    double worst=0.0;
+    for (const Irrep& ir : qns)
+    {
+        const AdoptedBlock* b=nullptr;
+        for (const auto& x : blocks) if (x.irrep.SequenceIndex()==ir.SequenceIndex()) b=&x;
+        size_t i=0;
+        for (const auto* o : static_cast<const scfwf_t&>(*itsWaveFunction).GetOrbitals(ir)->Iterate()) worst=std::max(worst, std::fabs(o->GetOccupation()-b->f[i++]));
+    }
+    SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity().release()));   // the adopted orbitals' own D: what GetEnergy and the response read
+    return worst;
+}
+
 template class tSCFIterator<double>;
 template class tSCFIterator<dcmplx>;
 

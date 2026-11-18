@@ -203,11 +203,6 @@ public:
     }
     size_t Filled() const {return itsSlots.Filled();}
     template <class F> size_t Bytes(F&& bytesOf) const {return itsSlots.Bytes(std::forward<F>(bytesOf));}
-    //! \brief Free EVERY filled slot, live partners' included, and return how many went: an owner's explicit RELEASE PHASE (doc/Pins.md
-    //! pin 11), for slots that are a pure function of fixed inputs and so are rebuilt, the same, by the next \c GetOrFill.  Unlike
-    //! \c EvictDead this frees what a live partner may still ask for, so the CALLER promises that nobody holds a reference into one
-    //! of them or is building one (it runs between phases, single-threaded).
-    size_t Clear() const {return itsSlots.EraseIf([](uint64_t){return true;});}
 
     InstanceSlotMap() = default;
     InstanceSlotMap(const InstanceSlotMap& o) : itsSlots(o.itsSlots)

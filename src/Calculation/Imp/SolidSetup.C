@@ -361,6 +361,20 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // veto has to live here rather than in each recipe.  ONE name from here on; nothing below reads
     // opts.imposeSymmetry again, or the two would drift.
     s->imposed = opts.imposeSymmetry && theRunPolicy().SymmetryImposition();
+    // THE ANSATZ (OpenWork "LR on REAL TRIM blocks", option 1, user ruling 2026-11-18: "decide once based on k and q").  Every term of
+    // the GPW stack preserves realness, so a TRIM block runs real unless the caller forces complex or the run plans a response.
+    s->realTRIMBlocks = !opts.forceComplex && opts.responseQMeshes.empty();
+    if (!opts.forceComplex && !opts.responseQMeshes.empty())
+    {
+        std::string qs;
+        for (const ivec3_t& q : opts.responseQMeshes)
+            qs+=" ["+std::to_string(q.x)+","+std::to_string(q.y)+","+std::to_string(q.z)+"]";
+        const std::string decided="every Bloch block COMPLEX, TRIM ones included (a linear response is planned on q-mesh"+qs+")";
+        const std::string reason="the ansatz is decided once from k and q: a response's dD at q != 0 couples k to k+q through a complex "
+                                 "phase, and the response face is complex-only at q = 0 too (route B, per-object typing, is a hub change)";
+        policy::Report("Ansatz", decided, policy::Verdict::Choose, reason);
+        std::cout << "[policy] " << decided << " -- " << reason << std::endl;
+    }
     // THE MAGNETIC DECORATION (S3).  An imposition is only SHUBNIKOV if the factory is told which sites
     // carry which spin; without it an "imposed AFM" run star-averages under the SPATIAL group and the
     // order is erased.  ALWAYS STATED (siteSpins) on an imposed polarized run -- RequireStatedMagneticOrdering above

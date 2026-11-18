@@ -178,36 +178,12 @@ template <class T> template <class U> const mat_t<U>& DeltaFit_IBS<T>::Table(con
                 if (P.rows()!=itsQuad.GetMesh()->size() || P.columns()!=orb.GetNumFunctions())
                     throw std::logic_error("DeltaFit_IBS: the factory's point values for a block are not (points x functions)");
             }
-        if constexpr (std::is_same_v<T,dcmplx> && std::is_same_v<U,double>)   // a real TRIM block's table, asked for inside a release phase
-            if (itsRealRelease.open.load())
-            {
-                itsRealRelease.rebuilt.fetch_add(1);
-                std::cout << "[response memory] ⚠ a released real-block XC table was asked for inside the release phase: rebuilt ("
-                          << orb.GetNumFunctions() << " functions)" << std::endl;
-            }
         if (P.rows()==0) P=MakePhiAt<U>(&orb, itsQuad.GetMesh()->Points(), "setup: XC-mesh Phi tables");
         ReportPhiSparsity(P, *itsQuad.GetMesh());           // mesh-aware (it reports SITE batching), hence outside the builder
         report::Accumulate("cache", "deltaPhiBytes",   double(P.rows())*double(P.columns())*sizeof(U));   // S6: the table reports itself as it fills
         report::Accumulate("cache", "deltaPhiEntries", 1.0);
         return P;
     });
-}
-
-// THE REAL-TABLE RELEASE PHASE (RealTableRelease, route A's response): the TABLES only.  The per-block records (itsO3R) stay: their
-// closures re-resolve the table per call (Tensor), so they, and every consumer's copy of them, survive the release and rebuild a
-// table on demand.  Called between phases, when no contraction is running (InstanceSlotMap::Clear's contract).
-template <class T> size_t DeltaFit_IBS<T>::BeginRealReleaseImp() const
-{
-    if (itsRealRelease.open.exchange(true)) throw std::logic_error("DeltaFit_IBS: a real-table release phase opened inside another");
-    itsRealRelease.rebuilt=0;
-    const size_t bytes=itsPhiR.Bytes([](const mat_t<double>& P){return P.rows()*P.columns()*sizeof(double);});
-    itsPhiR.Clear();
-    return bytes;
-}
-template <class T> size_t DeltaFit_IBS<T>::EndRealReleaseImp() const
-{
-    if (!itsRealRelease.open.exchange(false)) throw std::logic_error("DeltaFit_IBS: a real-table release phase closed that was not open");
-    return itsRealRelease.rebuilt.load();
 }
 
 // THE 3-CENTRE OVERLAP <chi_i|delta_g|chi_j> = w_g conj(chi_i(r_g)) chi_j(r_g), as the house CONTRACTIBLE
@@ -220,16 +196,13 @@ template <class T> template <class U> const PairProjection<U>& DeltaFit_IBS<T>::
 {
     return cache.GetOrFill(orb.Instance(), [this,&phis,&orb]
     {
-        // The table is built with the record (the setup bucket stays where it was), but the closures RE-RESOLVE it per contraction,
-        // never bind a reference to it (lane H 2026-11-17).  Consumers copy this record and cache views over it (a fitter's per-block
-        // integrators), so a reference bound here outlived the table when route A's response RELEASED the real tables
-        // (RealTableRelease): a std::bad_alloc on Si Γ, from a closure reading freed memory.  The lookup is a lock and a map find,
-        // beside an O(npts n^2) GEMM; a released table is rebuilt by it (and counted, inside the phase).
-        Table(phis, orb);
+        // Bind the table ONCE here: a filled slot is address-stable, and the table and this record share the block's key, so they are
+        // evicted together; the closures may capture it by reference and no contraction re-does the lookup.
+        const mat_t<U>& P=Table(phis, orb);
         PairProjection<U> g;
-        g.applyRawAdjoint  =[this,&phis,&orb](const rvec_t& c)   {return AdjointT<U>(Table(phis, orb), c);};
-        g.applyRaw         =[this,&phis,&orb](const hmat_t<U>& D){return ForwardT<U>(Table(phis, orb), D);};
-        g.applyRawFactored =[this,&phis,&orb](const mat_t<U>& L) {return ForwardFactoredT<U>(Table(phis, orb), L);};
+        g.applyRawAdjoint  =[this,&P](const rvec_t& c)   {return AdjointT<U>(P, c);};
+        g.applyRaw         =[this,&P](const hmat_t<U>& D){return ForwardT<U>(P, D);};
+        g.applyRawFactored =[this,&P](const mat_t<U>& L) {return ForwardFactoredT<U>(P, L);};
         return g;
     });
 }

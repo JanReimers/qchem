@@ -498,3 +498,22 @@ TEST(SolidSetup, ThePeriodicA1FitOverPlaneWaveOrbitalsIsAdmitted)
     using Hamiltonian::VxcFit; using Hamiltonian::XCρ;
     EXPECT_EQ(XCRhoRows(XCRhoCell::PlaneWaveRaster, XCρ::Exact, "Si A1 over PW", VxcFit::Auxiliary, "XCRhoFittedPotential").size(), 1u);
 }
+
+// THE ANSATZ IS DECIDED ONCE, from k AND q (OpenWork "LR on REAL TRIM blocks", option 1, user ruling 2026-11-18): TRIM blocks run real
+// unless forceComplex is stated or a linear response is planned; a planned response files the `Ansatz` policy row saying why.
+TEST(SolidSetup, APlannedResponseBuildsEveryBlockComplexAndSaysWhy)
+{
+    UnitCell cell=TwoNa(20.0);
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_VA, &cell));
+    auto resolve=[&](SolidCalcOptions o, const std::string& tag) {report::Run run(tag); return SolidSetup::Resolve(lat, mol, o)->realTRIMBlocks;};
+    EXPECT_TRUE(resolve(kNa2, "ansatz free")) << "no response, nothing forced: a TRIM block runs real";
+    EXPECT_TRUE(PolicyRows("ansatz free", "Ansatz").empty()) << "nothing decided against the default: nothing to report";
+    SolidCalcOptions forced=kNa2; forced.forceComplex=true;
+    EXPECT_FALSE(resolve(forced, "ansatz forced"));
+    SolidCalcOptions lr=kNa2; lr.responseQMeshes={ivec3_t(1,1,1)};
+    EXPECT_FALSE(resolve(lr, "ansatz lr")) << "q = 0 alone too: the response face is complex-only";
+    const auto rows=PolicyRows("ansatz lr", "Ansatz");
+    ASSERT_FALSE(rows.empty()) << "a planned response files its policy row";
+    for (const auto& r : rows) EXPECT_NE(r.value("decided","").find("[1,1,1]"), std::string::npos) << "it names the q-mesh: " << r.dump();
+}

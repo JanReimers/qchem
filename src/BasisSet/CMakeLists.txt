@@ -10,7 +10,6 @@ target_sources(qcBasisSet PRIVATE
   Imp/Orbital_DHF_IBS.C
   Internal/Imp/Fit_IBS.C
   Imp/DeltaFit_IBS.C
-  Imp/RealTableRelease.C
   Internal/Imp/SymmetryAdapted_IBS.C
   Internal/Imp/Orbital_DHF_IBS.C
   Internal/Imp/Orbital_ERI4_IBS.C
@@ -47,7 +46,6 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Fit_Types.C
   Fit_IBS.C
   Internal/Fit_IBS.C
-  RealTableRelease.C                    # 'free my real blocks' tables for a phase' (route A's response, lane H 2026-11-17)
   DeltaFit_IBS.C
   MultipoleFit_IBS.C
   CoulombDeltaFit_IBS.C
