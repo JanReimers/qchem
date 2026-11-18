@@ -167,6 +167,7 @@ private:
     ElectronConfiguration* MakeConfiguration() const;
     //! \return the SCF iterations its re-convergences on raised grids spent (0 when nothing was raised).
     size_t PilotGrids(const SCFParams& params);
+    SCFParams PilotWarmStart(const SCFParams& params) const;   //!< the pilot re-convergence's SCF parameters (policy AtomPilotWarmStart)
     //! A Hamiltonian on \a g, its Coulomb fit from \a slot (filled here with \a g's rung when it is above 0).
     qchem::Hamiltonian::rHamiltonian* MakeHamiltonianOn(const Grids& g, const Hamiltonian::CoulombFitSlot<double>& slot) const;
     //! R2.22: the iterator no longer deletes what it is handed, so this facade owns the Hamiltonian and

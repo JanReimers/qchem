@@ -23,6 +23,7 @@ import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
 import qchem.PeriodicTable;          // thePeriodicTable(): Slater alpha + NIST DFT oracle; RelativeError, RelativeDFTError
 import qchem.ChargeDensity.Seed;     // SeedStrategy
+import qchem.Reporting;              // report::Run, CurrentRunReport (the pilot warm start's policy row)
 using namespace qchem;
 
 namespace {
@@ -189,6 +190,34 @@ INSTANTIATE_TEST_SUITE_P(Heavy, A_DFT_heavy, ::testing::Values(
     HeavyCase{"SL_U",  AtomType::Slater,   92, SpinGroup::Polarized,   -25658.474515, 3.0e-3},
     HeavyCase{"SG_U",  AtomType::Gaussian, 92, SpinGroup::Polarized,   -25658.474515, 5.0e-3}),
     [](const testing::TestParamInfo<HeavyCase>& i){ return std::string(i.param.name); });
+
+// THE PILOT'S WARM START (policy AtomPilotWarmStart, lane B 2026-11-17): the pilot raises SG_Xe's grids and re-converges from the carried
+// D, which is already at the answer in energy.  Its first iterate must sit within 1e-8 Ha of the re-converged energy (measured 2.3e-9), and
+// the re-convergence must take at most 6 iterations (measured 5; 21 when it restarted the linear step at the cold-start relax 0.1).  Each
+// SCF the observer sees starts again at iteration 1, so the rows split into the entry SCF and one segment per re-convergence.
+TEST(A_DFT_pilot, SG_Xe_TheReconvergenceStartsAtTheAnswer)
+{
+    AtomCalcOptions o{.type=AtomType::Gaussian, .basisPool=BasisSetAccuracy::High, .model=Model::LDA, .spin=SpinGroup::UnPolarized};
+    o.coulomb.fit=Hamiltonian::CoulombFit::Auxiliary;
+    std::vector<std::vector<double>> scfs;   // the total energy of every iterate, one vector per SCF
+    qchem::report::Run run("SG_Xe pilot warm start");
+    auto calc=AtomCalculation::Prepare(54, 0, o, {}, [&scfs](const SCFIterator::IterationRow& r)
+    {
+        if (scfs.empty() || r.iteration<=1) scfs.emplace_back();
+        scfs.back().push_back(r.eb.GetTotalEnergy());
+    });
+    ASSERT_TRUE(calc->Converge(dft_scf_params(54)));
+    EXPECT_NE(qchem::report::CurrentRunReport().dump().find("\"AtomPilotWarmStart\""), std::string::npos)
+        << "the warm start is a policy, and every policy reports itself";
+    ASSERT_GE(scfs.size(), 2u) << "the pilot must raise a grid and re-converge, or this does not test its warm start";
+    for (size_t s=1; s<scfs.size(); s++)
+    {
+        const auto& E=scfs[s];
+        printf("SG_Xe pilot re-convergence %zu: %zu iterations, E1 - E_final = %+.2e Ha\n", s, E.size(), E.front()-E.back());
+        EXPECT_NEAR(E.front(), E.back(), 1e-8) << "re-convergence " << s << ": the carried D is not at the answer";
+        EXPECT_LE(E.size(), 6u) << "re-convergence " << s << ": the warm start did not take";
+    }
+}
 
 //---------------------------------------------------------------------------------------------------------------
 //  A FIRST CATION IN ITS STATED CONFIGURATION (OpenWork row "All-electron ION seeds", 2026-11-15).  A d-block cation is NOT its
