@@ -113,4 +113,22 @@ void Structure::SetNetCharges(const std::function<double(int)>& netChargeOf)
     for (size_t a=0; a<GetNumAtoms(); a++) GetSite(a).netCharge=netChargeOf(GetSite(a).Z);
 }
 
+// Moved from the interface (D-BUILD-BLAST, lane B 2026-11-18): an edit here recompiles this TU, not the ~450 importers of qchem.Structure.
+SiteRange::iterator& SiteRange::iterator::operator++()                  {++itsI; return *this;}
+SiteRange::iterator  SiteRange::iterator::operator++(int)               {iterator t=*this; ++itsI; return t;}
+bool                 SiteRange::iterator::operator!=(const iterator& b) const {return itsI!=b.itsI;}
+bool                 SiteRange::iterator::operator==(const iterator& b) const {return itsI==b.itsI;}
+SiteRange::iterator::iterator(const Structure* s, size_t i) : itsS(s), itsI(i) {}
+SiteRange::iterator SiteRange::begin() const {return iterator(itsS,0);}
+SiteRange::iterator SiteRange::end  () const {return iterator(itsS,size());}
+SiteRange::SiteRange(const Structure& s) : itsS(&s) {}
+Structure::~Structure() {}
+double Structure::G0Background(const std::function<double(int Z)>&) const {return 0.0;}
+bool Structure::Admits(qcMesh::ImposedSymmetry H) const {return H<=qcMesh::ImposedSymmetry::None;}
+SiteRange Structure::Sites() const {return SiteRange(*this);}
+const Site& SiteRange::At(const Structure* s, size_t i) {return s->GetSite(i);}
+const Site& SiteRange::iterator::operator*() const      {return At(itsS,itsI);}
+size_t      SiteRange::size() const                     {return itsS->GetNumAtoms();}
+const Site& SiteRange::operator[](size_t i) const       {return At(itsS,i);}
+
 } // namespace qchem

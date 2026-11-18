@@ -141,4 +141,11 @@ std::ostream& Molecule::Write(std::ostream& os) const
 }
 
 
+// Moved from the interface (D-BUILD-BLAST, lane B 2026-11-18): an edit here recompiles this TU, not the ~450 importers of qchem.Structure.
+Molecule::Molecule() {}
+std::shared_ptr<Structure> Molecule::Clone() const {return std::make_shared<Molecule>(*this);}
+size_t Molecule::GetNumAtoms() const {return itsSites.size();}
+const Site& Molecule::GetSite(size_t i) const {return itsSites[i];}
+      Site& Molecule::GetSite(size_t i)       {return itsSites[i];}
+
 } // namespace qchem

@@ -41,23 +41,23 @@ public:
         using difference_type = std::ptrdiff_t;
         iterator() = default;
         const Site& operator* () const;
-        iterator&   operator++()                        {++itsI; return *this;}
-        iterator    operator++(int)                     {iterator t=*this; ++itsI; return t;}
-        bool        operator!=(const iterator& b) const {return itsI!=b.itsI;}
-        bool        operator==(const iterator& b) const {return itsI==b.itsI;}
+        iterator&   operator++();
+        iterator    operator++(int);
+        bool        operator!=(const iterator& b) const;
+        bool        operator==(const iterator& b) const;
     private:
         friend class SiteRange;
-        iterator(const Structure* s, size_t i) : itsS(s), itsI(i) {}
+        iterator(const Structure* s, size_t i);
         const Structure* itsS=nullptr;
         size_t           itsI=0;
     };
-    iterator    begin() const {return iterator(itsS,0);}
-    iterator    end  () const {return iterator(itsS,size());}
+    iterator    begin() const;
+    iterator    end  () const;
     size_t      size () const;
     const Site& operator[](size_t i) const;           //!< the i-th site, atom-index order
 private:
     friend class Structure;
-    explicit SiteRange(const Structure& s) : itsS(&s) {}
+    explicit SiteRange(const Structure& s);
     static const Site& At(const Structure* s, size_t i);   //!< the friend door to Structure::GetSite
     const Structure* itsS;
 };
@@ -72,7 +72,7 @@ export class Structure
     : public virtual Streamable
 {
 public:
-    virtual ~Structure() {};
+    virtual ~Structure();
 
     //! \brief Polymorphic deep copy that PRESERVES the concrete geometry (Atom / Molecule / UnitCell).  The
     //! production facade (qchem::MoleculeCalculation) clones the caller's structure through this, so a periodic
@@ -106,7 +106,7 @@ public:
     //! separately), exactly 0 for a finite one (no background, no dropped G = 0).  Asked by the PP G = 0 alignment
     //! (\c PWTerms_PP) and the GPW V_short cell mean (\c GPW_Evaluator); replaces the old \c isFinite() switch +
     //! \c SumFormFactors pair (V-STRUCTURE-ISP F3).
-    virtual double G0Background     (const std::function<double(int Z)>& f) const {return 0.0;}
+    virtual double G0Background     (const std::function<double(int Z)>& f) const;
 
     //! \brief Does this structure's symmetry group G ADMIT a representation that imposes \a H, i.e. \f$H\subseteq G\f$ (doc/Pins.md pin 30)?
     //! CLIENT: the Vxc admission rule (\c Hamiltonian::AdmitVxc) asks it of every fit and point set before anything is built, and a reader
@@ -117,10 +117,10 @@ public:
     //! whole m count).  A Molecule of one site is not an Atom: the molecular path imposes a point group, never O(3).
     //! Replaces \c HasTranslationSymmetry + \c HasFullRotationSymmetry (pin 30 admission stage 2, user ruling 2026-11-15 Q2), which made
     //! every client assemble the group itself.
-    virtual bool   Admits(qcMesh::ImposedSymmetry H) const {return H<=qcMesh::ImposedSymmetry::None;}
+    virtual bool   Admits(qcMesh::ImposedSymmetry H) const;
 
     //! \brief The sites, read-only, in atom-index order (user ruling Q2: a by-value Site range).
-    SiteRange Sites() const {return SiteRange(*this);}
+    SiteRange Sites() const;
 
     //! \brief Visit every atomic site as \c (Z,R,spinFlip) -- the callback form of \c Sites(), kept for its
     //! existing callers (V1.19; user ruling Q2).  Sites are visited in atom-index order.
@@ -164,10 +164,10 @@ public:
     explicit Atom(const Site& s);
     //  Copy/move/assign are all defaulted: an Atom is a plain value type.
 
-    virtual std::shared_ptr<Structure> Clone() const override {return std::make_shared<Atom>(*this);}
-    virtual size_t GetNumAtoms      () const override {return 1;}
+    virtual std::shared_ptr<Structure> Clone() const override;
+    virtual size_t GetNumAtoms      () const override;
     //! The atom path imposes O(3): its open shell is spherically averaged, so its density is spherical (see the base's declaration).
-    virtual bool   Admits(qcMesh::ImposedSymmetry H) const override {return H<=qcMesh::ImposedSymmetry::FullRotation;}
+    virtual bool   Admits(qcMesh::ImposedSymmetry H) const override;
 
     //! A single atom's integration mesh: the atom-centred radial x angular grid (no Becke partitioning).
     virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
@@ -176,8 +176,8 @@ public:
     virtual std::ostream& Write  (std::ostream&) const override;
 
 protected:
-    virtual const Site& GetSite(size_t) const override {return itsSite;}
-    virtual       Site& GetSite(size_t)       override {return itsSite;}
+    virtual const Site& GetSite(size_t) const override;
+    virtual       Site& GetSite(size_t)       override;
 private:
     Site itsSite;
 };
@@ -187,12 +187,12 @@ export class Molecule
     : public virtual Structure
 {
 public:
-    Molecule() {};
+    Molecule();
     Molecule(const Structure& m);                     //!< copies \a m's sites (any site set)
-    virtual std::shared_ptr<Structure> Clone() const override {return std::make_shared<Molecule>(*this);}
+    virtual std::shared_ptr<Structure> Clone() const override;
     //! \brief Add a site (was Insert(Atom*) taking ownership of a raw new).
     virtual void   Insert     (const Site& s);
-    virtual size_t GetNumAtoms() const override {return itsSites.size();}
+    virtual size_t GetNumAtoms() const override;
 
     //! A molecule's integration mesh: the multi-centre Becke-partitioned grid.
     virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
@@ -200,17 +200,12 @@ public:
     virtual std::ostream& Write(std::ostream&) const override;
 
 protected:
-    virtual const Site& GetSite(size_t i) const override {return itsSites[i];}
-    virtual       Site& GetSite(size_t i)       override {return itsSites[i];}
+    virtual const Site& GetSite(size_t i) const override;
+    virtual       Site& GetSite(size_t i)       override;
 
 private:
     std::vector<Site> itsSites;
 };
-
-inline const Site& SiteRange::At(const Structure* s, size_t i) {return s->GetSite(i);}
-inline const Site& SiteRange::iterator::operator*() const      {return At(itsS,itsI);}
-inline size_t      SiteRange::size() const                     {return itsS->GetNumAtoms();}
-inline const Site& SiteRange::operator[](size_t i) const       {return At(itsS,i);}
 
 // One site's ID / console line -- the old Atom::ID / Atom::Write, shared by Atom and the multi-site Write/ID.
 // Module-INTERNAL (not exported).
