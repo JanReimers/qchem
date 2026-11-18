@@ -534,12 +534,12 @@ TEST(AtomConfiguration, AnUnstatedCationTakesNISTsFirstCationOrTheRemovalRuleAnd
 TEST(AtomPilot, TheIterationCountIsTheRunsTotalAndThePilotsShareIsFiled)
 {
     size_t seen=0;
-    AtomCalcOptions o{.type=AtomType::Gaussian, .pseudopotential=true};   // PseudoAtomOrbital's own recipe (src/Calculation/Imp/PseudoAtomOrbital.C)
-    o.valence=7;
+    RunOptions o{.atom={.type=AtomType::Gaussian, .pseudopotential=true}};   // PseudoAtomOrbital's own recipe (src/Calculation/Imp/PseudoAtomOrbital.C)
+    o.atom.valence=7;
     o.vxcFit=Hamiltonian::VxcFit::Auxiliary;
     std::vector<double> pool;   // its 16-exponent pool, 0.05 .. 200
     for (int i=0;i<16;i++) pool.push_back(0.05*std::pow(200.0/0.05, i/15.0));
-    for (int l=0;l<=2;l++) o.exponentsByL.push_back({l, pool});
+    for (int l=0;l<=2;l++) o.atom.exponentsByL.push_back({l, pool});
     SCFParams p; p.MinVirial=std::nullopt; p.NMaxIter=120;
     std::unique_ptr<AtomCalculation> calc;
     {
