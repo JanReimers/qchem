@@ -4,7 +4,7 @@
 // textually including STL alongside `import qchem.*` does not trigger std-header ODR errors.  The public
 // surface is the flat extern "C" API in qcb_api.h (C linkage -> links from nanobind).
 //
-// The bridge holds NO recipe of its own.  A molecule: it fills CalcOptions / AcceleratorOptions / SCFParams, calls
+// The bridge holds NO recipe of its own.  A molecule: it fills RunOptions / AcceleratorOptions / SCFParams, calls
 // MoleculeSetup::Admit, and owns one qchem::MoleculeCalculation.  A crystal: it parses the caller's INPUT DECK and calls
 // deck::Build, owning the SolidCalculation that returns.  Everything it answers comes from the facade.
 module;
@@ -37,7 +37,7 @@ import qchem.BasisSet.Gaussian.Point.Factory;    // BasisSet::Gaussian::Angular 
 import qchem.Calculation;    // Calculation::MakeLevels (the structure-neutral levels, either door)
 import qchem.StateView;      // StateView: a saved state, drawn (qcb_view)
 import qchem.ScalarFunction; // the one field face every sampler reads
-import qchem.MoleculeCalculation;    // MoleculeCalculation, MoleculeSetup, CalcOptions, AcceleratorOptions
+import qchem.MoleculeCalculation;    // MoleculeCalculation, MoleculeSetup, RunOptions, AcceleratorOptions
 import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
 import qchem.Deck;           // deck::RunSpec, FromJson, Build, ScheduleToRun
 import qchem.Symmetry.Molecule.PointGroup;      // DetectPointGroup
@@ -248,7 +248,7 @@ void sample_box(const qchem::ScalarFunction<double>* f, const int* n3, const dou
 struct MoleculeRequest
 {
     qchem::Molecule           mol;
-    qchem::CalcOptions        opts;
+    qchem::RunOptions         opts;
     qchem::AcceleratorOptions acc;
 };
 
@@ -257,17 +257,17 @@ MoleculeRequest molecule_request(const qcb_request* req)
     MoleculeRequest r;
     for (int a = 0; a < req->nat; ++a)
         r.mol.Insert(qchem::Site{req->Z[a], rvec3_t(req->pos3[3*a], req->pos3[3*a+1], req->pos3[3*a+2])});
-    r.opts.basis        = req->basis;
+    r.opts.molecule.basis     = req->basis;
     r.opts.model        = parse_model(req->model);
     r.opts.pp           = req->pp ? req->pp : "";
-    r.opts.basisFile    = req->basisFile ? req->basisFile : "";
+    r.opts.molecule.basisFile = req->basisFile ? req->basisFile : "";
     r.opts.seed         = parse_seed(req->seed);
-    r.opts.angular      = parse_angular(req->angular);
-    r.opts.symmetry     = req->symmetry != 0;
+    r.opts.molecule.angular   = parse_angular(req->angular);
+    r.opts.imposeSymmetry  = req->symmetry != 0;
     r.opts.spin         = req->polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized;
     r.opts.multiplicity = req->multiplicity;
-    if (req->meshRadial  > 0) r.opts.mesh.nRadial       = req->meshRadial;
-    if (req->meshAngular > 0) r.opts.mesh.angularDegree = req->meshAngular;
+    if (req->meshRadial  > 0) qchem::MoleculeXCMesh(r.opts).nRadial       = req->meshRadial;
+    if (req->meshAngular > 0) qchem::MoleculeXCMesh(r.opts).angularDegree = req->meshAngular;
     r.acc.type = req->accelerator && *req->accelerator ? req->accelerator : "DIIS";
     if (req->diisDepth    > 0)   r.acc.diis.nProj         = req->diisDepth;
     if (req->diisSVTol    > 0.0) r.acc.diis.svTol         = req->diisSVTol;
