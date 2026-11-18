@@ -227,14 +227,14 @@ TEST(SCFRecipe, TheDeckKeyReadsWritesAndRefuses)
     using deck::json;
     deck::RunSpec r;
     deck::FromJson(json{{"structure","Si_diamond"}, {"scf",{{"recipe","MagneticInsulator"},{"smearingkT",0.005}}}}, r);
-    EXPECT_EQ(r.scfRecipe, SCFRecipe::MagneticInsulator);
+    EXPECT_EQ(r.opts.recipe, SCFRecipe::MagneticInsulator);
     EXPECT_EQ(r.Stages().front().recipe, SCFRecipe::MagneticInsulator);
     const json j=deck::ToJson(r);
     EXPECT_EQ(j.at("scf").at("recipe"), "MagneticInsulator") << "the record restates the recipe";
-    deck::RunSpec back; deck::FromJson(j, back); EXPECT_EQ(back.scfRecipe, SCFRecipe::MagneticInsulator);
+    deck::RunSpec back; deck::FromJson(j, back); EXPECT_EQ(back.opts.recipe, SCFRecipe::MagneticInsulator);
 
     deck::RunSpec old; deck::FromJson(json{{"structure","Si_diamond"}, {"scf",{{"pulayDepth",8}}}}, old);
-    EXPECT_EQ(old.scfRecipe, SCFRecipe::Auto) << "a deck without the key reads as before (backward compatible)";
+    EXPECT_EQ(old.opts.recipe, SCFRecipe::Auto) << "a deck without the key reads as before (backward compatible)";
 
     deck::RunSpec sch;
     deck::FromJson(json{{"structure","Si_diamond"}, {"schedule",json::array({

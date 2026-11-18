@@ -39,11 +39,13 @@ cd build/Release && ninja rundeck                                  # the one CLI
 
 **Schema 2** (V-FACADE-PARITY P0, 2026-11-17): the STRUCTURE-NEUTRAL options (spin, charge, pseudopotential, model, seed,
 orthogonalisation, symmetry, spins, accelerator, label, accuracy, XC) sit at the TOP; only the periodic-only ones stay in `solid`.
-A record is written in schema 2 (`"schema": 2`).  **Schema 1 still reads** (an old deck, a banked `.rNNN.json`, the GUI's writer):
-ONE translator reads each key AT ITS PLACE with its old meaning -- `solid.multiplicity`, `solid.seed`, ... move to the top, `solid.siteSpins`
-to `spins`, `solid.xcMesh` to `xc.mesh`, and a schema-1 `solid.multiplicity >= 1` arrives as `"spin": "Polarized"` (before R6 the solid had
-no spin knob), so an old deck runs exactly as before.  A key stated at BOTH places is refused; a deck stamped `"schema": 2` refuses the
-old place, naming the new home.  The run report lists every key the translator moved.
+A record is written in schema 2 (`"schema": 2`; absent reads as 2).  **Schema 1 is RETIRED** (2026-11-18, once the GUI's writer wrote
+schema 2, qchem-GUI c38d196): a deck stamped `"schema": 1`, or a key at its schema-1 place, is REFUSED by name, naming its home and this
+section -- never read with a guessed meaning.  The moves, to respell an old deck by hand: `solid.Nelec`, `charge`, `multiplicity`, `pp`,
+`species`, `model`, `seed`, `ortho`, `orthoTol`, `imposeSymmetry`, `accelerator`, `label`, `saveStateTo` go to the TOP under the same name;
+`solid.siteSpins` goes to `spins`; `solid.xcMesh` to `xc.mesh`; and a schema-1 `solid.multiplicity >= 1` meant a POLARIZED solid (before R6
+the solid had no spin knob), so it is respelled `"multiplicity": N, "spin": "Polarized"`.  A banked `.rNNN.json` record written in schema 1
+no longer resolves (user ruling 2026-11-17: "removing keys is fine as long as we update all our decks accordingly").
 
 **Spin (R6, user 2026-11-17): two orthogonal knobs on every structure.**  `spin` says whether the channels may differ (`"Polarized"`:
 two channels, so an AFM or broken-symmetry singlet can hold local moments); `multiplicity` (2S+1) says only S.  A multiplicity > 1
@@ -66,7 +68,8 @@ forces Polarized.  An AFM crystal states `"spin": "Polarized", "multiplicity": 1
   "model": "LDA",                         // the XC functional: LDA (Dirac + VWN5, default) | PADE (libxc LDA_XC_TETER93 = CP2K's PADE, the GTH-PADE PPs' own); a PP fitted with another functional = a warn-and-run policy row
   "spin": "Polarized", "multiplicity": 1, // R6: the spin group and S (above)
   "seed": "IonicSAD", "ortho": "CholeskyPivoted", "orthoTol": 1e-4,
-  "accelerator": "Null",                  // Auto (default; = DIIS today) | DIIS | GDM | Ladder | Null
+  "accelerator": "Null",                  // EVERY kind, its one home (P2): Auto (default: a solid's per-stage policy; DIIS on a molecule
+                                          // or an atom) | DIIS | GDM | Ladder | Null (a solid only: a molecule or an atom REFUSES it)
   "imposeSymmetry": false, "spins": [1,-1,0,0],   // spins: the stated magnetic ordering, +1/-1/0 per site (was solid.siteSpins)
   "accuracy": 1e-5,                       // THE ONE accuracy target eps (pin 31)
   "xc": { "fit": "Auto", "rho": "exact",  // the Vxc fit basis, the density XC sees

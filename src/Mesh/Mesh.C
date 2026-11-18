@@ -36,22 +36,23 @@ public:
     Mesh() = default;
     //! Build from ready-made SoA arrays (the efficient path when the size is known up front,
     //! e.g. ProductMesh = nRadial*nAngular).  Sizes must match.
-    Mesh(rvec3vec_t r, rvec_t w) : itsR(std::move(r)), itsW(std::move(w)) {}
+    Mesh(rvec3vec_t r, rvec_t w);
     //! The atom-centred sibling: \a siteStart is the first point index of each SITE BLOCK (see below).
-    Mesh(rvec3vec_t r, rvec_t w, std::vector<size_t> siteStart)
-        : itsR(std::move(r)), itsW(std::move(w)), itsSiteStart(std::move(siteStart)) {}
+    Mesh(rvec3vec_t r, rvec_t w, std::vector<size_t> siteStart);
 
-    const rvec3vec_t& Points () const override {return itsR;} //!< r_i, for the phi(r) evaluators.
+    const rvec3vec_t& Points () const override; //!< r_i, for the phi(r) evaluators.
     //! \copydoc PointSampling::MakeFourierSampler
     //! The builder's installed strategy when there is one (the uniform raster's exact inverse FFT), else the NUFFT default.
-    std::unique_ptr<FourierSampler> MakeFourierSampler(const FourierBox& b) const override
-    {return itsSampling ? itsSampling->Make(itsR, b) : PointSampling::MakeFourierSampler(b);}
+    std::unique_ptr<FourierSampler> MakeFourierSampler(const FourierBox& b) const override;
     //! A BUILDER records a structure of its points the series can exploit.  \c Append and \c ShiftOrigin drop it (the
     //! points are then no longer the ones it described).
-    void InstallFourierSampling(std::shared_ptr<const FourierSamplingStrategy> s) {itsSampling=std::move(s);}
+    void InstallFourierSampling(std::shared_ptr<const FourierSamplingStrategy> s);
     //! \copydoc PointSampling::FourierTarget
     //! Every mesh has one, SHARED by its copies (a copy is the same points, so the same consumer's tolerance and calibration).
-    SamplingTarget* FourierTarget() const override {return itsTarget.get();}
+    SamplingTarget* FourierTarget() const override;
+    //! INLINE BY DESIGN (D-BUILD-BLAST, lane B 2026-11-18): \c Weights, \c size and the site-block bounds are read inside point loops,
+    //! and the build has no LTO, so an out-of-line body would cost a call per loop test in every importer.  Bodies that a loop does
+    //! not call live in Imp/Mesh.C.
     const rvec_t&     Weights() const {return itsW;} //!< w_i, for the integrators.
     size_t            size   () const {return itsW.size();}
 
@@ -97,20 +98,7 @@ private:
 //! basin is a CHOICE.  The partition-free definition is R. F. W. Bader's QTAIM zero-flux basin
 //! (\f$\nabla\rho\cdot n=0\f$), a wanted future feature (doc/OpenWork.md Step 0a); until it lands, report
 //! WHICH partition produced the number.
-inline rvec_t SiteIntegrals(const Mesh& m, const rvec_t& f)
-{
-    assert(f.size()==m.size() && "SiteIntegrals: the field must be sampled on this mesh's points");
-    assert(m.NSites()>0 && "SiteIntegrals: this mesh carries no site blocks (not an atom-centred build)");
-    const rvec_t& w=m.Weights();
-    rvec_t out(m.NSites(), 0.0);
-    for (size_t a=0; a<m.NSites(); a++)
-    {
-        double s=0.0;
-        for (size_t q=m.SiteBegin(a), e=m.SiteEnd(a); q<e; q++) s+=w[q]*f[q];
-        out[a]=s;
-    }
-    return out;
-}
+rvec_t SiteIntegrals(const Mesh& m, const rvec_t& f);
 
 //! \brief \f$\int f\,d^3r=\sum_g w_g f_g\f$ for a field already SAMPLED on \a m's points -- the tabulated
 //! sibling of \c qcMesh::Integrate(const Mesh&, const ScalarFunction<T>&) in \c qchem.Mesh.Quadrature.
@@ -119,14 +107,7 @@ inline rvec_t SiteIntegrals(const Mesh& m, const rvec_t& f)
 //! caller already has) and because it must be reachable from anyone holding only a \c Mesh: it is what a
 //! consumer of the \c BasisSet::Quadrature face integrates with, whether the mesh behind that face is an
 //! FFT raster, a uniform cell grid, or an atom-centred Becke build.
-inline double Integrate(const Mesh& m, const rvec_t& f)
-{
-    assert(f.size()==m.size() && "qcMesh::Integrate: the field must be sampled on this mesh's points");
-    const rvec_t& w=m.Weights();
-    double s=0.0;
-    for (size_t g=0; g<f.size(); g++) s+=w[g]*f[g];
-    return s;
-}
+double Integrate(const Mesh& m, const rvec_t& f);
 
 //! \brief Radial mesh family.  See the per-class transplanted formulae in Internal/.
 enum class RadialKind  {MHL, Log, Linear};
@@ -144,7 +125,7 @@ enum class RadialKind  {MHL, Log, Linear};
 //! which on the molecule doubles as the UNSTATED sentinel -- so the radial-only set could only be inferred, never stated.
 enum class AngularKind {Lebedev, GaussLegendre, None};
 //! The polynomial degree an angular rule is EXACT to: 0 for the radial-only set, else the stated \c angularDegree (Lebedev rounds UP).
-inline int ExactAngularDegree(AngularKind k, int angularDegree) {return k==AngularKind::None ? 0 : angularDegree;}
+constexpr int ExactAngularDegree(AngularKind k, int angularDegree) {return k==AngularKind::None ? 0 : angularDegree;}
 //! \brief Which quadrature a periodic UnitCell builds: the uniform FFT-compatible midpoint grid
 //! (Hartree/PP -- resolution from \c eCut / \c nUniform), or the atom-centred periodic Becke
 //! fuzzy-Voronoi grid (dense radial near each nucleus, cheap diffuse tails -- the XC quadrature;
@@ -254,25 +235,12 @@ enum class ImposedSymmetry
 //! \f$H\subseteq G\f$, a PARTIAL order: {e} is in every group, each group contains itself, and T and O(3) are incomparable.
 constexpr bool operator<=(ImposedSymmetry h, ImposedSymmetry g) {return h==ImposedSymmetry::None || h==g;}
 //! The group's name in a refusal: {e}, T or O(3).
-inline const char* Name(ImposedSymmetry h)
-{
-    switch (h)
-    {
-        case ImposedSymmetry::None:         return "{e}";
-        case ImposedSymmetry::Translations: return "T";
-        case ImposedSymmetry::FullRotation: return "O(3)";
-    }
-    return "?";
-}
+const char* Name(ImposedSymmetry h);
 //! What a stated XC point set imposes: a uniform cell mesh imposes T (it reads no angular rule, so \c angular does not enter); the
 //! radial-only set (\c AngularKind::None, one direction at \f$4\pi\f$, exact only for a spherical integrand) imposes O(3) about its
 //! centre; an atom-centred mesh (Becke) imposes nothing.  \c UnitCellKind::Auto imposes nothing beyond its angular rule: each
 //! structure resolves it to the mesh it admits (Becke on a finite structure).
-inline ImposedSymmetry ImposedBy(const MeshParams& mp)
-{
-    if (mp.cellKind==UnitCellKind::Uniform) return ImposedSymmetry::Translations;
-    return mp.angular==AngularKind::None ? ImposedSymmetry::FullRotation : ImposedSymmetry::None;
-}
+ImposedSymmetry ImposedBy(const MeshParams& mp);
 
 //-- The uniform-mesh resolution bridge --------------------------------------------------------------
 // eCut and nUniform are two spellings of ONE quantity: how finely a uniform midpoint mesh samples the cell.
@@ -297,44 +265,3 @@ int UniformDivisions(double cellEdge, double eCut);
 double UniformCutoff(double cellEdge, int n);
 
 } //export namespace qchem::qcMesh
-
-//-----------------------------------------------------------------------------------------------
-namespace qchem::qcMesh
-{
-
-// Append grows the SoA arrays by one.  blaze resize copies, so this is a setup-path convenience
-// (the incremental Becke builder), NOT for hot loops -- when the size is known, use the
-// from-arrays constructor instead.
-void Mesh::Append(const rvec3_t& r, double w)
-{
-    itsSampling.reset();   // a point added: no longer the structure a builder recorded
-    size_t n=itsW.size();
-    assert(itsR.size()==n);
-    itsR.resize(n+1,true);
-    itsW.resize(n+1,true);
-    itsR[n]=r;
-    itsW[n]=w;
-}
-
-void Mesh::ShiftOrigin(const rvec3_t& o)
-{
-    itsSampling.reset();   // the raster it described has moved
-    for (size_t i=0; i<itsR.size(); i++) itsR[i]+=o;
-}
-
-int UniformDivisions(double cellEdge, double eCut)
-{
-    assert(cellEdge>0.0 && "UniformDivisions: a cell edge is a positive length");
-    assert(eCut>0.0 && "UniformDivisions: a cutoff of 0 does not select a resolution (use nUniform)");
-    return max(1, int(ceil(2.0*cellEdge*sqrt(2.0*eCut)/Pi)));
-}
-
-double UniformCutoff(double cellEdge, int n)
-{
-    assert(cellEdge>0.0 && "UniformCutoff: a cell edge is a positive length");
-    assert(n>0 && "UniformCutoff: a mesh has at least one division per axis");
-    const double G=n*Pi/(2.0*cellEdge);   // invert n = 2 a sqrt(2E)/pi for sqrt(2E)
-    return 0.5*G*G;
-}
-
-} //namespace qchem::qcMesh

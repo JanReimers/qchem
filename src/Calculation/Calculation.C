@@ -12,6 +12,7 @@
 // from its own setup), judged here (\c JudgeRestart): read, refuse, compare, carry across moved atoms.
 module;
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -23,6 +24,10 @@ import qchem.Structure;
 import qchem.Types;             // rvec3_t (a level's k)
 import qchem.Orbitals;          // Orbital (the level walk's handle)
 import qchem.Symmetry.Spin;     // SpinGroup, Spin
+export import qchem.SCFFailure; // SCFFailure: why an attempt has no answer (Result's failure half)
+export import qchem.Outcome;    // Outcome<Converged, SCFFailure>
+import qchem.ScalarFunction;    // ScalarFunction<double> (the spin density's face)
+import qchem.ChargeDensity;     // tDM_CD<T> (the converged density)
 
 export namespace qchem
 {
@@ -149,5 +154,79 @@ protected:
     //! physics tolerance.  A deck -> json -> deck round trip reproduces them bit-exactly (FacadeMatrix ViewMatchesTheLiveState).
     static constexpr double kViewMoveTol = 1e-10;
 };
+
+//! \brief The ZERO FIELD, analytic: \f$m(r)=0\f$, the spin density of an unpolarized run (user ruling R2, 2026-11-17: "Return zero is
+//! better than throwing ... as long as we don't accidentally call it 10^6 times for nothing").  Free to sample, never a raster of zeros;
+//! a hot loop that only needs to know WHETHER there is spin asks the run's \c SpinGroup, not this field.
+struct ZeroField : public virtual ScalarFunction<double>
+{
+    double         operator()(const rvec3_t&) const override {return 0.0;}
+    vec3_t<double> Gradient  (const rvec3_t&) const override {return vec3_t<double>(0.0, 0.0, 0.0);}
+};
+
+//! \brief THE ONE PROOF TYPE (V-FACADE-PARITY P2, user ruling R1 2026-11-17: "Non templated base is a well known pattern"): the
+//! layer of \c Calculation that knows the run's scalar type \a T (\c double for the atom and the molecule, \c dcmplx for the solid's
+//! Bloch blocks), and so can hand back the converged density AS a density, \c tDM_CD<T>, with no cast down from \c ScalarFunction.
+//!
+//! WHY A SEPARATE PROOF TYPE rather than \c Fallible<double> on each accessor (user, 2026-08-25).  "Did it converge?" is ONE fact
+//! governing a whole FAMILY of queries; wrapping each accessor repeats it and asks the caller to check N times.  Worse, a Fallible-style
+//! accessor ASSERTS on misuse, and an assert is compiled out under NDEBUG -- exactly how the imposed-mesh site-blocks defect stayed
+//! invisible in Release.  Here there is no check to forget and nothing to compile out: \b the \b answers \b do \b not \b exist
+//! \b without \b the \b proof.  (CLAUDE.md: give capabilities only to types that have them.)
+//!
+//! Each kind answers the protected \c Proof* hooks and \c MakeFailure; \c Converged and \c Result are written ONCE, here.
+template <class T> class tCalculation : public virtual Calculation
+{
+public:
+    //! \brief PROOF that the SCF converged, and the only place the answers live.
+    //! \warning NON-OWNING, and invalidated by the next \c Converge(): take it fresh from each attempt; do not store one across a re-run.
+    class Converged
+    {
+    public:
+        double          Energy()         const {return itsCalc->ProofEnergyTerms().GetTotalEnergy();}   //!< total energy (hartree)
+        EnergyBreakdown EnergyTerms()    const {return itsCalc->ProofEnergyTerms();}
+        double          TotalCharge()    const {return itsCalc->ProofCharge();}       //!< the electron count (a charge-conservation check)
+        size_t          IterationCount() const {return itsCalc->ProofIterations();}   //!< the run's SCF iterations, a pilot's included
+        //! \brief \f$\rho(r)\f$ of the converged state, AS A DENSITY: sample it, or ask it what it can do (its capabilities are the
+        //! density's own faces, never a cast down from \c ScalarFunction).  The same lifetime as the proof.
+        const ChargeDensity::tDM_CD<T>& Density() const {return itsCalc->ProofDensity();}
+        //! \brief \f$m(r)=\rho_\uparrow-\rho_\downarrow\f$; on an unpolarized run the ZERO FIELD (R2), never a null or a throw.
+        //!
+        //! WHY (ρ, m) AND NOT (ρ↑, ρ↓).  They are the same information -- \f$\rho_\uparrow=(\rho+m)/2\f$ -- but charge and spin are the
+        //! channels that BEHAVE differently: the Hartree restoring force acts on ρ alone, which is why Kerker preconditions the charge
+        //! channel and has no business on the spin one.  Exposing (ρ, m) makes the physical split the obvious one, and it is what a
+        //! magnetic diagnostic wants: \f$m(r)\f$ near a site, in one call.
+        const ScalarFunction<double>&   SpinDensity() const {return itsCalc->ProofSpinDensity();}
+    private:
+        friend class tCalculation;
+        explicit Converged(const tCalculation* c) : itsCalc(c) {}
+        const tCalculation* itsCalc;
+    };
+
+    //! \brief The outcome of the LAST attempt (a Prepare'd run that never converged says "did not converge in 0 iterations"): the
+    //! answers, or the reason there are none.  \c [[nodiscard]] via \c Outcome.
+    Outcome<Converged, SCFFailure> Result() const
+    {
+        using O=Outcome<Converged, SCFFailure>;
+        if (std::optional<SCFFailure> f=MakeFailure()) return O::Fail(std::move(*f));
+        return O::Ok(Converged(this));
+    }
+
+protected:
+    //! \name WHAT EACH KIND ANSWERS (read only through a \c Converged, so only after a converged attempt)
+    //!@{
+    //! Why the last attempt has no answer, its detectors ranked by the kind; EMPTY when it converged.
+    virtual std::optional<SCFFailure>       MakeFailure()      const = 0;
+    virtual EnergyBreakdown                 ProofEnergyTerms() const = 0;
+    virtual double                          ProofCharge()      const = 0;
+    virtual size_t                          ProofIterations()  const = 0;
+    virtual const ChargeDensity::tDM_CD<T>& ProofDensity()     const = 0;
+    //! m(r): the kind's own (built once per attempt, on first use) when polarized, else \c TheZeroField.
+    virtual const ScalarFunction<double>&   ProofSpinDensity() const = 0;
+    //!@}
+    //! The one zero field every unpolarized kind hands out (stateless, so one instance serves every run).
+    static const ScalarFunction<double>& TheZeroField() {static const ZeroField z; return z;}
+};
+
 
 } // namespace qchem

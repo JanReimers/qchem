@@ -34,8 +34,6 @@ RunOptions MoleculeOptions(const RunOptions& asked)
     if (asked.charge!=0)    refuse("charge", "a molecule's charge is its structure's -- state it on the structure");
     if (asked.ortho || asked.orthoTol!=0.0) refuse("ortho / orthoTol", "the molecular solver picks its own orthogonalisation (Auto)");
     if (!asked.spins.empty()) refuse("spins", "a per-site magnetic decoration is a periodic imposition's");
-    if (asked.accelerator!=def.accelerator || asked.recipe!=def.recipe)
-        refuse("accelerator / recipe (top level)", "a molecule names them in its accelerator block (AcceleratorOptions::type / recipe)");
     if (!o.model) { o.model=Hamiltonian::Model::HF; policy::Report("DefaultModel", "model unstated: a molecule's default", policy::Verdict::Choose, "HF"); }
     if (!o.pp)     o.pp=std::string();                      // all-electron
     if (!o.xcMesh) o.xcMesh=kMolecularMeshDefault;          // climbed to eps from its entry rung
@@ -77,8 +75,9 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
                            "its core shells describe electrons the pseudopotential removed -- the run goes on; a valence basis "
                            "(sipp*, valence_lowq*) is the matched choice");
     }
-    s->reference=st.Clone();   // polymorphic deep copy: a UnitCell stays periodic, not sliced to a Molecule
-    const std::shared_ptr<const Structure> point=s->PointStructure(*s->reference);
+    s->structure=st.Clone();
+    s->imposed=opts.imposeSymmetry;   // a molecule's imposition has no policy veto: as asked   // polymorphic deep copy: a UnitCell stays periodic, not sliced to a Molecule
+    const std::shared_ptr<const Structure> point=s->PointStructure(*s->structure);
     s->Ne=int(point->GetNumElectrons());
     RequireBasisStated(opts.molecule.basis, *point);   // no default basis: an unstated one is refused, naming the bases that cover this structure
     // Coverage, when the name is a basis file (an unknown name is the build's refusal, which lists every name there).
@@ -109,20 +108,20 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     const bool dft = qchem::Hamiltonian::IsDFT(*opts.model);
     {
         const RunSeed seed=ResolveRunSeed(opts.seed, *point, s->pp ? &*s->pp : nullptr, dft || !opts.pp->empty());   // no charge order stated
-        s->seed   =seed.seed;
+        s->opts.seed=seed.seed;
         s->seedKey=seed.key;
     }
 
     // THE XC MESH (pin 31; doc/GeometryOptimizationPlan.md §14.1): an axis left at 0 is unstated and takes the entry rung's; a mesh with
     // neither stated climbs from there at the converged D (MoleculeCalculation's pilot), only up.  A stated one is honoured and audited.
-    s->mesh=*opts.xcMesh;
+    s->xcMesh=*opts.xcMesh;
     const bool statedR=opts.xcMesh->nRadial>0, statedL=opts.xcMesh->angularDegree>0;
     s->meshStated=statedR || statedL;
-    if (!statedR) s->mesh.nRadial      =kMolecularMeshEntryRadial;
-    if (!statedL) s->mesh.angularDegree=kMolecularMeshEntryDegree;
+    if (!statedR) s->xcMesh.nRadial      =kMolecularMeshEntryRadial;
+    if (!statedL) s->xcMesh.angularDegree=kMolecularMeshEntryDegree;
     if (dft || !opts.pp->empty())
     {
-        const std::string rung="("+std::to_string(s->mesh.nRadial)+", "+std::to_string(s->mesh.angularDegree)+")";
+        const std::string rung="("+std::to_string(s->xcMesh.nRadial)+", "+std::to_string(s->xcMesh.angularDegree)+")";
         if (!s->meshStated)
             policy::Report("MolecularXCMeshClimbs", "the Becke XC mesh climbs from "+rung+" to eps at the converged density", policy::Verdict::Choose,
                            "no XC mesh stated: the run sizes it from the accuracy target (pin 31), from the entry rung and only up");
@@ -134,9 +133,9 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     // An HF run seeded from SAD reaches its first density matrix through ONE LDA (Xalpha) Fock (exact exchange needs a matrix, SAD has
     // none), built on THIS mesh: the entry rung when none is stated, the mesh a DFT user gets (lane A 2026-11-10: the old hidden
     // 12-direction rule split O2's pi_g by 13 mHa at the seed, and a stated Shared fill converged to the broken state).
-    if (!dft && opts.pp->empty() && s->seed==SeedStrategy::SAD)
-        policy::Report("HFSeedFockMesh", "the SAD seed reaches HF through one LDA Fock on the XC mesh ("+std::to_string(s->mesh.nRadial)+", "
-                       +std::to_string(s->mesh.angularDegree)+")", policy::Verdict::Choose,
+    if (!dft && opts.pp->empty() && s->opts.seed==SeedStrategy::SAD)
+        policy::Report("HFSeedFockMesh", "the SAD seed reaches HF through one LDA Fock on the XC mesh ("+std::to_string(s->xcMesh.nRadial)+", "
+                       +std::to_string(s->xcMesh.angularDegree)+")", policy::Verdict::Choose,
                        std::string(s->meshStated ? "the stated mesh" : "the molecular entry rung, no mesh stated")
                        +": a seed Fock coarser than the run's mesh can break the molecule's symmetry before the first iteration");
 
@@ -144,17 +143,17 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     // and the Hamiltonian are built: the Factory throws the same reason, but only once the work is done.
     if (dft || !opts.pp->empty())
     {
-        RequireVxcAdmitted(*point, opts.vxcFit, s->mesh, "molecule");
-        if (const auto a=Hamiltonian::AdmitCoulomb(*point, opts.coulomb, s->mesh, opts.vxcFit); !a)
+        RequireVxcAdmitted(*point, opts.vxcFit, s->xcMesh, "molecule");
+        if (const auto a=Hamiltonian::AdmitCoulomb(*point, opts.coulomb, s->xcMesh, opts.vxcFit); !a)
             policy::Refuse("AdmitCoulomb", "the stated Hartree route on this molecule", a.Error());
         ReportXCRho(opts.vxcFit, opts.xcRho);   // the ρ axis (user ruling 2026-11-09): warns on the Gaussian x δ cell
     }
 
-    AdmitRecipe(acc.recipe, /*kT: not read for a molecule*/0.0, /*molecule*/true);   // Auto | Insulator only (R4.1 ruling (c))
-    s->accelerator = AcceleratorTypeByName(acc.type, "qchem::MoleculeCalculation");   // DIIS | GDM | Ladder, any other refused
-    if (dft || !opts.pp->empty()) RefuseGradientConsumers(opts.vxcFit, opts.xcRho, acc.type);   // GDM needs H = dE/dD (pin 32)
-    s->eMax = DIISEngageGate(acc.diis.engageBelowFD.value_or(0.0), point->GetNuclearCharge(), dft || !opts.pp->empty());   // DIIS from the start on a density Fock
-    s->accParams = ResolveAcceleratorParams(acc, MolecularAcceleratorDefaults(s->eMax));
+    AdmitRecipe(opts.recipe, /*kT: not read for a molecule*/0.0, /*molecule*/true);   // Auto | Insulator only (R4.1 ruling (c))
+    s->accelerator = MolecularAcceleratorType(opts.accelerator, "qchem::MoleculeCalculation");   // Auto = DIIS; Null refused
+    if (dft || !opts.pp->empty()) RefuseGradientConsumers(opts.vxcFit, opts.xcRho, NameOf(s->accelerator));   // GDM needs H = dE/dD (pin 32)
+    const double eMax=DIISEngageGate(acc.diis.engageBelowFD.value_or(0.0), point->GetNuclearCharge(), dft || !opts.pp->empty());   // DIIS from the start on a density Fock
+    s->accParams = ResolveAcceleratorParams(acc, MolecularAcceleratorDefaults(eMax));   // the gate lands in accParams.diis.EngageBelowFD
     return s;
 }
 
@@ -165,7 +164,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
 std::vector<Hamiltonian::PPFunctionalCheck> MoleculeSetup::PPFunctionalChecks() const
 {
     if (!pp || !Hamiltonian::IsDFT(*opts.model)) return {};
-    return Hamiltonian::PPFunctionalChecks(*pp, *reference, Hamiltonian::ModelToXC(*opts.model, opts.xalpha));
+    return Hamiltonian::PPFunctionalChecks(*pp, *structure, Hamiltonian::ModelToXC(*opts.model, opts.xalpha));
 }
 
 std::shared_ptr<const Structure> MoleculeSetup::PointStructure(const Structure& st) const

@@ -42,7 +42,7 @@ TEST(MoleculeSetup, APseudopotentialSetGivesTheValenceCountAndTheValenceStructur
     EXPECT_EQ(s->Ne, s->pp->Valence("Na"));
     const auto point=s->PointStructure(na);
     EXPECT_EQ(int(point->GetNumElectrons()), s->Ne);
-    EXPECT_EQ(int(s->reference->GetNumElectrons()), 11) << "the reference keeps the TRUE charges; only a point is valence-charged";
+    EXPECT_EQ(int(s->structure->GetNumElectrons()), 11) << "the reference keeps the TRUE charges; only a point is valence-charged";
 }
 
 // A pseudopotential run seeds its OWN pseudo-atoms (OpenWork §3 "A pseudopotential run seeds from the VALENCE library for its q, on every
@@ -55,7 +55,7 @@ TEST(MoleculeSetup, APseudopotentialRunSeedsFromTheValenceLibraryAtItsQ)
     const auto pp=MoleculeSetup::Resolve(si, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="sipp"}});
     EXPECT_EQ(pp->seedKey.Q(14), pp->pp->Valence("Si")) << "the seed key carries the run's own q";
     EXPECT_EQ(ChargeDensity::SeedLibrary(pp->seedKey, 14), "atomic_valence_densities.json");
-    EXPECT_EQ(pp->seed, ChargeDensity::SeedStrategy::SAD) << "the valence library holds Si q4, so the Auto rule seeds from SAD";
+    EXPECT_EQ(pp->opts.seed, ChargeDensity::SeedStrategy::SAD) << "the valence library holds Si q4, so the Auto rule seeds from SAD";
 
     const auto ae=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     EXPECT_EQ(ae->seedKey.Q(8), -1) << "an all-electron run is unkeyed";
@@ -71,7 +71,7 @@ TEST(MoleculeSetup, AnAllElectronMoleculePastNeonSeedsFromSAD)
     for (int Z=1; Z<=92; Z++) EXPECT_TRUE(SeedLibraryCovers(unkeyed, Z)) << "Z=" << Z;
     const auto te=MoleculeSetup::Resolve(OneAtom(52), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     EXPECT_EQ(ChargeDensity::SeedLibrary(te->seedKey, 52), "atomic_densities.json") << "an all-electron run reads the all-electron library";
-    EXPECT_EQ(te->seed, ChargeDensity::SeedStrategy::SAD) << "the library holds Te, so the Auto rule seeds from SAD";
+    EXPECT_EQ(te->opts.seed, ChargeDensity::SeedStrategy::SAD) << "the library holds Te, so the Auto rule seeds from SAD";
 }
 
 TEST(MoleculeSetup, ABasisWithoutAnElementIsRefusedAtResolveNamingTheBasesThatCoverIt)
@@ -89,12 +89,17 @@ TEST(MoleculeSetup, ABasisWithoutAnElementIsRefusedAtResolveNamingTheBasesThatCo
     }
 }
 
-TEST(MoleculeSetup, AnUnknownAcceleratorIsRefusedAtResolve)
+// The accelerator is a TYPE in its one home (RunOptions::accelerator, V-FACADE-PARITY P2): an unknown NAME is refused where text becomes a
+// type (AcceleratorTypeByName: a GUI form, the atom's json escape hatch; the deck's enum reader), and the type a molecule cannot run, Null,
+// at Admit.
+TEST(MoleculeSetup, AnAcceleratorAMoleculeCannotRunIsRefusedAtResolve)
 {
-    const auto refused=MoleculeSetup::Admit(OneAtom(2), {.molecule={.basis="dzvp"}}, {.type="Anderson"});
+    const auto refused=MoleculeSetup::Admit(OneAtom(2), {.accelerator=SCFAccelerators::Type::Null, .molecule={.basis="dzvp"}});
     ASSERT_FALSE(refused);
     EXPECT_EQ(refused.Error().policy, "AcceleratorType");
-    EXPECT_NE(refused.Error().reason.find("Anderson"), std::string::npos) << refused.Error().reason;
+    EXPECT_NE(refused.Error().reason.find("Null"), std::string::npos) << refused.Error().reason;
+    try { (void)AcceleratorTypeByName("Anderson", "the test"); ADD_FAILURE() << "an unknown name became a type"; }
+    catch (const std::exception& e) { EXPECT_NE(std::string(e.what()).find("Anderson"), std::string::npos) << e.what(); }
 }
 
 // EVERY KNOB OF THE MOLECULAR CHAIN REACHES THE FACTORY'S DOOR (2026-11-02; the typed door since V-FACADE-PARITY P0b-1): a molecule that

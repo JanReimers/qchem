@@ -254,7 +254,7 @@ TEST(ValenceBasisGen, MnQ7PseudoAtomInTheVAExponentsShowsTheDiffuseTrim)
     o.atom.exponentsByL={{0,{0.1,0.24928829,0.62144650,1.54919334,3.86195754,9.62740780,24.0}},
                     {2,{0.38369936,0.81791778,1.74352515,3.71660826,7.92255676,16.88822203,36.0}}};
     SCFParams p; p.MinVirial=std::nullopt;
-    AtomCalculation atom(25, 18, o, p);
+    AtomCalculation atom(AtomSetup::Resolve(25, 18, o), p);
     ASSERT_TRUE(atom.IsConverged());
     EXPECT_NEAR(atom.Energy(), -14.1949, 0.005) << "46 mHa above CP2K ATOM: the VA span's incompleteness for the free atom";
     std::map<int,double> eps;                                   // lowest occupied eigenvalue per l
@@ -283,7 +283,7 @@ TEST(ValenceBasisGen, MnQ7PseudoAtomInALargePool)
     o.atom.type=AtomType::Gaussian; o.atom.pseudopotential=true; o.atom.valence=7;
     o.atom.exponentsByL={{0,pool(16,0.05,200.0)},{2,pool(16,0.08,200.0)}};
     SCFParams p; p.MinVirial=std::nullopt;
-    AtomCalculation atom(25, 18, o, p);
+    AtomCalculation atom(AtomSetup::Resolve(25, 18, o), p);
     ASSERT_TRUE(atom.IsConverged());
     std::map<int,double> eps;
     for (const Irrep& ir : atom.GetIrreps(Spin::None))

@@ -157,6 +157,18 @@ inline SCFAccelerators::Type AcceleratorTypeByName(const std::string& name, cons
     if (name=="Ladder") return T::Ladder;
     policy::RefuseAs("AcceleratorType", who+": unknown accelerator type \""+name+"\" (expected DIIS | GDM | Ladder)");
 }
+//! \brief THE MOLECULE'S AND THE ATOM'S ACCELERATOR, from its ONE home (\c RunOptions::accelerator, V-FACADE-PARITY P2): \c Auto is
+//! their policy, \c DIIS; \c Null is REFUSED (policy AcceleratorType): with no Fock extrapolation a molecular SCF steps on the bare
+//! diagonalization, and it has no density mixer to pair \c Null with, as the solid does.
+inline SCFAccelerators::Type MolecularAcceleratorType(SCFAccelerators::Type asked, const std::string& who)
+{
+    using T=SCFAccelerators::Type;
+    if (asked==T::Auto) return T::DIIS;
+    if (asked==T::Null)
+        policy::RefuseAs("AcceleratorType", who+": the Null accelerator -- a molecular SCF has no density mixer to pair it with (expected "
+                                            "DIIS | GDM | Ladder, or Auto = DIIS)");
+    return asked;
+}
 //! \brief DIIS's ENGAGE GATE (EMax, on [F,D]): \a stated when > 0, else the run's default.  A model whose Fock reads a density (DFT, a
 //! pseudopotential run; \a densityFock) engages DIIS from iteration 0 (EMax 100): the Z-scaled gate keeps it off and the SCF limit-cycles
 //! to a non-converged snapshot (the "M_Sym layout UB" mechanism, M_DFT).  Otherwise the proven Z-scaled gate \f$Z^2\cdot 0.08/32\f$

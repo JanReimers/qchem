@@ -41,30 +41,15 @@ import qchem.Hamiltonian.Factory;    // CoulombFitSlot (the run's one Coulomb fi
 export namespace qchem
 {
 
-class MoleculeCalculation : public virtual Calculation
+class MoleculeCalculation : public virtual tCalculation<double>
 {
 public:
     using sf_t       = ScalarFunction<double>;
     using orbitals_t = qchem::Orbitals::Orbitals;
     using Observer   = qchem::SCFIterator::SCFIterator::Observer; //!< void(const IterationRow&): the console's own cells
 
-    //! \brief PROOF that the SCF converged (2026-10-31, the molecular half of the Outcome door -- \c SolidCalculation::Converged's
-    //! twin; see its WHY).  \c Converge() and \c Result() hand one out only for a converged run, so a caller that takes its
-    //! answers from here cannot read a failed run's number.  The facade's own \c Energy() / \c Density() ... still exist beside it
-    //! (the pybind bridge and the GUI read them): moving them onto the proof is the next step, not done here.
-    //! \warning NON-OWNING, and invalidated by the next \c Converge() -- take it fresh from each attempt.
-    class Converged
-    {
-    public:
-        double                 Energy()         const;   //!< total energy (hartree)
-        qchem::EnergyBreakdown EnergyTerms()    const;
-        size_t                 IterationCount() const;
-        const sf_t&            Density()        const;   //!< rho(r) of the converged state
-    private:
-        friend class MoleculeCalculation;
-        explicit Converged(const MoleculeCalculation* c) : itsCalc(c) {}
-        const MoleculeCalculation* itsCalc;
-    };
+    //! The proof type is the base's (\c tCalculation<double>::Converged, V-FACADE-PARITY P2): one for every kind.  The facade's own
+    //! \c Energy() / \c Density() ... still exist beside it (the pybind bridge and the GUI read them).
 
     //! \brief Build the whole graph over a RESOLVED setup (doc/CalcNetworkReview.md §7, step 7) -- the geometry point at the
     //! setup's reference structure -- and converge ONCE on \a scf.  The setup is \c MoleculeSetup::Resolve(structure, options,
@@ -122,9 +107,7 @@ public:
     //! Invalidates references previously handed out by Density()/HOMO()/Orbital()/Orbitals() -- the wave function is rebuilt --
     //! and any \c Converged from an earlier attempt.  \c [[nodiscard]] via \c Outcome.
     Outcome<Converged, SCFFailure> Converge(const SCFParams& params = {});
-    //! The outcome of the attempt the CONSTRUCTOR made (it converges on construction), so a caller that never re-converges
-    //! still faces it.
-    Outcome<Converged, SCFFailure> Result() const;
+    //! \c Result() (the base's): the outcome of the last attempt -- the constructor's, for a caller that never re-converges.
 
     //! Live per-iteration telemetry.  Set BEFORE a Converge() call to observe it (the ctor's initial
     //! convergence runs before any observer can be attached).
@@ -288,8 +271,15 @@ private:
     bool   itsCarryExact = false;   //!< \c itsCarry is an EXACT RESUME (\c PrepareRestart): the first Fock is built from it
     bool   itsStartOnGDM = false;   //!< the next accelerator built is a Ladder started on its GDM rung (an exact resume at kT = 0), once
     double itsLastkT     = 0.0;     //!< the last Converge's smearing (the saved state's scf.kT)
-    //! The one place a Converged/SCFFailure is minted, so \c Converge() and \c Result() cannot drift.
-    Outcome<Converged, SCFFailure> Outcome_() const;
+    //! \name THE PROOF'S ANSWERS (\c tCalculation's hooks): the one place a failure is ranked, so \c Converge() and \c Result() cannot drift
+    //!@{
+    std::optional<SCFFailure>             MakeFailure()      const override;
+    EnergyBreakdown                       ProofEnergyTerms() const override;
+    double                                ProofCharge()      const override;
+    size_t                                ProofIterations()  const override;
+    const ChargeDensity::tDM_CD<double>&  ProofDensity()     const override;
+    const ScalarFunction<double>&         ProofSpinDensity() const override;
+    //!@}
     typedef std::pair<double, const sf_t*> occ_t;   //!< (eigen-energy, orbital) for HOMO/Orbital(i)
     void RebuildSampling();   //!< after a Converge: own a fresh density + sort the occupied MOs
 

@@ -81,7 +81,7 @@ bool Has(const std::string& line, const std::string& col) {return line.find(col)
 TEST(SCFTrace, MolecularNonPP_ShowsTheVirialColumn)
 {
     std::string trace = CapturedTrace([]{
-        AtomCalculation calc(2, 0, {.atom={.type=AtomType::Slater, .basisPool=Low}},
+        AtomCalculation calc(AtomSetup::Resolve(2, 0, {.atom={.type=AtomType::Slater, .basisPool=Low}}),
             {.NMaxIter = 40, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
              .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
         calc.Energy();
@@ -99,7 +99,7 @@ TEST(SCFTrace, MolecularNonPP_ShowsTheVirialColumn)
 TEST(SCFTrace, HartreeFockShowsTheDensityMatrixNormNotDeltaRho)
 {
     std::string trace = CapturedTrace([]{
-        AtomCalculation calc(2, 0, {.atom={.type=AtomType::Slater, .basisPool=Low}},   // the default model is HF
+        AtomCalculation calc(AtomSetup::Resolve(2, 0, {.atom={.type=AtomType::Slater, .basisPool=Low}}), // the default model is HF
             {.NMaxIter = 40, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
              .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
         calc.Energy();
@@ -117,7 +117,7 @@ TEST(SCFTrace, HartreeFockShowsTheDensityMatrixNormNotDeltaRho)
 TEST(SCFTrace, MolecularPP_HidesTheVirialColumn)
 {
     std::string trace = CapturedTrace([]{
-        AtomCalculation calc(14, 10, {.atom={.type=AtomType::Slater, .basisPool=Medium, .pseudopotential=true}},
+        AtomCalculation calc(AtomSetup::Resolve(14, 10, {.atom={.type=AtomType::Slater, .basisPool=Medium, .pseudopotential=true}}),
             {.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
              .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
         calc.Energy();
@@ -133,7 +133,7 @@ TEST(SCFTrace, MolecularPP_HidesTheVirialColumn)
 TEST(SCFTrace, ThresholdSubLineMatchesTheColumns)
 {
     std::string trace = CapturedTrace([]{
-        AtomCalculation calc(14, 10, {.atom={.type=AtomType::Slater, .basisPool=Medium, .pseudopotential=true}},
+        AtomCalculation calc(AtomSetup::Resolve(14, 10, {.atom={.type=AtomType::Slater, .basisPool=Medium, .pseudopotential=true}}),
             {.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
              .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
         calc.Energy();
@@ -434,7 +434,7 @@ TEST(SCFTrace, AMolecularLadderHandsOffToGDMBelowTheEnergyTail)
 {
     std::vector<SCFIterator::IterationRow> rows;
     (void)CapturedTrace([&rows]{
-        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .molecule={.basis="dzvp"}}, {.type = "Ladder"}),
+        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}}),
                          {.NMaxIter = 80, .Verbose = true},
                          [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
         (void)calc.Result();
@@ -485,7 +485,7 @@ TEST(SCFTrace, ALineSearchingRunShowsEachGeodesicStepsT)
 {
     std::vector<SCFIterator::IterationRow> rows;
     (void)CapturedTrace([&rows]{
-        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .molecule={.basis="dzvp"}}, {.type = "Ladder"}),
+        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}}),
                          {.NMaxIter = 80, .Verbose = true},
                          [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
         (void)calc.Result();
@@ -527,7 +527,7 @@ TEST(SCFTrace, AMolecularLadderEngagesGDMOnASymmetryBlockedMolecule)
     ch4.Insert(Site{1, Vector3D<double>( a,-a,-a)});
     auto run=[&ch4](const char* accel, std::vector<SCFIterator::IterationRow>& rows)
     {
-        MoleculeCalculation calc(MoleculeSetup::Resolve(ch4, {.imposeSymmetry=true, .molecule={.basis="dzvp"}}, {.type = accel}),
+        MoleculeCalculation calc(MoleculeSetup::Resolve(ch4, {.accelerator=AcceleratorTypeByName(accel, "the test"), .imposeSymmetry=true, .molecule={.basis="dzvp"}}),
                                  {.NMaxIter = 80, .Verbose = false}, [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
         auto r=calc.Result();
         EXPECT_TRUE(r) << accel << " did not converge";

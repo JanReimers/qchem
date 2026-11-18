@@ -63,7 +63,7 @@ TEST(SolidSetup, ARecipeFreezesTheTrimTheVetLoopDecides)
         EXPECT_TRUE(frozen.Removes(s.Z, s.l, s.exponents)) << "Z=" << s.Z << " l=" << s.l;
     EXPECT_EQ(setup->mol->GetNumFunctions(), twin.mol->GetNumFunctions());
     // Rebuilt from the frozen recipe -- what a geometry step does -- the basis is the trimmed one, with no second vet.
-    EXPECT_EQ(setup->recipe->Make(*setup->cell, setup->pp)->GetNumFunctions(), twin.mol->GetNumFunctions());
+    EXPECT_EQ(setup->recipe->Make(*setup->structure, *setup->pp)->GetNumFunctions(), twin.mol->GetNumFunctions());
 }
 
 // THE SHELL WHAT-IF measures as the vet stage does (one metric): the trim autoTrim froze, asked of the UNTRIMMED basis's shell table,
@@ -195,7 +195,7 @@ TEST(SolidSetup, ARecipeBindsTheRunsGPWTolerancesAndAPreBuiltBasisCannotTakeOthe
     EXPECT_EQ(setup->recipe->tolerances.screenEps, 1e-8) << "frozen with the trim";
     EXPECT_EQ(bound(*setup->mol).screenEps, 1e-8);
     EXPECT_EQ(bound(*setup->mol).densityEps, 1e-11);
-    EXPECT_EQ(bound(*setup->recipe->Make(*setup->cell, setup->pp)).screenEps, 1e-8) << "a geometry step's basis computes at the same setting";
+    EXPECT_EQ(bound(*setup->recipe->Make(*setup->structure, *setup->pp)).screenEps, 1e-8) << "a geometry step's basis computes at the same setting";
 
     std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_VA, &cell));
     EXPECT_EQ(bound(*mol).screenEps, BasisSet::Gaussian::GPWTolerances{}.screenEps) << "a pre-built basis carries the defaults";

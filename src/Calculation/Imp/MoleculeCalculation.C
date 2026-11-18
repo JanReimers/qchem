@@ -47,12 +47,6 @@ namespace qchem
 namespace PG = ::qchem::BasisSet::Gaussian::PG_Cart;
 using SCFIter = qchem::SCFIterator::MolecularSCFIterator;   // item 2: the atom/molecule display subclass
 
-//! The spin density of an unpolarized run: m(r) = 0 everywhere (GetSpinDensity).
-struct ZeroField : public virtual ScalarFunction<double>
-{
-    double         operator()(const rvec3_t&) const override {return 0.0;}
-    vec3_t<double> Gradient  (const rvec3_t&) const override {return vec3_t<double>(0.0, 0.0, 0.0);}
-};
 
 // Build the molecular orbital basis, optionally SALC point-group-blocked.  When symmetry is off the
 // caller owns the raw basis directly; when on, the raw basis is handed to PG::SymmetryAdapt as a
@@ -95,7 +89,7 @@ static Molecule_EC* MakeMoleculeEC(const MoleculeSetup& setup)
 }
 
 MoleculeCalculation::MoleculeCalculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Observer onIteration)
-    : MoleculeCalculation(setup, *setup->reference, nullptr, scf, std::move(onIteration))
+    : MoleculeCalculation(setup, *setup->structure, nullptr, scf, std::move(onIteration))
 {}
 
 MoleculeCalculation::MoleculeCalculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
@@ -107,7 +101,7 @@ MoleculeCalculation::MoleculeCalculation(std::shared_ptr<const MoleculeSetup> se
 
 std::unique_ptr<MoleculeCalculation> MoleculeCalculation::Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration)
 {
-    const Structure& ref=*setup->reference;
+    const Structure& ref=*setup->structure;
     std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, std::move(setup), ref, nullptr, std::move(onIteration)));
     c->BuildGraph();                                  // into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
     c->itsPrepared=true;
@@ -148,7 +142,7 @@ void MoleculeCalculation::BuildGraph()
     if (itsStartOnGDM) { params.ladderStartOnGDM=true; itsStartOnGDM=false; }   // the restored stage only (PrepareRestart)
     qchem::SCFAccelerators::SCFAccelerator* accel=nullptr;
     { rpt::Row built("accelerators"); accel = qchem::SCFAccelerators::Factory(itsSetup->accelerator, params); }
-    const auto seed = itsSetup->seed;
+    const auto seed = itsSetup->opts.seed;
 
     // The `basis` section is ASSEMBLED across layers, and since V1.14 it spans the basis's whole LIFE in this
     // run: the FIRST Converge BUILDS the basis (a basis with something to announce does so as it is constructed --
@@ -182,7 +176,7 @@ void MoleculeCalculation::BuildGraph()
     decltype(itsHam.get()) ham=nullptr;
     {
         rpt::Scope hamiltonian("hamiltonian");
-        ham = MakeHamiltonianOn(itsSetup->mesh);
+        ham = MakeHamiltonianOn(itsSetup->xcMesh);
     }
     {
         rpt::Section basis("basis");
@@ -204,7 +198,7 @@ void MoleculeCalculation::BuildGraph()
         itsAccel.reset(accel);
         if (itsCarry && itsCarry->moved) itsCarry=std::make_unique<const Carry>(CarryOntoThisBasis(*itsCarry));   // a session step
         if (!itsCarry)
-            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsSetup->mesh, itsSetup->seedKey);   // an HF SAD seed's sibling: the run's mesh
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsSetup->xcMesh, itsSetup->seedKey);   // an HF SAD seed's sibling: the run's mesh
         else
         {
             // THE CARRY (a MoleculeSession step, or a restored state): the D, block for block, onto THIS point's basis -- a
@@ -242,12 +236,12 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
         DegenerateFillContext{.directMin = itsSetup->accelerator==SCFAccelerators::Type::GDM,
                               .fallback  = DescribeDeclinedFallback(ResolveMixing(asked, /*gSpace*/false))});
     {   // the "what recipe am I running" header; eps is consumed by the XC mesh wherever there is one (pin 31)
-        rpt::Section scf("scf"); ReportSCFRecipe(params, itsSetup->acc.type);
+        rpt::Section scf("scf"); ReportSCFRecipe(params, NameOf(itsSetup->accelerator));
         // THE RECIPE POLICY'S REPORT (qchem.SCFRecipe): a molecule's Auto / Insulator is its own column -- the stated accelerator (DIIS by
         // default) beside linear D-mixing (no G space), as before B5.
         const SCFStageKind kind = !itsRestartedFrom ? SCFStageKind::Cold : itsRestartedFrom->exact ? SCFStageKind::Restored : SCFStageKind::Carried;
-        ReportRecipe("molecule", itsSetup->acc.recipe, kind, itsSetup->accelerator, itsSetup->accelerator, ResolveMixing(params, /*gSpace*/false),
-                     {}, "acc.type (default DIIS)", "the molecular column: acc.type + linear D-mixing");
+        ReportRecipe("molecule", itsSetup->opts.recipe, kind, itsSetup->accelerator, itsSetup->accelerator, ResolveMixing(params, /*gSpace*/false),
+                     {}, "accelerator (Auto = DIIS)", "the molecular column: the accelerator + linear D-mixing");
         ReportAccuracy(itsSetup->opts.accuracy, !HasXCMesh()           ? std::string(kNoAccuracyConsumerYet)
                                               : itsSetup->meshResolved ? std::string("the Becke XC mesh (sized by an earlier pilot)")
                                               : itsSetup->meshStated   ? std::string("the Becke XC mesh (stated: audited, never raised)")
@@ -265,15 +259,12 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
 
     ReportResult("molecule", itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
                  itsSetup->opts.accuracy.Target(Consumes(), itsStructure->GetNumAtoms()));
-    return Outcome_();
+    return Result();
 }
 
-Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Result() const {return Outcome_();}
-
-Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Outcome_() const
+std::optional<SCFFailure> MoleculeCalculation::MakeFailure() const
 {
-    using O=Outcome<Converged, SCFFailure>;
-    if (itsScf->Converged()) return O::Ok(Converged(this));
+    if (itsScf->Converged()) return std::nullopt;
     SCFFailure f;   // the molecular facade's detectors: the iterator's own refusal, else a run out of iterations
     const bool refused=!itsScf->UnphysicalStop().empty();
     f.why        = refused ? SCFFailure::Why::UnphysicalEnergy : SCFFailure::Why::NotConverged;
@@ -281,13 +272,14 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Outcome
     f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
     f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
     if (!refused && itsLastRow) f.details += "; the last iterate: "+itsLastRow->GatesText();
-    return O::Fail(std::move(f));
+    return f;
 }
 
-double                 MoleculeCalculation::Converged::Energy()         const {return itsCalc->itsScf->GetEnergy().GetTotalEnergy();}
-qchem::EnergyBreakdown MoleculeCalculation::Converged::EnergyTerms()    const {return itsCalc->itsScf->GetEnergy();}
-size_t                 MoleculeCalculation::Converged::IterationCount() const {return itsCalc->itsScf->GetIterationCount();}
-const MoleculeCalculation::sf_t& MoleculeCalculation::Converged::Density()      const {return itsCalc->Density();}
+EnergyBreakdown MoleculeCalculation::ProofEnergyTerms() const {return itsScf->GetEnergy();}
+double          MoleculeCalculation::ProofCharge()      const {assert(itsDensity); return itsDensity->GetTotalCharge();}
+size_t          MoleculeCalculation::ProofIterations()  const {return itsScf->GetIterationCount();}
+const ChargeDensity::tDM_CD<double>& MoleculeCalculation::ProofDensity() const {assert(itsDensity); return *itsDensity;}
+const ScalarFunction<double>&        MoleculeCalculation::ProofSpinDensity() const {return GetSpinDensity();}
 
 // The linear response of the converged state: Reference (R0, orbital basis) + frame (AO <-> MO) + the
 // Hamiltonian's kernel + the dipole probe, solved together by GMRES (qcResponse).  The facade is the one place
@@ -505,7 +497,7 @@ GridAuditResult MoleculeCalculation::MeshAudit(const qcMesh::MeshParams& referen
         if (t.entries=="Exc" && t.maxAbsΔH>0.0) t.etaOn="measured";   // the XC mesh has no rigorous bound
     }
     const ClientConsumes c=Consumes();
-    ReportGridAudit(R, "[mesh audit]", "Becke mesh ("+std::to_string(itsSetup->mesh.nRadial)+", "+std::to_string(itsSetup->mesh.angularDegree)+")",
+    ReportGridAudit(R, "[mesh audit]", "Becke mesh ("+std::to_string(itsSetup->xcMesh.nRadial)+", "+std::to_string(itsSetup->xcMesh.angularDegree)+")",
                     c==ClientConsumes::Energy ? 'E' : 'H', opts.accuracy.Target(c, itsStructure->GetNumAtoms()));
     return R;
 }
@@ -568,7 +560,7 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
     const bool   onE=c==ClientConsumes::Energy;
     const double target=itsSetup->opts.accuracy.Target(c, itsStructure->GetNumAtoms());
     const qcMesh::BeckeLadderCalibration cal{.angRot=0.0};   // the ladder's rungs unrotated, as the entry rung is (the rotation is a cubic-site calibration)
-    const qcMesh::MeshParams entry=itsSetup->mesh;
+    const qcMesh::MeshParams entry=itsSetup->xcMesh;
     const std::string tag="[mesh pilot] ";
     const std::streamsize prec0=std::cout.precision();
     report::FormatGuard keep(std::cout);
@@ -608,7 +600,7 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
             return p;
         };
         itsHam->RefreshForDensity(itsBasis, d);
-        probes.emplace(MeshName(itsSetup->mesh), sample(*itsHam));
+        probes.emplace(MeshName(itsSetup->xcMesh), sample(*itsHam));
         auto probe=[&](const qcMesh::MeshParams& m) -> const Probe&
         {
             if (auto it=probes.find(MeshName(m)); it!=probes.end()) return it->second;
@@ -638,7 +630,7 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
             return worst;
         };
         const int cap = (stated || round>0) ? 1 : 0;   // a stated mesh is only measured; a confirming round raises at most once
-        const qcMesh::BeckeClimbResult climb=qcMesh::ClimbBeckeLadder(itsSetup->mesh, target, cal, false, distance, cap);
+        const qcMesh::BeckeClimbResult climb=qcMesh::ClimbBeckeLadder(itsSetup->xcMesh, target, cal, false, distance, cap);
         itsPilotCost.rounds=round+1;
         rpt::json steps=rpt::json::array();
         bool over=false;
@@ -654,7 +646,7 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
         }
         const char* end = climb.end==qcMesh::BeckeClimbResult::End::Settled ? "settled"
                         : climb.end==qcMesh::BeckeClimbResult::End::AxisEnd ? "axisEnd" : "raiseCap";
-        rpt::Set("round", round); rpt::Set("from", MeshName(itsSetup->mesh)); rpt::Set("to", MeshName(climb.mesh));
+        rpt::Set("round", round); rpt::Set("from", MeshName(itsSetup->xcMesh)); rpt::Set("to", MeshName(climb.mesh));
         rpt::Set("raises", climb.raises); rpt::Set("end", end); rpt::Set("steps", steps);
         if (climb.end==qcMesh::BeckeClimbResult::End::AxisEnd) endWhy=climb.why;
         if (stated)
@@ -663,7 +655,7 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
             itsPilotCost.settled=!over && climb.end==qcMesh::BeckeClimbResult::End::Settled;
             break;
         }
-        std::cout<<tag<<"round "<<round<<"  "<<(round==0 ? "climb" : "confirming audit")<<" at this D: "<<MeshName(itsSetup->mesh);
+        std::cout<<tag<<"round "<<round<<"  "<<(round==0 ? "climb" : "confirming audit")<<" at this D: "<<MeshName(itsSetup->xcMesh);
         if (climb.raises>0) std::cout<<" -> "<<MeshName(climb.mesh)<<" in "<<climb.raises<<" raise(s)";
         std::cout<<"; "<<(climb.end==qcMesh::BeckeClimbResult::End::Settled ? std::string("both axes meet the target")
                        : climb.end==qcMesh::BeckeClimbResult::End::AxisEnd ? climb.why : std::string("one raise, audited at the next round's D"))<<std::endl;
@@ -671,7 +663,7 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
         if (round+1>=kPilotRounds) { itsPilotCost.settled=false; endWhy="the pilot's round cap ("+std::to_string(kPilotRounds)+")"; break; }
         // RAISED: rebuild the point on the settled rung and re-converge ONCE from this D (the carry: same basis, block for block).
         auto next=std::make_shared<MoleculeSetup>(*itsSetup);
-        next->mesh=climb.mesh;
+        next->xcMesh=climb.mesh;
         itsSetup=next;
         itsCarry=std::make_unique<const Carry>(MakeCarry());
         BuildGraph();
@@ -679,7 +671,7 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
         (void)itsScf->Iterate(params);
         itsPilotCost.reconvergeIterations+=itsScf->GetIterationCount();
         RebuildSampling();
-        if (!itsScf->Converged()) { itsPilotCost.settled=false; endWhy="the re-convergence on "+MeshName(itsSetup->mesh)+" did not converge"; break; }
+        if (!itsScf->Converged()) { itsPilotCost.settled=false; endWhy="the re-convergence on "+MeshName(itsSetup->xcMesh)+" did not converge"; break; }
     }
     // FREEZE (§2 rule 4): a session steps every later point on this mesh.  A stated mesh stays stated (it was never the pilot's to move).
     if (!stated)
@@ -690,23 +682,23 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
     }
     rpt::Set("rounds", itsPilotCost.rounds); rpt::Set("referencesBuilt", itsPilotCost.referencesBuilt);
     rpt::Set("reconvergeIterations", (long)itsPilotCost.reconvergeIterations); rpt::Set("settled", itsPilotCost.settled);
-    rpt::Set("statedOver", itsPilotCost.statedOver); rpt::Set("mesh", MeshName(itsSetup->mesh));
+    rpt::Set("statedOver", itsPilotCost.statedOver); rpt::Set("mesh", MeshName(itsSetup->xcMesh));
     const std::string cost=std::to_string(itsPilotCost.rounds)+" round(s), "+std::to_string(itsPilotCost.referencesBuilt)+" reference Hamiltonian(s), "
                           +std::to_string(itsPilotCost.reconvergeIterations)+" re-convergence iteration(s)";
     if (itsPilotCost.statedOver)
     {
-        std::cout<<tag<<"WARNING: the STATED XC mesh "<<MeshName(itsSetup->mesh)<<" misses the target "<<target<<"; honoured (leave the mesh unstated to let the run size it)"<<std::endl;
-        policy::Report("StatedXCMeshMissesEps", "the stated Becke XC mesh "+MeshName(itsSetup->mesh)+" is kept", policy::Verdict::Warn,
+        std::cout<<tag<<"WARNING: the STATED XC mesh "<<MeshName(itsSetup->xcMesh)<<" misses the target "<<target<<"; honoured (leave the mesh unstated to let the run size it)"<<std::endl;
+        policy::Report("StatedXCMeshMissesEps", "the stated Becke XC mesh "+MeshName(itsSetup->xcMesh)+" is kept", policy::Verdict::Warn,
                        "a stated mesh is honoured, never raised (pin 31 rule 3), and its delivered error is over the target "+std::to_string(target)
                        +" on "+(onE ? "|ΔE|" : "max|ΔH_ij|"));
     }
     else if (!stated && itsPilotCost.settled)
-        policy::Report("MolecularXCMeshSettled", "the Becke XC mesh "+MeshName(itsSetup->mesh)+" (entered at "+MeshName(entry)+")", policy::Verdict::Choose,
+        policy::Report("MolecularXCMeshSettled", "the Becke XC mesh "+MeshName(itsSetup->xcMesh)+" (entered at "+MeshName(entry)+")", policy::Verdict::Choose,
                        "climbed at the converged density until both axes meet the target "+std::to_string(target)+" on "+(onE ? "|ΔE|" : "max|ΔH_ij|")+"; "+cost);
     else if (!stated)
     {
-        std::cout<<tag<<"WARNING: the XC mesh is NOT SETTLED at "<<MeshName(itsSetup->mesh)<<": "<<endWhy<<std::endl;
-        policy::Report("MolecularXCMeshNotSettled", "the Becke XC mesh stops at "+MeshName(itsSetup->mesh), policy::Verdict::Warn,
+        std::cout<<tag<<"WARNING: the XC mesh is NOT SETTLED at "<<MeshName(itsSetup->xcMesh)<<": "<<endWhy<<std::endl;
+        policy::Report("MolecularXCMeshNotSettled", "the Becke XC mesh stops at "+MeshName(itsSetup->xcMesh), policy::Verdict::Warn,
                        endWhy+"; the delivered error may be over the target "+std::to_string(target)+"; "+cost);
     }
 }
@@ -751,7 +743,7 @@ StateSummary MoleculeCalculation::MakeStateSummary() const
     if (!itsScf || !itsScf->GetWaveFunction()) throw std::logic_error("qchem::MoleculeCalculation: no wave function yet");
     StateSummary s{.label="molecule", .converged=itsScf->Converged(), .iterations=itsScf->GetIterationCount(),
                    .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0};
-    s.recipe="model "+MoleculeModelName(*itsSetup)+", basis "+itsSetup->opts.molecule.basis+", accelerator "+itsSetup->acc.type;
+    s.recipe="model "+MoleculeModelName(*itsSetup)+", basis "+itsSetup->opts.molecule.basis+", accelerator "+std::string(NameOf(itsSetup->accelerator));
     if (itsLastRow)
     {
         s.commutator   =itsLastRow->ValueOf("[F,D]");
@@ -799,8 +791,8 @@ void MoleculeCalculation::RecordState(StateRecord& r, double kT) const
     if (*o.model==Model::Xalpha) fp.warmNum["xc.xalpha"]={o.xalpha};
     if (HasXCMesh())
     {
-        fp.warmNum["grids.xcMeshRadial"]={double(itsSetup->mesh.nRadial)};
-        fp.warmNum["grids.xcMeshDegree"]={double(itsSetup->mesh.angularDegree)};
+        fp.warmNum["grids.xcMeshRadial"]={double(itsSetup->xcMesh.nRadial)};
+        fp.warmNum["grids.xcMeshDegree"]={double(itsSetup->xcMesh.angularDegree)};
         fp.warmNum["accuracy.eps"]={o.accuracy.eps};
         fp.warmNum["xc.fit"]={double(int(o.vxcFit))};
     }
@@ -824,8 +816,8 @@ std::shared_ptr<const MoleculeSetup> SizedBySavedState(const std::shared_ptr<con
     const auto nR=one("grids.xcMeshRadial"), L=one("grids.xcMeshDegree"), eps=one("accuracy.eps");
     if (!(nR && L && eps && *eps==setup->opts.accuracy.eps)) return nullptr;
     auto adopted=std::make_shared<MoleculeSetup>(*setup);
-    adopted->mesh.nRadial=int(*nR);
-    adopted->mesh.angularDegree=int(*L);
+    adopted->xcMesh.nRadial=int(*nR);
+    adopted->xcMesh.angularDegree=int(*L);
     adopted->meshResolved=true;
     std::ostringstream os;
     os<<"the saved state's XC mesh ("<<int(*nR)<<" radial, degree "<<int(*L)<<") was sized for this accuracy (eps "<<*eps<<")";
@@ -866,7 +858,7 @@ MoleculeCalculation::PrepareRestart(const std::string& path, std::shared_ptr<con
             setup=std::move(adopted);
         }
     }
-    const Structure& ref=*setup->reference;
+    const Structure& ref=*setup->structure;
     std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, setup, ref, nullptr, std::move(onIteration)));
     {
         rpt::Scope basis("basis");
@@ -911,7 +903,7 @@ MoleculeCalculation::ViewState(const std::string& path, std::shared_ptr<const Mo
         std::string why;
         if (auto adopted=SizedBySavedState(setup, *saved, why)) { rpt::Set("adopted", why); setup=std::move(adopted); }   // the mesh is warm: an exact view
     }
-    const Structure& ref=*setup->reference;
+    const Structure& ref=*setup->structure;
     std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, setup, ref, nullptr, nullptr));
     {
         rpt::Scope basis("basis");
@@ -947,7 +939,7 @@ MoleculeSession::~MoleculeSession() = default;
 PESGeometry MoleculeSession::Reference() const
 {
     PESGeometry g;   // no cell
-    itsSetup->reference->ForEachSite([&](int Z, const rvec3_t& r, bool){ g.R.push_back(r); g.Z.push_back(Z); });
+    itsSetup->structure->ForEachSite([&](int Z, const rvec3_t& r, bool){ g.R.push_back(r); g.Z.push_back(Z); });
     return g;
 }
 
@@ -957,7 +949,7 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
     using O=Outcome<PESPoint, PESFailure>;
     using Why=PESFailure::Why;
     if (cell) throw std::invalid_argument("MoleculeSession::ConvergeAt: a molecule has no cell -- pass an empty one (Reference().cell)");
-    const Structure& ref=*itsSetup->reference;
+    const Structure& ref=*itsSetup->structure;
     const size_t nAtoms=ref.GetNumAtoms();
     if (R.size()!=nAtoms)
         throw std::invalid_argument("MoleculeSession::ConvergeAt: "+std::to_string(R.size())+" positions for "+std::to_string(nAtoms)+" atoms");

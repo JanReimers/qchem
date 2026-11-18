@@ -37,26 +37,14 @@ import qchem.ChargeDensity;         // rDM_CD
 import qchem.ChargeDensity.Seed;    // SeedStrategy
 import qchem.MoleculeCalculation;           // reuse AcceleratorOptions (read-only; does NOT modify MoleculeCalculation)
 export import qchem.RunOptions;             // RunOptions: the one options tree (V-FACADE-PARITY P0b-2)
+export import qchem.AtomSetup;              // AtomSetup: the run setup an AtomCalculation is built from (V-FACADE-PARITY P1)
 
 export namespace qchem
 {
 
 using Hamiltonian::Model;                 // {E1, HF, DE1, DHF, Xalpha, LDA}
 
-//! The atom's DEFAULT XC mesh (unstated \c RunOptions::xcMesh): the RADIAL-ONLY set (\c AngularKind::None, one direction at 4 pi), exact
-//! because the atom's density is spherical by construction; \c nRadial 0 = unstated: the run enters at 50 MHL points and climbs to eps.
-//! Was \c RunOptions::mesh's member default.
-inline const qcMesh::MeshParams kAtomMeshDefault = {.radial = qcMesh::RadialKind::MHL, .nRadial = 0, .mhl_m = 3, .mhl_alpha = 2.0,
-                                                    .angular = qcMesh::AngularKind::None, .angularDegree = 0, .beckeOrder = 2};
-//! THE ATOM'S VIEW of the options tree: \a asked with the atom's defaults filled (model HF, \c kAtomMeshDefault, ortho Auto) and what an
-//! atom does not consume REFUSED (policy ForeignOption): the molecule and solid blocks, Nelec / charge / multiplicity (the atom takes
-//! Z and charge as arguments, its spin from the configuration), pp / species (the atom block's pseudopotential + valence), the
-//! imposition, spins, the top-level accelerator / recipe, orthoTol, label, saveStateTo.
-RunOptions AtomOptions(const RunOptions& asked);
-//! A caller that edits ONE field of an atom's XC mesh starts from the atom's default (\c kAtomMeshDefault), filled on first use.
-inline qcMesh::MeshParams& AtomXCMesh(RunOptions& o) { if (!o.xcMesh) o.xcMesh=kAtomMeshDefault; return *o.xcMesh; }
-
-class AtomCalculation : public virtual Calculation
+class AtomCalculation : public virtual tCalculation<double>
 {
 public:
     using sf_t       = ScalarFunction<double>;
@@ -64,14 +52,10 @@ public:
     using orbital_t  = qchem::Orbitals::Orbital;
     using Observer   = qchem::SCFIterator::SCFIterator::Observer;
 
-    //! Build the whole graph and converge ONCE with \a params.  \a Z is the nuclear charge, \a charge the
-    //! net ionic charge (electrons = Z - charge).  The EC is chosen from the model: Dirac models get an
-    //! AtomDirac_EC, the rest an Atom_EC.  (Atom SCFs often want per-Z params and some are expensive, so
-    //! the params go in here -- a single converge -- rather than a default-then-reconverge.)
-    explicit AtomCalculation(int Z, int charge = 0,
-                             const RunOptions&    opts   = {},
-                             const SCFParams&          params = {},
-                             const AcceleratorOptions& acc    = {});
+    //! Build the whole graph from \a setup (\c AtomSetup::Resolve: Z, charge, options, accelerator) and converge ONCE with \a params.
+    //! The EC is chosen from the model: Dirac models get an AtomDirac_EC, the rest an Atom_EC.  (Atom SCFs often want per-Z params and
+    //! some are expensive, so the params go in here -- a single converge -- rather than a default-then-reconverge.)
+    explicit AtomCalculation(std::shared_ptr<const AtomSetup> setup, const SCFParams& params = {});
     ~AtomCalculation();
 
     AtomCalculation(const AtomCalculation&)            = delete;
@@ -82,31 +66,31 @@ public:
     //! basis.perIrrep) -- into the CALLER'S report run (a facade never opens one, user ruling D 2026-11-02); no SCF.  Run it with
     //! \c Converge(params), whose FIRST call reuses this graph.  Until then the accessors have no SCF to read.
     //!@{
-    static std::unique_ptr<AtomCalculation> Prepare(int Z, int charge = 0, const RunOptions& opts = {},
-                                                    const AcceleratorOptions& acc = {}, Observer onIteration = nullptr);
+    static std::unique_ptr<AtomCalculation> Prepare(std::shared_ptr<const AtomSetup> setup, Observer onIteration = nullptr);
     //!@}
     //! \name RESTART FROM A SAVED STATE (V-FACADE-STATE; \c SaveState / \c JudgeState are the base's)
-    //! The atomic twins of \c MoleculeCalculation::Restart / \c PrepareRestart, built from the same arguments as the constructor:
+    //! The atomic twins of \c MoleculeCalculation::Restart / \c PrepareRestart, built from a setup as the constructor is:
     //! REFUSED on another kind, another radial basis, other electrons or blocks; an EXACT RESUME (the saved D drives the first Fock,
     //! a Ladder starts on its GDM rung at kT = 0) when nothing differs; else a WARM START with every difference named.
     //!@{
     static Outcome<std::unique_ptr<AtomCalculation>, RestartRefusal>
-        Restart(const std::string& path, int Z, int charge = 0, const RunOptions& opts = {}, const SCFParams& params = {},
-                const AcceleratorOptions& acc = {}, Observer onIteration = nullptr);
+        Restart(const std::string& path, std::shared_ptr<const AtomSetup> setup, const SCFParams& params = {}, Observer onIteration = nullptr);
     //! \c Restart up to its SCF; run it with \c Converge.
     static Outcome<std::unique_ptr<AtomCalculation>, RestartRefusal>
-        PrepareRestart(const std::string& path, int Z, int charge = 0, const RunOptions& opts = {}, const SCFParams& params = {},
-                       const AcceleratorOptions& acc = {}, Observer onIteration = nullptr);
+        PrepareRestart(const std::string& path, std::shared_ptr<const AtomSetup> setup, const SCFParams& params = {},
+                       Observer onIteration = nullptr);
     const std::optional<RestartSummary>& RestartedFrom() const override;   //!< \c PrepareRestart's judgement; empty for a fresh run
     //!@}
 
-    //! \brief A SAVED STATE, DRAWN (\c StateView, lane G 2026-11-13): the state at \a path on the basis these arguments build (as
+    //! \brief A SAVED STATE, DRAWN (\c StateView, lane G 2026-11-13): the state at \a path on the basis \a setup builds (as
     //! \c PrepareRestart builds it), then the saved D, C, eps, f -- no Hamiltonian, no SCF.  REFUSED as \c Calculation::JudgeView
     //! refuses, never thrown.  Reports one level in, under the scope its caller opened (a \c report::Section "view").
     static Outcome<std::unique_ptr<StateView>, RestartRefusal>
-        ViewState(const std::string& path, int Z, int charge = 0, const RunOptions& opts = {}, const AcceleratorOptions& acc = {});
+        ViewState(const std::string& path, std::shared_ptr<const AtomSetup> setup);
 
-    bool Converge(const SCFParams& params = {});
+    //! Run the SCF (the first call reuses a \c Prepare'd graph) and hand back the ANSWERS or the REASON (a bool until V-FACADE-PARITY P2).
+    //! Invalidates any \c Converged from an earlier attempt.  \c [[nodiscard]] via \c Outcome.  \c Result() (the base's) re-reads it.
+    Outcome<Converged, SCFFailure> Converge(const SCFParams& params = {});
     void OnIteration(Observer obs);
 
     double                 Energy()      const;
@@ -126,24 +110,35 @@ public:
 
     size_t           IterationCount() const;   //!< the run's SCF iterations: the entry SCF plus every atom-pilot re-convergence
     bool             IsConverged()    const;
-    int              GetZ()           const {return itsZ;}
-    const Structure& GetStructure()   const {return *itsStructure;}
+    int              GetZ()           const {return itsSetup->Z;}
+    const Structure& GetStructure()   const {return *itsSetup->structure;}
+    const AtomSetup& GetSetup()       const {return *itsSetup;}   //!< the setup this atom was built from (a restart or a sibling reads its decisions)
 
 private:
     typedef std::pair<double, const sf_t*> occ_t;
     struct BuildOnly {};
     //! Everything but the SCF: the members and the electron configuration (the graph is \c BuildGraph's).
-    AtomCalculation(BuildOnly, int Z, int charge, const RunOptions& opts, const AcceleratorOptions& acc, Observer onIteration);
+    AtomCalculation(BuildOnly, std::shared_ptr<const AtomSetup> setup, Observer onIteration);
     //! The accelerator, the basis (first time), the Hamiltonian and the SCF iterator -- inside the caller's open report run.
     void BuildGraph();
-    std::string AcceleratorTag() const;   //!< the accelerator type the caller asked for, as the scf header names it
+    std::string AcceleratorTag() const;   //!< the accelerator type the setup resolved, as the scf header names it
     bool itsPrepared = false;             //!< \c Prepare built the graph: the next Converge reuses it instead of rebuilding
     void RebuildSampling();
+    //! \name THE PROOF'S ANSWERS (\c tCalculation's hooks)
+    //!@{
+    std::optional<SCFFailure>             MakeFailure()      const override;
+    EnergyBreakdown                       ProofEnergyTerms() const override;
+    double                                ProofCharge()      const override;
+    size_t                                ProofIterations()  const override;
+    const ChargeDensity::tDM_CD<double>&  ProofDensity()     const override;
+    const ScalarFunction<double>&         ProofSpinDensity() const override;
+    //!@}
+    mutable std::unique_ptr<const sf_t>   itsSpin;   //!< m(r) of a polarized attempt, built on first use (reset by \c RebuildSampling)
     //! \name THE STATE HOOKS (\c Calculation's template method, V-FACADE-STATE)
     //!@{
     void                    RecordState(StateRecord&, double kT) const override;   //!< the base's keys + the radial basis, model, mesh
     std::string             StateKind() const override {return "atom";}
-    const Structure&        StateStructure() const override {return *itsStructure;}
+    const Structure&        StateStructure() const override {return *itsSetup->structure;}
     StateIdentity           MakeStateIdentity() const override;
     std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
     StateSummary            MakeStateSummary() const override;
@@ -157,11 +152,7 @@ private:
     double                        itsLastkT        = 0.0;
     std::optional<RestartSummary> itsRestartedFrom;
 
-    int                                  itsZ;
-    int                                  itsNe;          //!< electron count (Z - charge)
-    RunOptions                      itsOpts;
-    AcceleratorOptions                   itsAcc;
-    std::shared_ptr<const Structure>     itsStructure;   //!< the single atom (Hamiltonian shares it)
+    std::shared_ptr<const AtomSetup>     itsSetup;       //!< every decision resolved once: Z, Ne, the options, the accelerator, the seed (its structure the Hamiltonian shares)
     ElectronConfiguration*               itsEC    = nullptr;  //!< owned
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
     //! The run's Coulomb-fit slot (doc/IntegralCacheOwnershipPlan.md S2b): every Hamiltonian builder demands one.  A slot fills ONCE, so the

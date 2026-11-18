@@ -96,7 +96,7 @@ TEST_P(A_DFT_atom, Energy)
     const AtomDFTCase c = GetParam();
     const auto& pt = thePeriodicTable();
     const Pool p = PoolFor(c.type, c.spin, c.Z);
-    AtomCalculation calc(c.Z, 0, {.spin=c.spin, .model=c.model, .xalpha=pt.GetSlaterAlpha(c.Z), .atom={.type=c.type, .N=p.N, .emin=p.emin, .emax=p.emax}},
+    AtomCalculation calc(AtomSetup::Resolve(c.Z, 0, {.spin=c.spin, .model=c.model, .xalpha=pt.GetSlaterAlpha(c.Z), .atom={.type=c.type, .N=p.N, .emin=p.emin, .emax=p.emax}}),
                          dft_scf_params(c.Z));
     ASSERT_TRUE(calc.IsConverged()) << "the oracle comparison needs a converged energy";
     // LSDA against NIST (the same functional); Slater-Xalpha against PySCF's Xalpha in the radial code's state (the spherical ensemble).
@@ -152,7 +152,7 @@ static double HeavyEnergy(const HeavyCase& c, Hamiltonian::CoulombFit route)
 {
     RunOptions o{.spin=c.spin, .model=Model::LDA, .atom={.type=c.type, .basisPool=BasisSetAccuracy::High}};
     o.coulomb.fit=route;
-    AtomCalculation calc(c.Z, 0, o, dft_scf_params(c.Z));
+    AtomCalculation calc(AtomSetup::Resolve(c.Z, 0, o), dft_scf_params(c.Z));
     EXPECT_TRUE(calc.IsConverged()) << c.name << ": the oracle comparison needs a converged energy";
     return calc.Energy();
 }
@@ -204,7 +204,7 @@ TEST_P(A_DFT_ion, AFirstCationInNISTsConfigurationLandsAboveNIST)
     const IonCase c=GetParam();
     RunOptions o{.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=c.type, .basisPool=BasisSetAccuracy::High}};
     o.atom.configuration=c.configuration;
-    AtomCalculation calc(c.Z, 1, o, dft_scf_params(c.Z));
+    AtomCalculation calc(AtomSetup::Resolve(c.Z, 1, o), dft_scf_params(c.Z));
     ASSERT_TRUE(calc.IsConverged()) << c.name << ": the oracle comparison needs a converged energy";
     const double dE=calc.Energy()-c.nist;
     printf("%s %s: E - E_NIST(cation) = %+.6f mHa (margin %.1f)\n", c.name, c.configuration, dE*1e3, c.margin*1e3);

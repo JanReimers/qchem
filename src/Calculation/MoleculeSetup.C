@@ -26,6 +26,7 @@ export import qchem.SCFRecipe;         // SCFRecipe (AcceleratorOptions::recipe)
 export import qchem.Pseudopotential.Set;   // PseudopotentialSet -- the setup's resolved choice
 export import qchem.Accuracy;            // AccuracyTarget -- a RunOptions field
 export import qchem.SetupRefusal;        // SetupRefusal + Outcome: the Admit door's failure half
+export import qchem.Setup;               // Setup: what every run setup holds (V-FACADE-PARITY P1)
 
 export namespace qchem
 {
@@ -56,7 +57,7 @@ inline qcMesh::MeshParams& MoleculeXCMesh(RunOptions& o) { if (!o.xcMesh) o.xcMe
 inline constexpr int kMolecularMeshEntryRadial = 80;
 inline constexpr int kMolecularMeshEntryDegree = 29;
 
-struct MoleculeSetup
+struct MoleculeSetup : Setup
 {
     //! \brief THE ONE RESOLVE PHASE, as an OUTCOME: the door for USER INPUT (the GUI binding, a command line).  Options that contradict
     //! each other or the structure -- a multiplicity whose parity disagrees with the electron count, an unknown accelerator name, an
@@ -68,25 +69,13 @@ struct MoleculeSetup
     //! user input: the GUI binding and \c scfrun go through \c Admit.
     static std::shared_ptr<const MoleculeSetup> Resolve(const Structure& st, const RunOptions& opts, const AcceleratorOptions& acc = {});
 
-    RunOptions        opts;   //!< as asked, except \c spin: an open shell (multiplicity > 1) is promoted to Polarized
-    AcceleratorOptions acc;    //!< as asked
-    //! The resolved choice (\c *opts.pp with \c opts.species); EMPTY = all-electron.
-    std::optional<Pseudopotential::PseudopotentialSet> pp;
-    //! The REFERENCE geometry, deep-copied (a periodic UnitCell stays periodic), with the TRUE atomic charges.
-    std::shared_ptr<const Structure> reference;
-    int    Ne = 0;             //!< electrons: the VALENCE count under a pseudopotential
-    int    nUp = 0, nDown = 0; //!< the electron count per spin channel, from \c opts.multiplicity (\c ResolveSpinChannels, the rule every structure shares)
-    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;   //!< \c Default resolved per model
-    //! The seed library's key (\c SeedKeyOf): per element, the pseudopotential q of the run's pseudo-atom; unkeyed all-electron.
-    qchem::ChargeDensity::SeedKey seedKey;
-    SCFAccelerators::Type accelerator = SCFAccelerators::Type::DIIS;   //!< \c acc.type, by name
-    double eMax = 0.0;         //!< \c acc.diis.engageBelowFD, or the model's default when it was left unstated
-    SCFAccelerators::AcceleratorParams accParams;   //!< \c acc resolved over the molecular defaults (\c ResolveAcceleratorParams)
-    //! THE RUN'S XC MESH: \c *opts.xcMesh with an unstated axis at the entry rung (\c kMolecularMeshEntryRadial / \c kMolecularMeshEntryDegree), or the rung a pilot settled
-    //! on (\c MoleculeCalculation::SizedSetup).  Every Hamiltonian of a point is built on this, never on \c opts.xcMesh->
-    qcMesh::MeshParams mesh;
+    //! The shared decisions are the base's (\c Setup): \c opts (\c spin promoted for an open shell, \c seed resolved per model), \c acc,
+    //! \c accParams (the DIIS engage gate: the model's default when unstated), \c accelerator, \c pp, \c structure (deep-copied, TRUE charges),
+    //! \c Ne / \c nUp / \c nDown, \c seedKey, and \c xcMesh: \c *opts.xcMesh with an unstated axis at the entry rung
+    //! (\c kMolecularMeshEntryRadial / \c kMolecularMeshEntryDegree), or the rung a pilot settled on (\c MoleculeCalculation::SizedSetup).
+    //! Every Hamiltonian of a point is built on \c xcMesh, never on \c opts.xcMesh.
     bool meshStated   = false;   //!< the caller stated \c *opts.xcMesh (either number): audited against eps, never raised (pin 31 rule 3)
-    bool meshResolved = false;   //!< a pilot settled \c mesh already (a session's later points): no climb, no audit
+    bool meshResolved = false;   //!< a pilot settled \c xcMesh already (a session's later points): no climb, no audit
 
     //! The structure a geometry point is built over: \a st's atoms, each carrying its VALENCE charge Z - Zion under a
     //! pseudopotential (so the electron count is the valence count), or \a st as is when all-electron.  Deep-copied.

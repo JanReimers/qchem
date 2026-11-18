@@ -69,7 +69,7 @@ PseudoAtomOrbital Build(const std::string& element, int Zion, int l, int lmax)
     // ruling D, 2026-11-02) -- without this bracket the pseudo-atom's basis / grids / scf would land over the solid run's own sections.
     // Nested, so it stays console-quiet and files under its own key, as it did when the atom facade opened the run itself.
     std::unique_ptr<AtomCalculation> solved;
-    { report::Run run("pseudo-atom "+element+" (+U projector)"); solved=std::make_unique<AtomCalculation>(Z, Z-Zion, o, p); }
+    { report::Run run("pseudo-atom "+element+" (+U projector)"); solved=std::make_unique<AtomCalculation>(AtomSetup::Resolve(Z, Z-Zion, o), p); }
     const AtomCalculation& atom=*solved;
     if (!atom.IsConverged()) throw std::runtime_error("PseudoAtomOrbital: the "+element+" pseudo-atom did not converge");
     PseudoAtomOrbital out;

@@ -274,7 +274,7 @@ static Molecule MakeBoron()
 
 TEST(M_Calculation, BoronUHFLadderGDM)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .molecule={.basis="dzvp"}}, {.type = "Ladder"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}}));
 
     const double E_ref = -24.525932;   // pinned converged UHF/dzvp did-E-move anchor (measured 2026-08-17;
                                        // ~3 mHa above the HF limit -24.529061 = dzvp basis incompleteness)
@@ -286,7 +286,7 @@ TEST(M_Calculation, BoronUHFLadderGDM)
 // on the same UHF energy.  Locks the second previously-uncovered accelerator type.
 TEST(M_Calculation, BoronUHFPureGDM)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .molecule={.basis="dzvp"}}, {.type = "GDM"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .accelerator=qchem::SCFAccelerators::Type::GDM, .molecule={.basis="dzvp"}}));
 
     const double E_ref = -24.525932;   // same anchor as the Ladder run (the two agree to ~1e-12 Ha)
     EXPECT_LT(std::fabs((E_ref - calc.Energy()) / std::fabs(E_ref)), 1e-5);
@@ -354,12 +354,12 @@ TEST(M_Calculation, BoronLDASharedLevelGDMDeclines)
 {
     // The facade converges in its constructor, so the capture brackets the construction.
     testing::internal::CaptureStdout();
-    MoleculeCalculation ladder(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .model=qchem::Model::LDA, .molecule={.basis="dzvp"}}, {.type = "Ladder"}));
+    MoleculeCalculation ladder(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}}));
     const std::string outL=testing::internal::GetCapturedStdout();
     testing::internal::CaptureStdout();
     // GDM with the fill UNSTATED takes the integer fill (user 2026-11-08: guide the user); the shared state is stated here.
     SCFParams shared; shared.DegenerateLevels=SCFParams::DegenerateLevelFill::Shared;
-    MoleculeCalculation gdm   (MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .model=qchem::Model::LDA, .molecule={.basis="dzvp"}}, {.type = "GDM"}),
+    MoleculeCalculation gdm   (MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::GDM, .molecule={.basis="dzvp"}}),
                                shared);
     const std::string outG=testing::internal::GetCapturedStdout();
     ASSERT_TRUE(ladder.Result()) << outL;
@@ -374,7 +374,7 @@ TEST(M_Calculation, BoronLDASharedLevelGDMDeclines)
 // the energy alone cannot tell; the console must carry no "DECLINING" line (checked by hand via ITMain -v).
 TEST(M_Calculation, WaterPureGDM)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp"}}, {.type = "GDM"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.accelerator=qchem::SCFAccelerators::Type::GDM, .molecule={.basis="dzvp"}}));
 
     const double E_ref = -76.022903;                       // same anchor as WaterSymmetry
     EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
@@ -401,7 +401,7 @@ struct Iterates
 TEST(M_Calculation, BoronUHFExactResumeStartsAtTheSavedAnswer)
 {
     const std::string path=StatePath("boron_uhf.h5");
-    const auto setup=[]{ return MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .molecule={.basis="dzvp"}}, {.type = "Ladder"}); };
+    const auto setup=[]{ return MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}}); };
     MoleculeCalculation calc(setup());
     ASSERT_TRUE(calc.Result());
     calc.SaveState(path);
@@ -537,7 +537,7 @@ TEST(M_Calculation, ASavedStateIsJudgedByClass)
     for (const auto& w : (*otherModel)->RestartedFrom()->warm) named |= w.rfind("functional:",0)==0;
     EXPECT_TRUE(named) << "an HF state seeding an LDA run is a WARM start that names the functional";
 
-    auto atom=qchem::AtomCalculation::Restart(path, 8);
+    auto atom=qchem::AtomCalculation::Restart(path, AtomSetup::Resolve(8, 0));
     std::filesystem::remove(path);
     ASSERT_FALSE(atom);
     EXPECT_EQ(atom.Error().why, qchem::RestartRefusal::Why::Kind);

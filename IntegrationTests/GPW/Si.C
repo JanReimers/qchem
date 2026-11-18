@@ -1208,7 +1208,7 @@ TEST(GPW_Si, Γ_Imp_eqK211)
     namespace fs=std::filesystem;
     const nlohmann::json deck={
         {"structure","Si_diamond_2x1x1"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
-        {"solid",{{"densityEcut",20.0},{"imposeSymmetry",true},{"seed","Uniform"}}},
+        {"imposeSymmetry",true},{"seed","Uniform"},{"solid",{{"densityEcut",20.0}}},
         {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-3},{"minDeltaE",1e-6},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
     qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
     const fs::path dir=fs::temp_directory_path()/("qchem_it_si_fold_"+std::to_string(::getpid()));
@@ -1233,7 +1233,7 @@ TEST(GPW_Si, Γ_GridAuditSeparatesTheRasterTerms)
     namespace fs=std::filesystem;
     const nlohmann::json deck={
         {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
-        {"solid",{{"densityEcut",20.0},{"seed","Uniform"}}},
+        {"seed","Uniform"},{"solid",{{"densityEcut",20.0}}},
         {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-6},{"minDeltaE",1e-9},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}},
         {"postSCF",{{{"gridAudit",nlohmann::json::object()}}}}};
     qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
@@ -1339,7 +1339,7 @@ TEST(GPW_Si, Γ_EggBoxLeavesTheAnalyticTermsInvariant)
     namespace fs=std::filesystem;
     const nlohmann::json deck={
         {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
-        {"solid",{{"densityEcut",20.0},{"seed","Uniform"}}},
+        {"seed","Uniform"},{"solid",{{"densityEcut",20.0}}},
         {"scf",{{"NMaxIter",60},{"minDeltaRhoPerElectron",1e-6},{"minDeltaE",1e-9},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}},
         {"postSCF",{{{"eggBox",{{"shift",{0.11,0.07,0.03}}}}}}}};
     qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
@@ -1386,7 +1386,7 @@ TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
             {"structure",structure}, {"kmesh",kmesh}, {"basis",{{"data","SIPP_SR"}}},
             // xcMesh STATED: Auto resolves to the uniform raster on the multi-k primitive arm but to BECKE on the Γ supercell arm (measured
             // 2026-10-04), and the arms must differ only in the cell.
-            {"solid",{{"densityEcut",20.0},{"forceComplex",true},{"hubbard",hub},{"xcMesh",{{"cellKind","Uniform"}}}}},
+            {"xc",{{"mesh",{{"cellKind","Uniform"}}}}},{"solid",{{"densityEcut",20.0},{"forceComplex",true},{"hubbard",hub}}},
             // The Kerker/Pulay recipe (the TMO one), on BOTH arms: SiParams' linear relax-1.0 D-mixing ran the primitive k211 ground state into
             // its 200-iteration cap (measured 2026-10-04: eigenvalue noise 9e-4 Ha against the supercell's 1.5e-8), and the arms must differ only in the cell.
             {"scf",{{"NMaxIter",200},{"minDeltaRhoPerElectron",1e-7},{"minDeltaE",1e-10},{"minDeltaFD",1e-7},{"minVirial","off"},{"minFD","off"},
@@ -1529,7 +1529,8 @@ TEST(GPW_Si, Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel)
     const nlohmann::json scf={{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7},{"minDeltaE",1e-10},{"minDeltaFD",1e-7},{"minVirial","off"},{"minFD","off"}};
     const nlohmann::json deck={
         {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
-        {"solid",{{"densityEcut",20.0},{"forceComplex",true},{"accelerator","Ladder"},
+        {"accelerator","Ladder"},
+        {"solid",{{"densityEcut",20.0},{"forceComplex",true},
                   {"hubbard",{{{"site",0},{"l",1},{"U_eV",0.0},{"projector","siteShells"}}}}}},
         {"scf",scf},
         {"postSCF",{{{"hubbardLoop",{{"estimator","linearResponse"},{"perturb",{0}},{"tolU_eV",1e-4},{"maxOuter",12}}}}}}};

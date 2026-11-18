@@ -179,7 +179,7 @@ public:
         AD::XCKernelData d;
         std::vector<rvec3_t> R; c.itsStructure->ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
         d.natom=R.size();
-        const qcMesh::MeshParams& mp=c.itsSetup->mesh;
+        const qcMesh::MeshParams& mp=c.itsSetup->xcMesh;
         d.beckeOrder=mp.beckeOrder;
         const qcMesh::Mesh t=qcMesh::ProductMesh(qcMesh::MakeRadial(mp), qcMesh::MakeAngular(mp));
         for (size_t q=0;q<t.size();q++) { d.u.push_back(t.Points()[q].x); d.u.push_back(t.Points()[q].y); d.u.push_back(t.Points()[q].z); d.w.push_back(t.Weights()[q]); }
