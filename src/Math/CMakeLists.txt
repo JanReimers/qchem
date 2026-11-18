@@ -4,6 +4,10 @@
 #   - Types/Blaze, fixed Vector/Matrix 2D+3D, SpecialFunctions, FFT,
 #     ScalarFunction, VectorFunction
 add_library(qcMath)
+# Module implementation units (no module interface; not part of the BMI file set).
+target_sources(qcMath PRIVATE
+    Imp/PointSampling.C
+    )
 target_sources(qcMath PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Constants.cpp
     intpow.C

@@ -1,6 +1,7 @@
 add_library(qcMesh)
 # Module implementation units (no module interface; not part of the BMI file set).
 target_sources(qcMesh PRIVATE
+    Imp/Mesh.C
     Internal/MHLRadialMesh.C
     Internal/LogRadialMesh.C
     Internal/LinearRadialMesh.C
