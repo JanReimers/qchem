@@ -730,11 +730,8 @@ std::string MoleculeModelName(const MoleculeSetup& su)
 }
 } //anonymous namespace
 
-Calculation::StateIdentity MoleculeCalculation::MakeStateIdentity() const
-{
-    return {.Nelec=itsSetup->Ne, .spin=StateSpin(), .multiplicity=itsSetup->opts.multiplicity,
-            .functional=MoleculeModelName(*itsSetup), .kT=itsLastkT};
-}
+std::string MoleculeCalculation::StateFunctional() const {return MoleculeModelName(*itsSetup);}
+double      MoleculeCalculation::StateKT()         const {return itsLastkT;}
 
 std::vector<StateBlock> MoleculeCalculation::StateBlocks(bool withOrbitals) const
 {

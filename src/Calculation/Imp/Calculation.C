@@ -133,6 +133,14 @@ std::string SetupEdit::Describe() const
     return os.str();
 }
 
+Calculation::StateIdentity Calculation::MakeStateIdentity() const
+{
+    // An atom's multiplicity is 0 always (its setup refuses a stated one: the configuration decides its spin); a solid's opts.Nelec and
+    // Setup::Ne are the one resolved count (SolidSetup's decision 2).
+    const Setup& S=GetSetup();
+    return {.Nelec=S.Ne, .spin=StateSpin(), .multiplicity=S.opts.multiplicity, .functional=StateFunctional(), .kT=StateKT()};
+}
+
 void Calculation::RefuseSetupEdit(const SetupEdit& edit, size_t index) const
 {
     policy::Refuse("StageSetup", "schedule stage "+std::to_string(index)+": this "+StateKind()+" cannot apply the setup edit "+edit.Describe(),

@@ -1397,11 +1397,8 @@ void SolidCalculation::RecordState(StateRecord& r, double kT) const
 
 const Structure& SolidCalculation::StateStructure() const {return *itsImp->st;}
 const std::optional<RestartSummary>& SolidCalculation::RestartedFrom() const {return itsImp->restartedFrom;}
-Calculation::StateIdentity SolidCalculation::MakeStateIdentity() const
-{
-    const auto& o=itsImp->setup->opts;
-    return {.Nelec=o.Nelec, .spin=StateSpin(), .multiplicity=o.multiplicity, .functional=qchem::Hamiltonian::Name(*o.model), .kT=itsImp->lastkT};   // the model's name, LDA or PADE (it was the PP set's functional)
-}
+std::string SolidCalculation::StateFunctional() const {return qchem::Hamiltonian::Name(*itsImp->setup->opts.model);}   // the model's name, LDA or PADE (it was the PP set's functional)
+double      SolidCalculation::StateKT()         const {return itsImp->lastkT;}
 std::vector<StateBlock> SolidCalculation::StateBlocks(bool withOrbitals) const
 {
     const auto* wf=withOrbitals && itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;

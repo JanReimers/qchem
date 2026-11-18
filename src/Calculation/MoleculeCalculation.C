@@ -264,7 +264,8 @@ private:
     void                    RecordState(StateRecord&, double kT) const override;   //!< the base's keys + the basis, PP, model, mesh
     std::string             StateKind() const override {return "molecule";}
     const Structure&        StateStructure() const override {return *itsStructure;}
-    StateIdentity           MakeStateIdentity() const override;
+    std::string             StateFunctional() const override;
+    double                  StateKT() const override;
     std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
     StateSummary            MakeStateSummary() const override;
     //!@}

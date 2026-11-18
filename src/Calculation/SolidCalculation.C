@@ -627,7 +627,8 @@ private:
     void                    RecordState(StateRecord&, double kT) const override;   //!< the base's keys + the solid's (\c AddSolidKeys)
     std::string             StateKind() const override {return "solid";}
     const Structure&        StateStructure() const override;
-    StateIdentity           MakeStateIdentity() const override;
+    std::string             StateFunctional() const override;
+    double                  StateKT() const override;
     std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
     StateSummary            MakeStateSummary() const override;
     FingerprintMigration    StateMigration() const override {return MigrateSolidFingerprint;}

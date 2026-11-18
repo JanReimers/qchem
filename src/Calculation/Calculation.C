@@ -160,7 +160,10 @@ protected:
     virtual void RecordState(StateRecord&, double kT) const;
     virtual std::string             StateKind() const = 0;                         //!< "atom" | "molecule" | "solid"
     virtual const Structure&        StateStructure() const = 0;                    //!< the run's atoms (positions: the geometry)
-    virtual StateIdentity           MakeStateIdentity() const = 0;
+    //! The identity, built ONCE here from the setup (\c Ne, \c StateSpin, \c opts.multiplicity) and the two answers only a kind has.
+    StateIdentity                   MakeStateIdentity() const;
+    virtual std::string             StateFunctional() const = 0;                   //!< the model / XC functional as the fingerprint names it
+    virtual double                  StateKT() const = 0;                           //!< the last stage's smearing
     //! The run's blocks in the canonical order (spin irreps outer, basis blocks inner), with their orbitals when \a withOrbitals.
     virtual std::vector<StateBlock> StateBlocks(bool withOrbitals) const = 0;
     virtual StateSummary            MakeStateSummary() const = 0;                  //!< THROWS before the first Converge

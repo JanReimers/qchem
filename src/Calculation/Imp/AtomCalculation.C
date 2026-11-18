@@ -445,10 +445,8 @@ const AtomCalculation::orbital_t* AtomCalculation::GetOrbital(size_t index, cons
 //====================================================================================================
 //  THE SAVED STATE (V-FACADE-STATE): the atom's hooks and its restart
 //====================================================================================================
-Calculation::StateIdentity AtomCalculation::MakeStateIdentity() const
-{
-    return {.Nelec=itsSetup->Ne, .spin=StateSpin(), .multiplicity=0, .functional=FunctionalName(), .kT=itsLastkT};
-}
+std::string AtomCalculation::StateFunctional() const {return FunctionalName();}
+double      AtomCalculation::StateKT()         const {return itsLastkT;}
 
 std::string AtomCalculation::FunctionalName() const
 {
