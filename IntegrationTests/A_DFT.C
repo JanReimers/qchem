@@ -197,7 +197,7 @@ INSTANTIATE_TEST_SUITE_P(Heavy, A_DFT_heavy, ::testing::Values(
 // SCF the observer sees starts again at iteration 1, so the rows split into the entry SCF and one segment per re-convergence.
 TEST(A_DFT_pilot, SG_Xe_TheReconvergenceStartsAtTheAnswer)
 {
-    AtomCalcOptions o{.type=AtomType::Gaussian, .basisPool=BasisSetAccuracy::High, .model=Model::LDA, .spin=SpinGroup::UnPolarized};
+    RunOptions o{.spin=SpinGroup::UnPolarized, .model=Model::LDA, .atom={.type=AtomType::Gaussian, .basisPool=BasisSetAccuracy::High}};
     o.coulomb.fit=Hamiltonian::CoulombFit::Auxiliary;
     std::vector<std::vector<double>> scfs;   // the total energy of every iterate, one vector per SCF
     qchem::report::Run run("SG_Xe pilot warm start");
