@@ -54,7 +54,8 @@ using SCFIter = qchem::SCFIterator::MolecularSCFIterator;   // item 2: the atom/
 // only the adapted basis, and the raw lifetime rides along.  PG::SymmetryAdapt throws if the basis has
 // no Cartesian PGData IBS (the guard); the facade only ever builds that basis today, so it is safe.
 // \a ao receives the SALC run's raw basis (shared with the adapted one), whose shells identify a saved state; null without symmetry.
-static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, const std::shared_ptr<const Structure>& st,
+// \a imposed is the setup's RESOLVED decision (Setup::imposed), never opts.imposeSymmetry: nothing reads the option after Resolve.
+static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, bool imposed, const std::shared_ptr<const Structure>& st,
                                      std::shared_ptr<const BasisSet::Real_BS>& ao)
 {
     ao.reset();
@@ -63,7 +64,7 @@ static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, const std::shared_p
     // doc/OldPlans/SphericalSALCPlan.md S3a/S4).  Only libcint-spherical is unwired (S3b) -- and it presents as a
     // PGData with spherical components, which the Cartesian extractor would silently misread, so reject that
     // one combination clearly here rather than let SymmetryAdapt take the wrong path.
-    if (opts.imposeSymmetry && spherical && opts.molecule.engine == Engine::LibCint)
+    if (imposed && spherical && opts.molecule.engine == Engine::LibCint)
         throw std::runtime_error("qchem::MoleculeCalculation: {.symmetry=true} with angular=Spherical requires "
                                  "engine=MnD (libcint-spherical SALC is not yet supported)");
 
@@ -74,7 +75,7 @@ static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, const std::shared_p
         : BasisSet::Gaussian::FactoryFromFile(opts.molecule.basisFile, st.get(),                               // a stated file (RunOptions::basisFile)
               opts.molecule.engine==Engine::LibCint ? BasisSet::Gaussian::Engine::LibCint : BasisSet::Gaussian::Engine::MnD,
               spherical ? BasisSet::Gaussian::Angular::Spherical : BasisSet::Gaussian::Angular::Cartesian);
-    if (!opts.imposeSymmetry) return raw;
+    if (!imposed) return raw;
     std::shared_ptr<const BasisSet::Real_BS> rawShared(raw);
     ao=rawShared;
     return PG::SymmetryAdapt(rawShared, *st, opts.symmetryTol);
@@ -160,7 +161,7 @@ void MoleculeCalculation::BuildGraph()
     // whole basis once, complete, on close.  A later Converge reuses the basis.
     {
         rpt::Scope basis("basis");
-        if (!itsBasis) itsBasis = BuildBasis(opts, itsStructure, itsAoBasis);   // raw, or SALC-blocked if .symmetry
+        if (!itsBasis) itsBasis = BuildBasis(opts, itsSetup->imposed, itsStructure, itsAoBasis);   // raw, or SALC-blocked if .symmetry
     }
     // The unified resolver turns the Model token into the concrete Hamiltonian; the DFT extras (mesh, orbital basis,
     // xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door instead (LSDA valence
@@ -495,7 +496,7 @@ GridAuditResult MoleculeCalculation::MeshAudit(const qcMesh::MeshParams& referen
                 if (shellsOf.size()<=block)   // a block's shells, once (the spin channels share the blocks); a SALC block is not an AO block
                 {
                     const auto* src=dynamic_cast<const BasisSet::AoShellSource*>(ibs);
-                    shellsOf.push_back(src && !opts.imposeSymmetry ? src->GetAoShells() : std::vector<Symmetry::Molecule::AoShell>{});
+                    shellsOf.push_back(src && !itsSetup->imposed ? src->GetAoShells() : std::vector<Symmetry::Molecule::AoShell>{});
                 }
                 ++block; ++channel;
             }
@@ -779,7 +780,7 @@ void MoleculeCalculation::RecordState(StateRecord& r, double kT) const
         fp.refuseStr["basis.fileChecksum"]=BasisSet::Gaussian::BasisFileChecksum(o.molecule.basisFile);
     fp.refuseStr["basis.engine"] =o.molecule.engine==Engine::LibCint ? "libcint" : "mnd";
     fp.refuseStr["basis.angular"]=o.molecule.angular==Angular::Spherical ? "spherical" : "cartesian";
-    fp.refuseStr["basis.blocks"] =o.imposeSymmetry ? "SALC" : "AO";
+    fp.refuseStr["basis.blocks"] =itsSetup->imposed ? "SALC" : "AO";
     fp.refuseStr["pp.set"]       =itsSetup->pp ? itsSetup->pp->Name() : std::string();
     {
         std::string ov;
@@ -791,7 +792,7 @@ void MoleculeCalculation::RecordState(StateRecord& r, double kT) const
     // 2026-11-10).  A block that cannot report its shells is identified by name alone, and says so.
     {
         const BasisSet::Real_BS& ao = itsAoBasis ? *itsAoBasis : *itsBasis;
-        if (o.imposeSymmetry && !itsAoBasis) throw std::logic_error("MoleculeCalculation::RecordState: a SALC run without its AO basis");
+        if (itsSetup->imposed && !itsAoBasis) throw std::logic_error("MoleculeCalculation::RecordState: a SALC run without its AO basis");
         std::vector<const BasisSet::Orbital_1E_IBS<double>*> blocks;
         bool all=true;
         for (auto ibs : ao.Iterate<BasisSet::Real_OIBS>())
@@ -877,7 +878,7 @@ MoleculeCalculation::PrepareRestart(const std::string& path, std::shared_ptr<con
     std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, setup, ref, nullptr, std::move(onIteration)));
     {
         rpt::Scope basis("basis");
-        c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsStructure, c->itsAoBasis);   // BuildGraph reuses it
+        c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsSetup->imposed, c->itsStructure, c->itsAoBasis);   // BuildGraph reuses it
     }
     SavedState state=saved.TakeValue();
     auto judged=c->JudgeRestart(state, scf.SmearingkT, tag);
@@ -922,7 +923,7 @@ MoleculeCalculation::ViewState(const std::string& path, std::shared_ptr<const Mo
     std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, setup, ref, nullptr, nullptr));
     {
         rpt::Scope basis("basis");
-        c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsStructure, c->itsAoBasis);
+        c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsSetup->imposed, c->itsStructure, c->itsAoBasis);
     }
     auto judged=c->JudgeView(*saved);
     if (!judged) return O::Fail(judged.Error());
@@ -976,7 +977,7 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
     // THE IMPOSED GROUP must survive (Q4): the SALC blocks are built on the abelian point group, so a step that changes it changes
     // the blocks the carry and the energy surface are written in -- a NEW setup, the user's choice.  A THROW: every driver that moves
     // atoms off the group runs a lower-group setup, so an off-group R here is a wiring defect (PotentialEnergySurface.C).
-    if (itsSetup->opts.imposeSymmetry)
+    if (itsSetup->imposed)
     {
         auto abelian=[&](const Structure& st)
         {
