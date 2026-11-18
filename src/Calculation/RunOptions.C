@@ -8,6 +8,7 @@ module;
 #include <string>
 #include <utility>
 #include <vector>
+#include <nlohmann/json.hpp>
 export module qchem.RunOptions;
 export import qchem.Symmetry.Spin;              // SpinGroup
 export import qchem.Hamiltonian.Factory;        // Model, VxcFit, XCρ, CoulombRoute, HubbardManifold
@@ -23,6 +24,7 @@ export import qchem.SCFAccelerator.Factory;     // SCFAccelerators::Type, Schedu
 export import qchem.SCFRecipe;                  // SCFRecipe
 export import qchem.SCFParams;                  // SCFParams (R10: the run's SCF settings live in the options)
 export import qchem.Accuracy;                   // AccuracyTarget
+export import qchem.BasisSet.Radial.Factory;    // BasisSet::Radial::Type, BasisSetAccuracy (the atom's exponent pool)
 import qchem.Types;                             // rvec3_t
 
 export namespace qchem
@@ -33,6 +35,9 @@ using BasisSet::Gaussian::Engine;   // the library's own axis (one enum, as Angu
 //! molecular \c CalcOptions::angular and the periodic \c GaussianBasisRecipe::angular (user, 2026-11-12: "we should strive to make
 //! seeding and spherical/Cartesian options structure neutral"), so one option means one thing on every structure.
 using BasisSet::Gaussian::Angular;
+
+using AtomType = BasisSet::Radial::Type;    //!< the atom's basis family {Slater, Gaussian, BSpline6, BSpliner6, Gaussian_RKB, Slater_RKB}
+using BasisSet::Radial::BasisSetAccuracy;   //!< the atom's preset exponent pool {Low, Medium, High}
 
 //! \brief THE ACCELERATOR BLOCK of the options tree, every structure (V-FACADE-PARITY P0b-1, 2026-11-17; was the molecule's flat
 //! \c AcceleratorOptions and the solid's \c SolidAcceleratorOptions).  Every knob is OPTIONAL: unstated takes the KIND's default, which
@@ -211,6 +216,53 @@ struct RunOptions
     //! THE RUN'S SCF SETTINGS (R10, 2026-11-17): carried here since P0b-2; \c Converge() reads them from the setup in P3.
     SCFParams scf = {};
     //!@}
+
+    //! \brief THE ATOM-ONLY OPTIONS: the radial exponent pool (the atom's basis), its functional override, the pseudo-atom, the stated
+    //! configuration, the accelerator-sweep escape hatch.  Any other kind REFUSES a stated one.  (The pseudo-atom's bool + valence and the
+    //! json escape hatch stay as they were: harmonizing them with the top-level \c pp / accelerator block is OpenWork row "Atom options".)
+    struct Atom
+    {
+        AtomType         type     = AtomType::Slater;            //!< atomic basis family
+        BasisSetAccuracy basisPool = BasisSetAccuracy::Medium;   //!< the preset exponent POOL (a model choice, not the accuracy target; used when N<=0)
+        //! Explicit exponent pool -- when N>0 these override the basisPool preset (the {type,N,emin,emax} json
+        //! the scaffold built by hand for the A_SG/A_SL exponent-sweep tests).
+        int    N    = 0;
+        double emin = 0.0;
+        double emax = 0.0;
+        //! Explicit exponent LIST -- the "bring your own exponents" path (used by the valence-basis generator).
+        //! When non-empty it overrides N/emin/emax and the basisPool preset: every occupied angular irrep is built
+        //! from these exponents, trimmed per-l by \c ltrim ((3-l)*ltrim smallest + l*ltrim largest dropped; 0 =
+        //! every irrep gets the full list).  So the SAME exponents that are validated here can be emitted verbatim.
+        std::vector<double> exponents;
+        size_t              ltrim = 0;
+        //! INDEPENDENT per-l exponent lists (l, exponents) -- highest precedence.  Each occupied angular irrep is
+        //! built from its OWN list verbatim (no auto-trim), so s and p can carry different windows.  The right
+        //! path for pseudopotential valence bases (the ExponentScaler N-4l trim assumes absent core exponents).
+        std::vector<std::pair<int,std::vector<double>>> exponentsByL;
+        //! DFT exchange-correlation override.  When set, the DFT Hamiltonian uses this functional (e.g. a
+        //! libxc LDA) via the public XC selector, instead of the model's built-in Xalpha/LDA.  (model is then
+        //! only used to decide HF/Dirac vs DFT -- any DFT model works.)
+        std::optional<qchem::Hamiltonian::XCFunctional> xc;
+        //! Pseudo-atom: replace the all-electron nuclear attraction with the GTH local + KB nonlocal PP (LDA
+        //! XC), and use a valence-only PseudoAtom_EC.  The element is looked up from Z.  `valence` is the GTH
+        //! Zion; 0 means "use the electron count Z-charge" (a neutral pseudo-atom).  For a pseudo-ion set both:
+        //! electrons = Z - charge, Zion = valence, net charge = Zion - electrons (e.g. F⁻: valence=7, one extra e).
+        bool   pseudopotential = false;
+        int    valence         = 0;
+        //! \brief The electron configuration, in NIST's notation ("[Ar] 3d^6 4s^1"; the "^" optional).  EMPTY = derived: the isoelectronic
+        //! neutral's (all-electron) or the pseudo-ion rule (\c PseudoAtom_EC).  Stated, it must hold the run's electrons, and on a pseudo-atom its
+        //! [X] core must be the pseudopotential's own (Z - q electrons; the text then names the valence, Mn2+ q7 = "[Ar] 3d^5"); a mismatch, a
+        //! shape the radial atom cannot hold, or a Dirac model is REFUSED (policy AtomConfiguration).  Why it exists: a d- or f-block CATION
+        //! is not its isoelectronic neutral (Fe+ is 3d^6 4s^1, not Mn's 3d^5 4s^2; V+ and Co+ move electrons from 4s INTO 3d), and no removal
+        //! rule reproduces NIST's first cations (OpenWork row "All-electron ION seeds", 2026-11-15).
+        std::string configuration;
+        //! Accelerator escape hatch for the long tail (accelerator TUNING: GDM/Ladder/directmin + their knobs).
+        //! Empty => the typed AcceleratorOptions DIIS path.  Non-empty => a full accelerator config merged over
+        //! the Z-scaled DIIS defaults, with "type" selecting DIIS/GDM/Ladder/directmin (mirrors the long-serving
+        //! scfrun knobs).  The common path stays typed; this is only for the accelerator-sweep driver.
+        nlohmann::json accelerator;
+        bool operator==(const Atom&) const = default;   //!< "is the block stated?" (another kind refuses it)
+    } atom;
 
     //! \brief THE MOLECULE-ONLY OPTIONS: the orbital basis BY NAME and its construction.  A periodic kind REFUSES a stated one.
     struct Molecule

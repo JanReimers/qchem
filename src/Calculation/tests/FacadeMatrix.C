@@ -362,7 +362,7 @@ std::string ViewFiled(const std::string& run)
 class AtomProbe : public FacadeProbe
 {
     static constexpr int Z=8;
-    static AtomCalcOptions Options() {return {.type=AtomType::Gaussian, .model=Model::LDA};}
+    static RunOptions Options() {return {.model=Model::LDA, .atom={.type=AtomType::Gaussian}};}
     static std::string ID() {return Atom(Z, 0.0, rvec3_t(0,0,0)).ID();}
 public:
     std::string PrepareFilesTheSetup() override
@@ -381,8 +381,8 @@ public:
     std::string AcceleratorKnobsArrive() override
     {
         // The atom states every knob -- but only through its stringly json escape hatch, in the json door's own key names.
-        AtomCalcOptions o=Options();
-        o.accelerator={{"type","Ladder"}, {"NProj",6}, {"EngageBelowFD",0.05}, {"SVTol",1e-8},
+        RunOptions o=Options();
+        o.atom.accelerator={{"type","Ladder"}, {"NProj",6}, {"EngageBelowFD",0.05}, {"SVTol",1e-8},
                        {"Trust",0.2}, {"ethresh",1e-7}, {"stall",4}, {"floor",1e-9}, {"switchat",1e-5}};
         { report::Run run(ID()+" build"); AtomCalculation::Prepare(Z, 0, o); }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
@@ -545,7 +545,7 @@ public:
             why+=Refused("the spherical basis", [&]{ return MoleculeCalculation::ViewState(path, spherical); }, RestartRefusal::Why::Mismatch);
         }
         {
-            AtomCalculation atom(8, 0, {.type=AtomType::Gaussian, .model=Model::LDA});
+            AtomCalculation atom(8, 0, {.model=Model::LDA, .atom={.type=AtomType::Gaussian}});
             atom.SaveState(atomPath);
             why+=Refused("an atom's state", [&]{ return MoleculeCalculation::ViewState(atomPath, Setup()); }, RestartRefusal::Why::Kind);
         }

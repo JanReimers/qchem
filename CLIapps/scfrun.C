@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <nlohmann/json.hpp>
 
-import qchem.AtomCalculation;             // AtomCalculation, AtomCalcOptions, AtomType, BasisSetAccuracy, Model, SpinGroup
+import qchem.AtomCalculation;             // AtomCalculation, RunOptions, AtomType, BasisSetAccuracy, Model, SpinGroup
 import qchem.MoleculeCalculation;                 // MoleculeCalculation, RunOptions, AcceleratorOptions (the MOLECULAR facade)
 import qchem.Structure;                    // Molecule, Atom (build a molecular geometry)
 import qchem.Hamiltonian.Factory;         // XCFunctional (the exchange-functional selector)
@@ -387,11 +387,11 @@ static int Main(int argc, char** argv)
          << " basis="<<basis<<" acc="<<acc<<" accel="<<accel<<" : "<<accj.dump()<<endl;
 
     // ---- run (one AtomCalculation, the model/functional/PP chosen by options) ----
-    AtomCalcOptions opts;
-    opts.type        = bases[basis];
-    opts.basisPool    = accs[acc];
-    opts.accelerator = accj;                  // full accelerator config (type + tuned knobs) -- the escape hatch
-    if (xcNRadial>0) opts.mesh.nRadial=xcNRadial;   // a stated XC radial count (default: sized from eps by the atom pilot)
+    RunOptions opts;
+    opts.atom.type   = bases[basis];
+    opts.atom.basisPool    = accs[acc];
+    opts.atom.accelerator = accj;                  // full accelerator config (type + tuned knobs) -- the escape hatch
+    if (xcNRadial>0) AtomXCMesh(opts).nRadial=xcNRadial;   // a stated XC radial count (default: sized from eps by the atom pilot)
     if (!coulombFit.empty())
     {
         using CF=qchem::Hamiltonian::CoulombFit;
@@ -403,8 +403,8 @@ static int Main(int argc, char** argv)
     opts.coulomb.lMax=hLMax;
     if (ppmodel)
     {
-        opts.pseudopotential = true;
-        opts.valence         = valence;       // GTH Zion (electrons = Zion - net charge)
+        opts.atom.pseudopotential = true;
+        opts.atom.valence         = valence;       // GTH Zion (electrons = Zion - net charge)
         opts.spin            = pp;            // --pol P: the Hund pseudo-atom, whose --out entry carries the spin pair (as the all-electron atom)
     }
     else if (dft)
@@ -414,7 +414,7 @@ static int Main(int argc, char** argv)
         else                   opts.model=Model::LDA;    // real LSDA: Dirac exchange + VWN5
     }
     else { opts.model = models[model]; opts.spin = pp; }   // HF / Dirac (AtomCalculation picks the EC from the model)
-    opts.configuration = configuration;   // stated (NIST notation), or empty = derived -- every model (Dirac refuses a stated one)
+    opts.atom.configuration = configuration;   // stated (NIST notation), or empty = derived -- every model (Dirac refuses a stated one)
 
     if (minro<0) minro=Z*1e-4;
     if (minfd<0) minfd=Z*2e-5;

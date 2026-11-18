@@ -61,6 +61,7 @@ export namespace qchem::Hamiltonian
         XC     kind    = XC::DiracVWN;
         double alpha   = 2.0/3.0;   //!< exchange scaling, XC::SlaterXalpha only
         int    libxcId = 1;         //!< libxc functional id, XC::LibXC only (1 = LDA_X / Slater)
+        bool operator==(const XCFunctional&) const = default;
     };
 
     //! The DFT \a m as its functional (LDA -> DiracVWN, PADE -> libxc 20, Xalpha -> SlaterXalpha at \a xalpha).  THROWS for a non-DFT model.

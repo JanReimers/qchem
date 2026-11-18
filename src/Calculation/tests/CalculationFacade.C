@@ -333,7 +333,7 @@ TEST(CalculationFacade, EachAuxiliaryFitFilesInItsOwnTerm)
 //! The atom's Build -> Run twin.
 TEST(CalculationFacade, AnAtomsPrepareFilesItsSetupBeforeAnySCF)
 {
-    const AtomCalcOptions opts{.type=AtomType::Gaussian, .model=Model::LDA};
+    const RunOptions opts{.model=Model::LDA, .atom={.type=AtomType::Gaussian}};
     std::unique_ptr<AtomCalculation> calc;
     { qchem::report::Run run(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build"); calc=AtomCalculation::Prepare(8, 0, opts); }
     const auto* build=FiledRun(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build@");
@@ -362,7 +362,7 @@ TEST(CalculationFacade, EveryFacadeCarriesTheAccuracyTargetAndSaysWhoConsumesIt)
     };
     {
         qchem::report::Run run("eps atom");
-        AtomCalculation calc(2, 0, {.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low, .accuracy={.eps=3e-6}});
+        AtomCalculation calc(2, 0, {.accuracy={.eps=3e-6}, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}});
         const Calculation& base=calc;
         EXPECT_EQ(base.Consumes(), ClientConsumes::Energy);
     }
@@ -446,8 +446,8 @@ TEST(CalculationFacade, AnAtomStatingLebedevDegreeZeroIsTheRadialOnlySetBitForBi
 {
     auto run=[](qcMesh::AngularKind angular, int degree)
     {
-        AtomCalcOptions o{.type=AtomType::Gaussian, .basisPool=BasisSetAccuracy::Low, .model=Model::LDA};
-        o.mesh.angular=angular; o.mesh.angularDegree=degree;
+        RunOptions o{.model=Model::LDA, .atom={.type=AtomType::Gaussian, .basisPool=BasisSetAccuracy::Low}};
+        AtomXCMesh(o).angular=angular; AtomXCMesh(o).angularDegree=degree;
         AtomCalculation calc(2, 0, o);
         return std::pair{calc.Energy(), calc.IterationCount()};
     };
@@ -457,7 +457,7 @@ TEST(CalculationFacade, AnAtomStatingLebedevDegreeZeroIsTheRadialOnlySetBitForBi
     EXPECT_EQ(legacy.first, none.first)   << "Lebedev at degree 0 on the atom must read as the radial-only set, bit for bit";
     EXPECT_EQ(legacy.second, none.second);
     EXPECT_EQ(loose.first, none.first)    << "the radial-only set does not read angularDegree";
-    EXPECT_EQ(AtomCalcOptions{}.mesh.angular, qcMesh::AngularKind::None) << "the atom's default XC mesh is the radial-only set";
+    EXPECT_EQ(kAtomMeshDefault.angular, qcMesh::AngularKind::None) << "the atom's default XC mesh is the radial-only set";
 }
 
 // A STATED CONFIGURATION (OpenWork row "All-electron ION seeds", 2026-11-15).  The atom refuses, before any SCF, a stated configuration
@@ -465,23 +465,23 @@ TEST(CalculationFacade, AnAtomStatingLebedevDegreeZeroIsTheRadialOnlySetBitForBi
 // Each refusal names the policy and its reason; a right one builds.
 TEST(AtomConfiguration, AStatedConfigurationThatCannotRunIsRefusedBeforeAnySCF)
 {
-    auto refused=[](int Z, int charge, const AtomCalcOptions& o, const char* expect)
+    auto refused=[](int Z, int charge, const RunOptions& o, const char* expect)
     {
-        try { (void)AtomCalculation::Prepare(Z, charge, o); ADD_FAILURE() << "must be refused: " << o.configuration; }
+        try { (void)AtomCalculation::Prepare(Z, charge, o); ADD_FAILURE() << "must be refused: " << o.atom.configuration; }
         catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find(expect), std::string::npos) << e.what(); }
     };
-    const AtomCalcOptions lda{.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low, .model=Model::LDA, .spin=SpinGroup::Polarized};
-    AtomCalcOptions o=lda;
-    o.configuration="[Ar] 3d^6 4s^2"; refused(26, 1, o, "holds 26 electrons where the run carries 25");
-    o.configuration="[Ne] 3s^1 4s^1"; refused(12, 0, o, "open below the occupied 4s");
-    o.configuration="[Ar] 3d^6 4s^";  refused(26, 1, o, "has no electron count");
-    AtomCalcOptions dirac=lda; dirac.model=Model::DHF; dirac.configuration="[Ar] 3d^6 4s^1";
+    const RunOptions lda{.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}};
+    RunOptions o=lda;
+    o.atom.configuration="[Ar] 3d^6 4s^2"; refused(26, 1, o, "holds 26 electrons where the run carries 25");
+    o.atom.configuration="[Ne] 3s^1 4s^1"; refused(12, 0, o, "open below the occupied 4s");
+    o.atom.configuration="[Ar] 3d^6 4s^";  refused(26, 1, o, "has no electron count");
+    RunOptions dirac=lda; dirac.model=Model::DHF; dirac.atom.configuration="[Ar] 3d^6 4s^1";
     refused(26, 1, dirac, "Dirac");
-    AtomCalcOptions pp=lda; pp.type=AtomType::Gaussian; pp.pseudopotential=true; pp.valence=7;   // Mn2+ q7: 5 valence electrons, charge 25 - 5
-    pp.configuration="[Ne] 3s^2 3p^6 3d^5"; refused(25, 20, pp, "the pseudopotential replaces 18");
-    pp.configuration="[Ar] 3d^5";
+    RunOptions pp=lda; pp.atom.type=AtomType::Gaussian; pp.atom.pseudopotential=true; pp.atom.valence=7;   // Mn2+ q7: 5 valence electrons, charge 25 - 5
+    pp.atom.configuration="[Ne] 3s^2 3p^6 3d^5"; refused(25, 20, pp, "the pseudopotential replaces 18");
+    pp.atom.configuration="[Ar] 3d^5";
     EXPECT_NO_THROW((void)AtomCalculation::Prepare(25, 20, pp)) << "Mn2+ q7 stated as its valence over the PP's own [Ar] core";
-    o.configuration="[Ar] 3d^6 4s^1";
+    o.atom.configuration="[Ar] 3d^6 4s^1";
     EXPECT_NO_THROW((void)AtomCalculation::Prepare(26, 1, o)) << "Fe+ in NIST's configuration";
 }
 
@@ -494,8 +494,7 @@ TEST(AtomConfiguration, AnUnstatedCationTakesNISTsFirstCationOrTheRemovalRuleAnd
     {
         {
             qchem::report::Run run(runName);
-            (void)AtomCalculation::Prepare(Z, charge, {.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low, .model=Model::LDA,
-                                                       .spin=SpinGroup::Polarized});
+            (void)AtomCalculation::Prepare(Z, charge, {.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}});
         }
         std::vector<qchem::report::json> out;
         std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& x)

@@ -31,105 +31,30 @@ import qchem.SCFIterator;           // SCFIterator, SCFParams, IterationRow, Ene
 import qchem.Symmetry.Irrep;        // Irrep
 export import qchem.Calculation;    // the abstract base of the three facades
 export import qchem.StateView;      // ViewState's answer: a saved state, drawn
-export import qchem.Symmetry.Spin;  // Spin (per-spin irrep enumeration), SpinGroup (an AtomCalcOptions field)
+export import qchem.Symmetry.Spin;  // Spin (per-spin irrep enumeration), SpinGroup (an RunOptions field)
 import qchem.Orbitals;              // Orbital, Orbitals
 import qchem.ChargeDensity;         // rDM_CD
 import qchem.ChargeDensity.Seed;    // SeedStrategy
 import qchem.MoleculeCalculation;           // reuse AcceleratorOptions (read-only; does NOT modify MoleculeCalculation)
+export import qchem.RunOptions;             // RunOptions: the one options tree (V-FACADE-PARITY P0b-2)
 
 export namespace qchem
 {
 
 using Hamiltonian::Model;                 // {E1, HF, DE1, DHF, Xalpha, LDA}
-using AtomType = BasisSet::Radial::Type;    // {Slater, Gaussian, BSpline6, BSpliner6, Gaussian_RKB, Slater_RKB}
-using BasisSet::Radial::BasisSetAccuracy;   // {Low, Medium, High}
 
-//! How to set up a single-atom calculation.  Designated-initializer friendly:
-//!     AtomCalculation calc(18, 0, {.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Medium});
-struct AtomCalcOptions
-{
-    AtomType         type     = AtomType::Slater;            //!< atomic basis family
-    BasisSetAccuracy basisPool = BasisSetAccuracy::Medium;   //!< the preset exponent POOL (a model choice, not the accuracy target; used when N<=0)
-    //! Explicit exponent pool -- when N>0 these override the basisPool preset (the {type,N,emin,emax} json
-    //! the scaffold built by hand for the A_SG/A_SL exponent-sweep tests).
-    int    N    = 0;
-    double emin = 0.0;
-    double emax = 0.0;
-    //! Explicit exponent LIST -- the "bring your own exponents" path (used by the valence-basis generator).
-    //! When non-empty it overrides N/emin/emax and the basisPool preset: every occupied angular irrep is built
-    //! from these exponents, trimmed per-l by \c ltrim ((3-l)*ltrim smallest + l*ltrim largest dropped; 0 =
-    //! every irrep gets the full list).  So the SAME exponents that are validated here can be emitted verbatim.
-    std::vector<double> exponents;
-    size_t              ltrim = 0;
-    //! INDEPENDENT per-l exponent lists (l, exponents) -- highest precedence.  Each occupied angular irrep is
-    //! built from its OWN list verbatim (no auto-trim), so s and p can carry different windows.  The right
-    //! path for pseudopotential valence bases (the ExponentScaler N-4l trim assumes absent core exponents).
-    std::vector<std::pair<int,std::vector<double>>> exponentsByL;
-
-    Model  model  = Model::HF;          //!< HF (default) | E1 | DE1/DHF (Dirac) | Xalpha | LDA
-    SpinGroup    spin   = SpinGroup::UnPolarized;   //!< the imposed spin subgroup (V1.37)
-    double xalpha = 0.7;                 //!< Slater-Xalpha exchange parameter (model==Xalpha only)
-
-    //! DFT exchange-correlation override.  When set, the DFT Hamiltonian uses this functional (e.g. a
-    //! libxc LDA) via the public XC selector, instead of the model's built-in Xalpha/LDA.  (model is then
-    //! only used to decide HF/Dirac vs DFT -- any DFT model works.)
-    std::optional<qchem::Hamiltonian::XCFunctional> xc;
-
-    //! Pseudo-atom: replace the all-electron nuclear attraction with the GTH local + KB nonlocal PP (LDA
-    //! XC), and use a valence-only PseudoAtom_EC.  The element is looked up from Z.  `valence` is the GTH
-    //! Zion; 0 means "use the electron count Z-charge" (a neutral pseudo-atom).  For a pseudo-ion set both:
-    //! electrons = Z - charge, Zion = valence, net charge = Zion - electrons (e.g. F⁻: valence=7, one extra e).
-    bool   pseudopotential = false;
-    int    valence         = 0;
-    //! \brief The electron configuration, in NIST's notation ("[Ar] 3d^6 4s^1"; the "^" optional).  EMPTY = derived: the isoelectronic
-    //! neutral's (all-electron) or the pseudo-ion rule (\c PseudoAtom_EC).  Stated, it must hold the run's electrons, and on a pseudo-atom its
-    //! [X] core must be the pseudopotential's own (Z - q electrons; the text then names the valence, Mn2+ q7 = "[Ar] 3d^5"); a mismatch, a
-    //! shape the radial atom cannot hold, or a Dirac model is REFUSED (policy AtomConfiguration).  Why it exists: a d- or f-block CATION
-    //! is not its isoelectronic neutral (Fe+ is 3d^6 4s^1, not Mn's 3d^5 4s^2; V+ and Co+ move electrons from 4s INTO 3d), and no removal
-    //! rule reproduces NIST's first cations (OpenWork row "All-electron ION seeds", 2026-11-15).
-    std::string configuration;
-
-    //! Atomic XC integration grid: the RADIAL-ONLY point set (\c AngularKind::None, one direction at 4 pi), exact because the atom's density is
-    //! spherical by construction (its open shell is averaged, \c Atom::Admits).  A stated Lebedev at degree 0 -- this set's
-    //! old spelling -- reads as \c None (deck backward compatibility).  \c nRadial 0 = UNSTATED: the run enters at 50 MHL points and
-    //! climbs the radial count to eps at its converged density (the atom pilot, pin 31: the old fixed 50 cost Xe 0.6-1.7 mHa and U 1-6 mHa,
-    //! lane B 2026-11-14).  A stated count is audited against eps and never raised.
-    qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 0,
-                              .mhl_m    = 3,                         .mhl_alpha = 2.0,
-                              .angular  = qcMesh::AngularKind::None,    .angularDegree = 0,   // the radial-only set
-                              .beckeOrder = 2};
-    //! The Vxc FIT BASIS (2026-10-31): \c Auto = \c Delta, the DEFAULT (user ruling "δ default, A1 kept"; as the molecular facade) --
-    //! the δ basis on \c mesh's points; \c Auxiliary = the radial fit set.  The Si pseudo-atom (Slater/Medium) moves 33 -> 5 μHa
-    //! from CP2K's ATOM code on δ.  A caller whose result is an INPUT to other runs states its route (\c PseudoAtomOrbital).
-    qchem::Hamiltonian::VxcFit vxcFit = qchem::Hamiltonian::VxcFit::Auto;
-    //! \copydoc RunOptions::xcRho -- the atom path's twin (\c Auxiliary = the radial fit set).
-    qchem::Hamiltonian::XCρ xcRho = qchem::Hamiltonian::XCρ::Exact;
-    //! The Hartree route, the twin of \c RunOptions::coulomb.  \c Auto = \c Multipole: \f$\rho\f$'s l = 0 channel on a radial mesh, solved
-    //! by radial Poisson (exact to its mesh; \c nRadial 0 = sized from eps by the atom pilot, a stated count audited).  \c Auxiliary = the
-    //! Dunlap Coulomb fit, its fit set climbed up \c BasisSet::Radial::CoulombFitLadder to eps (rung 0, the s block x 2, cost U 32 mHa).
-    //! \c Delta is REFUSED: its radial-Poisson projection needs angular channels the atom's radial-only set cannot carry (half the energy,
-    //! no convergence).  See \c Hamiltonian::CoulombRoute.
-    qchem::Hamiltonian::CoulombRoute coulomb = {};
-    //! SCF seed.  Default == auto: CoreGuess (atoms never use the molecular SAD seed).
-    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
-
-    //! Accelerator escape hatch for the long tail (accelerator TUNING: GDM/Ladder/directmin + their knobs).
-    //! Empty => the typed AcceleratorOptions DIIS path.  Non-empty => a full accelerator config merged over
-    //! the Z-scaled DIIS defaults, with "type" selecting DIIS/GDM/Ladder/directmin (mirrors the long-serving
-    //! scfrun knobs).  The common path stays typed; this is only for the accelerator-sweep driver.
-    nlohmann::json accelerator;
-
-    //! Orthogonalisation for the generalised eigenproblem H C = e S C.  Default \c Auto (eigen-analyse S ->
-    //! Cholesky if PD, else canonical Eigen with an auto gap-detection tolerance).  A DIRAC model forces
-    //! Cholesky regardless (relativistic overlaps are near-singular by construction and truncation breaks
-    //! kinetic balance).  Set \c Cholesky to keep a deliberately over-complete NON-relativistic basis
-    //! un-truncated (e.g. a wide even-tempered Slater basis whose redundant modes are intended).
-    qchem::Ortho ortho = qchem::Auto;
-    //! \brief The ONE accuracy target eps (doc/Pins.md pin 31; V-FACADE-ACCURACY, user ruling 2026-11-03: every structure type carries
-    //! it).  CONSUMED BY NO TERM of this facade yet -- the eps inventory (doc/Records/EpsilonInventory.md) wires terms to it one at a
-    //! time -- and the run says so (banner + report: "consumed by: none yet"), never silently.
-    AccuracyTarget accuracy = {};
-};
+//! The atom's DEFAULT XC mesh (unstated \c RunOptions::xcMesh): the RADIAL-ONLY set (\c AngularKind::None, one direction at 4 pi), exact
+//! because the atom's density is spherical by construction; \c nRadial 0 = unstated: the run enters at 50 MHL points and climbs to eps.
+//! Was \c RunOptions::mesh's member default.
+inline const qcMesh::MeshParams kAtomMeshDefault = {.radial = qcMesh::RadialKind::MHL, .nRadial = 0, .mhl_m = 3, .mhl_alpha = 2.0,
+                                                    .angular = qcMesh::AngularKind::None, .angularDegree = 0, .beckeOrder = 2};
+//! THE ATOM'S VIEW of the options tree: \a asked with the atom's defaults filled (model HF, \c kAtomMeshDefault, ortho Auto) and what an
+//! atom does not consume REFUSED (policy ForeignOption): the molecule and solid blocks, Nelec / charge / multiplicity (the atom takes
+//! Z and charge as arguments, its spin from the configuration), pp / species (the atom block's pseudopotential + valence), the
+//! imposition, spins, the top-level accelerator / recipe, orthoTol, label, saveStateTo.
+RunOptions AtomOptions(const RunOptions& asked);
+//! A caller that edits ONE field of an atom's XC mesh starts from the atom's default (\c kAtomMeshDefault), filled on first use.
+inline qcMesh::MeshParams& AtomXCMesh(RunOptions& o) { if (!o.xcMesh) o.xcMesh=kAtomMeshDefault; return *o.xcMesh; }
 
 class AtomCalculation : public virtual Calculation
 {
@@ -144,7 +69,7 @@ public:
     //! AtomDirac_EC, the rest an Atom_EC.  (Atom SCFs often want per-Z params and some are expensive, so
     //! the params go in here -- a single converge -- rather than a default-then-reconverge.)
     explicit AtomCalculation(int Z, int charge = 0,
-                             const AtomCalcOptions&    opts   = {},
+                             const RunOptions&    opts   = {},
                              const SCFParams&          params = {},
                              const AcceleratorOptions& acc    = {});
     ~AtomCalculation();
@@ -157,7 +82,7 @@ public:
     //! basis.perIrrep) -- into the CALLER'S report run (a facade never opens one, user ruling D 2026-11-02); no SCF.  Run it with
     //! \c Converge(params), whose FIRST call reuses this graph.  Until then the accessors have no SCF to read.
     //!@{
-    static std::unique_ptr<AtomCalculation> Prepare(int Z, int charge = 0, const AtomCalcOptions& opts = {},
+    static std::unique_ptr<AtomCalculation> Prepare(int Z, int charge = 0, const RunOptions& opts = {},
                                                     const AcceleratorOptions& acc = {}, Observer onIteration = nullptr);
     //!@}
     //! \name RESTART FROM A SAVED STATE (V-FACADE-STATE; \c SaveState / \c JudgeState are the base's)
@@ -166,11 +91,11 @@ public:
     //! a Ladder starts on its GDM rung at kT = 0) when nothing differs; else a WARM START with every difference named.
     //!@{
     static Outcome<std::unique_ptr<AtomCalculation>, RestartRefusal>
-        Restart(const std::string& path, int Z, int charge = 0, const AtomCalcOptions& opts = {}, const SCFParams& params = {},
+        Restart(const std::string& path, int Z, int charge = 0, const RunOptions& opts = {}, const SCFParams& params = {},
                 const AcceleratorOptions& acc = {}, Observer onIteration = nullptr);
     //! \c Restart up to its SCF; run it with \c Converge.
     static Outcome<std::unique_ptr<AtomCalculation>, RestartRefusal>
-        PrepareRestart(const std::string& path, int Z, int charge = 0, const AtomCalcOptions& opts = {}, const SCFParams& params = {},
+        PrepareRestart(const std::string& path, int Z, int charge = 0, const RunOptions& opts = {}, const SCFParams& params = {},
                        const AcceleratorOptions& acc = {}, Observer onIteration = nullptr);
     const std::optional<RestartSummary>& RestartedFrom() const override;   //!< \c PrepareRestart's judgement; empty for a fresh run
     //!@}
@@ -179,7 +104,7 @@ public:
     //! \c PrepareRestart builds it), then the saved D, C, eps, f -- no Hamiltonian, no SCF.  REFUSED as \c Calculation::JudgeView
     //! refuses, never thrown.  Reports one level in, under the scope its caller opened (a \c report::Section "view").
     static Outcome<std::unique_ptr<StateView>, RestartRefusal>
-        ViewState(const std::string& path, int Z, int charge = 0, const AtomCalcOptions& opts = {}, const AcceleratorOptions& acc = {});
+        ViewState(const std::string& path, int Z, int charge = 0, const RunOptions& opts = {}, const AcceleratorOptions& acc = {});
 
     bool Converge(const SCFParams& params = {});
     void OnIteration(Observer obs);
@@ -208,7 +133,7 @@ private:
     typedef std::pair<double, const sf_t*> occ_t;
     struct BuildOnly {};
     //! Everything but the SCF: the members and the electron configuration (the graph is \c BuildGraph's).
-    AtomCalculation(BuildOnly, int Z, int charge, const AtomCalcOptions& opts, const AcceleratorOptions& acc, Observer onIteration);
+    AtomCalculation(BuildOnly, int Z, int charge, const RunOptions& opts, const AcceleratorOptions& acc, Observer onIteration);
     //! The accelerator, the basis (first time), the Hamiltonian and the SCF iterator -- inside the caller's open report run.
     void BuildGraph();
     std::string AcceleratorTag() const;   //!< the accelerator type the caller asked for, as the scf header names it
@@ -234,7 +159,7 @@ private:
 
     int                                  itsZ;
     int                                  itsNe;          //!< electron count (Z - charge)
-    AtomCalcOptions                      itsOpts;
+    RunOptions                      itsOpts;
     AcceleratorOptions                   itsAcc;
     std::shared_ptr<const Structure>     itsStructure;   //!< the single atom (Hamiltonian shares it)
     ElectronConfiguration*               itsEC    = nullptr;  //!< owned

@@ -50,10 +50,10 @@ static std::string ModelName(Model m) {return qchem::Hamiltonian::Name(m);}
 
 //! A pseudo-atom's functional: an \c xc override when stated, PADE when the model says so (the GTH-PADE PPs' own, 2026-11-12), else the
 //! historical LDA (Dirac + VWN5) -- a PP atom has always ignored any other model, and still does (its tests leave model at HF).
-static qchem::Hamiltonian::XCFunctional PseudoAtomXC(const AtomCalcOptions& o)
+static qchem::Hamiltonian::XCFunctional PseudoAtomXC(const RunOptions& o)
 {
-    if (o.xc) return *o.xc;
-    return o.model==Model::PADE ? qchem::Hamiltonian::ModelToXC(Model::PADE) : qchem::Hamiltonian::XCFunctional{};
+    if (o.atom.xc) return *o.atom.xc;
+    return *o.model==Model::PADE ? qchem::Hamiltonian::ModelToXC(Model::PADE) : qchem::Hamiltonian::XCFunctional{};
 }
 
 // Atomic-basis family tag for the report (mirrors the scfrun --basis names).
@@ -70,52 +70,77 @@ static std::string AtomTypeName(AtomType t)
 
 // The atom's own keys of the run report's `scf` header (the knobs are the shared ReportSCFRecipe's): what model, which spin
 // representation, how many electrons, and a pseudo-atom's valence.
-static qchem::report::json AtomRecipeKeys(const AtomCalcOptions& o, int ne)
+static qchem::report::json AtomRecipeKeys(const RunOptions& o, int ne)
 {
     qchem::report::json own;
-    own["model"]      = o.pseudopotential ? std::string("PP") : ModelName(o.model);
+    own["model"]      = o.atom.pseudopotential ? std::string("PP") : ModelName(*o.model);
     own["pol"]        = (o.spin == SpinGroup::Polarized) ? "P" : "U";
     own["nElectrons"] = ne;
-    if (o.pseudopotential) own["valence"] = o.valence;
+    if (o.atom.pseudopotential) own["valence"] = o.atom.valence;
     return own;
 }
 
 // PP Zion: the explicit valence (Zion) if given, else the electron count (a neutral pseudo-atom).
-static int PPZion(const AtomCalcOptions& opts, int Ne) {return opts.valence > 0 ? opts.valence : Ne;}
+static int PPZion(const RunOptions& opts, int Ne) {return opts.atom.valence > 0 ? opts.atom.valence : Ne;}
 
-// Build the atomic exponent-pool basis.  An explicit pool ({type,N,emin,emax}, opts.N>0) reproduces the
+// THE ATOM'S VIEW OF THE ONE OPTIONS TREE (V-FACADE-PARITY P0b-2): its defaults and its refusals of what it does not consume.
+RunOptions AtomOptions(const RunOptions& asked)
+{
+    RunOptions o=asked;
+    const RunOptions def;
+    auto refuse=[](const std::string& what, const std::string& why)
+    { policy::Refuse("ForeignOption", what+" stated for an ATOM", why); };
+    if (!(asked.molecule==def.molecule)) refuse("the `molecule` block", "an atom's basis is its radial exponent pool (the `atom` block)");
+    if (!(asked.solid==def.solid))       refuse("the `solid` block", "it holds periodic-only options an atom cannot run");
+    if (asked.Nelec!=0 || asked.charge!=0 || asked.multiplicity!=0)
+        refuse("Nelec / charge / multiplicity", "an atom takes Z and its charge as arguments and its spin from the configuration");
+    if (asked.pp || !asked.species.empty())
+        refuse("pp / species", "an atom states its pseudo-atom in the `atom` block (pseudopotential, valence)");
+    if (asked.imposeSymmetry || asked.symmetryTol!=def.symmetryTol || !asked.spins.empty())
+        refuse("imposeSymmetry / symmetryTol / spins", "an atom's symmetry is spherical by construction");
+    if (asked.accelerator!=def.accelerator || asked.recipe!=def.recipe)
+        refuse("accelerator / recipe (top level)", "an atom names them in its accelerator block (AcceleratorOptions)");
+    if (asked.orthoTol!=def.orthoTol) refuse("orthoTol", "the atom's solver takes no truncation floor");
+    if (asked.label!=def.label || !asked.saveStateTo.empty()) refuse("label / saveStateTo", "an atom saves its state through SaveState");
+    if (!o.model)  o.model=Hamiltonian::Model::HF;
+    if (!o.xcMesh) o.xcMesh=kAtomMeshDefault;
+    if (!o.ortho)  o.ortho=qchem::Auto;
+    return o;
+}
+
+// Build the atomic exponent-pool basis.  An explicit pool ({type,N,emin,emax}, opts.atom.N>0) reproduces the
 // A_SG/A_SL exponent-sweep json the scaffold built by hand; otherwise the BasisSetAccuracy preset is used
 // (the EC fixes which angular irreps the pool spans).
-static BasisSet::Real_BS* BuildBasis(const AtomCalcOptions& opts, int Z, const ElectronConfiguration& ec)
+static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, int Z, const ElectronConfiguration& ec)
 {
     // Explicit pool: build from the EC (which fixes the angular irreps), NOT the nuclear Z -- the
     // Factory(json,Z) overload treats Z as an electron count, so for an ion that would over-populate the
     // angular irreps (e.g. a 1-electron hydrogenic ion would gain p/d shells).
     // Independent per-l exponent lists -- highest precedence (the generator's per-l validation path).
-    if (!opts.exponentsByL.empty())
+    if (!opts.atom.exponentsByL.empty())
     {
         nlohmann::json shells=nlohmann::json::array();
-        for (const auto& [l,es] : opts.exponentsByL) shells.push_back({{"l",l},{"exponents",es}});
-        return BasisSet::Radial::Factory(nlohmann::json{{"type", opts.type}, {"shells", shells}}, ec);
+        for (const auto& [l,es] : opts.atom.exponentsByL) shells.push_back({{"l",l},{"exponents",es}});
+        return BasisSet::Radial::Factory(nlohmann::json{{"type", opts.atom.type}, {"shells", shells}}, ec);
     }
     // Explicit single exponent list ("bring your own exponents") -- applied to every occupied l (with ltrim).
-    if (!opts.exponents.empty())
-        return BasisSet::Radial::Factory(nlohmann::json{{"type", opts.type},
-                                                      {"exponents", opts.exponents}, {"ltrim", opts.ltrim}}, ec);
-    if (opts.N > 0)
-        return BasisSet::Radial::Factory(nlohmann::json{{"type", opts.type}, {"N", opts.N},
-                                                      {"emin", opts.emin}, {"emax", opts.emax}}, ec);
-    return BasisSet::Radial::Factory(opts.basisPool, opts.type, Z, ec);
+    if (!opts.atom.exponents.empty())
+        return BasisSet::Radial::Factory(nlohmann::json{{"type", opts.atom.type},
+                                                      {"exponents", opts.atom.exponents}, {"ltrim", opts.atom.ltrim}}, ec);
+    if (opts.atom.N > 0)
+        return BasisSet::Radial::Factory(nlohmann::json{{"type", opts.atom.type}, {"N", opts.atom.N},
+                                                      {"emin", opts.atom.emin}, {"emax", opts.atom.emax}}, ec);
+    return BasisSet::Radial::Factory(opts.atom.basisPool, opts.atom.type, Z, ec);
 }
 
-AtomCalculation::AtomCalculation(int Z, int charge, const AtomCalcOptions& opts,
+AtomCalculation::AtomCalculation(int Z, int charge, const RunOptions& opts,
                                  const SCFParams& params, const AcceleratorOptions& acc)
     : AtomCalculation(BuildOnly{}, Z, charge, opts, acc, nullptr)
 {
     Converge(params);
 }
 
-std::unique_ptr<AtomCalculation> AtomCalculation::Prepare(int Z, int charge, const AtomCalcOptions& opts,
+std::unique_ptr<AtomCalculation> AtomCalculation::Prepare(int Z, int charge, const RunOptions& opts,
                                                           const AcceleratorOptions& acc, Observer onIteration)
 {
     std::unique_ptr<AtomCalculation> c(new AtomCalculation(BuildOnly{}, Z, charge, opts, acc, std::move(onIteration)));
@@ -124,7 +149,7 @@ std::unique_ptr<AtomCalculation> AtomCalculation::Prepare(int Z, int charge, con
     return c;
 }
 
-// THE CONFIGURATION POLICY (OpenWork row "All-electron ION seeds", 2026-11-15): STATED (opts.configuration, NIST's notation) or derived --
+// THE CONFIGURATION POLICY (OpenWork row "All-electron ION seeds", 2026-11-15): STATED (opts.atom.configuration, NIST's notation) or derived --
 // the isoelectronic neutral all-electron, the pseudo-ion rule under a pseudopotential, the j-coupled one for Dirac.  Either way the run
 // report files the configuration the SCF occupies (policy AtomConfiguration: Choose when derived; a stated one that cannot run is REFUSED).
 // AN UNSTATED ALL-ELECTRON CATION (OpenWork row 196 step 3, controller ruling 2026-11-16): Fe+ is not Mn, so the isoelectronic neutral is the
@@ -168,48 +193,48 @@ ElectronConfiguration* AtomCalculation::MakeConfiguration() const
 {
     const std::string el=thePeriodicTable().GetSymbol(itsZ);
     const int zion=PPZion(itsOpts,itsNe);
-    const int core=itsOpts.pseudopotential ? itsZ-zion : 0;   // the electrons the SCF does not carry
-    if (itsOpts.configuration.empty())
+    const int core=itsOpts.atom.pseudopotential ? itsZ-zion : 0;   // the electrons the SCF does not carry
+    if (itsOpts.atom.configuration.empty())
     {
-        if (IsDirac(itsOpts.model)) return new AtomDirac_EC(itsNe);
+        if (IsDirac(*itsOpts.model)) return new AtomDirac_EC(itsNe);
         const int q=itsZ-itsNe;
-        if (!itsOpts.pseudopotential && q>0) return MakeCationConfiguration(itsZ, el, q);
-        Atom_EC* ec=itsOpts.pseudopotential ? new PseudoAtom_EC(itsZ, zion-itsNe, zion) : new Atom_EC(itsNe);
+        if (!itsOpts.atom.pseudopotential && q>0) return MakeCationConfiguration(itsZ, el, q);
+        Atom_EC* ec=itsOpts.atom.pseudopotential ? new PseudoAtom_EC(itsZ, zion-itsNe, zion) : new Atom_EC(itsNe);
         policy::Report("AtomConfiguration", el+" "+ConfigurationText(ec->Shells()), policy::Verdict::Choose,
-                       itsOpts.pseudopotential ? "unstated: the pseudo-ion rule (a cation empties s before d)"
+                       itsOpts.atom.pseudopotential ? "unstated: the pseudo-ion rule (a cation empties s before d)"
                                                : "unstated: the isoelectronic neutral's configuration (a neutral atom, or an anion: its extra "
                                                  "electrons fill the lowest open l)");
         return ec;
     }
-    const std::string stated="configuration \""+itsOpts.configuration+"\"";
-    if (IsDirac(itsOpts.model))
+    const std::string stated="configuration \""+itsOpts.atom.configuration+"\"";
+    if (IsDirac(*itsOpts.model))
         policy::Refuse("AtomConfiguration", stated+" on a Dirac atom", "a stated configuration on a j-coupled (Dirac) atom is not realized yet "
                        "(doc/OpenWork.md); leave it unstated for the derived one");
-    const auto parsed=ParseConfiguration(itsOpts.configuration);
+    const auto parsed=ParseConfiguration(itsOpts.atom.configuration);
     if (!parsed) policy::Refuse("AtomConfiguration", stated, parsed.Error());
     const StatedConfiguration& c=parsed.Value();
     // A pseudo-atom's [X] is the core its pseudopotential REPLACES (the SCF carries only the named shells); an all-electron atom carries its
     // [X] too, so there the electron count below is the whole check.
-    if (itsOpts.pseudopotential && c.CoreElectrons()!=core)
+    if (itsOpts.atom.pseudopotential && c.CoreElectrons()!=core)
         policy::Refuse("AtomConfiguration", stated+" for "+el+" q"+std::to_string(zion),
                        "its ["+c.coreSymbol+"] core holds "+std::to_string(c.CoreElectrons())+" electrons, but the pseudopotential replaces "
                        +std::to_string(core)+" (Z - q): write the core it replaces and name the rest");
-    const ShellOccupations carried=itsOpts.pseudopotential ? c.named : c.All();
+    const ShellOccupations carried=itsOpts.atom.pseudopotential ? c.named : c.All();
     int n=0; for (const auto& o : carried) n+=o.count;
     if (n!=itsNe)
         policy::Refuse("AtomConfiguration", stated+" for "+el+" at charge "+std::to_string(itsZ-itsNe-core),
                        "it holds "+std::to_string(n)+" electrons where the run carries "+std::to_string(itsNe));
-    if (const std::string why=WhyNotRepresentable(carried, /*fromLowestN*/!itsOpts.pseudopotential); !why.empty())
+    if (const std::string why=WhyNotRepresentable(carried, /*fromLowestN*/!itsOpts.atom.pseudopotential); !why.empty())
         policy::Refuse("AtomConfiguration", stated, why);
     qchem::report::Set("configuration", ConfigurationText(carried));   // a stated one is the caller's: no policy row, but the record carries it
     return new Atom_EC(carried);
 }
 
-AtomCalculation::AtomCalculation(BuildOnly, int Z, int charge, const AtomCalcOptions& opts, const AcceleratorOptions& acc,
+AtomCalculation::AtomCalculation(BuildOnly, int Z, int charge, const RunOptions& opts, const AcceleratorOptions& acc,
                                  Observer onIteration)
     : itsZ(Z)
     , itsNe(Z - charge)
-    , itsOpts(opts)
+    , itsOpts(AtomOptions(opts))   // the kind's defaults filled, what an atom does not consume refused (P0b-2)
     , itsAcc(acc)
     , itsStructure(std::make_shared<Atom>(Z, double(charge), rvec3_t(0,0,0)))
     , itsObserver(std::move(onIteration))
@@ -218,12 +243,12 @@ AtomCalculation::AtomCalculation(BuildOnly, int Z, int charge, const AtomCalcOpt
     // the net charge Zion-electrons); relativistic models need the Dirac (j-coupled) configuration;
     // everything else is a plain Atom_EC.
     itsEC = MakeConfiguration();
-    itsDFT = opts.pseudopotential || opts.xc.has_value() || qchem::Hamiltonian::IsDFT(opts.model);
+    itsDFT = opts.atom.pseudopotential || opts.atom.xc.has_value() || qchem::Hamiltonian::IsDFT(*opts.model);
     // THE RADIAL-ONLY ALIAS (V-XC-ONE-TERM step 5, controller 2026-11-14: deck backward compatibility).  Before AngularKind::None the atom
     // spelled its radial-only set Lebedev at degree 0, the 1-direction rule: the SAME points (one direction at 4 pi).  On the atom that
     // spelling still reads as it always did, now under its own name, so the admission rule and the reports see what the mesh IS.
-    if (itsOpts.mesh.angular==qcMesh::AngularKind::Lebedev && itsOpts.mesh.angularDegree==0) itsOpts.mesh.angular=qcMesh::AngularKind::None;
-    if (itsOpts.mesh.angular==qcMesh::AngularKind::None) itsOpts.mesh.angularDegree=0;   // not read by the rule: one value, one mesh ID
+    if (itsOpts.xcMesh->angular==qcMesh::AngularKind::Lebedev && itsOpts.xcMesh->angularDegree==0) itsOpts.xcMesh->angular=qcMesh::AngularKind::None;
+    if (itsOpts.xcMesh->angular==qcMesh::AngularKind::None) itsOpts.xcMesh->angularDegree=0;   // not read by the rule: one value, one mesh ID
     ResolveGrids();
     // The basis is NOT built here: BuildGraph builds it INSIDE an open run report's "basis" scope, so the shells'
     // exponents are announced by the shells themselves as they are constructed (V1.14).
@@ -236,18 +261,18 @@ AtomCalculation::~AtomCalculation()
     delete itsEC;
 }
 
-// The accelerator TYPE the caller asked for (opts.accelerator's "type"; DIIS by default) -- the scf header names it.
+// The accelerator TYPE the caller asked for (opts.atom.accelerator's "type"; DIIS by default) -- the scf header names it.
 std::string AtomCalculation::AcceleratorTag() const
 {
-    return (itsOpts.accelerator.is_object() && !itsOpts.accelerator.empty())
-         ? itsOpts.accelerator.value("type", std::string("DIIS")) : std::string("DIIS");
+    return (itsOpts.atom.accelerator.is_object() && !itsOpts.atom.accelerator.empty())
+         ? itsOpts.atom.accelerator.value("type", std::string("DIIS")) : std::string("DIIS");
 }
 
 // THE GRAPH, built inside the caller's open report run (if any: with none, every report write is a no-op).
 void AtomCalculation::BuildGraph()
 {
     namespace H = qchem::Hamiltonian;
-    // Atoms use the proven Z-scaled DIIS engage gate unless the caller pins one.  The json escape hatch (opts.accelerator)
+    // Atoms use the proven Z-scaled DIIS engage gate unless the caller pins one.  The json escape hatch (opts.atom.accelerator)
     // then merges over these defaults and selects the accelerator TYPE -- the accelerator-tuning surface the scfrun driver
     // needs (DIIS/GDM/Ladder/directmin).  Z^2*0.08/32, was 0.1/32: the [F,D] it is compared against changed UNIT on
     // 2026-10-29 (the worst irrep, was sqrt(sum of squares) over the l-blocks -- user ruling), and on Kr the two differ by
@@ -255,14 +280,14 @@ void AtomCalculation::BuildGraph()
     const double engageBelowFD = DIISEngageGate(itsAcc.diis.engageBelowFD.value_or(0.0), itsZ, /*the atom keeps the Z-scaled gate, DFT too*/false);
     nlohmann::json jsacc = ToAcceleratorJson(ResolveAcceleratorParams(itsAcc, MolecularAcceleratorDefaults(engageBelowFD)));   // every knob; the escape hatch below merges over it
     const std::string ts = AcceleratorTag();
-    if (itsOpts.accelerator.is_object() && !itsOpts.accelerator.empty())
-        for (auto& [k,v] : itsOpts.accelerator.items()) jsacc[k]=v;
+    if (itsOpts.atom.accelerator.is_object() && !itsOpts.atom.accelerator.empty())
+        for (auto& [k,v] : itsOpts.atom.accelerator.items()) jsacc[k]=v;
     if (itsStartOnGDM) { jsacc["startOnGDM"]=true; itsStartOnGDM=false; }   // the restored stage only (PrepareRestart)
     using AType = qchem::SCFAccelerators::Type;
     const bool directmin = (ts=="directmin" || ts=="DirectMin");
     if (directmin) jsacc["EngageBelowFD"]=1e10;   // GDM always steps; the direct-min loop seeds via diagonalize
     const AType atype = directmin ? AType::GDM : ts=="Ladder" ? AType::Ladder : ts=="GDM" ? AType::GDM : AType::DIIS;
-    if (itsOpts.pseudopotential || itsOpts.xc.has_value() || H::IsDFT(itsOpts.model))   // GDM needs H = dE/dD (pin 32)
+    if (itsOpts.atom.pseudopotential || itsOpts.atom.xc.has_value() || H::IsDFT(*itsOpts.model))   // GDM needs H = dE/dD (pin 32)
         RefuseGradientConsumers(itsOpts.vxcFit, itsOpts.xcRho, atype==AType::GDM ? "GDM" : atype==AType::Ladder ? "Ladder" : "DIIS");
     // The facade sets the context, the accelerator files what it was built with (THE RUN REPORT): one `accelerators` row per
     // accelerator built in this run (a solid rebuilds one per stage), its Ladder rungs one level further in.
@@ -273,9 +298,9 @@ void AtomCalculation::BuildGraph()
     const auto seed = (itsOpts.seed != SeedStrategy::Default) ? itsOpts.seed : SeedStrategy::CoreGuess;
     // RELATIVISTIC (Dirac) bases are even-tempered / kinetic-balanced: their overlap is near-singular BY
     // CONSTRUCTION, and canonical-ortho mode-dropping breaks kinetic balance -> variational collapse.  So a
-    // Dirac SCF ALWAYS uses PLAIN Cholesky (never truncate); a non-relativistic atom uses opts.ortho (Auto by
+    // Dirac SCF ALWAYS uses PLAIN Cholesky (never truncate); a non-relativistic atom uses *opts.ortho (Auto by
     // default, but Cholesky when a caller deliberately wants an over-complete basis kept whole).
-    const qchem::Ortho ortho = IsDirac(itsOpts.model) ? qchem::Cholesky : itsOpts.ortho;
+    const qchem::Ortho ortho = IsDirac(*itsOpts.model) ? qchem::Cholesky : *itsOpts.ortho;
 
     namespace rpt = qchem::report;
 
@@ -294,7 +319,7 @@ void AtomCalculation::BuildGraph()
     }
     // THE ERI4 RAM CAP (S6, user ruling 6): an all-electron HF / DHF atom builds the 4-centre tensors; judged once here from the block sizes.
     // (A PP atom ignores the model and runs LDA, and an XC override is DFT: neither builds ERI4.)
-    if (!itsOpts.pseudopotential && !itsOpts.xc.has_value() && (itsOpts.model==Model::HF || itsOpts.model==Model::DHF))
+    if (!itsOpts.atom.pseudopotential && !itsOpts.atom.xc.has_value() && (*itsOpts.model==Model::HF || *itsOpts.model==Model::DHF))
     {
         std::vector<size_t> blocks;
         for (auto b : itsBasis->Iterate<BasisSet::Real_IBS>()) blocks.push_back(b->GetNumFunctions());
@@ -305,9 +330,9 @@ void AtomCalculation::BuildGraph()
     decltype(itsHam.get()) ham=nullptr;
     {
         rpt::Scope hamiltonian("hamiltonian");
-        if (itsOpts.pseudopotential || itsOpts.xc.has_value() || H::IsDFT(itsOpts.model))
+        if (itsOpts.atom.pseudopotential || itsOpts.atom.xc.has_value() || H::IsDFT(*itsOpts.model))
             ReportXCRho(itsOpts.vxcFit, itsOpts.xcRho);   // the ρ axis (user ruling 2026-11-09): warns on the Gaussian x δ cell
-        if (itsOpts.pseudopotential)   // THE PP / FUNCTIONAL MATCH (user ruling 2026-11-12): warn and run, never switch
+        if (itsOpts.atom.pseudopotential)   // THE PP / FUNCTIONAL MATCH (user ruling 2026-11-12): warn and run, never switch
         {
             const std::string el=thePeriodicTable().GetSymbol(itsZ);
             const auto xcRun=PseudoAtomXC(itsOpts);
@@ -317,7 +342,7 @@ void AtomCalculation::BuildGraph()
     }
     {
         rpt::Section basis("basis");
-        rpt::Set("type",       AtomTypeName(itsOpts.type));
+        rpt::Set("type",       AtomTypeName(itsOpts.atom.type));
         rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
         qchem::BasisSet::ReportConditioning(*itsBasis);
         // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
@@ -330,9 +355,9 @@ void AtomCalculation::BuildGraph()
             itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), itsCarried.release(), itsStructure.get(), ortho,
                                  0.0, qchem::SCFIterator::SeedRole::WorkingDensity);
         else if (itsRestored.empty())
-            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsOpts.mesh,
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), *itsOpts.xcMesh,
                                  // a stated SAD seed reads the run's own atom: the GTH pseudo-atom at its Zion (the valence library), else all-electron
-                                 itsOpts.pseudopotential ? qchem::ChargeDensity::SeedKey("LDA", {{itsZ, PPZion(itsOpts,itsNe)}}) : qchem::ChargeDensity::SeedKey{},
+                                 itsOpts.atom.pseudopotential ? qchem::ChargeDensity::SeedKey("LDA", {{itsZ, PPZion(itsOpts,itsNe)}}) : qchem::ChargeDensity::SeedKey{},
                                  ortho);   // an HF SAD seed's sibling: the run's mesh
         else
         {
@@ -434,9 +459,9 @@ Calculation::StateIdentity AtomCalculation::MakeStateIdentity() const
 
 std::string AtomCalculation::FunctionalName() const
 {
-    if (itsOpts.pseudopotential)   // the PP front door: LDA (Dirac + VWN5), or PADE when stated
-        return itsOpts.xc ? "LDA (xc override)" : itsOpts.model==Model::PADE ? "PADE" : "LDA";
-    return ModelName(itsOpts.model)+(itsOpts.xc ? " (xc override)" : "");
+    if (itsOpts.atom.pseudopotential)   // the PP front door: LDA (Dirac + VWN5), or PADE when stated
+        return itsOpts.atom.xc ? "LDA (xc override)" : *itsOpts.model==Model::PADE ? "PADE" : "LDA";
+    return ModelName(*itsOpts.model)+(itsOpts.atom.xc ? " (xc override)" : "");
 }
 
 std::vector<StateBlock> AtomCalculation::StateBlocks(bool withOrbitals) const
@@ -462,31 +487,31 @@ StateSummary AtomCalculation::MakeStateSummary() const
     if (!itsScf || !itsScf->GetWaveFunction()) throw std::logic_error("AtomCalculation: no wave function yet");
     return {.label="atom "+thePeriodicTable().GetSymbol(itsZ), .converged=itsScf->Converged(), .iterations=itsScf->GetIterationCount(),
             .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0,
-            .recipe="model "+FunctionalName()+", basis "+AtomTypeName(itsOpts.type)+", accelerator "+AcceleratorTag()};
+            .recipe="model "+FunctionalName()+", basis "+AtomTypeName(itsOpts.atom.type)+", accelerator "+AcceleratorTag()};
 }
 
 void AtomCalculation::RecordState(StateRecord& r, double kT) const
 {
     Calculation::RecordState(r, kT);   // the structure, electron and block keys, and the blocks
-    const AtomCalcOptions& o=itsOpts;
+    const RunOptions& o=itsOpts;
     StateFingerprint& fp=r.fp;
     // ---- REFUSE: the saved D is a matrix over THIS radial basis's functions (the blocks' sizes are the shared keys) ----
-    fp.refuseStr["basis.family"]="radial "+AtomTypeName(o.type);
-    fp.refuseNum["basis.pool"]={double(int(o.basisPool)), double(o.N), o.emin, o.emax, double(o.ltrim)};
-    fp.refuseNum["basis.exponents"]=o.exponents;
+    fp.refuseStr["basis.family"]="radial "+AtomTypeName(o.atom.type);
+    fp.refuseNum["basis.pool"]={double(int(o.atom.basisPool)), double(o.atom.N), o.atom.emin, o.atom.emax, double(o.atom.ltrim)};
+    fp.refuseNum["basis.exponents"]=o.atom.exponents;
     {
         std::vector<double> byL;   // l, count, exponents... per entry
-        for (const auto& [l,es] : o.exponentsByL) { byL.push_back(l); byL.push_back(es.size()); byL.insert(byL.end(), es.begin(), es.end()); }
+        for (const auto& [l,es] : o.atom.exponentsByL) { byL.push_back(l); byL.push_back(es.size()); byL.insert(byL.end(), es.begin(), es.end()); }
         fp.refuseNum["basis.exponentsByL"]=byL;
     }
-    fp.refuseNum["pp.valence"]={o.pseudopotential ? double(PPZion(o, itsNe)) : 0.0};
-    if (!o.configuration.empty()) fp.refuseStr["configuration"]=o.configuration;   // a state of another configuration seeds nothing (stated only: the derived default keeps its old fingerprint)
+    fp.refuseNum["pp.valence"]={o.atom.pseudopotential ? double(PPZion(o, itsNe)) : 0.0};
+    if (!o.atom.configuration.empty()) fp.refuseStr["configuration"]=o.atom.configuration;   // a state of another configuration seeds nothing (stated only: the derived default keeps its old fingerprint)
     // ---- WARM ----
-    if (o.model==Model::Xalpha) fp.warmNum["xc.xalpha"]={o.xalpha};
-    fp.warmNum["grids.xcMesh"]={double(o.mesh.nRadial), double(o.mesh.angularDegree), double(int(o.mesh.radial)), double(int(o.mesh.angular))};
+    if (*o.model==Model::Xalpha) fp.warmNum["xc.xalpha"]={o.xalpha};
+    fp.warmNum["grids.xcMesh"]={double(o.xcMesh->nRadial), double(o.xcMesh->angularDegree), double(int(o.xcMesh->radial)), double(int(o.xcMesh->angular))};
     fp.warmNum["xc.fit"]={double(int(o.vxcFit))};
     fp.warmNum["coulomb.route"]={double(int(o.coulomb.fit)), double(int(o.coulomb.solver)), double(o.coulomb.lMax), double(o.coulomb.nRadial)};
-    fp.warmNum["ortho.kind"]={double(int(o.ortho))};
+    fp.warmNum["ortho.kind"]={double(int(*o.ortho))};
 }
 
 const std::optional<RestartSummary>& AtomCalculation::RestartedFrom() const {return itsRestartedFrom;}
@@ -509,7 +534,7 @@ std::unique_ptr<qchem::ChargeDensity::rDM_CD> AtomCalculation::RestoredDensity()
 }
 
 Outcome<std::unique_ptr<StateView>, RestartRefusal>
-AtomCalculation::ViewState(const std::string& path, int Z, int charge, const AtomCalcOptions& opts, const AcceleratorOptions& acc)
+AtomCalculation::ViewState(const std::string& path, int Z, int charge, const RunOptions& opts, const AcceleratorOptions& acc)
 {
     using O=Outcome<std::unique_ptr<StateView>, RestartRefusal>;
     auto saved=ReadState(path);
@@ -539,7 +564,7 @@ AtomCalculation::ViewState(const std::string& path, int Z, int charge, const Ato
 }
 
 Outcome<std::unique_ptr<AtomCalculation>, RestartRefusal>
-AtomCalculation::Restart(const std::string& path, int Z, int charge, const AtomCalcOptions& opts, const SCFParams& params,
+AtomCalculation::Restart(const std::string& path, int Z, int charge, const RunOptions& opts, const SCFParams& params,
                          const AcceleratorOptions& acc, Observer onIteration)
 {
     auto R=PrepareRestart(path, Z, charge, opts, params, acc, std::move(onIteration));
@@ -548,7 +573,7 @@ AtomCalculation::Restart(const std::string& path, int Z, int charge, const AtomC
 }
 
 Outcome<std::unique_ptr<AtomCalculation>, RestartRefusal>
-AtomCalculation::PrepareRestart(const std::string& path, int Z, int charge, const AtomCalcOptions& opts, const SCFParams& params,
+AtomCalculation::PrepareRestart(const std::string& path, int Z, int charge, const RunOptions& opts, const SCFParams& params,
                                 const AcceleratorOptions& acc, Observer onIteration)
 {
     using O=Outcome<std::unique_ptr<AtomCalculation>, RestartRefusal>;
@@ -616,8 +641,8 @@ void AtomCalculation::ResolveGrids()
     namespace H = qchem::Hamiltonian;
     if (!itsDFT) return;   // HF, Dirac, 1-electron: no mesh, no Hartree route
     const bool sized=itsOpts.accuracy.eps>0.0;
-    itsGrids.xcStated=itsOpts.mesh.nRadial>0;
-    itsGrids.xcRadial=itsGrids.xcStated ? itsOpts.mesh.nRadial : kAtomXCRadials[0];
+    itsGrids.xcStated=itsOpts.xcMesh->nRadial>0;
+    itsGrids.xcRadial=itsGrids.xcStated ? itsOpts.xcMesh->nRadial : kAtomXCRadials[0];
     itsGrids.coulomb=itsOpts.coulomb;
     using CF=H::CoulombFit;
     if (itsGrids.coulomb.fit==CF::Delta)
@@ -634,7 +659,7 @@ void AtomCalculation::ResolveGrids()
     }
     if (itsGrids.coulomb.fit==CF::Multipole)
     {
-        if (const auto a=H::AdmitCoulomb(*itsStructure, itsGrids.coulomb, itsOpts.mesh); !a)
+        if (const auto a=H::AdmitCoulomb(*itsStructure, itsGrids.coulomb, *itsOpts.xcMesh); !a)
             policy::Refuse("AdmitCoulomb", "the stated Hartree route on this atom", a.Error());
         itsGrids.hStated=itsGrids.coulomb.nRadial>0;
         if (!itsGrids.hStated) itsGrids.coulomb.nRadial=kAtomHartreeRadials[0];
@@ -653,7 +678,7 @@ void AtomCalculation::ResolveGrids()
 qchem::Hamiltonian::rHamiltonian* AtomCalculation::MakeHamiltonianOn(const Grids& g, const Hamiltonian::CoulombFitSlot<double>& slot) const
 {
     namespace H = qchem::Hamiltonian;
-    qcMesh::MeshParams mesh=itsOpts.mesh;
+    qcMesh::MeshParams mesh=*itsOpts.xcMesh;
     mesh.nRadial=g.xcRadial;
     if (itsDFT && g.coulomb.fit==H::CoulombFit::Auxiliary && g.fitRung>0)
     {
@@ -664,12 +689,12 @@ qchem::Hamiltonian::rHamiltonian* AtomCalculation::MakeHamiltonianOn(const Grids
         using fit_t=std::shared_ptr<const BasisSet::rFIT_CD_ABS>;
         slot.GetOrFill([&]{return fit_t(ladder->MakeCoulombFitRung(g.fitRung));});
     }
-    return itsOpts.pseudopotential
+    return itsOpts.atom.pseudopotential
         ? H::Factory(itsOpts.spin, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), mesh, itsBasis,
                      slot, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho), g.coulomb, PseudoAtomXC(itsOpts))
-        : itsOpts.xc.has_value()
-            ? H::Factory(itsOpts.spin, itsStructure, *itsOpts.xc, mesh, itsBasis, slot, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho), g.coulomb)
-            : H::Factory(itsOpts.model, itsOpts.spin, itsStructure, mesh, itsBasis, slot, itsOpts.xalpha,
+        : itsOpts.atom.xc.has_value()
+            ? H::Factory(itsOpts.spin, itsStructure, *itsOpts.atom.xc, mesh, itsBasis, slot, H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho), g.coulomb)
+            : H::Factory(*itsOpts.model, itsOpts.spin, itsStructure, mesh, itsBasis, slot, itsOpts.xalpha,
                          H::XCRoute(itsOpts.vxcFit, itsOpts.xcRho), g.coulomb);
 }
 
