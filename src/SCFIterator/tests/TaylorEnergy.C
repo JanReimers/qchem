@@ -91,8 +91,8 @@ TEST(TaylorEnergy, GPW_Si_k222_PulayOnD_GapIsSecondOrder)
         SCFParams par;
         par.NMaxIter=40; par.MinΔρPerElectron=1e-8; par.MinΔE=std::nullopt; par.MinΔFD=std::nullopt;
         par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
-        SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}}), par);
-        (void)calc.Result();
+        auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .scf=par, .solid={.densityEcut=20.0}})).TakeValue(); (void)calc->Converge();
+        (void)calc->Result();
     }));
     ASSERT_GE(p.pts.size(), 6u) << "too few D-mixing iterations printed their energy_taylor line";
     size_t n=0;
@@ -116,10 +116,9 @@ TEST(TaylorEnergy, O2_HF_Triplet_Polarized_GapIsSecondOrder)
         Molecule o2;
         o2.Insert(Site{8, Vector3D<double>(0, 0,  1.141)});
         o2.Insert(Site{8, Vector3D<double>(0, 0, -1.141)});
-        MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.multiplicity=3, .molecule={.basis="dzvp"}}),
-                         {.NMaxIter = 80, .MinΔρPerElectron = 1e-8, .MinΔFD = std::nullopt, .MinVirial = std::nullopt,
-                          .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true});
-        (void)calc.Result();
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(o2, {.multiplicity=3, .scf={.NMaxIter = 80, .MinΔρPerElectron = 1e-8, .MinΔFD = std::nullopt, .MinVirial = std::nullopt,
+                          .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true}, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+        (void)calc->Result();
     }));
     ASSERT_GE(p.pts.size(), 6u);
     size_t n=0;

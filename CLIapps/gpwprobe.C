@@ -80,9 +80,9 @@ int BeckeRecipeLadder(const std::string& system)
         o.imposeSymmetry=false;                            // free mesh: the ladder measures the RULE, not the fold
         SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;
         GpwReport report("Si "+o.label, false);
-        SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-        Check(bool(calc.Result()), "converged");
-        BeckeLadder(Handles(calc), lat.GetStructure(), "Si-covalent");
+        o.scf=par; auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+        Check(bool(calc->Result()), "converged");
+        BeckeLadder(Handles(*calc), lat.GetStructure(), "Si-covalent");
     }
     else if (system=="naf")
     {
@@ -91,9 +91,9 @@ int BeckeRecipeLadder(const std::string& system)
         RunOptions o=NaFOptions(naf, "NaF V2.6 ladder");
         o.imposeSymmetry=false;
         GpwReport report("NaF "+o.label, false);
-        SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFGates());
-        Check(bool(calc.Result()), "converged");
-        BeckeLadder(Handles(calc), lat.GetStructure(), "NaF-ionic");
+        o.scf=NaFGates(); auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o)).TakeValue(); (void)calc->Converge();
+        Check(bool(calc->Result()), "converged");
+        BeckeLadder(Handles(*calc), lat.GetStructure(), "NaF-ionic");
     }
     else if (system=="mn")
     {
@@ -107,9 +107,9 @@ int BeckeRecipeLadder(const std::string& system)
             BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_SR, box.cell.get(), BasisSet::Gaussian::Engine::MnD,
                                         BasisSet::Gaussian::Angular::Cartesian));
         GpwReport report("Mn "+o.label, false);
-        SolidCalculation calc(SolidSetup::Resolve(lat, mnbasis, o), par);
-        Check(bool(calc.Result()), "converged");
-        BeckeLadder(Handles(calc), lat.GetStructure(), "Mn-openshell-d");
+        o.scf=par; auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mnbasis, o)).TakeValue(); (void)calc->Converge();
+        Check(bool(calc->Result()), "converged");
+        BeckeLadder(Handles(*calc), lat.GetStructure(), "Mn-openshell-d");
     }
     else if (system=="al")
     {
@@ -119,9 +119,9 @@ int BeckeRecipeLadder(const std::string& system)
         o.imposeSymmetry=false;
         SCFParams par=AlGates(); par.SmearingkT=0.02;      // smeared: a converged, non-rotating density to freeze
         GpwReport report("Al "+o.label, false);
-        SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
-        Check(bool(calc.Result()), "converged");
-        BeckeLadder(Handles(calc), lat.GetStructure(), "Al-metal");
+        o.scf=par; auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o)).TakeValue(); (void)calc->Converge();
+        Check(bool(calc->Result()), "converged");
+        BeckeLadder(Handles(*calc), lat.GetStructure(), "Al-metal");
     }
     else throw std::runtime_error("becke-ladder: SYSTEM must be si | naf | mn | al");
     return nFailed;

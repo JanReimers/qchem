@@ -149,19 +149,19 @@ TEST(L_PP, FacadePreservesUnitCell)
 {
     // Finite reference through the facade: He at the origin (Enn = 0 for one atom -- no ion-ion pair).
     Molecule he; he.Insert(Site{2, {0,0,0}});
-    MoleculeCalculation cFin(MoleculeSetup::Resolve(he, {.molecule={.basis="dzvp"}}));
-    EXPECT_FALSE(cFin.GetStructure().Admits(qcMesh::ImposedSymmetry::Translations));   // a Molecule stays finite
-    EXPECT_NEAR(cFin.EnergyTerms()["Enn"], 0.0, 1e-12);      // single finite atom -> no ion-ion
+    auto cFin=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(he, {.molecule={.basis="dzvp"}})).TakeValue(); (void)cFin->Converge();
+    EXPECT_FALSE(cFin->GetStructure().Admits(qcMesh::ImposedSymmetry::Translations));   // a Molecule stays finite
+    EXPECT_NEAR(cFin->EnergyTerms()["Enn"], 0.0, 1e-12);      // single finite atom -> no ion-ion
 
     // Lattice run: the same He centred in a cubic cell.  The facade must keep the UnitCell periodic.
     const double a = 10.0;
     UnitCell cell(a);
     cell.AddAtom(2, {0.5,0.5,0.5});
-    MoleculeCalculation cCell(MoleculeSetup::Resolve(cell, {.molecule={.basis="dzvp"}}));
+    auto cCell=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(cell, {.molecule={.basis="dzvp"}})).TakeValue(); (void)cCell->Converge();
 
-    EXPECT_TRUE(cCell.GetStructure().Admits(qcMesh::ImposedSymmetry::Translations));       // periodic, not sliced to a Molecule
-    EXPECT_NEAR(cCell.GetStructure().GetNumElectrons(), 2.0, 1e-12);  // He, charge preserved by Clone
+    EXPECT_TRUE(cCell->GetStructure().Admits(qcMesh::ImposedSymmetry::Translations));       // periodic, not sliced to a Molecule
+    EXPECT_NEAR(cCell->GetStructure().GetNumElectrons(), 2.0, 1e-12);  // He, charge preserved by Clone
 
     // The ion-ion term routed through the periodic Ewald sum (a sliced single-atom Molecule would give 0).
-    EXPECT_GT(std::fabs(cCell.EnergyTerms()["Enn"]), 1e-3);
+    EXPECT_GT(std::fabs(cCell->EnergyTerms()["Enn"]), 1e-3);
 }

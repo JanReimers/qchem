@@ -105,12 +105,6 @@ static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, int Z, const Electr
     return BasisSet::Radial::Factory(opts.atom.basisPool, opts.atom.type, Z, ec);
 }
 
-AtomCalculation::AtomCalculation(std::shared_ptr<const AtomSetup> setup, const SCFParams& params)
-    : AtomCalculation(BuildOnly{}, std::move(setup), nullptr)
-{
-    (void)ConvergeStage(params);
-}
-
 Outcome<std::unique_ptr<AtomCalculation>, BuildRefusal> AtomCalculation::Prepare(std::shared_ptr<const AtomSetup> setup, Observer onIteration)
 {
     std::unique_ptr<AtomCalculation> c;

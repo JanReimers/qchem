@@ -46,12 +46,12 @@ TEST_P(A_SL_HF_ion,A)
     int N=21;
     if (Z>12) N=35;
     if (Z>50) N=40;
-    AtomCalculation calc(AtomSetup::Resolve(Z, Z-1, {.spin=SpinGroup::Polarized, .model=Model::HF, .ortho=qchem::Cholesky, .atom={.type=AtomType::Slater, .N=N, .emin=Z/20., .emax=Z*Z*5.}}), // keep the wide even-tempered basis whole (no truncation)
-        {.NMaxIter = 20, .MinΔρPerElectron = Z*1e-4, .MinFD = Z*1e-5, .StartingRelaxRo = 1.0, .MergeTol = 1e-4, .Verbose = true});
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, Z-1, {.spin=SpinGroup::Polarized, .model=Model::HF, .ortho=qchem::Cholesky, .scf=// keep the wide even-tempered basis whole (no truncation)
+        {.NMaxIter = 20, .MinΔρPerElectron = Z*1e-4, .MinFD = Z*1e-5, .StartingRelaxRo = 1.0, .MergeTol = 1e-4, .Verbose = true}, .atom={.type=AtomType::Slater, .N=N, .emin=Z/20., .emax=Z*Z*5.}})).TakeValue(); (void)calc->Converge();
     // One electron: J and K cancel, so F is D-independent and the first real diagonalization is exact -- but the SCF must still
     // CONFIRM it on its own gates (it used to stop at NMaxIter 2 behind a Δ[F,D] gate it could not meet: user 2026-10-29).
-    ASSERT_TRUE(calc.IsConverged());
-    EXPECT_LT(RelativeError(calc.Energy(), -0.5*Z*Z), 4e-12);
+    ASSERT_TRUE(calc->IsConverged());
+    EXPECT_LT(RelativeError(calc->Energy(), -0.5*Z*Z), 4e-12);
 }
 #ifdef DEBUG
 INSTANTIATE_TEST_SUITE_P(A,A_SL_HF_ion,::testing::Values(1));
@@ -71,18 +71,17 @@ TEST_P(A_SL_DE1,A)
     if (Z>50) N=40;
     // DHF wave functions have a weak singularity at the origin -- very large exponents (emax) mock it.
     double alpha=.05,beta=1.55;
-    AtomCalculation calc(AtomSetup::Resolve(Z, Z-1, {.spin=SpinGroup::Polarized, .model=Model::DE1, .atom={.type=AtomType::Slater_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1)}}),
-        {.NMaxIter = 5, .MinΔρPerElectron = Z*1e-5, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = false});
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, Z-1, {.spin=SpinGroup::Polarized, .model=Model::DE1, .scf={.NMaxIter = 5, .MinΔρPerElectron = Z*1e-5, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = false}, .atom={.type=AtomType::Slater_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1)}})).TakeValue(); (void)calc->Converge();
 
-    auto qns=calc.GetIrreps(Spin::Up);
+    auto qns=calc->GetIrreps(Spin::Up);
     cout << qns[0] << endl;
-    const auto* orb0=calc.GetOrbital(0,qns[0]);
+    const auto* orb0=calc->GetOrbital(0,qns[0]);
     double e0=orb0->GetEigenEnergy();
     double e0_expected=Enk(1,-1,Z,1.0/c_light);
     double e0_rel=(e0_expected-e0)/e0_expected;
     EXPECT_LT(e0_expected,e0);
     EXPECT_LT(e0_rel,2e-7);
-    double Etotal=calc.Energy();
+    double Etotal=calc->Energy();
     double et_rel=(e0_expected-Etotal)/e0_expected;
     cout << std::setprecision(10) << "e0_rel =" << e0_rel << "  et_rel = " << et_rel << endl;
     EXPECT_LT(e0_expected,Etotal);
@@ -101,17 +100,16 @@ TEST_P(A_SG_DE1,A)
     double alpha=0.01,beta=1.8;
     if (Z>=20) { N=38; beta=2; }
     if (Z>=60) { N=48; beta=2; }
-    AtomCalculation calc(AtomSetup::Resolve(Z, Z-1, {.spin=SpinGroup::Polarized, .model=Model::DE1, .ortho=Ortho::Cholesky, .atom={.type=AtomType::Gaussian_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1)}}),
-        {.NMaxIter = 5, .MinΔρPerElectron = Z*1e-5, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, Z-1, {.spin=SpinGroup::Polarized, .model=Model::DE1, .ortho=Ortho::Cholesky, .scf={.NMaxIter = 5, .MinΔρPerElectron = Z*1e-5, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, .atom={.type=AtomType::Gaussian_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1)}})).TakeValue(); (void)calc->Converge();
 
-    auto qns=calc.GetIrreps(Spin::Up);
-    const auto* orb0=calc.GetOrbital(0,qns[0]);
+    auto qns=calc->GetIrreps(Spin::Up);
+    const auto* orb0=calc->GetOrbital(0,qns[0]);
     double e0=orb0->GetEigenEnergy();
     double e0_expected=Enk(1,-1,Z,1.0/c_light);
     double e0_rel=(e0_expected-e0)/e0_expected;
     EXPECT_LT(e0_expected,e0);
     EXPECT_LT(e0_rel,4e-7);
-    double Etotal=calc.Energy();
+    double Etotal=calc->Energy();
     double et_rel=(e0_expected-Etotal)/e0_expected;
     cout << std::setprecision(10) << "e0_rel =" << e0_rel << "  et_rel = " << et_rel << endl;
     EXPECT_LT(e0_expected,Etotal);
@@ -168,17 +166,16 @@ TEST(A_SG_E1,Phir)
 {
     int N=40;
     double alpha=0.010,beta=1.6;
-    AtomCalculation calc(AtomSetup::Resolve(1, 0, {.spin=SpinGroup::UnPolarized, .model=Model::E1, .atom={.type=AtomType::Gaussian, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1)}}),
-        {.NMaxIter = 5, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(1, 0, {.spin=SpinGroup::UnPolarized, .model=Model::E1, .scf={.NMaxIter = 5, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true}, .atom={.type=AtomType::Gaussian, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1)}})).TakeValue(); (void)calc->Converge();
 
-    auto qns=calc.GetIrreps(Spin::None);
-    const auto* orb0=calc.GetOrbital(0,qns[0]);
+    auto qns=calc->GetIrreps(Spin::None);
+    const auto* orb0=calc->GetOrbital(0,qns[0]);
     double n1,n_expected,idphi;
-    std::tie(n1,n_expected,idphi)=Integrate(orb0,calc.GetStructure(),0.0);
+    std::tie(n1,n_expected,idphi)=Integrate(orb0,calc->GetStructure(),0.0);
     EXPECT_NEAR(n1,1,1e-14);
     EXPECT_NEAR(n_expected,1,1e-14);
     EXPECT_NEAR(idphi,0.0,1e-14); //Integrated delta.
-    EXPECT_NEAR(calc.TotalCharge(),1.0,1e-14);
+    EXPECT_NEAR(calc->TotalCharge(),1.0,1e-14);
 }
 
 TEST(DE1_P1,Gaussian_Phir)
@@ -186,34 +183,32 @@ TEST(DE1_P1,Gaussian_Phir)
     int Z=1;
     int N=32;
     double alpha=0.010,beta=1.6;
-    AtomCalculation calc(AtomSetup::Resolve(1, 0, {.spin=SpinGroup::Polarized, .model=Model::DE1, .atom={.type=AtomType::Gaussian_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1)}}),
-        {.NMaxIter = 5, .MinΔρPerElectron = Z*1e-5, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(1, 0, {.spin=SpinGroup::Polarized, .model=Model::DE1, .scf={.NMaxIter = 5, .MinΔρPerElectron = Z*1e-5, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, .atom={.type=AtomType::Gaussian_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1)}})).TakeValue(); (void)calc->Converge();
 
-    auto qns=calc.GetIrreps(Spin::Up);
-    const auto* orb0=calc.GetOrbital(0,qns[0]);
+    auto qns=calc->GetIrreps(Spin::Up);
+    const auto* orb0=calc->GetOrbital(0,qns[0]);
     double n1,n_expected,idphi;
-    std::tie(n1,n_expected,idphi)=Integrate(orb0,calc.GetStructure(),1/c_light);
+    std::tie(n1,n_expected,idphi)=Integrate(orb0,calc->GetStructure(),1/c_light);
     EXPECT_NEAR(n1,1,1e-2); //Calculated orbital is not well normalized
     EXPECT_NEAR(n_expected,1,1e-14); //Analytic orbital is well normalized.
     EXPECT_NEAR(idphi,0.0,1e-13); //Integrated delta.
-    EXPECT_NEAR(calc.TotalCharge(),1.0,1e-12);   // ~machine-eps; 1e-12 tolerates BLAS-impl roundoff (OpenBLAS vs netlib)
+    EXPECT_NEAR(calc->TotalCharge(),1.0,1e-12);   // ~machine-eps; 1e-12 tolerates BLAS-impl roundoff (OpenBLAS vs netlib)
 }
 
 TEST(DE1_P1,Slater_Phir)
 {
     size_t N=37;
     double alpha=.04,beta=1.32;
-    AtomCalculation calc(AtomSetup::Resolve(1, 0, {.spin=SpinGroup::Polarized, .model=Model::DE1, .atom={.type=AtomType::Slater_RKB, .N=int(N), .emin=alpha, .emax=alpha*pow(beta,N-1)}}),
-        {.NMaxIter = 5, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = false});
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(1, 0, {.spin=SpinGroup::Polarized, .model=Model::DE1, .scf={.NMaxIter = 5, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = false}, .atom={.type=AtomType::Slater_RKB, .N=int(N), .emin=alpha, .emax=alpha*pow(beta,N-1)}})).TakeValue(); (void)calc->Converge();
 
-    auto qns=calc.GetIrreps(Spin::Up);
-    const auto* orb0=calc.GetOrbital(0,qns[0]);
+    auto qns=calc->GetIrreps(Spin::Up);
+    const auto* orb0=calc->GetOrbital(0,qns[0]);
     double n1,n_expected,idphi;
-    std::tie(n1,n_expected,idphi)=Integrate(orb0,calc.GetStructure(),1/c_light);
+    std::tie(n1,n_expected,idphi)=Integrate(orb0,calc->GetStructure(),1/c_light);
     EXPECT_NEAR(n1,1,1e-2);
     EXPECT_NEAR(n_expected,1,1e-14);
     EXPECT_NEAR(idphi,0.0,1e-12); //Integrated delta.
-    EXPECT_NEAR(calc.TotalCharge(),1.0,1e-12);   // ~machine-eps; 1e-12 tolerates BLAS-impl roundoff (OpenBLAS vs netlib)
+    EXPECT_NEAR(calc->TotalCharge(),1.0,1e-12);   // ~machine-eps; 1e-12 tolerates BLAS-impl roundoff (OpenBLAS vs netlib)
 }
 
 //
@@ -223,9 +218,8 @@ class A_SL_DHF : public ::testing::TestWithParam<size_t> {};
 TEST_P(A_SL_DHF,Energy)
 {
     int Z=GetParam();
-    AtomCalculation calc(AtomSetup::Resolve(Z, 0, {.spin=SpinGroup::UnPolarized, .model=Model::DHF, .atom={.type=AtomType::Slater_RKB, .basisPool=Medium}}),
-        {.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
-    EXPECT_LT(fabs(RelativeDHFError(calc.Energy(), Z)), 5e-3); // Low-accuracy basis; Ne (Z=10) known gap
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, {.spin=SpinGroup::UnPolarized, .model=Model::DHF, .scf={.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true}, .atom={.type=AtomType::Slater_RKB, .basisPool=Medium}})).TakeValue(); (void)calc->Converge();
+    EXPECT_LT(fabs(RelativeDHFError(calc->Energy(), Z)), 5e-3); // Low-accuracy basis; Ne (Z=10) known gap
 }
 INSTANTIATE_TEST_SUITE_P(A,A_SL_DHF,::testing::Values(2,4,10));
 
@@ -234,10 +228,9 @@ TEST_P(A_SG_DHF,Energy)
 {
     int Z=GetParam();
     // Virial gate OFF: on a Low-accuracy RKB basis the virial ratio measures basis completeness, not SCF convergence.
-    AtomCalculation calc(AtomSetup::Resolve(Z, 0, {.spin=SpinGroup::UnPolarized, .model=Model::DHF, .atom={.type=AtomType::Gaussian_RKB, .basisPool=Low}}),
-        {.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = std::nullopt, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
-    ASSERT_TRUE(calc.IsConverged());
-    EXPECT_LT(fabs(RelativeDHFError(calc.Energy(), Z)), 5e-3); // Low-accuracy basis; Ne (Z=10) known gap
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, {.spin=SpinGroup::UnPolarized, .model=Model::DHF, .scf={.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = std::nullopt, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true}, .atom={.type=AtomType::Gaussian_RKB, .basisPool=Low}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->IsConverged());
+    EXPECT_LT(fabs(RelativeDHFError(calc->Energy(), Z)), 5e-3); // Low-accuracy basis; Ne (Z=10) known gap
 }
 INSTANTIATE_TEST_SUITE_P(A,A_SG_DHF,::testing::Values(2,4,10));
 
@@ -247,12 +240,11 @@ INSTANTIATE_TEST_SUITE_P(A,A_SG_DHF,::testing::Values(2,4,10));
 //
 TEST(DHF_B_Pol,P2p)
 {
-    AtomCalculation calc(AtomSetup::Resolve(5, 0, {.spin=SpinGroup::Polarized, .model=Model::DHF, .atom={.type=AtomType::Slater_RKB, .basisPool=Medium}}),
-        {.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(5, 0, {.spin=SpinGroup::Polarized, .model=Model::DHF, .scf={.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true}, .atom={.type=AtomType::Slater_RKB, .basisPool=Medium}})).TakeValue(); (void)calc->Converge();
 
     const qchem::Orbitals::Orbital* o2p=nullptr;
-    for (const auto& ir:calc.GetIrreps(Spin::Up))
-        if (Symmetry::Atom::Getκ(ir.sym)==1) o2p=calc.GetOrbital(0,ir);
+    for (const auto& ir:calc->GetIrreps(Spin::Up))
+        if (Symmetry::Atom::Getκ(ir.sym)==1) o2p=calc->GetOrbital(0,ir);
     ASSERT_NE(o2p,nullptr);
     double e2p=o2p->GetEigenEnergy();
     double ref=-0.30979; //periodic table 2p- for Boron
@@ -270,16 +262,15 @@ TEST(DHF_Xe,P5pSplit)
 #ifdef DEBUG
     GTEST_SKIP() << "Xe DHF (54 electrons) is too slow for Debug; runs in Release only.";
 #endif
-    AtomCalculation calc(AtomSetup::Resolve(54, 0, {.spin=SpinGroup::UnPolarized, .model=Model::DHF, .atom={.type=AtomType::Slater_RKB, .basisPool=Medium}}),
-        {.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = std::nullopt, .MinFD = 1e-6, .StartingRelaxRo = 0.3, .MergeTol = 1e-7, .Verbose = true});
-    ASSERT_TRUE(calc.IsConverged()) << "virial gate off: on a finite RKB basis it measures completeness, not convergence";
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(54, 0, {.spin=SpinGroup::UnPolarized, .model=Model::DHF, .scf={.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = std::nullopt, .MinFD = 1e-6, .StartingRelaxRo = 0.3, .MergeTol = 1e-7, .Verbose = true}, .atom={.type=AtomType::Slater_RKB, .basisPool=Medium}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->IsConverged()) << "virial gate off: on a finite RKB basis it measures completeness, not convergence";
 
     // Valence 5p is the 4th occupied level (2p,3p,4p,5p) -> index 3 in each p irrep.
     const qchem::Orbitals::Orbital *p12=nullptr,*p32=nullptr;
-    for (const auto& ir:calc.GetIrreps(Spin::Up))
+    for (const auto& ir:calc->GetIrreps(Spin::Up))
     {
-        if (Symmetry::Atom::Getκ(ir.sym)== 1) p12=calc.GetOrbital(3,ir);
-        if (Symmetry::Atom::Getκ(ir.sym)==-2) p32=calc.GetOrbital(3,ir);
+        if (Symmetry::Atom::Getκ(ir.sym)== 1) p12=calc->GetOrbital(3,ir);
+        if (Symmetry::Atom::Getκ(ir.sym)==-2) p32=calc->GetOrbital(3,ir);
     }
     ASSERT_NE(p12,nullptr); ASSERT_NE(p32,nullptr);
     double e12=p12->GetEigenEnergy(), e32=p32->GetEigenEnergy();

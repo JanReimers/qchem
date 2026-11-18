@@ -33,11 +33,11 @@ using qchem::MoleculeCalculation;
 TEST(M_Calculation, WaterEnergy)
 {
     Molecule water = qchem::StructureData::GetMolecule("H2O");
-    MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.molecule={.basis="dzvp"}}));            // build + converge in one line
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(water, {.molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();            // Setup -> Prepare -> Converge
 
     const double E_ref = -76.022903;
-    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
-    EXPECT_GT(calc.IterationCount(), 0u);
+    EXPECT_LT(std::fabs((E_ref - calc->Energy()) / E_ref), 1e-5);
+    EXPECT_GT(calc->IterationCount(), 0u);
 }
 
 // The scf run-report SCHEMA CHECK (RunReportPlan step 1).  The provider (MoleculeCalculation::Converge)
@@ -46,7 +46,7 @@ TEST(M_Calculation, WaterEnergy)
 TEST(M_Calculation, ScfReportSchema)
 {
     Molecule water = qchem::StructureData::GetMolecule("H2O");
-    { report::Run run(water.ID()); MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.molecule={.basis="dzvp"}})); }   // the test opens the run (user ruling D, 2026-11-02); the ctor's Converge files scf into it
+    { report::Run run(water.ID()); auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(water, {.molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge(); }   // the test opens the run (user ruling D, 2026-11-02); Converge files scf into it
 
     // Find this run's scf section (the run key carries a timestamp, so scan for it).
     const report::json* scf = nullptr;
@@ -79,7 +79,7 @@ TEST(M_Calculation, ScfReportSchema)
 TEST(M_Calculation, BasisReportSchema)
 {
     report::ClearGlobal();                                // isolate: only this test's run(s) remain
-    { report::Run run("H2O"); MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.imposeSymmetry=true, .molecule={.basis="dzvp"}})); }
+    { report::Run run("H2O"); auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.imposeSymmetry=true, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge(); }
 
     const report::json& all = report::GlobalReport();
     const report::json* basis = nullptr;
@@ -107,7 +107,7 @@ TEST(M_Calculation, BasisReportSchema)
 TEST(M_Calculation, CacheReportSchema)
 {
     report::ClearGlobal();
-    { report::Run run("H2O"); MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp"}})); }
+    { report::Run run("H2O"); auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge(); }
 
     std::map<std::string,double> total;   // every key of every `cache` object in the run, summed over the scopes it landed in
     size_t nCache=0;
@@ -161,10 +161,10 @@ TEST(M_Calculation, OneDeltaFitPerHamiltonianHoldsEachBlocksPhiOnce)
         report::ClearGlobal();
         {
             report::Run run("H2O");
-            MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
-                                     {.model=Model::LDA, .xcMesh=mesh, .coulomb=coulomb, .molecule={.basis="dzvp"}}));
-            EXPECT_TRUE(calc.Result());
-            energy=calc.Energy();
+            auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
+                                     {.model=Model::LDA, .xcMesh=mesh, .coulomb=coulomb, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+            EXPECT_TRUE(calc->Result());
+            energy=calc->Energy();
         }
         double total=0.0;
         std::function<void(const report::json&)> walk=[&](const report::json& j)
@@ -195,7 +195,7 @@ TEST(M_Calculation, OneDeltaFitPerHamiltonianHoldsEachBlocksPhiOnce)
 // "Did E move" regression sentinel, like the HF anchor (NOT a physical-accuracy claim).
 TEST(M_Calculation, WaterLDA)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .molecule={.basis="dzvp"}}));
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
     // Converged parameter-free LDA total energy (Dirac exchange + VWN5 correlation), with the facade's
     // auto DIIS-from-start + SAD seed.  Bit-stable at -75.9324615507 and now ORDER-INDEPENDENT: the
     // ~585 ppm HF-before-DFT drift was a fit-basis Normalization cached without a mesh key (the HF SAD
@@ -206,20 +206,20 @@ TEST(M_Calculation, WaterLDA)
     // (60 mHa LOW) and -75.8726517 on the A1 Vxc fit with a d-less Coulomb fit.  Independent route: PySCF with the SAME A1_coul
     // Coulomb fit and exact XC, -75.879447 (8 μHa); PySCF exact J -75.877299 (the Coulomb fit itself lowers 2.1 mHa).
     const double E_ref = -75.8794551388;
-    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
-    EXPECT_NEAR(calc.Energy(), -75.87944736, 1e-4) << "ORACLE: PySCF lda,vwn/dzvp, the same A1_coul Coulomb fit, exact XC";
-    EXPECT_GT(calc.IterationCount(), 0u);
+    EXPECT_LT(std::fabs((E_ref - calc->Energy()) / E_ref), 1e-5);
+    EXPECT_NEAR(calc->Energy(), -75.87944736, 1e-4) << "ORACLE: PySCF lda,vwn/dzvp, the same A1_coul Coulomb fit, exact XC";
+    EXPECT_GT(calc->IterationCount(), 0u);
 }
 
 // {.imposeSymmetry=true} SALC-blocks the (Cartesian PG) basis + does global aufbau across irreps.  The
 // converged total energy must match the un-blocked run -- the M_Sym invariant, now through the facade.
 TEST(M_Calculation, WaterSymmetry)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.imposeSymmetry=true, .molecule={.basis="dzvp"}}));
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.imposeSymmetry=true, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
 
     const double E_ref = -76.022903;                       // identical to the un-blocked WaterEnergy anchor
-    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
-    EXPECT_GT(calc.IterationCount(), 0u);
+    EXPECT_LT(std::fabs((E_ref - calc->Energy()) / E_ref), 1e-5);
+    EXPECT_GT(calc->IterationCount(), 0u);
 }
 
 // engine=LibCint + {.imposeSymmetry=true}: the libcint-Cartesian orbital IBS is ALSO symmetry-adaptable (it
@@ -229,32 +229,32 @@ TEST(M_Calculation, WaterSymmetry)
 // cast); this test locks it in.
 TEST(M_Calculation, WaterSymmetryLibCint)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.imposeSymmetry=true, .molecule={.basis="dzvp", .engine=Engine::LibCint}}));
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.imposeSymmetry=true, .molecule={.basis="dzvp", .engine=Engine::LibCint}})).TakeValue(); (void)calc->Converge();
 
     const double E_ref = -76.022903;                       // same anchor as WaterSymmetry (MnD)
-    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
-    EXPECT_GT(calc.IterationCount(), 0u);
+    EXPECT_LT(std::fabs((E_ref - calc->Energy()) / E_ref), 1e-5);
+    EXPECT_GT(calc->IterationCount(), 0u);
 }
 
 // The caller's Molecule is deep-copied: it survives being passed in and may be used afterwards.
 TEST(M_Calculation, OwnsItsOwnStructure)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp"}}));      // temporary destroyed at the semicolon
-    EXPECT_EQ(calc.GetStructure().GetNumAtoms(), 3u);
-    EXPECT_NEAR(calc.GetStructure().GetNumElectrons(), 10.0, 1e-12);
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();      // temporary destroyed at the semicolon
+    EXPECT_EQ(calc->GetStructure().GetNumAtoms(), 3u);
+    EXPECT_NEAR(calc->GetStructure().GetNumElectrons(), 10.0, 1e-12);
 }
 
 // Density and every occupied MO are sampleable ScalarFunction<double>s through one interface.
 TEST(M_Calculation, SamplingSurface)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp"}}));
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
 
     // Water has 10 electrons -> 5 doubly-occupied MOs in the unpolarized wave function.
-    EXPECT_EQ(calc.NumOccupied(), 5u);
+    EXPECT_EQ(calc->NumOccupied(), 5u);
 
     const Vector3D<double> rO(0, 0, 0);                    // at the oxygen nucleus
-    EXPECT_GT(calc.Density()(rO), 0.0);                    // rho > 0 where the atoms are
-    EXPECT_GT(std::fabs(calc.HOMO()(rO)) + std::fabs(calc.Orbital(0)(rO)), 0.0);
+    EXPECT_GT(calc->Density()(rO), 0.0);                    // rho > 0 where the atoms are
+    EXPECT_GT(std::fabs(calc->HOMO()(rO)) + std::fabs(calc->Orbital(0)(rO)), 0.0);
 }
 
 // ===== The GDM/Ladder molecular path, stressed with BORON (feedback pin: B, not Be) =================
@@ -274,23 +274,23 @@ static Molecule MakeBoron()
 
 TEST(M_Calculation, BoronUHFLadderGDM)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}}));
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
 
     const double E_ref = -24.525932;   // pinned converged UHF/dzvp did-E-move anchor (measured 2026-08-17;
                                        // ~3 mHa above the HF limit -24.529061 = dzvp basis incompleteness)
-    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / std::fabs(E_ref)), 1e-5);
-    EXPECT_GT(calc.IterationCount(), 0u);
+    EXPECT_LT(std::fabs((E_ref - calc->Energy()) / std::fabs(E_ref)), 1e-5);
+    EXPECT_GT(calc->IterationCount(), 0u);
 }
 
 // The same anchor under standalone GDM (no DIIS rung in front): the direct minimizer alone must land
 // on the same UHF energy.  Locks the second previously-uncovered accelerator type.
 TEST(M_Calculation, BoronUHFPureGDM)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .accelerator=qchem::SCFAccelerators::Type::GDM, .molecule={.basis="dzvp"}}));
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .accelerator=qchem::SCFAccelerators::Type::GDM, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
 
     const double E_ref = -24.525932;   // same anchor as the Ladder run (the two agree to ~1e-12 Ha)
-    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / std::fabs(E_ref)), 1e-5);
-    EXPECT_GT(calc.IterationCount(), 0u);
+    EXPECT_LT(std::fabs((E_ref - calc->Energy()) / std::fabs(E_ref)), 1e-5);
+    EXPECT_GT(calc->IterationCount(), 0u);
 }
 
 // HF with degenerateLevelFill: Shared STATED, from a SAD seed: the symmetric (shared) UHF state, -24.40769 on dzvp, 118 mHa above the
@@ -301,9 +301,9 @@ TEST(M_Calculation, BoronUHFPureGDM)
 TEST(M_Calculation, BoronUHFStatedSharedTakesTheSharedState)
 {
     SCFParams shared; shared.DegenerateLevels=SCFParams::DegenerateLevelFill::Shared;
-    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .seed=qchem::ChargeDensity::SeedStrategy::SAD, .molecule={.basis="dzvp"}}), shared);
-    ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -24.40769, 1e-5) << "the shared state, not the integer one (-24.525932)";
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .seed=qchem::ChargeDensity::SeedStrategy::SAD, .scf=shared, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    EXPECT_NEAR(calc->Energy(), -24.40769, 1e-5) << "the shared state, not the integer one (-24.525932)";
 }
 
 // Singlet O2 (2.282 bohr) HF/dzvp with a STATED Shared fill: the pi_g^2 pair shared, 1/2 per spin-orbital, -149.2962220 -- from the SAD
@@ -331,9 +331,9 @@ static void ExpectO2SharedFromBothSeeds(const Molecule& o2, bool symmetry)
     SCFParams shared; shared.DegenerateLevels=SCFParams::DegenerateLevelFill::Shared;
     for (auto seed : {qchem::ChargeDensity::SeedStrategy::SAD, qchem::ChargeDensity::SeedStrategy::CoreGuess})
     {
-        MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.imposeSymmetry=symmetry, .seed=seed, .molecule={.basis="dzvp"}}), shared);
-        ASSERT_TRUE(calc.Result());
-        EXPECT_NEAR(calc.Energy(), -149.2962220, 1e-6)
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(o2, {.imposeSymmetry=symmetry, .seed=seed, .scf=shared, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+        ASSERT_TRUE(calc->Result());
+        EXPECT_NEAR(calc->Energy(), -149.2962220, 1e-6)
             << (seed==qchem::ChargeDensity::SeedStrategy::SAD ? "SAD" : "core") << " seed: the shared state, not the broken -149.5438874";
     }
 }
@@ -354,19 +354,18 @@ TEST(M_Calculation, BoronLDASharedLevelGDMDeclines)
 {
     // The facade converges in its constructor, so the capture brackets the construction.
     testing::internal::CaptureStdout();
-    MoleculeCalculation ladder(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}}));
+    auto ladder=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}})).TakeValue(); (void)ladder->Converge();
     const std::string outL=testing::internal::GetCapturedStdout();
     testing::internal::CaptureStdout();
     // GDM with the fill UNSTATED takes the integer fill (user 2026-11-08: guide the user); the shared state is stated here.
     SCFParams shared; shared.DegenerateLevels=SCFParams::DegenerateLevelFill::Shared;
-    MoleculeCalculation gdm   (MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::GDM, .molecule={.basis="dzvp"}}),
-                               shared);
+    auto gdm=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::GDM, .scf=shared, .molecule={.basis="dzvp"}})).TakeValue(); (void)gdm->Converge();
     const std::string outG=testing::internal::GetCapturedStdout();
-    ASSERT_TRUE(ladder.Result()) << outL;
-    ASSERT_TRUE(gdm.Result())    << outG;
+    ASSERT_TRUE(ladder->Result()) << outL;
+    ASSERT_TRUE(gdm->Result())    << outG;
     EXPECT_NE(outL.find("is NOT ENGAGEABLE"), std::string::npos) << "the Ladder must veto GDM on a shared (fractional) D'";
     EXPECT_NE(outG.find("linear mixing capped at relax 0.25"), std::string::npos) << "a declined GDM's fallback runs under the ceiling";
-    EXPECT_NEAR(ladder.Energy(), gdm.Energy(), 1e-5) << "one shared state, whichever accelerator declined (to the run's eps)";
+    EXPECT_NEAR(ladder->Energy(), gdm->Energy(), 1e-5) << "one shared state, whichever accelerator declined (to the run's eps)";
 }
 
 // Unpolarized (folded-doublet D'=2P) GDM: closed-shell water under standalone GDM must reach the DIIS
@@ -374,10 +373,10 @@ TEST(M_Calculation, BoronLDASharedLevelGDMDeclines)
 // the energy alone cannot tell; the console must carry no "DECLINING" line (checked by hand via ITMain -v).
 TEST(M_Calculation, WaterPureGDM)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.accelerator=qchem::SCFAccelerators::Type::GDM, .molecule={.basis="dzvp"}}));
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.accelerator=qchem::SCFAccelerators::Type::GDM, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
 
     const double E_ref = -76.022903;                       // same anchor as WaterSymmetry
-    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
+    EXPECT_LT(std::fabs((E_ref - calc->Energy()) / E_ref), 1e-5);
 }
 
 //====================================================================================================
@@ -402,9 +401,9 @@ TEST(M_Calculation, BoronUHFExactResumeStartsAtTheSavedAnswer)
 {
     const std::string path=StatePath("boron_uhf.h5");
     const auto setup=[]{ return MoleculeSetup::Resolve(MakeBoron(), {.multiplicity=2, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}}); };
-    MoleculeCalculation calc(setup());
-    ASSERT_TRUE(calc.Result());
-    calc.SaveState(path);
+    auto calc=MoleculeCalculation::Prepare(setup()).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    calc->SaveState(path);
     Iterates it;
     auto r=MoleculeCalculation::Restart(path, setup(), {}, it.Sink());
     std::filesystem::remove(path);
@@ -413,8 +412,8 @@ TEST(M_Calculation, BoronUHFExactResumeStartsAtTheSavedAnswer)
     EXPECT_TRUE((*r)->RestartedFrom()->exact);
     ASSERT_TRUE((*r)->Result());
     ASSERT_FALSE(it.E.empty());
-    EXPECT_NEAR(it.E.front(), calc.Energy(), 1e-9) << "the first iterate left the saved answer";
-    EXPECT_NEAR((*r)->Energy(), calc.Energy(), 1e-9);
+    EXPECT_NEAR(it.E.front(), calc->Energy(), 1e-9) << "the first iterate left the saved answer";
+    EXPECT_NEAR((*r)->Energy(), calc->Energy(), 1e-9);
     EXPECT_LE((*r)->IterationCount(), 2u);
 }
 
@@ -424,9 +423,9 @@ TEST(M_Calculation, WaterLDASymmetryExactResumeStartsAtTheSavedAnswer)
     const std::string path=StatePath("h2o_lda_c2v.h5");
     const auto setup=[]{ return MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
                                                        {.model=qchem::Model::LDA, .imposeSymmetry=true, .molecule={.basis="dzvp"}}); };
-    MoleculeCalculation calc(setup());
-    ASSERT_TRUE(calc.Result());
-    calc.SaveState(path);
+    auto calc=MoleculeCalculation::Prepare(setup()).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    calc->SaveState(path);
     Iterates it;
     auto r=MoleculeCalculation::Restart(path, setup(), {}, it.Sink());
     std::filesystem::remove(path);
@@ -435,8 +434,8 @@ TEST(M_Calculation, WaterLDASymmetryExactResumeStartsAtTheSavedAnswer)
     EXPECT_TRUE((*r)->RestartedFrom()->exact) << "the fresh setup must adopt the saved state's XC mesh";
     ASSERT_TRUE((*r)->Result());
     ASSERT_FALSE(it.E.empty());
-    EXPECT_NEAR(it.E.front(), calc.Energy(), 1e-9) << "the first iterate left the saved answer";
-    EXPECT_NEAR((*r)->Energy(), calc.Energy(), 1e-9);
+    EXPECT_NEAR(it.E.front(), calc->Energy(), 1e-9) << "the first iterate left the saved answer";
+    EXPECT_NEAR((*r)->Energy(), calc->Energy(), 1e-9);
     EXPECT_LE((*r)->IterationCount(), 2u);
 }
 
@@ -449,9 +448,9 @@ TEST(M_Calculation, ASymmetryBlockedStateIdentifiesItsBasisByItsShells)
     const auto shellKeys=[](bool symmetry)
     {
         const std::string path=StatePath(symmetry ? "h2o_salc_id.h5" : "h2o_ao_id.h5");
-        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.imposeSymmetry=symmetry, .molecule={.basis="dzvp"}}));
-        EXPECT_TRUE(calc.Result());
-        calc.SaveState(path);
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.imposeSymmetry=symmetry, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+        EXPECT_TRUE(calc->Result());
+        calc->SaveState(path);
         auto st=qchem::ReadState(path);
         std::filesystem::remove(path);
         EXPECT_TRUE(st) << (st ? "" : st.Error().details);
@@ -475,9 +474,9 @@ TEST(M_Calculation, WaterRestartAtMovedAtomsStartsNearItsAnswer)
 {
     const std::string path=StatePath("h2o_moved.h5");
     const Molecule water=qchem::StructureData::GetMolecule("H2O");
-    MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Result());
-    calc.SaveState(path);
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(water, {.molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    calc->SaveState(path);
 
     std::vector<Vector3D<double>> R;
     water.ForEachSite([&](int, const Vector3D<double>& r, bool){ R.push_back(r); });
@@ -505,9 +504,9 @@ TEST(M_Calculation, WaterRestartAtMovedAtomsStartsNearItsAnswer)
     ASSERT_TRUE(out) << out.Error().details;
     ASSERT_FALSE(E.empty());
     EXPECT_LT(std::abs(E.front()-(*r)->Energy()), 1e-5) << "the first iterate of the carried restart";
-    MoleculeCalculation fresh(setupMoved);
-    ASSERT_TRUE(fresh.Result());
-    EXPECT_NEAR((*r)->Energy(), fresh.Energy(), 1e-8) << "the carried start reaches the same ground state";
+    auto fresh=MoleculeCalculation::Prepare(setupMoved).TakeValue(); (void)fresh->Converge();
+    ASSERT_TRUE(fresh->Result());
+    EXPECT_NEAR((*r)->Energy(), fresh->Energy(), 1e-8) << "the carried start reaches the same ground state";
 }
 
 // The refusals and the warm differences a binding reads back (JudgeState), one per class: another BASIS is refused (the saved D is
@@ -517,11 +516,11 @@ TEST(M_Calculation, ASavedStateIsJudgedByClass)
 {
     const std::string path=StatePath("h2o_judged.h5");
     const Molecule water=qchem::StructureData::GetMolecule("H2O");
-    MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Result());
-    calc.SaveState(path);
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(water, {.molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    calc->SaveState(path);
 
-    auto same=calc.JudgeState(path);
+    auto same=calc->JudgeState(path);
     ASSERT_TRUE(same) << same.Error().details;
     EXPECT_TRUE(same->empty()) << "the run that saved it judges it an exact resume";
 

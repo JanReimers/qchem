@@ -254,20 +254,20 @@ TEST(ValenceBasisGen, MnQ7PseudoAtomInTheVAExponentsShowsTheDiffuseTrim)
     o.atom.exponentsByL={{0,{0.1,0.24928829,0.62144650,1.54919334,3.86195754,9.62740780,24.0}},
                     {2,{0.38369936,0.81791778,1.74352515,3.71660826,7.92255676,16.88822203,36.0}}};
     SCFParams p; p.MinVirial=std::nullopt;
-    AtomCalculation atom(AtomSetup::Resolve(25, 18, o), p);
-    ASSERT_TRUE(atom.IsConverged());
-    EXPECT_NEAR(atom.Energy(), -14.1949, 0.005) << "46 mHa above CP2K ATOM: the VA span's incompleteness for the free atom";
+    o.scf=p; auto atom=AtomCalculation::Prepare(AtomSetup::Resolve(25, 18, o)).TakeValue(); (void)atom->Converge();
+    ASSERT_TRUE(atom->IsConverged());
+    EXPECT_NEAR(atom->Energy(), -14.1949, 0.005) << "46 mHa above CP2K ATOM: the VA span's incompleteness for the free atom";
     std::map<int,double> eps;                                   // lowest occupied eigenvalue per l
-    for (const Irrep& ir : atom.GetIrreps(Spin::None))
+    for (const Irrep& ir : atom->GetIrreps(Spin::None))
     {
         const auto* as=dynamic_cast<const Symmetry::Atom::AtomicSymmetry*>(ir.sym.get());
         ASSERT_TRUE(as);
-        const auto* os=atom.Orbitals(ir);
+        const auto* os=atom->Orbitals(ir);
         for (const auto* orb : os->Iterate())
             if (orb->IsOccupied()) { const int l=int(as->Getl()); if (!eps.count(l) || orb->GetEigenEnergy()<eps[l]) eps[l]=orb->GetEigenEnergy(); }
     }
     ASSERT_TRUE(eps.count(0) && eps.count(2));
-    std::cout << "[Mn q7 pseudo-atom] E=" << atom.Energy() << " eps(4s)=" << eps[0] << " eps(3d)=" << eps[2]
+    std::cout << "[Mn q7 pseudo-atom] E=" << atom->Energy() << " eps(4s)=" << eps[0] << " eps(3d)=" << eps[2]
               << "   (CP2K ATOM: -14.241357, -0.194010, -0.257385)" << std::endl;
     EXPECT_NEAR(eps[0], -0.1596, 0.005) << "4s: 34 mHa shallower than CP2K's -0.194";
     EXPECT_NEAR(eps[2], -0.1802, 0.005) << "3d: 77 mHa shallower than CP2K's -0.257 -- the trimmed 0.18 d shell";
@@ -283,18 +283,18 @@ TEST(ValenceBasisGen, MnQ7PseudoAtomInALargePool)
     o.atom.type=AtomType::Gaussian; o.atom.pseudopotential=true; o.atom.valence=7;
     o.atom.exponentsByL={{0,pool(16,0.05,200.0)},{2,pool(16,0.08,200.0)}};
     SCFParams p; p.MinVirial=std::nullopt;
-    AtomCalculation atom(AtomSetup::Resolve(25, 18, o), p);
-    ASSERT_TRUE(atom.IsConverged());
+    o.scf=p; auto atom=AtomCalculation::Prepare(AtomSetup::Resolve(25, 18, o)).TakeValue(); (void)atom->Converge();
+    ASSERT_TRUE(atom->IsConverged());
     std::map<int,double> eps;
-    for (const Irrep& ir : atom.GetIrreps(Spin::None))
+    for (const Irrep& ir : atom->GetIrreps(Spin::None))
     {
         const auto* as=dynamic_cast<const Symmetry::Atom::AtomicSymmetry*>(ir.sym.get());
-        for (const auto* orb : atom.Orbitals(ir)->Iterate())
+        for (const auto* orb : atom->Orbitals(ir)->Iterate())
             if (orb->IsOccupied()) { const int l=int(as->Getl()); if (!eps.count(l) || orb->GetEigenEnergy()<eps[l]) eps[l]=orb->GetEigenEnergy(); }
     }
-    std::cout << "[Mn q7 pseudo-atom, 16+16 pool] E=" << atom.Energy() << " eps(4s)=" << eps[0] << " eps(3d)=" << eps[2]
+    std::cout << "[Mn q7 pseudo-atom, 16+16 pool] E=" << atom->Energy() << " eps(4s)=" << eps[0] << " eps(3d)=" << eps[2]
               << "   (CP2K ATOM: -14.241357, -0.194010, -0.257385)" << std::endl;
-    EXPECT_NEAR(atom.Energy(), -14.241357, 0.02);
+    EXPECT_NEAR(atom->Energy(), -14.241357, 0.02);
     EXPECT_NEAR(eps[0], -0.194010, 0.01) << "4s";
     EXPECT_NEAR(eps[2], -0.257385, 0.01) << "3d";
 }

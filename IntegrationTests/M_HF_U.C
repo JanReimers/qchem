@@ -31,15 +31,15 @@ static Molecule MakeN2()
 // not a physical-accuracy claim).
 TEST(M_HF_U, N2)            // slow in Debug (~80s); Release-only
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeN2(), {.molecule={.basis="dzvp"}}));
-    EXPECT_LT(fabs(RelativeError(calc.Energy(), -108.94524)), 1e-4);
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeN2(), {.molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    EXPECT_LT(fabs(RelativeError(calc->Energy(), -108.94524)), 1e-4);
 }
 #endif
 
 TEST(M_HF_U, Water)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp"}}));
-    EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.022903)), 1e-5);
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    EXPECT_LT(fabs(RelativeError(calc->Energy(), -76.022903)), 1e-5);
 }
 
 // --- HF from a SAD seed: the matrix-free-seed bootstrap --------------------------------------------
@@ -50,8 +50,8 @@ TEST(M_HF_U, Water)
 // the bootstrap produced a valid density.  See project_numericcd_refactor.
 TEST(M_HF_U, WaterSADseed)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.seed=ChargeDensity::SeedStrategy::SAD, .molecule={.basis="dzvp"}}));
-    EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.022903)), 1e-5);  // identical converged E to CoreGuess
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.seed=ChargeDensity::SeedStrategy::SAD, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    EXPECT_LT(fabs(RelativeError(calc->Energy(), -76.022903)), 1e-5);  // identical converged E to CoreGuess
 }
 
 // --- The Cartesian basis integrated by libcint through the same SCF --------------------------------
@@ -61,8 +61,8 @@ TEST(M_HF_U, WaterSADseed)
 // external engine through a real SCF.
 TEST(M_HF_U, WaterLibCint)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp", .engine=Engine::LibCint}}));
-    EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.022903)), 1e-5);  // same converged E as the M&D path
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp", .engine=Engine::LibCint}})).TakeValue(); (void)calc->Converge();
+    EXPECT_LT(fabs(RelativeError(calc->Energy(), -76.022903)), 1e-5);  // same converged E as the M&D path
 }
 
 // libcint with native real-spherical functions (engine=libcint + spherical) -- the INDEPENDENT spherical
@@ -71,8 +71,8 @@ TEST(M_HF_U, WaterLibCint)
 // value), validating the spherical basis end-to-end against a second engine.
 TEST(M_HF_U, WaterLibCintSpherical)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp", .engine=Engine::LibCint, .angular=Angular::Spherical}}));
-    EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.020277)), 1e-5);  // == PG_Spherical (M&D) spherical HF
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp", .engine=Engine::LibCint, .angular=Angular::Spherical}})).TakeValue(); (void)calc->Converge();
+    EXPECT_LT(fabs(RelativeError(calc->Energy(), -76.020277)), 1e-5);  // == PG_Spherical (M&D) spherical HF
 }
 
 // --- The spherical-Gaussian (PG_Spherical) basis through the same SCF ------------------------------
@@ -83,9 +83,9 @@ TEST(M_HF_U, WaterLibCintSpherical)
 // usual "did E move" regression anchor.
 TEST(M_HF_U, WaterSpherical)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp", .angular=Angular::Spherical}}));
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp", .angular=Angular::Spherical}})).TakeValue(); (void)calc->Converge();
     const double E_cart = -76.022903;          // the Cartesian-DZVP anchor (water has one O d shell)
-    const double E_sph  = calc.Energy();
+    const double E_sph  = calc->Energy();
     EXPECT_GT(E_sph, E_cart);                  // variational subset: dropping the d contaminant raises E
     EXPECT_LT(E_sph - E_cart, 0.05);           // ... but only slightly (the contaminant is a minor fn)
     EXPECT_LT(fabs(RelativeError(E_sph, -76.020277)), 1e-5);  // regression anchor (just above E_cart)

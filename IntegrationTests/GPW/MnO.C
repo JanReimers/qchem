@@ -517,9 +517,9 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Panel_Long)   // PANEL case 13 (regime 2,
     auto [o,par]=ShubAnchorRecipe(mno, qchem::ChargeDensity::SeedStrategy::SAD, "MnO AFM-II Gamma (imposed)");   // neutral Hund pairs, flipped by siteSpins
     Trace trace;
     GpwReport report("MnO "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o), par, trace.Observer());
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o), trace.Observer()).TakeValue(); (void)calc->Converge();
     trace.Print(o.label, /*polarized*/true);
-    auto R=calc.Result();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 26.0, 1e-6);
     EXPECT_NEAR(R->Energy(), -61.30328, 2e-3) << "did-E-move anchor, re-judged 2026-10-23 twice (see the header; CP2K's 136-function SR -61.470570 is a different span)";
@@ -542,9 +542,9 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long)
     auto [o,par]=ShubAnchorRecipe(mno, qchem::ChargeDensity::SeedStrategy::IonicSAD, "MnO AFM-II Gamma (imposed, ionic seed)");
     Trace trace;
     GpwReport report("MnO "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o), par, trace.Observer());
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o), trace.Observer()).TakeValue(); (void)calc->Converge();
     trace.Print(o.label, /*polarized*/true);
-    auto R=calc.Result();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     // RE-BANKED 2026-11-02 (the density ball judged, OpenWork F): -61.3032807795 -> -61.3031714944 (+109 uHa), the pilot doubles the
     // ball once (cutoffFactor 4: Hartree 2.2e-4 at 2, 6.9e-7 at 4).  Toward CP2K: its VA oracle rises the same way with ITS cutoff,
@@ -640,8 +640,8 @@ TEST(GPW_MnO, k222_Shub_Pol_Smear_CP2K_Long)
     const Material mno=qchem::Materials::Get("MnO_AFM2");
     auto [o,par]=CP2KPlusURecipe(mno, 0.0, "MnO AFM-II VA k222 (CP2K same-basis)");
     GpwReport report("MnO "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(LatticeOf(mno, ivec3_t(2,2,2)), CP2KPlusUBasis(mno), o), par);
-    auto R=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(LatticeOf(mno, ivec3_t(2,2,2)), CP2KPlusUBasis(mno), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 26.0, 1e-6);
     EXPECT_NEAR(R->Energy(), -61.332954361, 5e-4) << "ORACLE: CP2K, the same VA basis and deck, Γ-centred 2x2x2 (measured 0.42 mHa apart, delivered energy)";
@@ -663,7 +663,9 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
         o.saveStateTo=qchem::panel::RefreshPath(CP2KPlusUState(U_eV));   // this cold gate OWNS the twin's vendored state
         Trace trace;
         GpwReport report("MnO "+o.label, par.Verbose);
-        arms.push_back(std::make_unique<qchem::SolidCalculation>(SolidSetup::Resolve(lat, CP2KPlusUBasis(mno), o), par, trace.Observer()));
+        o.scf=par;
+        arms.push_back(qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, CP2KPlusUBasis(mno), o), trace.Observer()).TakeValue());
+        (void)arms.back()->Converge();
         trace.Print(o.label, /*polarized*/true);
         if (arms.back()->Result()) qchem::panel::PrintRefresh(CP2KPlusUState(U_eV), o.saveStateTo);
         return arms.back()->Result();
@@ -762,8 +764,8 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Ordering_Long)
     RunOptions o=resolved.opts; o.multiplicity=11; o.spins={+1,+1,0,0}; o.label="MnO FM Gamma (imposed)";
     const SCFParams par=spec.opts.scf;
     GpwReport report("MnO FM", false);
-    qchem::SolidCalculation fm(SolidSetup::Resolve(lat, MakeBasisLowQ(*cellp, BasisSetData::VALENCE_LOWQ_SR), o), par);
-    auto R=fm.Result();
+    o.scf=par; auto fm=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*cellp, BasisSetData::VALENCE_LOWQ_SR), o)).TakeValue(); (void)fm->Converge();
+    auto R=fm->Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 26.0, 1e-6);
     std::cout << "[MnO ordering] E_AFM=" << std::setprecision(10) << *afm.energy << "  E_FM=" << R->Energy()

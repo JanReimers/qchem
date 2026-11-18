@@ -19,6 +19,7 @@ import qchem.Pseudopotential.GTH_Potentials;   // GetGTH (default Zion)
 import qchem.ChargeDensity;                    // ChannelOf + Spin (the spin-resolved channel sampling)
 import qchem.Types;                            // rvec3_t (radial sampling point)
 import qchem.AtomCalculation;
+import qchem.Policy;                           // policy::Refused (a build refusal throws, as the converging constructor did)
 
 namespace qchem
 {
@@ -62,6 +63,16 @@ namespace {
 //! its [F,D] has a fit floor -- F- in its 8s+6p window floors at 3e-5 under GDM while E is flat to 1e-9 -- and a [F,D] gate
 //! below that floor can never pass (the SCFParams note on non-variational SCFs).  The generator's product IS the energy.
 void GateOnEnergy(SCFParams& p) {p.MinΔE=1e-10; p.MinFD=std::nullopt;}
+//! The pseudo-atom built and converged once on its setup's settings (V-FACADE-PARITY R8: Prepare, then Converge).  A build refusal
+//! THROWS, carrying its policy's name: the generator has no Outcome door, and a caller (the floor's NaN) catches it.
+std::unique_ptr<AtomCalculation> SolvedAtom(std::shared_ptr<const AtomSetup> setup)
+{
+    auto built=AtomCalculation::Prepare(std::move(setup));
+    if (!built) throw policy::Refused(built.Error().policy, built.Error().reason);
+    auto atom=built.TakeValue();
+    (void)atom->Converge();   // the callers read IsConverged()
+    return atom;
+}
 } // namespace
 
 GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r, bool showIterations)
@@ -86,7 +97,7 @@ GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r, bool showIterat
                                               //  replaces -Z/r), so |2+V/K| never -> 0: don't gate convergence on
                                               //  it here (this is the valence-gen backend only, NOT the system
                                               //  default -- the all-electron A_* path still uses the virial gate).
-    AtomCalculation atom(AtomSetup::Resolve(Z, charge, o), p);
+    o.scf=p; auto atom=SolvedAtom(AtomSetup::Resolve(Z, charge, o));
 
     // --- emit: the per-l shells as a Gaussian94 ELEMENT BLOCK (` EL 0 <shells> ****`) ---
     // The reader compares the file symbol against the UPPER-cased element (FindAtom), so upper-case it
@@ -98,7 +109,7 @@ GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r, bool showIterat
     for (const auto& [l, es] : r.shells) WriteShell(os, l, es);
     os << " ****\n";
 
-    return { atom.Energy(), atom.IsConverged(), os.str() };
+    return { atom->Energy(), atom->IsConverged(), os.str() };
 }
 
 double GenerateFloorEnergy(const ValenceBasisRecipe& r)
@@ -119,7 +130,7 @@ double GenerateFloorEnergy(const ValenceBasisRecipe& r)
     SCFParams p; p.MinVirial = std::nullopt;          // no virial gate under a PP (see GenerateValenceBasis)
     GateOnEnergy(p);
     if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);
-    try   { AtomCalculation atom(AtomSetup::Resolve(Z, charge, o), p); return atom.Energy(); }
+    try   { o.scf=p; auto atom=SolvedAtom(AtomSetup::Resolve(Z, charge, o)); return atom->Energy(); }
     catch (...) { return NAN; }               // pool conditioning can fail for some elements -> "floor unavailable"
 }
 
@@ -143,11 +154,11 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     SCFParams p; p.MinVirial = std::nullopt;          // no virial gate under a PP (see GenerateValenceBasis)
     GateOnEnergy(p);
     if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);
-    AtomCalculation atom(AtomSetup::Resolve(Z, charge, o), p);
+    o.scf=p; auto atom=SolvedAtom(AtomSetup::Resolve(Z, charge, o));
 
     // The per-channel faces (spinResolved only): the polarized run's Density() answers its Up/Down channels
     // through the spin-resolved face (V1.37) -- an honest capability ask, no container type named.
-    const auto* sr = r.spinResolved ? dynamic_cast<const ChargeDensity::rSpinResolved_CD*>(&atom.Density()) : nullptr;
+    const auto* sr = r.spinResolved ? dynamic_cast<const ChargeDensity::rSpinResolved_CD*>(&atom->Density()) : nullptr;
     const ChargeDensity::rChargeDensity* chUp = sr ? sr->GetChannel(Spin::Up  ) : nullptr;
     const ChargeDensity::rChargeDensity* chDn = sr ? sr->GetChannel(Spin::Down) : nullptr;
     if (r.spinResolved && !(chUp && chDn))
@@ -161,7 +172,7 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     for (int i = 0; i < Ngrid; i++)
     {
         rs[i]  = rr;
-        rho[i] = atom.Density()(rvec3_t(rr,0,0));
+        rho[i] = atom->Density()(rvec3_t(rr,0,0));
         if (chUp)
         {
             up[i] = (*chUp)(rvec3_t(rr,0,0));
@@ -210,7 +221,7 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     }
     os << "}";
 
-    return { q, meanR, atom.IsConverged(), os.str(), moment };
+    return { q, meanR, atom->IsConverged(), os.str(), moment };
 }
 
 SplicedLibrary SpliceSeedEntry(const std::string& library, const std::string& entry)

@@ -41,6 +41,7 @@ SCFParams Tight(double minΔρPerElectron=1e-8)
 RunOptions SiGamma(bool imposed=false, bool statedRasters=true)
 {
     RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.imposeSymmetry=imposed; o.label="pes";
+    o.scf=Tight();                   // a single point's settings (R10); a session states its own per stage
     o.solid.xcMeshSymmetric=false;   // a session's free setup: the plain XC mesh, the same at every geometry (SolidSession requires it)
     // The SESSION machinery's gates state the rasters (accuracy 0: the ball's own), so a session point and a single point sample on the
     // same grids -- C2 step 3 sizes them by what the client consumes (a session: matrix elements; a single point: the energy), which
@@ -80,8 +81,8 @@ std::shared_ptr<const SolidSetup> SiSetup(const std::vector<rvec3_t>* at=nullptr
 TEST(SolidSession, ConvergeAtTheReferenceIsTheSinglePointBitForBit)
 {
     const auto setup=SiSetup();
-    SolidCalculation single(setup, Tight());
-    auto S=single.Result(); ASSERT_TRUE(S);
+    auto single=SolidCalculation::Prepare(setup).TakeValue(); (void)single->Converge();
+    auto S=single->Result(); ASSERT_TRUE(S);
 
     SolidSession pes(setup, {SCFStage{Tight(), SCFAccelerators::Type::Auto}});
     const PESGeometry ref=pes.Reference();
@@ -103,8 +104,8 @@ TEST(SolidSession, ACarriedStepEqualsAFreshRunAtTheNewPositionsInFewerIterations
     R[1].x+=0.05;   // bohr, Cartesian: one atom off its site
     auto P1=pes.ConvergeAt(ref.cell, R); ASSERT_TRUE(P1) << P1.Error().details;
 
-    SolidCalculation fresh(SiSetup(&R), Tight());   // the same recipe resolved AT the new positions, seeded from scratch
-    auto F=fresh.Result(); ASSERT_TRUE(F);
+    auto fresh=SolidCalculation::Prepare(SiSetup(&R)).TakeValue(); (void)fresh->Converge();   // the same recipe resolved AT the new positions, seeded from scratch
+    auto F=fresh->Result(); ASSERT_TRUE(F);
     // Each run's stop at Δρ/N 1e-8 is good to ~1e-8 Ha, so two runs agree to their SUM.  Measured 2026-10-30: carried
     // -7.11461659840 (equal to the same run taken to the floor, 29 iterations), fresh 1.1e-8 above it.
     EXPECT_NEAR(P1->energy, F->Energy(), 2e-8);
@@ -129,23 +130,24 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     // BeckeXCParams(), (40, 2.0, 29); this gate STATES a deliberately coarse (30, 1.0, Lebedev 5) one -- its subject is the raster terms,
     // and the calibrated mesh costs 107 s here against 17 s.  The audit reads 1.8e-2 per element on it: OVER, and honoured.)
     SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke); SolidXCMesh(o).nRadial=30; SolidXCMesh(o).mhl_alpha=1.0; SolidXCMesh(o).angularDegree=5; SolidXCMesh(o).angRot=0.0;
+    o.scf=Tight(1e-7);   // why 1e-7, not 1e-8: below
     const auto setup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), kSiBasis, o);
     ASSERT_FALSE(setup->rastersResolved) << "the default setup self-calibrates";
     // Δρ/N 1e-7, not Tight()'s 1e-8 (user, 2026-11-10; see GeometryRunPicksAndSizesTheBeckeMesh_Long): a pilot re-converges from an
     // already-converged D, and at 1e-8 GDM's line search works at the energy's roundoff floor, so the counts below went chaotic (8 stalls,
     // 41 -> 54 and 15 -> 35 under a 4-thread roundoff change, 2026-11-10).  Above the floor the caps are regression detectors again.
-    SolidCalculation single(setup, Tight(1e-7));
-    ASSERT_TRUE(single.Result());
-    EXPECT_EQ(single.Consumes(), ClientConsumes::Energy);
-    const auto sizedE=single.SizedSetup();
+    auto single=SolidCalculation::Prepare(setup).TakeValue(); (void)single->Converge();
+    ASSERT_TRUE(single->Result());
+    EXPECT_EQ(single->Consumes(), ClientConsumes::Energy);
+    const auto sizedE=single->SizedSetup();
     EXPECT_TRUE(sizedE->rastersResolved);
     // What the pilot costs (reported and gated, not hidden): the energy run raises the density raster once from the ball's.
-    EXPECT_TRUE(single.PilotCost().settled);
-    EXPECT_EQ(single.PilotCost().rounds, 2);
+    EXPECT_TRUE(single->PilotCost().settled);
+    EXPECT_EQ(single->PilotCost().rounds, 2);
     // 8 measured 2026-11-13 with GDM's parabolic line minimum (1c3ec5b81): an HONEST convergence, [F,D] 9.4e-8 at E -7.240056928901.
     // The earlier "2" (2026-11-10, cap 4) was a FALSE convergence: iteration 2 met the Δρ gate (7.6e-8) while [F,D] was still 4.8e-4,
     // E 5.0e-8 Ha above the minimum (doc/OpenWork.md §3 "A Δρ-only stop certifies an unconverged iterate").
-    EXPECT_LE(single.PilotCost().reconvergeIterations, 8u);
+    EXPECT_LE(single->PilotCost().reconvergeIterations, 8u);
 
     SolidSession pes(setup, {SCFStage{Tight(1e-7), SCFAccelerators::Type::Auto}});
     const PESGeometry ref=pes.Reference();
@@ -160,11 +162,11 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     // it read settled until lane G's Si Γ catch, 2026-11-07) and says why: statedOver, with a StatedXCMeshMissesEps warn row.
     EXPECT_FALSE(pes.Current()->PilotCost().settled) << "a stated grid over its target is not settled";
     EXPECT_TRUE(pes.Current()->PilotCost().statedOver);
-    EXPECT_FALSE(single.PilotCost().statedOver) << "the energy run does not audit the Becke mesh (an H-run audit)";
+    EXPECT_FALSE(single->PilotCost().statedOver) << "the energy run does not audit the Becke mesh (an H-run audit)";
     EXPECT_EQ(pes.Current()->PilotCost().rounds, 4) << "the rasters at the bound; the ball climbs cutoffFactor 2 -> 16";
     EXPECT_LE(pes.Current()->PilotCost().reconvergeIterations, 16u) << "9 serial / 13 at 4 threads, 0 stalls (2026-11-10, Δρ/N 1e-7)";
     EXPECT_EQ(pes.Current()->SizedSetup()->opts.solid.cutoffFactor, 16.0);
-    EXPECT_EQ(single.SizedSetup()->opts.solid.cutoffFactor, 4.0) << "the energy run's ball: 1.2e-3 Ha at 2, 3.3e-6 at 4";
+    EXPECT_EQ(single->SizedSetup()->opts.solid.cutoffFactor, 4.0) << "the energy run's ball: 1.2e-3 Ha at 2, 3.3e-6 at 4";
     const auto sizedH=pes.Current()->SizedSetup();
     const auto& tE=sizedE->opts.solid.tolerances; const auto& tH=sizedH->opts.solid.tolerances;
     EXPECT_GE(tH.rasterX, tE.rasterX);  EXPECT_GE(tH.vlocRasterX, tE.vlocRasterX);  EXPECT_GE(tH.xcRasterX, tE.xcRasterX);

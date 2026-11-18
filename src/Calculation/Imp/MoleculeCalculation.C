@@ -89,17 +89,6 @@ static Molecule_EC* MakeMoleculeEC(const MoleculeSetup& setup)
     return new Molecule_EC(setup.nUp, setup.nDown);
 }
 
-MoleculeCalculation::MoleculeCalculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Observer onIteration)
-    : MoleculeCalculation(setup, *setup->structure, nullptr, scf, std::move(onIteration))
-{}
-
-MoleculeCalculation::MoleculeCalculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
-                         const SCFParams& scf, Observer onIteration, bool geometryPoint)
-    : MoleculeCalculation(BuildOnly{}, std::move(setup), at, std::move(carry), std::move(onIteration), geometryPoint)
-{
-    (void)ConvergeStage(scf);                         // so Energy()/Density() are ready on return; Result() is its outcome
-}
-
 Outcome<std::unique_ptr<MoleculeCalculation>, BuildRefusal> MoleculeCalculation::Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration)
 {
     const Structure& ref=*setup->structure;
@@ -1019,7 +1008,8 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
         carry=std::make_unique<const MoleculeCalculation::Carry>(itsPoint->MakeMovedCarry(dmax));
     }
     itsPoint.reset();   // one point's memory at a time
-    itsPoint.reset(new MoleculeCalculation(itsSetup, *at, std::move(carry), itsSCF, itsObserver, /*geometryPoint*/true));
+    itsPoint.reset(new MoleculeCalculation(MoleculeCalculation::BuildOnly{}, itsSetup, *at, std::move(carry), itsObserver, /*geometryPoint*/true));
+    (void)itsPoint->ConvergeStage(itsSCF);   // the point's SCF on the session's settings; Result() below is its outcome
     auto out=itsPoint->Result();
     if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
     itsSetup=itsPoint->SizedSetup();   // the first point's pilot froze the mesh: every later point steps on it (§2 rule 4)
