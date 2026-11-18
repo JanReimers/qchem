@@ -8,12 +8,14 @@ export module qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.BasisSet.IrrepBasisSet;
 import qchem.Symmetry.Irrep;
 export import qchem.BasisSet.BasisCache;   // every concrete block's constructor names it
+export import qchem.BasisSet.Internal.CacheSlot;   // the one implementer of a block's cache slot
 
 export namespace qchem::BasisSet
 {
 
 template <class T> class IrrepBasisSetImp
-    : public virtual IrrepBasisSet<T>
+    : protected virtual CacheSlot   // the block's slot in its parent's cache (non-public base first: the cross-cast trap)
+    , public virtual IrrepBasisSet<T>
 {
 public:
     //! \a cache is the PARENT's cache (doc/IntegralCacheOwnershipPlan.md S3a): the parent BasisSet's factory makes it and passes it to
