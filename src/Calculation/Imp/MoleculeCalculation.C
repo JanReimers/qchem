@@ -236,12 +236,12 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
         DegenerateFillContext{.directMin = itsSetup->accelerator==SCFAccelerators::Type::GDM,
                               .fallback  = DescribeDeclinedFallback(ResolveMixing(asked, /*gSpace*/false))});
     {   // the "what recipe am I running" header; eps is consumed by the XC mesh wherever there is one (pin 31)
-        rpt::Section scf("scf"); ReportSCFRecipe(params, itsSetup->acc.type);
+        rpt::Section scf("scf"); ReportSCFRecipe(params, NameOf(itsSetup->accelerator));
         // THE RECIPE POLICY'S REPORT (qchem.SCFRecipe): a molecule's Auto / Insulator is its own column -- the stated accelerator (DIIS by
         // default) beside linear D-mixing (no G space), as before B5.
         const SCFStageKind kind = !itsRestartedFrom ? SCFStageKind::Cold : itsRestartedFrom->exact ? SCFStageKind::Restored : SCFStageKind::Carried;
-        ReportRecipe("molecule", itsSetup->acc.recipe, kind, itsSetup->accelerator, itsSetup->accelerator, ResolveMixing(params, /*gSpace*/false),
-                     {}, "acc.type (default DIIS)", "the molecular column: acc.type + linear D-mixing");
+        ReportRecipe("molecule", itsSetup->opts.recipe, kind, itsSetup->accelerator, itsSetup->accelerator, ResolveMixing(params, /*gSpace*/false),
+                     {}, "accelerator (Auto = DIIS)", "the molecular column: the accelerator + linear D-mixing");
         ReportAccuracy(itsSetup->opts.accuracy, !HasXCMesh()           ? std::string(kNoAccuracyConsumerYet)
                                               : itsSetup->meshResolved ? std::string("the Becke XC mesh (sized by an earlier pilot)")
                                               : itsSetup->meshStated   ? std::string("the Becke XC mesh (stated: audited, never raised)")
@@ -743,7 +743,7 @@ StateSummary MoleculeCalculation::MakeStateSummary() const
     if (!itsScf || !itsScf->GetWaveFunction()) throw std::logic_error("qchem::MoleculeCalculation: no wave function yet");
     StateSummary s{.label="molecule", .converged=itsScf->Converged(), .iterations=itsScf->GetIterationCount(),
                    .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0};
-    s.recipe="model "+MoleculeModelName(*itsSetup)+", basis "+itsSetup->opts.molecule.basis+", accelerator "+itsSetup->acc.type;
+    s.recipe="model "+MoleculeModelName(*itsSetup)+", basis "+itsSetup->opts.molecule.basis+", accelerator "+std::string(NameOf(itsSetup->accelerator));
     if (itsLastRow)
     {
         s.commutator   =itsLastRow->ValueOf("[F,D]");

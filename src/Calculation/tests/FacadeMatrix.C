@@ -69,10 +69,10 @@ enum class Capability
 };
 
 //! THE EXPECTED FAILURES: the row whose work will make the cell hold; nullptr = the cell must hold now.
-//! The SAME non-default Ladder knobs for every kind (V-FACADE-PARITY P0b-1: one accelerator block; the molecule names its type in it).
-AcceleratorOptions LadderKnobs(const char* type="DIIS")
+//! The SAME non-default Ladder knobs for every kind (V-FACADE-PARITY P0b-1: one accelerator block; the type is the options', P2).
+AcceleratorOptions LadderKnobs()
 {
-    AcceleratorOptions a; a.type=type;
+    AcceleratorOptions a;
     a.diis.nProj=6; a.diis.engageBelowFD=0.05; a.diis.svTol=1e-8;
     a.ladder.gdm.trust=0.2; a.ladder.eThresh=1e-7; a.ladder.stall=4; a.ladder.floor=1e-9; a.ladder.switchAt=1e-5;
     return a;
@@ -493,9 +493,9 @@ public:
     }
     std::string SetupRefusesAnUnrealisableRequest() override
     {
-        AcceleratorOptions bogus; bogus.type="Bogus";
         std::string why;
-        why+=RefusedBy("an unknown accelerator", "AcceleratorType", [&]{ return AtomSetup::Admit(Atom(Z), Options(), bogus); });
+        why+=RefusedBy("the Null accelerator", "AcceleratorType", [&]{ RunOptions o=Options(); o.accelerator=SCFAccelerators::Type::Null; return AtomSetup::Admit(Atom(Z), o); });
+        why+=RefusedBy("an unknown accelerator name", "AcceleratorType", [&]{ RunOptions o=Options(); o.atom.accelerator={{"type","Bogus"}}; return AtomSetup::Admit(Atom(Z), o); });
         why+=RefusedBy("a stated multiplicity", "ForeignOption", [&]{ RunOptions o=Options(); o.multiplicity=3; return AtomSetup::Admit(Atom(Z), o); });
         why+=RefusedBy("two atoms", "AtomStructure", [&]{ return AtomSetup::Admit(StructureData::GetMolecule("H2O"), Options()); });
         return why;
@@ -504,9 +504,9 @@ public:
 
 class MoleculeProbe : public FacadeProbe
 {
-    static std::shared_ptr<const MoleculeSetup> Setup(const AcceleratorOptions& acc={})
+    static std::shared_ptr<const MoleculeSetup> Setup(const AcceleratorOptions& acc={}, SCFAccelerators::Type type=SCFAccelerators::Type::Auto)
     {
-        return MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"), {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}}, acc);
+        return MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"), {.model=Model::LDA, .pp="gth-lda-valence", .accelerator=type, .molecule={.basis="dzvp"}}, acc);
     }
     static std::string ID() {return StructureData::GetMolecule("H2O").ID();}
 public:
@@ -525,7 +525,7 @@ public:
     }
     std::string AcceleratorKnobsArrive() override
     {
-        { report::Run run(ID()+" build"); (void)MoleculeCalculation::Prepare(Setup(LadderKnobs("Ladder"))); }
+        { report::Run run(ID()+" build"); (void)MoleculeCalculation::Prepare(Setup(LadderKnobs(), SCFAccelerators::Type::Ladder)); }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
     }
     std::string SaveRestartRoundTrips() override
@@ -637,9 +637,8 @@ public:
     {
         const Molecule h2o=StructureData::GetMolecule("H2O");
         const RunOptions o={.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}};
-        AcceleratorOptions bogus; bogus.type="Bogus";
         std::string why;
-        why+=RefusedBy("an unknown accelerator", "AcceleratorType", [&]{ return MoleculeSetup::Admit(h2o, o, bogus); });
+        why+=RefusedBy("the Null accelerator", "AcceleratorType", [&]{ RunOptions d=o; d.accelerator=SCFAccelerators::Type::Null; return MoleculeSetup::Admit(h2o, d); });
         why+=RefusedBy("a doublet on 8 valence electrons", "SpinMultiplicity", [&]{ RunOptions d=o; d.multiplicity=2; return MoleculeSetup::Admit(h2o, d); });
         why+=RefusedBy("a stated Nelec", "ForeignOption", [&]{ RunOptions d=o; d.Nelec=8; return MoleculeSetup::Admit(h2o, d); });
         return why;
@@ -766,9 +765,7 @@ public:
         const Lattice_3D lat(*mat.cell, ivec3_t(1,1,1));
         const GaussianBasisRecipe recipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR};
         RunOptions o; o.species=mat.species; o.solid.densityEcut=20.0; o.label="matrix";
-        AcceleratorOptions gdm; gdm.type="GDM";
         std::string why;
-        why+=RefusedBy("a type in the accelerator block", "AcceleratorType", [&]{ return SolidSetup::Admit(lat, recipe, o, gdm); });
         why+=RefusedBy("a singlet on 7 electrons", "SpinMultiplicity", [&]{ RunOptions d=o; d.Nelec=7; d.charge=1; d.multiplicity=1; return SolidSetup::Admit(lat, recipe, d); });
         why+=RefusedBy("a molecule's basis", "ForeignOption", [&]{ RunOptions d=o; d.molecule.basis="dzvp"; return SolidSetup::Admit(lat, recipe, d); });
         return why;

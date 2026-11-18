@@ -89,12 +89,17 @@ TEST(MoleculeSetup, ABasisWithoutAnElementIsRefusedAtResolveNamingTheBasesThatCo
     }
 }
 
-TEST(MoleculeSetup, AnUnknownAcceleratorIsRefusedAtResolve)
+// The accelerator is a TYPE in its one home (RunOptions::accelerator, V-FACADE-PARITY P2): an unknown NAME is refused where text becomes a
+// type (AcceleratorTypeByName: a GUI form, the atom's json escape hatch; the deck's enum reader), and the type a molecule cannot run, Null,
+// at Admit.
+TEST(MoleculeSetup, AnAcceleratorAMoleculeCannotRunIsRefusedAtResolve)
 {
-    const auto refused=MoleculeSetup::Admit(OneAtom(2), {.molecule={.basis="dzvp"}}, {.type="Anderson"});
+    const auto refused=MoleculeSetup::Admit(OneAtom(2), {.accelerator=SCFAccelerators::Type::Null, .molecule={.basis="dzvp"}});
     ASSERT_FALSE(refused);
     EXPECT_EQ(refused.Error().policy, "AcceleratorType");
-    EXPECT_NE(refused.Error().reason.find("Anderson"), std::string::npos) << refused.Error().reason;
+    EXPECT_NE(refused.Error().reason.find("Null"), std::string::npos) << refused.Error().reason;
+    try { (void)AcceleratorTypeByName("Anderson", "the test"); ADD_FAILURE() << "an unknown name became a type"; }
+    catch (const std::exception& e) { EXPECT_NE(std::string(e.what()).find("Anderson"), std::string::npos) << e.what(); }
 }
 
 // EVERY KNOB OF THE MOLECULAR CHAIN REACHES THE FACTORY'S DOOR (2026-11-02; the typed door since V-FACADE-PARITY P0b-1): a molecule that
