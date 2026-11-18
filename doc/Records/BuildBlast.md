@@ -25,6 +25,7 @@ Tools: `scripts/import-blast` (blast radius per module, `--module`, `--why`, `--
 - `qchem.Mesh` re-exports `qchem.PointSampling` legitimately: a Mesh IS a PointSampling.
 - But `src/Math/PointSampling.C` held its implementation in the interface unit: `CachedBound`, the concrete `NUFFTSampler` / `RasterSampler`, and the `Make*` bodies. Those are the only users of `import qchem.NUFFT; import qchem.FFT;`.
 - Moving that tail to `Imp/` cuts the two edges. Simulated on the graph (orphans still counted): FFT 514 → 5, NUFFT 512 → 1.
+- **DONE (lane-b f04412464):** the tail is in `src/Math/Imp/PointSampling.C`, and the interface imports only `qchem.Types`. Measured on the real graph: **FFT 490 → 6, NUFFT 488 → 2**. `import-blast --diff WORKTREE` predicted 488 compiles for the move, and ninja built 488.
 
 ## Item 2 (the stale-import heuristic, row item 3): `scripts/stale-imports`
 **Method:**
@@ -78,3 +79,28 @@ Tools: `scripts/import-blast` (blast radius per module, `--module`, `--why`, `--
   - **(c) Leave it.** Accept 382 as the cost of the face carrying its cached accessors.
 - **The partner call** (`RequireSameParent`) is on the Internal `Orbital_ERI4_IBS<T>` type, not on the face. Any of (a)-(c) keeps it working if the Internal type keeps `Cache()`.
 - `CacheIndex()` (a size_t) needs no import and can stay on the face in every option.
+
+## Item 4: function bodies to `Imp/`, by rank (lane B 2026-11-18)
+**Scope (controller):** Structure, PositionJet, Mesh, PairProjection, Iterators and SlotMap. OccupationPolicy, ChargeDensity, Hamiltonian and Calculation/SCFIterator/setups wait for lane S's P1-P5.
+
+**What was there to move:**
+- **Outcome, Iterators, SlotMap, PositionJet and PairProjection are class templates.** Their "non-template bodies" in the ranking were template members, which must stay in the interface. Nothing to move.
+- **Structure** (lane-b ceebb8f28):
+  - Moved to `Imp/{Structure,Atom,Molecule}.C`: the SiteRange / iterator bodies, `~Structure`, `G0Background`, `Admits`, `Sites`, and the Atom / Molecule overrides (`Clone`, `GetNumAtoms`, `Admits`, `GetSite` ×2, `Molecule()`).
+- **Mesh** (ceebb8f28, new `src/Mesh/Imp/Mesh.C`):
+  - Moved: the constructors, `Points`, the Fourier-sampler install, `FourierTarget`, `SiteIntegrals`, `Integrate`, the imposed-symmetry names, and the non-exported helpers.
+  - **INLINE BY DESIGN**, with the reason written at each:
+    - `Weights`, `size`, `NSites`, `SiteBegin`, `SiteEnd`: they are read inside point loops, and this build has no LTO, so an out-of-line body would cost a call per point.
+    - `BeckeCutoff`: an Enzyme derivative leaf.
+  - `ExactAngularDegree` became `constexpr`.
+
+**Measured:**
+- Build: the Mesh+Structure move compiled 486 TUs, which is Mesh's blast of 485 plus the new TU.
+- Results: no number moved; `anchordiff` showed 0 movers on the short tier (1703 compared) and the long tier (18).
+- Checks: HubInterfaceAudit stayed green, and RelChecked `allTests` builds.
+
+**The payoff is modest, and why:**
+- Over the two months before the move, `Structure.C` had 9 commits and `Mesh.C` had 16.
+- Most of those changed DECLARATIONS, which still rebuild every importer. Only 1 + 2 were body-only edits, which now rebuild a single TU.
+- Estimate: about 1,400 TU compiles saved over those two months.
+- The convention earns its keep where bodies churn while the declarations hold still. It does not help an interface that is still growing.
