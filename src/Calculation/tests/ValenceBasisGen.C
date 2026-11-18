@@ -47,9 +47,9 @@ TEST(ValenceBasisGen, Fluorine_q7)
     r.Zion           = 7;
     r.electrons      = 8;                                   // F-
     // The DIIS->GDM Ladder.  The 2p is unbound in this window (eps +0.07).  Under the old Dunlap fit (the atom's Hartree until
-    // 2026-11-14) DIIS jittered at 5e-6 Ha, so the recipe stated GDM.  Under the exact radial-Poisson Hartree, standalone GDM sits in a
-    // 4-step handoff limit cycle ([F,D] 0.13-0.5, never under its engage gate; OpenWork row), while DIIS, the Ladder and directmin all
-    // converge to -24.2047246 (the fit gave -24.2047251).
+    // 2026-11-14) DIIS jittered at 5e-6 Ha, so the recipe stated GDM.  Under the exact radial-Poisson Hartree, standalone GDM sat in a
+    // hand-off limit cycle ([F,D] 0.13-0.85, never under its engage gate) until its waiting phase took the DeclinedDirectMinRelax cap
+    // (2026-11-17, the twin below); DIIS, the Ladder, directmin and now GDM all converge to -24.2047246 (the fit gave -24.2047251).
     r.accelerator    = "Ladder";
     r.shells         = { {0, EvenTemperedWindow(8, 0.12, 40.0)},
                          {1, EvenTemperedWindow(6, 0.14, 12.0)} };
@@ -61,6 +61,30 @@ TEST(ValenceBasisGen, Fluorine_q7)
     // set against the BROKEN 3-D-mesh KB route -- see A_PP.PerLKleinmanBylanderOracle.
     EXPECT_NEAR(g.energy, -24.2135, 0.10);   // vs the CP2K pseudo-ion oracle (window incompleteness)
     EXPECT_GT (g.energy, -24.3);             // not a variational collapse (below the complete-basis oracle)
+}
+
+// THE WAITING-PHASE RELAX CAP (OpenWork row "Standalone GDM cycles at its handoff on F-", lane B 2026-11-17).  On standalone GDM the
+// F- pseudo-ion (2p unbound in this window) never engaged: its linear mixer grew to relax 0.97 and limit-cycled [F,D] around the 0.20
+// engage gate until the 100 cap.  A seeded GDM that waits now mixes under DeclinedDirectMinRelax, engages, and lands on the Ladder's
+// answer; the hand-off line names why.
+TEST(ValenceBasisGen, Fluorine_q7_StandaloneGDMWaitsUnderTheRelaxCapAndReachesTheLadder)
+{
+    auto recipe=[](const char* acc)
+    {
+        ValenceBasisRecipe r;
+        r.element="F"; r.Zion=7; r.electrons=8; r.accelerator=acc;
+        r.shells = { {0, EvenTemperedWindow(8, 0.12, 40.0)}, {1, EvenTemperedWindow(6, 0.14, 12.0)} };
+        return r;
+    };
+    const GeneratedBasis ladder=GenerateValenceBasis(recipe("Ladder"));
+    testing::internal::CaptureStdout();
+    const GeneratedBasis gdm=GenerateValenceBasis(recipe("GDM"));
+    const std::string out=testing::internal::GetCapturedStdout();
+    std::cout << out;
+    ASSERT_TRUE(ladder.converged);
+    EXPECT_TRUE(gdm.converged) << "standalone GDM on F- must engage and converge, not limit-cycle at its hand-off";
+    EXPECT_NEAR(gdm.energy, ladder.energy, 1e-6);
+    EXPECT_NE(out.find("WAITING to engage"), std::string::npos) << "the cap's hand-off line names the waiting phase";
 }
 
 TEST(ValenceBasisGen, Sodium_q1)
