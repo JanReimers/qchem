@@ -113,7 +113,7 @@ public:
     bool             IsConverged()    const;
     int              GetZ()           const {return itsSetup->Z;}
     const Structure& GetStructure()   const {return *itsSetup->structure;}
-    const AtomSetup& GetSetup()       const {return *itsSetup;}   //!< the setup this atom was built from (a restart or a sibling reads its decisions)
+    const AtomSetup& GetSetup()       const override {return *itsSetup;}   //!< the setup this atom was built from (a restart or a sibling reads its decisions); the base's hook, covariant
 
 private:
     typedef std::pair<double, const sf_t*> occ_t;
@@ -127,7 +127,6 @@ private:
     void RebuildSampling();
     //! \name \c Converge's STEPS (\c tCalculation's hooks)
     //!@{
-    const RunOptions& Options() const override;
     //! One stage: the recipe's report, the graph (\c Prepare's, reused once, else rebuilt), the SCF, the grid pilot, the result line.
     bool RunStage(const SCFParams& params) override;
     //! A schedule's stage (P4): on the setup's accelerator and recipe (\c AdmitStageOnSetup refuses another), from the density the last

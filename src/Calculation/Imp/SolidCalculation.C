@@ -1178,7 +1178,7 @@ void ReportBandSlotWeights(const std::string& label, const qchem::WaveFunction::
 }
 } // namespace
 
-const RunOptions& SolidCalculation::Options() const {return itsImp->setup->opts;}
+const Setup& SolidCalculation::GetSetup() const {return *itsImp->setup;}
 
 bool SolidCalculation::RunStage(const SCFParams& params)
 {

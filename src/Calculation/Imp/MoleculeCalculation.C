@@ -218,7 +218,7 @@ void MoleculeCalculation::BuildGraph()
     }
 }
 
-const RunOptions& MoleculeCalculation::Options() const {return itsSetup->opts;}
+const Setup& MoleculeCalculation::GetSetup() const {return *itsSetup;}
 
 void MoleculeCalculation::EnterStage(const SCFStage& stage, size_t index)
 {

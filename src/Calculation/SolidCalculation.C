@@ -643,7 +643,7 @@ private:
     void MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe recipe, const SCFParams& params, SCFStageKind kind);
     //! \name \c Converge's STEPS (\c tCalculation's hooks)
     //!@{
-    const RunOptions& Options() const override;
+    const Setup& GetSetup() const override;
     //! One stage: the audit RSS preflight (FALSE = refused before any iteration), the restored step and the recipe's knobs, then
     //! \c IterateStage (and its one conditioning-aware restart).
     bool RunStage(const SCFParams& params) override;

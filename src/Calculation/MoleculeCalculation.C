@@ -274,7 +274,7 @@ private:
     double itsLastkT     = 0.0;     //!< the last Converge's smearing (the saved state's scf.kT)
     //! \name \c Converge's STEPS (\c tCalculation's hooks)
     //!@{
-    const RunOptions& Options() const override;
+    const Setup& GetSetup() const override;
     //! One stage: the recipe's report, the graph (\c Prepare's, reused once, else rebuilt), the SCF, the mesh pilot, the result line.
     bool RunStage(const SCFParams& params) override;
     //! A schedule's stage (P4): on the setup's accelerator and recipe (\c AdmitStageOnSetup refuses another), from the density the last

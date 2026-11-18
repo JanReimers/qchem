@@ -327,7 +327,6 @@ void AtomCalculation::BuildGraph()
     // (directmin => AType::GDM above, whose WantsLineSearch() drives the direct-min loop -- no SetDirectMin needed.)
 }
 
-const RunOptions& AtomCalculation::Options() const {return itsSetup->opts;}
 
 void AtomCalculation::EnterStage(const SCFStage& stage, size_t index)
 {

@@ -190,6 +190,13 @@ protected:
     //! \brief THE CHECKPOINT (CK-1), every kind's (V-FACADE-PARITY P3): \c SaveState to \a path, converged or not -- the unattended
     //! run's safety net.  EMPTY \a path = no checkpoint.  A failed WRITE WARNS under \a label and the run goes on: losing a finished
     //! SCF to a full disk would make the net the hazard (\c SaveState called directly throws as usual).
+    //! \brief THE RUN'S SETUP, as the base sees it (user ruling 2026-11-18): what every kind shares -- the resolved options, the accelerator,
+    //! the structure, the electron and spin counts.  Each kind holds its OWN concrete setup (handed in by its factory, never cast) and
+    //! answers it here; a hook rather than a second stored pointer, because a kind SWAPS its setup mid-run (the mesh and raster pilots, the
+    //! conditioning restart: doc/OpenWork.md "Setup edits by copy-and-patch") and two pointers would drift.
+    virtual const Setup& GetSetup() const = 0;
+    //! The run's options as the setup resolved them: \c scf is what \c Converge runs, \c saveStateTo where it checkpoints.
+    const RunOptions& Options() const {return GetSetup().opts;}
     void Checkpoint(const std::string& path, const std::string& label) const;
     //! A schedule stage's setup edit this kind cannot apply: REFUSED naming the edit (the policy row \c StageSetup, doc/OpenWork.md
     //! "Setup-changing schedule stage").  THROWS \c policy::Refused, which \c Converge answers as an \c SCFFailure.
@@ -314,8 +321,6 @@ protected:
     }
     //! \name THE STEPS EACH KIND TAKES (\c Converge's)
     //!@{
-    //! The run's options as the setup resolved them: \c scf is what \c Converge runs, \c saveStateTo where it checkpoints.
-    virtual const RunOptions& Options() const = 0;
     //! \brief Build, iterate and report ONE SCF stage on \a params (as run: the caller's edit applied).  FALSE when it was refused
     //! before any iteration (a resource refusal): there is no new state to checkpoint, and \c Result says why.
     virtual bool RunStage(const SCFParams& params) = 0;
