@@ -271,6 +271,49 @@ TEST(Deck, AStatedValenceOverridesTheMaterialAndBadStructuresAreRefused)
     EXPECT_THROW(deck::Resolve(mol), std::runtime_error);
 }
 
+// ---- a molecule and an atom are decks too (V-FACADE-PARITY P0c): the structure decides the kind, each kind reads its own keys ----
+TEST(Deck, TheStructureDecidesTheKindAndEachKindReadsItsOwnKeys)
+{
+    auto read=[](const json& j){ deck::RunSpec r; deck::FromJson(j,r); return r; };
+    EXPECT_EQ(deck::KindOf(read({{"structure","Si_diamond"}})), deck::RunKind::Solid);
+    EXPECT_EQ(deck::KindOf(read({{"structure","H2O"}})),        deck::RunKind::Molecule);
+    EXPECT_EQ(deck::KindOf(read({{"structure","B"}})),          deck::RunKind::Atom) << "a molecules.json entry of ONE atom is the radial atom";
+
+    // the molecule's `basis` is the solid's key, read into RunOptions::Molecule; the record reloads to the same spec
+    const deck::RunSpec m=read({{"structure","H2O"},{"basis",{{"data","dzvp"},{"engine","LibCint"}}},{"symmetryTol",1e-3}});
+    EXPECT_EQ(m.opts.molecule.basis,"dzvp"); EXPECT_EQ(m.opts.molecule.engine,Engine::LibCint); EXPECT_EQ(m.opts.symmetryTol,1e-3);
+    const json mj=deck::ToJson(m);
+    EXPECT_EQ(mj.at("model"),"HF") << "the molecule's record writes ITS default model";
+    EXPECT_EQ(mj.at("pp"),"") << "...and all-electron";
+    for (const char* k : {"solid","kmesh","Nelec","charge","ortho","orthoTol","spins","atom"}) EXPECT_FALSE(mj.contains(k)) << k << ": a molecule refuses it, so its record never writes it";
+    EXPECT_EQ(deck::ToJson(read(mj)), mj) << "the molecule's record reloads to itself";
+
+    // the atom's block, every field round-tripped (the escape hatch verbatim)
+    const json aj={{"structure","B"},{"model","LDA"},{"atom",{{"type","Gaussian"},{"basisPool","High"},{"N",12},{"emin",0.05},{"emax",5e3},
+                   {"exponentsByL",{{{"l",1},{"exponents",{0.3,1.2}}}}},{"configuration","[He]2s2 2p1"},{"accelerator",{{"type","GDM"}}},
+                   {"xc",{{"kind","SlaterXalpha"},{"alpha",0.7},{"libxcId",1}}}}}};
+    const deck::RunSpec a=read(aj);
+    EXPECT_EQ(a.opts.atom.type,AtomType::Gaussian); EXPECT_EQ(a.opts.atom.N,12); EXPECT_EQ(a.opts.atom.exponentsByL.size(),1u);
+    ASSERT_TRUE(a.opts.atom.xc); EXPECT_EQ(a.opts.atom.xc->alpha,0.7); EXPECT_EQ(a.opts.atom.accelerator.at("type"),"GDM");
+    const json arec=deck::ToJson(a);
+    for (const char* k : {"basis","solid","kmesh","multiplicity","pp","imposeSymmetry"}) EXPECT_FALSE(arec.contains(k)) << k << ": an atom refuses it";
+    EXPECT_EQ(deck::ToJson(read(arec)), arec) << "the atom's record reloads to itself";
+
+    // refused by name: the periodic-only keys, the solid-only basis keys, a basis for the radial atom
+    auto refuses=[&](const json& j, const std::string& phrase)
+    {
+        try { read(j); ADD_FAILURE() << j.dump() << " was accepted"; }
+        catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find(phrase),std::string::npos) << e.what(); }
+    };
+    refuses({{"structure","H2O"},{"kmesh",{2,2,2}}}, "no Brillouin zone");
+    refuses({{"structure","H2O"},{"postSCF",json::array()}}, "periodic run");
+    refuses({{"structure","H2O"},{"basis",{{"data","dzvp"},{"autoTrim",true}}}}, "unknown key 'basis.autoTrim'");
+    refuses({{"structure","B"},{"basis",{{"data","dzvp"}}}}, "its 'atom' block");
+    // the options a kind does not consume are refused by ITS view when the run is prepared (policy ForeignOption)
+    deck::RunSpec x=read({{"structure","Si_diamond"},{"xalpha",0.6}});
+    EXPECT_THROW(deck::Prepare(x), std::exception) << "a solid refuses xalpha";
+}
+
 // ---- a deck RUNS, and runs exactly what the options say (the Si CP2K anchor, GPW_Si.Γ_Imp_CP2K's recipe) ----
 import qchem.Lattice_3D;
 import qchem.BasisSet;

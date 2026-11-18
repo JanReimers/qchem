@@ -83,7 +83,7 @@ const char* ExpectedFailure(Kind k, Capability c)
         case Capability::ConvergeFilesTheScfHeader: return nullptr;
         case Capability::AcceleratorKnobsArrive:    return nullptr;
         case Capability::SaveRestartRoundTrips:     return nullptr;   // V-FACADE-STATE landed for the atom and the molecule, 2026-11-09
-        case Capability::DeckRoundTrips:            return k==Kind::Solid ? nullptr : "V-FACADE-OPTS";
+        case Capability::DeckRoundTrips:            return nullptr;   // the molecule and the atom joined the deck (V-FACADE-PARITY P0c)
         case Capability::LevelsAnswerTheState:      return nullptr;
         case Capability::ViewMatchesTheLiveState:   return nullptr;
     }
@@ -200,9 +200,15 @@ std::string DeckBuilds(const json& payload)
         const json once=deck::ToJson(spec);
         deck::RunSpec again; deck::FromJson(once, again);
         if (deck::ToJson(again)!=once) return "the deck's json does not reload to the same deck";
-        auto calc=deck::Build(spec);
-        if (!calc) return "deck::Build returned nothing";
-        if (calc->DidConverge()) return "deck::Build ran the SCF";
+        auto calc=deck::Prepare(spec);
+        if (!calc) return "deck::Prepare returned nothing";
+        // the test may cast to the concrete facade (CLAUDE.md: unit tests may cheat); P2's tCalculation gives every kind one query
+        bool ran=false;
+        if (auto* s=dynamic_cast<const SolidCalculation*>(calc.get()))         ran=s->DidConverge();
+        else if (auto* m=dynamic_cast<const MoleculeCalculation*>(calc.get())) ran=m->IsConverged();
+        else if (auto* a=dynamic_cast<const AtomCalculation*>(calc.get()))     ran=a->IsConverged();
+        else return "deck::Prepare built an unknown facade";
+        if (ran) return "deck::Prepare ran the SCF";
         return "";
     }
     catch (const std::exception& e) { return std::string("the deck refuses it: ")+e.what(); }
@@ -471,7 +477,11 @@ public:
         return Resumed((*restarted)->IsConverged(), (*restarted)->Energy(), saved->Energy(), (*restarted)->IterationCount(),
                        saved->IterationCount(), (*restarted)->RestartedFrom());
     }
-    std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","H2O"}});}
+    //! The probe's own H2O run, as a deck: the molecule's `basis` is the solid's key, read into RunOptions::Molecule.
+    std::string DeckRoundTrips()        override
+    {
+        return DeckBuilds({{"structure","H2O"}, {"model","LDA"}, {"pp","gth-lda-valence"}, {"basis",{{"data","dzvp"}}}});
+    }
     //! Plus the molecule's own field-carrying list: index i there is index i here (the binding samples orbital i by it).
     std::string LevelsAnswerTheState() override
     {
