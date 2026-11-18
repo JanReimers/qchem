@@ -124,7 +124,7 @@ public:
     BasisSet::irrepv_t GetIrreps(const Spin& ms) const;
     const orbital_t*   GetOrbital(size_t index, const Irrep& qns) const;
 
-    size_t           IterationCount() const;
+    size_t           IterationCount() const;   //!< the run's SCF iterations: the entry SCF plus every atom-pilot re-convergence
     bool             IsConverged()    const;
     int              GetZ()           const {return itsZ;}
     const Structure& GetStructure()   const {return *itsStructure;}
@@ -180,12 +180,14 @@ private:
     Grids itsGrids;
     bool  itsDFT=false;       //!< the model reads a density on a mesh (DFT or the PP pseudo-atom): only these have grids to size
     bool  itsPiloted=false;   //!< the atom pilot ran (once per calculation)
+    size_t itsIterations=0;   //!< the last Converge's SCF iterations, the pilot's re-convergences included (the iterator counts only its own)
     std::unique_ptr<qchem::ChargeDensity::rDM_CD> itsCarried;   //!< the converged D the pilot carries into its re-convergence, consumed by \c BuildGraph
     void ResolveGrids();
     //! The electron configuration the SCF occupies: \c opts.configuration STATED (checked, refused when it cannot run) or derived; reported
     //! under policy AtomConfiguration when derived.
     ElectronConfiguration* MakeConfiguration() const;
-    void PilotGrids(const SCFParams& params);
+    //! \return the SCF iterations its re-convergences on raised grids spent (0 when nothing was raised).
+    size_t PilotGrids(const SCFParams& params);
     //! A Hamiltonian on \a g, its Coulomb fit from \a slot (filled here with \a g's rung when it is above 0).
     qchem::Hamiltonian::rHamiltonian* MakeHamiltonianOn(const Grids& g, const Hamiltonian::CoulombFitSlot<double>& slot) const;
     //! R2.22: the iterator no longer deletes what it is handed, so this facade owns the Hamiltonian and

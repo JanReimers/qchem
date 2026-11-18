@@ -16,7 +16,7 @@ namespace qchem
 {
 
 void Calculation::ReportResult(const std::string& label, bool converged, size_t iterations, double charge, const EnergyBreakdown& E,
-                               double energyTarget)
+                               double energyTarget, size_t pilotIterations)
 {
     namespace rpt = qchem::report;
     const double dq=E.Diagnostic("HartreeChargeError"), dE=E.Diagnostic("HartreeChargeEnergy");
@@ -25,6 +25,7 @@ void Calculation::ReportResult(const std::string& label, bool converged, size_t 
         rpt::Section result("result");
         rpt::Set("converged",  converged);
         rpt::Set("iterations", (long)iterations);
+        if (pilotIterations>0) rpt::Set("pilotIterations", (long)pilotIterations);
         rpt::Set("charge",     charge);
         rpt::Set("Eelec",      E.GetElectronicEnergy());
         rpt::Set("Etot",       E.GetTotalEnergy());
@@ -40,7 +41,9 @@ void Calculation::ReportResult(const std::string& label, bool converged, size_t 
     const std::ios_base::fmtflags flags=std::cout.flags();
     const std::streamsize         prec =std::cout.precision();
     std::cout<<std::fixed<<std::setprecision(11)
-             <<"["<<label<<"] "<<(converged ? "CONVERGED" : "NOT converged")<<" iters="<<iterations<<" charge="<<charge
+             <<"["<<label<<"] "<<(converged ? "CONVERGED" : "NOT converged")<<" iters="<<iterations;
+    if (pilotIterations>0) std::cout<<" (pilot "<<pilotIterations<<")";
+    std::cout<<" charge="<<charge
              <<" Eelec="<<E.GetElectronicEnergy()<<" Etot="<<std::setprecision(10)<<E.GetTotalEnergy()<<std::setprecision(11)<<"  (";
     const char* sep="";
     for (const auto& [name,shown] : {std::pair{"Kinetic","Ekin"}, {"Een","Een"}, {"Eee","Eee"}, {"Exc","Exc"}, {"Enn","Enn"}, {"E_alphaZ","E_alphaZ"}})

@@ -385,10 +385,13 @@ bool AtomCalculation::Converge(const SCFParams& params)
 
     itsLastkT=params.SmearingkT;
     bool ok = itsScf->Iterate(params);
-    if (ok && itsDFT && !itsPiloted && itsOpts.accuracy.eps>0.0) { RebuildSampling(); PilotGrids(params); ok=itsScf->Converged(); }
+    itsIterations=itsScf->GetIterationCount();
+    size_t pilotIterations=0;   // the pilot builds a fresh iterator per re-convergence, so its iterations are counted here (OpenWork row, 2026-11-14)
+    if (ok && itsDFT && !itsPiloted && itsOpts.accuracy.eps>0.0) { RebuildSampling(); pilotIterations=PilotGrids(params); ok=itsScf->Converged(); }
+    itsIterations+=pilotIterations;
     // (No end-of-run cache snapshot since S6: each owner-held table reported its own bytes under `cache` where it was filled.)
     RebuildSampling();
-    ReportResult("atom "+thePeriodicTable().GetSymbol(itsZ), ok, itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy());
+    ReportResult("atom "+thePeriodicTable().GetSymbol(itsZ), ok, itsIterations, itsDensity->GetTotalCharge(), itsScf->GetEnergy(), 0.0, pilotIterations);
     return ok;
 }
 
@@ -431,7 +434,7 @@ const AtomCalculation::orbitals_t* AtomCalculation::Orbitals(const Irrep& qns) c
     return itsScf->GetWaveFunction()->GetOrbitals(qns);
 }
 
-size_t AtomCalculation::IterationCount() const {return itsScf->GetIterationCount();}
+size_t AtomCalculation::IterationCount() const {return itsIterations;}
 bool   AtomCalculation::IsConverged()    const {return itsScf->Converged();}
 
 BasisSet::irrepv_t AtomCalculation::GetIrreps(const Spin& ms) const
@@ -485,7 +488,7 @@ std::vector<StateBlock> AtomCalculation::StateBlocks(bool withOrbitals) const
 StateSummary AtomCalculation::MakeStateSummary() const
 {
     if (!itsScf || !itsScf->GetWaveFunction()) throw std::logic_error("AtomCalculation: no wave function yet");
-    return {.label="atom "+thePeriodicTable().GetSymbol(itsZ), .converged=itsScf->Converged(), .iterations=itsScf->GetIterationCount(),
+    return {.label="atom "+thePeriodicTable().GetSymbol(itsZ), .converged=itsScf->Converged(), .iterations=itsIterations,
             .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0,
             .recipe="model "+FunctionalName()+", basis "+AtomTypeName(itsOpts.atom.type)+", accelerator "+AcceleratorTag()};
 }
@@ -703,8 +706,9 @@ qchem::Hamiltonian::rHamiltonian* AtomCalculation::MakeHamiltonianOn(const Grids
 // moves only its own term), and the rung's error is BeckeTailEstimate of it.  Up to three axes: the XC radial count, the Hartree route's
 // radial count (Multipole) or the Dunlap fit's rung (Auxiliary).  A stated axis is audited once and never raised.  If anything was raised,
 // rebuild on the raised grids, re-converge ONCE from the carried D, and confirm (each later round raises an axis at most once).
-void AtomCalculation::PilotGrids(const SCFParams& params)
+size_t AtomCalculation::PilotGrids(const SCFParams& params)
 {
+    size_t reconverged=0;
     namespace rpt = qchem::report;
     namespace H = qchem::Hamiltonian;
     itsPiloted=true;
@@ -813,10 +817,12 @@ void AtomCalculation::PilotGrids(const SCFParams& params)
         BuildGraph();
         if (itsObserver) itsScf->SetObserver(itsObserver);
         itsScf->Iterate(params);
+        reconverged+=itsScf->GetIterationCount();
         RebuildSampling();
         if (!itsScf->Converged()) { std::cout<<tag<<"WARNING: the re-convergence on the raised grids did not converge"<<std::endl; break; }
         if (round+1==kAtomPilotRounds) break;
     }
+    return reconverged;
 }
 
 } // namespace qchem
