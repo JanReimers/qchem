@@ -168,9 +168,7 @@ void MoleculeCalculation::BuildGraph()
     // Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
     // THE PP / FUNCTIONAL MATCH (user ruling 2026-11-12): warn and run, never switch.  Decided BEFORE the Hamiltonian is built, so its
     // row sits beside the run's other policies, not inside the "hamiltonian" scope (which holds meshes and terms only).
-    if (itsSetup->pp)
-        policy::PPFittedFunctional(qchem::Hamiltonian::PPFunctionalChecks(*itsSetup->pp, *itsStructure,
-                                                                              qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha)));
+    CheckPPFunctional(*itsStructure);
     // THE ERI4 RAM CAP (S6, user ruling 6): a model that builds the 4-centre tensors (HF, DHF) is judged ONCE here, from the block sizes,
     // against the memory available -- warn and run, or refuse on resources -- instead of a collector evicting them mid-run.
     if (*opts.model==qchem::Hamiltonian::Model::HF || *opts.model==qchem::Hamiltonian::Model::DHF)

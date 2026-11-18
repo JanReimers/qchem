@@ -616,8 +616,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
         qchem::report::Scope hamiltonian("hamiltonian");   // its meshes and terms report one level in (user rulings 2026-11-02, 2026-11-04)
         // THE PP / FUNCTIONAL MATCH (user ruling 2026-11-12): warn, guide and run, never switch
-        policy::PPFittedFunctional(qchem::Hamiltonian::PPFunctionalChecks(*itsImp->setup->pp, *itsImp->st,
-                                                                              qchem::Hamiltonian::ModelToXC(*opts.model)));
+        CheckPPFunctional(*itsImp->st);   // a periodic run always has a set (its xalpha is the default: SolidSetup refuses another)
         // THE ACCURACY a Fourier series sampled on the XC quadrature must meet (the rho-tilde sampler, step 2; pin 31): the run's
         // target for what its client consumes, the density gate its sampled residual is judged on, and the two GPW calibrations.
         // The XC term derives the one tolerance tau from it on the seed.  No target (eps 0) leaves it unset: the step-1 fixed width.

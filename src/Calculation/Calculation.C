@@ -205,6 +205,10 @@ protected:
     //! THE RUN'S TAG on its console lines, its run-report rows and its saved state's summary: the setup's stated \c label, else the kind's
     //! own name (\c KindTag).  One rule for every kind: a molecule used to print "molecule" whatever label it was given.
     std::string Tag() const;
+    //! THE PP / FUNCTIONAL MATCH (user ruling 2026-11-12): warn and guide, and run, never switch.  Every element of the setup's
+    //! pseudopotential set fitted with another functional than the run's model files a \c PPFittedFunctional row; no set, no check.
+    //! \a run: the structure the run is built on (its valence charges).  The radial atom's pseudo-atom is not a set yet and checks its own.
+    void CheckPPFunctional(const Structure& run) const;
     //! The kind's own name for an unlabelled run: "atom O", "molecule", the solid's default label.
     virtual std::string KindTag() const = 0;
     void Checkpoint(const std::string& path, const std::string& label) const;

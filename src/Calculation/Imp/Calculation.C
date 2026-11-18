@@ -12,6 +12,7 @@ module;
 module qchem.Calculation;
 import qchem.Reporting;
 import qchem.Policy;             // policy::Refuse: a schedule stage a kind cannot run as stated
+import qchem.Hamiltonian.Factory;   // PPFunctionalChecks, ModelToXC (CheckPPFunctional)
 
 namespace qchem
 {
@@ -138,6 +139,13 @@ std::string Calculation::Tag() const
     static const std::string unlabelled=RunOptions{}.label;
     const std::string& l=Options().label;
     return l==unlabelled ? KindTag() : l;
+}
+
+void Calculation::CheckPPFunctional(const Structure& run) const
+{
+    const Setup& S=GetSetup();
+    if (!S.pp) return;
+    policy::PPFittedFunctional(Hamiltonian::PPFunctionalChecks(*S.pp, run, Hamiltonian::ModelToXC(*S.opts.model, S.opts.xalpha)));
 }
 
 Calculation::StateIdentity Calculation::MakeStateIdentity() const
