@@ -201,7 +201,7 @@ TEST(A_DFT_pilot, SG_Xe_TheReconvergenceStartsAtTheAnswer)
     o.coulomb.fit=Hamiltonian::CoulombFit::Auxiliary;
     std::vector<std::vector<double>> scfs;   // the total energy of every iterate, one vector per SCF
     qchem::report::Run run("SG_Xe pilot warm start");
-    auto calc=AtomCalculation::Prepare(54, 0, o, {}, [&scfs](const SCFIterator::IterationRow& r)
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(54, 0, o), [&scfs](const SCFIterator::IterationRow& r)
     {
         if (scfs.empty() || r.iteration<=1) scfs.emplace_back();
         scfs.back().push_back(r.eb.GetTotalEnergy());
