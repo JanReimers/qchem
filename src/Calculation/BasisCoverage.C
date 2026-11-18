@@ -56,7 +56,7 @@ inline std::set<int> ElementsOf(const Structure& st)
     return elements;
 }
 
-//! Refuse a run that STATES NO BASIS: there is no default (a default that cannot build is a silent trap -- CalcOptions' old "sto-3g"
+//! Refuse a run that STATES NO BASIS: there is no default (a default that cannot build is a silent trap -- RunOptions' old "sto-3g"
 //! had no file), and a refusal that names the bases covering this structure costs the user one line.  Policy row BasisUnstated.
 inline void RequireBasisStated(const std::string& basis, const Structure& st)
 {

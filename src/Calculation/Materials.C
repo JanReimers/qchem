@@ -15,7 +15,7 @@ export namespace qchem::Materials
 
 //! \brief A crystal: a cell with its atom basis and magnetic decoration, plus the pseudopotential
 //! vocabulary that goes with it -- and NOTHING about a run.  The k-mesh, XC grid, kT, basis set and
-//! seed are the calculation's axes (\c SolidCalcOptions), not the material's.
+//! seed are the calculation's axes (\c RunOptions), not the material's.
 //!
 //! A material is a USE of a structure, so it lives at the MoleculeCalculation level as data rather than in
 //! \c qcStructure (user ruling 2026-09-15); the same list is what the GUI offers as its pick-list.
@@ -26,7 +26,7 @@ struct Material
     //! The pseudopotential SET this material names (src/Pseudopotential/Data/pseudopotentials.json); empty for a box built from an explicit valence.
     std::string                              pp;
     //! {element, valence electrons} for the elements of the cell in order of first appearance, taken from \c pp --
-    //! \c SolidCalcOptions::species verbatim.
+    //! \c RunOptions::species verbatim.
     std::vector<std::pair<std::string,int>>  species;
     //! Valence electrons per cell, DERIVED from the atoms and the species list (never stored: a stored
     //! count that disagreed with the species list would be exactly the defect a data file invites).

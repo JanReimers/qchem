@@ -79,9 +79,9 @@ TEST(GPW_Na, k222s_Imp_Smear_GlobalMu_Anchor)
 {
     const Material na=qchem::Materials::Get("Na_fcc");        // FCC Na at Na's atomic density; 3s^1 => half-filled band
     const Lattice_3D lat=LatticeOf(na, ivec3_t(2,2,2));
-    SolidCalcOptions o=OptionsFor(na, "Na FCC metal");
+    RunOptions o=OptionsFor(na, "Na FCC metal");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.kShift=rvec3_t(0.5,0.5,0.5);             // shifted Monkhorst-Pack (k at ±¼)
+    o.solid.kShift=rvec3_t(0.5,0.5,0.5);             // shifted Monkhorst-Pack (k at ±¼)
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     SCFParams par=Gates(60, 1e-5, std::nullopt); par.SmearingkT=0.01;
     GpwReport report("Na "+o.label, false);

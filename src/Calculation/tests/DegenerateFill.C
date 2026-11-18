@@ -66,14 +66,14 @@ SCFParams Bounded(Fill f)
 std::shared_ptr<const MoleculeSetup> BoronGDM()
 {
     Molecule b; b.Insert(Site{5, Vector3D<double>(0,0,0)});
-    return MoleculeSetup::Resolve(b, {.basis = "dzvp", .model = Model::LDA, .multiplicity = 2}, {.type = "GDM"});
+    return MoleculeSetup::Resolve(b, {.multiplicity=2, .model=Model::LDA, .molecule={.basis="dzvp"}}, {.type = "GDM"});
 }
 //! Si Γ, small, stated grids (no pilot), GDM.
 std::shared_ptr<const SolidSetup> SiGammaGDM(const char* label)
 {
     const auto mat=Materials::Get("Si_diamond");
-    SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.label=label;
-    o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+    RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.label=label;
+    o.accuracy.eps=0.0; SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
     o.accelerator=SCFAccelerators::Type::GDM;
     return SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
 }

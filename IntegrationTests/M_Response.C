@@ -32,7 +32,7 @@ static rmat_t Alpha(const MoleculeCalculation& calc)
 
 TEST(M_Response, HF_Water_PolarizabilityIsPySCF)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis="dzvp"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp"}}));
     ASSERT_TRUE(calc.Converge(tight));
     const rmat_t a=Alpha(calc);
     for (size_t i=0;i<3;i++)
@@ -46,8 +46,8 @@ TEST(M_Response, HF_Water_PolarizabilityIsPySCF)
 //! spin-resolved transition density -- must give the same polarisability as the folded doublet.
 TEST(M_Response, HF_Water_Pol_eqUnPol)
 {
-    MoleculeCalculation unpol(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis="dzvp"}));
-    MoleculeCalculation pol  (MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis="dzvp", .spin=SpinGroup::Polarized}));
+    MoleculeCalculation unpol(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp"}}));
+    MoleculeCalculation pol  (MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.spin=SpinGroup::Polarized, .molecule={.basis="dzvp"}}));
     ASSERT_TRUE(unpol.Converge(tight));
     ASSERT_TRUE(pol  .Converge(tight));
     const rmat_t a=Alpha(unpol), b=Alpha(pol);
@@ -66,7 +66,7 @@ TEST(M_Response, HF_Water_Pol_eqUnPol)
 //! a bigger mesh.
 TEST(M_Response, HF_Water_DipoleMeshConverged)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis="dzvp"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp"}}));
     ASSERT_TRUE(calc.Converge(tight));
     const rmat_t a=Alpha(calc);
     auto fine=calc.StaticPolarizability({.radial=qcMesh::RadialKind::MHL, .nRadial=120, .mhl_m=3, .mhl_alpha=2.0,
@@ -79,6 +79,6 @@ TEST(M_Response, HF_Water_DipoleMeshConverged)
 //! different irreps, and without the point-group product selection rule their response would be silently zero.
 TEST(M_Response, HF_Water_SymmetryAdaptedIsRefused)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.basis="dzvp", .symmetry=true}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.imposeSymmetry=true, .molecule={.basis="dzvp"}}));
     EXPECT_THROW((void)calc.StaticPolarizability(), std::logic_error);
 }

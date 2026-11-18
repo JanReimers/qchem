@@ -11,7 +11,7 @@ module;
 #include <tuple>
 #include <vector>
 module qchem.PseudoAtomOrbital;
-import qchem.AtomCalculation;                  // AtomCalculation, AtomCalcOptions, AtomType (the spherical pseudo-atom)
+import qchem.AtomCalculation;                  // AtomCalculation, RunOptions, AtomType (the spherical pseudo-atom)
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH (the default valence)
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ
 import qchem.Symmetry.Atom.Spherical;          // AtomicSymmetry::Getl
@@ -52,13 +52,13 @@ PseudoAtomOrbital Build(const std::string& element, int Zion, int l, int lmax)
     const int Z=thePeriodicTable().GetZ(element);
     if (Zion==0) Zion=Pseudopotential::GetGTH(element, "LDA").zion;
     const std::vector<double> ep=Pool(16, 0.05, 200.0);
-    AtomCalcOptions o;
-    o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=Zion;
+    RunOptions o;
+    o.atom.type=AtomType::Gaussian; o.atom.pseudopotential=true; o.atom.valence=Zion;
     // THE ROUTE IS STATED, not the default's (2026-10-31): this orbital is the +U PROJECTOR every +U solid consumes, so a change of
     // the atom Vxc default must not silently move every +U anchor.  The radial auxiliary fit is what it was built and validated on
     // (CP2K's ATOM code to 3 / 0.3 / 0.1 mHa, UTCalculation ValenceBasisGen.MnQ7PseudoAtomInALargePool).
     o.vxcFit=Hamiltonian::VxcFit::Auxiliary;
-    for (int ll=0; ll<=lmax; ll++) o.exponentsByL.push_back({ll, ep});
+    for (int ll=0; ll<=lmax; ll++) o.atom.exponentsByL.push_back({ll, ep});
     SCFParams p; p.MinVirial=std::nullopt;                              // no virial under a PP (the valence generator's rule)
     // 120, not the default 20: the 16-exponent pool is a big basis and a late-3d atom is a long descent.  Ni q10
     // was still at Δρ = 2e-4 on iteration 20 (2026-09-22); a d^8 cation needed 120 to clear a 2e-6 Ha degeneracy

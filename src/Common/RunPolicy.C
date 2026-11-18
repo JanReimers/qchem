@@ -18,7 +18,7 @@
 // instead of re-deriving it and hoping the two agree.
 //
 // D-ENV STEP 6b (2026-10-04): THE POLICY IS A TYPED VALUE, NOT THE ENVIRONMENT.  `RunPolicySpec` (the deck's `policy` block, carried on
-// `SolidCalcOptions::policy`) states it; the facade installs it once at run start (`SetRunPolicy`) and every factory reads the resolved
+// `RunOptions::policy`) states it; the facade installs it once at run start (`SetRunPolicy`) and every factory reads the resolved
 // `theRunPolicy()` as before.  The CP2K_COMPAT / QCHEM_* / GPW_* variables are retired (ignored, reported).  Names below that read as
 // env variables are historical: the knob is now the deck key `policy.<camelCase>`.
 //
@@ -93,7 +93,7 @@ public:
     //! (doc/OpenWork.md item 1: measured, and the route -- not the goal -- is what fails).
     bool XCFromDM()   const {return itsXCFromDM.value;}
     //! \brief May a run EXPLOIT SPACE-GROUP SYMMETRY at all?  DEFAULT true (obey the caller); false under
-    //! \c CP2K_COMPAT, which forces \c SolidCalcOptions::imposeSymmetry off however the caller set it.
+    //! \c CP2K_COMPAT, which forces \c RunOptions::imposeSymmetry off however the caller set it.
     //!
     //! WHY THIS ONE OVERRULES THE CALLER, where the others merely have defaults (user, 2026-08-26:
     //! *"CP2K_COMPAT should do (imply) imposeSymmetry=0"*).  Verified from the CP2K logs: QuickStep does
@@ -112,7 +112,7 @@ public:
     //! qchem's default since 2026-08-02 is a periodic Becke atom-centred mesh, and on the MnO benchmark row
     //! that mesh is **158 s of 367 s wall — 43%, the single largest block**, ahead of the collocation.  A
     //! head-to-head row that leaves it on is qchem-with-Becke against CP2K-plain.  It reached this table
-    //! late because it is a TYPED option (\c SolidCalcOptions::xcMesh) rather than an env flag — the same
+    //! late because it is a TYPED option (\c RunOptions::xcMesh) rather than an env flag — the same
     //! gap \c raster and \c cutoffFactor still sit in.
     //! ⚠ Like \c SymmetryImposition this OVERRULES the caller, for the same reason: every banked recipe
     //! sets the mesh, and a switch that needed the recipe edited too would not be one switch.
@@ -169,7 +169,7 @@ private:
 const RunPolicy& theRunPolicy();
 
 //! \brief INSTALL \a spec as the process policy.  The FACADE calls this once at run start (SolidCalculation's constructor, from
-//! \c SolidCalcOptions::policy); a test that A/Bs a route calls it (or uses \c ScopedRunPolicy) between arms.  The object is ASSIGNED
+//! \c RunOptions::policy); a test that A/Bs a route calls it (or uses \c ScopedRunPolicy) between arms.  The object is ASSIGNED
 //! (never replaced), so a reference handed out earlier stays valid across a flip.  Two live runs with DIFFERENT policies in one process
 //! would see the last one installed -- the factories consult it at BUILD time, so sequential runs are safe and overlapping ones are not.
 void SetRunPolicy(const RunPolicySpec& spec);

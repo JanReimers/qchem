@@ -12,7 +12,7 @@
 // Here every re-exported module is in a different, already-linked library, so there is no back-edge.
 export module qchem;
 
-export import qchem.MoleculeCalculation;     // MoleculeCalculation, CalcOptions, AcceleratorOptions, qchem::Model/SpinGroup
+export import qchem.MoleculeCalculation;     // MoleculeCalculation, RunOptions, AcceleratorOptions, qchem::Model/SpinGroup
 export import qchem.SCFIterator;     // SCFParams, IterationRow, SCFIterator + (transitive) WaveFunction,
                                      //   Orbitals, ChargeDensity, Irrep, EnergyBreakdown, Hamiltonian
 export import qchem.Structure;       // Molecule, Atom, Structure

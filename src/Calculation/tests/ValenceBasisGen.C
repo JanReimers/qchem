@@ -249,9 +249,9 @@ TEST(ValenceBasisGen, ValenceLowqFileLoads)
 // is the complete-pool 3d PROJECTED onto the site's shells, never the pseudo-atom run in the shells themselves.
 TEST(ValenceBasisGen, MnQ7PseudoAtomInTheVAExponentsShowsTheDiffuseTrim)
 {
-    AtomCalcOptions o;
-    o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=7;
-    o.exponentsByL={{0,{0.1,0.24928829,0.62144650,1.54919334,3.86195754,9.62740780,24.0}},
+    RunOptions o;
+    o.atom.type=AtomType::Gaussian; o.atom.pseudopotential=true; o.atom.valence=7;
+    o.atom.exponentsByL={{0,{0.1,0.24928829,0.62144650,1.54919334,3.86195754,9.62740780,24.0}},
                     {2,{0.38369936,0.81791778,1.74352515,3.71660826,7.92255676,16.88822203,36.0}}};
     SCFParams p; p.MinVirial=std::nullopt;
     AtomCalculation atom(25, 18, o, p);
@@ -279,9 +279,9 @@ TEST(ValenceBasisGen, MnQ7PseudoAtomInTheVAExponentsShowsTheDiffuseTrim)
 TEST(ValenceBasisGen, MnQ7PseudoAtomInALargePool)
 {
     auto pool=[](int n, double emin, double emax){ std::vector<double> e; for (int i=0;i<n;i++) e.push_back(emin*std::pow(emax/emin, double(i)/(n-1))); return e; };
-    AtomCalcOptions o;
-    o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=7;
-    o.exponentsByL={{0,pool(16,0.05,200.0)},{2,pool(16,0.08,200.0)}};
+    RunOptions o;
+    o.atom.type=AtomType::Gaussian; o.atom.pseudopotential=true; o.atom.valence=7;
+    o.atom.exponentsByL={{0,pool(16,0.05,200.0)},{2,pool(16,0.08,200.0)}};
     SCFParams p; p.MinVirial=std::nullopt;
     AtomCalculation atom(25, 18, o, p);
     ASSERT_TRUE(atom.IsConverged());

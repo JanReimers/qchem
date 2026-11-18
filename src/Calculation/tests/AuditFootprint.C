@@ -103,9 +103,9 @@ SCFParams Tight()
 std::shared_ptr<const SolidSetup> SiGamma(bool pilot)
 {
     const auto mat=Materials::Get("Si_diamond");
-    SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.label="auditMemory";
-    if (!pilot) { o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; }
-    o.auditFootprint.eta=1.0e9;   // ~1e9 x the byte count: no machine has it
+    RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.label="auditMemory";
+    if (!pilot) { o.accuracy.eps=0.0; SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform; }
+    o.solid.auditFootprint.eta=1.0e9;   // ~1e9 x the byte count: no machine has it
     return SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
 }
 //! Every `policy` row named \a name anywhere in a filed run's tree.

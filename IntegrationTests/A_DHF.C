@@ -46,8 +46,7 @@ TEST_P(A_SL_HF_ion,A)
     int N=21;
     if (Z>12) N=35;
     if (Z>50) N=40;
-    AtomCalculation calc(Z, Z-1, {.type=AtomType::Slater, .N=N, .emin=Z/20., .emax=Z*Z*5.,
-                                  .model=Model::HF, .spin=SpinGroup::Polarized, .ortho=qchem::Cholesky},  // keep the wide even-tempered basis whole (no truncation)
+    AtomCalculation calc(Z, Z-1, {.spin=SpinGroup::Polarized, .model=Model::HF, .ortho=qchem::Cholesky, .atom={.type=AtomType::Slater, .N=N, .emin=Z/20., .emax=Z*Z*5.}},  // keep the wide even-tempered basis whole (no truncation)
         {.NMaxIter = 20, .MinΔρPerElectron = Z*1e-4, .MinFD = Z*1e-5, .StartingRelaxRo = 1.0, .MergeTol = 1e-4, .Verbose = true});
     // One electron: J and K cancel, so F is D-independent and the first real diagonalization is exact -- but the SCF must still
     // CONFIRM it on its own gates (it used to stop at NMaxIter 2 behind a Δ[F,D] gate it could not meet: user 2026-10-29).
@@ -72,8 +71,7 @@ TEST_P(A_SL_DE1,A)
     if (Z>50) N=40;
     // DHF wave functions have a weak singularity at the origin -- very large exponents (emax) mock it.
     double alpha=.05,beta=1.55;
-    AtomCalculation calc(Z, Z-1, {.type=AtomType::Slater_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1),
-                                  .model=Model::DE1, .spin=SpinGroup::Polarized},
+    AtomCalculation calc(Z, Z-1, {.spin=SpinGroup::Polarized, .model=Model::DE1, .atom={.type=AtomType::Slater_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1)}},
         {.NMaxIter = 5, .MinΔρPerElectron = Z*1e-5, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = false});
 
     auto qns=calc.GetIrreps(Spin::Up);
@@ -103,8 +101,7 @@ TEST_P(A_SG_DE1,A)
     double alpha=0.01,beta=1.8;
     if (Z>=20) { N=38; beta=2; }
     if (Z>=60) { N=48; beta=2; }
-    AtomCalculation calc(Z, Z-1, {.type=AtomType::Gaussian_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1),
-                                  .model=Model::DE1, .spin=SpinGroup::Polarized, .ortho=Ortho::Cholesky},
+    AtomCalculation calc(Z, Z-1, {.spin=SpinGroup::Polarized, .model=Model::DE1, .ortho=Ortho::Cholesky, .atom={.type=AtomType::Gaussian_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1)}},
         {.NMaxIter = 5, .MinΔρPerElectron = Z*1e-5, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
 
     auto qns=calc.GetIrreps(Spin::Up);
@@ -171,8 +168,7 @@ TEST(A_SG_E1,Phir)
 {
     int N=40;
     double alpha=0.010,beta=1.6;
-    AtomCalculation calc(1, 0, {.type=AtomType::Gaussian, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1),
-                                .model=Model::E1, .spin=SpinGroup::UnPolarized},
+    AtomCalculation calc(1, 0, {.spin=SpinGroup::UnPolarized, .model=Model::E1, .atom={.type=AtomType::Gaussian, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1)}},
         {.NMaxIter = 5, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
 
     auto qns=calc.GetIrreps(Spin::None);
@@ -190,8 +186,7 @@ TEST(DE1_P1,Gaussian_Phir)
     int Z=1;
     int N=32;
     double alpha=0.010,beta=1.6;
-    AtomCalculation calc(1, 0, {.type=AtomType::Gaussian_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1),
-                                .model=Model::DE1, .spin=SpinGroup::Polarized},
+    AtomCalculation calc(1, 0, {.spin=SpinGroup::Polarized, .model=Model::DE1, .atom={.type=AtomType::Gaussian_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1)}},
         {.NMaxIter = 5, .MinΔρPerElectron = Z*1e-5, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
 
     auto qns=calc.GetIrreps(Spin::Up);
@@ -208,8 +203,7 @@ TEST(DE1_P1,Slater_Phir)
 {
     size_t N=37;
     double alpha=.04,beta=1.32;
-    AtomCalculation calc(1, 0, {.type=AtomType::Slater_RKB, .N=int(N), .emin=alpha, .emax=alpha*pow(beta,N-1),
-                                .model=Model::DE1, .spin=SpinGroup::Polarized},
+    AtomCalculation calc(1, 0, {.spin=SpinGroup::Polarized, .model=Model::DE1, .atom={.type=AtomType::Slater_RKB, .N=int(N), .emin=alpha, .emax=alpha*pow(beta,N-1)}},
         {.NMaxIter = 5, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = false});
 
     auto qns=calc.GetIrreps(Spin::Up);
@@ -229,7 +223,7 @@ class A_SL_DHF : public ::testing::TestWithParam<size_t> {};
 TEST_P(A_SL_DHF,Energy)
 {
     int Z=GetParam();
-    AtomCalculation calc(Z, 0, {.type=AtomType::Slater_RKB, .basisPool=Medium, .model=Model::DHF, .spin=SpinGroup::UnPolarized},
+    AtomCalculation calc(Z, 0, {.spin=SpinGroup::UnPolarized, .model=Model::DHF, .atom={.type=AtomType::Slater_RKB, .basisPool=Medium}},
         {.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
     EXPECT_LT(fabs(RelativeDHFError(calc.Energy(), Z)), 5e-3); // Low-accuracy basis; Ne (Z=10) known gap
 }
@@ -240,7 +234,7 @@ TEST_P(A_SG_DHF,Energy)
 {
     int Z=GetParam();
     // Virial gate OFF: on a Low-accuracy RKB basis the virial ratio measures basis completeness, not SCF convergence.
-    AtomCalculation calc(Z, 0, {.type=AtomType::Gaussian_RKB, .basisPool=Low, .model=Model::DHF, .spin=SpinGroup::UnPolarized},
+    AtomCalculation calc(Z, 0, {.spin=SpinGroup::UnPolarized, .model=Model::DHF, .atom={.type=AtomType::Gaussian_RKB, .basisPool=Low}},
         {.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = std::nullopt, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
     ASSERT_TRUE(calc.IsConverged());
     EXPECT_LT(fabs(RelativeDHFError(calc.Energy(), Z)), 5e-3); // Low-accuracy basis; Ne (Z=10) known gap
@@ -253,7 +247,7 @@ INSTANTIATE_TEST_SUITE_P(A,A_SG_DHF,::testing::Values(2,4,10));
 //
 TEST(DHF_B_Pol,P2p)
 {
-    AtomCalculation calc(5, 0, {.type=AtomType::Slater_RKB, .basisPool=Medium, .model=Model::DHF, .spin=SpinGroup::Polarized},
+    AtomCalculation calc(5, 0, {.spin=SpinGroup::Polarized, .model=Model::DHF, .atom={.type=AtomType::Slater_RKB, .basisPool=Medium}},
         {.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
 
     const qchem::Orbitals::Orbital* o2p=nullptr;
@@ -276,7 +270,7 @@ TEST(DHF_Xe,P5pSplit)
 #ifdef DEBUG
     GTEST_SKIP() << "Xe DHF (54 electrons) is too slow for Debug; runs in Release only.";
 #endif
-    AtomCalculation calc(54, 0, {.type=AtomType::Slater_RKB, .basisPool=Medium, .model=Model::DHF, .spin=SpinGroup::UnPolarized},
+    AtomCalculation calc(54, 0, {.spin=SpinGroup::UnPolarized, .model=Model::DHF, .atom={.type=AtomType::Slater_RKB, .basisPool=Medium}},
         {.NMaxIter = 50, .MinΔρPerElectron = 1e-5, .MinVirial = std::nullopt, .MinFD = 1e-6, .StartingRelaxRo = 0.3, .MergeTol = 1e-7, .Verbose = true});
     ASSERT_TRUE(calc.IsConverged()) << "virial gate off: on a finite RKB basis it measures completeness, not convergence";
 

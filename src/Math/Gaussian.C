@@ -16,6 +16,7 @@ struct Gaussian
     double c;       //!< coefficient
     int    n;       //!< polynomial degree, as \f$r^{2n}\f$
     double alpha;   //!< exponent
+    bool operator==(const Gaussian&) const = default;
 };
 
 } //namespace

@@ -53,7 +53,7 @@ void CheckNear(double x, double ref, double tol, const std::string& what)
 //========================================================================================================
 // RETIRED 2026-10-04 (D-ENV step 6d.5), each as a DECK (rundeck <deck> [--set key=value]...) or a hard-coded test -- the env knobs went with them:
 //   ladder     (SI_LADDER, SI_XC)      -> decks/ladder/Si_{2x1x1,2x2x1,2x2x2}_gamma.json (supercells are materials.json entries); the folding GATE is
-//                                         ITMain GPW_Si.Γ_Imp_eqK211.  SI_XC=becke is `--set solid.xcMesh.cellKind=Becke`.
+//                                         ITMain GPW_Si.Γ_Imp_eqK211.  SI_XC=becke is `--set SolidXCMesh(solid).cellKind=Becke`.
 //   ksweep     (GPW_KSHIFT)            -> decks/probes/Si_single_k.json  --set solid.kShift=[s,s,s]
 //   naf-smear  (NAF_ECUT, NAFGDM_*)    -> decks/probes/NaF_gdm_smear.json
 //   gate1      (GATE1_*)               -> decks/probes/{LiMn2O4_spinel,MnO2_lambda_spinel}_gate1.json  --set solid.hubbard.N.U_eV=...
@@ -74,9 +74,9 @@ int BeckeRecipeLadder(const std::string& system)
     {
         const Material si=Materials::Get("Si_diamond");
         const Lattice_3D lat=LatticeOf(si);
-        SolidCalcOptions o=OptionsFor(si, "Si V2.6 ladder");
-        o.densityEcut=60.0;
-        o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // converge on the uniform route: the probe density
+        RunOptions o=OptionsFor(si, "Si V2.6 ladder");
+        o.solid.densityEcut=60.0;
+        SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;   // converge on the uniform route: the probe density
         o.imposeSymmetry=false;                            // free mesh: the ladder measures the RULE, not the fold
         SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;
         GpwReport report("Si "+o.label, false);
@@ -88,7 +88,7 @@ int BeckeRecipeLadder(const std::string& system)
     {
         const Material naf=Materials::Get("NaF_rocksalt");
         const Lattice_3D lat=LatticeOf(naf);
-        SolidCalcOptions o=NaFOptions(naf, "NaF V2.6 ladder");
+        RunOptions o=NaFOptions(naf, "NaF V2.6 ladder");
         o.imposeSymmetry=false;
         GpwReport report("NaF "+o.label, false);
         SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFGates());
@@ -101,7 +101,7 @@ int BeckeRecipeLadder(const std::string& system)
         // ability to integrate a real, strongly aspherical density, not this run's energy.
         const Material box=Materials::Get("Mn_box16");
         const Lattice_3D lat=LatticeOf(box);
-        SolidCalcOptions o=MnBoxOptions(box, "Mn V2.6 ladder");
+        RunOptions o=MnBoxOptions(box, "Mn V2.6 ladder");
         SCFParams par=Gates(40, 1e-5, std::nullopt); par.SmearingkT=5e-3;
         std::shared_ptr<const BasisSet::Real_BS> mnbasis(
             BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_SR, box.cell.get(), BasisSet::Gaussian::Engine::MnD,
@@ -115,7 +115,7 @@ int BeckeRecipeLadder(const std::string& system)
     {
         const Material al=Materials::Get("Al_fcc");
         const Lattice_3D lat=LatticeOf(al);
-        SolidCalcOptions o=AlOptions(al, "Al V2.6 ladder");
+        RunOptions o=AlOptions(al, "Al V2.6 ladder");
         o.imposeSymmetry=false;
         SCFParams par=AlGates(); par.SmearingkT=0.02;      // smeared: a converged, non-rotating density to freeze
         GpwReport report("Al "+o.label, false);

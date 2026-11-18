@@ -36,12 +36,12 @@ Molecule MakeF2()   // ~/Code/cp2k-runs/F2 geometry (bohr), as IntegrationTests/
     m.Insert(Site{9, Vector3D<double>(0, 0,  1.3343)});
     return m;
 }
-CalcOptions F2Options() {return {.basis="valence_lowq_vb", .model=Model::LDA, .pp="gth-lda-valence"};}
+RunOptions F2Options() {return {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="valence_lowq_vb"}};}
 }
 
 TEST(MeshAudit, AgainstItsOwnMeshEveryTermReadsZero)
 {
-    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA});
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     MoleculeCalculation c(setup, Tight());
     ASSERT_TRUE(c.Result());
     const GridAuditResult R=c.MeshAudit(c.SizedSetup()->mesh);
@@ -59,7 +59,7 @@ TEST(MeshAudit, AFinerMeshMovesOnlyTheMeshBorneTerms)
 {
     for (auto fit : {Hamiltonian::CoulombFit::Auto, Hamiltonian::CoulombFit::Delta})
     {
-        const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .coulomb={.fit=fit}});
+        const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit=fit}, .molecule={.basis="dzvp"}});
         MoleculeCalculation c(setup, Tight());
         ASSERT_TRUE(c.Result());
         const double E0=c.Energy();
@@ -104,7 +104,7 @@ TEST(MeshAudit, TheDunlapHartreeIsMeshFreeAtAFixedD)
     const double a=1.186;   // C-H 2.054 bohr
     ch4.Insert(Site{6, Vector3D<double>(0,0,0)});
     for (const rvec3_t& h : {rvec3_t(a,a,a), rvec3_t(-a,-a,a), rvec3_t(-a,a,-a), rvec3_t(a,-a,-a)}) ch4.Insert(Site{1, Vector3D<double>(h.x,h.y,h.z)});
-    const auto setup=MoleculeSetup::Resolve(ch4, {.basis="dzvp", .model=Model::LDA});
+    const auto setup=MoleculeSetup::Resolve(ch4, {.model=Model::LDA, .molecule={.basis="dzvp"}});
     MoleculeCalculation c(setup, Tight());
     ASSERT_TRUE(c.Result());
     const GridAuditResult R=c.MeshAudit(Finer(c.SizedSetup()->mesh));
@@ -119,7 +119,7 @@ TEST(MeshAudit, TheDunlapHartreeIsMeshFreeAtAFixedD)
 
 TEST(MeshAudit, BeforeAConvergeItThrows)
 {
-    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA});
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     const auto c=MoleculeCalculation::Prepare(setup);
     EXPECT_THROW((void)c->MeshAudit(Finer(setup->mesh)), std::logic_error);
 }
@@ -131,7 +131,7 @@ TEST(MeshPilot, AnEnergyRunSettlesWhereItsAuditMeetsEps)
     for (bool f2 : {false, true})
     {
         const auto setup = f2 ? MoleculeSetup::Resolve(MakeF2(), F2Options())
-                              : MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA});
+                              : MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
         EXPECT_FALSE(setup->meshStated);
         EXPECT_FALSE(setup->meshResolved);
         EXPECT_EQ(setup->mesh.nRadial,       kMolecularMeshEntryRadial);
@@ -176,8 +176,8 @@ TEST(MeshPilot, AGeometryRunRaisesAMeshThatMissesEpsOnMatrixElements)
 
 TEST(MeshPilot, AStatedMeshIsKeptAndAMissIsReported)
 {
-    CalcOptions o=F2Options();
-    o.mesh.nRadial=kMolecularMeshEntryRadial; o.mesh.angularDegree=kMolecularMeshEntryDegree;   // the entry rung, STATED
+    RunOptions o=F2Options();
+    MoleculeXCMesh(o).nRadial=kMolecularMeshEntryRadial; MoleculeXCMesh(o).angularDegree=kMolecularMeshEntryDegree;   // the entry rung, STATED
     const auto setup=MoleculeSetup::Resolve(MakeF2(), o);
     EXPECT_TRUE(setup->meshStated);
     MoleculeSession pes(setup, Tight());   // a geometry run: matrix elements, which F2 misses at this rung
@@ -187,13 +187,13 @@ TEST(MeshPilot, AStatedMeshIsKeptAndAMissIsReported)
     EXPECT_TRUE(cost.statedOver);
     EXPECT_FALSE(cost.settled);
     EXPECT_EQ(cost.reconvergeIterations, 0u) << "a stated mesh is never raised";
-    EXPECT_EQ(c.SizedSetup()->mesh.nRadial,       o.mesh.nRadial);
-    EXPECT_EQ(c.SizedSetup()->mesh.angularDegree, o.mesh.angularDegree);
+    EXPECT_EQ(c.SizedSetup()->mesh.nRadial,       MoleculeXCMesh(o).nRadial);
+    EXPECT_EQ(c.SizedSetup()->mesh.angularDegree, MoleculeXCMesh(o).angularDegree);
 }
 
 TEST(MeshPilot, HartreeFockHasNoMeshToPilot)
 {
-    MoleculeCalculation c(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::HF}), Tight());
+    MoleculeCalculation c(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::HF, .molecule={.basis="dzvp"}}), Tight());
     ASSERT_TRUE(c.Result());
     EXPECT_EQ(c.PilotCost().rounds, 0);
     EXPECT_FALSE(c.SizedSetup()->meshResolved);
@@ -201,7 +201,7 @@ TEST(MeshPilot, HartreeFockHasNoMeshToPilot)
 
 TEST(MeshPilot, ASessionPilotsItsFirstPointOnMatrixElementsAndStepsTheRestOnIt)
 {
-    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA});
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     MoleculeSession pes(setup, Tight());
     const PESGeometry g=pes.Reference();
     ASSERT_TRUE(pes.ConvergeAt(std::nullopt, g.R));

@@ -42,7 +42,7 @@ public:
     //! This set with \a overrides applied: each `(element, q)` replaces the set's q for that element, or ADDS the element when the set lacks it
     //! (a stated pseudopotential valence, e.g. Mn q15 semicore for one run).  The set's name and functional are kept.
     PseudopotentialSet With(const std::vector<std::pair<std::string,int>>& overrides) const;
-    //! `(element, q)` for each of \a elements, in that order -- the \c SolidCalcOptions::species form.  THROWS on an uncovered element.
+    //! `(element, q)` for each of \a elements, in that order -- the \c RunOptions::species form.  THROWS on an uncovered element.
     std::vector<std::pair<std::string,int>> Species(const std::vector<std::string>& elements) const;
     //! `(element, q)` for the distinct elements of \a st's atoms, in order of first appearance -- what the PP terms, the sharpness
     //! gather and the electron count of a run over \a st need (never the whole set).  THROWS on an uncovered element.

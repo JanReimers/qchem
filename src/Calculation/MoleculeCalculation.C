@@ -22,7 +22,7 @@ export module qchem.MoleculeCalculation;
 import qchem.Structure;            // Structure, Molecule, Atom
 import qchem.ScalarFunction;       // ::ScalarFunction<double>
 import qchem.BasisSet;             // BasisSet::Real_BS
-export import qchem.MoleculeSetup; // CalcOptions + the resolved MoleculeSetup a run is built from (step 7)
+export import qchem.MoleculeSetup; // RunOptions + the resolved MoleculeSetup a run is built from (step 7)
 export import qchem.PotentialEnergySurface;   // the face MoleculeSession implements (step 8)
 export import qchem.SCFFailure;               // SCFFailure: the failure half of the Outcome door (shared with the solid facade)
 export import qchem.Calculation;              // the abstract base of the three facades
@@ -327,7 +327,7 @@ private:
 //! made there (the same named basis) -- seeded from the previous point's density carried onto it, block for block.
 //!
 //! WHAT A POINT REFUSES (a \c PESFailure, never a crash): positions that change the abelian point group the SALC blocks are
-//! built on, when the setup imposes one (\c CalcOptions::symmetry; ruling Q4); forces while the point's Hamiltonian names a term
+//! built on, when the setup imposes one (\c RunOptions::symmetry; ruling Q4); forces while the point's Hamiltonian names a term
 //! without its geometry gradient (\c Hamiltonian::MissingGradients: LDA's XC term today), refused BEFORE any SCF; stress (a molecule has
 //! no cell).  A forces request otherwise carries −dE/dR (the terms' forces and the Pulay sum at the converged D and W) at every point.
 //! The molecular basis is neither trimmed nor given an ortho tolerance by this facade, so it has no conditioning window to leave (Q3 is
