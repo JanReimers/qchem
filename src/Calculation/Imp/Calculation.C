@@ -133,6 +133,13 @@ std::string SetupEdit::Describe() const
     return os.str();
 }
 
+std::string Calculation::Tag() const
+{
+    static const std::string unlabelled=RunOptions{}.label;
+    const std::string& l=Options().label;
+    return l==unlabelled ? KindTag() : l;
+}
+
 Calculation::StateIdentity Calculation::MakeStateIdentity() const
 {
     // An atom's multiplicity is 0 always (its setup refuses a stated one: the configuration decides its spin); a solid's opts.Nelec and

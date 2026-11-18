@@ -265,6 +265,7 @@ private:
     std::string             StateKind() const override {return "molecule";}
     const Structure&        StateStructure() const override {return *itsStructure;}
     std::string             StateFunctional() const override;
+    std::string             KindTag() const override {return "molecule";}
     double                  StateKT() const override;
     std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
     StateSummary            MakeStateSummary() const override;

@@ -202,6 +202,11 @@ protected:
     const RunOptions& Options() const {return GetSetup().opts;}
     //! The spin group the run's blocks are walked in (every saved state, carry and restore): the setup's resolved one (R6).
     SpinGroup StateSpin() const {return GetSetup().opts.spin;}
+    //! THE RUN'S TAG on its console lines, its run-report rows and its saved state's summary: the setup's stated \c label, else the kind's
+    //! own name (\c KindTag).  One rule for every kind: a molecule used to print "molecule" whatever label it was given.
+    std::string Tag() const;
+    //! The kind's own name for an unlabelled run: "atom O", "molecule", the solid's default label.
+    virtual std::string KindTag() const = 0;
     void Checkpoint(const std::string& path, const std::string& label) const;
     //! A schedule stage's setup edit this kind cannot apply: REFUSED naming the edit (the policy row \c StageSetup, doc/OpenWork.md
     //! "Setup-changing schedule stage").  THROWS \c policy::Refused, which \c Converge answers as an \c SCFFailure.
@@ -321,7 +326,7 @@ protected:
     //! solid's annealed schedule, its +U loop, its raster pilot) runs one per stage, so each is checkpointed alike.
     Outcome<Converged, SCFFailure> ConvergeStage(const SCFParams& params)
     {
-        if (RunStage(params)) Checkpoint(Options().saveStateTo, Options().label);
+        if (RunStage(params)) Checkpoint(Options().saveStateTo, Tag());
         return Result();
     }
     //! \name THE STEPS EACH KIND TAKES (\c Converge's)

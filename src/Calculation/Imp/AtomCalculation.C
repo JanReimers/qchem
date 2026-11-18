@@ -355,7 +355,7 @@ bool AtomCalculation::RunStage(const SCFParams& params)
     itsIterations+=pilotIterations;
     // (No end-of-run cache snapshot since S6: each owner-held table reported its own bytes under `cache` where it was filled.)
     RebuildSampling();
-    ReportResult("atom "+thePeriodicTable().GetSymbol(itsSetup->Z), ok, itsIterations, itsDensity->GetTotalCharge(), itsScf->GetEnergy(), 0.0, pilotIterations);
+    ReportResult(Tag(), ok, itsIterations, itsDensity->GetTotalCharge(), itsScf->GetEnergy(), 0.0, pilotIterations);
     return true;
 }
 
@@ -446,6 +446,7 @@ const AtomCalculation::orbital_t* AtomCalculation::GetOrbital(size_t index, cons
 //  THE SAVED STATE (V-FACADE-STATE): the atom's hooks and its restart
 //====================================================================================================
 std::string AtomCalculation::StateFunctional() const {return FunctionalName();}
+std::string AtomCalculation::KindTag()         const {return "atom "+thePeriodicTable().GetSymbol(itsSetup->Z);}
 double      AtomCalculation::StateKT()         const {return itsLastkT;}
 
 std::string AtomCalculation::FunctionalName() const
@@ -476,7 +477,7 @@ std::vector<StateBlock> AtomCalculation::StateBlocks(bool withOrbitals) const
 StateSummary AtomCalculation::MakeStateSummary() const
 {
     if (!itsScf || !itsScf->GetWaveFunction()) throw std::logic_error("AtomCalculation: no wave function yet");
-    return {.label="atom "+thePeriodicTable().GetSymbol(itsSetup->Z), .converged=itsScf->Converged(), .iterations=itsIterations,
+    return {.label=Tag(), .converged=itsScf->Converged(), .iterations=itsIterations,
             .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0,
             .recipe="model "+FunctionalName()+", basis "+AtomTypeName(itsSetup->opts.atom.type)+", accelerator "+AcceleratorTag()};
 }

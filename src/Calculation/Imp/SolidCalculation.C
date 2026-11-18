@@ -461,7 +461,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     {
         qchem::report::Timed timed("setup: PW basis build");
         itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.solid.planeWaveEcut, S.spins));   // {} unless a magnetic imposition
-        std::cout<<"["<<opts.label<<" run] plane-wave orbital basis: Ecut "<<opts.solid.planeWaveEcut<<" Ha, "
+        std::cout<<"["<<Tag()<<" run] plane-wave orbital basis: Ecut "<<opts.solid.planeWaveEcut<<" Ha, "
                  <<itsImp->bs->GetNumFunctions()<<" PWs at Γ"<<std::endl;
     }
     else
@@ -472,7 +472,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         qchem::WarnRetiredEnvironment();
         const auto& tol=opts.solid.tolerances;
         if (!tol.Describe().empty())
-            std::cout<<"["<<opts.label<<" run] GPW tolerances (non-default):"<<tol.Describe()<<std::endl;
+            std::cout<<"["<<Tag()<<" run] GPW tolerances (non-default):"<<tol.Describe()<<std::endl;
         L3::GPWParams p{
             .densityEcut = opts.solid.densityEcut, .cutoffFactor = opts.solid.cutoffFactor,
             .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
@@ -630,7 +630,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
                 const double old=itsImp->samplingTauScale;
                 itsImp->samplingTauScale=std::min(old, 1.0/(1.5*itsImp->samplingPending));
                 itsImp->samplingTightened=true;
-                std::cout<<"["<<opts.label<<" XC sampling] TIGHTENED once: the last SCF delivered "<<itsImp->samplingPending
+                std::cout<<"["<<Tag()<<" XC sampling] TIGHTENED once: the last SCF delivered "<<itsImp->samplingPending
                          <<" x tau, so tau is scaled by "<<itsImp->samplingTauScale<<" (was "<<old<<") from this SCF on"<<std::endl;
                 qchem::report::Scope here("xcSamplingTightened");
                 qchem::report::Set("worstDeliveredOverTau", itsImp->samplingPending);
@@ -648,7 +648,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
             xc.sampling.eta           =opts.solid.grid.samplerEta;
         }
         const auto a1=PeriodicA1Set(opts, *itsImp->st);
-        if (a1) ReportPeriodicA1Cost(*a1, SizeReference("periodic A1 Vxc fit", opts.solid.tolerances, 1.0, &xc), opts.label);
+        if (a1) ReportPeriodicA1Cost(*a1, SizeReference("periodic A1 Vxc fit", opts.solid.tolerances, 1.0, &xc), Tag());
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
             itsImp->st, itsImp->bs.get(), itsImp->coulombFit, *itsImp->setup->pp, xc, {opts.vxcFit, opts.xcRho}, hubbard,
@@ -744,13 +744,13 @@ SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, cons
 // before it.
 void SolidCalculation::RunRestOf(const std::vector<SCFStage>& schedule)
 {
-    EmitStageSummary(itsImp->setup->opts.label, 0, schedule.size(), schedule.front().params.SmearingkT,
+    EmitStageSummary(Tag(), 0, schedule.size(), schedule.front().params.SmearingkT,
                      itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
     for (size_t s=1; s<schedule.size(); ++s)
     {
         BuildStage("annealed schedule stage "+std::to_string(s), schedule[s].accelerator, schedule[s].recipe, std::move(itsImp->cd), schedule[s].params);
         (void)ConvergeStage(schedule[s].params);
-        EmitStageSummary(itsImp->setup->opts.label, s, schedule.size(), schedule[s].params.SmearingkT,
+        EmitStageSummary(Tag(), s, schedule.size(), schedule[s].params.SmearingkT,
                          itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
     }
 }
@@ -1081,7 +1081,7 @@ void SolidCalculation::EnterStage(const SCFStage& stage, size_t index)
 
 void SolidCalculation::LeaveStage(size_t index, size_t count, const SCFParams& params)
 {
-    EmitStageSummary(itsImp->setup->opts.label, index, count, params.SmearingkT, itsImp->converged, itsImp->scf->GetIterationCount(),
+    EmitStageSummary(Tag(), index, count, params.SmearingkT, itsImp->converged, itsImp->scf->GetIterationCount(),
                      itsImp->scf->GetEnergy());
 }
 
@@ -1216,7 +1216,7 @@ bool SolidCalculation::RunStage(const SCFParams& params)
         BasisSet::Gaussian::GPWTolerances t=itsImp->setup->opts.solid.tolerances;
         t.rasterX=std::max(t.rasterX,x); t.vlocRasterX=std::max(t.vlocRasterX,x); t.xcRasterX=std::max(t.xcRasterX,x);
         { report::FormatGuard keep(std::cout);
-        std::cout<<"["<<itsImp->setup->opts.label<<" raster pilot] the first iterate was REFUSED on the ball's own rasters (x density "
+        std::cout<<"["<<Tag()<<" raster pilot] the first iterate was REFUSED on the ball's own rasters (x density "
                  <<had.density<<"), and the overlap's smallest eigenvalue is "<<std::scientific<<std::setprecision(3)<<lmin<<std::defaultfloat
                  <<": restarting from the seed on rasters whose alias e^-x does not exceed it, x = "<<std::setprecision(4)<<x<<std::endl; }
         itsImp->startRaisedForConditioning=true;
@@ -1236,7 +1236,7 @@ bool SolidCalculation::RunStage(const SCFParams& params)
     {
         const double E=itsImp->scf->GetEnergy().GetTotalEnergy();
         report::FormatGuard keep(std::cout);
-        std::cout << "["<<itsImp->setup->opts.label<<" restart] resumed E="<<std::setprecision(10)<<E<<" vs saved "<<*itsImp->resumedFrom
+        std::cout << "["<<Tag()<<" restart] resumed E="<<std::setprecision(10)<<E<<" vs saved "<<*itsImp->resumedFrom
                   << "  dE="<<std::setprecision(3)<<E-*itsImp->resumedFrom<<" after "<<itsImp->scf->GetIterationCount()<<" iterations"<<std::endl;
         itsImp->resumedFrom.reset();
     }
@@ -1261,10 +1261,10 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::IterateStage(
     ++itsImp->dGeneration;   // this stage moves D: no earlier audit measured the D it ends on
     // The banner and the recipe say what the iterator WILL build: SCFParams::Mixing::Auto resolved by the iterator itself.
     const SCFParams resolved=itsImp->scf->ResolveMixing(params);
-    EmitSCFBanner(itsImp->setup->opts.label, resolved, itsImp->stageAccel, params.Mixer==SCFParams::Mixing::Auto,
+    EmitSCFBanner(Tag(), resolved, itsImp->stageAccel, params.Mixer==SCFParams::Mixing::Auto,
                   itsImp->stageAccelAsked==SCFAccelerators::Type::Auto);
     { qchem::report::Section scf("scf"); ReportSCFRecipe(resolved, AccelName(itsImp->stageAccel)); }
-    ReportRecipe(itsImp->setup->opts.label, itsImp->stageRecipe, itsImp->stageKind, itsImp->stageAccelAsked, itsImp->stageAccel,
+    ReportRecipe(Tag(), itsImp->stageRecipe, itsImp->stageKind, itsImp->stageAccelAsked, itsImp->stageAccel,
                  resolved, itsImp->stageDeviations, itsImp->stageAskedBy);   // the policy that chose them, and why (its `policy` row)   // the run report's "what recipe am I running" header, as every facade files it
     itsImp->lastOccupation = {.useMOM=params.UseMOM, .momStartIter=(int)params.MOMStartIter,
                               .kT=params.SmearingkT, .momPenalty=params.MOMSmearPenalty,
@@ -1280,7 +1280,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::IterateStage(
     itsImp->stageIterated=true;   // a schedule's stage 0 no longer finds this graph fresh
     if (itsImp->samplingScfWorst>1.0)   // never silent: reported here, acted on (once) at the next SCF boundary
     {
-        std::cout<<"["<<itsImp->setup->opts.label<<" XC sampling] OVER TARGET in this SCF: worst delivered "<<itsImp->samplingScfWorst
+        std::cout<<"["<<Tag()<<" XC sampling] OVER TARGET in this SCF: worst delivered "<<itsImp->samplingScfWorst
                  <<" x tau, first at iteration "<<itsImp->samplingScfFirstOver
                  <<(itsImp->samplingTightened ? " (tau was already tightened once: not again)" : " (the next Hamiltonian build tightens tau once)")
                  <<std::endl;
@@ -1304,7 +1304,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::IterateStage(
     const auto* wf = itsImp->scf->GetWaveFunction();
     itsImp->spin.reset();   // built on demand by Converged::SpinDensity()
     const bool polarizedRun = wf->GetSpinGroup()==SpinGroup::Polarized;
-    ReportResult(itsImp->setup->opts.label, itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->charge, itsImp->scf->GetEnergy());
+    ReportResult(Tag(), itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->charge, itsImp->scf->GetEnergy());
     {
         const qchem::EnergyBreakdown& E=itsImp->scf->GetEnergy();
         const std::streamsize prec0=std::cout.precision();
@@ -1317,7 +1317,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::IterateStage(
         // A REFUSED first iterate (UnphysicalStop) has a broken Hamiltonian, so its moments are not a measurement: say so instead
         // of printing them (NiO on an untrimmed basis read exactly 0.0000 per site there, a number that reads like a lost order).
         if (polarizedRun && !itsImp->scf->UnphysicalStop().empty())
-            std::cout<<"["<<itsImp->setup->opts.label<<"] site moments: not measured -- the first iterate was REFUSED (its "
+            std::cout<<"["<<Tag()<<"] site moments: not measured -- the first iterate was REFUSED (its "
                        "Hamiltonian is broken), so its density is no observable"<<std::endl;
         else if (polarizedRun)
         {
@@ -1325,12 +1325,12 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::IterateStage(
             double absSum=0.0, net=0.0; for (size_t a=0;a<mu.size();a++) { absSum+=std::fabs(mu[a]); net+=mu[a]; }
             if (mu.size()>0 && absSum>=1e-8)
             {
-                std::cout<<"["<<itsImp->setup->opts.label<<"] site moments (Becke-partitioned Integral w (rho_up-rho_dn) d3r) [e]:";
+                std::cout<<"["<<Tag()<<"] site moments (Becke-partitioned Integral w (rho_up-rho_dn) d3r) [e]:";
                 for (size_t a=0;a<mu.size();a++) std::cout<<"  "<<a<<":"<<std::showpos<<std::fixed<<std::setprecision(4)<<mu[a]<<std::noshowpos;
                 std::cout<<"   net="<<std::showpos<<net<<std::noshowpos<<std::defaultfloat<<std::setprecision(prec0)<<std::endl;
             }
             else if (mu.size()==0)
-                std::cout<<"["<<itsImp->setup->opts.label<<"] site moments: "
+                std::cout<<"["<<Tag()<<"] site moments: "
                          <<(itsImp->setup->xcMesh.cellKind==qcMesh::UnitCellKind::Becke
                             ? "UNAVAILABLE -- the atom-centred (Becke) XC mesh carries no site blocks: a DEFECT, not a configuration"
                             : "n/a (the uniform XC mesh has no site partition)")<<std::endl;
@@ -1340,7 +1340,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::IterateStage(
         if (const auto* hub=itsImp->ham->GetHubbardChannels())
         {
             const int n=std::atoi(v->c_str());
-            ReportBandSlotWeights(itsImp->setup->opts.label, *itsImp->scf->GetWaveFunction(), *hub, *itsImp->st, n>1 ? n : 8);
+            ReportBandSlotWeights(Tag(), *itsImp->scf->GetWaveFunction(), *hub, *itsImp->st, n>1 ? n : 8);
         }
     // (THE CHECKPOINT is the base's step, after RunStage: tCalculation::ConvergeStage.)
     return Result();
@@ -1408,7 +1408,7 @@ std::vector<StateBlock> SolidCalculation::StateBlocks(bool withOrbitals) const
 StateSummary SolidCalculation::MakeStateSummary() const
 {
     if (!itsImp->scf || !itsImp->scf->GetWaveFunction()) throw std::logic_error("SolidCalculation: no wave function yet");
-    return {.label=itsImp->setup->opts.label, .converged=itsImp->converged, .iterations=itsImp->scf->GetIterationCount(),
+    return {.label=Tag(), .converged=itsImp->converged, .iterations=itsImp->scf->GetIterationCount(),
             .energy=itsImp->scf->GetEnergy().GetTotalEnergy(), .charge=itsImp->charge, .commutator=itsImp->lastCommutator,
             .recipe=itsImp->lastRecipe, .densityChange=itsImp->lastDensityChange};
 }
@@ -1763,7 +1763,7 @@ std::optional<ResourceRefusal> SolidCalculation::AdmitReference(const AuditRefer
     std::ostringstream key; key<<size.name<<'|'<<size.rasterPoints<<'|'<<size.meshPoints<<'|'<<int(v);
     if (itsImp->footprintRowsFiled.insert(key.str()).second)
     {
-        std::cout<<"["<<itsImp->setup->opts.label<<" audit memory] "<<(refuse ? "REFUSED ON RESOURCES: " : "WARNING (it may not fit): ")<<r.Summary()<<std::endl;
+        std::cout<<"["<<Tag()<<" audit memory] "<<(refuse ? "REFUSED ON RESOURCES: " : "WARNING (it may not fit): ")<<r.Summary()<<std::endl;
         const std::string reason = refuse
             ? "even the low end of the calibrated band (x "+std::to_string(f.cal.bandLow)+") exceeds the memory available, so it cannot fit; "+escape
             : "the high end of the calibrated band (x "+std::to_string(f.cal.bandHigh)+") exceeds the memory available, the low end does not: it is "
@@ -1832,7 +1832,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     namespace L3  = BasisSet::Lattice;
     namespace rpt = qchem::report;
     if (itsImp->setup->rastersResolved || itsImp->rastersSettled) return;
-    const std::string tag="["+itsImp->setup->opts.label+" raster pilot] ";
+    const std::string tag="["+Tag()+" raster pilot] ";
     if (itsImp->resourceRefusal)
     {
         std::cout<<tag<<"SKIPPED: refused on resources ("<<itsImp->resourceRefusal->when<<")"<<std::endl;
@@ -2624,7 +2624,7 @@ SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCF
         for (size_t M : R.estimated)
         {
             std::ostringstream os;
-            os<<std::fixed<<std::setprecision(4)<<"[U table] "<<who<<" "<<itsImp->setup->opts.label<<(itsImp->setup->opts.label.empty()?"":" ")
+            os<<std::fixed<<std::setprecision(4)<<"[U table] "<<who<<" "<<Tag()<<(Tag().empty()?"":" ")
               <<"site"<<ch[M].site<<" l="<<ch[M].l<<"  U_in="<<R.Uin_eV[M]<<"  U_0="<<R.U_eV.front()[M]<<"  U_SC="<<R.U_eV.back()[M]
               <<" eV  outer="<<R.outer<<(R.converged?" CONVERGED":" NOT-converged")
               <<"  gap "<<R.gap_eV.front()<<" -> "<<R.gap_eV.back()<<" eV  m "<<R.moment.front()[M]<<" -> "<<R.moment.back()[M];

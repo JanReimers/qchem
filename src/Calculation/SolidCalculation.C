@@ -628,6 +628,7 @@ private:
     std::string             StateKind() const override {return "solid";}
     const Structure&        StateStructure() const override;
     std::string             StateFunctional() const override;
+    std::string             KindTag() const override {return RunOptions{}.label;}   //!< the solid's default label ("gpw") is its name
     double                  StateKT() const override;
     std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
     StateSummary            MakeStateSummary() const override;

@@ -256,7 +256,7 @@ bool MoleculeCalculation::RunStage(const SCFParams& asked)
         // THE RECIPE POLICY'S REPORT (qchem.SCFRecipe): a molecule's Auto / Insulator is its own column -- the stated accelerator (DIIS by
         // default) beside linear D-mixing (no G space), as before B5.
         const SCFStageKind kind = !itsRestartedFrom ? SCFStageKind::Cold : itsRestartedFrom->exact ? SCFStageKind::Restored : SCFStageKind::Carried;
-        ReportRecipe("molecule", itsSetup->opts.recipe, kind, itsSetup->accelerator, itsSetup->accelerator, ResolveMixing(params, /*gSpace*/false),
+        ReportRecipe(Tag(), itsSetup->opts.recipe, kind, itsSetup->accelerator, itsSetup->accelerator, ResolveMixing(params, /*gSpace*/false),
                      {}, "accelerator (Auto = DIIS)", "the molecular column: the accelerator + linear D-mixing");
         ReportAccuracy(itsSetup->opts.accuracy, !HasXCMesh()           ? std::string(kNoAccuracyConsumerYet)
                                               : itsSetup->meshResolved ? std::string("the Becke XC mesh (sized by an earlier pilot)")
@@ -273,7 +273,7 @@ bool MoleculeCalculation::RunStage(const SCFParams& asked)
 
     // (No end-of-run cache snapshot since S6: each owner-held table reported its own bytes under `cache` where it was filled.)
 
-    ReportResult("molecule", itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
+    ReportResult(Tag(), itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
                  itsSetup->opts.accuracy.Target(Consumes(), itsStructure->GetNumAtoms()));
     return true;
 }
@@ -754,7 +754,7 @@ std::vector<StateBlock> MoleculeCalculation::StateBlocks(bool withOrbitals) cons
 StateSummary MoleculeCalculation::MakeStateSummary() const
 {
     if (!itsScf || !itsScf->GetWaveFunction()) throw std::logic_error("qchem::MoleculeCalculation: no wave function yet");
-    StateSummary s{.label="molecule", .converged=itsScf->Converged(), .iterations=itsScf->GetIterationCount(),
+    StateSummary s{.label=Tag(), .converged=itsScf->Converged(), .iterations=itsScf->GetIterationCount(),
                    .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0};
     s.recipe="model "+MoleculeModelName(*itsSetup)+", basis "+itsSetup->opts.molecule.basis+", accelerator "+std::string(NameOf(itsSetup->accelerator));
     if (itsLastRow)

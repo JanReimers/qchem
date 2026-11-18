@@ -149,6 +149,7 @@ private:
     std::string             StateKind() const override {return "atom";}
     const Structure&        StateStructure() const override {return *itsSetup->structure;}
     std::string             StateFunctional() const override;
+    std::string             KindTag() const override;
     double                  StateKT() const override;
     std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
     StateSummary            MakeStateSummary() const override;
