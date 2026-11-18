@@ -444,13 +444,13 @@ json ToJson(const RunOptions& o)
             {"numBands",o.solid.numBands},{"forceComplex",o.solid.forceComplex},
             {"spinsShareFermi",o.solid.spinsShareFermi},{"greyImposition",o.solid.greyImposition},{"momFromSeed",o.solid.momFromSeed},
             {"siteCharges",o.solid.siteCharges}};
-    if (o.accuracy.eta) solid["accuracyCalibration"]={{"vlocLong",o.accuracy.eta->vlocLong},{"density",o.accuracy.eta->density}};   // stated only
-    if (o.accuracy.vlocRoutingEta!=BasisSet::Gaussian::GridAccuracy{}.vlocRoutingEta) solid["accuracyCalibration"]["vlocRouting"]=o.accuracy.vlocRoutingEta;
-    if (o.accuracy.rungGateC!=BasisSet::Gaussian::GridAccuracy{}.rungGateC) solid["accuracyCalibration"]["rungGateC"]=o.accuracy.rungGateC;
-    if (o.accuracy.relCutoffSafety!=BasisSet::Gaussian::GridAccuracy{}.relCutoffSafety) solid["accuracyCalibration"]["relCutoffSafety"]=o.accuracy.relCutoffSafety;
-    if (o.accuracy.samplerEta!=BasisSet::Gaussian::GridAccuracy{}.samplerEta) solid["accuracyCalibration"]["samplerEta"]=o.accuracy.samplerEta;
-    if (o.accuracy.samplerResidualMargin!=BasisSet::Gaussian::GridAccuracy{}.samplerResidualMargin)
-        solid["accuracyCalibration"]["samplerResidualMargin"]=o.accuracy.samplerResidualMargin;
+    if (o.solid.grid.eta) solid["accuracyCalibration"]={{"vlocLong",o.solid.grid.eta->vlocLong},{"density",o.solid.grid.eta->density}};   // stated only
+    if (o.solid.grid.vlocRoutingEta!=BasisSet::Gaussian::GridAccuracy{}.vlocRoutingEta) solid["accuracyCalibration"]["vlocRouting"]=o.solid.grid.vlocRoutingEta;
+    if (o.solid.grid.rungGateC!=BasisSet::Gaussian::GridAccuracy{}.rungGateC) solid["accuracyCalibration"]["rungGateC"]=o.solid.grid.rungGateC;
+    if (o.solid.grid.relCutoffSafety!=BasisSet::Gaussian::GridAccuracy{}.relCutoffSafety) solid["accuracyCalibration"]["relCutoffSafety"]=o.solid.grid.relCutoffSafety;
+    if (o.solid.grid.samplerEta!=BasisSet::Gaussian::GridAccuracy{}.samplerEta) solid["accuracyCalibration"]["samplerEta"]=o.solid.grid.samplerEta;
+    if (o.solid.grid.samplerResidualMargin!=BasisSet::Gaussian::GridAccuracy{}.samplerResidualMargin)
+        solid["accuracyCalibration"]["samplerResidualMargin"]=o.solid.grid.samplerResidualMargin;
     if (o.solid.auditFootprint!=kAuditFootprintCalibration)
         solid["auditFootprint"]={{"eta",o.solid.auditFootprint.eta},{"kappa",o.solid.auditFootprint.kappa},{"bandLow",o.solid.auditFootprint.bandLow},
                                  {"bandHigh",o.solid.auditFootprint.bandHigh}};
@@ -459,12 +459,12 @@ json ToJson(const RunOptions& o)
                               {"radialError100",o.solid.beckeLadder.radialError100},{"radialFactor",o.solid.beckeLadder.radialFactor},
                               {"radialShare",o.solid.beckeLadder.radialShare},{"angRot",o.solid.beckeLadder.angRot}};
     return {{"Nelec",o.Nelec},{"charge",o.charge},{"multiplicity",o.multiplicity},{"spin",NameOf(o.spin,kSpin)},
-            {"pp",o.pp},{"species",species},{"model",Hamiltonian::Name(o.model)},
-            {"seed",NameOf(o.seed,kSeed)},{"ortho",NameOf(o.ortho,kOrtho)},{"orthoTol",o.orthoTol},
+            {"pp",o.pp.value_or("gth-lda-valence")},{"species",species},{"model",Hamiltonian::Name(o.model.value_or(Hamiltonian::Model::LDA))},
+            {"seed",NameOf(o.seed,kSeed)},{"ortho",NameOf(o.ortho.value_or(qchem::Cholesky),kOrtho)},{"orthoTol",o.orthoTol},
             {"imposeSymmetry",o.imposeSymmetry},{"spins",o.spins},{"accelerator",NameOf(o.accelerator,kAcc)},
             {"label",o.label},{"saveStateTo",o.saveStateTo},
             {"accuracy",o.accuracy.eps},
-            {"xc",{{"fit",NameOf(o.vxcFit,kVxc)},{"rho",NameOf(o.xcRho,kRho)},{"mesh",ToJson(o.xcMesh)}}},
+            {"xc",{{"fit",NameOf(o.vxcFit,kVxc)},{"rho",NameOf(o.xcRho,kRho)},{"mesh",ToJson(o.xcMesh.value_or(qcMesh::XCMeshDefault()))}}},
             {"solid",solid}};
 }
 
@@ -521,26 +521,26 @@ static void SolidBlockFromJson(const json& j, RunOptions& o)
         BasisSet::Gaussian::AccuracyCalibration eta;
         Fields c(f.At("accuracyCalibration"),"solid.accuracyCalibration");
         c.Get("vlocLong",eta.vlocLong); c.Get("density",eta.density);
-        c.Get("vlocRouting",o.accuracy.vlocRoutingEta);
-        c.Get("rungGateC",o.accuracy.rungGateC);
-        c.Get("relCutoffSafety",o.accuracy.relCutoffSafety);
-        c.Get("samplerEta",o.accuracy.samplerEta);
-        c.Get("samplerResidualMargin",o.accuracy.samplerResidualMargin);
+        c.Get("vlocRouting",o.solid.grid.vlocRoutingEta);
+        c.Get("rungGateC",o.solid.grid.rungGateC);
+        c.Get("relCutoffSafety",o.solid.grid.relCutoffSafety);
+        c.Get("samplerEta",o.solid.grid.samplerEta);
+        c.Get("samplerResidualMargin",o.solid.grid.samplerResidualMargin);
         c.Done();
-        if (!(o.accuracy.rungGateC>=0.0))
+        if (!(o.solid.grid.rungGateC>=0.0))
             throw std::runtime_error("deck: 'solid.accuracyCalibration.rungGateC' is the C of the ladder's rung gate, >= 0 (0 = no completion rung)");
-        if (!(o.accuracy.relCutoffSafety>0.0))
+        if (!(o.solid.grid.relCutoffSafety>0.0))
             throw std::runtime_error("deck: 'solid.accuracyCalibration.relCutoffSafety' is the stiffness of the pair->level rule, > 0 (default 2)");
-        if (!(o.accuracy.samplerEta>0.0 && o.accuracy.samplerEta<=1.0))
+        if (!(o.solid.grid.samplerEta>0.0 && o.solid.grid.samplerEta<=1.0))
             throw std::runtime_error("deck: 'solid.accuracyCalibration.samplerEta' is the rho-tilde NUFFT's delivered/bound, in (0, 1] (1 = rigorous)");
-        if (!(o.accuracy.samplerResidualMargin>0.0 && o.accuracy.samplerResidualMargin<=1.0))
+        if (!(o.solid.grid.samplerResidualMargin>0.0 && o.solid.grid.samplerResidualMargin<=1.0))
             throw std::runtime_error("deck: 'solid.accuracyCalibration.samplerResidualMargin' is the share of the SCF density gate the sampling may use, in (0, 1]");
         if (!(eta.vlocLong>0.0 && eta.vlocLong<=1.0 && eta.density>0.0 && eta.density<=1.0))
             throw std::runtime_error("deck: 'solid.accuracyCalibration' factors are eta = delivered/bound, in (0, 1] (1 = rigorous)");
-        if (!(o.accuracy.vlocRoutingEta>0.0))
+        if (!(o.solid.grid.vlocRoutingEta>0.0))
             throw std::runtime_error("deck: 'solid.accuracyCalibration.vlocRouting' is V_loc long's routing calibration eta = delivered/bound, > 0 "
                                      "(a stated 'solid.tolerances.vlocEps' wins over it)");
-        if (etaStated) o.accuracy.eta=eta;
+        if (etaStated) o.solid.grid.eta=eta;
     }
     if (j.contains("policy"))     FromJson(f.At("policy"),o.solid.policy);         else f.At("policy");
     if (j.contains("vxcFit"))             // RETIRED 2026-11-10 (V-XC-ONE-TERM step 3): the fit basis is one of the run's XC choices
@@ -631,13 +631,16 @@ json ToSchema2(json j)
 //! with its fit basis, the density XC sees and the mesh.  `solid.accuracy` is accuracy's DEPRECATED alias: read, warned; both refused.
 void ReadRunOptions(Fields& f, const json& j, RunOptions& o)
 {
-    f.Get("Nelec",o.Nelec); f.Get("charge",o.charge); f.Get("multiplicity",o.multiplicity); f.GetEnum("spin",o.spin,kSpin); f.Get("pp",o.pp);
+    f.Get("Nelec",o.Nelec); f.Get("charge",o.charge); f.Get("multiplicity",o.multiplicity); f.GetEnum("spin",o.spin,kSpin); GetOpt(f,j,"pp",o.pp);
     {
-        std::string model=Hamiltonian::Name(o.model);
+        std::string model=o.model ? Hamiltonian::Name(*o.model) : std::string();
         f.Get("model",model);
-        const auto m=Hamiltonian::ModelFromName(model);
-        if (!m) throw std::runtime_error("deck: 'model' \""+model+"\" is not a model name (a periodic run takes \"LDA\" or \"PADE\")");
-        o.model=*m;
+        if (!model.empty())   // empty: unstated, the kind's default (SolidOptions)
+        {
+            const auto m=Hamiltonian::ModelFromName(model);
+            if (!m) throw std::runtime_error("deck: 'model' \""+model+"\" is not a model name (a periodic run takes \"LDA\" or \"PADE\")");
+            o.model=*m;
+        }
     }
     if (j.contains("species"))
     {
@@ -649,7 +652,7 @@ void ReadRunOptions(Fields& f, const json& j, RunOptions& o)
         }
     }
     else f.At("species");
-    f.GetEnum("seed",o.seed,kSeed); f.GetEnum("ortho",o.ortho,kOrtho); f.Get("orthoTol",o.orthoTol);
+    f.GetEnum("seed",o.seed,kSeed); if (j.contains("ortho")) { qchem::Ortho x{}; f.GetEnum("ortho",x,kOrtho); o.ortho=x; } else f.At("ortho"); f.Get("orthoTol",o.orthoTol);
     f.Get("imposeSymmetry",o.imposeSymmetry); f.Get("spins",o.spins); f.GetEnum("accelerator",o.accelerator,kAcc);
     f.Get("label",o.label); f.Get("saveStateTo",o.saveStateTo);
     if (j.contains("solid")) SolidBlockFromJson(f.At("solid"),o); else f.At("solid");
@@ -679,7 +682,7 @@ void ReadRunOptions(Fields& f, const json& j, RunOptions& o)
     if (j.contains("xc"))
     {
         Fields xf(f.At("xc"),"xc"); xf.GetEnum("fit",o.vxcFit,kVxc); xf.GetEnum("rho",o.xcRho,kRho);
-        if (j.at("xc").contains("mesh")) FromJson(xf.At("mesh"),o.xcMesh); else xf.At("mesh");
+        if (j.at("xc").contains("mesh")) { qcMesh::MeshParams m=o.xcMesh.value_or(qcMesh::XCMeshDefault()); FromJson(xf.At("mesh"),m); o.xcMesh=m; } else xf.At("mesh");
         xf.Done();
     }
     else f.At("xc");
@@ -964,7 +967,7 @@ Materials::Material Resolve(RunSpec& spec)
     Materials::Material m;
     if (!spec.inlineStructure.is_null())
     {
-        try { m=Materials::Inline(spec.inlineStructure.dump(), spec.opts.pp); }
+        try { m=Materials::Inline(spec.inlineStructure.dump(), spec.opts.pp.value_or("gth-lda-valence")); }
         catch (const std::runtime_error& e) { throw std::runtime_error("deck: structure (inline) -- "+std::string(e.what())); }
     }
     else
@@ -1034,7 +1037,7 @@ Materials::Material Resolve(RunSpec& spec)
     try { RequireConsistentSiteCharges(spec.opts, *m.cell); }
     catch (const std::invalid_argument& e) { throw std::runtime_error("deck: solid.siteCharges -- "+std::string(e.what()).substr(std::string("RunOptions: ").size())); }
     // AUTO PICKS THE KIND, NOT THE RECIPE (OpenWork §3, 2026-10-26): the mesh policy's own refusal, run here so --check catches it too.
-    try { (void)qcMesh::ResolveXCMesh(spec.opts.xcMesh); }
+    try { (void)qcMesh::ResolveXCMesh(spec.opts.xcMesh.value_or(qcMesh::XCMeshDefault())); }
     catch (const std::invalid_argument& e) { const std::string w=e.what(); throw std::runtime_error("deck: xc.mesh"+(w.rfind("xcMesh",0)==0 ? w.substr(6) : ": "+w)); }
 
     // PRE-FLIGHT of the postSCF list (each message names the action and what to change): the old probes found these out AFTER the SCF.
@@ -1131,7 +1134,7 @@ Materials::Material Resolve(RunSpec& spec)
     }
     // The material NAMES its pseudopotential set; a deck that left `pp` at the facade default takes the material's.  `species` (the
     // per-element overrides) is filled with the resolved vocabulary so the record states every valence actually used.
-    if (spec.opts.pp==RunOptions{}.pp) spec.opts.pp=m.pp;
+    if (!spec.opts.pp) spec.opts.pp=m.pp;   // unstated: the material's set
     if (spec.opts.species.empty()) spec.opts.species=m.species;
     // The electron count of the species the RUN uses: a stated override (Na q9) changes it.  Until 2026-10-31 this read the
     // material's own species, so a deck stating Na q9 ran NaF with 8 electrons instead of 16 -- a cell charged +8, silently.
@@ -1292,7 +1295,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
     }
     Lattice_3D lat(*mat.cell, spec.kmesh);
     GaussianBasisRecipe recipe=RecipeOf(spec.basis); recipe.autoTrim=false;   // --check builds the stated basis; the vet loop is a run's
-    std::shared_ptr<const BasisSet::Real_BS> b=recipe.Make(*mat.cell, Pseudopotential::PseudopotentialSet::Get(spec.opts.pp).With(spec.opts.species));
+    std::shared_ptr<const BasisSet::Real_BS> b=recipe.Make(*mat.cell, Pseudopotential::PseudopotentialSet::Get(spec.opts.pp.value_or("gth-lda-valence")).With(spec.opts.species));
     size_t nf=0;
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*b).Iterate<BasisSet::Real_OIBS>()) nf+=ibs->GetNumFunctions();
     {

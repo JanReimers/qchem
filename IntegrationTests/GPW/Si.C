@@ -594,7 +594,7 @@ TEST(GPW_Si, Γ_Becke_Imp_eqUni)
     RunOptions o=OptionsFor(si, "Si Becke gate");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.solid.densityEcut=60.0;
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // the gate's SCF arm is the uniform route BY DESIGN (Auto would flip it)
+    SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;   // the gate's SCF arm is the uniform route BY DESIGN (Auto would flip it)
     SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;   // (this gate never set MergeTol)
     GpwReport report("Si "+o.label, false);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
@@ -699,11 +699,11 @@ TEST(GPW_Si, Γ_Uni_DeltaFit_Imp_eqPWFit)
                      auto r=calc.Result(); EXPECT_TRUE(r) << Why(r);
                      return r ? r->Energy() : 0.0; };
 
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;                        // (PlaneWave, raster)
+    SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;                        // (PlaneWave, raster)
     const double P=energy();
 
     o.label="Si Delta-fit uniform"; o.vxcFit=Hamiltonian::VxcFit::Delta;    // (Delta, uniform mesh)
-    o.xcMesh.eCut=o.solid.densityEcut;                                            // resolve rho on the midpoint mesh
+    SolidXCMesh(o).eCut=o.solid.densityEcut;                                            // resolve rho on the midpoint mesh
     const double D=energy();
 
     EXPECT_NEAR(D, P, 5e-3)
@@ -726,7 +726,7 @@ TEST(GPW_Si, Γ_Uni_PWFit_Imp_Pol_eqUnpol)
     o.imposeSymmetry=true;
     o.solid.densityEcut=20.0;
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // (PlaneWave, raster): Auto resolves the PW fit here
+    SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;   // (PlaneWave, raster): Auto resolves the PW fit here
     SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;
     struct Arm { double charge, E; };
     auto arm=[&]() -> Arm { GpwReport report("Si "+o.label, false);

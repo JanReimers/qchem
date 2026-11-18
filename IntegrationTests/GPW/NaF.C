@@ -97,7 +97,7 @@ TEST(GPW_NaF, Γ_Imp_Anchor)   // RE-ENABLED 2026-09-15: 15 s, converged in 23 i
     RunOptions o=NaFOptions(naf, "NaF GPW Gamma");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default (nR 40, degree 29): this anchor's number only, never a curvature (OpenWork "A curvature needs an XC-MESH ladder")
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     SCFParams par=NaFGates(); par.StartingRelaxRo=0.25; par.MergeTol=1e-4;
     GpwReport report("NaF "+o.label, par.Verbose);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), par);
@@ -131,7 +131,7 @@ RunOptions NaFAnchorOptions(const Material& naf, const std::string& label)
     RunOptions o=NaFOptions(naf, label);
     o.imposeSymmetry=true;
     o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default (nR 40, degree 29): this anchor's number only, never a curvature (OpenWork "A curvature needs an XC-MESH ladder")
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     return o;
 }
 SCFParams NaFAnchorParams() { SCFParams par=NaFGates(); par.StartingRelaxRo=0.25; par.MergeTol=1e-4; return par; }
@@ -344,7 +344,7 @@ TEST(GPW_NaF, Γ_PathIsContinuous_Long)
     o.imposeSymmetry=false;   // a displaced F lowers the group: an imposed session throws on it: a displaced-atom driver runs a lower-group setup
     o.solid.xcMeshSymmetric=false;  // ... and a free session's XC mesh must not follow the group detected at each point (see above)
     o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);   // BELOW the calibrated default: the CONTINUITY claim only -- a site curvature on it is 4-10x off (LiF/NaF, OpenWork "A curvature needs an XC-MESH ladder")
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     o.solid.densityEcut     = 80.0;   // STATED, the old auto ball (2 alpha_max): the pilot would double it (Hartree 1.9e-2 over at 80 Ha) and the 20 serial points cost 2574 s, not ~600 -- the CONTINUITY claim does not need the ball converged, only fixed along the path
     SCFParams par=NaFAnchorParams(); par.MinΔρPerElectron=1e-6;
     const GaussianBasisRecipe sr2{.data=BasisSetData::VALENCE_LOWQ_SR2};

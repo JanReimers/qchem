@@ -48,7 +48,7 @@ RunOptions SiGamma(bool imposed=false, bool statedRasters=true)
     if (statedRasters) o.accuracy.eps=0.0;
     // ... and the XC mesh: a session point is a geometry run, which pin 31 sends to Becke while the single point's Auto picks uniform on
     // Si Γ -- the machinery gates compare the two on ONE stated mesh (the uniform one, as before pin 31).
-    if (statedRasters) o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+    if (statedRasters) SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
     return o;
 }
 const GaussianBasisRecipe kSiBasis{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR};
@@ -128,7 +128,7 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     // facade's own choice, sized on the nested ladder, is GeometryRunPicksAndSizesTheBeckeMesh_Long.  (A bare cellKind Becke is
     // BeckeXCParams(), (40, 2.0, 29); this gate STATES a deliberately coarse (30, 1.0, Lebedev 5) one -- its subject is the raster terms,
     // and the calibrated mesh costs 107 s here against 17 s.  The audit reads 1.8e-2 per element on it: OVER, and honoured.)
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke); o.xcMesh.nRadial=30; o.xcMesh.mhl_alpha=1.0; o.xcMesh.angularDegree=5; o.xcMesh.angRot=0.0;
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke); SolidXCMesh(o).nRadial=30; SolidXCMesh(o).mhl_alpha=1.0; SolidXCMesh(o).angularDegree=5; SolidXCMesh(o).angRot=0.0;
     const auto setup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), kSiBasis, o);
     ASSERT_FALSE(setup->rastersResolved) << "the default setup self-calibrates";
     // Δρ/N 1e-7, not Tight()'s 1e-8 (user, 2026-11-10; see GeometryRunPicksAndSizesTheBeckeMesh_Long): a pilot re-converges from an

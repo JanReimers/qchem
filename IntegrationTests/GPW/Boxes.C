@@ -68,7 +68,7 @@ import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eig
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
 import qchem.BasisSet.GMap;              // PairProjection<dcmplx> (the collocation weight tensor); SymmetryDefects (§3 diagnostic)
 import qchem.Pseudopotential.GTH_Potentials;      // GetGTH, GTH_PP (the PP model, for the matrix-trace probe)
-import qchem.MoleculeCalculation;                        // qchem::MoleculeCalculation, CalcOptions (finite reference)
+import qchem.MoleculeCalculation;                        // qchem::MoleculeCalculation, RunOptions (finite reference)
 import qchem.AtomCalculation;                    // AtomCalculation, AtomType, BasisSetAccuracy (Slater/High pseudo-atom ref)
 import qchem.Types;
 
@@ -97,7 +97,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
     // unsmeared only while the fit bases lacked their D shells (a spherical Hartree).  Compared on its INTERNAL energy, which is
     // what an integer-occupation box approaches (PySCF, the same basis/PP/Coulomb fit: -3.743668).
     // Open row: doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT".
-    MoleculeCalculation cSipp(MoleculeSetup::Resolve(si, {.basis = "sipp", .model = Model::LDA, .pp = "gth-lda-valence"}), SCFParams{.SmearingkT = 1e-2});
+    MoleculeCalculation cSipp(MoleculeSetup::Resolve(si, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="sipp"}}), SCFParams{.SmearingkT = 1e-2});
     ASSERT_TRUE(cSipp.Result());
     const double Esipp=cSipp.EnergyTerms().GetTotalEnergy()-cSipp.EnergyTerms()["MinusTS"];
     // Physical oracle (near-complete Slater/High, for context -- a different basis, not the GPW-correctness gate).
@@ -121,7 +121,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
     o.solid.densityEcut=10.0; o.imposeSymmetry=true;
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     o.solid.images=BasisSet::Gaussian::CellImages::HomeCellOnly;    // the finite-molecule mode
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+    SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
     SCFParams par=TightGates(40);
     GpwReport report("Si "+o.label, par.Verbose);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par);
@@ -149,7 +149,7 @@ TEST(GPW_SiBox, Γ_Imp_Smear_eqFinite)
 {
     Molecule si; si.Insert(Site{14, {0,0,0}});
     // The finite twin at the SAME kT 1e-2 (2026-10-31), so free energy compares with free energy (see Γ_Uni_Imp_eqFinite above).
-    MoleculeCalculation cSipp(MoleculeSetup::Resolve(si, {.basis = "sipp", .model = Model::LDA, .pp = "gth-lda-valence"}), SCFParams{.SmearingkT = 1e-2});
+    MoleculeCalculation cSipp(MoleculeSetup::Resolve(si, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="sipp"}}), SCFParams{.SmearingkT = 1e-2});
     ASSERT_TRUE(cSipp.Result());
     const double Asipp=cSipp.Energy();   // the finite free energy A = E - TS: -3.781860
     const double Esipp=Asipp-cSipp.EnergyTerms()["MinusTS"];   // ...and its internal energy: -3.743669
@@ -197,7 +197,7 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqUnfolded)
     RunOptions o=OptionsFor(box, "Si atom-in-box Γ open-shell fold A/B");
     o.solid.densityEcut=10.0; o.imposeSymmetry=true;
     o.solid.images=BasisSet::Gaussian::CellImages::HomeCellOnly;    // the finite-molecule mode of the parent gate
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;            // ditto: the rotating degenerate density and
+    SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;            // ditto: the rotating degenerate density and
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;         //   a fixed-axis Becke grid do not mix
     SCFParams par=TightGates(40); par.SmearingkT=0.0;           // INTEGER AUFBAU -- the symmetry-broken D
     struct Arm { double charge, E; };
@@ -246,7 +246,7 @@ TEST(GPW_NaBox, Γ_Imp_M2_eqFinite)
     // functions fit the smooth nodeless pseudo-orbitals poorly -- same reason the Si gate anchors on the
     // basis-matched sipp facade run.)
     Molecule na; na.Insert(Site{11, {0,0,0}});
-    MoleculeCalculation cRef(MoleculeSetup::Resolve(na, {.basis="valence_lowq_sr", .model = Model::LDA, .multiplicity=2, .pp="gth-lda-valence"}));
+    MoleculeCalculation cRef(MoleculeSetup::Resolve(na, {.multiplicity=2, .model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="valence_lowq_sr"}}));
     const double Eref=cRef.Energy();
     std::cout << "[Na finite] valence_lowq_sr LSDA doublet (q1)="<<Eref<<std::endl;
 
@@ -283,8 +283,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     // The finite twin is the δ route (2026-10-31; the molecular default since, stated here anyway): no Vxc fit, like the GPW it is
     // compared with.  With the fit bases' D shells back it is PySCF's A1_coul J-fit value (-29.999454) and within ~0.7 mHa of the
     // box (CP2K -29.998761); the auxiliary (A1) route sits ~0.1 Ha above it on this soft basis.
-    MoleculeCalculation cRef(MoleculeSetup::Resolve(o2mol, {.basis="sipp", .model = Model::LDA, .multiplicity=3, .vxcFit=Hamiltonian::VxcFit::Delta,
-                                                    .pp="gth-lda-valence"}));
+    MoleculeCalculation cRef(MoleculeSetup::Resolve(o2mol, {.multiplicity=3, .model=Model::LDA, .pp="gth-lda-valence", .vxcFit=Hamiltonian::VxcFit::Delta, .molecule={.basis="sipp"}}));
     const double Eref=cRef.Energy();
     {
         auto E=cRef.EnergyTerms();
@@ -438,9 +437,7 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     // The finite twin is the δ route (2026-10-31; the molecular default since, stated here anyway): no Vxc fit, like the GPW.  With
     // the fit bases' D shells back it lands 1.5 mHa from the box at its auto cutoff and 0.03 mHa from the box's converged-cutoff
     // value (-14.63650); the auxiliary (A1) route sits 35 mHa above (the A1 Vxc fit on this sextet).
-    MoleculeCalculation cRef(MoleculeSetup::Resolve(mnmol, {.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr", .model = Model::LDA,
-                             .multiplicity=6, .angular = spherical ? Angular::Spherical : Angular::Cartesian,
-                             .vxcFit=Hamiltonian::VxcFit::Delta, .pp="gth-lda-valence"}));
+    MoleculeCalculation cRef(MoleculeSetup::Resolve(mnmol, {.multiplicity=6, .model=Model::LDA, .pp="gth-lda-valence", .vxcFit=Hamiltonian::VxcFit::Delta, .molecule={.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr", .angular=spherical ? Angular::Spherical : Angular::Cartesian}}));
     const double Eref=cRef.Energy();
     std::cout << "[Mn finite] "<<(sphBasis?"valence_lowq_sph":"valence_lowq_sr")<<" LSDA sextet (q7, "
               <<(spherical?"SPHERICAL":"CARTESIAN")
@@ -494,7 +491,7 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
     o.imposeSymmetry=true;                                // S3 resolves the SHUBNIKOV group from the flips
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);         // coarse quadrature: symmetry, not accuracy
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     SCFParams par=Gates(6, 1e-9, std::nullopt);                   // BOUNDED: this gate tests symmetry through the loop, not convergence
     par.SmearingkT=5e-3;                                  // the open-d-manifold tie smoother
     par.StartingRelaxRo=0.45;
@@ -543,7 +540,7 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_RowMomentsAreTheIterates)
         o.imposeSymmetry=true;
         o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
         o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);
-        o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+        SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
         SCFParams par=Gates(3, 1e-9, std::nullopt);
         par.SmearingkT=5e-3;
         par.StartingRelaxRo=0.45;
@@ -590,7 +587,7 @@ TEST(GPW_Mn2Box, k211_Becke_Pol_Smear_EqualsItsSupercellAtGamma_Long)   // ~4.5 
         o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
         o.accelerator=qchem::SCFAccelerators::Type::Null;
         o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);
-        o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+        SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
         o.solid.densityEcut=288.0;   // the two cells' rasters are NOT replicas (isotropic N from the longest edge: (27)^3 vs (54)^3), so the identity
                                // holds only as the density grid converges -- MEASURED at iteration 1: auto 72 Ha 1.4e-3, 144 Ha 5.8e-6, 288 Ha 7.7e-8
         return o;
@@ -687,7 +684,7 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows_Panel)   // PANEL case 9: a c
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;           // neutral Na: the library's 3s^1 spin pair
     o.imposeSymmetry=true;                                    // S3 resolves the SHUBNIKOV group from the flips
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);             // coarse: this gate tests the POSTCONDITION
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);            // PINNED -- see the header (Auto would pick Uniform)
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);            // PINNED -- see the header (Auto would pick Uniform)
 
     const qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
     auto r=calc.Result();

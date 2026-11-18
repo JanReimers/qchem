@@ -251,7 +251,7 @@ static void EmitRunBanner(const RunOptions& o, const qcMesh::MeshParams& xc, siz
     else                                          std::cout<<" (eCut="<<xc.eCut<<" Ha)";
     std::cout<<std::endl;
     // The ONE accuracy target and what it implies (doc/GridEpsilonPlan.md §1): the rigorous demand beside the knobs the sizing uses.
-    if (o.solid.planeWaveEcut<=0.0) std::cout<<"["<<o.label<<" run] accuracy: "<<o.accuracy.Describe(o.solid.tolerances)<<std::endl;
+    if (o.solid.planeWaveEcut<=0.0) std::cout<<"["<<o.label<<" run] accuracy: "<<o.solid.grid.Describe(o.solid.tolerances)<<std::endl;
     std::cout<<"["<<o.label<<" run] symmetry: "
              <<(imposed ? (o.solid.greyImposition ? "IMPOSED (grey -- the erasure control)"
                                             : "IMPOSED (Shubnikov from the decoration)")
@@ -613,7 +613,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         qchem::report::Scope hamiltonian("hamiltonian");   // its meshes and terms report one level in (user rulings 2026-11-02, 2026-11-04)
         // THE PP / FUNCTIONAL MATCH (user ruling 2026-11-12): warn, guide and run, never switch
         policy::PPFittedFunctional(qchem::Hamiltonian::PPFunctionalChecks(itsImp->setup->pp, *itsImp->st,
-                                                                              qchem::Hamiltonian::ModelToXC(opts.model)));
+                                                                              qchem::Hamiltonian::ModelToXC(*opts.model)));
         // THE ACCURACY a Fourier series sampled on the XC quadrature must meet (the rho-tilde sampler, step 2; pin 31): the run's
         // target for what its client consumes, the density gate its sampled residual is judged on, and the two GPW calibrations.
         // The XC term derives the one tolerance tau from it on the seed.  No target (eps 0) leaves it unset: the step-1 fixed width.
@@ -636,19 +636,19 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
             itsImp->samplingPending=0.0;
             xc.sampling.tauScale=itsImp->samplingTauScale;
             const bool onH=itsImp->consumes==BasisSet::Gaussian::ClientConsumes::MatrixElements;
-            xc.sampling.target        =opts.accuracy.Target(itsImp->consumes, itsImp->st->GetNumAtoms());
+            xc.sampling.target        =opts.solid.grid.Target(itsImp->consumes, itsImp->st->GetNumAtoms());
             xc.sampling.perElement    =onH;
             xc.sampling.residualGate  =(params.Δρmeasure==SCFParams::Measure::L1PerElectron && params.MinΔρPerElectron)
                                        ? *params.MinΔρPerElectron : 0.0;   // a MaxΔD gate is not an L1 of the sampled pair
-            xc.sampling.residualMargin=opts.accuracy.samplerResidualMargin;
-            xc.sampling.eta           =opts.accuracy.samplerEta;
+            xc.sampling.residualMargin=opts.solid.grid.samplerResidualMargin;
+            xc.sampling.eta           =opts.solid.grid.samplerEta;
         }
         const auto a1=PeriodicA1Set(opts, *itsImp->st);
         if (a1) ReportPeriodicA1Cost(*a1, SizeReference("periodic A1 Vxc fit", opts.solid.tolerances, 1.0, &xc), opts.label);
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
             itsImp->st, itsImp->bs.get(), itsImp->coulombFit, itsImp->setup->pp, xc, {opts.vxcFit, opts.xcRho}, hubbard,
-            qchem::Hamiltonian::ModelToXC(opts.model), a1));
+            qchem::Hamiltonian::ModelToXC(*opts.model), a1));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
@@ -698,7 +698,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         qchem::report::Timed timed("setup: seed + ortho (iterator ctor)");
         itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
             itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-            itsImp->lat->GetUnitCell(), seed.release(), opts.ortho, opts.SolverTruncation(), seedRole, opts.solid.numBands);   // the iterator consumes it in Init
+            itsImp->lat->GetUnitCell(), seed.release(), *opts.ortho, opts.SolverTruncation(), seedRole, opts.solid.numBands);   // the iterator consumes it in Init
     }
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
@@ -1016,11 +1016,11 @@ void SolidCalculation::BuildStage(const std::string& why, SCFAccelerators::Type 
     itsImp->scf = carried
         ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->lat->GetUnitCell(), carried.release(), itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(),
+              itsImp->lat->GetUnitCell(), carried.release(), *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(),
               qchem::SCFIterator::SeedRole::WorkingDensity, itsImp->setup->opts.solid.numBands)
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->lat->GetUnitCell(), itsImp->setup->opts.seed, itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.solid.numBands);
+              itsImp->lat->GetUnitCell(), itsImp->setup->opts.seed, *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.solid.numBands);
     // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
     // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on
     // survives the fresh wavefunction, exactly as the density does.
@@ -1373,7 +1373,7 @@ void SolidCalculation::RecordState(StateRecord& r, double kT) const
     if (!itsImp->setup->imposed && !itsImp->setup->planeWave && !o.solid.xcMeshSymmetric) xc<<" plain";
     RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .ppSet=itsImp->setup->pp.Name(),
                          .hubbard=itsImp->hubbard, .densityEcut=o.solid.densityEcut, .cutoffFactor=o.solid.cutoffFactor,
-                         .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol,
+                         .xcMesh=xc.str(), .ortho=int(*o.ortho), .orthoTol=o.orthoTol,
                          .orbitalBasis=itsImp->setup->planeWave ? "planeWave" : "gaussian", .planeWaveEcut=o.solid.planeWaveEcut};
     // The numerics that move the ground state (OpenWork §3 "A restart's fingerprint is incomplete" gap 2).  The fit is the one the
     // Hamiltonian RESOLVES (Ham_PW_DFT: Auto -> Delta on a Becke mesh, else the plane-wave fit).
@@ -1408,7 +1408,7 @@ const std::optional<RestartSummary>& SolidCalculation::RestartedFrom() const {re
 Calculation::StateIdentity SolidCalculation::MakeStateIdentity() const
 {
     const auto& o=itsImp->setup->opts;
-    return {.Nelec=o.Nelec, .spin=StateSpin(), .multiplicity=o.multiplicity, .functional=qchem::Hamiltonian::Name(o.model), .kT=itsImp->lastkT};   // the model's name, LDA or PADE (it was the PP set's functional)
+    return {.Nelec=o.Nelec, .spin=StateSpin(), .multiplicity=o.multiplicity, .functional=qchem::Hamiltonian::Name(*o.model), .kT=itsImp->lastkT};   // the model's name, LDA or PADE (it was the PP set's functional)
 }
 std::vector<StateBlock> SolidCalculation::StateBlocks(bool withOrbitals) const
 {
@@ -1860,7 +1860,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     const G::ClientConsumes c=itsImp->consumes;
     const bool   onH   =c==G::ClientConsumes::MatrixElements;
     const size_t nAtoms=itsImp->lat->GetUnitCell().GetNumAtoms();
-    const double target=itsImp->setup->opts.accuracy.Target(c, nAtoms);
+    const double target=itsImp->setup->opts.solid.grid.Target(c, nAtoms);
     qchem::report::Timed timed("postSCF: raster pilot (reference basis + audit; re-converge when a raster rises)");
     const std::streamsize prec0=std::cout.precision();
     report::FormatGuard keepFormat(std::cout);   // exact restore on every exit (prec0 alone missed the flags and the early returns)
@@ -1939,7 +1939,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                 // it: Na k222s at density x 6 read |dE_xc| 1.2e-4 with its XC raster at x 28 AND at x 60, and 5e-8 once the density raster
                 // went to x 16 (C2 step 3).  So there the XC term raises the DENSITY raster, under the density's shape; above it only the
                 // nonlinearity of v_xc is left, and the XC raster's own power law sizes L0 (Si Gamma, density x 27).
-                if (x.density < itsImp->setup->opts.accuracy.Rigorous(G::kDensityTail)) { demand=&dDens; xRun=x.density; which="XC via rho (MEASURED)"; }
+                if (x.density < itsImp->setup->opts.solid.grid.Rigorous(G::kDensityTail)) { demand=&dDens; xRun=x.density; which="XC via rho (MEASURED)"; }
                 else                                                                    { demand=&dXC;   xRun=x.xcL0;    which="XC (MEASURED: no bound)"; }
             }
             if (!demand) continue;   // an analytic term: nothing on a raster
@@ -1979,7 +1979,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             // cached (the round's two references seed the cache, so a mesh that meets the target at once costs no extra build).  The XC term on
             // Becke depends on the mesh alone (above), so a reference on the run's own rasters isolates it.  A confirming round has no ratio from
             // the round before (that was another D): its estimate is d alone, as the addendum's replay ran it.
-            const bool stated=itsImp->setup->opts.xcMesh.cellKind!=qcMesh::UnitCellKind::Auto;
+            const bool stated=itsImp->setup->opts.xcMesh->cellKind!=qcMesh::UnitCellKind::Auto;
             auto key=[](const qcMesh::MeshParams& m)
             {
                 std::ostringstream os; os<<BeckeName(m)<<" rot "<<std::setprecision(17)<<m.angRot<<" kind "<<int(m.angular);
@@ -2331,7 +2331,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
         }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
         hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, S.pp, xcMesh ? *xcMesh : S.xcMesh, {opts.vxcFit, opts.xcRho}, itsImp->hubbard,
-                                                 qchem::Hamiltonian::ModelToXC(opts.model), PeriodicA1Set(opts, *stRef)));
+                                                 qchem::Hamiltonian::ModelToXC(*opts.model), PeriodicA1Set(opts, *stRef)));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);
     auto cdRef=RestoreDensity(st, *bsRef, g);
@@ -2370,7 +2370,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             const SavedBlock& sb=st.blocks[channel];
             hmat_t<dcmplx> S(sb.S.rows());
             for (size_t a=0;a<S.rows();a++) for (size_t b=a;b<S.rows();b++) S(a,b)=sb.S(a,b);
-            const std::unique_ptr<LASolver<dcmplx>> frame(LASolver<dcmplx>::Factory(opts.ortho, opts.SolverTruncation()));
+            const std::unique_ptr<LASolver<dcmplx>> frame(LASolver<dcmplx>::Factory(*opts.ortho, opts.SolverTruncation()));
             frame->SetBasisOverlap(S);
             const std::string spin = s==Spin::Up ? "up" : s==Spin::Down ? "down" : "none";
             auto fold=[&](const auto& a, const auto& b)
@@ -3038,7 +3038,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
     if (!setup->rastersResolved && !setup->planeWave)
     {
         auto seeded=std::make_shared<SolidSetup>(*setup);
-        BasisSet::Gaussian::GridAccuracy rig=setup->opts.accuracy; rig.eta=BasisSet::Gaussian::AccuracyCalibration{};
+        BasisSet::Gaussian::GridAccuracy rig=setup->opts.solid.grid; rig.eta=BasisSet::Gaussian::AccuracyCalibration{};
         seeded->opts.solid.tolerances=rig.Stated(setup->opts.solid.tolerances);
         setup=std::move(seeded);
     }
@@ -3050,7 +3050,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
     // to come, and that audit stays the gate.  A later point keeps the mesh the first one settled.  What stays at (40, 29) is an ENERGY point, not a
     // geometry one: a deck's own run before its `displace` builds that mesh seven times on MnO, once for its SCF and the rest for its raster pilot's
     // rebuilds of the same mesh, and no ladder is involved there.
-    if (!setup->planeWave && setup->opts.xcMesh.cellKind==qcMesh::UnitCellKind::Auto && theRunPolicy().BeckeXC())
+    if (!setup->planeWave && setup->opts.xcMesh->cellKind==qcMesh::UnitCellKind::Auto && theRunPolicy().BeckeXC())
     {
         const bool toBecke=setup->xcMesh.cellKind!=qcMesh::UnitCellKind::Becke;
         if (toBecke || !setup->rastersResolved)

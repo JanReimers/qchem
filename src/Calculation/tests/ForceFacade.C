@@ -245,7 +245,7 @@ TEST(ForceFacade, TheEnergyWeightedDensityTracesToTheOccupiedEigenvalues)
 {
     for (auto model : {Model::HF, Model::LDA})
     {
-        MoleculeCalculation c(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=model}), Tight());
+        MoleculeCalculation c(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=model, .molecule={.basis="dzvp"}}), Tight());
         ASSERT_TRUE(c.IsConverged());
         double sum=0.0; for (const auto& l : c.GetLevels()) sum+=l.occupation*l.e;
         EXPECT_NEAR(ForceFacadeTests::TraceWS(c), sum, 1e-9*std::fabs(sum)) << "Tr(W S) = Σ f ε";
@@ -257,7 +257,7 @@ TEST(ForceFacade, ATermsEnergyAtFixedDMovesAsItsAnalyticGradientSays)
     // All-electron LDA water, unblocked Cartesian DZVP: Ven and the kinetic term at R ± h with the converged D frozen, against
     // Σ D dV/dR and Σ D dK/dR from libcint.  The finite difference sees the basis centres AND (for Ven) the nuclei move.
     const Molecule h2o=GetMolecule("H2O");
-    const auto setup=MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::LDA});
+    const auto setup=MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .molecule={.basis="dzvp"}});
     MoleculeCalculation c(setup, AnyD());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
@@ -307,7 +307,7 @@ void ResetPeak() {std::ofstream("/proc/self/clear_refs")<<"5";}
 
 TEST(ADSpike, TheKernelIsTheDeltaXCTermAtFixedD)
 {
-    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA});
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     MoleculeCalculation c(setup, Tight());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
@@ -328,7 +328,7 @@ TEST(ADSpike, TheKernelIsTheDeltaXCTermAtFixedD)
 TEST(ADSpike, ItsADForceIsThePerTermFiniteDifferenceAndSumsToZero)
 {
     const Molecule h2o=GetMolecule("H2O");
-    const auto setup=MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::LDA});
+    const auto setup=MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .molecule={.basis="dzvp"}});
     MoleculeCalculation c(setup, AnyD());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
@@ -371,7 +371,7 @@ TEST(ADSpike, ItsADForceIsThePerTermFiniteDifferenceAndSumsToZero)
 
 TEST(ADSpike, ItsDGradientIsTheTermsH)
 {
-    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA});
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     MoleculeCalculation c(setup, Tight());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
@@ -409,7 +409,7 @@ std::shared_ptr<Structure> MovedH2O(const Molecule& h2o, size_t A, int x, double
 TEST(HamiltonianForces, OnBareNucleiTheForceIsTheIonIonForce)
 {
     const Molecule h2o=GetMolecule("H2O");
-    const auto setup=MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::E1});
+    const auto setup=MoleculeSetup::Resolve(h2o, {.model=Model::E1, .molecule={.basis="dzvp"}});
     MoleculeCalculation c(setup, Tight());
     ASSERT_TRUE(c.IsConverged());
     EXPECT_TRUE(ForceFacadeTests::MissingGradients(c).empty()) << "E1 has every term's force";
@@ -428,7 +428,7 @@ TEST(HamiltonianForces, OnBareNucleiTheForceIsTheIonIonForce)
 TEST(HamiltonianForces, AtFixedDTheTermsForceIsThePerTermFiniteDifference)
 {
     const Molecule h2o=GetMolecule("H2O");
-    const auto setup=MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::E1});
+    const auto setup=MoleculeSetup::Resolve(h2o, {.model=Model::E1, .molecule={.basis="dzvp"}});
     MoleculeCalculation c(setup, AnyD());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
@@ -453,7 +453,7 @@ TEST(HamiltonianForces, AtFixedDTheTermsForceIsThePerTermFiniteDifference)
 TEST(HamiltonianForces, WithThePulayTermItIsTheFiniteDifferenceOfTheReconvergedEnergy)
 {
     const Molecule h2o=GetMolecule("H2O");
-    const auto setup=MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::E1});
+    const auto setup=MoleculeSetup::Resolve(h2o, {.model=Model::E1, .molecule={.basis="dzvp"}});
     MoleculeCalculation c(setup, Tight());
     ASSERT_TRUE(c.IsConverged());
     const rvec3vec_t F=ForceFacadeTests::Forces(c, ForceFacadeTests::Carry(c), ForceFacadeTests::EnergyWeighted(c));
@@ -462,7 +462,7 @@ TEST(HamiltonianForces, WithThePulayTermItIsTheFiniteDifferenceOfTheReconvergedE
     const double h=1e-4;
     for (size_t A=0;A<F.size();A++) for (int x=0;x<3;x++)
     {
-        auto E=[&](double s){ MoleculeCalculation m(MoleculeSetup::Resolve(dynamic_cast<const Molecule&>(*MovedH2O(h2o,A,x,s)), {.basis="dzvp", .model=Model::E1}), Tight());
+        auto E=[&](double s){ MoleculeCalculation m(MoleculeSetup::Resolve(dynamic_cast<const Molecule&>(*MovedH2O(h2o,A,x,s)), {.model=Model::E1, .molecule={.basis="dzvp"}}), Tight());
                               EXPECT_TRUE(m.IsConverged()); return m.Energy(); };
         const double fd=(E(h)-E(-h))/(2*h);
         EXPECT_NEAR(C(F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << "atom " << A << " axis " << x;
@@ -474,7 +474,7 @@ TEST(HamiltonianForces, MissingGradientsNamesTheTermsWithoutAForce)
     // LDA: the XC term has no force yet.  (HF has every term's force since the HF Coulomb and exchange landed: see its gates below.)
     for (auto model : {Model::LDA})
     {
-        MoleculeCalculation c(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=model}), Tight());
+        MoleculeCalculation c(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=model, .molecule={.basis="dzvp"}}), Tight());
         ASSERT_TRUE(c.IsConverged());
         const auto missing=ForceFacadeTests::MissingGradients(c);
         EXPECT_FALSE(missing.empty()) << "the XC term has no force yet";
@@ -502,7 +502,7 @@ TEST(HamiltonianForces, OnAGPWBlockEveryTermWithoutAPullbackNamesItself)
     for (bool becke : {false, true})   // XC on the raster (Uniform), and on the Becke mesh (pin 31)
     {
         RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.label="gpw forces"; o.accuracy.eps=0.0;   // stated rasters: no pilot (not the subject)
-        if (becke) o.xcMesh=qcMesh::BeckeXCParams(); else o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+        if (becke) o.xcMesh=qcMesh::BeckeXCParams(); else SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
         SolidCalculation c(SolidSetup::Resolve(Lattice_3D(UnitCell(*mat.cell), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o), p);
         ASSERT_TRUE(c.Result());
         const auto missing=ForceFacadeTests::MissingGradients(c);
@@ -710,7 +710,7 @@ TEST(HamiltonianStress, OnPlaneWavesTheWholeVirialIsTheStrainDerivativeOfTheReco
 TEST(HamiltonianStress, OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFiniteDifference)
 {
     RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="gpw stress"; o.accuracy.eps=0.0;   // stated rasters
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.solid.cellStrainAllowance=kPWStressAllowance;
+    SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform; o.solid.cellStrainAllowance=kPWStressAllowance;
     const auto setup=SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
     SCFParams p=PWStressParams(); p.MinΔρPerElectron=1e-6;   // D is frozen: its convergence is not the subject
     SolidCalculation c0(setup, p);
@@ -752,7 +752,7 @@ TEST(HamiltonianStress, OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFini
 TEST(HamiltonianForces, OnRealTRIMBlocksAtK222EachTermsForceAndVirialAtFixedDAreItsEnergysFiniteDifference)
 {
     RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="gpw k222"; o.accuracy.eps=0.0;   // stated rasters
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.solid.cellStrainAllowance=kPWStressAllowance;
+    SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform; o.solid.cellStrainAllowance=kPWStressAllowance;
     const auto setup=SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(2,2,2)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
     SCFParams p=PWStressParams(); p.MinΔρPerElectron=1e-6;   // D is frozen: its convergence is not the subject
     SolidCalculation c0(setup, p);
@@ -847,7 +847,7 @@ TEST(HamiltonianForces, OnPlaneWavesTheSessionsForceIsTheFiniteDifferenceOfItsEn
 // molecular facade's own W, block for block: RHF and UHF water, free and SALC-blocked (several blocks, both spins).
 TEST(ForceFacade, TheSharedEnergyWeightedSnapshotIsTheFacadesW)
 {
-    const std::vector<CalcOptions> cases{{.basis="dzvp"}, {.basis="dzvp", .symmetry=true}, {.basis="dzvp", .spin=SpinGroup::Polarized, .symmetry=true}};
+    const std::vector<RunOptions> cases{{.molecule={.basis="dzvp"}}, {.imposeSymmetry=true, .molecule={.basis="dzvp"}}, {.spin=SpinGroup::Polarized, .imposeSymmetry=true, .molecule={.basis="dzvp"}}};
     for (const auto& o : cases)
     {
         MoleculeCalculation c(MoleculeSetup::Resolve(GetMolecule("H2O"), o), Tight());
@@ -944,7 +944,7 @@ TEST(HamiltonianForces, ThePerTermForcesSumToTheForceWithoutItsPulayTerm)
 {
     // E1 water: every term has its force, so Σ_t F_t is Forces at W = 0, term order is MakeTermEnergies', and nothing is missing.
     const Molecule h2o=GetMolecule("H2O");
-    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::E1}), AnyD());
+    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.model=Model::E1, .molecule={.basis="dzvp"}}), AnyD());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
     const auto Ft=ForceFacadeTests::TermForcesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
@@ -965,7 +965,7 @@ TEST(HamiltonianForces, WithTheDunlapHartreeTheForceIsTheFiniteDifferenceOfTheRe
     // full SCF (MinΔρ/N 1e-9, energy error second order); h = 1e-4 puts the FD's h²/6 |E‴| at ≲ 1e-8, so 2e-6 (relative above 1).
     // _Long: 18 displaced SCFs, ~59 s CPU serial (2026-11-08).
     const Molecule h2o=GetMolecule("H2O");
-    const CalcOptions opts{.basis="dzvp", .model=Model::Xalpha, .xalpha=0.0};
+    const RunOptions opts{.model=Model::Xalpha, .xalpha=0.0, .molecule={.basis="dzvp"}};
     MoleculeCalculation c(MoleculeSetup::Resolve(h2o, opts), Tight());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
@@ -1013,7 +1013,7 @@ TEST(HamiltonianForces, UnderAPseudopotentialEachTermsForceAtFixedDIsItsEnergysF
     // frozen (the Dunlap fit re-solved at each point under the FIXED N, so no λ piece: 2026-11-09).  The XC term has no force yet, and is
     // the only term missing one.  Each is smooth in R: at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6.
     const Molecule h2o=GetMolecule("H2O");
-    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}), AnyD());
+    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}}), AnyD());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
     const auto Ft=ForceFacadeTests::TermForcesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
@@ -1055,7 +1055,7 @@ TEST(HamiltonianForces, TheDunlapHartreesForceAtFixedDIsItsEnergysFiniteDifferen
     // the gate this term could not have while the target was Tr(DS), which moved with the basis (2e-4 relative on water then).  Smooth
     // in R: at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6 (relative above 1).
     const Molecule h2o=GetMolecule("H2O");
-    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::LDA}), AnyD());
+    MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .molecule={.basis="dzvp"}}), AnyD());
     ASSERT_TRUE(c.IsConverged());
     const auto D=ForceFacadeTests::Carry(c);
     const auto Ft=ForceFacadeTests::TermForcesAt(c.SizedSetup(), ForceFacadeTests::Structure_(c), D);
@@ -1094,7 +1094,7 @@ TEST(HamiltonianForces, TheHFCoulombAndExchangeForcesAtFixedDAreTheirEnergysFini
     const Molecule h2o=GetMolecule("H2O");
     for (SpinGroup spin : {SpinGroup::UnPolarized, SpinGroup::Polarized})
     {
-        MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::HF, .spin=spin}), AnyD());
+        MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.spin=spin, .model=Model::HF, .molecule={.basis="dzvp"}}), AnyD());
         ASSERT_TRUE(c.IsConverged());
         EXPECT_TRUE(ForceFacadeTests::MissingGradients(c).empty()) << "every HF term has its force";
         const auto D=ForceFacadeTests::Carry(c);
@@ -1130,7 +1130,7 @@ TEST(HamiltonianForces, TheHFForceIsTheFiniteDifferenceOfTheReconvergedEnergy)
     // h²/6 |E‴| at ≲ 1e-8, so 2e-6 (relative above 1).  The stored water sits within ~1e-4 Ha/bohr of its HF/DZVP minimum, where that
     // tolerance could not tell a sign, so one H is pulled 0.15 bohr off it: forces of ~1e-1, checked non-trivial below.
     const Molecule h2o=dynamic_cast<const Molecule&>(*MovedH2O(GetMolecule("H2O"), 1, 0, 0.15));
-    const CalcOptions opts{.basis="dzvp", .model=Model::HF};
+    const RunOptions opts{.model=Model::HF, .molecule={.basis="dzvp"}};
     MoleculeCalculation c(MoleculeSetup::Resolve(h2o, opts), Tight());
     ASSERT_TRUE(c.IsConverged());
     const rvec3vec_t F=ForceFacadeTests::Forces(c, ForceFacadeTests::Carry(c), ForceFacadeTests::EnergyWeighted(c));
@@ -1179,14 +1179,14 @@ TEST(HamiltonianForces, ASymmetryBlockedRunsForceIsTheUnblockedRunsForce)
     // the 1E faces (E1), the HF whole-system sweep (RHF, UHF), and under LDA the Dunlap 3-centre and the PP faces; LDA's XC term has no
     // force in either run.
     const Molecule h2o=StretchedH2O(GetMolecule("H2O"), 1.08);
-    const std::vector<CalcOptions> cases{{.basis="dzvp", .model=Model::E1}, {.basis="dzvp", .model=Model::HF},
-                                         {.basis="dzvp", .model=Model::HF, .spin=SpinGroup::Polarized}, {.basis="dzvp", .model=Model::LDA},
-                                         {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}};
-    for (CalcOptions free : cases)
+    const std::vector<RunOptions> cases{{.model=Model::E1, .molecule={.basis="dzvp"}}, {.model=Model::HF, .molecule={.basis="dzvp"}},
+                                         {.spin=SpinGroup::Polarized, .model=Model::HF, .molecule={.basis="dzvp"}}, {.model=Model::LDA, .molecule={.basis="dzvp"}},
+                                         {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}}};
+    for (RunOptions free : cases)
     {
-        CalcOptions blocked=free; blocked.symmetry=true;
-        const std::string what=std::string(free.model==Model::E1 ? "E1" : free.model==Model::HF ? "HF" : "LDA")
-                              +(free.spin==SpinGroup::Polarized ? " polarized" : "")+(free.pp.empty() ? "" : " PP");
+        RunOptions blocked=free; blocked.imposeSymmetry=true;
+        const std::string what=std::string(*free.model==Model::E1 ? "E1" : *free.model==Model::HF ? "HF" : "LDA")
+                              +(free.spin==SpinGroup::Polarized ? " polarized" : "")+(free.pp.value_or("").empty() ? "" : " PP");
         MoleculeCalculation f(MoleculeSetup::Resolve(h2o, free), Tight()), b(MoleculeSetup::Resolve(h2o, blocked), Tight());
         ASSERT_TRUE(f.IsConverged() && b.IsConverged()) << what;
         ASSERT_EQ(ForceFacadeTests::NumBlocks(f), 1u) << what;
@@ -1257,7 +1257,7 @@ TEST(HandGradient, TheConvergedStatesFieldsGradientsAreTheFiniteDifferenceOfThei
         for (bool sym : {false, true})
         {
             const std::string what=std::string(spin==SpinGroup::Polarized ? "UHF" : "RHF")+(sym ? " SALC" : " free");
-            MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.basis="dzvp", .model=Model::HF, .spin=spin, .multiplicity=spin==SpinGroup::Polarized ? 3 : 0, .symmetry=sym}), Tight());
+            MoleculeCalculation c(MoleculeSetup::Resolve(h2o, {.multiplicity=spin==SpinGroup::Polarized ? 3 : 0, .spin=spin, .model=Model::HF, .imposeSymmetry=sym, .molecule={.basis="dzvp"}}), Tight());
             ASSERT_TRUE(c.IsConverged()) << what;
             check(c.Density(), what+" density", 0.1);
             if (spin==SpinGroup::Polarized) check(c.GetSpinDensity(), what+" spin density", 0.01);

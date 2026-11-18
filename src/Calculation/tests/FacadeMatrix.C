@@ -435,7 +435,7 @@ class MoleculeProbe : public FacadeProbe
 {
     static std::shared_ptr<const MoleculeSetup> Setup(const AcceleratorOptions& acc={})
     {
-        return MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}, acc);
+        return MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"), {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}}, acc);
     }
     static std::string ID() {return StructureData::GetMolecule("H2O").ID();}
 public:
@@ -509,7 +509,7 @@ public:
         }
         {
             const auto o2=MoleculeSetup::Resolve(StructureData::GetMolecule("O2"),
-                                                 {.basis="dzvp", .model=Model::LDA, .multiplicity=3, .pp="gth-lda-valence"});
+                                                 {.multiplicity=3, .model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
             MoleculeCalculation calc(o2);
             if (!calc.IsConverged()) return why+"O2 (triplet) did not converge";
             calc.SaveState(path2);
@@ -533,7 +533,7 @@ public:
                 if (a++==1) m.R.x+=0.01;
                 moved.Insert(m);
             }
-            const auto movedSetup=MoleculeSetup::Resolve(moved, {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"});
+            const auto movedSetup=MoleculeSetup::Resolve(moved, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
             why+=Refused("H2O with H 1 moved 0.01 bohr", [&]{ return MoleculeCalculation::ViewState(path, movedSetup); },
                          RestartRefusal::Why::Mismatch, "atom 1 is 0.01 bohr");
             why+=Refused("H2O with H 1 moved 0.01 bohr", [&]{ return MoleculeCalculation::ViewState(path, movedSetup); },
@@ -541,7 +541,7 @@ public:
         }
         {
             const auto spherical=MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"),
-                                                        {.basis="dzvp", .model=Model::LDA, .angular=Angular::Spherical, .pp="gth-lda-valence"});
+                                                        {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp", .angular=Angular::Spherical}});
             why+=Refused("the spherical basis", [&]{ return MoleculeCalculation::ViewState(path, spherical); }, RestartRefusal::Why::Mismatch);
         }
         {

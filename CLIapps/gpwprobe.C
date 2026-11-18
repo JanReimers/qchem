@@ -53,7 +53,7 @@ void CheckNear(double x, double ref, double tol, const std::string& what)
 //========================================================================================================
 // RETIRED 2026-10-04 (D-ENV step 6d.5), each as a DECK (rundeck <deck> [--set key=value]...) or a hard-coded test -- the env knobs went with them:
 //   ladder     (SI_LADDER, SI_XC)      -> decks/ladder/Si_{2x1x1,2x2x1,2x2x2}_gamma.json (supercells are materials.json entries); the folding GATE is
-//                                         ITMain GPW_Si.Γ_Imp_eqK211.  SI_XC=becke is `--set solid.xcMesh.cellKind=Becke`.
+//                                         ITMain GPW_Si.Γ_Imp_eqK211.  SI_XC=becke is `--set SolidXCMesh(solid).cellKind=Becke`.
 //   ksweep     (GPW_KSHIFT)            -> decks/probes/Si_single_k.json  --set solid.kShift=[s,s,s]
 //   naf-smear  (NAF_ECUT, NAFGDM_*)    -> decks/probes/NaF_gdm_smear.json
 //   gate1      (GATE1_*)               -> decks/probes/{LiMn2O4_spinel,MnO2_lambda_spinel}_gate1.json  --set solid.hubbard.N.U_eV=...
@@ -76,7 +76,7 @@ int BeckeRecipeLadder(const std::string& system)
         const Lattice_3D lat=LatticeOf(si);
         RunOptions o=OptionsFor(si, "Si V2.6 ladder");
         o.solid.densityEcut=60.0;
-        o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // converge on the uniform route: the probe density
+        SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;   // converge on the uniform route: the probe density
         o.imposeSymmetry=false;                            // free mesh: the ladder measures the RULE, not the fold
         SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;
         GpwReport report("Si "+o.label, false);

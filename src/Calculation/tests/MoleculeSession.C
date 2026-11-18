@@ -29,7 +29,7 @@ SCFParams Tight()
 
 TEST(MoleculeSession, ConvergeAtTheReferenceIsTheSinglePointBitForBit)
 {
-    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"});
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.molecule={.basis="dzvp"}});
     MoleculeCalculation single(setup, Tight());
     ASSERT_TRUE(single.IsConverged());
 
@@ -45,7 +45,7 @@ TEST(MoleculeSession, ConvergeAtTheReferenceIsTheSinglePointBitForBit)
 TEST(MoleculeSession, ACarriedStepEqualsAFreshRunAtTheNewPositionsInFewerIterations)
 {
     const Molecule h2o=GetMolecule("H2O");
-    MoleculeSession pes(MoleculeSetup::Resolve(h2o, {.basis="dzvp"}), Tight());
+    MoleculeSession pes(MoleculeSetup::Resolve(h2o, {.molecule={.basis="dzvp"}}), Tight());
     std::vector<rvec3_t> R=pes.Reference().R;
     auto P0=pes.ConvergeAt(std::nullopt, R); ASSERT_TRUE(P0) << P0.Error().details;
     R[1].x+=0.05; R[1].y-=0.03;   // bohr, Cartesian: one H off its equilibrium position
@@ -53,7 +53,7 @@ TEST(MoleculeSession, ACarriedStepEqualsAFreshRunAtTheNewPositionsInFewerIterati
 
     Molecule moved(h2o);
     moved.MoveSites(R);
-    MoleculeCalculation fresh(MoleculeSetup::Resolve(moved, {.basis="dzvp"}), Tight());   // seeded from scratch at the new positions
+    MoleculeCalculation fresh(MoleculeSetup::Resolve(moved, {.molecule={.basis="dzvp"}}), Tight());   // seeded from scratch at the new positions
     ASSERT_TRUE(fresh.IsConverged());
     EXPECT_NEAR(P1->energy, fresh.Energy(), 1e-8);
     EXPECT_LT(P1->iterations, fresh.IterationCount()) << "the carried density is the point of the session";
@@ -67,7 +67,7 @@ TEST(MoleculeSession, EveryStepsFirstIterateStartsNearItsAnswer)
 {
     const Molecule h2o=GetMolecule("H2O");
     std::vector<double> E;
-    MoleculeSession pes(MoleculeSetup::Resolve(h2o, {.basis="dzvp"}), Tight(),
+    MoleculeSession pes(MoleculeSetup::Resolve(h2o, {.molecule={.basis="dzvp"}}), Tight(),
                         [&](const SCFIterator::IterationRow& r){ E.push_back(r.eb.GetTotalEnergy()); });
     std::vector<rvec3_t> R=pes.Reference().R;
     auto P0=pes.ConvergeAt(std::nullopt, R); ASSERT_TRUE(P0) << P0.Error().details;
@@ -91,7 +91,7 @@ TEST(MoleculeSession, EveryStepsFirstIterateStartsNearItsAnswer)
 TEST(MoleculeSession, RefusalsAreOutcomesAndAWrongCountThrows)
 {
     // LDA: the XC term has no analytic force yet, so a forces request is refused BY NAME before any point is built or converged.
-    MoleculeSession pes(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .symmetry=true}), Tight());
+    MoleculeSession pes(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .imposeSymmetry=true, .molecule={.basis="dzvp"}}), Tight());
     const std::vector<rvec3_t> R=pes.Reference().R;
     auto F=pes.ConvergeAt(std::nullopt, R, {.forces=true});
     ASSERT_FALSE(F); EXPECT_EQ(F.Error().why, PESFailure::Why::NoGradient);
@@ -113,7 +113,7 @@ TEST(MoleculeSession, RefusalsAreOutcomesAndAWrongCountThrows)
 // ≲ 1e-8, so 2e-6, as the facade's force gate).  One H is pulled 0.15 bohr off the stored water so the force is ~1e-1.
 TEST(MoleculeSession, AForcesRequestOnHFCarriesTheForceAtEveryPoint)
 {
-    MoleculeSession pes(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}), Tight());
+    MoleculeSession pes(MoleculeSetup::Resolve(GetMolecule("H2O"), {.molecule={.basis="dzvp"}}), Tight());
     std::vector<rvec3_t> R=pes.Reference().R;
     R[1].y+=0.15;
     for (int point=0;point<2;point++)
@@ -138,7 +138,7 @@ TEST(MoleculeSession, AForcesRequestOnHFCarriesTheForceAtEveryPoint)
 TEST(MoleculeSession, AnSCFFailureIsAnOutcomeCarryingTheSCFsOwnReason)
 {
     qchem::BoundedSCF bounded("the failure arm is the subject: one iteration cannot converge water");
-    MoleculeSession pes(MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp"}), {.NMaxIter=1});
+    MoleculeSession pes(MoleculeSetup::Resolve(GetMolecule("H2O"), {.molecule={.basis="dzvp"}}), {.NMaxIter=1});
     auto F=pes.ConvergeAt(std::nullopt, pes.Reference().R);
     ASSERT_FALSE(F);
     EXPECT_EQ(F.Error().why, PESFailure::Why::SCF);

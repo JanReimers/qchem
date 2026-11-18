@@ -24,20 +24,20 @@ Molecule OneAtom(int Z)
 
 TEST(MoleculeSetup, AnOpenShellIsPromotedToPolarizedAndItsParityIsChecked)
 {
-    const auto s=MoleculeSetup::Resolve(OneAtom(7), {.basis="dzvp", .multiplicity=4});
+    const auto s=MoleculeSetup::Resolve(OneAtom(7), {.multiplicity=4, .molecule={.basis="dzvp"}});
     EXPECT_EQ(s->opts.spin, SpinGroup::Polarized);
     EXPECT_EQ(s->Ne, 7);
     EXPECT_FALSE(s->pp) << "no pp named: all-electron";
-    const auto refused=MoleculeSetup::Admit(OneAtom(7), {.basis="dzvp", .multiplicity=3});
+    const auto refused=MoleculeSetup::Admit(OneAtom(7), {.multiplicity=3, .molecule={.basis="dzvp"}});
     ASSERT_FALSE(refused) << "a triplet of 7 electrons";
     EXPECT_EQ(refused.Error().policy, "SpinMultiplicity");
-    EXPECT_THROW((void)MoleculeSetup::Resolve(OneAtom(7), {.basis="dzvp", .multiplicity=3}), std::invalid_argument) << "the code door throws it";
+    EXPECT_THROW((void)MoleculeSetup::Resolve(OneAtom(7), {.multiplicity=3, .molecule={.basis="dzvp"}}), std::invalid_argument) << "the code door throws it";
 }
 
 TEST(MoleculeSetup, APseudopotentialSetGivesTheValenceCountAndTheValenceStructure)
 {
     const Molecule na=OneAtom(11);
-    const auto s=MoleculeSetup::Resolve(na, {.basis="valence_lowq_sr", .model=Model::LDA, .pp="gth-lda-valence"});
+    const auto s=MoleculeSetup::Resolve(na, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="valence_lowq_sr"}});
     ASSERT_TRUE(s->pp);
     EXPECT_EQ(s->Ne, s->pp->Valence("Na"));
     const auto point=s->PointStructure(na);
@@ -52,12 +52,12 @@ TEST(MoleculeSetup, APseudopotentialSetGivesTheValenceCountAndTheValenceStructur
 TEST(MoleculeSetup, APseudopotentialRunSeedsFromTheValenceLibraryAtItsQ)
 {
     const Molecule si=OneAtom(14);
-    const auto pp=MoleculeSetup::Resolve(si, {.basis="sipp", .model=Model::LDA, .pp="gth-lda-valence"});
+    const auto pp=MoleculeSetup::Resolve(si, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="sipp"}});
     EXPECT_EQ(pp->seedKey.Q(14), pp->pp->Valence("Si")) << "the seed key carries the run's own q";
     EXPECT_EQ(ChargeDensity::SeedLibrary(pp->seedKey, 14), "atomic_valence_densities.json");
     EXPECT_EQ(pp->seed, ChargeDensity::SeedStrategy::SAD) << "the valence library holds Si q4, so the Auto rule seeds from SAD";
 
-    const auto ae=MoleculeSetup::Resolve(OneAtom(8), {.basis="dzvp", .model=Model::LDA});
+    const auto ae=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     EXPECT_EQ(ae->seedKey.Q(8), -1) << "an all-electron run is unkeyed";
     EXPECT_EQ(ChargeDensity::SeedLibrary(ae->seedKey, 8), "atomic_densities.json");
 }
@@ -69,7 +69,7 @@ TEST(MoleculeSetup, AnAllElectronMoleculePastNeonSeedsFromSAD)
 {
     const ChargeDensity::SeedKey unkeyed("LDA");
     for (int Z=1; Z<=92; Z++) EXPECT_TRUE(SeedLibraryCovers(unkeyed, Z)) << "Z=" << Z;
-    const auto te=MoleculeSetup::Resolve(OneAtom(52), {.basis="dzvp", .model=Model::LDA});
+    const auto te=MoleculeSetup::Resolve(OneAtom(52), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     EXPECT_EQ(ChargeDensity::SeedLibrary(te->seedKey, 52), "atomic_densities.json") << "an all-electron run reads the all-electron library";
     EXPECT_EQ(te->seed, ChargeDensity::SeedStrategy::SAD) << "the library holds Te, so the Auto rule seeds from SAD";
 }
@@ -78,7 +78,7 @@ TEST(MoleculeSetup, ABasisWithoutAnElementIsRefusedAtResolveNamingTheBasesThatCo
 {
     try
     {
-        (void)MoleculeSetup::Resolve(OneAtom(6), {.basis="sipp"});
+        (void)MoleculeSetup::Resolve(OneAtom(6), {.molecule={.basis="sipp"}});
         FAIL() << "sipp has no carbon: the setup must refuse it before anything is built";
     }
     catch (const std::invalid_argument& e)
@@ -91,7 +91,7 @@ TEST(MoleculeSetup, ABasisWithoutAnElementIsRefusedAtResolveNamingTheBasesThatCo
 
 TEST(MoleculeSetup, AnUnknownAcceleratorIsRefusedAtResolve)
 {
-    const auto refused=MoleculeSetup::Admit(OneAtom(2), {.basis="dzvp"}, {.type="Anderson"});
+    const auto refused=MoleculeSetup::Admit(OneAtom(2), {.molecule={.basis="dzvp"}}, {.type="Anderson"});
     ASSERT_FALSE(refused);
     EXPECT_EQ(refused.Error().policy, "AcceleratorType");
     EXPECT_NE(refused.Error().reason.find("Anderson"), std::string::npos) << refused.Error().reason;

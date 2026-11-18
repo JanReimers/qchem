@@ -301,7 +301,7 @@ rmat_t FD_Polarizability(MoleculeCalculation& calc, double h)
 //! The FD kernel INSIDE the solver reproduces the analytic HF polarisability (and so PySCF's).
 TEST(ResponsePolarizability, HF_FD_Kernel_eqAnalytic)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(*Water(), {.basis="dzvp"}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(*Water(), {.molecule={.basis="dzvp"}}));
     ASSERT_TRUE(calc.Converge(tight));
     auto analytic=calc.StaticPolarizability(dipoleMesh);
     ASSERT_TRUE(analytic.IsOk()) << analytic.Error().detail;
@@ -321,7 +321,7 @@ TEST(ResponsePolarizability, HF_FD_Kernel_eqAnalytic)
 TEST(ResponsePolarizability, LDA_FD_Kernel_vsPySCF)
 {
     const double pyscf[3]={3.44581010, 7.33075620, 5.91599197};   // PySCF RKS lda,vwn / dzvp(cart) CPKS
-    MoleculeCalculation calc(MoleculeSetup::Resolve(*Water(), {.basis="dzvp", .model=Hamiltonian::Model::LDA}));
+    MoleculeCalculation calc(MoleculeSetup::Resolve(*Water(), {.model=Hamiltonian::Model::LDA, .molecule={.basis="dzvp"}}));
     ASSERT_TRUE(calc.Converge(tight));
     const rmat_t a=FD_Polarizability(calc, 1e-4);
     const rmat_t b=FD_Polarizability(calc, 1e-3);
@@ -853,10 +853,10 @@ std::unique_ptr<SolidCalculation> SiState(ivec3_t kmesh, qcMesh::UnitCellKind xc
     SCFParams par=SiParams();
     par.NMaxIter=12;                                         // not converged, and need not be (see above)
     RunOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .spin=g, .species={{"Si",4}}, .solid={.densityEcut=20.0, .forceComplex=true}};
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(xc);
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(xc);
     // The pre-2026-11-01 bare-Becke mesh (30, 1.0, Lebedev 5), stated: the Fock thread identity holds bit for bit only there -- on the
     // calibrated BeckeXCParams() mesh 21 of 1728 near-zero elements differ at 5e-30 (an order-dependent sum, doc/OpenWork.md §3).
-    if (coarseBecke) { o.xcMesh.nRadial=30; o.xcMesh.mhl_alpha=1.0; o.xcMesh.angularDegree=5; }
+    if (coarseBecke) { SolidXCMesh(o).nRadial=30; SolidXCMesh(o).mhl_alpha=1.0; SolidXCMesh(o).angularDegree=5; }
     qchem::BoundedSCF bounded("the kernel identities (Hermiticity, linearity, thread identity) hold about ANY positive rho0: "
                               "12 iterations only supply one");
     return std::make_unique<SolidCalculation>(SolidSetup::Resolve(lat, mol, o), par);
@@ -1148,7 +1148,7 @@ CarryOver SiK222BeckeCarryOver(bool impose)
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .forceComplex=true}};
     o.imposeSymmetry=impose;
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     SolidCalculation calc(SolidSetup::Resolve(lat, mol, o), SiParams());
 
     const auto& wf=ResponseFacadeTests::WF(calc);
@@ -1296,7 +1296,7 @@ void LittleGroupEqualsFull(ivec3_t Nq, qcMesh::UnitCellKind xc=qcMesh::UnitCellK
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true}};
     o.spins={0,0};
-    o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(xc);
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(xc);
     SolidCalculation calc(SolidSetup::Resolve(lat, mol, o), SiParams());
     ASSERT_TRUE(calc.DidConverge());
     const KrylovParams kp{.tol=1e-9};

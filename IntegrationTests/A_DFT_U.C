@@ -1,6 +1,6 @@
 // File A_DFT_U.C  Atom DFT tests using a libxc exchange functional (facade-driven).
 //
-// One parameterized fixture: CalcOptions.xc = XCFunctional{.kind=XC::LibXC, .libxcId=7} routes the DFT
+// One parameterized fixture: RunOptions.xc = XCFunctional{.kind=XC::LibXC, .libxcId=7} routes the DFT
 // Hamiltonian through libxc (functional id 7).  Each (basis) variant is an INSTANTIATE_TEST_SUITE_P; the
 // per-group SCF knobs ride at the call site.  Helpers anon-namespaced (per-file vocabulary, no ODR clash).
 #include "gtest/gtest.h"

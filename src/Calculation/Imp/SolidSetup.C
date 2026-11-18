@@ -120,8 +120,8 @@ void RequireConsistentSiteCharges(const RunOptions& o, const Structure& st)
 //  before spending).  The words are the deck's (xc.fit, basis.ecut), with the C++ field beside them.
 static void RefuseUnrealizedRoutes(const RunOptions& o)
 {
-    if (o.model!=Hamiltonian::Model::LDA && o.model!=Hamiltonian::Model::PADE)
-        policy::Refuse("SolidFunctional", "model "+Hamiltonian::Name(o.model)+" on a periodic cell",
+    if (*o.model!=Hamiltonian::Model::LDA && *o.model!=Hamiltonian::Model::PADE)
+        policy::Refuse("SolidFunctional", "model "+Hamiltonian::Name(*o.model)+" on a periodic cell",
                        "a periodic run is Kohn-Sham LDA with a pseudopotential; its functionals are LDA (Dirac + VWN5) and PADE -- state one");
     // (xc.fit Auxiliary on a periodic cell was refused here until V-XC-ONE-TERM step 6 realized the periodic A1 fit, 2026-11-15.)
     if (o.solid.orbitalBasis==RunOptions::Solid::OrbitalBasis::PlaneWave && !(o.solid.planeWaveEcut>0.0))
@@ -162,11 +162,33 @@ Lattice_3D SizedForStrain(const Lattice_3D& lat, const RunOptions& opts)
 
 std::vector<Hamiltonian::PPFunctionalCheck> SolidSetup::PPFunctionalChecks() const
 {
-    return Hamiltonian::PPFunctionalChecks(pp, *cell, Hamiltonian::ModelToXC(opts.model));
+    return Hamiltonian::PPFunctionalChecks(pp, *cell, Hamiltonian::ModelToXC(*opts.model));
 }
 
 // THE DOORS.  Admit is the one for user input; Resolve, its throwing twin, is for code that states its own options.  Every refusal on
 // the way (the setup's own option checks, and the factories it calls) travels as a policy::Refused, which AdmitBy turns into a value.
+// THE SOLID'S VIEW OF THE ONE OPTIONS TREE: its per-kind defaults (each a `policy` row where it is a choice) and its refusals of what
+// it does not consume.  The grid calibrations' eps is the run's ONE accuracy target.
+RunOptions SolidOptions(const RunOptions& asked)
+{
+    RunOptions o=asked;
+    const RunOptions def;
+    auto refuse=[](const std::string& what, const std::string& why)
+    { policy::Refuse("ForeignOption", what+" stated for a PERIODIC run", why); };
+    if (!(asked.molecule==def.molecule)) refuse("the `molecule` block", "a periodic run's basis is its recipe (deck `basis`) -- drop it");
+    if (asked.xalpha!=def.xalpha)        refuse("xalpha", "a periodic run is LDA or PADE; Xalpha is the molecular facade's");
+    if (!(asked.coulomb==def.coulomb))   refuse("coulomb", "a periodic run's Hartree route is its density ball, not a stated route");
+    if (asked.symmetryTol!=def.symmetryTol) refuse("symmetryTol", "a periodic run detects its space group at the lattice's own tolerance");
+    if (asked.solid.grid.eps!=def.solid.grid.eps)
+        refuse("solid.grid.eps", "the grid's eps is the run's ONE accuracy target -- state `accuracy`");
+    if (!o.model)  o.model=Hamiltonian::Model::LDA;
+    if (!o.pp)     o.pp=std::string("gth-lda-valence");
+    if (!o.xcMesh) o.xcMesh=qcMesh::XCMeshDefault();
+    if (!o.ortho)  o.ortho=qchem::Cholesky;
+    o.solid.grid.eps=o.accuracy.eps;
+    return o;
+}
+
 Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> SolidSetup::Admit(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                                                                            const RunOptions& opts,
                                                                            const AcceleratorOptions& acc)
@@ -181,27 +203,29 @@ Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> SolidSetup::Admit(const
 }
 
 std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, std::shared_ptr<const BasisSet::Real_BS> mol,
-                                                      const RunOptions& opts,
+                                                      const RunOptions& asked,
                                                       const AcceleratorOptions& acc)
 {
+    const RunOptions opts=SolidOptions(asked);   // the kind's defaults filled, what a solid does not consume refused (P0b-2)
     qchem::SetRunPolicy(opts.solid.policy);   // D-ENV 6b: the policy is part of the run's options, installed ONCE here, before any factory consults it
     RefuseUnrealizedRoutes(opts);
     return Decide(SizedForStrain(lat0, opts), std::move(mol), opts, acc);
 }
 
 std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, const GaussianBasisRecipe& recipe,
-                                                      const RunOptions& opts,
+                                                      const RunOptions& asked,
                                                       const AcceleratorOptions& acc)
 {
+    const RunOptions opts=SolidOptions(asked);   // the kind's defaults filled, what a solid does not consume refused (P0b-2)
     qchem::SetRunPolicy(opts.solid.policy);   // before the vet loop builds its Bloch blocks, as before every other factory
     RefuseUnrealizedRoutes(opts);      // before the basis is built: nothing is spent on a run that cannot go
     const Lattice_3D lat=SizedForStrain(lat0, opts);   // the vet loop's Bloch blocks are sized as every later point's will be
-    const auto pp=Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.species);
+    const auto pp=Pseudopotential::PseudopotentialSet::Get(*opts.pp).With(opts.species);
     // THE BASIS, made over a structure the setup will hold (Decide's setup keeps its own copy of the same cell, and the basis is
     // built over THAT copy below so it cannot outlive its atoms).
     GaussianBasisRecipe rec=recipe;
     rec.tolerances=opts.solid.tolerances;   // the options are the one source of the run's tolerances; the recipe binds them on every build
-    rec.tolerances.relCutoffSafety=opts.accuracy.relCutoffSafety;   // the pair rule's stiffness is a calibration: Decide writes the same value
+    rec.tolerances.relCutoffSafety=opts.solid.grid.relCutoffSafety;   // the pair rule's stiffness is a calibration: Decide writes the same value
     GaussianBasisRecipe frozen=rec;
     const std::shared_ptr<const Structure> cell=lat.GetStructure();
     std::shared_ptr<const BasisSet::Real_BS> mol;
@@ -299,7 +323,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
                                                const RunOptions& opts,
                                                const AcceleratorOptions& acc)
 {
-    std::shared_ptr<SolidSetup> s(new SolidSetup(Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.species), lat));
+    std::shared_ptr<SolidSetup> s(new SolidSetup(Pseudopotential::PseudopotentialSet::Get(*opts.pp).With(opts.species), lat));
     s->opts=opts;
     s->acc =ResolveAcceleratorParams(acc, SCFAccelerators::AcceleratorParams{});   // the solid's defaults: the GPW production recipe
     s->mol =std::move(mol);
@@ -376,7 +400,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // derives them here; otherwise the run's own pilot audit sizes them after its SCF (rastersResolved false: the pilot starts on the
     // ball's own rasters).  Stating a demand beside a target would be two answers to one question.
     {
-        const auto& a=opts.accuracy;
+        const auto& a=opts.solid.grid;
         const auto& t=opts.solid.tolerances;
         if (!(a.eps>=0.0)) policy::RefuseAs("AccuracyTarget", "RunOptions: accuracy eps must be >= 0 (0 = no target: the stated rasters)");
         const bool stated = t.rasterX!=0.0 || t.vlocRasterX!=0.0 || t.xcRasterX!=0.0;
@@ -429,10 +453,10 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // A plane-wave run's Auto is its own FFT raster (QE's route): the sharpness gather prices Gaussians, and a
     // delta fit would collocate every PW at every mesh point.  A STATED grid is obeyed, as for GPW.
     // GEOMETRY-INDEPENDENT by construction: the sharpness is exponents (basis, PP) and the cell, never positions.
-    if (s->planeWave && opts.xcMesh.cellKind==qcMesh::UnitCellKind::Auto)
+    if (s->planeWave && opts.xcMesh->cellKind==qcMesh::UnitCellKind::Auto)
         s->xcMesh = qcMesh::MeshParams{.cellKind=qcMesh::UnitCellKind::Uniform};
     else
-        s->xcMesh = qcMesh::ResolveXCMesh(opts.xcMesh, GatherSharpness(lat, *s->mol, s->pp, s->imposed),
+        s->xcMesh = qcMesh::ResolveXCMesh(*opts.xcMesh, GatherSharpness(lat, *s->mol, s->pp, s->imposed),
                                           theRunPolicy().BeckeXC());
     // The Vxc product space's admission (pin 30), asked of the Hamiltonian's rule HERE, before the Hamiltonian is built: the
     // Factory would throw the same reason later, after the basis and its fits.

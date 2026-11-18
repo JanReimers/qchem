@@ -167,9 +167,9 @@ TEST(PPFittedFunctional, ThePolicyIsSilentWhenTheyMatch)
 TEST(PPFittedFunctional, ASetupAnswersTheCheckBeforeTheRun)
 {
     using StructureData::GetMolecule;
-    const auto mLDA =MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA,  .pp="gth-lda-valence"});
-    const auto mPADE=MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::PADE, .pp="gth-lda-valence"});
-    const auto mAE  =MoleculeSetup::Resolve(GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA});
+    const auto mLDA =MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
+    const auto mPADE=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::PADE, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
+    const auto mAE  =MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     const auto cc=mLDA->PPFunctionalChecks();
     ASSERT_EQ(cc.size(), 2u) << "H and O, each once";
     for (const auto& c : cc) {EXPECT_FALSE(c.match) << c.element; EXPECT_EQ(c.matchingModel, "PADE") << c.element;}

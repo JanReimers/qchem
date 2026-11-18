@@ -1,8 +1,8 @@
 // File: UnitTests/M_Sym.C  Molecular symmetry-adapted SCF integration tests (SALC end-to-end, facade-driven).
 //
-// Drives an SCF for water two ways through qchem::MoleculeCalculation -- {.symmetry=false} (a plain single-IBS
-// basis) and {.symmetry=true} (a SymmetryAdaptedBasisSet: one IBS per C2v irrep, global aufbau) -- and
-// checks the total energies agree.  {.symmetry=true} runs exactly the production SALC path the scaffold
+// Drives an SCF for water two ways through qchem::MoleculeCalculation -- {.imposeSymmetry=false} (a plain single-IBS
+// basis) and {.imposeSymmetry=true} (a SymmetryAdaptedBasisSet: one IBS per C2v irrep, global aufbau) -- and
+// checks the total energies agree.  {.imposeSymmetry=true} runs exactly the production SALC path the scaffold
 // used to wire by hand (PG::SymmetryAdapt over the raw PolarizedGaussian basis, Omega_ab shared across
 // irreps via the global Cache2).  Covers HF and Xalpha-DFT (un/polarized) plus rigid rotation/translation
 // invariance -- the "water-moved" cases that proved important for catching geometry-key / cache bugs.
@@ -13,7 +13,7 @@
 #include "gtest/gtest.h"
 #include <cmath>
 
-import qchem.MoleculeCalculation;            // MoleculeCalculation, CalcOptions, Model, SpinGroup
+import qchem.MoleculeCalculation;            // MoleculeCalculation, RunOptions, Model, SpinGroup
 import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;              // Molecule, Atom
 import qchem.SCFIterator;            // SCFParams, EnergyBreakdown
@@ -36,10 +36,10 @@ static EnergyBreakdown Run(const Molecule& mol, Model model, SpinGroup pol, bool
     // The facade's default seed (auto SAD for DFT, CoreGuess for HF) -- the SAD polarized-DFT path is now
     // robust (FittedVxcPol handles the spin-agnostic seed; see M_DFT.WaterPolarizedSAD).  This is an
     // invariance test anyway, so the converged energy is seed-independent.
-    CalcOptions o{.basis = "dzvp", .model = model, .spin = pol, .angular = angular, .symmetry = symmetry};
+    RunOptions o{.spin=pol, .model=model, .imposeSymmetry=symmetry, .molecule={.basis="dzvp", .angular=angular}};
     // The claim is symmetric == non-symmetric ON ONE MESH, so it needs no converged mesh: the DFT runs keep the old 12-direction
     // one (MHL 30 / Lebedev 5).  On the converged default (80 / 29, 2026-10-31) the four SALC DFT runs cost 107 s + 175 s.
-    o.mesh.nRadial=30; o.mesh.angularDegree=5;
+    MoleculeXCMesh(o).nRadial=30; MoleculeXCMesh(o).angularDegree=5;
     MoleculeCalculation calc(MoleculeSetup::Resolve(mol, o));
     EXPECT_TRUE(calc.Converge(tight));    // re-converge tight for the invariance tolerance
     return calc.EnergyTerms();

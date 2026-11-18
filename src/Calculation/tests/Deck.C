@@ -122,7 +122,7 @@ TEST(Deck, NonDefaultValuesSurviveTheRoundTrip)
     o.Nelec=48; o.multiplicity=1; o.spin=SpinGroup::Polarized; o.species={{"Mn",15},{"O",6}}; o.solid.kShift=rvec3_t(0.25,0,0.5);
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::CholeskyPivoted; o.imposeSymmetry=true; o.spins={1,-1,0,0};
     o.solid.siteCharges={2,2,-2,-2};
-    o.solid.tolerances.screenEps=1e-8; o.solid.tolerances.mgridEcuts={53.3,17.8}; o.xcMesh.beckeEps=1e-7; o.xcMesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
+    o.solid.tolerances.screenEps=1e-8; o.solid.tolerances.mgridEcuts={53.3,17.8}; SolidXCMesh(o).beckeEps=1e-7; SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     o.solid.hubbard.push_back(HubbardU_OrthoAtomic(0,2,4.0));
     const json j=deck::ToJson(o);
     RunOptions back; deck::FromJson(j,back);
@@ -675,13 +675,13 @@ TEST(Deck, GridAccuracyTargetRoundTripsAndRefusesNonPositive)
     auto msg=[&](json solid){ try { read(solid); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
     const deck::RunSpec d=read(json::object());
     EXPECT_EQ(d.opts.accuracy.eps, 1e-5);
-    EXPECT_FALSE(d.opts.accuracy.eta.has_value()) << "the default self-calibrates";
+    EXPECT_FALSE(d.opts.solid.grid.eta.has_value()) << "the default self-calibrates";
     EXPECT_FALSE(deck::ToJson(d).at("solid").contains("accuracyCalibration")) << "an unstated calibration is not written as if stated";
     const deck::RunSpec r=read({{"accuracy",1e-6},{"accuracyCalibration",{{"vlocLong",0.1},{"density",0.01}}}});
     EXPECT_EQ(r.opts.accuracy.eps, 1e-6);
-    ASSERT_TRUE(r.opts.accuracy.eta.has_value());
-    EXPECT_EQ(r.opts.accuracy.eta->vlocLong, 0.1);
-    EXPECT_EQ(r.opts.accuracy.eta->density, 0.01);
+    ASSERT_TRUE(r.opts.solid.grid.eta.has_value());
+    EXPECT_EQ(r.opts.solid.grid.eta->vlocLong, 0.1);
+    EXPECT_EQ(r.opts.solid.grid.eta->density, 0.01);
     const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
     EXPECT_EQ(deck::ToJson(back),j);
     EXPECT_TRUE(back.opts.accuracy==r.opts.accuracy);
@@ -732,24 +732,24 @@ TEST(Deck, AVlocRoutingCalibrationReachesTheEvaluatorAndAStatedVlocEpsWins)
 {
     auto read=[](json solid){ deck::RunSpec s; deck::FromJson(json{{"structure","Si_diamond"},{"solid",solid}},s); return s; };
     const deck::RunSpec d=read(json::object());
-    EXPECT_EQ(d.opts.accuracy.vlocRoutingEta, 10.0);
-    EXPECT_EQ(d.opts.accuracy.VlocEps(), 1e-5/10.0) << "the default is bit-identical to the old eps/10";
+    EXPECT_EQ(d.opts.solid.grid.vlocRoutingEta, 10.0);
+    EXPECT_EQ(d.opts.solid.grid.VlocEps(), 1e-5/10.0) << "the default is bit-identical to the old eps/10";
     const deck::RunSpec f=read({{"accuracyCalibration",{{"vlocRouting",2.0}}}});
-    EXPECT_EQ(f.opts.accuracy.vlocRoutingEta, 2.0);
-    EXPECT_FALSE(f.opts.accuracy.eta.has_value()) << "vlocRouting alone states no raster eta: the rasters stay self-calibrated";
-    EXPECT_EQ(d.opts.accuracy.rungGateC, 8.0) << "the rung gate's default";
+    EXPECT_EQ(f.opts.solid.grid.vlocRoutingEta, 2.0);
+    EXPECT_FALSE(f.opts.solid.grid.eta.has_value()) << "vlocRouting alone states no raster eta: the rasters stay self-calibrated";
+    EXPECT_EQ(d.opts.solid.grid.rungGateC, 8.0) << "the rung gate's default";
     const deck::RunSpec g=read({{"accuracyCalibration",{{"rungGateC",6.0}}}});
-    EXPECT_EQ(g.opts.accuracy.rungGateC, 6.0);
-    EXPECT_FALSE(g.opts.accuracy.eta.has_value()) << "rungGateC alone states no raster eta either";
+    EXPECT_EQ(g.opts.solid.grid.rungGateC, 6.0);
+    EXPECT_FALSE(g.opts.solid.grid.eta.has_value()) << "rungGateC alone states no raster eta either";
     deck::RunSpec back; deck::FromJson(deck::ToJson(g),back);
-    EXPECT_EQ(back.opts.accuracy.rungGateC, 6.0) << "the record carries it";
-    EXPECT_EQ(d.opts.accuracy.relCutoffSafety, 2.0) << "the pair rule's stiffness, default";
+    EXPECT_EQ(back.opts.solid.grid.rungGateC, 6.0) << "the record carries it";
+    EXPECT_EQ(d.opts.solid.grid.relCutoffSafety, 2.0) << "the pair rule's stiffness, default";
     const deck::RunSpec rs=read({{"accuracyCalibration",{{"relCutoffSafety",3.0}}}});
-    EXPECT_EQ(rs.opts.accuracy.relCutoffSafety, 3.0);
-    EXPECT_FALSE(rs.opts.accuracy.eta.has_value()) << "relCutoffSafety alone states no raster eta";
-    { deck::RunSpec b2; deck::FromJson(deck::ToJson(rs),b2); EXPECT_EQ(b2.opts.accuracy.relCutoffSafety, 3.0) << "the record carries it"; }
+    EXPECT_EQ(rs.opts.solid.grid.relCutoffSafety, 3.0);
+    EXPECT_FALSE(rs.opts.solid.grid.eta.has_value()) << "relCutoffSafety alone states no raster eta";
+    { deck::RunSpec b2; deck::FromJson(deck::ToJson(rs),b2); EXPECT_EQ(b2.opts.solid.grid.relCutoffSafety, 3.0) << "the record carries it"; }
     EXPECT_ANY_THROW(read({{"accuracyCalibration",{{"relCutoffSafety",0.0}}}})) << "a stiffness is > 0";
-    EXPECT_DOUBLE_EQ(f.opts.accuracy.VlocEps(), 5e-6);
+    EXPECT_DOUBLE_EQ(f.opts.solid.grid.VlocEps(), 5e-6);
     { const json j=deck::ToJson(f); deck::RunSpec back; deck::FromJson(j,back); EXPECT_TRUE(back.opts.accuracy==f.opts.accuracy); }
     EXPECT_FALSE(deck::ToJson(d).at("solid").contains("accuracyCalibration")) << "the default calibration is not written";
     EXPECT_FALSE(deck::ToJson(d).at("solid").contains("beckeLadder")) << "nor the default Becke ladder";
@@ -764,7 +764,7 @@ TEST(Deck, AVlocRoutingCalibrationReachesTheEvaluatorAndAStatedVlocEpsWins)
     Lattice_3D lat(*mat.cell, ivec3_t(1,1,1));
     std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, mat.cell.get()));
     RunOptions o; o.Nelec=8; o.species=mat.species; o.solid.densityEcut=20.0; o.label="vlocRouting";
-    o.accuracy.eps=1e-5; o.accuracy.eta=BasisSet::Gaussian::AccuracyCalibration{}; o.accuracy.vlocRoutingEta=2.0;   // stated raster eta: no pilot
+    o.accuracy.eps=1e-5; o.solid.grid.eta=BasisSet::Gaussian::AccuracyCalibration{}; o.solid.grid.vlocRoutingEta=2.0;   // stated raster eta: no pilot
     const auto s=SolidSetup::Resolve(lat, mol, o);
     EXPECT_DOUBLE_EQ(s->opts.solid.tolerances.vlocEps, 5e-6) << "the evaluator is built from these tolerances";
     EXPECT_TRUE(s->opts.solid.tolerances.VlocEpsDerived());

@@ -124,6 +124,7 @@ struct CoulombRoute
     int lMax    = 0;
     //! Radial points of the Hartree mesh; 0 = the run's own.  All-electron densities want about twice what the contraction needs.
     int nRadial = 0;
+    bool operator==(const CoulombRoute&) const = default;   //!< "is a stated option the default?" (RunOptions refusals)
 };
 
 //! \brief The largest \f$l\f$ a multipole FIT can use on an angular rule of degree \a angularDegree.  RIGOROUS: \f$Y_{lm}Y_{l'm'}\f$ has degree

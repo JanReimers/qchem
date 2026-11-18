@@ -102,9 +102,9 @@ struct AtomCalcOptions
     //! the δ basis on \c mesh's points; \c Auxiliary = the radial fit set.  The Si pseudo-atom (Slater/Medium) moves 33 -> 5 μHa
     //! from CP2K's ATOM code on δ.  A caller whose result is an INPUT to other runs states its route (\c PseudoAtomOrbital).
     qchem::Hamiltonian::VxcFit vxcFit = qchem::Hamiltonian::VxcFit::Auto;
-    //! \copydoc CalcOptions::xcRho -- the atom path's twin (\c Auxiliary = the radial fit set).
+    //! \copydoc RunOptions::xcRho -- the atom path's twin (\c Auxiliary = the radial fit set).
     qchem::Hamiltonian::XCρ xcRho = qchem::Hamiltonian::XCρ::Exact;
-    //! The Hartree route, the twin of \c CalcOptions::coulomb.  \c Auto = \c Multipole: \f$\rho\f$'s l = 0 channel on a radial mesh, solved
+    //! The Hartree route, the twin of \c RunOptions::coulomb.  \c Auto = \c Multipole: \f$\rho\f$'s l = 0 channel on a radial mesh, solved
     //! by radial Poisson (exact to its mesh; \c nRadial 0 = sized from eps by the atom pilot, a stated count audited).  \c Auxiliary = the
     //! Dunlap Coulomb fit, its fit set climbed up \c BasisSet::Radial::CoulombFitLadder to eps (rung 0, the s block x 2, cost U 32 mHa).
     //! \c Delta is REFUSED: its radial-Poisson projection needs angular channels the atom's radial-only set cannot carry (half the energy,

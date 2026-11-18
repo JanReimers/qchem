@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <utility>
 import qchem.SetupDecisions;
-import qchem.MoleculeCalculation;   // MoleculeSetup, CalcOptions
+import qchem.MoleculeCalculation;   // MoleculeSetup, RunOptions
 import qchem.SolidSetup;            // RunOptions, SpinChannelCounts
 import qchem.Structure;
 import qchem.Types;
@@ -50,7 +50,7 @@ TEST(SetupDecisions, TheMoleculeAndTheSolidCountSpinTheSameWay)
         for (int m : {0, 1, 2, 3, 4})
         {
             Molecule atom; atom.Insert(Site{Z, rvec3_t(0,0,0)});
-            const auto mol=MoleculeSetup::Admit(atom, {.basis="dzvp", .multiplicity=m});
+            const auto mol=MoleculeSetup::Admit(atom, {.multiplicity=m, .molecule={.basis="dzvp"}});
             bool solidOK=true; std::pair<int,int> solid{0,0};
             try { solid=SpinChannelCounts(RunOptions{.multiplicity=m}, Z); } catch (const std::invalid_argument&) { solidOK=false; }
             ASSERT_EQ(bool(mol), solidOK) << "Z " << Z << ", m " << m;

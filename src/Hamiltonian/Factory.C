@@ -177,6 +177,7 @@ export namespace qchem::Hamiltonian
         std::vector<rmat3d_t> siteOps;    //!< the site group's Cartesian rotations; empty = C_1
         std::vector<rmat3d_t> greyOps;    //!< the PARENT group (the coordination's point group), for PARENTAGE
                                           //!< labels only (which parent irrep a site level descends from); empty = siteOps
+        bool operator==(const HubbardManifold&) const = default;   //!< "is a stated option the default?" (RunOptions block refusals)
     };
 
     //=== The Vxc product space's symmetry rule (doc/Pins.md pin 30) ===================================

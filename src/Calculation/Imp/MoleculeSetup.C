@@ -20,54 +20,76 @@ import qchem.BasisCoverage;   // RequireBasisCovers: a basis lacking an element 
 namespace qchem
 {
 
+// THE MOLECULE'S VIEW OF THE ONE OPTIONS TREE: its per-kind defaults (each a `policy` row) and its refusals of what it does not consume.
+RunOptions MoleculeOptions(const RunOptions& asked)
+{
+    RunOptions o=asked;
+    const RunOptions def;
+    auto refuse=[](const std::string& what, const std::string& why)
+    { policy::Refuse("ForeignOption", what+" stated for a MOLECULE", why); };
+    if (!(asked.solid==def.solid))
+        refuse("the `solid` block", "it holds periodic-only options a molecule cannot run -- drop it");
+    if (asked.Nelec!=0)     refuse("Nelec", "a molecule counts its electrons from the structure and its charge -- drop it");
+    if (asked.charge!=0)    refuse("charge", "a molecule's charge is its structure's -- state it on the structure");
+    if (asked.ortho || asked.orthoTol!=0.0) refuse("ortho / orthoTol", "the molecular solver picks its own orthogonalisation (Auto)");
+    if (!asked.spins.empty()) refuse("spins", "a per-site magnetic decoration is a periodic imposition's");
+    if (asked.accelerator!=def.accelerator || asked.recipe!=def.recipe)
+        refuse("accelerator / recipe (top level)", "a molecule names them in its accelerator block (AcceleratorOptions::type / recipe)");
+    if (!o.model) { o.model=Hamiltonian::Model::HF; policy::Report("DefaultModel", "model unstated: a molecule's default", policy::Verdict::Choose, "HF"); }
+    if (!o.pp)     o.pp=std::string();                      // all-electron
+    if (!o.xcMesh) o.xcMesh=kMolecularMeshDefault;          // climbed to eps from its entry rung
+    return o;
+}
+
 // THE DOORS (as SolidSetup's): Admit for user input, Resolve its throwing twin for code that states its own options.
-Outcome<std::shared_ptr<const MoleculeSetup>, SetupRefusal> MoleculeSetup::Admit(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
+Outcome<std::shared_ptr<const MoleculeSetup>, SetupRefusal> MoleculeSetup::Admit(const Structure& st, const RunOptions& opts, const AcceleratorOptions& acc)
 {
     return AdmitBy([&]{ return Resolve(st, opts, acc); });
 }
 
-std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
+std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st, const RunOptions& asked, const AcceleratorOptions& acc)
 {
     auto s=std::make_shared<MoleculeSetup>();
-    s->opts=opts;
+    s->opts=MoleculeOptions(asked);   // the kind's defaults filled, what a molecule does not consume refused (V-FACADE-PARITY P0b-2)
     s->acc =acc;
+    const RunOptions& opts=s->opts;   // from here on, the RESOLVED options
     // An open shell (2S>0) is unrestricted: it needs distinct up/down densities, so promote to polarized.
     s->opts.spin = ResolveSpinGroup(s->opts.spin, s->opts.multiplicity);   // THE rule, every structure (R6)
     // The pseudopotential front door builds a valence LDA Hamiltonian with the run's functional, LDA (Dirac + VWN5) or PADE (the
     // GTH-PADE PPs' own, 2026-11-12); any other model would be ignored, a SILENT substitution: refuse it, before anything is built.
-    if (!opts.pp.empty() && opts.model != Model::LDA && opts.model != Model::PADE)
+    if (!opts.pp->empty() && *opts.model != Model::LDA && *opts.model != Model::PADE)
         policy::Refuse("PseudopotentialIsLDA", "a pseudopotential run with a model other than LDA or PADE",
                        "the molecular pseudopotential route builds a valence LDA Hamiltonian, so the model asked for would be "
                        "ignored -- state model LDA or PADE, or run all-electron (no pseudopotential)");
-    if (!opts.pp.empty()) s->pp=Pseudopotential::PseudopotentialSet::Get(opts.pp).With(opts.ppOverride);
+    if (!opts.pp->empty()) s->pp=Pseudopotential::PseudopotentialSet::Get(*opts.pp).With(opts.species);
     // An ALL-ELECTRON basis under a pseudopotential keeps core shells for electrons the pseudopotential has removed: the run is
     // computable (the core shells sit high and empty), but it is not the valence calculation the PP was generated for, and the
     // conditioning can suffer.  Known only for the registered files: an unregistered stem is not classified (no row).
-    if (!opts.pp.empty())
+    if (!opts.pp->empty())
     {
         using BasisSet::Gaussian::BasisSetData;
         BasisSetData data{};
-        if (BasisSet::Gaussian::RegisteredBasis(opts.basis, data)
+        if (BasisSet::Gaussian::RegisteredBasis(opts.molecule.basis, data)
             && (data==BasisSetData::DZVP || data==BasisSetData::DZVP2 || data==BasisSetData::TZVP || data==BasisSetData::ORB
                 || data==BasisSetData::ORB1))
-            policy::Report("ValenceBasisUnderPP", "an all-electron basis ("+opts.basis+") under a pseudopotential", policy::Verdict::Warn,
+            policy::Report("ValenceBasisUnderPP", "an all-electron basis ("+opts.molecule.basis+") under a pseudopotential", policy::Verdict::Warn,
                            "its core shells describe electrons the pseudopotential removed -- the run goes on; a valence basis "
                            "(sipp*, valence_lowq*) is the matched choice");
     }
     s->reference=st.Clone();   // polymorphic deep copy: a UnitCell stays periodic, not sliced to a Molecule
     const std::shared_ptr<const Structure> point=s->PointStructure(*s->reference);
     s->Ne=int(point->GetNumElectrons());
-    RequireBasisStated(opts.basis, *point);   // no default basis: an unstated one is refused, naming the bases that cover this structure
+    RequireBasisStated(opts.molecule.basis, *point);   // no default basis: an unstated one is refused, naming the bases that cover this structure
     // Coverage, when the name is a basis file (an unknown name is the build's refusal, which lists every name there).
-    if (!opts.basisFile.empty())
-        RequireBasisCovers(opts.basisFile, opts.basis, *point);   // a stated file: it must cover every element (a missing one throws)
+    if (!opts.molecule.basisFile.empty())
+        RequireBasisCovers(opts.molecule.basisFile, opts.molecule.basis, *point);   // a stated file: it must cover every element (a missing one throws)
     else
     {
-        std::string stem=opts.basis;
+        std::string stem=opts.molecule.basis;
         for (char& c : stem) c=char(std::tolower((unsigned char)c));
         const auto names=BasisSet::Gaussian::BasisNames();
         if (std::find(names.begin(), names.end(), stem)!=names.end())
-            RequireBasisCovers(BasisSet::Gaussian::BasisFileOfName(opts.basis), opts.basis, *point);
+            RequireBasisCovers(BasisSet::Gaussian::BasisFileOfName(opts.molecule.basis), opts.molecule.basis, *point);
     }
 
     // The multiplicity 2S+1 -> (nUp, nDown): THE rule every structure shares (qchem.SetupDecisions), refusing an unrealisable one.
@@ -83,21 +105,21 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     // solid): a pseudopotential run reads the VALENCE densities at its q, an all-electron run the all-electron ones (before 2026-11-12 a
     // PP molecule read the all-electron densities, core included, and a species with no all-electron entry, Si, took the core guess).
     using qchem::ChargeDensity::SeedStrategy;
-    const bool dft = qchem::Hamiltonian::IsDFT(opts.model);
+    const bool dft = qchem::Hamiltonian::IsDFT(*opts.model);
     {
-        const RunSeed seed=ResolveRunSeed(opts.seed, *point, s->pp ? &*s->pp : nullptr, dft || !opts.pp.empty());   // no charge order stated
+        const RunSeed seed=ResolveRunSeed(opts.seed, *point, s->pp ? &*s->pp : nullptr, dft || !opts.pp->empty());   // no charge order stated
         s->seed   =seed.seed;
         s->seedKey=seed.key;
     }
 
     // THE XC MESH (pin 31; doc/GeometryOptimizationPlan.md §14.1): an axis left at 0 is unstated and takes the entry rung's; a mesh with
     // neither stated climbs from there at the converged D (MoleculeCalculation's pilot), only up.  A stated one is honoured and audited.
-    s->mesh=opts.mesh;
-    const bool statedR=opts.mesh.nRadial>0, statedL=opts.mesh.angularDegree>0;
+    s->mesh=*opts.xcMesh;
+    const bool statedR=opts.xcMesh->nRadial>0, statedL=opts.xcMesh->angularDegree>0;
     s->meshStated=statedR || statedL;
     if (!statedR) s->mesh.nRadial      =kMolecularMeshEntryRadial;
     if (!statedL) s->mesh.angularDegree=kMolecularMeshEntryDegree;
-    if (dft || !opts.pp.empty())
+    if (dft || !opts.pp->empty())
     {
         const std::string rung="("+std::to_string(s->mesh.nRadial)+", "+std::to_string(s->mesh.angularDegree)+")";
         if (!s->meshStated)
@@ -111,7 +133,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     // An HF run seeded from SAD reaches its first density matrix through ONE LDA (Xalpha) Fock (exact exchange needs a matrix, SAD has
     // none), built on THIS mesh: the entry rung when none is stated, the mesh a DFT user gets (lane A 2026-11-10: the old hidden
     // 12-direction rule split O2's pi_g by 13 mHa at the seed, and a stated Shared fill converged to the broken state).
-    if (!dft && opts.pp.empty() && s->seed==SeedStrategy::SAD)
+    if (!dft && opts.pp->empty() && s->seed==SeedStrategy::SAD)
         policy::Report("HFSeedFockMesh", "the SAD seed reaches HF through one LDA Fock on the XC mesh ("+std::to_string(s->mesh.nRadial)+", "
                        +std::to_string(s->mesh.angularDegree)+")", policy::Verdict::Choose,
                        std::string(s->meshStated ? "the stated mesh" : "the molecular entry rung, no mesh stated")
@@ -119,7 +141,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
 
     // The Vxc product space's admission (pin 30) and the Hartree route's, asked of the Hamiltonian's rules HERE, before the basis
     // and the Hamiltonian are built: the Factory throws the same reason, but only once the work is done.
-    if (dft || !opts.pp.empty())
+    if (dft || !opts.pp->empty())
     {
         RequireVxcAdmitted(*point, opts.vxcFit, s->mesh, "molecule");
         if (const auto a=Hamiltonian::AdmitCoulomb(*point, opts.coulomb, s->mesh, opts.vxcFit); !a)
@@ -129,8 +151,8 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
 
     AdmitRecipe(acc.recipe, /*kT: not read for a molecule*/0.0, /*molecule*/true);   // Auto | Insulator only (R4.1 ruling (c))
     s->accelerator = AcceleratorTypeByName(acc.type, "qchem::MoleculeCalculation");   // DIIS | GDM | Ladder, any other refused
-    if (dft || !opts.pp.empty()) RefuseGradientConsumers(opts.vxcFit, opts.xcRho, acc.type);   // GDM needs H = dE/dD (pin 32)
-    s->eMax = DIISEngageGate(acc.diis.engageBelowFD.value_or(0.0), point->GetNuclearCharge(), dft || !opts.pp.empty());   // DIIS from the start on a density Fock
+    if (dft || !opts.pp->empty()) RefuseGradientConsumers(opts.vxcFit, opts.xcRho, acc.type);   // GDM needs H = dE/dD (pin 32)
+    s->eMax = DIISEngageGate(acc.diis.engageBelowFD.value_or(0.0), point->GetNuclearCharge(), dft || !opts.pp->empty());   // DIIS from the start on a density Fock
     s->accParams = ResolveAcceleratorParams(acc, MolecularAcceleratorDefaults(s->eMax));
     return s;
 }
@@ -141,8 +163,8 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
 // so the concrete geometry is preserved: a PP run on a periodic UnitCell stays a UnitCell (Ewald ion-ion, uniform mesh).
 std::vector<Hamiltonian::PPFunctionalCheck> MoleculeSetup::PPFunctionalChecks() const
 {
-    if (!pp || !Hamiltonian::IsDFT(opts.model)) return {};
-    return Hamiltonian::PPFunctionalChecks(*pp, *reference, Hamiltonian::ModelToXC(opts.model, opts.xalpha));
+    if (!pp || !Hamiltonian::IsDFT(*opts.model)) return {};
+    return Hamiltonian::PPFunctionalChecks(*pp, *reference, Hamiltonian::ModelToXC(*opts.model, opts.xalpha));
 }
 
 std::shared_ptr<const Structure> MoleculeSetup::PointStructure(const Structure& st) const

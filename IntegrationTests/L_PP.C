@@ -16,7 +16,7 @@
 #include <memory>
 #include <cmath>
 
-import qchem.MoleculeCalculation;                       // qchem::MoleculeCalculation, CalcOptions (the production facade)
+import qchem.MoleculeCalculation;                       // qchem::MoleculeCalculation, RunOptions (the production facade)
 import qchem.Structure;                         // Molecule, Atom
 import qchem.UnitCell;                          // UnitCell (uniform lattice mesh)
 import qchem.BasisSet;                          // Real_BS
@@ -149,7 +149,7 @@ TEST(L_PP, FacadePreservesUnitCell)
 {
     // Finite reference through the facade: He at the origin (Enn = 0 for one atom -- no ion-ion pair).
     Molecule he; he.Insert(Site{2, {0,0,0}});
-    MoleculeCalculation cFin(MoleculeSetup::Resolve(he, {.basis = "dzvp"}));
+    MoleculeCalculation cFin(MoleculeSetup::Resolve(he, {.molecule={.basis="dzvp"}}));
     EXPECT_FALSE(cFin.GetStructure().Admits(qcMesh::ImposedSymmetry::Translations));   // a Molecule stays finite
     EXPECT_NEAR(cFin.EnergyTerms()["Enn"], 0.0, 1e-12);      // single finite atom -> no ion-ion
 
@@ -157,7 +157,7 @@ TEST(L_PP, FacadePreservesUnitCell)
     const double a = 10.0;
     UnitCell cell(a);
     cell.AddAtom(2, {0.5,0.5,0.5});
-    MoleculeCalculation cCell(MoleculeSetup::Resolve(cell, {.basis = "dzvp"}));
+    MoleculeCalculation cCell(MoleculeSetup::Resolve(cell, {.molecule={.basis="dzvp"}}));
 
     EXPECT_TRUE(cCell.GetStructure().Admits(qcMesh::ImposedSymmetry::Translations));       // periodic, not sliced to a Molecule
     EXPECT_NEAR(cCell.GetStructure().GetNumElectrons(), 2.0, 1e-12);  // He, charge preserved by Clone

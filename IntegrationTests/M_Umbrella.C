@@ -17,8 +17,8 @@ TEST(M_Umbrella, FrontDoorViaUmbrella)
     water.Insert(Site{1, Vector3D<double>(0,  1.431, 1.107)});
     water.Insert(Site{1, Vector3D<double>(0, -1.431, 1.107)});
 
-    // qchem::MoleculeCalculation + CalcOptions designated init  (qchem.MoleculeCalculation, re-exported)
-    qchem::MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.basis = "dzvp"}));
+    // qchem::MoleculeCalculation + RunOptions designated init  (qchem.MoleculeCalculation, re-exported)
+    qchem::MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.molecule={.basis="dzvp"}}));
     ASSERT_TRUE(calc.Converge(SCFParams{.NMaxIter = 20}));   // SCFParams visible (via qchem.SCFIterator); the Outcome door
 
     const double E_ref = -76.022903;

@@ -15,7 +15,7 @@
 #include <nlohmann/json.hpp>
 
 import qchem.AtomCalculation;             // AtomCalculation, AtomCalcOptions, AtomType, BasisSetAccuracy, Model, SpinGroup
-import qchem.MoleculeCalculation;                 // MoleculeCalculation, CalcOptions, AcceleratorOptions (the MOLECULAR facade)
+import qchem.MoleculeCalculation;                 // MoleculeCalculation, RunOptions, AcceleratorOptions (the MOLECULAR facade)
 import qchem.Structure;                    // Molecule, Atom (build a molecular geometry)
 import qchem.Hamiltonian.Factory;         // XCFunctional (the exchange-functional selector)
 import qchem.PeriodicTable;               // thePeriodicTable(): symbol / per-Z Slater alpha; RelativeHF/DHFError (Z-keyed oracle)
@@ -348,7 +348,7 @@ static int Main(int argc, char** argv)
         // The molecular basis is a file stem (dzvp, valence_lowq_sr, ...): NO fallback -- an unstated one is the setup's refusal
         // (BasisUnstated), which names the bases that cover this molecule (one rule for every driver, 2026-11-07).
         const string& mbasis = basis;
-        CalcOptions copts; copts.basis=mbasis; copts.multiplicity=mult; copts.symmetry=sym;
+        RunOptions copts; copts.molecule.basis=mbasis; copts.multiplicity=mult; copts.imposeSymmetry=sym;
         if (dft) { copts.model=(model=="Xalpha")?Model::Xalpha:Model::LDA; if(model=="Xalpha") copts.xalpha=alpha>0?alpha:0.7; }
         else if (models.count(model)) copts.model=models[model];
         else { cout<<"molecular --model must be HF|LDA|Xalpha"<<endl; return 1; }

@@ -137,7 +137,7 @@ TEST(SolidSetup, TheRungGateCalibrationReachesTheLadderTolerances)
     RunOptions o=kNa2;
     const GaussianBasisRecipe recipe{.data=BasisSetData::VALENCE_LOWQ_VA};
     EXPECT_EQ(SolidSetup::Resolve(lat, recipe, o)->opts.solid.tolerances.rungGateC, BasisSet::Gaussian::kRungGateC);
-    o.accuracy.rungGateC=6.0;
+    o.solid.grid.rungGateC=6.0;
     EXPECT_EQ(SolidSetup::Resolve(lat, recipe, o)->opts.solid.tolerances.rungGateC, 6.0);
 }
 
@@ -158,11 +158,11 @@ TEST(SolidSetup, TheRelCutoffSafetyCalibrationReachesTheLadderAndTheBasis)
     const auto d=SolidSetup::Resolve(lat, recipe, o);
     EXPECT_EQ(d->opts.solid.tolerances.relCutoffSafety, BasisSet::Gaussian::kRelCutoffSafety);
     EXPECT_EQ(bound(*d), BasisSet::Gaussian::kRelCutoffSafety);
-    o.accuracy.relCutoffSafety=3.0;
+    o.solid.grid.relCutoffSafety=3.0;
     const auto s=SolidSetup::Resolve(lat, recipe, o);
     EXPECT_EQ(s->opts.solid.tolerances.relCutoffSafety, 3.0) << "the ladder's";
     EXPECT_EQ(bound(*s), 3.0) << "the basis's pair rule";
-    o.accuracy.relCutoffSafety=0.0;
+    o.solid.grid.relCutoffSafety=0.0;
     EXPECT_THROW(SolidSetup::Resolve(lat, recipe, o), std::invalid_argument) << "a stiffness is > 0";
 }
 
@@ -259,7 +259,7 @@ std::vector<std::string> XCRhoRows(XCRhoCell cell, Hamiltonian::XCρ rho, const 
     const auto mat=Materials::Get("Si_diamond");
     RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.accuracy.eps=0.0; o.xcRho=rho; o.vxcFit=fit;
     if (cell==XCRhoCell::Becke) o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);   // a small recipe: only the setup runs
-    else                        o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+    else                        SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
     if (cell==XCRhoCell::PlaneWaveRaster) { o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=4.0; }
     { report::Run run(tag);
       (void)SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSetData::SIPP_SR}, o); }
@@ -344,7 +344,7 @@ std::vector<report::json> AutoSeedRows(const std::string& material, BasisSetData
                                        const std::string& tag, ChargeDensity::SeedStrategy& resolved)
 {
     const auto mat=Materials::Get(material);
-    RunOptions o; o.solid.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.seed=seed;
+    RunOptions o; o.solid.densityEcut=20.0; o.accuracy.eps=0.0; SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform; o.seed=seed;
     { report::Run run(tag);
       resolved=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=data}, o)->opts.seed; }
     return PolicyRows(tag, "AutoSeed");
@@ -360,7 +360,7 @@ TEST(SolidSetup, AStatedMagneticOrderingIsTheSeedsAndOverridesTheStructuresSpins
     for (Site s : mno.cell->Sites()) { s.spinFlip=false; spinless.Insert(s); }
     auto resolve=[](const UnitCell& cell, std::vector<int> spins, const std::string& tag)
     {
-        RunOptions o; o.solid.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+        RunOptions o; o.solid.densityEcut=20.0; o.accuracy.eps=0.0; SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
         o.multiplicity=1; o.spin=SpinGroup::Polarized; o.imposeSymmetry=true; o.spins=std::move(spins);
         report::Run run(tag);
         return SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_SR}, o)->seedKey.siteSpins;
@@ -414,7 +414,7 @@ TEST(SolidSetup, AKMeshCoarserThanTheCalibratedSpacingIsWarnedNamingTheMeshThatM
     const auto si=Materials::Get("Si_diamond");
     auto rows=[&](const ivec3_t& k, const std::string& tag)
     {
-        RunOptions o; o.solid.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+        RunOptions o; o.solid.densityEcut=20.0; o.accuracy.eps=0.0; SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
         { report::Run run(tag); (void)SolidSetup::Resolve(Lattice_3D(*si.cell, k), GaussianBasisRecipe{.data=BasisSetData::SIPP}, o); }
         return PolicyRows(tag, "KSampling");
     };

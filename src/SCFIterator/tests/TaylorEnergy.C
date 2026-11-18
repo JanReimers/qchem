@@ -116,7 +116,7 @@ TEST(TaylorEnergy, O2_HF_Triplet_Polarized_GapIsSecondOrder)
         Molecule o2;
         o2.Insert(Site{8, Vector3D<double>(0, 0,  1.141)});
         o2.Insert(Site{8, Vector3D<double>(0, 0, -1.141)});
-        MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.basis = "dzvp", .multiplicity = 3}),
+        MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.multiplicity=3, .molecule={.basis="dzvp"}}),
                          {.NMaxIter = 80, .MinΔρPerElectron = 1e-8, .MinΔFD = std::nullopt, .MinVirial = std::nullopt,
                           .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true});
         (void)calc.Result();
