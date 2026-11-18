@@ -108,7 +108,7 @@ static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, int Z, const Electr
 AtomCalculation::AtomCalculation(std::shared_ptr<const AtomSetup> setup, const SCFParams& params)
     : AtomCalculation(BuildOnly{}, std::move(setup), nullptr)
 {
-    Converge(params);
+    (void)Converge(params);
 }
 
 std::unique_ptr<AtomCalculation> AtomCalculation::Prepare(std::shared_ptr<const AtomSetup> setup, Observer onIteration)
@@ -322,7 +322,7 @@ void AtomCalculation::BuildGraph()
     // (directmin => AType::GDM above, whose WantsLineSearch() drives the direct-min loop -- no SetDirectMin needed.)
 }
 
-bool AtomCalculation::Converge(const SCFParams& params)
+Outcome<AtomCalculation::Converged, SCFFailure> AtomCalculation::Converge(const SCFParams& params)
 {
     // The atomic SCF writes into the CALLER'S report run, as every facade does (user ruling D, 2026-11-02): scfrun, valgen, the
     // valence-basis generator and the tests that read the report open it.  With no run open every write is a no-op.
@@ -343,13 +343,39 @@ bool AtomCalculation::Converge(const SCFParams& params)
     // (No end-of-run cache snapshot since S6: each owner-held table reported its own bytes under `cache` where it was filled.)
     RebuildSampling();
     ReportResult("atom "+thePeriodicTable().GetSymbol(itsSetup->Z), ok, itsIterations, itsDensity->GetTotalCharge(), itsScf->GetEnergy(), 0.0, pilotIterations);
-    return ok;
+    return Result();
+}
+
+std::optional<SCFFailure> AtomCalculation::MakeFailure() const
+{
+    if (itsScf && itsScf->Converged()) return std::nullopt;
+    SCFFailure f;   // the atom's detectors, the molecule's: the iterator's own refusal, else a run out of iterations
+    if (!itsScf) { f.details="the atom has not run an SCF yet (Prepare'd, not converged)"; return f; }
+    const bool refused=!itsScf->UnphysicalStop().empty();
+    f.why        = refused ? SCFFailure::Why::UnphysicalEnergy : SCFFailure::Why::NotConverged;
+    f.iterations = itsIterations;
+    f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
+    f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
+    return f;
+}
+
+EnergyBreakdown AtomCalculation::ProofEnergyTerms() const {return itsScf->GetEnergy();}
+double          AtomCalculation::ProofCharge()      const {assert(itsDensity); return itsDensity->GetTotalCharge();}
+size_t          AtomCalculation::ProofIterations()  const {return itsIterations;}
+const ChargeDensity::tDM_CD<double>& AtomCalculation::ProofDensity() const {assert(itsDensity); return *itsDensity;}
+const ScalarFunction<double>& AtomCalculation::ProofSpinDensity() const
+{
+    const auto* wf=itsScf->GetWaveFunction();
+    if (wf->GetSpinGroup()!=SpinGroup::Polarized) return TheZeroField();
+    if (!itsSpin) itsSpin=wf->GetSpinDensity();
+    return *itsSpin;
 }
 
 void AtomCalculation::RebuildSampling()
 {
     const auto* wf = itsScf->GetWaveFunction();
     itsDensity = wf->GetChargeDensity();               // it BUILDS the density and hands ownership over
+    itsSpin.reset();                                   // m(r) is the NEW attempt's, built on first use
 
     itsOccupied.clear();
     for (const Irrep& irr : wf->GetQNs())

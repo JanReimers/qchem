@@ -525,7 +525,9 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Panel_Long)   // PANEL case 13 (regime 2,
     EXPECT_NEAR(R->Energy(), -61.30328, 2e-3) << "did-E-move anchor, re-judged 2026-10-23 twice (see the header; CP2K's 136-function SR -61.470570 is a different span)";
     ASSERT_FALSE(trace.rows.empty());
     EXPECT_GT(std::abs(trace.rows.back().order), 4.0) << "the INTEGRATED Mn site moment must be d^5-scale at convergence (measured 4.45)";
-    EXPECT_NE(R->SpinDensity(), nullptr) << "a polarized run must hand back m(r)";
+    // A collapse detector only (the integrated moment above is the claim): m(r) beside the Mn at the origin is the polarized run's own
+    // field, never the unpolarized zero field.
+    EXPECT_GT(std::abs(R->SpinDensity()(rvec3_t(0.3,0.2,0.1))), 1e-3) << "a polarized run must hand back its m(r)";
 }
 
 // CLAIM (twin of the anchor): the TRUE ionic seed -- Mn2+ d^5 x2 + O2- x2 (IonicSAD, per-SITE targets) -- converges to the SAME

@@ -44,7 +44,7 @@ export namespace qchem
 
 using Hamiltonian::Model;                 // {E1, HF, DE1, DHF, Xalpha, LDA}
 
-class AtomCalculation : public virtual Calculation
+class AtomCalculation : public virtual tCalculation<double>
 {
 public:
     using sf_t       = ScalarFunction<double>;
@@ -88,7 +88,9 @@ public:
     static Outcome<std::unique_ptr<StateView>, RestartRefusal>
         ViewState(const std::string& path, std::shared_ptr<const AtomSetup> setup);
 
-    bool Converge(const SCFParams& params = {});
+    //! Run the SCF (the first call reuses a \c Prepare'd graph) and hand back the ANSWERS or the REASON (a bool until V-FACADE-PARITY P2).
+    //! Invalidates any \c Converged from an earlier attempt.  \c [[nodiscard]] via \c Outcome.  \c Result() (the base's) re-reads it.
+    Outcome<Converged, SCFFailure> Converge(const SCFParams& params = {});
     void OnIteration(Observer obs);
 
     double                 Energy()      const;
@@ -122,6 +124,16 @@ private:
     std::string AcceleratorTag() const;   //!< the accelerator type the setup resolved, as the scf header names it
     bool itsPrepared = false;             //!< \c Prepare built the graph: the next Converge reuses it instead of rebuilding
     void RebuildSampling();
+    //! \name THE PROOF'S ANSWERS (\c tCalculation's hooks)
+    //!@{
+    std::optional<SCFFailure>             MakeFailure()      const override;
+    EnergyBreakdown                       ProofEnergyTerms() const override;
+    double                                ProofCharge()      const override;
+    size_t                                ProofIterations()  const override;
+    const ChargeDensity::tDM_CD<double>&  ProofDensity()     const override;
+    const ScalarFunction<double>&         ProofSpinDensity() const override;
+    //!@}
+    mutable std::unique_ptr<const sf_t>   itsSpin;   //!< m(r) of a polarized attempt, built on first use (reset by \c RebuildSampling)
     //! \name THE STATE HOOKS (\c Calculation's template method, V-FACADE-STATE)
     //!@{
     void                    RecordState(StateRecord&, double kT) const override;   //!< the base's keys + the radial basis, model, mesh

@@ -147,7 +147,7 @@ struct SolidCalculation::Imp
     //! The pilot's start rasters were already raised once for the overlap's conditioning (\c Converge): never a second time.
     bool startRaisedForConditioning = false;
     //! \brief THE AUDIT RSS POLICY's refusal (\c AdmitReference), once one fired: before the first SCF (nothing ran) or mid-pilot (the
-    //! converged run and the pilot's record are kept).  \c Outcome_ then answers it, whatever the SCF did.
+    //! converged run and the pilot's record are kept).  \c MakeFailure then answers it, whatever the SCF did.
     std::optional<ResourceRefusal> resourceRefusal;
     bool degenerateRuleReported = false;   //!< the facade's degenerate-level `choose` row is filed (once per calculation)
     bool pilotPreflightDone = false;   //!< \c PilotPreflight ran (once per calculation, before its first SCF)
@@ -758,25 +758,24 @@ SolidCalculation::~SolidCalculation() = default;
 // itself with no precondition, so a run that never converged served a plausible number to anyone who did
 // not think to ask Converged() first.  Reaching them now REQUIRES having been handed a Converged, and the
 // only source of one is a successful attempt.
-double SolidCalculation::Converged::Energy()      const {return itsImp->scf->GetEnergy().GetTotalEnergy();}
-qchem::EnergyBreakdown SolidCalculation::Converged::EnergyTerms() const {return itsImp->scf->GetEnergy();}
-double SolidCalculation::Converged::TotalCharge() const {return itsImp->charge;}
-size_t SolidCalculation::Converged::IterationCount() const {return itsImp->scf->GetIterationCount();}
+EnergyBreakdown SolidCalculation::ProofEnergyTerms() const {return itsImp->scf->GetEnergy();}
+double          SolidCalculation::ProofCharge()      const {return itsImp->charge;}
+size_t          SolidCalculation::ProofIterations()  const {return itsImp->scf->GetIterationCount();}
 
-const ScalarFunction<double>* SolidCalculation::Converged::SpinDensity() const
+const ScalarFunction<double>& SolidCalculation::ProofSpinDensity() const
 {
     const auto* wf=itsImp->scf->GetWaveFunction();
-    if (!itsImp->spin && wf->GetSpinGroup()==SpinGroup::Polarized) itsImp->spin=wf->GetSpinDensity();
-    return itsImp->spin.get();
+    if (wf->GetSpinGroup()!=SpinGroup::Polarized) return TheZeroField();
+    if (!itsImp->spin) itsImp->spin=wf->GetSpinDensity();
+    return *itsImp->spin;
 }
-const qchem::ChargeDensity::cDM_CD& SolidCalculation::Converged::DensityMatrix() const {return *itsImp->cd;}
 
-const ScalarFunction<double>& SolidCalculation::Converged::Density() const
+const ChargeDensity::tDM_CD<dcmplx>& SolidCalculation::ProofDensity() const
 {
     // Still an assert, and legitimately so: reaching here without a density would be a BROKEN INVARIANT
     // (a Converged is only ever minted beside one), not a user error.  The user-error case is what the
     // type now prevents outright.
-    assert(itsImp->cd && "SolidCalculation::Converged::Density: converged without a density");
+    assert(itsImp->cd && "SolidCalculation::ProofDensity: converged without a density");
     return *itsImp->cd;
 }
 
@@ -868,9 +867,8 @@ std::string RunDiagnostics::Summary() const
 //! and "it hit the iteration cap" -- the only one of the three that names no mechanism -- is last of the
 //! three failures a collapse can trip.  Whichever fires, \c details carries the whole post-mortem, so
 //! nothing that was measured is lost to the ranking.
-Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() const
+std::optional<SCFFailure> SolidCalculation::MakeFailure() const
 {
-    using O = Outcome<Converged, SCFFailure>;
     if (itsImp->resourceRefusal)
     {   // REFUSED ON RESOURCES: before the first SCF (nothing ran), or mid-pilot (the run converged on the rasters it had; its state and
         // the pilot's record are kept, but the eps the pilot was to deliver is not).
@@ -881,7 +879,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() co
         f.details   =itsImp->resourceRefusal->Summary();
         if (itsImp->converged) f.details+="  [the SCF converged on the rasters it had; that state and the pilot's record are kept, NOT SETTLED]";
         f.resource  =itsImp->resourceRefusal;
-        return O::Fail(std::move(f));
+        return f;
     }
     const RunDiagnostics& d = itsImp->diag;
     auto fail=[&](SCFFailure::Why why, std::string what)
@@ -892,7 +890,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() co
         f.lastEnergy = itsImp->scf->GetEnergy().GetTotalEnergy();
         f.details    = std::move(what);
         if (const std::string s=d.Summary(); !s.empty()) f.details += "  [" + s + "]";
-        return O::Fail(std::move(f));
+        return f;
     };
 
     // ★ T3 -- THE CHARGE-SLOSH DETECTOR, as a REFINEMENT OF NON-CONVERGENCE.  "Ran out of iterations" is
@@ -936,7 +934,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() co
                     +std::to_string(d.OrderDiedAt())+" onward, so this energy answers a different "
                     "question than the one asked");
 
-    return O::Ok(Converged(itsImp.get()));
+    return std::nullopt;
 }
 
 
@@ -1082,7 +1080,7 @@ SolidCalculation::Converge(const std::vector<SCFStage>& schedule)
     if (!itsImp->setup->rastersResolved && !itsImp->rastersSettled)
     {
         CalibrateRasters(schedule.back().params);   // C2 step 3: the pilot, after the FINAL stage
-        return Outcome_();                          // the re-converged point's
+        return Result();                          // the re-converged point's
     }
     return last;   // the FINAL stage's -- the earlier ones exist to feed it
 }
@@ -1185,7 +1183,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
         itsImp->pilotPreflightDone=true;
         if (auto r=PilotPreflight()) itsImp->resourceRefusal=std::move(r);
     }
-    if (itsImp->resourceRefusal) return Outcome_();
+    if (itsImp->resourceRefusal) return Result();
     // THE RESTORED STAGE'S STEP (the Auto policy, MakeAccelerator): an Auto accelerator on a restored density pairs with a LINEAR
     // mixer, and a converged density wants a restart's step, not the ground state's (relax 1.0 diverged a restart, Si Γ 2026-09-29).
     // THE RECIPE'S KNOBS (qchem.SCFRecipe): a named regime fills its mixer on a cold or carried stage, a stated knob wins (a deviation).
@@ -1347,7 +1345,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::ConvergeStage
                       << ": "<<e.what()<<std::endl;
         }
     }
-    return Outcome_();
+    return Result();
 }
 
 //====================================================================================================
@@ -1544,7 +1542,6 @@ SolidCalculation::ViewState(const std::string& path, std::shared_ptr<const Solid
     return O::Ok(std::make_unique<StateView>(std::move(c), saved.TakeValue(), judged.TakeValue(), std::move(blocks), std::move(rho), up, down));
 }
 
-Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Result() const {return Outcome_();}
 
 qchem::EnergyBreakdown SolidCalculation::LastIterateTerms()  const {return itsImp->scf->GetEnergy();}
 double                 SolidCalculation::LastIterateCharge() const {return itsImp->charge;}
@@ -2651,11 +2648,6 @@ const qchem::ChargeDensity::cDM_CD* SolidCalculation::LastIterateDensity() const
 namespace
 {
 //! m(r) of an unpolarized run: a field, not an absence (the molecular facade's ZeroField twin).
-struct ZeroSpinField : public virtual ScalarFunction<double>
-{
-    double  operator()(const rvec3_t&) const override {return 0.0;}
-    rvec3_t Gradient  (const rvec3_t&) const override {return rvec3_t(0.0, 0.0, 0.0);}
-};
 }
 
 std::unique_ptr<SolidCalculation::sf_t> SolidCalculation::MakeIterateDensity() const
@@ -2671,7 +2663,7 @@ std::unique_ptr<SolidCalculation::sf_t> SolidCalculation::MakeIterateSpinDensity
         throw std::logic_error("SolidCalculation::MakeIterateSpinDensity: no iteration has run yet");
     const auto* wf=itsImp->scf->GetWaveFunction();
     if (wf->GetSpinGroup()==SpinGroup::Polarized) return wf->GetSpinDensity();
-    return std::make_unique<ZeroSpinField>();
+    return std::make_unique<ZeroField>();
 }
 
 Outcome<qchem::Response::ChannelResponse,qchem::Response::ResponseFailure>

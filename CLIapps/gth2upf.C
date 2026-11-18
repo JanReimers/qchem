@@ -101,9 +101,9 @@ int main(int argc, char** argv)
         // cycle), then re-converge cold with MOM holding whichever reference the smeared state landed on.
         std::cerr<<"gth2upf: plain aufbau did not converge -- retrying with a kT anneal (hot smear -> cold MOM)\n";
         SCFParams hot=p; hot.SmearingkT=0.02; hot.StartingRelaxRo=0.2;
-        atom.Converge(hot);
+        (void)atom.Converge(hot);
         SCFParams cold=p; cold.SmearingkT=0.0; cold.UseMOM=true; cold.MOMStartIter=5; cold.StartingRelaxRo=0.2;
-        atom.Converge(cold);
+        (void)atom.Converge(cold);
         if (!atom.IsConverged()) { std::cerr<<"gth2upf: the pseudo-atom did not converge (even annealed)\n"; return 2; }
     }
     std::vector<Wfc> wfcs;

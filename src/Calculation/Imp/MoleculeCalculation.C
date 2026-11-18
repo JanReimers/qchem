@@ -47,12 +47,6 @@ namespace qchem
 namespace PG = ::qchem::BasisSet::Gaussian::PG_Cart;
 using SCFIter = qchem::SCFIterator::MolecularSCFIterator;   // item 2: the atom/molecule display subclass
 
-//! The spin density of an unpolarized run: m(r) = 0 everywhere (GetSpinDensity).
-struct ZeroField : public virtual ScalarFunction<double>
-{
-    double         operator()(const rvec3_t&) const override {return 0.0;}
-    vec3_t<double> Gradient  (const rvec3_t&) const override {return vec3_t<double>(0.0, 0.0, 0.0);}
-};
 
 // Build the molecular orbital basis, optionally SALC point-group-blocked.  When symmetry is off the
 // caller owns the raw basis directly; when on, the raw basis is handed to PG::SymmetryAdapt as a
@@ -265,15 +259,12 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
 
     ReportResult("molecule", itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
                  itsSetup->opts.accuracy.Target(Consumes(), itsStructure->GetNumAtoms()));
-    return Outcome_();
+    return Result();
 }
 
-Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Result() const {return Outcome_();}
-
-Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Outcome_() const
+std::optional<SCFFailure> MoleculeCalculation::MakeFailure() const
 {
-    using O=Outcome<Converged, SCFFailure>;
-    if (itsScf->Converged()) return O::Ok(Converged(this));
+    if (itsScf->Converged()) return std::nullopt;
     SCFFailure f;   // the molecular facade's detectors: the iterator's own refusal, else a run out of iterations
     const bool refused=!itsScf->UnphysicalStop().empty();
     f.why        = refused ? SCFFailure::Why::UnphysicalEnergy : SCFFailure::Why::NotConverged;
@@ -281,13 +272,14 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Outcome
     f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
     f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
     if (!refused && itsLastRow) f.details += "; the last iterate: "+itsLastRow->GatesText();
-    return O::Fail(std::move(f));
+    return f;
 }
 
-double                 MoleculeCalculation::Converged::Energy()         const {return itsCalc->itsScf->GetEnergy().GetTotalEnergy();}
-qchem::EnergyBreakdown MoleculeCalculation::Converged::EnergyTerms()    const {return itsCalc->itsScf->GetEnergy();}
-size_t                 MoleculeCalculation::Converged::IterationCount() const {return itsCalc->itsScf->GetIterationCount();}
-const MoleculeCalculation::sf_t& MoleculeCalculation::Converged::Density()      const {return itsCalc->Density();}
+EnergyBreakdown MoleculeCalculation::ProofEnergyTerms() const {return itsScf->GetEnergy();}
+double          MoleculeCalculation::ProofCharge()      const {assert(itsDensity); return itsDensity->GetTotalCharge();}
+size_t          MoleculeCalculation::ProofIterations()  const {return itsScf->GetIterationCount();}
+const ChargeDensity::tDM_CD<double>& MoleculeCalculation::ProofDensity() const {assert(itsDensity); return *itsDensity;}
+const ScalarFunction<double>&        MoleculeCalculation::ProofSpinDensity() const {return GetSpinDensity();}
 
 // The linear response of the converged state: Reference (R0, orbital basis) + frame (AO <-> MO) + the
 // Hamiltonian's kernel + the dipole probe, solved together by GMRES (qcResponse).  The facade is the one place
