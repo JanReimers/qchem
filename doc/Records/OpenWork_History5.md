@@ -3514,3 +3514,23 @@ The row as it stood:
 The row as it stood:
 
 | **All-electron ION seeds: an all-electron cation is solved in its ISOELECTRONIC NEUTRAL's configuration** (lane B 2026-11-13, remainder of the closed seed row; the user asked for "ions too", 2026-11-06) | `AtomCalculation` builds `Atom_EC(Ne)` from the electron count alone, so Fe⁺ (Z 26, 25 e) is solved as Mn's 3d⁵4s², where NIST's Fe⁺ is 3d⁶4s¹ (V⁺ 3d⁴, Co⁺ 3d⁸, ...: `doc/GSData/NIST-dftdata-tar.gz` dftdata/configurations lists every first cation H-U, and its LDA/LSD cation tables are the oracle).  So ion entries need a STATED configuration first.  The molecular IonicSAD reads a charge state when the library has it (`Seed.C`), else the neutral | **STEP 1 LANDED 01d978eb (2026-11-15):** `AtomCalcOptions::configuration` (NIST notation, refused under policy AtomConfiguration when it cannot run), `scfrun --config`; gate `A_DFT_ion`.  **STEP 2 LANDED fc3630e1 (2026-11-15):** the library holds NIST's 91 first cations (all within +1.84 mHa of NIST's cation tables) and the oxide decks' 11 higher cations (judged on PySCF, 0.3-0.7 mHa below it: its basis gap), 92 → 194 entries; NO anions (a free LDA anion is unbound, its own row); short + long + panel 0 moved (no gate reads an all-electron ion entry in an SCF).  Recipe and tables: `Records/OpenWork_History5.md`, "IONS (row 188" · **STEP 3 DONE on lane-b 0268581ef (2026-11-17), awaiting the user's OK with steps 1-2's READY (0 movers):** an UNSTATED all-electron cation takes NIST's first-cation configuration (q = +1, Z ≤ 92; `config` in `nist{LDA,LSD}cations.json`, imported by `scripts/import-nist-configurations`) or `CationByRemoval` (q ≥ +2 or Z > 92: valence beyond the noble-gas core first, then the core, highest n then highest l), Hund's high spin, the branch and multiplicity in the AtomConfiguration policy row; anions, neutrals, PP and Dirac atoms unchanged.  Remainder: an unstated DIRAC cation keeps the isoelectronic neutral (the sibling of the Dirac row below).  On landing: move to the record, leave a stub · `scripts/gen-ae-seeds` |
+
+## Retire the schema-1 deck translator (✅ 2026-11-18, lane S)
+
+The row as it stood:
+
+| **Retire the schema-1 deck translator** (controller, 2026-11-17, from V-FACADE-PARITY P0) | P0 moved the structure-neutral options out of `solid` (deck schema 2) and kept ONE transitional reader, `ToSchema2` (`src/Calculation/Imp/Deck.C`), that reads a schema-1 key at its old place with its old meaning, so the GUI's schema-1 writer kept running.  The user ruled the same day that keys may simply move ("removing keys is fine as long as we update all our decks accordingly") | TRIGGER: lane G's schema-2 writer lands (`qviz/backends/solid2_deck.py`, `setup_panel.py`).  Then one commit: an old place is REFUSED naming its new home, the `schema` stamp and the meaning-follows-place layer go, the in-code schema-1 test decks (MnO.C, Li.C, `src/Calculation/tests/Deck.C`) are respelled · `src/Calculation/Imp/Deck.C` |
+
+**Done.**  `ToSchema2` and its meaning-follows-place table are gone.  `RequireSchema2` (`src/Calculation/Imp/Deck.C`) REFUSES a deck stamped
+`"schema": 1` and every key at its schema-1 place under `solid` (Nelec, charge, multiplicity, pp, species, model, seed, ortho, orthoTol,
+imposeSymmetry, siteSpins -> spins, accelerator, label, saveStateTo, xcMesh -> xc.mesh), naming its home and doc/InputDeck.md §3 (which now
+holds the respelling table; a schema-1 `solid.multiplicity >= 1` is respelled with `"spin": "Polarized"`).  `"schema": 2` is still accepted,
+absent reads as 2, any other value is refused.  The in-code decks (GPW Li.C, LiF.C, MnO.C, Si.C, `src/Calculation/tests/Deck.C`) and the
+`scripts/log2deck.py` writer are respelled; the GUI's writer was already schema 2 (qchem-GUI c38d196).
+
+Landing: short 1735 / long 19, 0 movers vs main-2c09f492; RelChecked RC=0; all 67 tracked repo decks pass `rundeck --check`.  Corpus gate
+(banked run-dir records + historical repo deck copies): 214 entries that resolved before now stop, EVERY one refused as schema 1 (67 banked
+`.rNNN.json` records in ~/Code/qchem6-runs: NiO 29, Si 13, MnO 4, F2 4, MnO_box16 crawl/otstudy 14, Li 3; and 147 copies of repo decks from
+git history), acceptable under the user's 2026-11-17 ruling.  Left over: `log2deck.py` drafts still fail at the retired `scf.minDeltaRho`
+(OpenWork row "log2deck writes a deck rundeck refuses").
+

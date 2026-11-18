@@ -739,7 +739,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Ordering_Long)
     namespace fs=std::filesystem;
     const nlohmann::json deck={
         {"structure","MnO_AFM2"}, {"basis",{{"data","VALENCE_LOWQ_SR"}}},
-        {"solid",{{"multiplicity",1},{"seed","IonicSAD"},{"siteSpins",{1,-1,0,0}},{"ortho","CholeskyPivoted"},{"orthoTol",1e-4},{"accelerator","Null"},{"imposeSymmetry",true}}},
+        {"multiplicity",1},{"spin","Polarized"},{"seed","IonicSAD"},{"spins",{1,-1,0,0}},{"ortho","CholeskyPivoted"},{"orthoTol",1e-4},{"accelerator","Null"},{"imposeSymmetry",true},
         {"scf",{{"NMaxIter",200},{"minDeltaRhoPerElectron",1e-6},{"deltaRhoMeasure","MaxDeltaD"},{"minDeltaE","off"},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},
                 {"startingRelaxRo",0.45},{"mergeTol",1e-4},{"pulayDepth",8},{"pulayStart",5},{"kerkerG0",1.0},{"useMOM",false},{"smearingkT",5e-3}}}};
     qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);

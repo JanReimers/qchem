@@ -29,8 +29,9 @@ nlohmann::json LiDeck()
         {"structure",{{"name","Li_bcc"},{"lattice",{{"vectors_bohr",{{-h,h,h},{h,-h,h},{h,h,-h}}}}},{"atoms",{{{"el","Li"},{"frac",{0.0,0.0,0.0}}}}}}},
         {"kmesh",{4,4,4}},
         {"basis",{{"data","VALENCE_LOWQ_VA"},{"file",(qchem::panel::BasisDataDir()/"valence_lowq_va.bsd").string()},{"autoTrim",false}}},
-        {"solid",{{"imposeSymmetry",true},{"xcMesh",{{"cellKind","Becke"}}},{"species",nlohmann::json::array({nlohmann::json::array({"Li",1})})},
-                  {"ortho","CholeskyPivoted"},{"orthoTol",1e-7},{"tolerances",{{"rasterX",8.0},{"vlocRasterX",8.0},{"xcRasterX",8.0}}}}},
+        {"imposeSymmetry",true},{"xc",{{"mesh",{{"cellKind","Becke"}}}}},{"species",nlohmann::json::array({nlohmann::json::array({"Li",1})})},
+        {"ortho","CholeskyPivoted"},{"orthoTol",1e-7},
+        {"solid",{{"tolerances",{{"rasterX",8.0},{"vlocRasterX",8.0},{"xcRasterX",8.0}}}}},
         {"accuracy",0},
         {"scf",{{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7},{"smearingkT",0.001}}}};
 }
@@ -88,8 +89,8 @@ nlohmann::json LiBoxDeck(const std::string& model)
                       {"atoms",{{{"el","Li"},{"frac",{0.0,0.0,0.0}}}}}}},
         {"kmesh",{1,1,1}},
         {"basis",{{"data","VALENCE_LOWQ_VA"},{"file",(qchem::panel::BasisDataDir()/"valence_lowq_va_liq3.bsd").string()},{"autoTrim",true}}},
-        {"solid",{{"species",nlohmann::json::array({nlohmann::json::array({"Li",3})})},{"multiplicity",2},{"model",model},
-                  {"ortho","CholeskyPivoted"},{"orthoTol",1e-7}}},
+        {"species",nlohmann::json::array({nlohmann::json::array({"Li",3})})},{"multiplicity",2},{"model",model},
+        {"ortho","CholeskyPivoted"},{"orthoTol",1e-7},
         {"scf",{{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7}}}};
 }
 //! The PPFittedFunctional rows of the LAST filed run whose name starts with \a prefix (the deck files its run under its stem).
