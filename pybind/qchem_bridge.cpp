@@ -269,10 +269,10 @@ MoleculeRequest molecule_request(const qcb_request* req)
     if (req->meshRadial  > 0) r.opts.mesh.nRadial       = req->meshRadial;
     if (req->meshAngular > 0) r.opts.mesh.angularDegree = req->meshAngular;
     r.acc.type = req->accelerator && *req->accelerator ? req->accelerator : "DIIS";
-    if (req->diisDepth    > 0)   r.acc.nProj = req->diisDepth;
-    if (req->diisSVTol    > 0.0) r.acc.svTol = req->diisSVTol;
-    if (req->diisEngageFD > 0.0) r.acc.eMax  = req->diisEngageFD;
-    if (req->ladderSwitchAt >= 0.0) r.acc.ladderSwitchAt = req->ladderSwitchAt;   // 0 = no tail trigger (stall only)
+    if (req->diisDepth    > 0)   r.acc.diis.nProj         = req->diisDepth;
+    if (req->diisSVTol    > 0.0) r.acc.diis.svTol         = req->diisSVTol;
+    if (req->diisEngageFD > 0.0) r.acc.diis.engageBelowFD = req->diisEngageFD;   // an unstated gdm gate follows it (the resolver)
+    if (req->ladderSwitchAt >= 0.0) r.acc.ladder.switchAt = req->ladderSwitchAt;   // 0 = no tail trigger (stall only)
     return r;
 }
 
