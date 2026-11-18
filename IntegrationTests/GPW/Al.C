@@ -84,7 +84,7 @@ TEST(GPW_Al, Γ_Imp_Converges)
 {
     const Material al=qchem::Materials::Get("Al_fcc");        // Al (Zion=3): 3s^2 3p^1
     const Lattice_3D lat=LatticeOf(al);
-    SolidCalcOptions o=AlOptions(al);
+    RunOptions o=AlOptions(al);
     SCFParams par=AlGates(40); par.SmearingkT=0.0; par.Verbose=true;   // aufbau (no smearing)
     GpwReport report("Al "+o.label, par.Verbose);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
@@ -114,7 +114,7 @@ TEST(GPW_Al, Γ_Imp_EverySeedReachesTheSameAufbauState)
     const char* name[3]={"uniform", "core guess", "auto"};
     for (int i=0;i<3;i++)
     {
-        SolidCalcOptions o=AlOptions(al);
+        RunOptions o=AlOptions(al);
         o.seed=seeds[i];
         GpwReport report(std::string("Al ")+name[i]+" seed "+o.label, par.Verbose);
         const auto setup=SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o);
@@ -143,7 +143,7 @@ TEST(GPW_Al, Γ_Imp_Anneal_Anchor_Panel)   // PANEL case 12 (regime 3, metal kT 
     qchem::IterationBudget budget(19, "Al fcc anneal, three smeared stages (regime 3; 15 = 13+1+1 measured, 2026-10-29 panel baseline)");
     const Material al=qchem::Materials::Get("Al_fcc");        // Al (Zion=3): 3s^2 3p^1
     const Lattice_3D lat=LatticeOf(al);
-    SolidCalcOptions o=AlOptions(al);
+    RunOptions o=AlOptions(al);
     // Accelerator = plain DIIS (NOT the DIIS->GDM Ladder).  MEASURED 2026-07-28: the Ladder's GDM tail rung is
     // INCOMPATIBLE with Fermi smearing here.  GDM builds its geodesic DIRECTION from the fixed-occupation
     // electronic gradient [F,D], but line-searches the FREE energy A=E−TS with the occupations Fermi-refilled
@@ -187,7 +187,7 @@ TEST(GPW_Al, k222_Smear_GlobalMu_Anchor)
 {
     const Material al=qchem::Materials::Get("Al_fcc");        // Al (Zion=3): 3s^2 3p^1
     const Lattice_3D lat=LatticeOf(al, ivec3_t(2,2,2));       // 8-point Γ-centred Bloch mesh (weights sum to 1)
-    SolidCalcOptions o=AlOptions(al, "Al FCC 2x2x2 global mu");
+    RunOptions o=AlOptions(al, "Al FCC 2x2x2 global mu");
     o.imposeSymmetry=false;                    // the FULL mesh: the IBZ-folded sibling below must reproduce it
     SCFParams par=AlGates(); par.SmearingkT=0.01;
     GpwReport report("Al "+o.label, false);
@@ -213,7 +213,7 @@ TEST(GPW_Al, k222_Imp_Smear_GlobalMu_eqFree)
 {
     const Material al=qchem::Materials::Get("Al_fcc");
     const Lattice_3D lat=LatticeOf(al, ivec3_t(2,2,2));
-    SolidCalcOptions o=AlOptions(al, "Al FCC 2x2x2 IBZ");
+    RunOptions o=AlOptions(al, "Al FCC 2x2x2 IBZ");
     o.imposeSymmetry=true;       // fold to the irreducible wedge AND star-average the density
     SCFParams par=AlGates(); par.SmearingkT=0.01;
     GpwReport report("Al "+o.label, false);

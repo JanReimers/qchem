@@ -53,7 +53,7 @@ import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKi
 import qchem.LASolver;                        // qchem::Ortho
 import qchem.Outcome;                         // Outcome<T,E> -- the fallible-call vocabulary (N1/T1)
 export import qchem.SolidState;               // RestartRefusal (Restart's failure), the saved-state layer (CK-1)
-export import qchem.SolidSetup;               // SolidCalcOptions + the resolved SolidSetup a run is built from (step 6)
+export import qchem.SolidSetup;               // RunOptions + the resolved SolidSetup a run is built from (step 6)
 export import qchem.PotentialEnergySurface;   // the face SolidSession implements (step 8)
 export import qchem.WyckoffMap;               // WyckoffMap, CoordinateMap: the map MakeSolidGeometryRun pairs with a session
 export import qchem.SCFFailure;               // SCFFailure: why an attempt has no answer (shared with the molecular facade)
@@ -278,7 +278,7 @@ public:
     //! electron count, spin group, functional).  A refusal is a value because the caller's fallback (a fresh
     //! seed) is a decision only the caller can make.
     //!
-    //! No mixer or accelerator history is carried: a restart is a fresh stage.  With \c opts.momFromSeed the
+    //! No mixer or accelerator history is carried: a restart is a fresh stage.  With \c opts.solid.momFromSeed the
     //! MOM reference is the restored density's own first fill, as for any seed.  A \c Ladder accelerator STARTS
     //! ON ITS GDM RUNG for the restart's stage when \a params.SmearingkT is 0 (\c AcceleratorParams::ladderStartOnGDM):
     //! the DIIS rung's mixing would step a converged density away before the first energy is read.  A smeared restart
@@ -700,7 +700,7 @@ private:
     //! Stand up one stage's Hamiltonian + accelerator + iterator, seeded from \a carried when given.  \a params are the
     //! stage's (an \c Auto accelerator is resolved against them).
     void BuildStage(const std::string& why, SCFAccelerators::Type, SCFRecipe, std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried, const SCFParams& params);
-    //! Build this stage's accelerator: resolve \a asked (\c Auto, see \c SolidCalcOptions::accelerator) under \a recipe for \a params
+    //! Build this stage's accelerator: resolve \a asked (\c Auto, see \c RunOptions::accelerator) under \a recipe for \a params
     //! and the stage \a kind (qchem.SCFRecipe: \c ChooseAccelerator), and record them for the banner, the recipe's report and for the
     //! stages that re-resolve it.  THROWS (policy::Refuse) on a recipe that refuses the stage's kT.
     void MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe recipe, const SCFParams& params, SCFStageKind kind);
@@ -772,7 +772,7 @@ public:
     enum class Carry { AO, Lowdin };
     //! \a schedule: the SCF recipe -- the first point runs all of it from the setup's seed, every later point its FINAL stage
     //! from the carried density, moved onto the new basis as \a carry says.  THROWS on a free Gaussian setup resolved with
-    //! \c SolidCalcOptions::xcMeshSymmetric (the XC mesh would follow the group detected at each geometry and switch along a path).
+    //! \c RunOptions::xcMeshSymmetric (the XC mesh would follow the group detected at each geometry and switch along a path).
     //! \a onIteration observes every point's SCF (each \c ConvergeAt), from its first iteration -- as \c MoleculeSession.
     SolidSession(std::shared_ptr<const SolidSetup> setup, std::vector<SCFStage> schedule, SolidCalculation::Observer onIteration = nullptr,
                  Carry carry=Carry::AO);

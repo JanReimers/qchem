@@ -104,8 +104,8 @@ TEST(GPW_Si, Γ_Imp_CP2K)
 {
     const Material si=qchem::Materials::Get("Si_diamond");    // FCC primitive cell, 2-atom diamond basis, a=10.26
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma");
-    o.densityEcut=20.0; o.imposeSymmetry=true;   // IMPOSED (the RunGPW default every Si anchor carried; V1.30)
+    RunOptions o=OptionsFor(si, "Si SR Gamma");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;   // IMPOSED (the RunGPW default every Si anchor carried; V1.30)
     SCFParams par=ProductionGates();
     GpwReport report("Si "+o.label, par.Verbose);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
@@ -121,8 +121,8 @@ TEST(GPW_Si, Γ_CP2K)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma (free, the facade's own recipe)");
-    o.densityEcut=20.0;                              // FREE: the facade's default -- the imposed sibling is GPW_Si.Γ_Imp_CP2K
+    RunOptions o=OptionsFor(si, "Si SR Gamma (free, the facade's own recipe)");
+    o.solid.densityEcut=20.0;                              // FREE: the facade's default -- the imposed sibling is GPW_Si.Γ_Imp_CP2K
     SCFParams par=ProductionGates();
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
 
@@ -151,10 +151,10 @@ TEST(GPW_Si, Γ_Null_Linear_Converges_Panel)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma, linear D-mixing, Null accelerator");
-    o.densityEcut=20.0;
+    RunOptions o=OptionsFor(si, "Si SR Gamma, linear D-mixing, Null accelerator");
+    o.solid.densityEcut=20.0;
     o.accelerator=qchem::SCFAccelerators::Type::Null;
-    o.policy.cp2kCompat=true;   // the row's condition (CP2K_COMPAT=1): without it the adaptive re-damp holds and it converges, slowly
+    o.solid.policy.cp2kCompat=true;   // the row's condition (CP2K_COMPAT=1): without it the adaptive re-damp holds and it converges, slowly
     SCFParams par=Gates(60, 1e-6, std::nullopt);
     par.Mixer=SCFParams::Mixing::Linear; par.StartingRelaxRo=0.30;
     qchem::IterationBudget budget(22, "free Si Gamma, linear D-mixing alpha 0.3, Null, cp2kCompat (regime 1; OpenWork §3 linear row; 17 measured 2026-10-29)");
@@ -172,8 +172,8 @@ TEST(GPW_Si, Γ_Imp_Schema)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si grids schema");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
+    RunOptions o=OptionsFor(si, "Si grids schema");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;
 
     report::ClearGlobal();                          // isolate this test's run
     {
@@ -229,15 +229,15 @@ TEST(GPW_Si, Γ_RunsReal)
                         return report::json{}; };
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si real-block report");
-    o.densityEcut=20.0;
+    RunOptions o=OptionsFor(si, "Si real-block report");
+    o.solid.densityEcut=20.0;
     const SCFParams par=Gates(3, 1e-3, 1e-6);
     auto run=[&]{ GpwReport report("Si "+o.label, false);
                   qchem::BoundedSCF bounded("the report's per-block SETUP rows are the subject; 3 iterations run the loop once over");
                   qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par); };
 
     report::ClearGlobal();
-    o.forceComplex=false;                            // real TRIM blocks (the shipped default)
+    o.solid.forceComplex=false;                            // real TRIM blocks (the shipped default)
     run();
     report::json rows=perIrrep();
     ASSERT_GE(rows.size(), 1u);
@@ -248,7 +248,7 @@ TEST(GPW_Si, Γ_RunsReal)
     }
 
     report::ClearGlobal();
-    o.forceComplex=true;                             // the control: same irrep fact, complex build
+    o.solid.forceComplex=true;                             // the control: same irrep fact, complex build
     run();
     rows=perIrrep();
     ASSERT_GE(rows.size(), 1u);
@@ -281,7 +281,7 @@ TEST(GPW_Si, Γ_Deterministic)
     for (int r=0;r<3;++r)
     {
         std::cout<<"[xrun] ================= RUN "<<r<<" ================="<<std::endl;
-        qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}), par);
+        qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}}), par);
         auto res=calc.Result();
         ASSERT_TRUE(res) << "run "<<r<<" did not converge: "<<res.Error().details;
         E[r]=res->Energy();
@@ -322,8 +322,8 @@ TEST(GPW_Si, Γ_Deterministic)
 //  bit-for-bit, gated by GPW_Si.Γ_Deterministic above, so the arms run cold.)
 static void ExpectRealComplexTwins(const Lattice_3D& lat, const Material& si, const char* what)
 {
-    const qchem::SolidCalcOptions optOn {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0};
-    const qchem::SolidCalcOptions optOff{.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true};
+    const qchem::RunOptions optOn {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}};
+    const qchem::RunOptions optOff{.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0, .forceComplex=true}};
 
     SCFParams one;                                   // the one-iteration recipe (gates 0 = strict-< never trips)
     one.NMaxIter=1; one.MinΔρPerElectron=0.0; one.MinΔE=0.0;
@@ -427,8 +427,8 @@ TEST(GPW_Si, Γ_Imp_Smear_eqAufbau)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma +smear");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
+    RunOptions o=OptionsFor(si, "Si SR Gamma +smear");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     SCFParams par=ProductionGates();
     par.SmearingkT=1e-3;
@@ -452,11 +452,11 @@ TEST(GPW_Si, Γ_Imp_Pol_eqUnpol)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma pol-singlet");
+    RunOptions o=OptionsFor(si, "Si SR Gamma pol-singlet");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.multiplicity=1; o.spin=SpinGroup::Polarized;                                  // EXPLICIT two-channel singlet (nUp=nDn=4)
-    o.siteSpins={0,0};   // stated (R2.5): Si is non-magnetic
-    o.densityEcut=20.0;
+    o.spins={0,0};   // stated (R2.5): Si is non-magnetic
+    o.solid.densityEcut=20.0;
     GpwReport report("Si "+o.label, false);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
     auto R=calc.Result();
@@ -470,11 +470,11 @@ TEST(GPW_Si, Γ_Imp_Pol_SpinSeed_eqUnpol)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma pol-singlet spin-SAD");
+    RunOptions o=OptionsFor(si, "Si SR Gamma pol-singlet spin-SAD");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.multiplicity=1; o.spin=SpinGroup::Polarized;                                  // EXPLICIT two-channel singlet (nUp=nDn=4)
-    o.siteSpins={0,0};   // stated (R2.5): Si is non-magnetic
-    o.densityEcut=20.0;
+    o.spins={0,0};   // stated (R2.5): Si is non-magnetic
+    o.solid.densityEcut=20.0;
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;    // -> PolarizedSeedCD (rho/2 channels for pairless Si)
     GpwReport report("Si "+o.label, false);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
@@ -509,12 +509,12 @@ TEST(GPW_Si, Γ_Imp_M3_Smear_ShFermi_MomentRelaxes)
     struct Arm { double charge, E; };
     auto TripletSi=[&](bool shared) -> Arm
     {
-        SolidCalcOptions o=OptionsFor(si, shared ? "Si Gamma triplet, shared mu" : "Si Gamma triplet, per-channel mu");
+        RunOptions o=OptionsFor(si, shared ? "Si Gamma triplet, shared mu" : "Si Gamma triplet, per-channel mu");
         o.imposeSymmetry=true;
         o.multiplicity=3;                              // SEEDED as a triplet (nUp=5, nDn=3)
-        o.siteSpins={0,0};                             // stated (R2.5): Si is non-magnetic -- the triplet is a SEED, not an ordering
-        o.densityEcut=20.0;
-        o.spinsShareFermi=shared;
+        o.spins={0,0};                             // stated (R2.5): Si is non-magnetic -- the triplet is a SEED, not an ordering
+        o.solid.densityEcut=20.0;
+        o.solid.spinsShareFermi=shared;
         SCFParams par=ProductionGates();
         par.SmearingkT=5e-3;                           // a shared mu needs smearing to relax the moment with
         GpwReport report("Si "+o.label, false);
@@ -549,13 +549,13 @@ TEST(GPW_Si, Γ_Imp_eqUnfolded)
 {
     const Material si=qchem::Materials::Get("Si_diamond");    // Fd-3m: non-symmorphic, 48 ops, quarter glide
     const Lattice_3D lat=LatticeOf(si);                       // Γ-only: the T3.2 arming condition (k≠Γ is T3.4)
-    SolidCalcOptions o=OptionsFor(si, "Si diamond Γ stream-fold A/B");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
+    RunOptions o=OptionsFor(si, "Si diamond Γ stream-fold A/B");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     struct Arm { double charge, E; };
     auto arm=[&](const char* fold) -> Arm
     {
-        o.policy.streamFold=(std::string(fold)=="1");   // the A/B arm states its route (D-ENV 6b)
+        o.solid.policy.streamFold=(std::string(fold)=="1");   // the A/B arm states its route (D-ENV 6b)
         GpwReport report("Si "+o.label, false);
         qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
         auto R=calc.Result();
@@ -591,10 +591,10 @@ TEST(GPW_Si, Γ_Becke_Imp_eqUni)
     // compares MATRIX ELEMENTS, and the uniform raw-adjoint H_xc carries raster error at N=15^3 that the
     // ~1e-4-converged Becke quadrature exposes (measured at Ecut=20: dExc=1.2e-4 but max|U-B|=1.2e-2 --
     // the raster's error, not Becke's; at Ecut=60 max|U-B|=3.5e-4).
-    SolidCalcOptions o=OptionsFor(si, "Si Becke gate");
+    RunOptions o=OptionsFor(si, "Si Becke gate");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.densityEcut=60.0;
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // the gate's SCF arm is the uniform route BY DESIGN (Auto would flip it)
+    o.solid.densityEcut=60.0;
+    SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;   // the gate's SCF arm is the uniform route BY DESIGN (Auto would flip it)
     SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;   // (this gate never set MergeTol)
     GpwReport report("Si "+o.label, false);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
@@ -635,8 +635,8 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_CP2K)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Becke Kerker");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
+    RunOptions o=OptionsFor(si, "Si SR Gamma Becke Kerker");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     o.xcMesh=qcMesh::BeckeXCParams();   // the SINGLES route
     SCFParams par=ProductionGates(); par.KerkerG0=1.0;                                 // THE ASK: ρ̃ mixing
     report::ClearGlobal();
@@ -662,8 +662,8 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_FitXC_Pin28Throws)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Becke Kerker fitted-XC control");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
+    RunOptions o=OptionsFor(si, "Si SR Gamma Becke Kerker fitted-XC control");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     o.xcMesh=qcMesh::BeckeXCParams();
     SCFParams par=ProductionGates(); par.KerkerG0=1.0; par.XCCuspDeficit=false;
     report::ClearGlobal();
@@ -689,9 +689,9 @@ TEST(GPW_Si, Γ_Uni_DeltaFit_Imp_eqPWFit)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si PW-fit");
+    RunOptions o=OptionsFor(si, "Si PW-fit");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.densityEcut=20.0;
+    o.solid.densityEcut=20.0;
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;
     auto energy=[&]{ GpwReport report("Si "+o.label, false);
@@ -699,11 +699,11 @@ TEST(GPW_Si, Γ_Uni_DeltaFit_Imp_eqPWFit)
                      auto r=calc.Result(); EXPECT_TRUE(r) << Why(r);
                      return r ? r->Energy() : 0.0; };
 
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;                        // (PlaneWave, raster)
+    SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;                        // (PlaneWave, raster)
     const double P=energy();
 
     o.label="Si Delta-fit uniform"; o.vxcFit=Hamiltonian::VxcFit::Delta;    // (Delta, uniform mesh)
-    o.xcMesh.eCut=o.densityEcut;                                            // resolve rho on the midpoint mesh
+    SolidXCMesh(o).eCut=o.solid.densityEcut;                                            // resolve rho on the midpoint mesh
     const double D=energy();
 
     EXPECT_NEAR(D, P, 5e-3)
@@ -722,11 +722,11 @@ TEST(GPW_Si, Γ_Uni_PWFit_Imp_Pol_eqUnpol)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si PW-fit unpol");
+    RunOptions o=OptionsFor(si, "Si PW-fit unpol");
     o.imposeSymmetry=true;
-    o.densityEcut=20.0;
+    o.solid.densityEcut=20.0;
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // (PlaneWave, raster): Auto resolves the PW fit here
+    SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;   // (PlaneWave, raster): Auto resolves the PW fit here
     SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;
     struct Arm { double charge, E; };
     auto arm=[&]() -> Arm { GpwReport report("Si "+o.label, false);
@@ -735,7 +735,7 @@ TEST(GPW_Si, Γ_Uni_PWFit_Imp_Pol_eqUnpol)
                             return r ? Arm{r->TotalCharge(), r->Energy()} : Arm{0,0}; };
     const Arm U=arm();
 
-    o.label="Si PW-fit pol-singlet"; o.multiplicity=1; o.spin=SpinGroup::Polarized; o.siteSpins={0,0};   // the explicit two-channel singlet on the SAME route
+    o.label="Si PW-fit pol-singlet"; o.multiplicity=1; o.spin=SpinGroup::Polarized; o.spins={0,0};   // the explicit two-channel singlet on the SAME route
     const Arm P=arm();
     EXPECT_NEAR(P.charge, 8.0, 1e-6);
     EXPECT_NEAR(P.E, U.E, 1e-6)                            // measured 6e-9 on 2026-09-14, same 17 iterations
@@ -772,8 +772,8 @@ TEST(GPW_Si, k211_Imp_Anchor)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si, ivec3_t(2,1,1));   // 2 k-points: Gamma + the zone-boundary k=1/2 (real +-1 phases)
-    SolidCalcOptions o=OptionsFor(si, "Si SR 2x1x1");
-    o.densityEcut=20.0; o.imposeSymmetry=true;   // IMPOSED, as every RunGPW anchor was (its default; V1.30)
+    RunOptions o=OptionsFor(si, "Si SR 2x1x1");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;   // IMPOSED, as every RunGPW anchor was (its default; V1.30)
     SCFParams par=ProductionGates();
     GpwReport report("Si "+o.label, par.Verbose);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
@@ -802,8 +802,8 @@ TEST(GPW_Si, k222_CP2K)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si, ivec3_t(2,2,2));
-    SolidCalcOptions o=OptionsFor(si, "Si 2x2x2 Gamma-centred (free)");
-    o.densityEcut=20.0; o.imposeSymmetry=false;      // FREE (2026-09-15): the full 8-k mesh; GPW_Si.k222_Imp_CP2K is the IMPOSED arm at the same anchor
+    RunOptions o=OptionsFor(si, "Si 2x2x2 Gamma-centred (free)");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=false;      // FREE (2026-09-15): the full 8-k mesh; GPW_Si.k222_Imp_CP2K is the IMPOSED arm at the same anchor
     SCFParams par=TightGates(60);
     GpwReport report("Si "+o.label, par.Verbose);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
@@ -825,8 +825,8 @@ TEST(GPW_Si, k222_Imp_CP2K)
 {
     const Material si=qchem::Materials::Get("Si_diamond");    // diamond = FCC + the glide-related 2nd sublattice (non-symmorphic)
     const Lattice_3D lat=LatticeOf(si, ivec3_t(2,2,2));
-    SolidCalcOptions o=OptionsFor(si, "Si diamond IBZ");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
+    RunOptions o=OptionsFor(si, "Si diamond IBZ");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     GpwReport report("Si "+o.label, false);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
@@ -853,8 +853,8 @@ TEST(GPW_Si, k222_Becke_Imp_eqFree)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si, ivec3_t(2,2,2));
-    SolidCalcOptions o=OptionsFor(si, "Si diamond Becke FULL");
-    o.densityEcut=20.0;
+    RunOptions o=OptionsFor(si, "Si diamond Becke FULL");
+    o.solid.densityEcut=20.0;
     o.xcMesh=qcMesh::BeckeXCParams(15, 2.0, 9);          // explicit coarse Becke (nR=15, GL-9), same on both arms
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     auto energy=[&]{ GpwReport report("Si "+o.label, false);
@@ -908,8 +908,8 @@ TEST(GPW_Si, k222s_Imp_CP2K)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si, ivec3_t(2,2,2));
-    SolidCalcOptions o=OptionsFor(si, "Si 2x2x2 shifted MP (k=±¼)");
-    o.densityEcut=20.0; o.imposeSymmetry=true; o.kShift=rvec3_t(0.5,0.5,0.5);
+    RunOptions o=OptionsFor(si, "Si 2x2x2 shifted MP (k=±¼)");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true; o.solid.kShift=rvec3_t(0.5,0.5,0.5);
     SCFParams par=TightGates(60);
     GpwReport report("Si "+o.label, par.Verbose);
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
@@ -957,8 +957,8 @@ TEST(GPW_Si, k311_Uni_MOM_eqCplx)
     par.MinΔFD=std::nullopt; par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
     par.UseMOM=true; par.MOMStartIter=2;              // armed EARLY: the reference must be live in-run
 
-    qchem::SolidCalculation on (SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}), par);
-    qchem::SolidCalculation off(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true}), par);
+    qchem::SolidCalculation on (SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}}), par);
+    qchem::SolidCalculation off(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0, .forceComplex=true}}), par);
     auto ron=on.Result(), roff=off.Result();
     ASSERT_TRUE(ron)  << "MOM on a mixed real/complex mesh must converge (R2.21): "
                       << (ron ? std::string() : ron.Error().details);
@@ -979,10 +979,10 @@ TEST(GPW_Si, Γ_U_ZeroUIsExactlyAbsent)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma (free)");
-    o.densityEcut=20.0;
+    RunOptions o=OptionsFor(si, "Si SR Gamma (free)");
+    o.solid.densityEcut=20.0;
     qchem::SolidCalculation plain(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
-    o.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};   // the term is BUILT, with U=0 on both Si p shells
+    o.solid.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};   // the term is BUILT, with U=0 on both Si p shells
     o.label="Si SR Gamma (free, U=0)";
     qchem::SolidCalculation withU(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
     auto a=plain.Result(), b=withU.Result();
@@ -996,9 +996,9 @@ TEST(GPW_Si, Γ_U_IsAPositiveSelfConsistentFunctional)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma (free, U=2 eV on p)");
-    o.densityEcut=20.0;
-    o.hubbard={HubbardU_SiteShells(0,1,2.0), HubbardU_SiteShells(1,1,2.0)};
+    RunOptions o=OptionsFor(si, "Si SR Gamma (free, U=2 eV on p)");
+    o.solid.densityEcut=20.0;
+    o.solid.hubbard={HubbardU_SiteShells(0,1,2.0), HubbardU_SiteShells(1,1,2.0)};
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
     auto r=calc.Result();
     ASSERT_TRUE(r) << (r ? std::string() : r.Error().details);
@@ -1019,12 +1019,12 @@ TEST(GPW_Si, Γ_U_Imp_Pol_Kerker_eqUnpol)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Kerker U=2 eV");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.hubbard={HubbardU_SiteShells(0,1,2.0), HubbardU_SiteShells(1,1,2.0)};
+    RunOptions o=OptionsFor(si, "Si SR Gamma Kerker U=2 eV");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;
+    o.solid.hubbard={HubbardU_SiteShells(0,1,2.0), HubbardU_SiteShells(1,1,2.0)};
     SCFParams par=ProductionGates(); par.KerkerG0=1.0;                                 // the rho-tilde mixer
     qchem::SolidCalculation unpol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.siteSpins={0,0}; o.label="Si SR Gamma Kerker U=2 eV pol-singlet";                // PolarizedMixCD in the loop
+    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.spins={0,0}; o.label="Si SR Gamma Kerker U=2 eV pol-singlet";                // PolarizedMixCD in the loop
     qchem::SolidCalculation pol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
     auto a=unpol.Result(), b=pol.Result();
     ASSERT_TRUE(a) << Why(a);
@@ -1046,12 +1046,12 @@ TEST(GPW_Si, Γ_U_ACBN0_Imp_Pol_eqUnpol)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma ACBN0 on p");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};                                  // U=0: a plain LDA run that carries the manifolds
+    RunOptions o=OptionsFor(si, "Si SR Gamma ACBN0 on p");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;
+    o.solid.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};                                  // U=0: a plain LDA run that carries the manifolds
     SCFParams par=ProductionGates();
     qchem::SolidCalculation unpol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.siteSpins={0,0}; o.label="Si SR Gamma ACBN0 on p, pol-singlet";
+    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.spins={0,0}; o.label="Si SR Gamma ACBN0 on p, pol-singlet";
     qchem::SolidCalculation pol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
     ASSERT_TRUE(unpol.Result()) << Why(unpol.Result());
     ASSERT_TRUE(pol.Result())   << Why(pol.Result());
@@ -1092,12 +1092,12 @@ TEST(GPW_Si, Γ_U_PseudoAtomic3p_Imp_Pol_eqUnpol)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma U=2 eV on the pseudo-atomic 3p projector");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};                                  // the default projector: pseudo-atomic
+    RunOptions o=OptionsFor(si, "Si SR Gamma U=2 eV on the pseudo-atomic 3p projector");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;
+    o.solid.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};                                  // the default projector: pseudo-atomic
     SCFParams par=ProductionGates();
     qchem::SolidCalculation unpol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.siteSpins={0,0}; o.label="Si SR Gamma U=2 eV on the pseudo-atomic 3p projector, pol-singlet";
+    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.spins={0,0}; o.label="Si SR Gamma U=2 eV on the pseudo-atomic 3p projector, pol-singlet";
     qchem::SolidCalculation pol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
     auto a=unpol.Result(), b=pol.Result();
     ASSERT_TRUE(a) << Why(a);
@@ -1130,9 +1130,9 @@ TEST(GPW_Si, Γ_U_ACBN0_OuterLoopFeelsTheNewU)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma ACBN0 outer loop from U=0");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
-    o.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};
+    RunOptions o=OptionsFor(si, "Si SR Gamma ACBN0 outer loop from U=0");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;
+    o.solid.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};
     SCFParams par=ProductionGates();
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
     ASSERT_TRUE(calc.Result()) << Why(calc.Result());
@@ -1164,8 +1164,8 @@ TEST(GPW_Si, Γ_Imp_Kerker_Pulay_ConvergesOnMaxDeltaD)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Kerker Pulay(8) max|dD|<1e-6");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
+    RunOptions o=OptionsFor(si, "Si SR Gamma Kerker Pulay(8) max|dD|<1e-6");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     SCFParams par=Gates(60, 1e-6, std::nullopt); par.KerkerG0=1.0; par.PulayDepth=8; par.PulayStart=3;
     par.Δρmeasure=SCFParams::Measure::MaxΔD;
     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
@@ -1185,11 +1185,11 @@ TEST(GPW_Si, Γ_Imp_Pol_Kerker_eqUnpol)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
-    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Kerker");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
+    RunOptions o=OptionsFor(si, "Si SR Gamma Kerker");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     SCFParams par=ProductionGates(); par.KerkerG0=1.0;
     qchem::SolidCalculation unpol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.siteSpins={0,0}; o.label="Si SR Gamma Kerker pol-singlet";
+    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.spins={0,0}; o.label="Si SR Gamma Kerker pol-singlet";
     qchem::SolidCalculation pol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
     auto a=unpol.Result(), b=pol.Result();
     ASSERT_TRUE(a) << Why(a);

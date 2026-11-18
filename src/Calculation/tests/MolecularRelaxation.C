@@ -56,7 +56,7 @@ double Dihedral(const std::vector<rvec3_t>& R, size_t i, size_t j, size_t k, siz
 //! Relax \a m from its given positions; print the history; hand back the result (asserting it converged).
 OptimizedGeometry Relax(const Molecule& m, OptimizerOptions::Algorithm algorithm, const std::string& what)
 {
-    MoleculeSession pes(MoleculeSetup::Resolve(m, {.basis="dzvp"}), RelaxationGate());
+    MoleculeSession pes(MoleculeSetup::Resolve(m, {.molecule={.basis="dzvp"}}), RelaxationGate());
     CartesianMap map(pes.Reference());
     OptimizerOptions o=OptimizerOptions::FromEps(1e-6);
     o.algorithm=algorithm;

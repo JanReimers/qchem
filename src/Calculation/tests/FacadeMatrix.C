@@ -362,7 +362,7 @@ std::string ViewFiled(const std::string& run)
 class AtomProbe : public FacadeProbe
 {
     static constexpr int Z=8;
-    static AtomCalcOptions Options() {return {.type=AtomType::Gaussian, .model=Model::LDA};}
+    static RunOptions Options() {return {.model=Model::LDA, .atom={.type=AtomType::Gaussian}};}
     static std::string ID() {return Atom(Z, 0.0, rvec3_t(0,0,0)).ID();}
 public:
     std::string PrepareFilesTheSetup() override
@@ -381,8 +381,8 @@ public:
     std::string AcceleratorKnobsArrive() override
     {
         // The atom states every knob -- but only through its stringly json escape hatch, in the json door's own key names.
-        AtomCalcOptions o=Options();
-        o.accelerator={{"type","Ladder"}, {"NProj",6}, {"EngageBelowFD",0.05}, {"SVTol",1e-8},
+        RunOptions o=Options();
+        o.atom.accelerator={{"type","Ladder"}, {"NProj",6}, {"EngageBelowFD",0.05}, {"SVTol",1e-8},
                        {"Trust",0.2}, {"ethresh",1e-7}, {"stall",4}, {"floor",1e-9}, {"switchat",1e-5}};
         { report::Run run(ID()+" build"); AtomCalculation::Prepare(Z, 0, o); }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
@@ -435,7 +435,7 @@ class MoleculeProbe : public FacadeProbe
 {
     static std::shared_ptr<const MoleculeSetup> Setup(const AcceleratorOptions& acc={})
     {
-        return MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"), {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"}, acc);
+        return MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"), {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}}, acc);
     }
     static std::string ID() {return StructureData::GetMolecule("H2O").ID();}
 public:
@@ -509,7 +509,7 @@ public:
         }
         {
             const auto o2=MoleculeSetup::Resolve(StructureData::GetMolecule("O2"),
-                                                 {.basis="dzvp", .model=Model::LDA, .multiplicity=3, .pp="gth-lda-valence"});
+                                                 {.multiplicity=3, .model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
             MoleculeCalculation calc(o2);
             if (!calc.IsConverged()) return why+"O2 (triplet) did not converge";
             calc.SaveState(path2);
@@ -533,7 +533,7 @@ public:
                 if (a++==1) m.R.x+=0.01;
                 moved.Insert(m);
             }
-            const auto movedSetup=MoleculeSetup::Resolve(moved, {.basis="dzvp", .model=Model::LDA, .pp="gth-lda-valence"});
+            const auto movedSetup=MoleculeSetup::Resolve(moved, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
             why+=Refused("H2O with H 1 moved 0.01 bohr", [&]{ return MoleculeCalculation::ViewState(path, movedSetup); },
                          RestartRefusal::Why::Mismatch, "atom 1 is 0.01 bohr");
             why+=Refused("H2O with H 1 moved 0.01 bohr", [&]{ return MoleculeCalculation::ViewState(path, movedSetup); },
@@ -541,11 +541,11 @@ public:
         }
         {
             const auto spherical=MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"),
-                                                        {.basis="dzvp", .model=Model::LDA, .angular=Angular::Spherical, .pp="gth-lda-valence"});
+                                                        {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp", .angular=Angular::Spherical}});
             why+=Refused("the spherical basis", [&]{ return MoleculeCalculation::ViewState(path, spherical); }, RestartRefusal::Why::Mismatch);
         }
         {
-            AtomCalculation atom(8, 0, {.type=AtomType::Gaussian, .model=Model::LDA});
+            AtomCalculation atom(8, 0, {.model=Model::LDA, .atom={.type=AtomType::Gaussian}});
             atom.SaveState(atomPath);
             why+=Refused("an atom's state", [&]{ return MoleculeCalculation::ViewState(atomPath, Setup()); }, RestartRefusal::Why::Kind);
         }
@@ -567,7 +567,7 @@ class SolidProbe : public FacadeProbe
                                                    const AcceleratorOptions& acc={})
     {
         const auto mat=Materials::Get("Si_diamond");
-        SolidCalcOptions o; o.Nelec=8; o.species=mat.species; o.densityEcut=20.0; o.label="matrix"; o.accelerator=type;
+        RunOptions o; o.Nelec=8; o.species=mat.species; o.solid.densityEcut=20.0; o.label="matrix"; o.accelerator=type;
         return SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)),
                                    GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o, acc);
     }

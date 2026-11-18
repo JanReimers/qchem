@@ -42,7 +42,7 @@ UnitCell TwoNa(double a)
     cell.AddAtom(11,{0.5,0.5,0.5});
     return cell;
 }
-const SolidCalcOptions kNa2{.Nelec=2, .pp="gth-lda-valence", .orthoTol=1e-4};
+const RunOptions kNa2{.Nelec=2, .pp="gth-lda-valence", .orthoTol=1e-4};
 } // namespace
 
 TEST(SolidSetup, ARecipeFreezesTheTrimTheVetLoopDecides)
@@ -115,8 +115,8 @@ TEST(SolidSetup, AnAutoTrimAtStatedPairLoopTolerancesResolves)
 {
     UnitCell cell=TwoNa(5.0);
     Lattice_3D lat(cell, ivec3_t(2,2,2));
-    SolidCalcOptions o=kNa2;
-    o.tolerances.screenEps=1e-13;
+    RunOptions o=kNa2;
+    o.solid.tolerances.screenEps=1e-13;
     const auto setup=SolidSetup::Resolve(lat, GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_VA, .autoTrim=true}, o);
     EXPECT_FALSE(setup->recipe->trim.empty());
     EXPECT_FALSE(setup->MakeShellConditioning()->Shells().empty());
@@ -126,7 +126,7 @@ TEST(SolidSetup, AnAutoTrimAtStatedPairLoopTolerancesResolves)
 TEST(SolidSetup, AnAutoTrimWithNoOrthoTolIsRefused)
 {
     Lattice_3D lat(TwoNa(5.0), ivec3_t(2,2,2));
-    SolidCalcOptions o=kNa2; o.orthoTol=0.0;
+    RunOptions o=kNa2; o.orthoTol=0.0;
     EXPECT_THROW(SolidSetup::Resolve(lat, GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_VA, .autoTrim=true}, o), std::invalid_argument)
         << "at orthoTol 0 it would drop nothing, silently";
 }
@@ -134,11 +134,11 @@ TEST(SolidSetup, AnAutoTrimWithNoOrthoTolIsRefused)
 TEST(SolidSetup, TheRungGateCalibrationReachesTheLadderTolerances)
 {
     Lattice_3D lat(TwoNa(5.0), ivec3_t(1,1,1));
-    SolidCalcOptions o=kNa2;
+    RunOptions o=kNa2;
     const GaussianBasisRecipe recipe{.data=BasisSetData::VALENCE_LOWQ_VA};
-    EXPECT_EQ(SolidSetup::Resolve(lat, recipe, o)->opts.tolerances.rungGateC, BasisSet::Gaussian::kRungGateC);
-    o.accuracy.rungGateC=6.0;
-    EXPECT_EQ(SolidSetup::Resolve(lat, recipe, o)->opts.tolerances.rungGateC, 6.0);
+    EXPECT_EQ(SolidSetup::Resolve(lat, recipe, o)->opts.solid.tolerances.rungGateC, BasisSet::Gaussian::kRungGateC);
+    o.solid.grid.rungGateC=6.0;
+    EXPECT_EQ(SolidSetup::Resolve(lat, recipe, o)->opts.solid.tolerances.rungGateC, 6.0);
 }
 
 // The pair rule's stiffness (V-BS-RASTER step 2) is ONE value read twice: the ladder's tolerances and the basis's own pair->level
@@ -147,7 +147,7 @@ TEST(SolidSetup, TheRungGateCalibrationReachesTheLadderTolerances)
 TEST(SolidSetup, TheRelCutoffSafetyCalibrationReachesTheLadderAndTheBasis)
 {
     Lattice_3D lat(TwoNa(5.0), ivec3_t(1,1,1));
-    SolidCalcOptions o=kNa2;
+    RunOptions o=kNa2;
     const GaussianBasisRecipe recipe{.data=BasisSetData::VALENCE_LOWQ_VA};
     auto bound=[](const SolidSetup& s)
     {
@@ -156,13 +156,13 @@ TEST(SolidSetup, TheRelCutoffSafetyCalibrationReachesTheLadderAndTheBasis)
         return -1.0;
     };
     const auto d=SolidSetup::Resolve(lat, recipe, o);
-    EXPECT_EQ(d->opts.tolerances.relCutoffSafety, BasisSet::Gaussian::kRelCutoffSafety);
+    EXPECT_EQ(d->opts.solid.tolerances.relCutoffSafety, BasisSet::Gaussian::kRelCutoffSafety);
     EXPECT_EQ(bound(*d), BasisSet::Gaussian::kRelCutoffSafety);
-    o.accuracy.relCutoffSafety=3.0;
+    o.solid.grid.relCutoffSafety=3.0;
     const auto s=SolidSetup::Resolve(lat, recipe, o);
-    EXPECT_EQ(s->opts.tolerances.relCutoffSafety, 3.0) << "the ladder's";
+    EXPECT_EQ(s->opts.solid.tolerances.relCutoffSafety, 3.0) << "the ladder's";
     EXPECT_EQ(bound(*s), 3.0) << "the basis's pair rule";
-    o.accuracy.relCutoffSafety=0.0;
+    o.solid.grid.relCutoffSafety=0.0;
     EXPECT_THROW(SolidSetup::Resolve(lat, recipe, o), std::invalid_argument) << "a stiffness is > 0";
 }
 
@@ -183,7 +183,7 @@ TEST(SolidSetup, ARecipeBindsTheRunsGPWTolerancesAndAPreBuiltBasisCannotTakeOthe
 {
     UnitCell cell=TwoNa(20.0);
     Lattice_3D lat(cell, ivec3_t(1,1,1));
-    SolidCalcOptions o=kNa2; o.tolerances.screenEps=1e-8; o.tolerances.densityEps=1e-11;
+    RunOptions o=kNa2; o.solid.tolerances.screenEps=1e-8; o.solid.tolerances.densityEps=1e-11;
     auto bound=[](const BasisSet::Real_BS& bs)
     {
         for (auto ibs : bs.Iterate<BasisSet::Real_OIBS>())
@@ -228,8 +228,8 @@ TEST(SolidSetup, AnElectronCountThatDisagreesWithTheSpeciesIsRefused)
     cell.AddAtom( 9,{0.5,0.5,0.5});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     const GaussianBasisRecipe q9{.file="valence_lowq_sr2_naq9.bsd"};
-    const SolidCalcOptions semicore{.species={{"Na",9},{"F",7}}, .pp="gth-lda-valence"};
-    SolidCalcOptions old=semicore; old.Nelec=8;   // the q1 count, the bug
+    const RunOptions semicore{.species={{"Na",9},{"F",7}}, .pp="gth-lda-valence"};
+    RunOptions old=semicore; old.Nelec=8;   // the q1 count, the bug
     {   // the user door (a deck's): a refusal is a VALUE naming its policy
         const auto refused=SolidSetup::Admit(lat, q9, old);
         ASSERT_FALSE(refused) << "a stated Nelec 8 against Na q9 + F q7 must be refused";
@@ -241,9 +241,9 @@ TEST(SolidSetup, AnElectronCountThatDisagreesWithTheSpeciesIsRefused)
     EXPECT_THROW((void)SolidSetup::Resolve(lat, q9, old), std::invalid_argument) << "the code door throws the same refusal";
     EXPECT_TRUE(SolidSetup::Admit(lat, q9, semicore)) << "a count the species agree with is admitted";
     EXPECT_EQ(SolidSetup::Resolve(lat, q9, semicore)->opts.Nelec, 16) << "unstated: derived from the species";
-    SolidCalcOptions stated=semicore; stated.Nelec=16;
+    RunOptions stated=semicore; stated.Nelec=16;
     EXPECT_NO_THROW((void)SolidSetup::Resolve(lat, q9, stated)) << "a stated count that agrees";
-    SolidCalcOptions cation=semicore; cation.charge=2;
+    RunOptions cation=semicore; cation.charge=2;
     EXPECT_EQ(SolidSetup::Resolve(lat, q9, cation)->opts.Nelec, 14) << "a STATED charge is a legal charged cell";
     cation.Nelec=14;
     EXPECT_NO_THROW((void)SolidSetup::Resolve(lat, q9, cation));
@@ -257,10 +257,10 @@ std::vector<std::string> XCRhoRows(XCRhoCell cell, Hamiltonian::XCρ rho, const 
                                    const std::string& rowName="XCRhoProjected")
 {
     const auto mat=Materials::Get("Si_diamond");
-    SolidCalcOptions o; o.Nelec=8; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcRho=rho; o.vxcFit=fit;
+    RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.accuracy.eps=0.0; o.xcRho=rho; o.vxcFit=fit;
     if (cell==XCRhoCell::Becke) o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);   // a small recipe: only the setup runs
-    else                        o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
-    if (cell==XCRhoCell::PlaneWaveRaster) { o.orbitalBasis=SolidCalcOptions::OrbitalBasis::PlaneWave; o.planeWaveEcut=4.0; }
+    else                        SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
+    if (cell==XCRhoCell::PlaneWaveRaster) { o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=4.0; }
     { report::Run run(tag);
       (void)SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSetData::SIPP_SR}, o); }
     const auto& G=report::GlobalReport();
@@ -344,7 +344,7 @@ std::vector<report::json> AutoSeedRows(const std::string& material, BasisSetData
                                        const std::string& tag, ChargeDensity::SeedStrategy& resolved)
 {
     const auto mat=Materials::Get(material);
-    SolidCalcOptions o; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform; o.seed=seed;
+    RunOptions o; o.solid.densityEcut=20.0; o.accuracy.eps=0.0; SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform; o.seed=seed;
     { report::Run run(tag);
       resolved=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=data}, o)->opts.seed; }
     return PolicyRows(tag, "AutoSeed");
@@ -360,8 +360,8 @@ TEST(SolidSetup, AStatedMagneticOrderingIsTheSeedsAndOverridesTheStructuresSpins
     for (Site s : mno.cell->Sites()) { s.spinFlip=false; spinless.Insert(s); }
     auto resolve=[](const UnitCell& cell, std::vector<int> spins, const std::string& tag)
     {
-        SolidCalcOptions o; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
-        o.multiplicity=1; o.spin=SpinGroup::Polarized; o.imposeSymmetry=true; o.siteSpins=std::move(spins);
+        RunOptions o; o.solid.densityEcut=20.0; o.accuracy.eps=0.0; SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
+        o.multiplicity=1; o.spin=SpinGroup::Polarized; o.imposeSymmetry=true; o.spins=std::move(spins);
         report::Run run(tag);
         return SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSetData::VALENCE_LOWQ_SR}, o)->seedKey.siteSpins;
     };
@@ -414,7 +414,7 @@ TEST(SolidSetup, AKMeshCoarserThanTheCalibratedSpacingIsWarnedNamingTheMeshThatM
     const auto si=Materials::Get("Si_diamond");
     auto rows=[&](const ivec3_t& k, const std::string& tag)
     {
-        SolidCalcOptions o; o.densityEcut=20.0; o.accuracy.eps=0.0; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+        RunOptions o; o.solid.densityEcut=20.0; o.accuracy.eps=0.0; SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
         { report::Run run(tag); (void)SolidSetup::Resolve(Lattice_3D(*si.cell, k), GaussianBasisRecipe{.data=BasisSetData::SIPP}, o); }
         return PolicyRows(tag, "KSampling");
     };
@@ -477,7 +477,7 @@ TEST(SolidSetup, ThePeriodicA1FitIsAdmittedAtRhoExactAndRefusedAtRhoFit)
 TEST(SolidSetup, ThePeriodicA1FittedPotentialCellRefusesGDMAndTheLadder)
 {
     const auto mat=Materials::Get("Si_diamond");
-    SolidCalcOptions o; o.Nelec=8; o.densityEcut=12.0; o.accuracy.eps=0.0; o.xcRho=Hamiltonian::XCρ::Exact; o.vxcFit=Hamiltonian::VxcFit::Auxiliary;
+    RunOptions o; o.Nelec=8; o.solid.densityEcut=12.0; o.accuracy.eps=0.0; o.xcRho=Hamiltonian::XCρ::Exact; o.vxcFit=Hamiltonian::VxcFit::Auxiliary;
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);
     const auto setup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSetData::SIPP_SR}, o);
     for (auto t : {SCFAccelerators::Type::GDM, SCFAccelerators::Type::Ladder})

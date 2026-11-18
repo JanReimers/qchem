@@ -38,6 +38,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     BasisCoverage.C
     XCRhoPolicy.C
     SeedPolicy.C
+    RunOptions.C                          # THE one options tree (V-FACADE-PARITY P0b-2)
     SetupDecisions.C                      # the structure-neutral setup decisions (V-FACADE-SETUP)
     AuditFootprint.C
     ERI4MemoryPolicy.C                    # the ERI4 RAM cap as a setup policy (IntegralCacheOwnershipPlan S6, ruling 6)
