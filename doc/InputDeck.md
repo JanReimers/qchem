@@ -68,7 +68,8 @@ forces Polarized.  An AFM crystal states `"spin": "Polarized", "multiplicity": 1
   "model": "LDA",                         // the XC functional: LDA (Dirac + VWN5, default) | PADE (libxc LDA_XC_TETER93 = CP2K's PADE, the GTH-PADE PPs' own); a PP fitted with another functional = a warn-and-run policy row
   "spin": "Polarized", "multiplicity": 1, // R6: the spin group and S (above)
   "seed": "IonicSAD", "ortho": "CholeskyPivoted", "orthoTol": 1e-4,
-  "accelerator": "Null",                  // Auto (default; = DIIS today) | DIIS | GDM | Ladder | Null
+  "accelerator": "Null",                  // EVERY kind, its one home (P2): Auto (default: a solid's per-stage policy; DIIS on a molecule
+                                          // or an atom) | DIIS | GDM | Ladder | Null (a solid only: a molecule or an atom REFUSES it)
   "imposeSymmetry": false, "spins": [1,-1,0,0],   // spins: the stated magnetic ordering, +1/-1/0 per site (was solid.siteSpins)
   "accuracy": 1e-5,                       // THE ONE accuracy target eps (pin 31)
   "xc": { "fit": "Auto", "rho": "exact",  // the Vxc fit basis, the density XC sees
