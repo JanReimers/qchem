@@ -421,7 +421,7 @@ static int Main(int argc, char** argv)
     // electrons = Z - q normally; for a pseudo-ion, electrons = Zion - q  (charge so that Z-charge = that count).
     const int charge = ppmodel ? Z-(valence-q) : q;
     std::unique_ptr<AtomCalculation> calcp;   // scfrun opens the run (user ruling D, 2026-11-02: drivers own the runs)
-    { qchem::report::Run run("scfrun Z="+std::to_string(Z)); calcp=std::make_unique<AtomCalculation>(Z, charge, opts, makePar(minro, minfd)); }
+    { qchem::report::Run run("scfrun Z="+std::to_string(Z)); calcp=std::make_unique<AtomCalculation>(AtomSetup::Resolve(Z, charge, opts), makePar(minro, minfd)); }
     AtomCalculation& calc=*calcp;
 
     // ---- report ----

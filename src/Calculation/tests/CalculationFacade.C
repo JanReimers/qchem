@@ -335,14 +335,14 @@ TEST(CalculationFacade, AnAtomsPrepareFilesItsSetupBeforeAnySCF)
 {
     const RunOptions opts{.model=Model::LDA, .atom={.type=AtomType::Gaussian}};
     std::unique_ptr<AtomCalculation> calc;
-    { qchem::report::Run run(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build"); calc=AtomCalculation::Prepare(8, 0, opts); }
+    { qchem::report::Run run(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build"); calc=AtomCalculation::Prepare(AtomSetup::Resolve(8, 0, opts)); }
     const auto* build=FiledRun(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build@");
     ASSERT_NE(build, nullptr) << "no filed '<ID> build' run";
     EXPECT_TRUE(build->contains("basis") && (*build)["basis"].contains("perIrrep")) << build->dump(1);
     EXPECT_TRUE(build->contains("hamiltonian") && (*build)["hamiltonian"].contains("xcQuadrature")) << build->dump(1);
     EXPECT_FALSE(build->contains("scf") && (*build)["scf"].contains("standard")) << "the build run holds an SCF";
     ASSERT_TRUE(calc->Converge());
-    AtomCalculation once(8, 0, opts);
+    AtomCalculation once(AtomSetup::Resolve(8, 0, opts));
     EXPECT_DOUBLE_EQ(calc->Energy(), once.Energy());
     EXPECT_EQ(calc->IterationCount(), once.IterationCount());
 }
@@ -362,7 +362,7 @@ TEST(CalculationFacade, EveryFacadeCarriesTheAccuracyTargetAndSaysWhoConsumesIt)
     };
     {
         qchem::report::Run run("eps atom");
-        AtomCalculation calc(2, 0, {.accuracy={.eps=3e-6}, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}});
+        AtomCalculation calc(AtomSetup::Resolve(2, 0, {.accuracy={.eps=3e-6}, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}}));
         const Calculation& base=calc;
         EXPECT_EQ(base.Consumes(), ClientConsumes::Energy);
     }
@@ -448,7 +448,7 @@ TEST(CalculationFacade, AnAtomStatingLebedevDegreeZeroIsTheRadialOnlySetBitForBi
     {
         RunOptions o{.model=Model::LDA, .atom={.type=AtomType::Gaussian, .basisPool=BasisSetAccuracy::Low}};
         AtomXCMesh(o).angular=angular; AtomXCMesh(o).angularDegree=degree;
-        AtomCalculation calc(2, 0, o);
+        AtomCalculation calc(AtomSetup::Resolve(2, 0, o));
         return std::pair{calc.Energy(), calc.IterationCount()};
     };
     const auto none  =run(qcMesh::AngularKind::None,    0);
@@ -467,7 +467,7 @@ TEST(AtomConfiguration, AStatedConfigurationThatCannotRunIsRefusedBeforeAnySCF)
 {
     auto refused=[](int Z, int charge, const RunOptions& o, const char* expect)
     {
-        try { (void)AtomCalculation::Prepare(Z, charge, o); ADD_FAILURE() << "must be refused: " << o.atom.configuration; }
+        try { (void)AtomCalculation::Prepare(AtomSetup::Resolve(Z, charge, o)); ADD_FAILURE() << "must be refused: " << o.atom.configuration; }
         catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find(expect), std::string::npos) << e.what(); }
     };
     const RunOptions lda{.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}};
@@ -480,9 +480,9 @@ TEST(AtomConfiguration, AStatedConfigurationThatCannotRunIsRefusedBeforeAnySCF)
     RunOptions pp=lda; pp.atom.type=AtomType::Gaussian; pp.atom.pseudopotential=true; pp.atom.valence=7;   // Mn2+ q7: 5 valence electrons, charge 25 - 5
     pp.atom.configuration="[Ne] 3s^2 3p^6 3d^5"; refused(25, 20, pp, "the pseudopotential replaces 18");
     pp.atom.configuration="[Ar] 3d^5";
-    EXPECT_NO_THROW((void)AtomCalculation::Prepare(25, 20, pp)) << "Mn2+ q7 stated as its valence over the PP's own [Ar] core";
+    EXPECT_NO_THROW((void)AtomCalculation::Prepare(AtomSetup::Resolve(25, 20, pp))) << "Mn2+ q7 stated as its valence over the PP's own [Ar] core";
     o.atom.configuration="[Ar] 3d^6 4s^1";
-    EXPECT_NO_THROW((void)AtomCalculation::Prepare(26, 1, o)) << "Fe+ in NIST's configuration";
+    EXPECT_NO_THROW((void)AtomCalculation::Prepare(AtomSetup::Resolve(26, 1, o))) << "Fe+ in NIST's configuration";
 }
 
 // AN UNSTATED ALL-ELECTRON CATION (row 196 step 3, controller ruling 2026-11-16): Fe+ is NIST's 3d^6 4s^1 (not Mn's 3d^5 4s^2), Fe2+ the
@@ -494,7 +494,7 @@ TEST(AtomConfiguration, AnUnstatedCationTakesNISTsFirstCationOrTheRemovalRuleAnd
     {
         {
             qchem::report::Run run(runName);
-            (void)AtomCalculation::Prepare(Z, charge, {.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}});
+            (void)AtomCalculation::Prepare(AtomSetup::Resolve(Z, charge, {.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Low}}));
         }
         std::vector<qchem::report::json> out;
         std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& x)
@@ -544,7 +544,7 @@ TEST(AtomPilot, TheIterationCountIsTheRunsTotalAndThePilotsShareIsFiled)
     std::unique_ptr<AtomCalculation> calc;
     {
         qchem::report::Run run("atom pilot iterations");
-        calc=AtomCalculation::Prepare(25, 25-7, o, {}, [&seen](const auto&){ ++seen; });
+        calc=AtomCalculation::Prepare(AtomSetup::Resolve(25, 25-7, o), [&seen](const auto&){ ++seen; });
         ASSERT_TRUE(calc->Converge(p));
     }
     const auto* filed=FiledRun("atom pilot iterations@");

@@ -30,6 +30,7 @@ export import qchem.RunOptions;               // RunOptions: the one options tre
 export import qchem.SetupDecisions;           // AcceleratorOptions (the accelerator block, every structure), the spin rule
 export import qchem.SCFRecipe;                // SCFRecipe (the stage's material regime, beside its accelerator)
 export import qchem.SetupRefusal;             // SetupRefusal + Outcome: the Admit door's failure half
+export import qchem.Setup;                    // Setup: what every run setup holds (V-FACADE-PARITY P1)
 export import qchem.Symmetry.Spin;            // SpinGroup -- the imposed spin subgroup, a RunOptions field (R6)
 export import qchem.AuditFootprint;           // AuditFootprintCalibration (the audit RSS policy's expert knob)
 export import qchem.Pseudopotential.Set;      // PseudopotentialSet -- the setup's resolved choice
@@ -65,8 +66,8 @@ inline Hamiltonian::HubbardManifold HubbardU_OrthoAtomic(size_t site, int l, dou
 
 
 //! \brief REFUSES (\c policy::Refused, rows SiteSpins / StatedMagneticOrdering) unless \a o states its magnetic ordering where the run needs
-//! one: a polarized run carrying a Hubbard manifold must give \c siteSpins (\c greyImposition, the erasure control, is exempt), and a stated
-//! \c siteSpins must have one entry per site of \a st, each -1, 0 or +1.  User input, so the refusal reaches a caller as a \c SetupRefusal
+//! one: a polarized run carrying a Hubbard manifold must give \c spins (\c greyImposition, the erasure control, is exempt), and a stated
+//! \c spins must have one entry per site of \a st, each -1, 0 or +1.  User input, so the refusal reaches a caller as a \c SetupRefusal
 //! through \c SolidSetup::Admit; \c deck::Vet calls it too, so \c scripts/vet-decks catches a deck before it runs.
 //! THE SOLID'S VIEW of the options tree: \a asked with the solid's defaults filled (model LDA, pp gth-lda-valence, \c XCMeshDefault,
 //! Cholesky; \c solid.grid.eps = \c accuracy.eps) and what a periodic run does not consume REFUSED (policy ForeignOption): the
@@ -125,7 +126,7 @@ struct GaussianBasisRecipe
 //! A field that would depend on positions does not belong here.
 //!
 //! Built only by \c Resolve, held as \c shared_ptr<const SolidSetup>: immutable once made.
-struct SolidSetup
+struct SolidSetup : Setup
 {
     //! \brief THE ONE RESOLVE PHASE (doc/Pins.md pin 11), as an OUTCOME: the door for USER INPUT (a deck, a GUI form, a command line).
     //! Installs \a opts.solid.policy as the process run policy FIRST (every factory after it consults the policy), then decides.  Options
@@ -159,31 +160,24 @@ struct SolidSetup
     //! run will warn about, answered without running; a GUI reads it here and never recomputes it.  THROWS on a fit with no libxc mapping.
     std::vector<Hamiltonian::PPFunctionalCheck> PPFunctionalChecks() const;
 
-    RunOptions                         opts;   //!< as asked, except \c ortho (a plane-wave run's default Cholesky becomes Orthonormal) and a \c Default seed (resolved)
-    //! The accelerator block as asked, resolved over the GPW production recipe (\c AcceleratorParams' defaults, the solid's
-    //! per-kind defaults); a stage derives its own from it (a restored stage's Ladder rung).
-    SCFAccelerators::AcceleratorParams acc;
-    Pseudopotential::PseudopotentialSet      pp;     //!< \c opts.pp with the \c opts.species overrides applied
-    //! The REFERENCE geometry: the lattice the setup was resolved at (the trim vetted, the imposed group detected), and its
-    //! structure -- the one the reference basis is built over, held so it outlives that basis.
-    Lattice_3D                               reference;
-    std::shared_ptr<const Structure>         cell;
-    //! The seed library's key: \c pp's functional and, per element of the structure, its q (the seed is the SAME pseudo-atom as the terms).
-    ChargeDensity::SeedKey                   seedKey;
+    //! The shared decisions are the base's (\c Setup): \c opts (\c ortho: a plane-wave run's default Cholesky becomes Orthonormal; \c seed
+    //! and \c Nelec resolved; \c solid.tolerances' raster demands, see \c rastersResolved), \c acc and \c accParams (resolved over the GPW
+    //! production recipe, the solid's per-kind defaults; a stage derives its own from it, a restored stage's Ladder rung), \c accelerator
+    //! (\c opts.accelerator: \c Auto lets each stage decide), \c pp (always set: \c opts.pp with the \c opts.species overrides), \c structure
+    //! (the reference cell, the one the reference basis is built over, held so it outlives that basis), \c Ne / \c nUp / \c nDown, \c seedKey
+    //! (\c pp's functional and, per element, its q: the seed is the SAME pseudo-atom as the terms), \c xcMesh (\c Auto RESOLVED, the facade's
+    //! decision 1), \c imposed (the caller's \c imposeSymmetry AND the run policy's permission: CP2K parity vetoes the capability) and \c spins
+    //! (the imposition's MAGNETIC DECORATION, what makes the group Shubnikov: stated, or -- for an imposed polarized run without +U only --
+    //! derived from the seed; EMPTY when the run imposes nothing or the grey group).
+    //! The REFERENCE lattice the setup was resolved at (the trim vetted, the imposed group detected); \c structure is its cell.
+    Lattice_3D                               lattice;
     std::shared_ptr<const BasisSet::Real_BS> mol;    //!< the molecular orbital basis at the REFERENCE geometry
     //! How \c mol was made, the trim FROZEN; empty when the caller handed a pre-built basis (that setup cannot follow moved atoms).
     std::optional<GaussianBasisRecipe>       recipe;
     bool planeWave = false;   //!< \c opts.solid.orbitalBasis is PlaneWave
-    bool polarized = false;   //!< the spin-native two-channel run (\c ResolveSpinGroup(opts.spin, opts.multiplicity))
-    //! The caller's \c imposeSymmetry AND the run policy's permission (CP2K parity vetoes the capability).  Nothing reads
-    //! \c opts.imposeSymmetry after Resolve, or the two would drift.
-    bool imposed   = false;
-    //! The imposition's MAGNETIC DECORATION (one +1/-1/0 per site; what makes the group Shubnikov): stated, or -- for an imposed
-    //! polarized run without +U only -- derived from the seed.  EMPTY when the run imposes nothing or imposes the grey group.
-    std::vector<int> siteSpins;
-    std::vector<int> decoration;   //!< \c siteSpins, or all zeros: the per-site spins the run was built with (the +U site groups read it)
+    std::vector<int> decoration;   //!< \c spins, or all zeros: the per-site spins the run was built with (the +U site groups read it)
     //! \brief THE GROUP A GEOMETRY STEP MUST KEEP, read at \a at: the space group detected there (\c GetSpaceGroup's \f$\{W|\tau\}\f$, or
-    //! the Shubnikov group under \c siteSpins) when the setup is \c imposed, P1 (the identity alone) when it is free.  ONE rule for its two
+    //! the Shubnikov group under \c spins) when the setup is \c imposed, P1 (the identity alone) when it is free.  ONE rule for its two
     //! clients, so they cannot drift: \c SolidSession::ConvergeAt refuses a geometry that keeps fewer ops than the reference, and
     //! \c MakeSolidGeometryRun builds the coordinate map that keeps exactly these.  It is the DETECTED group, not the k-mesh intersection
     //! the density is star-averaged under: the positions keep the whole group, which is what the session checks.
@@ -195,8 +189,6 @@ struct SolidSetup
     //! \brief What the vet-stage trim removes from the UNTRIMMED recipe at \a orthoTol -- the same loop \c Resolve runs for autoTrim,
     //! for any tolerance (the what-if's reference: "autoTrim would remove these").  Writes its passes one level in, as in \c Resolve.
     BasisSet::Gaussian::ShellTrim MakeVetTrim(double orthoTol) const;
-    qcMesh::MeshParams xcMesh;     //!< the XC quadrature, \c Auto RESOLVED (the facade's decision 1)
-    int nUp = 0, nDown = 0;        //!< the electron counts per spin channel (decision 2: multiplicity -> (nUp, nDown))
     //! \brief The GPW raster demands in \c opts.solid.tolerances are FINAL (C2 step 3): stated (accuracy 0), derived from a stated calibration,
     //! or settled by a pilot audit (\c SolidCalculation::SizedSetup).  false = this setup's first SCF is the PILOT: it runs on the ball's
     //! own rasters and \c SolidCalculation sizes them from what it delivered.  A plane-wave run has no raster: true.
@@ -209,8 +201,11 @@ struct SolidSetup
     RasterSource rasterSource = RasterSource::Stated;
 
 private:
-    SolidSetup(Pseudopotential::PseudopotentialSet p, const Lattice_3D& lat)
-        : pp(std::move(p)), reference(lat), cell(lat.GetStructure()) {}
+    SolidSetup(Pseudopotential::PseudopotentialSet p, const Lattice_3D& lat) : lattice(lat)
+    {
+        pp=std::move(p);
+        structure=lat.GetStructure();
+    }
     //! The decisions, shared by both \c Resolve overloads (the policy is already installed).
     static std::shared_ptr<SolidSetup> Decide(const Lattice_3D&, std::shared_ptr<const BasisSet::Real_BS> mol,
                                               const RunOptions&, const AcceleratorOptions&);

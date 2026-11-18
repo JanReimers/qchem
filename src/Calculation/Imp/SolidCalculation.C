@@ -63,7 +63,7 @@ struct SolidCalculation::Imp
     //! pseudopotential set, the imposition, the decoration, the XC quadrature, the spin counts.  Shared and immutable: everything
     //! below it is this GEOMETRY POINT (structure, Bloch basis, EC, Hamiltonian) or its SCF STATE.
     std::shared_ptr<const SolidSetup>           setup;
-    //! The accelerator options a STAGE starts from: \c setup->acc, except where a caller's stage overrides the Ladder's starting
+    //! The accelerator options a STAGE starts from: \c setup->accParams, except where a caller's stage overrides the Ladder's starting
     //! rung for its own duration (the FD chi's restart-like stages).  Per-run state, not a decision of the setup.
     SCFAccelerators::AcceleratorParams    accOpts;
     //! The caller's per-iteration telemetry: the constructor's (or \c Restart's) \a onIteration, replaced by \c OnIteration.
@@ -387,7 +387,7 @@ void SolidCalculation::Start(std::shared_ptr<const SolidSetup> setup, const SCFP
 
 void SolidCalculation::BuildFirstStage(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel, SCFRecipe recipe)
 {
-    const Lattice_3D& reference=setup->reference;   // held by the setup, which the point keeps alive
+    const Lattice_3D& reference=setup->lattice;   // held by the setup, which the point keeps alive
     auto mol=setup->mol;
     BuildPoint(std::move(setup), reference, std::move(mol));
     BuildRun(nullptr, params, accel, recipe, /*restored*/false, /*exactResume*/false);
@@ -434,7 +434,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
                                   std::shared_ptr<const BasisSet::Real_BS> mol)
 {
     itsImp->setup       = std::move(setup);
-    itsImp->accOpts     = itsImp->setup->acc;
+    itsImp->accOpts     = itsImp->setup->accParams;
     itsImp->st          = lat.GetStructure();
     itsImp->lat.emplace(lat);
     itsImp->mol         = mol;
@@ -456,7 +456,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     if (S.planeWave)
     {
         qchem::report::Timed timed("setup: PW basis build");
-        itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.solid.planeWaveEcut, S.siteSpins));   // {} unless a magnetic imposition
+        itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.solid.planeWaveEcut, S.spins));   // {} unless a magnetic imposition
         std::cout<<"["<<opts.label<<" run] plane-wave orbital basis: Ecut "<<opts.solid.planeWaveEcut<<" Ha, "
                  <<itsImp->bs->GetNumFunctions()<<" PWs at Γ"<<std::endl;
     }
@@ -472,9 +472,9 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         L3::GPWParams p{
             .densityEcut = opts.solid.densityEcut, .cutoffFactor = opts.solid.cutoffFactor,
             .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
-            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = tol,
+            .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = tol,
             .hamPreservesReal = hamPreservesReal};
-        ResolveGpwPoint(lat, mol, S.pp, p);
+        ResolveGpwPoint(lat, mol, *S.pp, p);
         itsImp->imposition=p.imposition;
         itsImp->ladder    =p.ladder;
         itsImp->bs.reset(L3::GPWFactory(lat, mol, p));
@@ -580,8 +580,8 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     const SolidSetup&       S    = *itsImp->setup;
     const RunOptions& opts = S.opts;
     const Lattice_3D&       lat  = *itsImp->lat;
-    const std::vector<int>& siteSpins = S.siteSpins;
-    const bool polarized        = S.polarized;
+    const std::vector<int>& siteSpins = S.spins;
+    const bool polarized        = S.Polarized();
     const bool hamPreservesReal = !opts.solid.forceComplex;   // the BuildPoint forecast, restated for the assert below
     const bool imposed          = S.imposed;
 
@@ -599,7 +599,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         for (auto& M : hubbard)
         {
             if (M.projector==qchem::Hamiltonian::HubbardProjectorKind::PseudoAtomic && M.atomicFunction.empty())
-                M.atomicFunction=PseudoAtomicFunction(*itsImp->st, M.site, M.l, itsImp->setup->pp);
+                M.atomicFunction=PseudoAtomicFunction(*itsImp->st, M.site, M.l, *itsImp->setup->pp);
             if (M.siteOps.empty()) M.siteOps=lat.SiteRotations(M.site, decoration);
             // PARENTAGE is chemistry: the point group of the site's coordination polyhedron, not the
             // cell's grey stabiliser (which on the rhombohedral AFM-II supercell is D_3d too, and would
@@ -612,7 +612,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
         qchem::report::Scope hamiltonian("hamiltonian");   // its meshes and terms report one level in (user rulings 2026-11-02, 2026-11-04)
         // THE PP / FUNCTIONAL MATCH (user ruling 2026-11-12): warn, guide and run, never switch
-        policy::PPFittedFunctional(qchem::Hamiltonian::PPFunctionalChecks(itsImp->setup->pp, *itsImp->st,
+        policy::PPFittedFunctional(qchem::Hamiltonian::PPFunctionalChecks(*itsImp->setup->pp, *itsImp->st,
                                                                               qchem::Hamiltonian::ModelToXC(*opts.model)));
         // THE ACCURACY a Fourier series sampled on the XC quadrature must meet (the rho-tilde sampler, step 2; pin 31): the run's
         // target for what its client consumes, the density gate its sampled residual is judged on, and the two GPW calibrations.
@@ -647,7 +647,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         if (a1) ReportPeriodicA1Cost(*a1, SizeReference("periodic A1 Vxc fit", opts.solid.tolerances, 1.0, &xc), opts.label);
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, itsImp->setup->pp, xc, {opts.vxcFit, opts.xcRho}, hubbard,
+            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, *itsImp->setup->pp, xc, {opts.vxcFit, opts.xcRho}, hubbard,
             qchem::Hamiltonian::ModelToXC(*opts.model), a1));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
@@ -1371,7 +1371,7 @@ void SolidCalculation::RecordState(StateRecord& r, double kT) const
     // A free run on the PLAIN mesh (xcMeshSymmetric=false, what a SolidSession needs) quadratures on different points: name it, so a
     // restart across the choice says the quadrature changed.  Only then -- every state written before the option keeps its string.
     if (!itsImp->setup->imposed && !itsImp->setup->planeWave && !o.solid.xcMeshSymmetric) xc<<" plain";
-    RunIdentity id{.species=itsImp->setup->pp.Species(*itsImp->st), .ppSet=itsImp->setup->pp.Name(),
+    RunIdentity id{.species=itsImp->setup->pp->Species(*itsImp->st), .ppSet=itsImp->setup->pp->Name(),
                          .hubbard=itsImp->hubbard, .densityEcut=o.solid.densityEcut, .cutoffFactor=o.solid.cutoffFactor,
                          .xcMesh=xc.str(), .ortho=int(*o.ortho), .orthoTol=o.orthoTol,
                          .orbitalBasis=itsImp->setup->planeWave ? "planeWave" : "gaussian", .planeWaveEcut=o.solid.planeWaveEcut};
@@ -1401,7 +1401,7 @@ void SolidCalculation::RecordState(StateRecord& r, double kT) const
 
 SpinGroup SolidCalculation::StateSpin() const
 {
-    return itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+    return itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
 }
 const Structure& SolidCalculation::StateStructure() const {return *itsImp->st;}
 const std::optional<RestartSummary>& SolidCalculation::RestartedFrom() const {return itsImp->restartedFrom;}
@@ -1498,7 +1498,7 @@ SolidCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const 
     // kT = 0 ONLY: a smeared stage restored from an integer state hands GDM an idempotent D', so GDM would ENGAGE and
     // minimise with integer occupations, never applying the smearing (measured 2026-10-21, Si k222 kT 0.02: 6 mHa off the
     // cold smeared run).  A smeared restart starts on DIIS, as it did before.
-    const Lattice_3D& reference=setup->reference;
+    const Lattice_3D& reference=setup->lattice;
     auto mol=setup->mol;
     c->BuildPoint(std::move(setup), reference, std::move(mol));
     c->itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;
@@ -1507,13 +1507,13 @@ SolidCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const 
     SavedState state=saved.TakeValue();
     auto judged=c->JudgeRestart(state, params.SmearingkT, tag);
     if (!judged) return O::Fail(judged.Error());
-    auto cd=RestoreDensity(state, *c->itsImp->bs, c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized);
+    auto cd=RestoreDensity(state, *c->itsImp->bs, c->itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized);
     if (!cd) return refuse(cd.Error());
     const bool exact=judged->exact;
     c->itsImp->restartedFrom=*judged;
     c->BuildRun(cd.TakeValue(), params, accel, recipe, /*restored*/true, exact);
     // The restored stage's accelerator is BUILT (BuildRun consumed the GDM-rung start); later stages on this calculation start as asked.
-    c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->acc.ladderStartOnGDM;
+    c->itsImp->accOpts.ladderStartOnGDM=c->itsImp->setup->accParams.ladderStartOnGDM;
     if (exact) c->itsImp->resumedFrom=state.summary.energy;   // the first Converge reports the resumed energy beside it
     return O::Ok(std::move(c));
 }
@@ -1529,7 +1529,7 @@ SolidCalculation::ViewState(const std::string& path, std::shared_ptr<const Solid
         if (auto adopted=SizedBySavedState(setup, *saved, why)) { qchem::report::Set("adopted", why); setup=std::move(adopted); }   // warm: an exact view
     }
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
-    const Lattice_3D& reference=setup->reference;
+    const Lattice_3D& reference=setup->lattice;
     auto mol=setup->mol;
     c->BuildPoint(std::move(setup), reference, std::move(mol));   // the basis the run used; BuildRun (the Hamiltonian) is never called
     auto judged=c->JudgeView(*saved);
@@ -1729,10 +1729,10 @@ AuditReferenceSize SolidCalculation::SizeReference(const std::string& name, cons
     const L3::GPWParams p{
         .densityEcut = autoBall ? opts.solid.densityEcut : ballScale*opts.solid.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.solid.cutoffFactor : opts.solid.cutoffFactor,
         .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
-        .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
+        .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
         .hamPreservesReal = !opts.solid.forceComplex};
     const std::shared_ptr<const Structure> held=itsImp->lat->GetStructure();
-    const double ppSharpness=BasisSet::Gaussian::LocalPPSharpness(*held, *Pseudopotential::MakeMultiSpeciesLocal(S.pp.Species(*held), S.pp.Functional()));
+    const double ppSharpness=BasisSet::Gaussian::LocalPPSharpness(*held, *Pseudopotential::MakeMultiSpeciesLocal(S.pp->Species(*held), S.pp->Functional()));
     const auto ladder=L3::MakeRasterLadder(*itsImp->lat, itsImp->mol, p, ppSharpness);
     if (ladder->DensityGrid())
         for (const ivec3_t& N : ladder->Levels().N) z.rasterPoints+=double(N.x)*double(N.y)*double(N.z);
@@ -1759,7 +1759,7 @@ AuditReferenceSize SolidCalculation::SizeReference(const std::string& name, cons
         const auto* r=bs.GetRealIBS(i);
         z.blocks.push_back({r ? r->GetNumFunctions() : bs[i]->GetNumFunctions(), r!=nullptr});
     }
-    z.spinChannels = S.polarized ? 2 : 1;
+    z.spinChannels = S.Polarized() ? 2 : 1;
     return z;
 }
 
@@ -2176,14 +2176,14 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         itsImp->spin.reset(); itsImp->scf.reset(); itsImp->accel.reset(); itsImp->cd.reset(); itsImp->ham.reset(); itsImp->ec.reset();
         itsImp->bs.reset();
         BuildPoint(std::move(sized), lat, mol);
-        const SpinGroup g=itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+        const SpinGroup g=itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
         auto cd=RestoreDensity(st, *itsImp->bs, g);
         if (!cd) throw std::logic_error("SolidCalculation::CalibrateRasters: the audited D does not restore onto the raised rasters: "+cd.Error().details);
         itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;
         const bool pilotStated = asked!=itsImp->stageAccelAsked;   // the Ladder above is the pilot's, not the caller's (the recipe's report says so)
         BuildRun(cd.TakeValue(), params, asked, itsImp->stageRecipe, /*restored*/true, /*exactResume*/false);
         if (pilotStated) itsImp->stageAskedBy="the raster pilot, a restored kT = 0 stage with no step cap";
-        itsImp->accOpts.ladderStartOnGDM = itsImp->setup->acc.ladderStartOnGDM;
+        itsImp->accOpts.ladderStartOnGDM = itsImp->setup->accParams.ladderStartOnGDM;
         {
             qchem::AuditSCF audit;   // the pilot's re-convergence: a panel budget prints it apart and does not gate on it (qchem.SCFCap)
             (void)Converge(params);
@@ -2274,7 +2274,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
     const bool eggBox = norm(shift)>0.0;
     const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
     if (!wf) throw std::logic_error("SolidCalculation: no wave function yet (the audits run on a converged D)");
-    const SpinGroup g = S.polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+    const SpinGroup g = S.Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
     // The grid-audit verdicts of each side's rasters, ASKED of the basis that owns them (V-REPORT-WRITEONLY: never read back out of the
     // run report): the run's own here, the reference's once its V_long has run below (both are printed, so the predicted alias of
     // whichever side is the coarse one can be read -- the run need not be the side on the ball's own rasters).
@@ -2304,11 +2304,11 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
     std::shared_ptr<const BasisSet::Real_BS> molRef=itsImp->mol;
     if (eggBox)
     {
-        UnitCell cellR(S.reference.GetUnitCell());
+        UnitCell cellR(S.lattice.GetUnitCell());
         std::vector<rvec3_t> Rs; for (const Site& s : cellR.Sites()) Rs.push_back(s.R+shift);
         cellR.MoveSites(Rs);
-        latShifted.emplace(cellR, S.reference.GetLimits());
-        molRef=S.recipe->Make(*latShifted->GetStructure(), S.pp);
+        latShifted.emplace(cellR, S.lattice.GetLimits());
+        molRef=S.recipe->Make(*latShifted->GetStructure(), *S.pp);
     }
     const Lattice_3D& latRef = eggBox ? *latShifted : *itsImp->lat;
     const auto        stRef  = eggBox ? latShifted->GetStructure() : itsImp->st;
@@ -2319,9 +2319,9 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
         L3::GPWParams p{
             .densityEcut = autoBall ? opts.solid.densityEcut : ballScale*opts.solid.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.solid.cutoffFactor : opts.solid.cutoffFactor,
             .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
-            .imposeSymmetry = S.imposed, .siteSpins = S.siteSpins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
+            .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
             .hamPreservesReal = !opts.solid.forceComplex};
-        ResolveGpwPoint(latRef, molRef, S.pp, p);   // the reference's own ladder (its rasters / ball differ), sized for the same PP
+        ResolveGpwPoint(latRef, molRef, *S.pp, p);   // the reference's own ladder (its rasters / ball differ), sized for the same PP
         ladderRef=p.ladder;
         bsRef.reset(L3::GPWFactory(latRef, molRef, p));
         if (rpt::Depth()>0)   // the reference's grids + verdicts, as setup files the run's
@@ -2330,7 +2330,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition);
         }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
-        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, S.pp, xcMesh ? *xcMesh : S.xcMesh, {opts.vxcFit, opts.xcRho}, itsImp->hubbard,
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, *S.pp, xcMesh ? *xcMesh : S.xcMesh, {opts.vxcFit, opts.xcRho}, itsImp->hubbard,
                                                  qchem::Hamiltonian::ModelToXC(*opts.model), PeriodicA1Set(opts, *stRef)));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);
@@ -2976,18 +2976,18 @@ std::vector<Hamiltonian::TermEnergy> SolidCalculation::FrozenTermEnergiesAt(cons
 {
     const SavedState D=Carry();
     const SolidSetup& S=*itsImp->setup;
-    const Lattice_3D lat(cell, S.reference.GetLimits());
+    const Lattice_3D lat(cell, S.lattice.GetLimits());
     // The molecular basis AT the strained centres (a Gaussian's centre moves, its shape is kept): the setup's frozen recipe, as a session
     // step makes it.  A plane-wave basis does not read it.
     std::shared_ptr<const BasisSet::Real_BS> mol=itsImp->mol;
     if (!S.planeWave)
     {
         if (!S.recipe) throw std::logic_error("SolidCalculation::FrozenTermEnergiesAt: a Gaussian setup resolved from a pre-built basis cannot follow a strain");
-        mol=S.recipe->Make(*lat.GetStructure(), S.pp);
+        mol=S.recipe->Make(*lat.GetStructure(), *S.pp);
     }
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
     c->BuildPoint(itsImp->setup, lat, mol);
-    const SpinGroup g=c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+    const SpinGroup g=c->itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
     auto seed=RestoreDensity(D, *c->itsImp->bs, g);
     if (!seed) throw std::logic_error("SolidCalculation::FrozenTermEnergiesAt: the density does not fit the point: "+seed.Error().details);
     c->BuildRun(seed.TakeValue(), SCFParams{}, SCFAccelerators::Type::Auto, SCFRecipe::Auto, /*restored*/false, /*exactResume*/false);   // the Hamiltonian
@@ -3085,7 +3085,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
             // THE CARRY: the previous point's D, block for block, onto this point's basis -- the same recipe at moved atoms, so the
             // block layout (k, size, realness) is the one RestoreDensity asserts.  A WorkingDensity, NOT a restored one: the
             // Hamiltonian moved with the atoms, so the Auto policy's carried-stage branch (Null + Pulay on D) applies.
-            const SpinGroup g=c->itsImp->setup->polarized ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+            const SpinGroup g=c->itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
             std::optional<SavedState> moved;
             if (lowdin) { moved=*carry; LowdinCarry(*moved, *c->itsImp->bs, g); carry=&*moved; }
             auto cd=RestoreDensity(*carry, *c->itsImp->bs, g);
@@ -3174,7 +3174,7 @@ SolidGeometryRun MakeSolidGeometryRun(std::shared_ptr<const SolidSetup> setup, s
     if (relaxCell && !(setup->opts.solid.cellStrainAllowance>0.0))
         throw std::invalid_argument("MakeSolidGeometryRun: a cell relaxation needs RunOptions::cellStrainAllowance > 0 -- every size is "
                                     "frozen on the reference cell grown by it, so the session can follow the cell (CellHalf_Design §3)");
-    const std::vector<Symmetry::SymOp> ops=setup->KeptOps(setup->reference);
+    const std::vector<Symmetry::SymOp> ops=setup->KeptOps(setup->lattice);
     SolidGeometryRun run;
     run.surface=std::make_unique<SolidSession>(setup, std::move(schedule), std::move(onIteration), carry);
     // The map's symmetry check at the DETECTION tolerance (GetSpaceGroup's 1e-4, fractional), in bohr along the longest lattice vector:
@@ -3190,8 +3190,8 @@ SolidGeometryRun MakeSolidGeometryRun(std::shared_ptr<const SolidSetup> setup, s
 PESGeometry SolidSession::Reference() const
 {
     PESGeometry g;
-    g.cell=itsSetup->reference.GetUnitCell().GetCellMatrix();
-    itsSetup->cell->ForEachSite([&](int Z, const rvec3_t& r, bool){ g.R.push_back(r); g.Z.push_back(Z); });
+    g.cell=itsSetup->lattice.GetUnitCell().GetCellMatrix();
+    itsSetup->structure->ForEachSite([&](int Z, const rvec3_t& r, bool){ g.R.push_back(r); g.Z.push_back(Z); });
     return g;
 }
 const SolidCalculation* SolidSession::Current() const {return itsPoint ? itsPoint->calc.get() : nullptr;}
@@ -3231,7 +3231,7 @@ Outcome<FollowedCell, PESFailure> FollowCell(const SolidSetup& S, const rmat3d_t
 {
     using O=Outcome<FollowedCell, PESFailure>;
     using Why=PESFailure::Why;
-    const UnitCell& ref=S.reference.GetUnitCell();
+    const UnitCell& ref=S.lattice.GetUnitCell();
     const rmat3d_t& Aref=ref.GetCellMatrix();
     double dA=0.0, scale=0.0;
     for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) { dA=std::max(dA, std::fabs(A(i,j)-Aref(i,j))); scale=std::max(scale, std::fabs(Aref(i,j))); }
@@ -3265,7 +3265,7 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     using O=Outcome<PESPoint, PESFailure>;
     using Why=PESFailure::Why;
     const SolidSetup& S=*itsSetup;
-    const UnitCell&   ref=S.reference.GetUnitCell();
+    const UnitCell&   ref=S.lattice.GetUnitCell();
     const size_t      nAtoms=ref.GetNumAtoms();
     if (R.size()!=nAtoms)
         throw std::invalid_argument("SolidSession::ConvergeAt: "+std::to_string(R.size())+" positions for "+std::to_string(nAtoms)+" atoms");
@@ -3299,13 +3299,13 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     const UnitCell& cellR=followed->cell;
     double moved=0.0;
     for (size_t a=0;a<nAtoms;a++) moved=std::max(moved, norm(R[a]-ref.Sites()[a].R));
-    const Lattice_3D latR(cellR, S.reference.GetLimits());
+    const Lattice_3D latR(cellR, S.lattice.GetLimits());
 
     // THE IMPOSED GROUP must survive (Q4): a geometry that lowers it is a NEW setup, the user's choice -- never a silent re-fold.  A
     // THROW, not an Outcome: every driver that moves atoms off the group runs a lower-group setup, so this is a wiring defect.
     if (S.imposed && (moved>0.0 || cellMoved))
     {
-        if (const size_t now=S.KeptOps(latR).size(), was=S.KeptOps(S.reference).size(); now<was)
+        if (const size_t now=S.KeptOps(latR).size(), was=S.KeptOps(S.lattice).size(); now<was)
             throw std::invalid_argument("SolidSession::ConvergeAt: these positions keep "+std::to_string(now)+" of the imposed group's "+std::to_string(was)
                                         +" operations -- step through a map that keeps the group (WyckoffMap, CellWyckoffMap), or resolve a new setup with the lower group");
     }
@@ -3329,7 +3329,7 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
             {
                 GaussianBasisRecipe r=recipe;
                 r.trim.shells.insert(r.trim.shells.end(), t.shells.begin(), t.shells.end());
-                return r.Make(*point->cell, S.pp);
+                return r.Make(*point->cell, *S.pp);
             };
             BasisSet::Lattice::VetTrimResult vet;
             {
@@ -3345,7 +3345,7 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
             }
             point->mol=std::move(vet.mol);
         }
-        else point->mol=recipe.Make(*point->cell, S.pp);
+        else point->mol=recipe.Make(*point->cell, *S.pp);
     }
 
     // THE CARRY, then release the previous point before building the next (one point's memory at a time).

@@ -42,7 +42,7 @@ TEST(MoleculeSetup, APseudopotentialSetGivesTheValenceCountAndTheValenceStructur
     EXPECT_EQ(s->Ne, s->pp->Valence("Na"));
     const auto point=s->PointStructure(na);
     EXPECT_EQ(int(point->GetNumElectrons()), s->Ne);
-    EXPECT_EQ(int(s->reference->GetNumElectrons()), 11) << "the reference keeps the TRUE charges; only a point is valence-charged";
+    EXPECT_EQ(int(s->structure->GetNumElectrons()), 11) << "the reference keeps the TRUE charges; only a point is valence-charged";
 }
 
 // A pseudopotential run seeds its OWN pseudo-atoms (OpenWork §3 "A pseudopotential run seeds from the VALENCE library for its q, on every
@@ -55,7 +55,7 @@ TEST(MoleculeSetup, APseudopotentialRunSeedsFromTheValenceLibraryAtItsQ)
     const auto pp=MoleculeSetup::Resolve(si, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="sipp"}});
     EXPECT_EQ(pp->seedKey.Q(14), pp->pp->Valence("Si")) << "the seed key carries the run's own q";
     EXPECT_EQ(ChargeDensity::SeedLibrary(pp->seedKey, 14), "atomic_valence_densities.json");
-    EXPECT_EQ(pp->seed, ChargeDensity::SeedStrategy::SAD) << "the valence library holds Si q4, so the Auto rule seeds from SAD";
+    EXPECT_EQ(pp->opts.seed, ChargeDensity::SeedStrategy::SAD) << "the valence library holds Si q4, so the Auto rule seeds from SAD";
 
     const auto ae=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     EXPECT_EQ(ae->seedKey.Q(8), -1) << "an all-electron run is unkeyed";
@@ -71,7 +71,7 @@ TEST(MoleculeSetup, AnAllElectronMoleculePastNeonSeedsFromSAD)
     for (int Z=1; Z<=92; Z++) EXPECT_TRUE(SeedLibraryCovers(unkeyed, Z)) << "Z=" << Z;
     const auto te=MoleculeSetup::Resolve(OneAtom(52), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     EXPECT_EQ(ChargeDensity::SeedLibrary(te->seedKey, 52), "atomic_densities.json") << "an all-electron run reads the all-electron library";
-    EXPECT_EQ(te->seed, ChargeDensity::SeedStrategy::SAD) << "the library holds Te, so the Auto rule seeds from SAD";
+    EXPECT_EQ(te->opts.seed, ChargeDensity::SeedStrategy::SAD) << "the library holds Te, so the Auto rule seeds from SAD";
 }
 
 TEST(MoleculeSetup, ABasisWithoutAnElementIsRefusedAtResolveNamingTheBasesThatCoverIt)

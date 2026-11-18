@@ -86,7 +86,7 @@ GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r, bool showIterat
                                               //  replaces -Z/r), so |2+V/K| never -> 0: don't gate convergence on
                                               //  it here (this is the valence-gen backend only, NOT the system
                                               //  default -- the all-electron A_* path still uses the virial gate).
-    AtomCalculation atom(Z, charge, o, p);
+    AtomCalculation atom(AtomSetup::Resolve(Z, charge, o), p);
 
     // --- emit: the per-l shells as a Gaussian94 ELEMENT BLOCK (` EL 0 <shells> ****`) ---
     // The reader compares the file symbol against the UPPER-cased element (FindAtom), so upper-case it
@@ -119,7 +119,7 @@ double GenerateFloorEnergy(const ValenceBasisRecipe& r)
     SCFParams p; p.MinVirial = std::nullopt;          // no virial gate under a PP (see GenerateValenceBasis)
     GateOnEnergy(p);
     if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);
-    try   { AtomCalculation atom(Z, charge, o, p); return atom.Energy(); }
+    try   { AtomCalculation atom(AtomSetup::Resolve(Z, charge, o), p); return atom.Energy(); }
     catch (...) { return NAN; }               // pool conditioning can fail for some elements -> "floor unavailable"
 }
 
@@ -143,7 +143,7 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     SCFParams p; p.MinVirial = std::nullopt;          // no virial gate under a PP (see GenerateValenceBasis)
     GateOnEnergy(p);
     if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);
-    AtomCalculation atom(Z, charge, o, p);
+    AtomCalculation atom(AtomSetup::Resolve(Z, charge, o), p);
 
     // The per-channel faces (spinResolved only): the polarized run's Density() answers its Up/Down channels
     // through the spin-resolved face (V1.37) -- an honest capability ask, no container type named.

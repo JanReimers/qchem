@@ -1759,7 +1759,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
             // whatever the audit measured.  A run with no target (accuracy 0, stated rasters) has nothing to judge against: ok, and says so.
             const auto S=calc->SizedSetup();
             const ClientConsumes c=calc->Consumes();
-            const double target=S->opts.accuracy.Target(c, S->cell->GetNumAtoms());
+            const double target=S->opts.accuracy.Target(c, S->structure->GetNumAtoms());
             const bool onH = c==ClientConsumes::MatrixElements;
             const double measured = onH ? R.maxAbsΔH : std::abs(R.ΔE);
             pr.ok = target<=0.0 || measured<=target;
@@ -1835,8 +1835,9 @@ std::unique_ptr<Calculation> Prepare(const RunSpec& spec)
     }
     case RunKind::Atom:
     {
-        const Molecule m=StructureData::GetMolecule(spec.structure);   // ONE atom: its Z and its charge are the structure's
-        return AtomCalculation::Prepare(m.GetNuclearCharge(), int(std::lround(m.GetNetCharge())), spec.opts, spec.accel);
+        auto setup=AtomSetup::Admit(StructureData::GetMolecule(spec.structure), spec.opts, spec.accel);   // ONE atom: its Z and charge are the structure's
+        if (!setup) throw std::runtime_error(Refusal(setup.Error()));
+        return AtomCalculation::Prepare(setup.Value());
     }
     }
     throw std::logic_error("deck::Prepare: RunKind");

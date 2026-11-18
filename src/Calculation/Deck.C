@@ -288,7 +288,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
 std::unique_ptr<SolidCalculation> Build(const RunSpec& spec, SolidCalculation::Observer onIteration = nullptr);
 
 //! \brief PREPARE a deck's calculation, ANY structure (V-FACADE-PARITY P0c): the solid's \c Build, the molecule's
-//! \c MoleculeSetup::Admit + \c MoleculeCalculation::Prepare, or the atom's \c AtomCalculation::Prepare (its Z and charge the
+//! \c MoleculeSetup::Admit + \c MoleculeCalculation::Prepare, or the atom's \c AtomSetup::Admit + \c AtomCalculation::Prepare (its Z and charge the
 //! structure's).  Stops before the SCF, like \c Build.  A refused setup THROWS its sentence (policy and reason).  P4 folds \c Build
 //! into this (one factory shape); until then the solid-only callers (\c Run, the GUI binding) keep \c Build's concrete type.
 std::unique_ptr<Calculation> Prepare(const RunSpec& spec);

@@ -162,7 +162,7 @@ Lattice_3D SizedForStrain(const Lattice_3D& lat, const RunOptions& opts)
 
 std::vector<Hamiltonian::PPFunctionalCheck> SolidSetup::PPFunctionalChecks() const
 {
-    return Hamiltonian::PPFunctionalChecks(pp, *cell, Hamiltonian::ModelToXC(*opts.model));
+    return Hamiltonian::PPFunctionalChecks(*pp, *structure, Hamiltonian::ModelToXC(*opts.model));
 }
 
 // THE DOORS.  Admit is the one for user input; Resolve, its throwing twin, is for code that states its own options.  Every refusal on
@@ -253,7 +253,7 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, co
         mol=rec.Make(*cell, pp);
     }
     std::shared_ptr<SolidSetup> s=Decide(lat, std::move(mol), opts, acc);
-    s->cell  =cell;     // the structure the basis was built over: the setup holds it as long as it holds the basis
+    s->structure=cell;   // the structure the basis was built over: the setup holds it as long as it holds the basis
     s->recipe=std::move(frozen);
     return s;
 }
@@ -326,9 +326,17 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
 {
     std::shared_ptr<SolidSetup> s(new SolidSetup(Pseudopotential::PseudopotentialSet::Get(*opts.pp).With(opts.species), lat));
     s->opts=opts;
-    s->acc =ResolveAcceleratorParams(acc, SCFAccelerators::AcceleratorParams{});   // the solid's defaults: the GPW production recipe
+    // A periodic run names its accelerator TYPE and recipe at the top level (RunOptions::accelerator / recipe: a stage decides per regime
+    // under Auto).  The block's own type / recipe would be IGNORED here -- a silent substitution (until 2026-11-17 it was): refuse them.
+    if (acc.type!=AcceleratorOptions{}.type || acc.recipe!=AcceleratorOptions{}.recipe)
+        policy::Refuse("AcceleratorType", "the accelerator block's type \""+acc.type+"\" / recipe on a periodic run",
+                       "a periodic run names its accelerator and recipe at the top level (RunOptions::accelerator / recipe), so the block's "
+                       "would be ignored -- state them there");
+    s->acc      =acc;
+    s->accParams=ResolveAcceleratorParams(acc, SCFAccelerators::AcceleratorParams{});   // the solid's defaults: the GPW production recipe
+    s->accelerator=opts.accelerator;   // the top-level type: Auto lets each stage decide
     s->mol =std::move(mol);
-    const std::shared_ptr<const Structure> st=s->cell;
+    const std::shared_ptr<const Structure> st=s->structure;
     RequireStatedMagneticOrdering(opts, *st);
     RequireConsistentSiteCharges(opts, *st);
     // THE ELECTRON COUNT IS THE SPECIES' (2026-10-31): sum of the run's per-atom valence minus the STATED net charge.  Derived when
@@ -336,7 +344,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // material's q1 count), where nothing downstream could tell a mis-derived count from an intended charge.
     {
         int sumQ=0;
-        lat.GetUnitCell().ForEachSite([&](int Z, const rvec3_t&, bool){ sumQ+=s->pp.Valence(thePeriodicTable().GetSymbol(Z)); });
+        lat.GetUnitCell().ForEachSite([&](int Z, const rvec3_t&, bool){ sumQ+=s->pp->Valence(thePeriodicTable().GetSymbol(Z)); });
         const int derived=sumQ-opts.charge;
         if (opts.Nelec==0) s->opts.Nelec=derived;
         else if (opts.Nelec!=derived)
@@ -374,7 +382,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // library lacks takes the core guess with a WARN (it threw at seed time until 2026-11-12).
     // The library key carries the stated charge order and magnetic ordering (qchem.SetupDecisions, shared with MoleculeSetup).
     {
-        const RunSeed seed=ResolveRunSeed(opts.seed, *st, &s->pp, /*densityFock: a periodic run is Kohn-Sham*/true, opts.solid.siteCharges, opts.spins);
+        const RunSeed seed=ResolveRunSeed(opts.seed, *st, &*s->pp, /*densityFock: a periodic run is Kohn-Sham*/true, opts.solid.siteCharges, opts.spins);
         s->opts.seed=seed.seed;
         s->seedKey  =seed.key;
     }
@@ -392,8 +400,8 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // refused the run otherwise (R2.5, 2026-10-30: the seed-derived decoration is gone; with SeedStrategy::SAD it
     // labelled neutral O (2p4) magnetic and MnO AFM-II imposed a ferrimagnet, 12 Shubnikov ops, not 24).
     //   greyImposition -> {} DELIBERATELY: that arm is the erasure NEGATIVE CONTROL
-    if (s->imposed && !opts.solid.greyImposition) s->siteSpins = opts.spins;   // {} on an unpolarized run that states none
-    s->decoration=s->siteSpins;
+    if (s->imposed && !opts.solid.greyImposition) s->spins = opts.spins;   // {} on an unpolarized run that states none
+    s->decoration=s->spins;
     if (s->decoration.empty()) s->decoration.assign(lat.GetUnitCell().GetNumAtoms(), 0);
 
     s->planeWave = opts.solid.orbitalBasis==RunOptions::Solid::OrbitalBasis::PlaneWave;
@@ -436,7 +444,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
                            "the plane-wave factory builds one Γ block so far -- state kmesh [1,1,1] and no kShift");
         // A MAGNETIC imposition is the (D_up, D_dn) pair projection on the one Γ block (PW_BasisSet, OpenWork §2 PW-5).  A
         // grey / spatial imposition would need the per-channel density star-average the plane-wave route does not have.
-        const bool magnetic=std::any_of(s->siteSpins.begin(), s->siteSpins.end(), [](int v){return v!=0;});
+        const bool magnetic=std::any_of(s->spins.begin(), s->spins.end(), [](int v){return v!=0;});
         if (s->imposed && !magnetic)
             policy::Refuse("PlaneWaveMagneticOnly", "basis.family planeWave with an imposed grey / spatial group",
                            "the plane-wave route imposes only a MAGNETIC (Shubnikov) group so far -- state spins, or "
@@ -457,7 +465,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     if (s->planeWave && opts.xcMesh->cellKind==qcMesh::UnitCellKind::Auto)
         s->xcMesh = qcMesh::MeshParams{.cellKind=qcMesh::UnitCellKind::Uniform};
     else
-        s->xcMesh = qcMesh::ResolveXCMesh(*opts.xcMesh, GatherSharpness(lat, *s->mol, s->pp, s->imposed),
+        s->xcMesh = qcMesh::ResolveXCMesh(*opts.xcMesh, GatherSharpness(lat, *s->mol, *s->pp, s->imposed),
                                           theRunPolicy().BeckeXC());
     // The Vxc product space's admission (pin 30), asked of the Hamiltonian's rule HERE, before the Hamiltonian is built: the
     // Factory would throw the same reason later, after the basis and its fits.
@@ -472,7 +480,8 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // DECISION 2 -- the spin bookkeeping.  multiplicity -> (nUp,nDown), with the parity check that catches
     // a singlet asked of an odd electron count BEFORE integer division silently empties a channel.
     const int nel  = s->opts.Nelec;   // the RESOLVED count (above)
-    s->polarized = ResolveSpinGroup(opts.spin, opts.multiplicity)==SpinGroup::Polarized;   // THE rule, every structure (R6)
+    s->opts.spin = ResolveSpinGroup(opts.spin, opts.multiplicity);   // THE rule, every structure (R6), resolved in place
+    s->Ne=nel;
     std::tie(s->nUp, s->nDown)=SpinChannelCounts(opts, nel);
     // A partial eigensolve must leave EMPTY bands above the fuller channel (smearing and the gap need them).
     if (opts.solid.numBands>0 && opts.solid.numBands<=size_t(s->nUp))
@@ -507,7 +516,7 @@ std::shared_ptr<const BasisSet::Real_BS> GaussianBasisRecipe::Make(const Structu
 std::vector<Symmetry::SymOp> SolidSetup::KeptOps(const Lattice_3D& at) const
 {
     if (!imposed) return {Symmetry::SymOp{Matrix3D<double>(1,0,0, 0,1,0, 0,0,1), rvec3_t(0,0,0)}};
-    if (!siteSpins.empty()) return at.ShubnikovOps(siteSpins);
+    if (!spins.empty()) return at.ShubnikovOps(spins);
     std::vector<Symmetry::SymOp> ops;
     for (const auto& op : at.GetSpaceGroup().Ops()) ops.push_back({op.W, op.tau});
     return ops;
@@ -527,7 +536,7 @@ static GaussianBasisRecipe Untrimmed(const std::optional<GaussianBasisRecipe>& r
 std::unique_ptr<BasisSet::Lattice::ShellConditioning> SolidSetup::MakeShellConditioning() const
 {
     const GaussianBasisRecipe bare=Untrimmed(recipe, planeWave, "SolidSetup::MakeShellConditioning");
-    return std::make_unique<BasisSet::Lattice::ShellConditioning>(reference, bare.Make(*cell, pp),
+    return std::make_unique<BasisSet::Lattice::ShellConditioning>(lattice, bare.Make(*structure, *pp),
                                                                   BasisSet::Lattice::GPWParams{.images=opts.solid.images, .kShift=opts.solid.kShift, .tol=bare.tolerances});
 }
 
@@ -535,8 +544,8 @@ BasisSet::Gaussian::ShellTrim SolidSetup::MakeVetTrim(double orthoTol) const
 {
     const GaussianBasisRecipe bare=Untrimmed(recipe, planeWave, "SolidSetup::MakeVetTrim");
     if (!(orthoTol>0.0)) throw std::invalid_argument("SolidSetup::MakeVetTrim: an orthoTol > 0 to trim at -- at 0 it would drop nothing");
-    auto make=[&](const BasisSet::Gaussian::ShellTrim& t){ GaussianBasisRecipe r=bare; r.trim=t; return r.Make(*cell, pp); };
-    return BasisSet::Lattice::VetStageTrim(reference, make, {.images=opts.solid.images, .kShift=opts.solid.kShift, .tol=bare.tolerances}, orthoTol).trim;
+    auto make=[&](const BasisSet::Gaussian::ShellTrim& t){ GaussianBasisRecipe r=bare; r.trim=t; return r.Make(*structure, *pp); };
+    return BasisSet::Lattice::VetStageTrim(lattice, make, {.images=opts.solid.images, .kShift=opts.solid.kShift, .tol=bare.tolerances}, orthoTol).trim;
 }
 
 } //namespace qchem

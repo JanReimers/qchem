@@ -269,7 +269,7 @@ static Molecule MakeH2S()   // C2v, S-H 1.336 Angstrom, H-S-H 92.1 degrees (expe
 static void ExpectSADMatchesCoreGuess(const Molecule& mol, const std::string& basis, double tol)
 {
     const auto sad=MoleculeSetup::Resolve(mol, {.model=Model::LDA, .molecule={.basis=basis}});
-    ASSERT_EQ(sad->seed, ChargeDensity::SeedStrategy::SAD) << "every element is in the all-electron library, so the Auto rule seeds from SAD";
+    ASSERT_EQ(sad->opts.seed, ChargeDensity::SeedStrategy::SAD) << "every element is in the all-electron library, so the Auto rule seeds from SAD";
     MoleculeCalculation a(sad);
     MoleculeCalculation b(MoleculeSetup::Resolve(mol, {.model=Model::LDA, .seed=ChargeDensity::SeedStrategy::CoreGuess, .molecule={.basis=basis}}));
     ASSERT_TRUE(a.Result()) << "the SAD start converges";

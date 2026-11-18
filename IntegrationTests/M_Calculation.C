@@ -537,7 +537,7 @@ TEST(M_Calculation, ASavedStateIsJudgedByClass)
     for (const auto& w : (*otherModel)->RestartedFrom()->warm) named |= w.rfind("functional:",0)==0;
     EXPECT_TRUE(named) << "an HF state seeding an LDA run is a WARM start that names the functional";
 
-    auto atom=qchem::AtomCalculation::Restart(path, 8);
+    auto atom=qchem::AtomCalculation::Restart(path, AtomSetup::Resolve(8, 0));
     std::filesystem::remove(path);
     ASSERT_FALSE(atom);
     EXPECT_EQ(atom.Error().why, qchem::RestartRefusal::Why::Kind);

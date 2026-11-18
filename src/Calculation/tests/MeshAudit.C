@@ -44,7 +44,7 @@ TEST(MeshAudit, AgainstItsOwnMeshEveryTermReadsZero)
     const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     MoleculeCalculation c(setup, Tight());
     ASSERT_TRUE(c.Result());
-    const GridAuditResult R=c.MeshAudit(c.SizedSetup()->mesh);
+    const GridAuditResult R=c.MeshAudit(c.SizedSetup()->xcMesh);
     ASSERT_FALSE(R.terms.empty());
     for (const auto& t : R.terms)
     {
@@ -63,7 +63,7 @@ TEST(MeshAudit, AFinerMeshMovesOnlyTheMeshBorneTerms)
         MoleculeCalculation c(setup, Tight());
         ASSERT_TRUE(c.Result());
         const double E0=c.Energy();
-        const GridAuditResult R=c.MeshAudit(Finer(c.SizedSetup()->mesh));
+        const GridAuditResult R=c.MeshAudit(Finer(c.SizedSetup()->xcMesh));
         const bool hartreeOnMesh = fit==Hamiltonian::CoulombFit::Delta;
         double sum=0.0, largest=0.0;
         bool sawExc=false, sawEee=false;
@@ -107,7 +107,7 @@ TEST(MeshAudit, TheDunlapHartreeIsMeshFreeAtAFixedD)
     const auto setup=MoleculeSetup::Resolve(ch4, {.model=Model::LDA, .molecule={.basis="dzvp"}});
     MoleculeCalculation c(setup, Tight());
     ASSERT_TRUE(c.Result());
-    const GridAuditResult R=c.MeshAudit(Finer(c.SizedSetup()->mesh));
+    const GridAuditResult R=c.MeshAudit(Finer(c.SizedSetup()->xcMesh));
     bool sawEee=false, sawExc=false;
     for (const auto& t : R.terms)
     {
@@ -121,7 +121,7 @@ TEST(MeshAudit, BeforeAConvergeItThrows)
 {
     const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
     const auto c=MoleculeCalculation::Prepare(setup);
-    EXPECT_THROW((void)c->MeshAudit(Finer(setup->mesh)), std::logic_error);
+    EXPECT_THROW((void)c->MeshAudit(Finer(setup->xcMesh)), std::logic_error);
 }
 
 // MEASURED 2026-11-08 at the converged D, against (300, 65): water at the entry rung (80, 29) |ΔE| 2e-7, max|ΔH| 1e-6; F2 GTH q7 |ΔE|
@@ -134,8 +134,8 @@ TEST(MeshPilot, AnEnergyRunSettlesWhereItsAuditMeetsEps)
                               : MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
         EXPECT_FALSE(setup->meshStated);
         EXPECT_FALSE(setup->meshResolved);
-        EXPECT_EQ(setup->mesh.nRadial,       kMolecularMeshEntryRadial);
-        EXPECT_EQ(setup->mesh.angularDegree, kMolecularMeshEntryDegree);
+        EXPECT_EQ(setup->xcMesh.nRadial,       kMolecularMeshEntryRadial);
+        EXPECT_EQ(setup->xcMesh.angularDegree, kMolecularMeshEntryDegree);
         MoleculeCalculation c(setup, Tight());
         ASSERT_TRUE(c.Result());
         EXPECT_EQ(c.Consumes(), ClientConsumes::Energy);
@@ -146,12 +146,12 @@ TEST(MeshPilot, AnEnergyRunSettlesWhereItsAuditMeetsEps)
         EXPECT_GE(cost.referencesBuilt, 2) << "each axis's rung above, at least";
         const auto sized=c.SizedSetup();
         EXPECT_TRUE(sized->meshResolved);
-        EXPECT_GE(sized->mesh.nRadial,       setup->mesh.nRadial)       << "the climb only goes up";
-        EXPECT_GE(sized->mesh.angularDegree, setup->mesh.angularDegree) << "the climb only goes up";
-        const bool raised = sized->mesh.nRadial!=setup->mesh.nRadial || sized->mesh.angularDegree!=setup->mesh.angularDegree;
+        EXPECT_GE(sized->xcMesh.nRadial,       setup->xcMesh.nRadial)       << "the climb only goes up";
+        EXPECT_GE(sized->xcMesh.angularDegree, setup->xcMesh.angularDegree) << "the climb only goes up";
+        const bool raised = sized->xcMesh.nRadial!=setup->xcMesh.nRadial || sized->xcMesh.angularDegree!=setup->xcMesh.angularDegree;
         EXPECT_EQ(cost.reconvergeIterations>0, raised) << "a raise re-converges once from the carried D";
         // The settled mesh meets the energy run's target against a finer one, at the converged D.
-        const GridAuditResult R=c.MeshAudit(Finer(sized->mesh));
+        const GridAuditResult R=c.MeshAudit(Finer(sized->xcMesh));
         EXPECT_LT(std::fabs(R.ΔE), setup->opts.accuracy.Target(ClientConsumes::Energy, c.GetStructure().GetNumAtoms()));
     }
 }
@@ -167,10 +167,10 @@ TEST(MeshPilot, AGeometryRunRaisesAMeshThatMissesEpsOnMatrixElements)
     EXPECT_TRUE(cost.settled);
     const auto sized=c.SizedSetup();
     EXPECT_TRUE(sized->meshResolved);
-    const bool raised = sized->mesh.nRadial>setup->mesh.nRadial || sized->mesh.angularDegree>setup->mesh.angularDegree;
+    const bool raised = sized->xcMesh.nRadial>setup->xcMesh.nRadial || sized->xcMesh.angularDegree>setup->xcMesh.angularDegree;
     EXPECT_TRUE(raised) << "F2 GTH misses max|ΔH| <= eps at the entry rung";
     EXPECT_GT(cost.reconvergeIterations, 0u) << "a raise re-converges once from the carried D";
-    const GridAuditResult R=c.MeshAudit(Finer(sized->mesh));
+    const GridAuditResult R=c.MeshAudit(Finer(sized->xcMesh));
     EXPECT_LT(R.maxAbsΔH, setup->opts.accuracy.Target(ClientConsumes::MatrixElements, 2));
 }
 
@@ -187,8 +187,8 @@ TEST(MeshPilot, AStatedMeshIsKeptAndAMissIsReported)
     EXPECT_TRUE(cost.statedOver);
     EXPECT_FALSE(cost.settled);
     EXPECT_EQ(cost.reconvergeIterations, 0u) << "a stated mesh is never raised";
-    EXPECT_EQ(c.SizedSetup()->mesh.nRadial,       MoleculeXCMesh(o).nRadial);
-    EXPECT_EQ(c.SizedSetup()->mesh.angularDegree, MoleculeXCMesh(o).angularDegree);
+    EXPECT_EQ(c.SizedSetup()->xcMesh.nRadial,       MoleculeXCMesh(o).nRadial);
+    EXPECT_EQ(c.SizedSetup()->xcMesh.angularDegree, MoleculeXCMesh(o).angularDegree);
 }
 
 TEST(MeshPilot, HartreeFockHasNoMeshToPilot)
@@ -209,11 +209,11 @@ TEST(MeshPilot, ASessionPilotsItsFirstPointOnMatrixElementsAndStepsTheRestOnIt)
     EXPECT_EQ(first->Consumes(), ClientConsumes::MatrixElements);
     EXPECT_GE(first->PilotCost().rounds, 1);
     EXPECT_TRUE(first->SizedSetup()->meshResolved);
-    const qcMesh::MeshParams frozen=first->SizedSetup()->mesh;
+    const qcMesh::MeshParams frozen=first->SizedSetup()->xcMesh;
     std::vector<rvec3_t> R=g.R;
     R[0]+=rvec3_t(0.0, 0.0, 0.02);
     ASSERT_TRUE(pes.ConvergeAt(std::nullopt, R));
     EXPECT_EQ(pes.Current()->PilotCost().rounds, 0) << "a later point steps on the frozen mesh: no pilot";
-    EXPECT_EQ(pes.Current()->SizedSetup()->mesh.nRadial,       frozen.nRadial);
-    EXPECT_EQ(pes.Current()->SizedSetup()->mesh.angularDegree, frozen.angularDegree);
+    EXPECT_EQ(pes.Current()->SizedSetup()->xcMesh.nRadial,       frozen.nRadial);
+    EXPECT_EQ(pes.Current()->SizedSetup()->xcMesh.angularDegree, frozen.angularDegree);
 }
