@@ -7,6 +7,15 @@
     "basis span chosen: VALENCE_LOWQ_VA spherical; function count 314 == the log's"
   ],
   "structure": "LiMn2O4_spinel",
+  "schema": 2,
+  "multiplicity": 17,
+  "spin": "Polarized",
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.0001,
+  "imposeSymmetry": false,
+  "spins": [0,0,1,1,1,1,0,0,0,0,0,0,0,0],
+  "accelerator": "Null",
   "kmesh": [
     1,
     1,
@@ -17,12 +26,6 @@
     "angular": "spherical"
   },
   "solid": {
-    "multiplicity": 17,
-    "siteSpins": [0,0,1,1,1,1,0,0,0,0,0,0,0,0],
-    "seed": "IonicSAD",
-    "imposeSymmetry": false,
-    "ortho": "CholeskyPivoted",
-    "orthoTol": 0.0001,
     "hubbard": [
       {
         "site": 2,
@@ -48,8 +51,7 @@
         "U_eV": 0.0,
         "projector": "siteShells"
       }
-    ],
-    "accelerator": "Null"
+    ]
   },
   "scf": {
     "NMaxIter": 200,

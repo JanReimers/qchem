@@ -1,5 +1,9 @@
 {
   "structure": "SrVO3",
+  "schema": 2,
+  "seed": "SAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.001,
   "kmesh": [
     4,
     4,
@@ -11,9 +15,6 @@
     "autoTrim": true
   },
   "solid": {
-    "seed": "SAD",
-    "ortho": "CholeskyPivoted",
-    "orthoTol": 0.001,
     "forceComplex": true,
     "hubbard": [
       {

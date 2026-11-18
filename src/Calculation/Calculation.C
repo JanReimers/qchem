@@ -90,9 +90,10 @@ protected:
     //! Etot= (terms)" console line and a \c result section of the run report.  Each facade calls it where its SCF ends, from what
     //! every facade has; a solid's site moments follow as its own lines.  Rendered at Verbose only, since the line already says it.
     //! A grid Hartree route adds what its mesh lost of the charge, and that charge's energy against \a energyTarget when one is
-    //! stated (user ruling 2026-11-06: reported against eps, not rescaled away).
+    //! stated (user ruling 2026-11-06: reported against eps, not rescaled away).  \a iterations is the RUN's total; \a pilotIterations
+    //! is the share a grid pilot spent re-converging on the grids it raised, printed beside it and filed as \c pilotIterations.
     static void ReportResult(const std::string& label, bool converged, size_t iterations, double charge, const EnergyBreakdown& E,
-                             double energyTarget=0.0);
+                             double energyTarget=0.0, size_t pilotIterations=0);
 
     //! \name THE STATE HOOKS each facade answers (the template method's steps)
     //!@{

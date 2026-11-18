@@ -4,6 +4,21 @@
   "RED case: plain Kerker alpha 0.1 at U = 2 eV limit-cycles (uscan/control_U2a.log, 300 iterations, warm); p5f3_Od converged in 78.  Cap = target budget 80."
  ],
  "structure": "MnO2_beta_A1AFM",
+ "schema": 2,
+ "multiplicity": 1,
+ "spin": "Polarized",
+ "seed": "IonicSAD",
+ "ortho": "CholeskyPivoted",
+ "orthoTol": 1e-07,
+ "imposeSymmetry": true,
+ "spins": [
+   1,
+   -1,
+   0,
+   0,
+   0,
+   0
+  ],
  "kmesh": [
   1,
   1,
@@ -17,10 +32,6 @@
  },
  "accuracy": 0.0,
  "solid": {
-  "multiplicity": 1,
-  "seed": "IonicSAD",
-  "ortho": "CholeskyPivoted",
-  "orthoTol": 1e-07,
   "forceComplex": true,
   "hubbard": [
    {
@@ -128,15 +139,6 @@
     "projector": "pseudoAtomic"
    }
   ],
-  "siteSpins": [
-   1,
-   -1,
-   0,
-   0,
-   0,
-   0
-  ],
-  "imposeSymmetry": true,
   "tolerances": {
    "rasterX": 16.0,
    "vlocRasterX": 16.0,

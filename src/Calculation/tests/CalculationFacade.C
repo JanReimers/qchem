@@ -527,3 +527,41 @@ TEST(AtomConfiguration, AnUnstatedCationTakesNISTsFirstCationOrTheRemovalRuleAnd
     EXPECT_EQ(f1[0]["decided"], "F 1s^2 2s^2 2p^6");
     EXPECT_NE(f1[0]["reason"].get<std::string>().find("isoelectronic neutral"), std::string::npos);
 }
+
+// THE ATOM'S ITERATION COUNT IS THE RUN'S (OpenWork row "After the atom pilot re-converges", 2026-11-14): the pilot rebuilds the iterator on
+// the grids it raised and re-converges, so the iterator's own count is only the last SCF's.  The Mn GTH q7 pseudo-atom (the +U
+// projector's) raises xcRadial 50 -> 75 in round 0 and re-converges: IterationCount(), the result line and the report must all count
+// every iteration the observer saw, and the report files the pilot's share.
+TEST(AtomPilot, TheIterationCountIsTheRunsTotalAndThePilotsShareIsFiled)
+{
+    size_t seen=0;
+    AtomCalcOptions o{.type=AtomType::Gaussian, .pseudopotential=true};   // PseudoAtomOrbital's own recipe (src/Calculation/Imp/PseudoAtomOrbital.C)
+    o.valence=7;
+    o.vxcFit=Hamiltonian::VxcFit::Auxiliary;
+    std::vector<double> pool;   // its 16-exponent pool, 0.05 .. 200
+    for (int i=0;i<16;i++) pool.push_back(0.05*std::pow(200.0/0.05, i/15.0));
+    for (int l=0;l<=2;l++) o.exponentsByL.push_back({l, pool});
+    SCFParams p; p.MinVirial=std::nullopt; p.NMaxIter=120;
+    std::unique_ptr<AtomCalculation> calc;
+    {
+        qchem::report::Run run("atom pilot iterations");
+        calc=AtomCalculation::Prepare(25, 25-7, o, {}, [&seen](const auto&){ ++seen; });
+        ASSERT_TRUE(calc->Converge(p));
+    }
+    const auto* filed=FiledRun("atom pilot iterations@");
+    ASSERT_TRUE(filed);
+    const qchem::report::json* result=nullptr;
+    std::function<void(const qchem::report::json&)> find=[&](const qchem::report::json& x)
+    {
+        if (!x.is_object()) return;
+        for (auto it=x.begin(); it!=x.end(); ++it) { if (it.key()=="result" && it.value().is_object()) result=&it.value(); find(it.value()); }
+    };
+    find(*filed);
+    ASSERT_TRUE(result) << "the atom files a result section";
+    ASSERT_TRUE(result->contains("pilotIterations")) << "the case must raise a grid, or it does not test the pilot: " << result->dump(1);
+    const size_t pilot=(*result)["pilotIterations"].get<long>();
+    EXPECT_GT(pilot, 0u);
+    EXPECT_LT(pilot, seen) << "the entry SCF ran too";
+    EXPECT_EQ(calc->IterationCount(), seen) << "every iteration the observer saw, the entry SCF's and the pilot's";
+    EXPECT_EQ((*result)["iterations"].get<long>(), (long)seen);
+}

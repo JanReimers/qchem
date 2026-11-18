@@ -22,7 +22,7 @@ cd build/Release && ninja rundeck                                  # the one CLI
    materials entry (`Si_diamond_2x2x2`), not a deck key.  Nothing FM/AFM-specific lives in the framework: an "arm" is built by the integration test that wants it.
    **The one exception, an INLINE structure** (2026-10-31, the GUI's door: a cell a user built has no registry name): `structure` is an OBJECT,
    the entry itself -- `lattice` (the Bravais `type`/`a`..`gamma`/`T`, or `vectors_bohr` [[a],[b],[c]]), `atoms` (`el`, `frac`, optional `spin`), optional
-   `name` (a file stem: it names the revisions; default `inline`), `pp` (default `solid.pp`) and `comment` -- built by the data file's own parser, so an
+   `name` (a file stem: it names the revisions; default `inline`), `pp` (default the run's `pp`) and `comment` -- built by the data file's own parser, so an
    inline copy of a named entry IS that material (`Deck.AnInlineDeckAndItsNamedTwinBuildTheSameFingerprint`; template `decks/Si_diamond_inline.json`).
    The magnetic decoration and charge order stay in `solid` (`siteSpins`, `siteCharges`).
 3. **The file you wrote is never the record of what ran.**  Every run writes `<outDir>/<structure>.rNNN.json` BEFORE the SCF (so a crash still leaves it): the deck + every `--set` + every default filled in + a header + `provenance`
@@ -37,8 +37,21 @@ cd build/Release && ninja rundeck                                  # the one CLI
 
 ## 3. The schema (see `src/Calculation/Deck.C` for the C++ types and `Imp/Deck.C` for the readers)
 
+**Schema 2** (V-FACADE-PARITY P0, 2026-11-17): the STRUCTURE-NEUTRAL options (spin, charge, pseudopotential, model, seed,
+orthogonalisation, symmetry, spins, accelerator, label, accuracy, XC) sit at the TOP; only the periodic-only ones stay in `solid`.
+A record is written in schema 2 (`"schema": 2`).  **Schema 1 still reads** (an old deck, a banked `.rNNN.json`, the GUI's writer):
+ONE translator reads each key AT ITS PLACE with its old meaning -- `solid.multiplicity`, `solid.seed`, ... move to the top, `solid.siteSpins`
+to `spins`, `solid.xcMesh` to `xc.mesh`, and a schema-1 `solid.multiplicity >= 1` arrives as `"spin": "Polarized"` (before R6 the solid had
+no spin knob), so an old deck runs exactly as before.  A key stated at BOTH places is refused; a deck stamped `"schema": 2` refuses the
+old place, naming the new home.  The run report lists every key the translator moved.
+
+**Spin (R6, user 2026-11-17): two orthogonal knobs on every structure.**  `spin` says whether the channels may differ (`"Polarized"`:
+two channels, so an AFM or broken-symmetry singlet can hold local moments); `multiplicity` (2S+1) says only S.  A multiplicity > 1
+forces Polarized.  An AFM crystal states `"spin": "Polarized", "multiplicity": 1`.
+
 ```jsonc
 {
+  "schema": 2,
   "structure": "NiO_AFM2",                // a name in materials.json -- OR the cell itself, an object:
   // "structure": {"name":"NiO_mine", "lattice":{"vectors_bohr":[[a1],[a2],[a3]]}, "atoms":[{"el":"Ni","frac":[0,0,0]}, ...]},
   "kmesh": [2,2,2],
@@ -46,14 +59,21 @@ cd build/Release && ninja rundeck                                  # the one CLI
              "file": "/path/x.bsd",         // OVERRIDE: a .bsd path used instead of the file "data" names (no registry entry, no rebuild); `--set basis.file=...`
              "angular": "spherical",      // "cartesian" (default) | "spherical": the spherical lattice view (contaminant-free d/f); refused with VALENCE_LOWQ_SR on a transition-metal cell; the old bool "spherical": true still reads (2026-11-12)
              "trim": [{"Z":28,"l":0,"alpha":0.06}],   // a STATED shell trim (exclusive with autoTrim)
-             "autoTrim": true },           // the pin-22 vet-stage trim at solid.orthoTol (needs it > 0; orthoTol alone never trims)
-  "solid": {                              // SolidCalcOptions -- every field; Nelec/species/multiplicity default from the material
-    "Nelec": 0, "charge": 0,              // Nelec 0 = derived (Σ species valence - charge); a stated Nelec must equal that or the run is REFUSED
-    "model": "LDA",                       // the XC functional: LDA (Dirac + VWN5, default) | PADE (libxc LDA_XC_TETER93 = CP2K's PADE, the GTH-PADE PPs' own); a PP fitted with another functional = a warn-and-run policy row
-    "multiplicity": 1, "seed": "IonicSAD", "ortho": "CholeskyPivoted", "orthoTol": 1e-4, "accelerator": "Null",   // Auto (default; = DIIS today) | DIIS | GDM | Ladder | Null
-    "imposeSymmetry": false, "forceComplex": false, "kShift": [0,0,0], "densityEcut": -1, "cutoffFactor": 2,
+             "autoTrim": true },           // the pin-22 vet-stage trim at orthoTol (needs it > 0; orthoTol alone never trims)
+  "Nelec": 0, "charge": 0,                // Nelec 0 = derived (Σ species valence - charge); a stated Nelec must equal that or the run is REFUSED
+  "species": [["Na",9]],                  // per-element valence overrides of the pp set (empty = the material's)
+  "pp": "gth-lda-valence",                // the pseudopotential set (absent = the material's)
+  "model": "LDA",                         // the XC functional: LDA (Dirac + VWN5, default) | PADE (libxc LDA_XC_TETER93 = CP2K's PADE, the GTH-PADE PPs' own); a PP fitted with another functional = a warn-and-run policy row
+  "spin": "Polarized", "multiplicity": 1, // R6: the spin group and S (above)
+  "seed": "IonicSAD", "ortho": "CholeskyPivoted", "orthoTol": 1e-4,
+  "accelerator": "Null",                  // Auto (default; = DIIS today) | DIIS | GDM | Ladder | Null
+  "imposeSymmetry": false, "spins": [1,-1,0,0],   // spins: the stated magnetic ordering, +1/-1/0 per site (was solid.siteSpins)
+  "accuracy": 1e-5,                       // THE ONE accuracy target eps (pin 31)
+  "xc": { "fit": "Auto", "rho": "exact",  // the Vxc fit basis, the density XC sees
+          "mesh": { "cellKind": "Auto|Uniform|Becke", "nRadial": 40, "angularDegree": 29, "beckeEps": 1e-6, ... } },   // was solid.xcMesh
+  "solid": {                              // the PERIODIC-ONLY options
+    "forceComplex": false, "kShift": [0,0,0], "densityEcut": -1, "cutoffFactor": 2,
     "xcMeshSymmetric": true,              // FREE run: XC mesh invariant under the group detected at THIS geometry; false = the plain atom-centred mesh (a displacement path needs false)
-    "xcMesh": { "cellKind": "Auto|Uniform|Becke", "nRadial": 40, "angularDegree": 29, "beckeEps": 1e-6, ... },
     "tolerances": { "screenEps": 1e-10, "densityEps": 1e-10, "vlocEps": 1e-5, "fieldSharp": 0.667, "relCutoff": 0, "mgridEcuts": [], ... },
     "policy": { "cp2kCompat": false, "streamFold": true, ... },     // the declared CP2K deviations; ONLY stated routes are recorded
     "hubbard": [ { "site":0, "l":2, "U_eV":4.0, "orthoAtomic":true, "Uirrep_eV":[...], "alpha_eV":0 } ],

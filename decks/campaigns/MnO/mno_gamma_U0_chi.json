@@ -7,6 +7,15 @@
     "basis span chosen: VALENCE_LOWQ_VA spherical; function count not comparable (no nFunctions in log)"
   ],
   "structure": "MnO_AFM2",
+  "schema": 2,
+  "multiplicity": 1,
+  "spin": "Polarized",
+  "seed": "IonicSAD",
+  "ortho": "CholeskyPivoted",
+  "orthoTol": 0.0001,
+  "imposeSymmetry": false,
+  "spins": [1,-1,0,0],
+  "accelerator": "Null",
   "kmesh": [
     1,
     1,
@@ -17,12 +26,6 @@
     "angular": "spherical"
   },
   "solid": {
-    "multiplicity": 1,
-    "siteSpins": [1,-1,0,0],
-    "seed": "IonicSAD",
-    "imposeSymmetry": false,
-    "ortho": "CholeskyPivoted",
-    "orthoTol": 0.0001,
     "hubbard": [
       {
         "site": 0,
@@ -37,8 +40,7 @@
         "projector": "siteShells"
       }
     ],
-    "forceComplex": true,
-    "accelerator": "Null"
+    "forceComplex": true
   },
   "scf": {
     "NMaxIter": 200,

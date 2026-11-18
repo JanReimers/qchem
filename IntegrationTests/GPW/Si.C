@@ -454,7 +454,7 @@ TEST(GPW_Si, Γ_Imp_Pol_eqUnpol)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma pol-singlet");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.multiplicity=1;                                  // EXPLICIT two-channel singlet (nUp=nDn=4)
+    o.multiplicity=1; o.spin=SpinGroup::Polarized;                                  // EXPLICIT two-channel singlet (nUp=nDn=4)
     o.siteSpins={0,0};   // stated (R2.5): Si is non-magnetic
     o.densityEcut=20.0;
     GpwReport report("Si "+o.label, false);
@@ -472,7 +472,7 @@ TEST(GPW_Si, Γ_Imp_Pol_SpinSeed_eqUnpol)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma pol-singlet spin-SAD");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.multiplicity=1;                                  // EXPLICIT two-channel singlet (nUp=nDn=4)
+    o.multiplicity=1; o.spin=SpinGroup::Polarized;                                  // EXPLICIT two-channel singlet (nUp=nDn=4)
     o.siteSpins={0,0};   // stated (R2.5): Si is non-magnetic
     o.densityEcut=20.0;
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;    // -> PolarizedSeedCD (rho/2 channels for pairless Si)
@@ -735,7 +735,7 @@ TEST(GPW_Si, Γ_Uni_PWFit_Imp_Pol_eqUnpol)
                             return r ? Arm{r->TotalCharge(), r->Energy()} : Arm{0,0}; };
     const Arm U=arm();
 
-    o.label="Si PW-fit pol-singlet"; o.multiplicity=1; o.siteSpins={0,0};   // the explicit two-channel singlet on the SAME route
+    o.label="Si PW-fit pol-singlet"; o.multiplicity=1; o.spin=SpinGroup::Polarized; o.siteSpins={0,0};   // the explicit two-channel singlet on the SAME route
     const Arm P=arm();
     EXPECT_NEAR(P.charge, 8.0, 1e-6);
     EXPECT_NEAR(P.E, U.E, 1e-6)                            // measured 6e-9 on 2026-09-14, same 17 iterations
@@ -1024,7 +1024,7 @@ TEST(GPW_Si, Γ_U_Imp_Pol_Kerker_eqUnpol)
     o.hubbard={HubbardU_SiteShells(0,1,2.0), HubbardU_SiteShells(1,1,2.0)};
     SCFParams par=ProductionGates(); par.KerkerG0=1.0;                                 // the rho-tilde mixer
     qchem::SolidCalculation unpol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    o.multiplicity=1; o.siteSpins={0,0}; o.label="Si SR Gamma Kerker U=2 eV pol-singlet";                // PolarizedMixCD in the loop
+    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.siteSpins={0,0}; o.label="Si SR Gamma Kerker U=2 eV pol-singlet";                // PolarizedMixCD in the loop
     qchem::SolidCalculation pol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
     auto a=unpol.Result(), b=pol.Result();
     ASSERT_TRUE(a) << Why(a);
@@ -1051,7 +1051,7 @@ TEST(GPW_Si, Γ_U_ACBN0_Imp_Pol_eqUnpol)
     o.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};                                  // U=0: a plain LDA run that carries the manifolds
     SCFParams par=ProductionGates();
     qchem::SolidCalculation unpol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    o.multiplicity=1; o.siteSpins={0,0}; o.label="Si SR Gamma ACBN0 on p, pol-singlet";
+    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.siteSpins={0,0}; o.label="Si SR Gamma ACBN0 on p, pol-singlet";
     qchem::SolidCalculation pol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
     ASSERT_TRUE(unpol.Result()) << Why(unpol.Result());
     ASSERT_TRUE(pol.Result())   << Why(pol.Result());
@@ -1097,7 +1097,7 @@ TEST(GPW_Si, Γ_U_PseudoAtomic3p_Imp_Pol_eqUnpol)
     o.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};                                  // the default projector: pseudo-atomic
     SCFParams par=ProductionGates();
     qchem::SolidCalculation unpol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    o.multiplicity=1; o.siteSpins={0,0}; o.label="Si SR Gamma U=2 eV on the pseudo-atomic 3p projector, pol-singlet";
+    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.siteSpins={0,0}; o.label="Si SR Gamma U=2 eV on the pseudo-atomic 3p projector, pol-singlet";
     qchem::SolidCalculation pol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
     auto a=unpol.Result(), b=pol.Result();
     ASSERT_TRUE(a) << Why(a);
@@ -1189,7 +1189,7 @@ TEST(GPW_Si, Γ_Imp_Pol_Kerker_eqUnpol)
     o.densityEcut=20.0; o.imposeSymmetry=true;
     SCFParams par=ProductionGates(); par.KerkerG0=1.0;
     qchem::SolidCalculation unpol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    o.multiplicity=1; o.siteSpins={0,0}; o.label="Si SR Gamma Kerker pol-singlet";
+    o.multiplicity=1; o.spin=SpinGroup::Polarized; o.siteSpins={0,0}; o.label="Si SR Gamma Kerker pol-singlet";
     qchem::SolidCalculation pol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
     auto a=unpol.Result(), b=pol.Result();
     ASSERT_TRUE(a) << Why(a);
@@ -1318,6 +1318,7 @@ TEST(GPW_Si, Γ_GridAuditReusesThePilotsLastRound)
     json b=deck; b["postSCF"]={{{"gridAudit",json::object()}}};
     b["accuracy"]=restate["accuracy"];
     for (auto it=restate["solid"].begin(); it!=restate["solid"].end(); ++it) b["solid"][it.key()]=it.value();
+    if (restate.contains("xc")) for (auto it=restate["xc"].begin(); it!=restate["xc"].end(); ++it) b["xc"][it.key()]=it.value();   // schema 2: xc.mesh
     const json B=run(b, conB);
     ASSERT_EQ(B.size(), 1u);
     EXPECT_EQ(B[0]["reference"].get<std::string>().find(reused), std::string::npos) << "no pilot ran: measured";
