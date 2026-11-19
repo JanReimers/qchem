@@ -19,6 +19,8 @@ module;
 #include <vector>
 #include <cmath>
 #include <complex>
+#include <stdexcept>
+#include <array>
 export module qchem.BasisSet.PlaneWave.PlaneWaveFit_IBS;
 export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 export import qchem.BasisSet.Orbital_DFT_IBS;                    // cFIT_CD_ABS (the density-fit face)
@@ -32,6 +34,12 @@ import qchem.Matrix3D;                                   // Matrix3D
 
 export namespace qchem::BasisSet::PlaneWave
 {
+//! The integer voxel map of a crystal op on an FFT grid: row \a a, column \a b holds \f$W_{ab}N_a/N_b\f$.
+using RasterVoxelMapT = std::array<std::array<long,3>,3>;
+//! \brief Where op \a W (lattice basis) sends voxel \f$i\f$ of an \a N grid: \f$m_a=\sum_b (W_{ab}N_a/N_b)\,i_b\f$ (mod \f$N_a\f$),
+//! since voxel \f$i\f$ sits at fractional \f$x_b=i_b/N_b\f$.  On an isotropic grid the map is \f$W\f$ itself.  THROWS
+//! \c std::logic_error when an entry is not an integer: the grid is not invariant under \a W, so no voxel permutation exists.
+RasterVoxelMapT RasterVoxelMap(const Matrix3D<double>& W, const ivec3_t& N);
 
 //! \brief Plane-wave auxiliary fit basis: BOTH \c cFIT_CD_ABS (density) and \c cFIT_SF_ABS (potential) over a
 //! plane-wave grid, sharing the orbital basis's PW_Evaluator.  A thin shell -- all evaluation comes from the
@@ -116,8 +124,11 @@ public:
     //! (\f$\rho(x+\tau)=\mathcal F^{-1}[e^{+iG\cdot\tau}\hat\rho]\f$) -- one FFT round-trip per distinct \f$\tau\f$, so a diamond
     //! ¼ glide is exact even on the \f$n=15\f$ grid (a grid NOT commensurate with τ; nearest-voxel/interpolation would
     //! alias/blur the density and mistune the SCF).  τ=0 for a symmorphic crystal: the plain permutation average.  A
-    //! real-space average of a (near-)non-negative raster stays ≥0, so XC keeps its ρ_DM feed.  Needs the CUBIC FFT grid
-    //! (axis-mixing W); on any other raster the field is left as it is (the behaviour the stored-ops version had).
+    //! real-space average of a (near-)non-negative raster stays ≥0, so XC keeps its ρ_DM feed.  ANY FFT grid the op maps onto
+    //! itself works: voxel \f$i\f$ sits at fractional \f$x_b=i_b/N_b\f$, so its image is voxel \f$m_a=\sum_b (W_{ab}N_a/N_b)\,i_b\f$,
+    //! an integer map exactly when each \f$W_{ab}N_a/N_b\f$ is (on the isotropic grid the policy builds today it is \f$W\f$ itself).
+    //! A grid an op does NOT map onto itself, or a field that is not this raster, THROWS: averaging is the imposition's contract, and
+    //! leaving the field un-averaged (what this did until 2026-11-18 on any non-cubic grid) was a silent substitution.
     std::unique_ptr<Symmetry::StarField> MakeStarField(rvec_t& rho) const override
         {return std::make_unique<RasterStarField>(*this, rho);}
 
@@ -139,47 +150,48 @@ private:
         RasterStarField(const PW_Grid_Evaluator& e, rvec_t& rho) : itsE(&e), itsRho(&rho) {}
         void StartStar() override
         {
-            const ivec3_t N=itsE->FFTGrid();
-            itsN=N.x;
-            itsCubic=(N.y==itsN && N.z==itsN && size_t(itsN)*itsN*itsN==itsRho->size());   // guard: cubic grid == the raster
-            itsAcc=rvec_t(itsCubic ? itsRho->size() : 0, 0.0);
+            itsN=itsE->FFTGrid();
+            if (size_t(itsN.x)*itsN.y*itsN.z!=itsRho->size())
+                throw std::logic_error("PlaneWaveFit RasterStarField: the field has "+std::to_string(itsRho->size())+" values, the FFT grid "
+                                       +std::to_string(itsN.x)+"x"+std::to_string(itsN.y)+"x"+std::to_string(itsN.z)+" holds a different count");
+            itsAcc=rvec_t(itsRho->size(), 0.0);
             itsTaus.clear(); itsShifted.clear();
         }
         void AddImage(const Symmetry::SymOp& g) override
         {
-            if (!itsCubic) return;
-            const long n=itsN;
-            auto at=[n](long ix,long iy,long iz)->size_t
-                    { auto m=[n](long i){return size_t(((i%n)+n)%n);}; return (m(ix)*n+m(iy))*n+m(iz); };
+            const long N[3]={itsN.x, itsN.y, itsN.z};
+            const RasterVoxelMapT M=RasterVoxelMap(g.W, itsN);   // THROWS on a grid g does not map onto itself
+            auto wrap=[](long i, long n){ return ((i%n)+n)%n; };
             const rvec_t& src=SourceFor(g.tau);                                // ρ(·+τ), pre-shifted exactly
-            for (long ix=0; ix<n; ++ix) for (long iy=0; iy<n; ++iy) for (long iz=0; iz<n; ++iz)
+            for (long ix=0; ix<N[0]; ++ix) for (long iy=0; iy<N[1]; ++iy) for (long iz=0; iz<N[2]; ++iz)
             {
-                const rvec3_t w=g.W*rvec3_t(double(ix),double(iy),double(iz));   // W·x (exact integer permutation)
-                itsAcc[(size_t(ix)*n+iy)*n+iz] += src[at(std::lround(w.x),std::lround(w.y),std::lround(w.z))];
+                const long mx=wrap(M[0][0]*ix+M[0][1]*iy+M[0][2]*iz, N[0]);   // W·x as an exact integer voxel map
+                const long my=wrap(M[1][0]*ix+M[1][1]*iy+M[1][2]*iz, N[1]);
+                const long mz=wrap(M[2][0]*ix+M[2][1]*iy+M[2][2]*iz, N[2]);
+                itsAcc[(size_t(ix)*N[1]+iy)*N[2]+iz] += src[(size_t(mx)*N[1]+my)*N[2]+mz];
             }
         }
         void FinishStar(double w) override
         {
-            if (!itsCubic) return;
             for (size_t i=0;i<itsAcc.size();++i) itsAcc[i]=w*itsAcc[i];
             *itsRho=std::move(itsAcc);
             itsAcc=rvec_t();
             itsTaus.clear(); itsShifted.clear();
         }
     private:
-        // Exact fractional shift of the (periodic, band-limited) raster by +τ via the FFT phase.  n odd here (5-smooth
-        // AutoGrid) -> no Nyquist bin, so the signed-frequency phase e^{+2πi m·τ} is the exact fractional-delay filter
-        // (Hermitian -> the inverse transform is real).
+        // Exact fractional shift of the (periodic, band-limited) raster by +τ via the FFT phase: on an odd axis there is no
+        // Nyquist bin, so the signed-frequency phase e^{+2πi m·τ} is the exact fractional-delay filter (Hermitian -> the
+        // inverse transform is real).  Per axis, so any grid shape.
         rvec_t ShiftBy(const rvec3_t& tau) const
         {
-            const int n=itsN;
+            const int nx=itsN.x, ny=itsN.y, nz=itsN.z;
             const double twoPi = 8.0*std::atan(1.0);
             cvec_t F = itsE->ForwardFFT(*itsRho);                              // physical, /Npts-normalised (raster order)
-            for (int ax=0; ax<n; ++ax) for (int ay=0; ay<n; ++ay) for (int az=0; az<n; ++az)
+            for (int ax=0; ax<nx; ++ax) for (int ay=0; ay<ny; ++ay) for (int az=0; az<nz; ++az)
             {
-                int mx=ax<=n/2?ax:ax-n, my=ay<=n/2?ay:ay-n, mz=az<=n/2?az:az-n;   // signed frequency (-n/2..n/2)
+                int mx=ax<=nx/2?ax:ax-nx, my=ay<=ny/2?ay:ay-ny, mz=az<=nz/2?az:az-nz;   // signed frequency (-n/2..n/2)
                 double ph = twoPi*(mx*tau.x + my*tau.y + mz*tau.z);
-                F[(size_t(ax)*n+ay)*n+az] *= std::polar(1.0, ph);          // e^{+iG·τ}
+                F[(size_t(ax)*ny+ay)*nz+az] *= std::polar(1.0, ph);        // e^{+iG·τ}
             }
             return itsE->BackwardFFT(F);
         }
@@ -195,8 +207,7 @@ private:
         }
         const PW_Grid_Evaluator* itsE;      //!< the raster's engine (FFT pair, grid)
         rvec_t*                  itsRho;    //!< the field averaged in place (not owned)
-        int                      itsN=0;    //!< voxels per axis
-        bool                     itsCubic=false;
+        ivec3_t                  itsN{0,0,0};   //!< voxels per axis
         rvec_t                   itsAcc;    //!< the unweighted image sum
         std::vector<rvec3_t>     itsTaus;   //!< distinct nonzero τ met so far ...
         std::vector<rvec_t>      itsShifted;//!< ... and the raster shifted by each

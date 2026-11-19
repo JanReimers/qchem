@@ -14,6 +14,7 @@ target_sources(qcPlaneWave_BS PRIVATE
     Evaluators/Imp/PeriodicGridEvaluator.C
     Evaluators/Imp/Evaluator.C
     Imp/PlaneWave_IBS.C
+    Imp/PlaneWaveFit_IBS.C
 )
 target_sources(qcPlaneWave_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/GVectors.C
