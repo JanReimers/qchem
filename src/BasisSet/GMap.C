@@ -9,6 +9,7 @@ module;
 #include <complex>   // std::operator*(double,complex) / operator/(complex,double) -- std header, not a Blaze dep
 #include <map>
 #include <vector>
+#include <functional>
 #include <utility>
 // ★ IT IS DELIBERATELY *NOT* `.Internal.` (V1.20b, user ruling 2026-09-09) -- and the name is the whole
 // point of the change: it IS used across real library boundaries (`qcChargeDensity`'s FourierDensity,
@@ -29,7 +30,6 @@ export import qchem.BasisSet.PairProjection;  // IVec3Less, ΔG_Map, PairProject
 import qchem.Types;    // ivec3_t, dcmplx
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;  // ReciprocalOp {U|tau} for the non-symmorphic glide phase
 export import qchem.Symmetry.StarGroup;   // StarField (GMapStarField realizes it), StarGroup
-import qchem.Symmetry.Lattice_3D.Fold;   // FoldGVectors (the T1 {G}-star reduced evaluation)
 
 export namespace qchem {
 
@@ -105,45 +105,30 @@ inline ΔG_Map SymmetrizeGMap(const ΔG_Map& rg, const std::vector<Symmetry::Lat
 //! identity \f$f(Um)=e^{+2\pi i\,m\cdot\tau}f(m)\f$ -- the expansion consumption of the fold's op edges.
 //! VALID ONLY for a field carrying the ops' full symmetry: a structure-factor sum over the ops' OWN atom set
 //! (\f$V_{loc}\f$ assembly -- exact by construction, the ops were detected from those atoms), a radial kernel,
-//! etc.  POLICY-GATED by the caller (§3): pass empty \a ops for plain evaluation.  A member with no single
+//! etc.  POLICY-GATED by the caller (§3): the trivial group is the plain evaluation.  A member with no single
 //! mapping op (hand-made op subsets; \c Fold records -1) is evaluated directly -- reduced or not, the result
 //! is EXACT to roundoff (~1e-13 reordering class, §8): this is an expansion, never an average.
 //! Payoff \f$\approx\f$ mean star size on the per-G \a field cost (up to 48x in \f$O_h\f$) -- the PROTOTYPE
 //! of the reduced-sum pattern, not the headline (§1).
 //! \a nReps (optional out): how many representatives were actually evaluated -- \c gs.size() when the fold
 //! is empty.  The caller reports \c gs.size()/nReps as the achieved fold factor; folding that nobody can see
-//! is folding nobody trusts (doc/OpenWork.md Step 0b).
-template <class F> inline ΔG_Map EvaluateSymmetricGMap(const std::vector<ivec3_t>& gs,
-                                                       const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& ops,
-                                                       const F& field, size_t* nReps=nullptr)
+//! is folding nobody trusts (doc/OpenWork.md Step 0b).  The GROUP folds (\c StarGroup::EvaluateOnGStars); no op list travels.
+inline ΔG_Map EvaluateSymmetricGMap(const std::vector<ivec3_t>& gs, const Symmetry::StarGroup& group,
+                                    const std::function<dcmplx(const ivec3_t&)>& field, size_t* nReps=nullptr)
 {
+    const std::vector<dcmplx> v=group.EvaluateOnGStars(gs, field, nReps);   // the group folds under its own G-index face
     ΔG_Map out;
-    if (ops.empty())
-    {
-        if (nReps) *nReps=gs.size();
-        for (const ivec3_t& m : gs) out[m] = field(m);
-        return out;
-    }
-
-    namespace SL = Symmetry::Lattice_3D;
-    std::vector<SL::SymOp> sops;
-    sops.reserve(ops.size());
-    for (const auto& op : ops) sops.push_back({op.U, op.tau});   // the fold's W slot = the G-index map U
-    SL::Fold f = SL::FoldGVectors(gs, sops);
-    if (nReps) *nReps=f.Reps();
-    for (size_t r = 0; r < f.Reps(); ++r)
-    {
-        const ivec3_t& mr = gs[f.repRaw[r]];
-        const dcmplx   v  = field(mr);
-        for (auto [mi, o] : f.members[r])
-            if (o < 0) out[gs[mi]] = field(gs[mi]);              // no edge op: evaluate directly (still exact)
-            else
-            {
-                const double ph = 2.0*Pi*(mr.x*sops[o].tau.x + mr.y*sops[o].tau.y + mr.z*sops[o].tau.z);
-                out[gs[mi]] = std::polar(1.0, ph) * v;           // f(U m_rep) = e^{+2πi m_rep·τ} f(m_rep)
-            }
-    }
+    for (size_t i=0;i<gs.size();i++) out[gs[i]]=v[i];
     return out;
+}
+//! The op-vector spelling of the same evaluation (unit tests and oracles): the group of \a ops (\f$\{U|\tau\}\f$, \f$W=U^\top\f$).
+inline ΔG_Map EvaluateSymmetricGMap(const std::vector<ivec3_t>& gs, const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& ops,
+                                    const std::function<dcmplx(const ivec3_t&)>& field, size_t* nReps=nullptr)
+{
+    std::vector<Symmetry::SymOp> direct;
+    direct.reserve(ops.size());
+    for (const auto& op : ops) direct.push_back({Transpose(op.U), op.tau});   // U = W^T  =>  W = U^T (exact transpose)
+    return EvaluateSymmetricGMap(gs, Symmetry::StarGroup(std::move(direct)), field, nReps);
 }
 
 //! \brief The MAGNETIC (Shubnikov) star-average of a G-space field of DEFINITE spin parity -- S2 of

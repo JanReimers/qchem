@@ -6,6 +6,7 @@ target_sources(qcSymmetry PRIVATE
     Imp/Orbital_QNs.C
     Imp/Factory.C
     Imp/Unit.C
+    Imp/StarGroup.C    # the G-space requests (CountGStars, EvaluateOnGStars)
     # --- Atom/ ---
     Atom/Imp/Spherical.C
     Atom/Internal/Imp/SphericalQNs.C   # merged: was Yl.C + Ylm.C + Okmj.C (all impl units of one module)

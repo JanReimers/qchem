@@ -30,7 +30,6 @@ import qchem.Structure;       // Structure / Atom (the PP centres + Z, and Creat
 import qchem.UnitCell;        // UnitCell (the direct cell for CollocateDensity / IntegratePotential grid<->cell)
 import qchem.Reporting;       // the run report -- EmitGridsReport builds the `grids` section
 import qchem.RunPolicy;       // theRunPolicy().DAwareScreen() -- WHICH LatticeScreener this evaluator builds (N5)
-import qchem.Symmetry.Lattice_3D.Fold;   // FoldGVectors (the grid report's {G}-star column)
 import qchem.Symmetry.Lattice_3D.BlochOperationRep;  // BlochPhase (exact ±1 at TRIM)
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 import qchem.BasisSet.GMap;   // EvaluateSymmetricGMap
@@ -119,8 +118,8 @@ double BetaSupportRadius(const SpeciesProjectorSet_R& sep, int Z, size_t p)
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                              std::shared_ptr<const GpwRasterLadder> ladder, const rvec3_t& kFrac, bool kIsReal, bool homeCellOnly,
-                             std::vector<Symmetry::Lattice_3D::DirectOp> symOps, const GPWTolerances& tol)
-    : itsSymOps(std::move(symOps))
+                             std::shared_ptr<const Symmetry::StarGroup> group, const GPWTolerances& tol)
+    : itsGroup(group ? std::move(group) : std::make_shared<const Symmetry::StarGroup>())
     , itsMol(std::move(mol))
     , itsTol(tol)
     , itsHomeOnly(homeCellOnly)
@@ -895,16 +894,6 @@ qcMesh::MeshParams GPW_Evaluator::PPMeshParams(const Structure* cl, const Specie
     return mp;
 }
 
-// The reciprocal {U|τ} face of the imposed ops (U = Wᵀ, the SymmetrizeGMap scatter convention) -- what the
-// T1 {G}-star reduced structure-factor sweeps fold under.  Empty in, empty out (free run = plain sweep).
-std::vector<Symmetry::Lattice_3D::ReciprocalOp> GPW_Evaluator::RecipSymOps() const
-{
-    std::vector<Symmetry::Lattice_3D::ReciprocalOp> rops;
-    rops.reserve(itsSymOps.size());
-    for (const auto& op : itsSymOps) rops.push_back({Transpose(op.W), op.tau});
-    return rops;
-}
-
 // Local PP: assembled in G-SPACE from the analytic form factor, IDENTICALLY to PlaneWave::PW_Evaluator::LocalPotential-
 // Matrix -- Vtilde(dG) = (1/Omega) Sum_a v_loc(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 DROPPED, then <chi|Vtilde|chi>
 // via OverlapMatrix (the collocation adjoint reconstructs V_loc(r) on the density grid and quadratures it).
@@ -956,18 +945,17 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const SpeciesRadialField
     const size_t K = Levels().levels.size();
     // T1 {G}-star fold (doc/SymmetryUpgradePlan.md §6): under the §3-imposed ops the static V_loc field is
     // exactly symmetric (the ops were detected from these very atoms), so the form-factor sum runs at star
-    // representatives only, members filled by the glide identity.  Empty ops (free run) = the plain sweep.
-    const auto rops=RecipSymOps();
+    // representatives only, members filled by the glide identity.  The trivial group (free run) = the plain sweep.
     std::vector<rvec_t> V_L(K);
     size_t gRaw=0, gReps=0;                        // Step 0b: the achieved {G}-star reduction, summed over levels
     for (size_t L=0;L<K;L++)
     {
         size_t nr=0;
-        ΔG_Map vmapL = EvaluateSymmetricGMap(Levels().levels[L]->Gs(), rops, Vt, &nr);   // restrict to level L's {G}
+        ΔG_Map vmapL = EvaluateSymmetricGMap(Levels().levels[L]->Gs(), *itsGroup, Vt, &nr);   // restrict to level L's {G}
         gRaw+=Levels().levels[L]->Gs().size(); gReps+=nr;
         V_L[L]=Levels().levels[L]->RhoOnGrid(vmapL);
     }
-    qchem::report::EmitFold("V_loc {G}-star", rops.size(), gRaw, gReps);
+    qchem::report::EmitFold("V_loc {G}-star", itsGroup->size(), gRaw, gReps);
     // THE COLLOCATED FIELD's OWN SHARPNESS (doc/GPWPlan1.md 4b root-cause fix).  V_loc (long OR short) decays in
     // G as e^{-G^2 rloc^2/2}, so its effective Gaussian exponent is beta = 1/(2 rloc^2) -- exactly the short-
     // range Gaussian's alpha.  The integrand chi_i*V*chi_j is a product of Gaussians (exponents ADD), so the
@@ -1050,17 +1038,16 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialF
         return acc/itsFFT_R_G_Grids->Volume();
     };
     const size_t K=levels.size();
-    const auto rops=RecipSymOps();                                    // T1 {G}-star fold, as in MakeLocalPP
     std::vector<rvec_t> V_L(K);
     size_t gRaw=0, gReps=0;
     for (size_t L=0;L<K;L++)
     {
         size_t nr=0;
-        ΔG_Map vmapL = EvaluateSymmetricGMap(levels[L]->Gs(), rops, Vt, &nr);   // level L's {G} (low-pass)
+        ΔG_Map vmapL = EvaluateSymmetricGMap(levels[L]->Gs(), *itsGroup, Vt, &nr);   // level L's {G} (low-pass); T1 {G}-star fold as in MakeLocalPP
         gRaw+=levels[L]->Gs().size(); gReps+=nr;
         V_L[L]=levels[L]->RhoOnGrid(vmapL);
     }
-    qchem::report::EmitFold("V_loc-long {G}-star", rops.size(), gRaw, gReps);
+    qchem::report::EmitFold("V_loc-long {G}-star", itsGroup->size(), gRaw, gReps);
     return itsLat->IntegratePotential(V_L, CellPhase(), itsCell, N_L, ecut_L, *itsScreener,
                                       0.0, nullptr, 0.0, itsRelFieldSharp, &lv);   // explicit harmonic routing; NO D screen
 }

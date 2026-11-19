@@ -32,6 +32,7 @@ import qchem.Matrix3D;                              // Matrix3D<double> (the FCC
 import qchem.Symmetry.StarGroup;                    // StarGroup (the density star-average)
 import qchem.Symmetry.Lattice_3D.SpaceGroup;        // SpaceGroup::Detect (the cubic ops)
 import qchem.BasisSet.G_RasterStarField;            // the raster as a star field
+import qchem.BasisSet.PlaneWave.PlaneWaveFit_IBS;   // RasterVoxelMap (the raster's voxel map on any grid)
 
 using namespace qchem;
 using namespace qchem::tests::pw;
@@ -290,6 +291,30 @@ TEST(PlaneWaveFields, TheRasterAndGMapImagesOfAnOpAgree)
             }
         }
     EXPECT_LT(worst, 1e-12*scale) << "the raster and G-map images of one op differ: two group actions";
+}
+
+//! THE RASTER'S VOXEL MAP ON ANY GRID (Star-average remainder (d), 2026-11-18): an op's image of voxel i is m_a = Σ_b (W_ab N_a/N_b) i_b.
+//! On an isotropic grid it is W; on a grid the op maps onto itself (a hexagonal C3 or an x<->y swap on N1 = N2) it is an integer map;
+//! on a grid the op does NOT map onto itself it THROWS -- the raster used to be left un-averaged there, silently.
+TEST(PlaneWaveFields, TheRasterVoxelMapIsIntegerOnAnInvariantGridAndThrowsOnAnyOther)
+{
+    using BasisSet::PlaneWave::RasterVoxelMap;
+    const Matrix3D<double> swapXY(0,1,0, 1,0,0, 0,0,1), c3hex(0,-1,0, 1,-1,0, 0,0,1), id(1,0,0, 0,1,0, 0,0,1);
+    auto asW=[](const Matrix3D<double>& W, const BasisSet::PlaneWave::RasterVoxelMapT& M)
+    {
+        for (int a=0;a<3;++a) for (int b=0;b<3;++b) if (double(M[a][b])!=W(a+1,b+1)) return false;
+        return true;
+    };
+    EXPECT_TRUE(asW(swapXY, RasterVoxelMap(swapXY, ivec3_t(15,15,15)))) << "on an isotropic grid the map is W itself";
+    EXPECT_TRUE(asW(swapXY, RasterVoxelMap(swapXY, ivec3_t(6,6,4))))   << "N1 = N2: the swap maps the grid onto itself";
+    EXPECT_TRUE(asW(c3hex,  RasterVoxelMap(c3hex,  ivec3_t(9,9,5))))   << "the hexagonal C3 on N1 = N2";
+    EXPECT_TRUE(asW(id,     RasterVoxelMap(id,     ivec3_t(5,7,9))))   << "the identity maps every grid onto itself";
+    // Unequal axes: the shear x' = x + y on (8,4,3) maps the grid onto itself, through an integer map that is NOT W.
+    const auto M=RasterVoxelMap(Matrix3D<double>(1,1,0, 0,1,0, 0,0,1), ivec3_t(8,4,3));
+    EXPECT_EQ(M[0][1], 2) << "W_12 N_1/N_2 = 8/4";
+    EXPECT_EQ(M[0][0], 1);
+    EXPECT_THROW(RasterVoxelMap(swapXY, ivec3_t(6,4,6)), std::logic_error) << "N1 != N2: the swap does not map the grid onto itself";
+    EXPECT_THROW(RasterVoxelMap(c3hex,  ivec3_t(9,6,5)), std::logic_error);
 }
 
 // (OrthoFitterRealSpaceField RETIRED 2026-11-08 with OrthoFunctionFitter, V-ONE-OF-N 3c: rho_fit(r) on {G} is RhoOnGrid's claim.)
