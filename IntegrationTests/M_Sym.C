@@ -8,8 +8,7 @@
 // invariance -- the "water-moved" cases that proved important for catching geometry-key / cache bugs.
 //
 // Migrated off the direct-SCFIterator scaffold (OpenWork D): the facade IS the SALC recipe now.  The
-// invariance tolerances need a tightly converged SCF, so each run re-Converges with the tight params the
-// scaffold used (the ctor's default convergence is a throwaway warm-up); anchors are unchanged.
+// invariance tolerances need a tightly converged SCF, so each setup states the tight params the scaffold used.
 #include "gtest/gtest.h"
 #include <cmath>
 
@@ -36,13 +35,13 @@ static EnergyBreakdown Run(const Molecule& mol, Model model, SpinGroup pol, bool
     // The facade's default seed (auto SAD for DFT, CoreGuess for HF) -- the SAD polarized-DFT path is now
     // robust (FittedVxcPol handles the spin-agnostic seed; see M_DFT.WaterPolarizedSAD).  This is an
     // invariance test anyway, so the converged energy is seed-independent.
-    RunOptions o{.spin=pol, .model=model, .imposeSymmetry=symmetry, .molecule={.basis="dzvp", .angular=angular}};
+    RunOptions o{.spin=pol, .model=model, .imposeSymmetry=symmetry, .scf=tight, .molecule={.basis="dzvp", .angular=angular}};
     // The claim is symmetric == non-symmetric ON ONE MESH, so it needs no converged mesh: the DFT runs keep the old 12-direction
     // one (MHL 30 / Lebedev 5).  On the converged default (80 / 29, 2026-10-31) the four SALC DFT runs cost 107 s + 175 s.
     MoleculeXCMesh(o).nRadial=30; MoleculeXCMesh(o).angularDegree=5;
-    MoleculeCalculation calc(MoleculeSetup::Resolve(mol, o));
-    EXPECT_TRUE(calc.Converge(tight));    // re-converge tight for the invariance tolerance
-    return calc.EnergyTerms();
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(mol, o)).TakeValue();
+    EXPECT_TRUE(calc->Converge());    // on the setup's tight scf (the invariance tolerance)
+    return calc->EnergyTerms();
 }
 
 // Symmetry-adapted Xalpha-DFT water (fitted Coulomb + fitted Vxc) must equal the non-symmetric DFT run:

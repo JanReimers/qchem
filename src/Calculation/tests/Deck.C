@@ -232,7 +232,7 @@ TEST(Deck, ALaterSchemaIsRefusedAndAHandWrittenDeckIsThePayload)
 TEST(Deck, TheStructureIsANameAndTheMaterialSuppliesSpeciesAndElectrons)
 {
     deck::RunSpec r; deck::FromJson(json{{"structure","Si_diamond"},{"scf",{{"NMaxIter",50}}}}, r);
-    EXPECT_EQ(r.scf.NMaxIter,50u);
+    EXPECT_EQ(r.opts.scf.NMaxIter,50u);
     EXPECT_EQ(r.opts.Nelec,0); EXPECT_TRUE(r.opts.species.empty()) << "unstated = derive";
     const auto m=deck::Resolve(r);
     EXPECT_EQ(r.opts.Nelec,8); ASSERT_EQ(r.opts.species.size(),1u); EXPECT_EQ(r.opts.species[0].first,"Si");
@@ -343,8 +343,8 @@ TEST(Deck, ARunFromADeckEqualsTheSameRunBuiltByHand_Si_Gamma)
     Lattice_3D lat(*mat.cell, ivec3_t(1,1,1));
     std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, mat.cell.get()));
     RunOptions o; o.Nelec=8; o.species=mat.species; o.solid.densityEcut=20.0; o.imposeSymmetry=true; o.label=out.revision.stem().string();
-    SolidCalculation calc(SolidSetup::Resolve(lat, mol, o), spec.scf);
-    auto R=calc.Result(); ASSERT_TRUE(R);
+    o.scf=spec.opts.scf; auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result(); ASSERT_TRUE(R);
     EXPECT_DOUBLE_EQ(R->Energy(), *out.energy);
     fs::remove_all(dir);
 }

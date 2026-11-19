@@ -97,11 +97,10 @@ TEST_P(A_DFT_atom, Energy)
     const AtomDFTCase c = GetParam();
     const auto& pt = thePeriodicTable();
     const Pool p = PoolFor(c.type, c.spin, c.Z);
-    AtomCalculation calc(AtomSetup::Resolve(c.Z, 0, {.spin=c.spin, .model=c.model, .xalpha=pt.GetSlaterAlpha(c.Z), .atom={.type=c.type, .N=p.N, .emin=p.emin, .emax=p.emax}}),
-                         dft_scf_params(c.Z));
-    ASSERT_TRUE(calc.IsConverged()) << "the oracle comparison needs a converged energy";
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(c.Z, 0, {.spin=c.spin, .model=c.model, .xalpha=pt.GetSlaterAlpha(c.Z), .scf=dft_scf_params(c.Z), .atom={.type=c.type, .N=p.N, .emin=p.emin, .emax=p.emax}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->IsConverged()) << "the oracle comparison needs a converged energy";
     // LSDA against NIST (the same functional); Slater-Xalpha against PySCF's Xalpha in the radial code's state (the spherical ensemble).
-    const double err = c.model==Model::LDA ? RelativeDFTError(calc.Energy(), c.Z) : RelativeError(calc.Energy(), XalphaReference(c.Z, XaState::spherical));
+    const double err = c.model==Model::LDA ? RelativeDFTError(calc->Energy(), c.Z) : RelativeError(calc->Energy(), XalphaReference(c.Z, XaState::spherical));
     if (c.model==Model::LDA) printf("LSDA(Dirac+VWN) Z=%2d  RelativeDFTError = %.3e\n", c.Z, err);
     EXPECT_LT(std::fabs(err), c.tol);
 }
@@ -128,13 +127,13 @@ TEST_P(A_PG_DFT, Energy)
     // 2P state), not the spherical ensemble -- so B is judged against the `pure` reference.  No-op on the s^1 atoms.
     SCFParams p=dft_scf_params(c.Z);
     if (c.spin==SpinGroup::Polarized) p.SmearingkT=1e-4;
-    MoleculeCalculation calc(MoleculeSetup::Resolve(atom, {.spin=c.spin, .model=Model::Xalpha, .xalpha=pt.GetSlaterAlpha(c.Z), .seed=ChargeDensity::SeedStrategy::CoreGuess, .molecule={.basis="dzvp"}}, {.diis = {.engageBelowFD = c.Z*c.Z*0.08/32}}), p);
-    ASSERT_TRUE(calc.IsConverged());
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(atom, {.spin=c.spin, .model=Model::Xalpha, .xalpha=pt.GetSlaterAlpha(c.Z), .seed=ChargeDensity::SeedStrategy::CoreGuess, .scf=p, .molecule={.basis="dzvp"}}, {.diis = {.engageBelowFD = c.Z*c.Z*0.08/32}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->IsConverged());
     // dzvp is INCOMPLETE, so the energy is bounded from below by the near-complete reference: one-sided, with an allowance for the
     // reference's own basis error (a few ppm, see XalphaReference) so the variational check cannot fail on the reference's side.
     const double Eref=XalphaReference(c.Z, XaState::pure);
-    EXPECT_GT(calc.Energy(), Eref-1e-5*std::fabs(Eref)) << "dzvp below the near-complete reference: variationally impossible";
-    EXPECT_LT(std::fabs(RelativeError(calc.Energy(), Eref)), c.tol);
+    EXPECT_GT(calc->Energy(), Eref-1e-5*std::fabs(Eref)) << "dzvp below the near-complete reference: variationally impossible";
+    EXPECT_LT(std::fabs(RelativeError(calc->Energy(), Eref)), c.tol);
 }
 INSTANTIATE_TEST_SUITE_P(U, A_PG_DFT, ::testing::ValuesIn(WithZ({2,4,10,18,36}, PGCase{0,SpinGroup::UnPolarized,1e-3})),   ZName<PGCase>);   // dzvp above PySCF Xalpha: worst Kr 381 ppm (was 3e-3 vs NIST LSDA)
 INSTANTIATE_TEST_SUITE_P(P, A_PG_DFT, ::testing::ValuesIn(WithZ({3,5,11,37},   PGCase{0,SpinGroup::Polarized,  1e-3})),   ZName<PGCase>);   // worst ~250 ppm; Z=51 slow -> omitted
@@ -153,9 +152,9 @@ static double HeavyEnergy(const HeavyCase& c, Hamiltonian::CoulombFit route)
 {
     RunOptions o{.spin=c.spin, .model=Model::LDA, .atom={.type=c.type, .basisPool=BasisSetAccuracy::High}};
     o.coulomb.fit=route;
-    AtomCalculation calc(AtomSetup::Resolve(c.Z, 0, o), dft_scf_params(c.Z));
-    EXPECT_TRUE(calc.IsConverged()) << c.name << ": the oracle comparison needs a converged energy";
-    return calc.Energy();
+    o.scf=dft_scf_params(c.Z); auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(c.Z, 0, o)).TakeValue(); (void)calc->Converge();
+    EXPECT_TRUE(calc->IsConverged()) << c.name << ": the oracle comparison needs a converged energy";
+    return calc->Energy();
 }
 // The worst a term may deliver is eps (the pilot's target); two sized terms (XC and Hartree), so 2 eps, plus the SCF's own stop.
 static constexpr double kHeavyEps=1e-5, kHeavySlack=3*kHeavyEps;
@@ -199,14 +198,15 @@ TEST(A_DFT_pilot, SG_Xe_TheReconvergenceStartsAtTheAnswer)
 {
     RunOptions o{.spin=SpinGroup::UnPolarized, .model=Model::LDA, .atom={.type=AtomType::Gaussian, .basisPool=BasisSetAccuracy::High}};
     o.coulomb.fit=Hamiltonian::CoulombFit::Auxiliary;
+    o.scf=dft_scf_params(54);
     std::vector<std::vector<double>> scfs;   // the total energy of every iterate, one vector per SCF
     qchem::report::Run run("SG_Xe pilot warm start");
     auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(54, 0, o), [&scfs](const SCFIterator::IterationRow& r)
     {
         if (scfs.empty() || r.iteration<=1) scfs.emplace_back();
         scfs.back().push_back(r.eb.GetTotalEnergy());
-    });
-    ASSERT_TRUE(calc->Converge(dft_scf_params(54)));
+    }).TakeValue();
+    ASSERT_TRUE(calc->Converge());
     EXPECT_NE(qchem::report::CurrentRunReport().dump().find("\"AtomPilotWarmStart\""), std::string::npos)
         << "the warm start is a policy, and every policy reports itself";
     ASSERT_GE(scfs.size(), 2u) << "the pilot must raise a grid and re-converge, or this does not test its warm start";
@@ -233,9 +233,9 @@ TEST_P(A_DFT_ion, AFirstCationInNISTsConfigurationLandsAboveNIST)
     const IonCase c=GetParam();
     RunOptions o{.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=c.type, .basisPool=BasisSetAccuracy::High}};
     o.atom.configuration=c.configuration;
-    AtomCalculation calc(AtomSetup::Resolve(c.Z, 1, o), dft_scf_params(c.Z));
-    ASSERT_TRUE(calc.IsConverged()) << c.name << ": the oracle comparison needs a converged energy";
-    const double dE=calc.Energy()-c.nist;
+    o.scf=dft_scf_params(c.Z); auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(c.Z, 1, o)).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->IsConverged()) << c.name << ": the oracle comparison needs a converged energy";
+    const double dE=calc->Energy()-c.nist;
     printf("%s %s: E - E_NIST(cation) = %+.6f mHa (margin %.1f)\n", c.name, c.configuration, dE*1e3, c.margin*1e3);
     EXPECT_GT(dE, -kHeavySlack) << "below NIST: an approximation is not meeting eps";
     EXPECT_LT(dE, c.margin) << "further above NIST than the pool's measured incompleteness -- or another configuration";

@@ -75,12 +75,11 @@ class A_HF_U : public ::testing::TestWithParam<HFCase> {};
 TEST_P(A_HF_U, Energy)
 {
     const HFCase c = GetParam();
-    AtomCalculation calc(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::UnPolarized, .model=Model::HF, .atom={.type=c.type, .basisPool=c.acc}}),
-                         HFParams(c));
-    const double e = RelativeHFError(calc.Energy(), c.Z);
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::UnPolarized, .model=Model::HF, .scf=HFParams(c), .atom={.type=c.type, .basisPool=c.acc}})).TakeValue(); (void)calc->Converge();
+    const double e = RelativeHFError(calc->Energy(), c.Z);
     EXPECT_LT(e, c.tol);
     if (c.lowerBound) EXPECT_GT(e, -1e-4);
-    EXPECT_TRUE(calc.IsConverged());
+    EXPECT_TRUE(calc->IsConverged());
 }
 
 #ifdef DEBUG

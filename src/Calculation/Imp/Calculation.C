@@ -4,6 +4,8 @@ module;
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <functional>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -11,6 +13,8 @@ module;
 #include <vector>
 module qchem.Calculation;
 import qchem.Reporting;
+import qchem.Policy;             // policy::Refuse: a schedule stage a kind cannot run as stated
+import qchem.Hamiltonian.Factory;   // PPFunctionalChecks, ModelToXC (CheckPPFunctional)
 
 namespace qchem
 {
@@ -112,6 +116,70 @@ void Calculation::SaveState(const std::string& path) const
               << (r.summary.converged ? "" : "  (NOT converged -- a restart will say so)") << std::endl;
 }
 
+void Calculation::Checkpoint(const std::string& path, const std::string& label) const
+{
+    if (path.empty()) return;
+    try { SaveState(path); }
+    catch (const std::exception& e)
+    {
+        std::cout << "["<<label<<"] WARNING: state NOT saved to "<<path<<": "<<e.what()<<std::endl;
+    }
+}
+
+std::string SetupEdit::Describe() const
+{
+    std::ostringstream os;
+    const char* sep="";
+    if (eps)   { os<<sep<<"eps -> "<<*eps; sep=", "; }
+    if (spin)  { os<<sep<<"spin -> "<<(*spin==SpinGroup::Polarized ? "Polarized" : "UnPolarized"); sep=", "; }
+    if (kmesh) { os<<sep<<"kmesh -> "<<kmesh->x<<"x"<<kmesh->y<<"x"<<kmesh->z; }
+    return os.str();
+}
+
+std::string Calculation::Tag() const
+{
+    static const std::string unlabelled=RunOptions{}.label;
+    const std::string& l=Options().label;
+    return l==unlabelled ? KindTag() : l;
+}
+
+void Calculation::CheckPPFunctional(const Structure& run) const
+{
+    const Setup& S=GetSetup();
+    if (!S.pp) return;
+    policy::PPFittedFunctional(Hamiltonian::PPFunctionalChecks(*S.pp, run, Hamiltonian::ModelToXC(*S.opts.model, S.opts.xalpha)));
+}
+
+Calculation::StateIdentity Calculation::MakeStateIdentity() const
+{
+    // An atom's multiplicity is 0 always (its setup refuses a stated one: the configuration decides its spin); a solid's opts.Nelec and
+    // Setup::Ne are the one resolved count (SolidSetup's decision 2).
+    const Setup& S=GetSetup();
+    return {.Nelec=S.Ne, .spin=StateSpin(), .multiplicity=S.opts.multiplicity, .functional=StateFunctional(), .kT=StateKT()};
+}
+
+void Calculation::RefuseSetupEdit(const SetupEdit& edit, size_t index) const
+{
+    policy::Refuse("StageSetup", "schedule stage "+std::to_string(index)+": this "+StateKind()+" cannot apply the setup edit "+edit.Describe(),
+                   "no kind carries its density onto an edited setup yet (doc/OpenWork.md \"Setup-changing schedule stage\"): run the edited "
+                   "setup as its own calculation, from a saved state (PrepareRestart judges what carries)");
+}
+
+void Calculation::AdmitStageOnSetup(const SCFStage& stage, const RunOptions& opts, SCFAccelerators::Type resolved, const std::string& kind)
+{
+    using T=SCFAccelerators::Type;
+    const bool sameAccel = stage.accelerator==T::Auto ? opts.accelerator==T::Auto || opts.accelerator==resolved
+                                                      : stage.accelerator==opts.accelerator || stage.accelerator==resolved;
+    if (!sameAccel)
+        policy::Refuse("StageAccelerator", std::string("a ")+kind+" schedule stage on accelerator "+NameOf(stage.accelerator)
+                       +" (the setup runs "+NameOf(resolved)+")",
+                       "a "+kind+" runs every stage on the accelerator its setup admitted (doc/OpenWork.md \"per-stage accelerator on a "
+                       "molecule or an atom\"): state it in the setup, or name the setup's in each stage");
+    if (stage.recipe!=SCFRecipe::Auto && stage.recipe!=opts.recipe)
+        policy::Refuse("StageAccelerator", std::string("a ")+kind+" schedule stage on another recipe than its setup's",
+                       "a "+kind+" runs every stage under the recipe its setup states: state it in the setup");
+}
+
 Outcome<std::vector<std::string>, RestartRefusal> Calculation::JudgeState(const std::string& path) const
 {
     using O=Outcome<std::vector<std::string>, RestartRefusal>;
@@ -204,5 +272,61 @@ Outcome<RestartSummary, RestartRefusal> Calculation::JudgeRestart(SavedState& sa
     std::cout<<os.str()<<std::endl;
     return O::Ok(std::move(R));
 }
+
+const RunOptions& Calculation::Options() const {return GetSetup().opts;}
+SpinGroup Calculation::StateSpin() const {return GetSetup().opts.spin;}
+
+//====================================================================================================
+//  THE TEMPLATE METHOD (tCalculation<T>): Converge, a schedule, one stage, the outcome
+//====================================================================================================
+template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCalculation<T>::Converge(const SCFEdit& edit)
+{
+    SCFParams params=Options().scf;
+    if (edit) edit(params);
+    (void)ConvergeStage(params);
+    FinishSchedule(params);   // a single Converge is a one-stage schedule: the kind's pilot runs after it too (the solid's rasters)
+    return Result();
+}
+
+template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCalculation<T>::Converge(const std::vector<SCFStage>& schedule, const SCFEdit& edit)
+{
+    if (schedule.empty())
+        throw std::invalid_argument("Calculation::Converge: an EMPTY schedule has no meaning -- pass at least one stage, or call Converge()");
+    for (size_t s=0; s<schedule.size(); ++s)
+    {
+        SCFStage stage=schedule[s];
+        if (edit) edit(stage.params);
+        try
+        {
+            if (!stage.edit.Empty()) ApplySetupEdit(stage.edit, s);
+            EnterStage(stage, s);
+        }
+        catch (const policy::Refused& r)   // a deck can reach it: an Outcome, its policy row already filed
+        {
+            SCFFailure f; f.why=SCFFailure::Why::StageRefused; f.details="schedule stage "+std::to_string(s)+" REFUSED (policy "+r.Name()+"): "+r.what();
+            return Outcome<Converged, SCFFailure>::Fail(std::move(f));
+        }
+        (void)ConvergeStage(stage.params);
+        LeaveStage(s, schedule.size(), stage.params);
+    }
+    FinishSchedule(schedule.back().params);
+    return Result();
+}
+
+template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCalculation<T>::Result() const
+{
+    using O=Outcome<Converged, SCFFailure>;
+    if (std::optional<SCFFailure> f=MakeFailure()) return O::Fail(std::move(*f));
+    return O::Ok(Converged(this));
+}
+
+template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCalculation<T>::ConvergeStage(const SCFParams& params)
+{
+    if (RunStage(params)) Checkpoint(Options().saveStateTo, Tag());
+    return Result();
+}
+
+template class tCalculation<double>;   // the atom and the molecule
+template class tCalculation<dcmplx>;   // the solid's Bloch blocks
 
 } // namespace qchem

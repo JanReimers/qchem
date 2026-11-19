@@ -31,7 +31,7 @@ RunOptions AtomOptions(const RunOptions& asked)
     if (asked.imposeSymmetry || asked.symmetryTol!=def.symmetryTol || !asked.spins.empty())
         refuse("imposeSymmetry / symmetryTol / spins", "an atom's symmetry is spherical by construction");
     if (asked.orthoTol!=def.orthoTol) refuse("orthoTol", "the atom's solver takes no truncation floor");
-    if (asked.label!=def.label || !asked.saveStateTo.empty()) refuse("label / saveStateTo", "an atom saves its state through SaveState");
+    if (asked.label!=def.label) refuse("label", "an atom names itself by its element in its own output");
     if (!o.model)  o.model=Hamiltonian::Model::HF;
     if (!o.xcMesh) o.xcMesh=kAtomMeshDefault;
     if (!o.ortho)  o.ortho=qchem::Auto;

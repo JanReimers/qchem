@@ -40,9 +40,9 @@ class A_DFT_U : public ::testing::TestWithParam<DFTCase> {};
 TEST_P(A_DFT_U, Libxc)
 {
     const DFTCase c = GetParam();
-    AtomCalculation calc(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::UnPolarized, .model=Model::Xalpha, .atom={.type=c.type, .basisPool=High, .xc=XCFunctional{.kind = XC::LibXC, .libxcId = 7}}}), MakeParams(c));
-    EXPECT_LT(RelativeDFTError(calc.Energy(), c.Z), c.tol);
-    EXPECT_TRUE(calc.IsConverged());
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::UnPolarized, .model=Model::Xalpha, .scf=MakeParams(c), .atom={.type=c.type, .basisPool=High, .xc=XCFunctional{.kind = XC::LibXC, .libxcId = 7}}})).TakeValue(); (void)calc->Converge();
+    EXPECT_LT(RelativeDFTError(calc->Energy(), c.Z), c.tol);
+    EXPECT_TRUE(calc->IsConverged());
 }
 
 // FittedVcorr cleanliness: the libxc SVWN5 path (Dirac-X + libxc-VWN-C) and the in-house DiracVWN path
@@ -52,24 +52,23 @@ TEST_P(A_DFT_U, Libxc)
 TEST(A_DFT_U_Consistency, LibxcSVWN5MatchesInHouseDiracVWN)
 {
     const DFTCase c{AtomType::Slater, 36, 0.0, {50,1e-5,1e-7,2e-2,1e-6}};
-    AtomCalculation libxc(AtomSetup::Resolve(c.Z, 0, {.model=Model::Xalpha, .atom={.type=c.type, .basisPool=High, .xc=XCFunctional{.kind = XC::LibXC, .libxcId = 7}}}), MakeParams(c));
-    AtomCalculation dirac(AtomSetup::Resolve(c.Z, 0, {.model=Model::LDA, .atom={.type=c.type, .basisPool=High}}), MakeParams(c));
-    EXPECT_NEAR(libxc.Energy(), dirac.Energy(), 1e-4);   // same SVWN5 + same correct E_c => agree (Kr ~ -2750)
+    auto libxc=AtomCalculation::Prepare(AtomSetup::Resolve(c.Z, 0, {.model=Model::Xalpha, .scf=MakeParams(c), .atom={.type=c.type, .basisPool=High, .xc=XCFunctional{.kind = XC::LibXC, .libxcId = 7}}})).TakeValue(); (void)libxc->Converge();
+    auto dirac=AtomCalculation::Prepare(AtomSetup::Resolve(c.Z, 0, {.model=Model::LDA, .scf=MakeParams(c), .atom={.type=c.type, .basisPool=High}})).TakeValue(); (void)dirac->Converge();
+    EXPECT_NEAR(libxc->Energy(), dirac->Energy(), 1e-4);   // same SVWN5 + same correct E_c => agree (Kr ~ -2750)
 }
 // The same statement SPIN-POLARIZED (2026-10-21, when Libxc_LDA gained its XC_POLARIZED face): open-shell N
 // (quartet), so zeta != 0 almost everywhere and the libxc two-channel contract is what is exercised.
 TEST(A_DFT_U_Consistency, PolarizedLibxcSVWN5MatchesInHouseDiracVWN)
 {
     const DFTCase c{AtomType::Slater, 7, 0.0, {50,1e-5,1e-7,2e-2,1e-6}};
-    AtomCalculation libxc(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::Polarized, .model=Model::Xalpha, .atom={.type=c.type, .basisPool=High, .xc=XCFunctional{.kind = XC::LibXC, .libxcId = 7}}}), MakeParams(c));
-    AtomCalculation dirac(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::Polarized, .model=Model::LDA, .atom={.type=c.type, .basisPool=High}}),
-                          MakeParams(c));
-    EXPECT_TRUE(libxc.IsConverged());
-    EXPECT_TRUE(dirac.IsConverged());
+    auto libxc=AtomCalculation::Prepare(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::Polarized, .model=Model::Xalpha, .scf=MakeParams(c), .atom={.type=c.type, .basisPool=High, .xc=XCFunctional{.kind = XC::LibXC, .libxcId = 7}}})).TakeValue(); (void)libxc->Converge();
+    auto dirac=AtomCalculation::Prepare(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::Polarized, .model=Model::LDA, .scf=MakeParams(c), .atom={.type=c.type, .basisPool=High}})).TakeValue(); (void)dirac->Converge();
+    EXPECT_TRUE(libxc->IsConverged());
+    EXPECT_TRUE(dirac->IsConverged());
     // MEASURED 2026-10-21: 4.23e-6 Ha, unchanged under a 1000x tighter SCF gate (so not convergence) and SMALLER
     // than the same pair UNPOLARIZED on N (7.47e-6) -- the libxc-vs-in-house implementation floor, not the polarized
     // face.  With libxc's one-eps split for exchange (before the spin-scaling face) it was 1.46e-4.
-    EXPECT_NEAR(libxc.Energy(), dirac.Energy(), 1e-5);   // N ~ -54.135
+    EXPECT_NEAR(libxc->Energy(), dirac->Energy(), 1e-5);   // N ~ -54.135
 }
 // Tolerance is the HONEST accuracy of the atomic libxc SVWN5 path vs the NIST LDA reference: ~1.5 ppm
 // (Gaussian) / ~0.7 ppm (Slater) at Z=36, with NO fudge.  History: the old `2e-6` match was faked by a

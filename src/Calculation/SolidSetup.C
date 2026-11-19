@@ -39,7 +39,8 @@ export namespace qchem
 {
 
 //! \brief How to set up a periodic calculation.  Designated-initializer friendly:
-//!     SolidCalculation calc(SolidSetup::Resolve(lattice, basis, {.Nelec=8, .species={{"Si",4}}}));
+//!     auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lattice, basis, {.Nelec=8, .species={{"Si",4}}})).TakeValue();
+//!     auto answer=calc->Converge();
 //! A Hubbard manifold spelled the way the literature quotes it: \a U in eV.  (0.147 Ha = 4.0 eV.)  The projector is
 //! the DEFAULT one -- the pseudo-atom's own \f$l\f$ orbital, independent of the orbital basis (HubbardProjectorPlan
 //! increment 5, 2026-10-25; atomic, i.e. QE's `atomic`).

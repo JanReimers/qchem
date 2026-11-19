@@ -68,7 +68,7 @@ typedef struct qcb_request
     double        relaxMax;       //!< its adaptive ceiling (SCFParams::MaxRelaxRo), 0 = the lib's default
     int           diisDepth;      //!< DIIS history (AcceleratorOptions::nProj), 0 = the lib's default
     double        diisSVTol;      //!< DIIS singular-value floor (AcceleratorOptions::svTol), 0 = the lib's default
-    double        diisEngageFD;   //!< DIIS engages below this [F,D] (AcceleratorOptions::eMax), 0 = the lib's Z-scaled default
+    double        diisEngageFD;   //!< DIIS engages below this [F,D] (AcceleratorOptions::diis.engageBelowFD), 0 = the lib's Z-scaled default
     int           useMOM;         //!< Maximum Overlap Method (SCFParams::UseMOM)
     int           momStart;       //!< its delayed reference capture (SCFParams::MOMStartIter), 0 = the lib's default
     double        relaxMin;       //!< the adaptive step's floor (SCFParams::MinRelaxRo), 0 = the lib's default

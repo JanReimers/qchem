@@ -301,11 +301,11 @@ rmat_t FD_Polarizability(MoleculeCalculation& calc, double h)
 //! The FD kernel INSIDE the solver reproduces the analytic HF polarisability (and so PySCF's).
 TEST(ResponsePolarizability, HF_FD_Kernel_eqAnalytic)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(*Water(), {.molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Converge(tight));
-    auto analytic=calc.StaticPolarizability(dipoleMesh);
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(*Water(), {.scf=tight, .molecule={.basis="dzvp"}})).TakeValue();
+    ASSERT_TRUE(calc->Converge());   // on the setup's tight scf
+    auto analytic=calc->StaticPolarizability(dipoleMesh);
     ASSERT_TRUE(analytic.IsOk()) << analytic.Error().detail;
-    const rmat_t fd=FD_Polarizability(calc, 1e-3);
+    const rmat_t fd=FD_Polarizability(*calc, 1e-3);
     for (size_t i=0;i<3;i++) EXPECT_NEAR(fd(i,i), analytic.Value()(i,i), 1e-7*analytic.Value()(i,i)) << "alpha_" << i << i;
 }
 
@@ -321,10 +321,10 @@ TEST(ResponsePolarizability, HF_FD_Kernel_eqAnalytic)
 TEST(ResponsePolarizability, LDA_FD_Kernel_vsPySCF)
 {
     const double pyscf[3]={3.44581010, 7.33075620, 5.91599197};   // PySCF RKS lda,vwn / dzvp(cart) CPKS
-    MoleculeCalculation calc(MoleculeSetup::Resolve(*Water(), {.model=Hamiltonian::Model::LDA, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Converge(tight));
-    const rmat_t a=FD_Polarizability(calc, 1e-4);
-    const rmat_t b=FD_Polarizability(calc, 1e-3);
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(*Water(), {.model=Hamiltonian::Model::LDA, .scf=tight, .molecule={.basis="dzvp"}})).TakeValue();
+    ASSERT_TRUE(calc->Converge());
+    const rmat_t a=FD_Polarizability(*calc, 1e-4);
+    const rmat_t b=FD_Polarizability(*calc, 1e-3);
     for (size_t i=0;i<3;i++)
     {
         EXPECT_NEAR(a(i,i), b(i,i), 1e-5*a(i,i)) << "alpha_" << i << i << " depends on the FD step: the kernel is not linearised";
@@ -368,7 +368,7 @@ std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, dou
     if (spectator) o.solid.hubbard.push_back({.site=1, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells});
     o.imposeSymmetry=impose;
     o.spins={0,0};   // Si is non-magnetic: the polarized +U arm states it (OpenWork §3, 2026-10-26)
-    auto calc=std::make_unique<SolidCalculation>(SolidSetup::Resolve(lat, mol, o), par);
+    o.scf=par; auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, o)).TakeValue(); (void)calc->Converge();
     EXPECT_TRUE(calc->DidConverge());
     return calc;
 }
@@ -598,7 +598,7 @@ std::unique_ptr<SolidCalculation> ConvergedSiWithD()
     std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::FactoryFromFile(path, &cell));
     mol=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(mol));
     RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .hubbard={{.site=0, .l=2, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true}};
-    auto calc=std::make_unique<SolidCalculation>(SolidSetup::Resolve(lat, mol, o), SiParams());
+    o.scf=SiParams(); auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, o)).TakeValue(); (void)calc->Converge();
     EXPECT_TRUE(calc->DidConverge());
     return calc;
 }
@@ -859,7 +859,10 @@ std::unique_ptr<SolidCalculation> SiState(ivec3_t kmesh, qcMesh::UnitCellKind xc
     if (coarseBecke) { SolidXCMesh(o).nRadial=30; SolidXCMesh(o).mhl_alpha=1.0; SolidXCMesh(o).angularDegree=5; }
     qchem::BoundedSCF bounded("the kernel identities (Hermiticity, linearity, thread identity) hold about ANY positive rho0: "
                               "12 iterations only supply one");
-    return std::make_unique<SolidCalculation>(SolidSetup::Resolve(lat, mol, o), par);
+    o.scf=par;
+    auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, o)).TakeValue();
+    (void)calc->Converge();
+    return calc;
 }
 
 void KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind xc, SpinGroup g)
@@ -1071,7 +1074,10 @@ std::unique_ptr<SolidCalculation> SiK211(SCFAccelerators::Type acc)
     RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .forceComplex=true}};
     o.accelerator=acc;
     o.solid.hubbard={{.site=0,.l=1,.U=0.0},{.site=1,.l=1,.U=0.0}};
-    return std::make_unique<SolidCalculation>(SolidSetup::Resolve(lat, mol, o), SiParams());
+    o.scf=SiParams();
+    auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, o)).TakeValue();
+    (void)calc->Converge();
+    return calc;
 }
 struct BlockAudit { double orth=0, gradient=0, epsOcc=0, epsVir=0; };
 BlockAudit AuditReference(const SolidCalculation& calc)
@@ -1149,12 +1155,12 @@ CarryOver SiK222BeckeCarryOver(bool impose)
     RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .forceComplex=true}};
     o.imposeSymmetry=impose;
     SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
-    SolidCalculation calc(SolidSetup::Resolve(lat, mol, o), SiParams());
+    o.scf=SiParams(); auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, o)).TakeValue(); (void)calc->Converge();
 
-    const auto& wf=ResponseFacadeTests::WF(calc);
-    auto& H=ResponseFacadeTests::Ham(calc);
+    const auto& wf=ResponseFacadeTests::WF(*calc);
+    auto& H=ResponseFacadeTests::Ham(*calc);
     const auto cd=wf.GetChargeDensity();
-    H.RefreshForDensity(&calc.Basis(), cd.get());
+    H.RefreshForDensity(&calc->Basis(), cd.get());
     struct Block { rvec3_t k; const BasisSet::OrbitalImageSource* img; mat_t<dcmplx> F, D; };
     std::vector<Block> blocks;
     for (const Irrep& ir : wf.GetQNs())
@@ -1171,7 +1177,7 @@ CarryOver SiK222BeckeCarryOver(bool impose)
             for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) D(i,j)+=f*c[i]*std::conj(c[j]);
         }
         blocks.push_back({Symmetry::Lattice_3D::Getk(ir.sym), dynamic_cast<const BasisSet::OrbitalImageSource*>(bs),
-                          mat_t<dcmplx>(H.GetMatrix(bs, ir.ms, cd.get(), &calc.Basis())), D});
+                          mat_t<dcmplx>(H.GetMatrix(bs, ir.ms, cd.get(), &calc->Basis())), D});
         if (!blocks.back().img) throw std::runtime_error("a GPW block must answer OrbitalImage");
     }
     auto stored=[&](const rvec3_t& k)->const Block*          // the IBZ of an imposed run: an image may not be stored
@@ -1297,13 +1303,13 @@ void LittleGroupEqualsFull(ivec3_t Nq, qcMesh::UnitCellKind xc=qcMesh::UnitCellK
     RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true}};
     o.spins={0,0};
     SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(xc);
-    SolidCalculation calc(SolidSetup::Resolve(lat, mol, o), SiParams());
-    ASSERT_TRUE(calc.DidConverge());
+    o.scf=SiParams(); auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, o)).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->DidConverge());
     const KrylovParams kp{.tol=1e-9};
     const auto t0=std::chrono::steady_clock::now();
-    auto full=calc.HubbardLinearResponse(Nq, kp, {}, Response::HubbardResolution::Manifold, false, false);
+    auto full=calc->HubbardLinearResponse(Nq, kp, {}, Response::HubbardResolution::Manifold, false, false);
     const auto t1=std::chrono::steady_clock::now();
-    auto red =calc.HubbardLinearResponse(Nq, kp, {}, Response::HubbardResolution::Manifold, false, true);
+    auto red =calc->HubbardLinearResponse(Nq, kp, {}, Response::HubbardResolution::Manifold, false, true);
     const auto t2=std::chrono::steady_clock::now();
     std::cout << "[little group gate] wall: full " << std::chrono::duration<double>(t1-t0).count() << " s, reduced "
               << std::chrono::duration<double>(t2-t1).count() << " s" << std::endl;

@@ -352,6 +352,7 @@ static int Main(int argc, char** argv)
         if (dft) { copts.model=(model=="Xalpha")?Model::Xalpha:Model::LDA; if(model=="Xalpha") copts.xalpha=alpha>0?alpha:0.7; }
         else if (models.count(model)) copts.model=models[model];
         else { cout<<"molecular --model must be HF|LDA|Xalpha"<<endl; return 1; }
+        copts.scf=makePar(minro<0?1e-4:minro, minfd<0?1e-5:minfd);   // the requested re-converge's settings live in the setup (R10)
         AcceleratorOptions aopts; copts.accelerator=AcceleratorTypeByName(accel, "scfrun --accel");   // the type's one home: the options (V-FACADE-PARITY P2)
         if (accj.contains("EngageBelowFD")) aopts.diis.engageBelowFD=(double)accj["EngageBelowFD"];   // the standalone GDM gate follows it (unstated)
         if (accj.contains("NProj")) aopts.diis.nProj=(size_t)(int)accj["NProj"];
@@ -362,17 +363,19 @@ static int Main(int argc, char** argv)
         if (accj.contains("switchat")) aopts.ladder.switchAt=(double)accj["switchat"];
         cout << "scfrun: mol="<<molname<<" model="<<model<<" mult="<<mult<<" basis="<<mbasis<<" accel="<<accel<<endl;
         Molecule mol = MakeMolecule(molname);
-        // scfrun is the DRIVER, so it opens the report runs (a facade never does, user ruling D 2026-11-02): one for the ctor's
-        // default-recipe SCF, one for the requested re-converge -- the two runs the facade used to open itself.
+        // scfrun is the DRIVER, so it opens the report run (a facade never does, user ruling D 2026-11-02): Setup -> Prepare -> Converge
+        // (V-FACADE-PARITY R8), one SCF on the setup's settings.
         std::unique_ptr<MoleculeCalculation> mcalcp;
-        {   // a command line is user input: the setup's refusal is reported, not thrown (MoleculeSetup::Admit)
+        {   // a command line is user input: a refusal is reported, not thrown (MoleculeSetup::Admit, then the build's)
             qchem::report::Run run(mol.ID());
             auto setup=MoleculeSetup::Admit(mol, copts, aopts);
             if (!setup) { cout<<"scfrun: REFUSED (policy "<<setup.Error().policy<<"): "<<setup.Error().reason<<endl; return 1; }
-            mcalcp=std::make_unique<MoleculeCalculation>(setup.TakeValue());
+            auto built=MoleculeCalculation::Prepare(setup.TakeValue());
+            if (!built) { cout<<"scfrun: REFUSED (policy "<<built.Error().policy<<"): "<<built.Error().reason<<endl; return 1; }
+            mcalcp=built.TakeValue();
+            (void)mcalcp->Converge();   // the RESULT line reports converged yes/no
         }
         MoleculeCalculation& mcalc=*mcalcp;
-        { qchem::report::Run run(mol.ID()); (void)mcalc.Converge(makePar(minro<0?1e-4:minro, minfd<0?1e-5:minfd)); }   // the RESULT line reports converged yes/no
         cout << "RESULT  E="<<std::setprecision(10)<<mcalc.Energy()
              << "  iters="<<mcalc.IterationCount()
              << "  converged="<<(mcalc.IsConverged()?"yes":"no") << endl;
@@ -421,7 +424,14 @@ static int Main(int argc, char** argv)
     // electrons = Z - q normally; for a pseudo-ion, electrons = Zion - q  (charge so that Z-charge = that count).
     const int charge = ppmodel ? Z-(valence-q) : q;
     std::unique_ptr<AtomCalculation> calcp;   // scfrun opens the run (user ruling D, 2026-11-02: drivers own the runs)
-    { qchem::report::Run run("scfrun Z="+std::to_string(Z)); calcp=std::make_unique<AtomCalculation>(AtomSetup::Resolve(Z, charge, opts), makePar(minro, minfd)); }
+    opts.scf=makePar(minro, minfd);
+    {
+        qchem::report::Run run("scfrun Z="+std::to_string(Z));
+        auto built=AtomCalculation::Prepare(AtomSetup::Resolve(Z, charge, opts));
+        if (!built) { cout<<"scfrun: REFUSED (policy "<<built.Error().policy<<"): "<<built.Error().reason<<endl; return 1; }
+        calcp=built.TakeValue();
+        (void)calcp->Converge();
+    }
     AtomCalculation& calc=*calcp;
 
     // ---- report ----
