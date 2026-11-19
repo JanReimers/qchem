@@ -378,6 +378,9 @@ protected:
     //! folded doublet's one raster halved (borrowed reference + scratch, hence the pair of references).
     struct Rasters { const rvec_t& up; const rvec_t& dn; };
     Rasters ChannelRasters(const tChargeDensity<T>* cd, rvec_t& scratch) const;
+    //! \f$e(\rho^\uparrow_g,\rho^\downarrow_g)\f$ at the sampler's points for \a cd (the energy density GetEnergy integrates): what the
+    //! quadrature-side derivatives contract against -- the raster's dilation and an atom-centred mesh's weight response (Imp/Vxc_Virials.C).
+    rvec_t EnergyDensityAt(const tChargeDensity<T>* cd) const;
     //! \f$v^{fs}\f$ on the channel rasters \a r: what every \f$V_{xc}\f$ build (Bloch block or real TRIM block) contracts against.
     //! Called by the refresh only.
     rvec_t PotentialAt(const Spin& fs, const Rasters& r) const;

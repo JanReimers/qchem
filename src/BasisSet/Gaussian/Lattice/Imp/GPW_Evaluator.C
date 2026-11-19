@@ -908,6 +908,11 @@ Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient> GPW_Evaluator::
     return R::Ok(which==0 ? itsLat->MakeLatticeOverlapPullback(Abar, CellPhase(), itsCell, st)
                           : itsLat->MakeLatticeKineticPullback(Abar, CellPhase(), itsCell, st));
 }
+Gaussian::LatticeCollocation::PointPullback GPW_Evaluator::PointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const chmat_t& D,
+                                                                           const Structure* st) const
+{
+    return itsLat->BlochPointPullback(pts, c, D, CellPhase(), itsCell, st);
+}
 chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const
 {   qchem::report::Timed t("setup: analytic 1E lattice sums (S,T,V)");
     return itsHomeOnly ? Widen(itsOrb->MakeNuclear(cl))  : itsLat->MakeNuclear(CellPhase(),itsCell,cl); }

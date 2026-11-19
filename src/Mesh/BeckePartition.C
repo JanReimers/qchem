@@ -251,12 +251,39 @@ std::vector<rvec3_t> PeriodicBeckeWeightGradient(const std::vector<BeckeImage>& 
     // At the owner's nucleus (offset 0) every cutoff is flat in μ = -1 and |r - R| = 0 would put ∞ into the reverse pass: exactly zero.
     if (n<=1 || norm(offset)==0.0) return out;
     if (target>=n) throw std::invalid_argument("PeriodicBeckeWeightGradient: the target is not among the images");
-    std::vector<double> x(3*n), g(3*n, 0.0);
-    std::vector<char> inP(n);
-    for (size_t i=0;i<n;i++) { x[3*i]=im[i].R.x; x[3*i+1]=im[i].R.y; x[3*i+2]=im[i].R.z; inP[i]=im[i].inPSet ? 1 : 0; }
-    const ScreenedBeckeCtx c{n, target, inP.data(), offset, k};
+    // THE ACTIVE SET (cost, not a screen of the value: measured 2026-11-19, the AD over every gathered image was half a GPW Becke force).
+    // An image j outside the P-set enters only through the factors s(μ_ij), i in the P-set; where every one of them sits on the cutoff's
+    // plateau (s = 1 to the last bit, μ_ij <= -1 + δ, the iterated polynomial's flat end) its derivative is zero to that precision, so it is
+    // left out of the AD and its factors held at their value, 1.  The P-set and every image that bends some factor stay active.
+    const rvec3_t r=im[target].R+offset;
+    std::vector<size_t> act;
+    act.reserve(n);
+    for (size_t j=0;j<n;j++)
+    {
+        bool keep=im[j].inPSet;
+        if (!keep)
+        {
+            const double dj=norm(r-im[j].R);
+            for (size_t i=0;i<n && !keep;i++)
+            {
+                if (!im[i].inPSet) continue;
+                const double Rij=norm(im[i].R-im[j].R);
+                const double mu = (Rij>0.0) ? (norm(r-im[i].R)-dj)/Rij : 0.0;
+                if (BeckeCutoff(mu,k)!=1.0) keep=true;
+            }
+        }
+        if (keep) act.push_back(j);
+    }
+    size_t t=act.size();
+    for (size_t a=0;a<act.size();a++) if (act[a]==target) t=a;
+    if (t==act.size()) throw std::logic_error("PeriodicBeckeWeightGradient: the target is not in the P-set");
+    const size_t m=act.size();
+    std::vector<double> x(3*m), g(3*m, 0.0);
+    std::vector<char> inP(m);
+    for (size_t a=0;a<m;a++) { const BeckeImage& b=im[act[a]]; x[3*a]=b.R.x; x[3*a+1]=b.R.y; x[3*a+2]=b.R.z; inP[a]=b.inPSet ? 1 : 0; }
+    const ScreenedBeckeCtx c{m, t, inP.data(), offset, k};
     __enzyme_autodiff<void>(reinterpret_cast<void*>(ScreenedBeckeWeightOfPositions), enzyme_dup, x.data(), g.data(), enzyme_const, &c);
-    for (size_t i=0;i<n;i++) out[i]=rvec3_t(g[3*i], g[3*i+1], g[3*i+2]);
+    for (size_t a=0;a<m;a++) out[act[a]]=rvec3_t(g[3*a], g[3*a+1], g[3*a+2]);
     return out;
 }
 

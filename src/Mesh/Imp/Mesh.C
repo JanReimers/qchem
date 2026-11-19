@@ -29,6 +29,7 @@ std::unique_ptr<FourierSampler> Mesh::MakeFourierSampler(const FourierBox& b) co
 }
 
 void Mesh::InstallFourierSampling(std::shared_ptr<const FourierSamplingStrategy> s) {itsSampling=std::move(s);}
+void Mesh::InstallWeightResponse(std::shared_ptr<const MeshWeightResponse> r) {itsWeightResponse=std::move(r);}
 
 SamplingTarget* Mesh::FourierTarget() const {return itsTarget.get();}
 
@@ -79,6 +80,7 @@ ImposedSymmetry ImposedBy(const MeshParams& mp)
 void Mesh::Append(const rvec3_t& r, double w)
 {
     itsSampling.reset();   // a point added: no longer the structure a builder recorded
+    itsWeightResponse.reset();
     itsU.resize(0);        // ... nor the owners it recorded
     size_t n=itsW.size();
     assert(itsR.size()==n);
@@ -91,6 +93,7 @@ void Mesh::Append(const rvec3_t& r, double w)
 void Mesh::ShiftOrigin(const rvec3_t& o)
 {
     itsSampling.reset();   // the raster it described has moved
+    itsWeightResponse.reset();
     for (size_t i=0; i<itsR.size(); i++) itsR[i]+=o;
 }
 

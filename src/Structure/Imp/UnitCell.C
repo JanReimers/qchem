@@ -9,6 +9,7 @@ module;
 #include <string>
 #include <vector>
 #include <functional>
+#include <exception> // std::exception_ptr (the threaded weight response)
 #include <memory>    // the scoped-but-early-stopped Timed on the site-adapted angular build (1.1(b))
 
 module qchem.UnitCell;
@@ -62,6 +63,92 @@ namespace {
 //! where an ungated increment would be a real production cost.  The shell-retest and P-set counters fire
 //! ~6.4e3 and ~1e2 times per point, measured at ~0.03% of the build, and stay ungated for legibility.
 using qcMesh::BeckePointCost;   // the census (qcMesh::PeriodicBeckeWeight fills it)
+
+//! \brief THE PERIODIC BECKE MESH's WEIGHT RESPONSE (qcMesh::MeshWeightResponse; lane B 2026-11-19, the XC term's grid response on the
+//! Becke mesh).  Installed by MakePeriodicBeckeMesh, which alone knows how the weights were made: each kept point g of site a carries
+//! w_g = w_q W_a(R_a + u_g), w_q its template weight, W_a the periodic partition (qcMesh::PeriodicBeckeWeight).  So for f held per point,
+//! ∂(Σ_g f_g w_g)/∂X = Σ_g f_g w_q ∂W_a/∂X over every competitor image X (the point riding its owner: qcMesh::PeriodicBeckeWeightGradient),
+//! folded onto the cell atoms for the gradient and contracted with X for the virial (the template offsets u held: they do not strain).
+//! The partition is RE-FORMED at R_a + u_g, the same arithmetic the build ran, so the competitor and P-sets are the build's.
+class PeriodicBeckeResponse : public qcMesh::MeshWeightResponse
+{
+public:
+    PeriodicBeckeResponse(const CellGeometry& cell, std::vector<rvec3_t> R, double dPlane, int k, double eps)
+        : itsCell(cell), itsR(std::move(R)), itsDPlane(dPlane), itsK(k), itsEps(eps) {}
+    Result Pullback(const qcMesh::Mesh& m, const rvec_t& f) const override
+    {
+        const size_t natom=itsR.size();
+        if (f.size()!=m.size()) throw std::invalid_argument("PeriodicBeckeResponse: the field is "+std::to_string(f.size())+" for "+std::to_string(m.size())+" points");
+        if (m.OwnerOffsets().size()!=m.size() || m.NSites()!=natom)
+            throw std::logic_error("PeriodicBeckeResponse: the mesh carries no owner offsets or not one site block per atom");
+        qchem::report::Timed timed("force: becke weight response");
+        const rvec3vec_t& U=m.OwnerOffsets();
+        const rvec_t& W=m.Weights();
+        Result out{rvec3vec_t(natom, rvec3_t(0,0,0)), rmat3d_t(0,0,0, 0,0,0, 0,0,0)};
+        double V[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+        auto point=[&](size_t a, size_t g, rvec3vec_t& G, double (&Vt)[3][3])
+        {
+            if (f[g]==0.0) return;
+            std::vector<qcMesh::BeckeImage> im; long target=-1; BeckePointCost pc;
+            const rvec3_t r=itsR[a]+U[g];
+            const double wP=qcMesh::PeriodicBeckeWeight(itsCell, itsR, itsDPlane, a, r, itsK, itsEps, im, target, pc, false);
+            if (!(wP>0.0) || target<0) return;   // the build kept it, so this is unreachable short of a changed geometry
+            // THE PLATEAUS (cost; measured 2026-11-19, the AD was the whole Becke force): where W is 1 or 0 to 1e-14 the partition's other
+            // cell functions are below 1e-14 of the point's own (or its own below theirs), and W's derivative is of that order -- a point
+            // deep in its own basin, the bulk of a radial grid, contributes nothing to its weight response.
+            if (wP>1.0-1e-14 || wP<1e-14) return;
+            const double s=f[g]*W[g]/wP;          // f_g w_q
+            const std::vector<rvec3_t> dW=qcMesh::PeriodicBeckeWeightGradient(im, size_t(target), U[g], itsK);
+            for (size_t i=0;i<im.size();i++)
+            {
+                const rvec3_t gi=s*dW[i];
+                G[im[i].atom]+=gi;
+                const double gg[3]={gi.x,gi.y,gi.z}, xx[3]={im[i].R.x,im[i].R.y,im[i].R.z};
+                for (int x=0;x<3;x++) for (int y=0;y<3;y++) Vt[x][y]+=gg[x]*xx[y];
+            }
+        };
+        std::vector<std::pair<size_t,size_t>> work;   // (site, point)
+        for (size_t a=0;a<natom;a++) for (size_t g=m.SiteBegin(a); g<m.SiteEnd(a); g++) work.push_back({a,g});
+#ifdef QCHEM_OPENMP
+        const int nthreads=qchem::InnerThreads();
+        if (nthreads>1)
+        {
+            std::exception_ptr firstEx;
+            #pragma omp parallel num_threads(nthreads)
+            {
+                rvec3vec_t Gt(natom, rvec3_t(0,0,0));
+                double Vt[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+                #pragma omp for schedule(dynamic, 16)
+                for (size_t w=0; w<work.size(); w++)
+                {
+                    try { point(work[w].first, work[w].second, Gt, Vt); }
+                    catch (...)
+                    {
+                        #pragma omp critical (becke_response_throw)
+                        if (!firstEx) firstEx=std::current_exception();
+                    }
+                }
+                #pragma omp critical (becke_response_reduce)
+                {
+                    for (size_t a=0;a<natom;a++) out.gradient[a]+=Gt[a];
+                    for (int x=0;x<3;x++) for (int y=0;y<3;y++) V[x][y]+=Vt[x][y];
+                }
+            }
+            if (firstEx) std::rethrow_exception(firstEx);
+        }
+        else
+#endif
+        for (const auto& [a,g] : work) point(a, g, out.gradient, V);
+        out.virial=rmat3d_t(V[0][0],V[0][1],V[0][2], V[1][0],V[1][1],V[1][2], V[2][0],V[2][1],V[2][2]);
+        return out;
+    }
+private:
+    CellGeometry         itsCell;
+    std::vector<rvec3_t> itsR;
+    double               itsDPlane;
+    int                  itsK;
+    double               itsEps;
+};
 
 //! \brief An ATOM-CENTRED mesh must carry one site block per centre -- checked LIVE, not by \c assert.
 //!
@@ -241,6 +328,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
         }
     }
     qcMesh::Mesh mesh=out.take();
+    mesh.InstallWeightResponse(std::make_shared<PeriodicBeckeResponse>(cell, R, dPlane, k, eps));   // its weights' derivative (the XC grid response)
 
     // Announce the grid -- the console line (the [GPW grid] family: one line, run start) is HOW a user
     // tells the Becke XC quadrature is in play at all; the report addendum lands in the `grids` section

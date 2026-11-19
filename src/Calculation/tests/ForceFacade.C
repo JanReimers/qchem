@@ -484,60 +484,48 @@ TEST(HamiltonianForces, MissingGradientsNamesTheTermsWithoutAForce)
     }
 }
 
-//! NO SILENT INCOMPLETE FORCE ON A GPW BLOCK (controller request 2026-11-09, from lane H's factory wiring).  On a Bloch Gaussian block only
-//! the Hartree term has a pullback (c3516017d: the collocation gather's jets, gated by GPW_Force and M_CollocationPullback); kinetic, the
-//! PP's short / long / non-local parts and XC on either mesh have none, nor has the block the overlap pullback the Pulay sum needs.  The
-//! danger is a term WITHOUT a GPW force that answers MissingGradient with "": once its neighbours gain theirs, the force would come back
-//! complete-looking and wrong.  So every term not on kGated must name itself, MissingGradients must carry each of those names plus the
-//! Pulay sum's, and a term on kGated must deliver its force.  A term that gains a GPW pullback fails here on purpose: it lands with its
-//! finite-difference gate and joins kGated.
+//! NO SILENT INCOMPLETE FORCE ON A GPW BLOCK (controller request 2026-11-09, from lane H's factory wiring).  The danger is a term WITHOUT a
+//! GPW force that answers MissingGradient with "": once its neighbours gain theirs, the force would come back complete-looking and wrong.
+//! Since 2026-11-19 (lane B, READY 1-4) EVERY GPW term has its force on a FREE run, on the raster XC route and on the Becke mesh alike: the
+//! kinetic, overlap (Pulay) and Hartree pullbacks, the Ewald sum, the three PP terms and XC.  So this gate now holds the remaining refusal to
+//! its NAME: XC on an IMPOSED-symmetry Becke mesh (orbit-rotated grids, a star-averaged ρ) names itself and is the only entry; on the free
+//! runs MissingGradients is empty.  The uniform arm computes every term's force (each one force per atom); the free Becke arm only asks
+//! (its force costs ~3 mesh builds, gated by the _Long Becke gates below).
 TEST(HamiltonianForces, OnAGPWBlockEveryTermWithoutAPullbackNamesItself)
 {
-    // The terms whose force a GPW block cannot spoil, by label prefix: the GPW Hartree (c3516017d, GPW_Force: 3e-7 of the FD of E_H), the
-    // ion-ion (Ewald) sum, which depends on the structure alone, the kinetic energy (Enzyme over MnD per image, 2026-11-13: M_LatticePullback),
-    // and the three PP terms (2026-11-19: the short part and the KB projectors are lattice Enzyme walks, M_LatticePullback; the long part is
-    // the custom-ladder gather's pullback and its field's structure factor; all three gated at block level by UTLattice_BS GPW_Force and per
-    // term at fixed D below).
-    // On the RASTER the XC term's force is the raw gather's pullback (2026-11-19, READY 3); on the Becke mesh it still names itself (READY 4).
-    const std::vector<std::string> kGated={"Fitted Hartree", "Ion-Ion", "Kinetic", "PW electron-ion: SHORT", "PW electron-ion: LONG", "PW electron-ion: KB"};
-    bool becke=false;
-    auto gated=[&](const std::string& label)
-    {
-        for (const auto& g : kGated) if (label.rfind(g,0)==0) return true;
-        return !becke && label.rfind("XC-mesh",0)==0;
-    };
     const auto mat=Materials::Get("Si_diamond");
     SCFParams p; p.NMaxIter=100; p.MinΔρPerElectron=1e-6; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
-    for (bool b : {false, true})   // XC on the raster (Uniform), and on the Becke mesh (pin 31)
+    enum class Arm {Uniform, Becke, BeckeImposed};
+    for (Arm arm : {Arm::Uniform, Arm::Becke, Arm::BeckeImposed})
     {
-        becke=b;
         RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.label="gpw forces"; o.accuracy.eps=0.0;   // stated rasters: no pilot (not the subject)
-        if (becke) o.xcMesh=qcMesh::BeckeXCParams(); else SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
+        if (arm==Arm::Uniform) SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform; else o.xcMesh=qcMesh::BeckeXCParams();
+        if (arm==Arm::BeckeImposed) o.imposeSymmetry=true;
+        const char* name= arm==Arm::Uniform ? "uniform" : arm==Arm::Becke ? "Becke" : "Becke imposed";
         o.scf=p; auto c=SolidCalculation::Prepare(SolidSetup::Resolve(Lattice_3D(UnitCell(*mat.cell), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o)).TakeValue(); (void)c->Converge();
         ASSERT_TRUE(c->Result());
         const auto missing=ForceFacadeTests::MissingGradients(*c);
-        const auto terms  =ForceFacadeTests::TermForces(*c);
+        for (const auto& m : missing) std::cout << "[forces] GPW " << name << " missing: " << m << std::endl;
+        if (arm==Arm::BeckeImposed)
+        {
+            ASSERT_EQ(missing.size(), 1u) << "exactly the XC term on an imposed Becke mesh refuses";
+            EXPECT_NE(missing[0].find("cVxc_DFT"), std::string::npos) << missing[0];
+            EXPECT_NE(missing[0].find("IMPOSED-symmetry Becke mesh"), std::string::npos) << "the refusal names its cause: " << missing[0];
+            for (const auto& t : ForceFacadeTests::TermForces(*c))   // the refusing term computes nothing; the others answer
+                if (t.label.rfind("XC-mesh",0)==0) { EXPECT_EQ(t.missing, missing[0]); EXPECT_EQ(t.F.size(), 0u); }
+                else EXPECT_TRUE(t.missing.empty()) << t.label;
+            continue;
+        }
+        EXPECT_TRUE(missing.empty()) << name << ": every GPW term has its force on a free run";
+        if (arm==Arm::Becke) continue;   // asked, not computed (cost)
+        const auto terms=ForceFacadeTests::TermForces(*c);
         ASSERT_FALSE(terms.empty());
-        auto listed=[&](const std::string& m){ for (const auto& x : missing) if (x==m) return true; return false; };
-        size_t refusals=0;
         for (const auto& t : terms)
         {
-            std::cout << "[forces] GPW " << (becke ? "Becke" : "uniform") << " " << t.label << ": " << (t.missing.empty() ? "HAS ITS FORCE" : t.missing) << std::endl;
-            if (gated(t.label))
-            {
-                EXPECT_TRUE(t.missing.empty()) << t.label << ": gated GPW pullback, refused: " << t.missing;
-                EXPECT_EQ(t.F.size(), 2u) << t.label << ": one force per Si atom";
-                continue;
-            }
-            EXPECT_FALSE(t.missing.empty()) << t.label << ": answers that it HAS a force on a GPW block, but has no gated GPW pullback";
-            EXPECT_EQ(t.F.size(), 0u) << t.label << ": computed a force it cannot have";
-            EXPECT_TRUE(listed(t.missing)) << t.label << " is not in MissingGradients: " << t.missing;
-            refusals++;
+            std::cout << "[forces] GPW " << name << " " << t.label << ": " << (t.missing.empty() ? "HAS ITS FORCE" : t.missing) << std::endl;
+            EXPECT_TRUE(t.missing.empty()) << t.label << ": refused on a free GPW run: " << t.missing;
+            EXPECT_EQ(t.F.size(), 2u) << t.label << ": one force per Si atom";
         }
-        size_t pulay=0;   // the Pulay sum has its overlap pullback on a GPW block since 2026-11-10 (libcint per image)
-        for (const auto& m : missing) if (m.find("Pulay")!=std::string::npos) pulay++;
-        EXPECT_EQ(pulay, 0u) << "a GPW block gives the overlap pullback, so the Pulay sum is not missing";
-        EXPECT_EQ(missing.size(), refusals) << "MissingGradients = every refusing term, nothing else";
     }
 }
 
@@ -826,6 +814,68 @@ TEST(HamiltonianForces, OnRealTRIMBlocksAtK222EachTermsForceAndVirialAtFixedDAre
     EXPECT_GE(gated, 3u) << "kinetic, the fitted Hartree and the ion-ion answer both on real TRIM blocks";
     EXPECT_GT(bigF, 1e-2) << "the forces are not trivially small";
     EXPECT_GT(bigV, 0.1)  << "the terms are stressed";
+}
+
+// THE BECKE-MESH XC TERM AT FIXED D (lane B 2026-11-19, READY 4): on a FREE Becke mesh every GPW term answers its force and virial, the XC
+// term's being its blocks' (the functions moving, the points riding their owners) plus the mesh's weight response contracted against e.  Each
+// against the finite difference of its own energy with D frozen and the mesh REBUILT at the moved geometry -- the sheared, distorted Si cell
+// and 2 % allowance of the raster gates.  beckeEps 1e-10 (default 1e-6): a P-set member crossing the partition's eps screen inside ±h is an
+// eps-sized step the central difference would read as eps/h.  One atom's three axes and the six strain components.
+TEST(HamiltonianForces, OnAFreeBeckeMeshEachTermsForceAndVirialAtFixedDAreItsEnergysFiniteDifference_Long)
+{
+    RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="gpw becke"; o.accuracy.eps=0.0;   // stated rasters
+    o.xcMesh=qcMesh::BeckeXCParams(); o.xcMesh->beckeEps=1e-10; o.solid.xcMeshSymmetric=false; o.solid.cellStrainAllowance=kPWStressAllowance;
+    o.solid.tolerances.screenEps=1e-12;   // the 1E screen's steps, as the raster Γ gate (the short PP's (3,3) read 1.2e-6 at the default)
+    o.scf=PWStressParams(); o.scf.MinΔρPerElectron=1e-6;   // D is frozen: its convergence is not the subject
+    const auto setup=SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
+    auto c0=SolidCalculation::Prepare(setup).TakeValue(); (void)c0->Converge();
+    ASSERT_TRUE(c0->Result());
+    EXPECT_TRUE(ForceFacadeTests::MissingGradients(*c0).empty());
+    EXPECT_TRUE(ForceFacadeTests::MissingVirials(*c0).empty());
+    const auto F=ForceFacadeTests::TermForces(*c0);
+    const auto V=ForceFacadeTests::TermVirials(*c0);
+    ASSERT_EQ(F.size(), V.size());
+    std::vector<rvec3_t> f0; PWStressCell(PWStressA()).ForEachSite([&](int, const rvec3_t& r, bool){ f0.push_back(r); });
+    const double h=1e-4;
+    auto moved=[&](size_t A, int k, double s)
+    {
+        UnitCell cell=PWStressCell(PWStressA());
+        std::vector<rvec3_t> R=f0; (k==0 ? R[A].x : k==1 ? R[A].y : R[A].z)+=s;
+        cell.MoveSites(R);
+        cell.SetSizingCell((1.0+kPWStressAllowance)*PWStressA());
+        return ForceFacadeTests::FrozenAt(*c0, cell);
+    };
+    bool sawXC=false;
+    double bigF=0.0, bigV=0.0;
+    for (int k=0;k<3;k++)
+    {
+        const auto Ep=moved(1,k,h), Em=moved(1,k,-h);
+        ASSERT_EQ(Ep.size(), F.size());
+        for (size_t t=0;t<F.size();t++)
+        {
+            ASSERT_TRUE(F[t].missing.empty()) << F[t].label;
+            const double fd=-(Ep[t].E-Em[t].E)/(2*h), an=C(F[t].F[1],k);
+            std::cout << "[forces] Becke " << F[t].label.substr(0,30) << " axis " << k << ": analytic " << an << "  FD " << fd << "  diff " << an-fd << std::endl;
+            EXPECT_NEAR(an, fd, 1e-6) << F[t].label << " axis " << k;
+            if (F[t].label.rfind("XC-mesh",0)==0) { sawXC=true; bigF=std::max(bigF, std::fabs(fd)); }
+        }
+    }
+    const std::pair<size_t,size_t> comps[]={{1,1},{2,2},{3,3},{1,2},{2,3},{3,1}};
+    for (const auto& [i,j] : comps)
+    {
+        const auto Ep=ForceFacadeTests::FrozenAt(*c0, PWStressStrained(i,j, h)), Em=ForceFacadeTests::FrozenAt(*c0, PWStressStrained(i,j,-h));
+        for (size_t t=0;t<V.size();t++)
+        {
+            ASSERT_TRUE(V[t].missing.empty()) << V[t].label;
+            const double fd=(Ep[t].E-Em[t].E)/(2*h), an=V[t].V(i,j);
+            std::cout << "[stress] Becke " << V[t].label.substr(0,30) << " (" << i << "," << j << "): analytic " << an << "  FD " << fd << "  diff " << an-fd << std::endl;
+            EXPECT_NEAR(an, fd, 1e-6) << V[t].label << " (" << i << "," << j << ")";
+            if (V[t].label.rfind("XC-mesh",0)==0) bigV=std::max(bigV, std::fabs(fd));
+        }
+    }
+    EXPECT_TRUE(sawXC);
+    EXPECT_GT(bigF, 1e-3) << "the XC force is not trivially small";
+    EXPECT_GT(bigV, 0.1)  << "the XC term is stressed";
 }
 
 // THE SESSION'S FORCE ON PLANE WAVES: a forces request on the sheared, distorted Si cell carries −dE/dR at the converged D and its

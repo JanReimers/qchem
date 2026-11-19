@@ -30,7 +30,8 @@ export import qchem.BasisSet;                      // Real_BS (the molecular Gau
 export import qchem.BasisSet.AoShellSource;          // the shell-layout face this block forwards to its molecular block
 export import qchem.BasisSet.OrbitalImageSource;     // the image of this block's orbitals under a crystal op (KAxisPlan P4)
 export import qchem.BasisSet.BareCoulombSource;      // the ACBN0 face it forwards too (+U increment 3, 2026-09-21)
-export import qchem.BasisSet.AtomCentredSet;         // the +U projector functions' overlap face (HubbardProjectorPlan D2)
+export import qchem.BasisSet.AtomCentredSet;
+export import qchem.BasisSet.PointSetPullback;    // the δ XC quadrature's derivative face (READY 4)         // the +U projector functions' overlap face (HubbardProjectorPlan D2)
 export import qchem.BasisSet.Transition_DFT_IBS;     // the (k+q, k) transition pair (LinearResponsePlan B2)
 export import qchem.UnitCell;                      // UnitCell (the direct lattice handed to the ctor)
 export import qchem.BasisSet.Gaussian.Lattice.RasterLadder;  // GpwRasterLadder (the point's shared ladder handed to the ctor)
@@ -76,6 +77,7 @@ template <class T> class tGPW_IBS
     , public virtual BasisSet::AtomCentredOverlapSource<T>   // <chi_i^k|an atom-centred function> (+U projectors, HubbardProjectorPlan D2)
     , public virtual BasisSet::Transition_DFT_IBS   // the (k+q, k) transition density, this block the ket (LinearResponsePlan B2)
     , public Symmetry::DenseRepresentation<T>       // M_g on this block (S3): the Bloch op rep, for g in the little group of k
+    , public virtual BasisSet::PointSetPullback<T>  // the δ XC quadrature's derivative (the Becke mesh force; lane B 2026-11-19)
 {
 protected:
     //! \f$M_g\f$ = \c OrbitalImage(g) -- the shell permutation × angular rep × Bloch phase -- when \a g maps k onto itself
@@ -180,6 +182,12 @@ public:
     virtual Outcome<rmat3d_t,AD::NoGradient> MakeSpeciesFieldVirial(const Structure* cl, const SpeciesRadialField& f, FieldRange r, const hmat_t<T>& D) const override;
     virtual Outcome<rmat3d_t,AD::NoGradient> MakeProjectorVirial(const Structure* cl, const SpeciesProjectorSet& ps, const hmat_t<T>& D) const override;
     virtual std::map<int,hmat_t<T>> MakeProjectorMatrixByL(const Structure* cl, const SpeciesProjectorSet& nl) const override;
+
+    //! \copydoc BasisSet::PointSetPullback::MakePointSetPullback
+    //! The molecular seam's \c LatticeCollocation::BlochPointPullback at this block's phase and cell; a real TRIM block's D widened.  The
+    //! home-only mode refuses (its functions are the finite molecule's).
+    virtual Outcome<typename BasisSet::PointSetPullback<T>::Result,AD::NoGradient>
+        MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const hmat_t<T>& D, const Structure* st) const override;
 
     virtual std::string Name      () const override {return "GPW";}
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + molecular ID + k + nR)
