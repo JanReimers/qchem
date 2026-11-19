@@ -3638,6 +3638,25 @@ REMAINDER (open row): a solid builds its basis outside a "basis" scope (`SolidSe
 Original row:
 
 | **The basis report has nFunctions per irrep but no shells per element** (S; 2026-11-02) | the GUI's Basis tab '3s 2p 1d' table reads the `.bsd` file itself -- a second reader of the basis data | the basis builder writes a per-element shells row into the `basis` section as it builds (caller sets context, callee writes one level in; CLAUDE.md 'THE RUN REPORT') · lane G's audit |
+
+## ✅ The exact-resume Pulay policy moved out of the SCF library (lane S, 2026-11-19, c9521438b)
+
+`tSCFIterator::Iterate` set pulayStart to 0 on the first Iterate of an iterator seeded `SeedRole::ExactResume` (beta-MnO2 A1AFM r015:
+23 iterations with pulayStart 5, 4 with 0) and printed it as a `[handoff]` line.  A policy inside a library, so it moved to the policy
+layer (CLAUDE.md), where it reports itself:
+- `tCalculation::ExactResumeMixing(params, resolved)` (the base of every facade) holds the rule, its `[<tag> policy] ExactResumePulay`
+  line plus `policy` row, and the first-stage bit.  `SeededIterator(exact)` sets the bit at EVERY iterator construction in each kind, so
+  it always describes the iterator the kind holds: a stage 0 rebuilt from the seed, or a conditioning restart, is not a resume.  The
+  trigger is the EXACT flag, not `SCFStageKind::Restored` (which also covers a WARM restart and the raster pilot's re-convergence).
+- Each kind calls it on ONE line at its Iterate site.  Not one call in `ConvergeStage`: the rule needs the params AS ITERATED and
+  RESOLVED; each kind transforms them inside `RunStage` (the solid's recipe knobs and restored step, every kind's degenerate-level fill),
+  and only the kind's iterator resolves `Mixing::Auto`.  Applied earlier, Auto's resolution would write start 5 back.
+- A stated start is still overridden (bit-identical); the policy row says so.  Whether it should be is an open USER question (OpenWork §3).
+- Gate: `SolidState` field-mixer exact resume now looks for the `[policy]` line.
+
+Original row:
+
+| **The exact-resume "pulayStart -> 0" policy lives in the SCF library** (S; lane A 2026-11-12, found building B5) | `src/SCFIterator/Imp/SCFIterator.C` (~408) drops PulayStart to 0 on an exact resume ("priming is for a start far from the fixed point").  A policy, so by CLAUDE.md it belongs in the policy layer (`qchem.SCFRecipe`, B5), where it would print under `[policy]` | move it into the recipe's RESTORED column, bit-identical (0 anchors moved) · `doc/SCFRobustnessPlan.md` R4.1 |
 ## ✅ Star-average remainders (a), (c), (d) (lane S, 2026-11-18)
 
 From the live row "Star-average remainders"; (b) stays there.  (d) the raster `StarField` averages on any grid the op leaves invariant (`RasterVoxelMap`, integer W·N_a/N_b) and THROWS on any other (no user chooses the grid: a broken invariant, controller ruling; unreachable today, `AutoGrid` is always cubic).  (a) the T1 {G} fold and the grid report ask `CrystalImposition::densityGroup` (`StarGroup::EvaluateOnGStars`, `CountGStars`); `directDensity` is read only by the stream fold, now its own row.  (c) CLOSED AS STALE: `FoldedMesh::Symmetrize` runs a precomputed `Fold`, and its ops never leave `CrystalImposition::MakeXCMesh`  The stream fold's op list got its own row ("The stream fold's ops list"), and the requests `StarGroup` gained are listed in the `Group`-face row as an input to its design review.  Landing: 0 movers (see the READY to the controller; (d) alone: short 1747/0, long 19/0, decks 67/67, RelChecked rc 0).

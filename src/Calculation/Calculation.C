@@ -316,6 +316,25 @@ protected:
     virtual void FinishSchedule(const SCFParams& last) {(void)last;}
     //!@}
 
+    //! \name THE EXACT-RESUME PULAY POLICY (OpenWork §3, 2026-10-29; moved out of the SCF library into this layer 2026-11-19, R4.1)
+    //!@{
+    //! \brief The kind just built its iterator: \a exactResume = it was seeded \c SeedRole::ExactResume (a restored state with no
+    //! difference from this run).  Called at EVERY construction, so the bit always describes the iterator the kind holds (a stage 0
+    //! rebuilt from the seed, or a conditioning restart, is not a resume).
+    void SeededIterator(bool exactResume) {itsExactResumePending=exactResume;}
+    //! \brief THE RULE: the FIRST Iterate of an exactly resumed iterator starts its Pulay history at once (pulayStart -> 0) when the
+    //! mixer, as \a resolved by the iterator, keeps one (depth > 0, start > 0); a STATED start is overridden, and the policy row says so.
+    //! Answers the params to iterate: \a resolved with start 0 when the rule fires, else \a params untouched.  Consumes the bit.
+    //! WHY A CALL AT EACH KIND'S ITERATE SITE, NOT ONE IN \c ConvergeStage: the rule needs the params AS ITERATED and RESOLVED -- each
+    //! kind transforms them inside \c RunStage (the solid's recipe knobs and restored step, every kind's degenerate-level fill), and
+    //! only the kind's iterator can resolve \c Mixing::Auto (G space, a Fock extrapolator).  Applied earlier, Auto's resolution would
+    //! write start 5 back and the recipe would record a spurious deviation.
+    SCFParams ExactResumeMixing(const SCFParams& params, const SCFParams& resolved);
+    //!@}
+private:
+    bool itsExactResumePending=false;   //!< see \c SeededIterator
+protected:
+
     //! \name WHAT EACH KIND ANSWERS (read only through a \c Converged, so only after a converged attempt)
     //!@{
     //! Why the last attempt has no answer, its detectors ranked by the kind; EMPTY when it converged.

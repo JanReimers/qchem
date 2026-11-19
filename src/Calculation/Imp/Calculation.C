@@ -326,6 +326,30 @@ template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCal
     return Result();
 }
 
+// AN EXACT RESUME STARTS PULAY AT ONCE (OpenWork §3, 2026-10-29; the field-mixer twin of "a restart enters the Ladder at its GDM
+// rung").  Plain-Kerker priming exists because a history built far from the fixed point is unstable; an exact resume starts AT it, where
+// priming only hands a soft mode five undamped-ish steps: beta-MnO2 A1AFM r015 walked 0.29 Ha away and took 23 iterations back with
+// pulayStart 5, 4 with 0.  The history itself is NOT saved (qchem.SolidState: a WARM restart's old residuals extrapolate onto the old
+// fixed point); an exact resume rebuilds it in two steps.  It lived in tSCFIterator::Iterate until 2026-11-19 (a policy inside a library).
+template <class T> SCFParams tCalculation<T>::ExactResumeMixing(const SCFParams& params, const SCFParams& resolved)
+{
+    const bool first=itsExactResumePending;
+    itsExactResumePending=false;
+    if (!first || resolved.PulayDepth<=0 || resolved.PulayStart<=0) return params;
+    // A stated depth keeps its stated start through ResolveMixing; with no depth stated the start is Auto's recipe.
+    const bool stated = params.PulayDepth>0;
+    const std::string decided = "pulayStart "+std::to_string(resolved.PulayStart)+" -> 0 on the first stage of an exact resume"
+                              + (stated ? " (overrides the stated pulayStart "+std::to_string(resolved.PulayStart)+")" : "");
+    const std::string why = "an exact resume starts AT the fixed point, and plain-Kerker priming is for a start far from it "
+                            "(beta-MnO2 A1AFM r015: 23 iterations with pulayStart 5, 4 with 0)";
+    std::cout<<"["<<Tag()<<" policy] ExactResumePulay: "<<decided<<"; why: "<<why<<std::endl;
+    policy::Report("ExactResumePulay", decided, policy::Verdict::Choose, why, std::nullopt,
+                   report::json{{"pulayStart", resolved.PulayStart}, {"stated", stated}});
+    SCFParams r=resolved;
+    r.PulayStart=0;
+    return r;
+}
+
 template class tCalculation<double>;   // the atom and the molecule
 template class tCalculation<dcmplx>;   // the solid's Bloch blocks
 
