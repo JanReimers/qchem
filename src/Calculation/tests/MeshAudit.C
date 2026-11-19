@@ -120,7 +120,7 @@ TEST(MeshAudit, TheDunlapHartreeIsMeshFreeAtAFixedD)
 TEST(MeshAudit, BeforeAConvergeItThrows)
 {
     const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
-    const auto c=MoleculeCalculation::Prepare(setup);
+    const auto c=MoleculeCalculation::Prepare(setup).TakeValue();
     EXPECT_THROW((void)c->MeshAudit(Finer(setup->xcMesh)), std::logic_error);
 }
 

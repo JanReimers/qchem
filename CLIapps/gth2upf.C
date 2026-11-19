@@ -88,7 +88,7 @@ int main(int argc, char** argv)
     // the SCF its convergence): d-block from Sc on carries l=2, the p-block l=1, H/He/alkali l=0.
     if (lmaxPool<0) lmaxPool = (Z>=21 && Z<=30) || (Z>=39 && Z<=48) || (Z>=57 && Z<=80) ? 2 : (Z<=2 || Z==3 || Z==11 || Z==19 || Z==37 || Z==55) ? 0 : 1;
     for (int l=0;l<=lmaxPool;l++) o.atom.exponentsByL.push_back({l, pool});
-    SCFParams p; p.MinVirial=std::nullopt; p.NMaxIter=200; p.Verbose=std::getenv("GTH2UPF_VERBOSE")!=nullptr;
+    SCFParams& p=o.scf; p.MinVirial=std::nullopt; p.NMaxIter=200; p.Verbose=std::getenv("GTH2UPF_VERBOSE")!=nullptr;   // the setup's (R10)
     AtomCalculation atom(AtomSetup::Resolve(Z, Z-Zion, o), p);
     if (!atom.IsConverged())
     {
@@ -100,10 +100,8 @@ int main(int argc, char** argv)
         // across the near-degeneracy (kT lets both configurations mix fractionally, breaking the limit
         // cycle), then re-converge cold with MOM holding whichever reference the smeared state landed on.
         std::cerr<<"gth2upf: plain aufbau did not converge -- retrying with a kT anneal (hot smear -> cold MOM)\n";
-        SCFParams hot=p; hot.SmearingkT=0.02; hot.StartingRelaxRo=0.2;
-        (void)atom.Converge(hot);
-        SCFParams cold=p; cold.SmearingkT=0.0; cold.UseMOM=true; cold.MOMStartIter=5; cold.StartingRelaxRo=0.2;
-        (void)atom.Converge(cold);
+        (void)atom.Converge([](SCFParams& hot){ hot.SmearingkT=0.02; hot.StartingRelaxRo=0.2; });
+        (void)atom.Converge([](SCFParams& cold){ cold.SmearingkT=0.0; cold.UseMOM=true; cold.MOMStartIter=5; cold.StartingRelaxRo=0.2; });
         if (!atom.IsConverged()) { std::cerr<<"gth2upf: the pseudo-atom did not converge (even annealed)\n"; return 2; }
     }
     std::vector<Wfc> wfcs;

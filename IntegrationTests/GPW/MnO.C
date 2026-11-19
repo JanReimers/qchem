@@ -760,7 +760,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Ordering_Long)
     Lattice_3D lat(*cellp, ivec3_t(1,1,1));
     qchem::deck::RunSpec resolved=spec; qchem::deck::Resolve(resolved);     // fills Nelec / species from the material, as the AFM arm's run did
     RunOptions o=resolved.opts; o.multiplicity=11; o.spins={+1,+1,0,0}; o.label="MnO FM Gamma (imposed)";
-    const SCFParams par=spec.scf;
+    const SCFParams par=spec.opts.scf;
     GpwReport report("MnO FM", false);
     qchem::SolidCalculation fm(SolidSetup::Resolve(lat, MakeBasisLowQ(*cellp, BasisSetData::VALENCE_LOWQ_SR), o), par);
     auto R=fm.Result();

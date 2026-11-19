@@ -54,7 +54,8 @@ using SCFIter = qchem::SCFIterator::MolecularSCFIterator;   // item 2: the atom/
 // only the adapted basis, and the raw lifetime rides along.  PG::SymmetryAdapt throws if the basis has
 // no Cartesian PGData IBS (the guard); the facade only ever builds that basis today, so it is safe.
 // \a ao receives the SALC run's raw basis (shared with the adapted one), whose shells identify a saved state; null without symmetry.
-static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, const std::shared_ptr<const Structure>& st,
+// \a imposed is the setup's RESOLVED decision (Setup::imposed), never opts.imposeSymmetry: nothing reads the option after Resolve.
+static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, bool imposed, const std::shared_ptr<const Structure>& st,
                                      std::shared_ptr<const BasisSet::Real_BS>& ao)
 {
     ao.reset();
@@ -63,7 +64,7 @@ static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, const std::shared_p
     // doc/OldPlans/SphericalSALCPlan.md S3a/S4).  Only libcint-spherical is unwired (S3b) -- and it presents as a
     // PGData with spherical components, which the Cartesian extractor would silently misread, so reject that
     // one combination clearly here rather than let SymmetryAdapt take the wrong path.
-    if (opts.imposeSymmetry && spherical && opts.molecule.engine == Engine::LibCint)
+    if (imposed && spherical && opts.molecule.engine == Engine::LibCint)
         throw std::runtime_error("qchem::MoleculeCalculation: {.symmetry=true} with angular=Spherical requires "
                                  "engine=MnD (libcint-spherical SALC is not yet supported)");
 
@@ -74,7 +75,7 @@ static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, const std::shared_p
         : BasisSet::Gaussian::FactoryFromFile(opts.molecule.basisFile, st.get(),                               // a stated file (RunOptions::basisFile)
               opts.molecule.engine==Engine::LibCint ? BasisSet::Gaussian::Engine::LibCint : BasisSet::Gaussian::Engine::MnD,
               spherical ? BasisSet::Gaussian::Angular::Spherical : BasisSet::Gaussian::Angular::Cartesian);
-    if (!opts.imposeSymmetry) return raw;
+    if (!imposed) return raw;
     std::shared_ptr<const BasisSet::Real_BS> rawShared(raw);
     ao=rawShared;
     return PG::SymmetryAdapt(rawShared, *st, opts.symmetryTol);
@@ -96,16 +97,21 @@ MoleculeCalculation::MoleculeCalculation(std::shared_ptr<const MoleculeSetup> se
                          const SCFParams& scf, Observer onIteration, bool geometryPoint)
     : MoleculeCalculation(BuildOnly{}, std::move(setup), at, std::move(carry), std::move(onIteration), geometryPoint)
 {
-    (void)Converge(scf);                              // so Energy()/Density() are ready on return; Result() is its outcome
+    (void)ConvergeStage(scf);                         // so Energy()/Density() are ready on return; Result() is its outcome
 }
 
-std::unique_ptr<MoleculeCalculation> MoleculeCalculation::Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration)
+Outcome<std::unique_ptr<MoleculeCalculation>, BuildRefusal> MoleculeCalculation::Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration)
 {
     const Structure& ref=*setup->structure;
-    std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, std::move(setup), ref, nullptr, std::move(onIteration)));
-    c->BuildGraph();                                  // into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
+    std::unique_ptr<MoleculeCalculation> c;
+    try   // the configuration (the constructor) and the graph, into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
+    {
+        c.reset(new MoleculeCalculation(BuildOnly{}, std::move(setup), ref, nullptr, std::move(onIteration)));
+        c->BuildGraph();
+    }
+    catch (const policy::Refused& r) { return Outcome<std::unique_ptr<MoleculeCalculation>, BuildRefusal>::Fail(BuildRefusal{r.Name(), r.what()}); }   // its policy row is filed
     c->itsPrepared=true;
-    return c;
+    return Outcome<std::unique_ptr<MoleculeCalculation>, BuildRefusal>::Ok(std::move(c));
 }
 
 MoleculeCalculation::MoleculeCalculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, const Structure& at,
@@ -155,16 +161,14 @@ void MoleculeCalculation::BuildGraph()
     // whole basis once, complete, on close.  A later Converge reuses the basis.
     {
         rpt::Scope basis("basis");
-        if (!itsBasis) itsBasis = BuildBasis(opts, itsStructure, itsAoBasis);   // raw, or SALC-blocked if .symmetry
+        if (!itsBasis) itsBasis = BuildBasis(opts, itsSetup->imposed, itsStructure, itsAoBasis);   // raw, or SALC-blocked if .symmetry
     }
     // The unified resolver turns the Model token into the concrete Hamiltonian; the DFT extras (mesh, orbital basis,
     // xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door instead (LSDA valence
     // Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
     // THE PP / FUNCTIONAL MATCH (user ruling 2026-11-12): warn and run, never switch.  Decided BEFORE the Hamiltonian is built, so its
     // row sits beside the run's other policies, not inside the "hamiltonian" scope (which holds meshes and terms only).
-    if (itsSetup->pp)
-        policy::PPFittedFunctional(qchem::Hamiltonian::PPFunctionalChecks(*itsSetup->pp, *itsStructure,
-                                                                              qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha)));
+    CheckPPFunctional(*itsStructure);
     // THE ERI4 RAM CAP (S6, user ruling 6): a model that builds the 4-centre tensors (HF, DHF) is judged ONCE here, from the block sizes,
     // against the memory available -- warn and run, or refuse on resources -- instead of a collector evicting them mid-run.
     if (*opts.model==qchem::Hamiltonian::Model::HF || *opts.model==qchem::Hamiltonian::Model::DHF)
@@ -212,7 +216,17 @@ void MoleculeCalculation::BuildGraph()
     }
 }
 
-Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converge(const SCFParams& asked)
+const Setup& MoleculeCalculation::GetSetup() const {return *itsSetup;}
+
+void MoleculeCalculation::EnterStage(const SCFStage& stage, size_t index)
+{
+    AdmitStageOnSetup(stage, itsSetup->opts, itsSetup->accelerator, "molecule");
+    if (index==0 && (itsPrepared || !itsScf)) return;   // the Prepare'd graph, from the setup's seed
+    itsCarry=std::make_unique<const Carry>(MakeCarry());   // the density reached, block for block onto the same basis
+    itsCarryExact=false;
+}
+
+bool MoleculeCalculation::RunStage(const SCFParams& asked)
 {
     // The SCF writes into the CALLER'S report run: a facade never opens one (user ruling D, 2026-11-02 -- drivers own the
     // runs, the caller sets the context one level up).  With no run open every write is a no-op.
@@ -240,7 +254,7 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
         // THE RECIPE POLICY'S REPORT (qchem.SCFRecipe): a molecule's Auto / Insulator is its own column -- the stated accelerator (DIIS by
         // default) beside linear D-mixing (no G space), as before B5.
         const SCFStageKind kind = !itsRestartedFrom ? SCFStageKind::Cold : itsRestartedFrom->exact ? SCFStageKind::Restored : SCFStageKind::Carried;
-        ReportRecipe("molecule", itsSetup->opts.recipe, kind, itsSetup->accelerator, itsSetup->accelerator, ResolveMixing(params, /*gSpace*/false),
+        ReportRecipe(Tag(), itsSetup->opts.recipe, kind, itsSetup->accelerator, itsSetup->accelerator, ResolveMixing(params, /*gSpace*/false),
                      {}, "accelerator (Auto = DIIS)", "the molecular column: the accelerator + linear D-mixing");
         ReportAccuracy(itsSetup->opts.accuracy, !HasXCMesh()           ? std::string(kNoAccuracyConsumerYet)
                                               : itsSetup->meshResolved ? std::string("the Becke XC mesh (sized by an earlier pilot)")
@@ -257,9 +271,9 @@ Outcome<MoleculeCalculation::Converged, SCFFailure> MoleculeCalculation::Converg
 
     // (No end-of-run cache snapshot since S6: each owner-held table reported its own bytes under `cache` where it was filled.)
 
-    ReportResult("molecule", itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
+    ReportResult(Tag(), itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
                  itsSetup->opts.accuracy.Target(Consumes(), itsStructure->GetNumAtoms()));
-    return Result();
+    return true;
 }
 
 std::optional<SCFFailure> MoleculeCalculation::MakeFailure() const
@@ -352,7 +366,7 @@ std::vector<hmat_t<double>> MoleculeCalculation::BlockDensities(bool energyWeigh
     const auto* wf = itsScf ? itsScf->GetWaveFunction() : nullptr;
     if (!wf) throw std::logic_error("qchem::MoleculeCalculation: no wave function yet (a block density needs a Converge)");
     std::vector<hmat_t<double>> out;
-    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+    for (Spin s : SpinIrreps(StateSpin()))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
         {
             const size_t n=ibs->GetNumFunctions();
@@ -426,7 +440,7 @@ std::unique_ptr<qchem::ChargeDensity::rDM_CD> MoleculeCalculation::MakeCarriedDe
     using namespace qchem::ChargeDensity;
     auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetImposition() ? itsBasis->GetImposition()->DensityGroup() : nullptr);
     size_t b=0;
-    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+    for (Spin s : SpinIrreps(StateSpin()))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
         {
             if (b>=carry.D.size() || carry.D[b].rows()!=ibs->GetNumFunctions())
@@ -468,7 +482,7 @@ GridAuditResult MoleculeCalculation::MeshAudit(const qcMesh::MeshParams& referen
             R.ΔE+=eRun[t].E-eRef[t].E;
         }
         size_t channel=0;   // the carry's block order: spin irreps outer, basis blocks inner (BlockDensities')
-        for (Spin s : SpinIrreps(opts.spin))
+        for (Spin s : SpinIrreps(StateSpin()))
         {
             size_t block=0;
             for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
@@ -480,7 +494,7 @@ GridAuditResult MoleculeCalculation::MeshAudit(const qcMesh::MeshParams& referen
                 if (shellsOf.size()<=block)   // a block's shells, once (the spin channels share the blocks); a SALC block is not an AO block
                 {
                     const auto* src=dynamic_cast<const BasisSet::AoShellSource*>(ibs);
-                    shellsOf.push_back(src && !opts.imposeSymmetry ? src->GetAoShells() : std::vector<Symmetry::Molecule::AoShell>{});
+                    shellsOf.push_back(src && !itsSetup->imposed ? src->GetAoShells() : std::vector<Symmetry::Molecule::AoShell>{});
                 }
                 ++block; ++channel;
             }
@@ -590,7 +604,7 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
             Probe p;
             for (const auto& te : h.MakeTermEnergies(d)) { p.E.push_back(te.E); p.climbed.push_back(climbHartree || te.entries!="Eee"); }
             p.H.resize(p.E.size());
-            for (Spin s : SpinIrreps(itsSetup->opts.spin))
+            for (Spin s : SpinIrreps(StateSpin()))
                 for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
                 {
                     auto blocks=h.MakeTermMatrices(ibs, s, d);
@@ -714,11 +728,8 @@ std::string MoleculeModelName(const MoleculeSetup& su)
 }
 } //anonymous namespace
 
-Calculation::StateIdentity MoleculeCalculation::MakeStateIdentity() const
-{
-    return {.Nelec=itsSetup->Ne, .spin=itsSetup->opts.spin, .multiplicity=itsSetup->opts.multiplicity,
-            .functional=MoleculeModelName(*itsSetup), .kT=itsLastkT};
-}
+std::string MoleculeCalculation::StateFunctional() const {return MoleculeModelName(*itsSetup);}
+double      MoleculeCalculation::StateKT()         const {return itsLastkT;}
 
 std::vector<StateBlock> MoleculeCalculation::StateBlocks(bool withOrbitals) const
 {
@@ -726,7 +737,7 @@ std::vector<StateBlock> MoleculeCalculation::StateBlocks(bool withOrbitals) cons
     const auto* wf = withOrbitals && itsScf ? itsScf->GetWaveFunction() : nullptr;
     if (withOrbitals && !wf) throw std::logic_error("qchem::MoleculeCalculation: no wave function yet (a saved state needs a Converge)");
     std::vector<StateBlock> out;   // the carry's order: spin irreps outer, basis blocks inner
-    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+    for (Spin s : SpinIrreps(StateSpin()))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
         {
             StateBlock b;
@@ -741,7 +752,7 @@ std::vector<StateBlock> MoleculeCalculation::StateBlocks(bool withOrbitals) cons
 StateSummary MoleculeCalculation::MakeStateSummary() const
 {
     if (!itsScf || !itsScf->GetWaveFunction()) throw std::logic_error("qchem::MoleculeCalculation: no wave function yet");
-    StateSummary s{.label="molecule", .converged=itsScf->Converged(), .iterations=itsScf->GetIterationCount(),
+    StateSummary s{.label=Tag(), .converged=itsScf->Converged(), .iterations=itsScf->GetIterationCount(),
                    .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0};
     s.recipe="model "+MoleculeModelName(*itsSetup)+", basis "+itsSetup->opts.molecule.basis+", accelerator "+std::string(NameOf(itsSetup->accelerator));
     if (itsLastRow)
@@ -764,7 +775,7 @@ void MoleculeCalculation::RecordState(StateRecord& r, double kT) const
         fp.refuseStr["basis.fileChecksum"]=BasisSet::Gaussian::BasisFileChecksum(o.molecule.basisFile);
     fp.refuseStr["basis.engine"] =o.molecule.engine==Engine::LibCint ? "libcint" : "mnd";
     fp.refuseStr["basis.angular"]=o.molecule.angular==Angular::Spherical ? "spherical" : "cartesian";
-    fp.refuseStr["basis.blocks"] =o.imposeSymmetry ? "SALC" : "AO";
+    fp.refuseStr["basis.blocks"] =itsSetup->imposed ? "SALC" : "AO";
     fp.refuseStr["pp.set"]       =itsSetup->pp ? itsSetup->pp->Name() : std::string();
     {
         std::string ov;
@@ -776,7 +787,7 @@ void MoleculeCalculation::RecordState(StateRecord& r, double kT) const
     // 2026-11-10).  A block that cannot report its shells is identified by name alone, and says so.
     {
         const BasisSet::Real_BS& ao = itsAoBasis ? *itsAoBasis : *itsBasis;
-        if (o.imposeSymmetry && !itsAoBasis) throw std::logic_error("MoleculeCalculation::RecordState: a SALC run without its AO basis");
+        if (itsSetup->imposed && !itsAoBasis) throw std::logic_error("MoleculeCalculation::RecordState: a SALC run without its AO basis");
         std::vector<const BasisSet::Orbital_1E_IBS<double>*> blocks;
         bool all=true;
         for (auto ibs : ao.Iterate<BasisSet::Real_OIBS>())
@@ -830,7 +841,7 @@ Outcome<std::unique_ptr<MoleculeCalculation>, RestartRefusal>
 MoleculeCalculation::Restart(const std::string& path, std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf, Observer onIteration)
 {
     auto R=PrepareRestart(path, std::move(setup), scf, std::move(onIteration));
-    if (R) (void)R.Value()->Converge(scf);   // the restored stage, on the graph PrepareRestart built
+    if (R) (void)R.Value()->ConvergeStage(scf);   // the restored stage, on the graph PrepareRestart built
     return R;
 }
 
@@ -862,7 +873,7 @@ MoleculeCalculation::PrepareRestart(const std::string& path, std::shared_ptr<con
     std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, setup, ref, nullptr, std::move(onIteration)));
     {
         rpt::Scope basis("basis");
-        c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsStructure, c->itsAoBasis);   // BuildGraph reuses it
+        c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsSetup->imposed, c->itsStructure, c->itsAoBasis);   // BuildGraph reuses it
     }
     SavedState state=saved.TakeValue();
     auto judged=c->JudgeRestart(state, scf.SmearingkT, tag);
@@ -907,7 +918,7 @@ MoleculeCalculation::ViewState(const std::string& path, std::shared_ptr<const Mo
     std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, setup, ref, nullptr, nullptr));
     {
         rpt::Scope basis("basis");
-        c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsStructure, c->itsAoBasis);
+        c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsSetup->imposed, c->itsStructure, c->itsAoBasis);
     }
     auto judged=c->JudgeView(*saved);
     if (!judged) return O::Fail(judged.Error());
@@ -961,7 +972,7 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
     // THE IMPOSED GROUP must survive (Q4): the SALC blocks are built on the abelian point group, so a step that changes it changes
     // the blocks the carry and the energy surface are written in -- a NEW setup, the user's choice.  A THROW: every driver that moves
     // atoms off the group runs a lower-group setup, so an off-group R here is a wiring defect (PotentialEnergySurface.C).
-    if (itsSetup->opts.imposeSymmetry)
+    if (itsSetup->imposed)
     {
         auto abelian=[&](const Structure& st)
         {

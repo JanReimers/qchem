@@ -168,16 +168,17 @@ struct RunSpec
     //! `acceleratorOptions`: the stated knobs; an unstated one is the GPW production recipe's (\c AcceleratorParams), filled by the
     //! setup, and the record writes the resolved chain.
     AcceleratorOptions accel;
-    SCFParams        scf;             //!< the single-stage recipe (with the run's \c opts.accelerator, and \c opts.recipe: its `scf.recipe`) ...
+    //! The single-stage recipe is the options' (\c opts.scf, with \c opts.accelerator and \c opts.recipe: deck key `scf`, its `scf.recipe`;
+    //! V-FACADE-PARITY P3 folded the spec's own copy into it, R10) ...
     std::vector<Stage> schedule;      //!< ... OR an annealed one; a deck gives one or the other (never both)
     std::vector<PostAction> postSCF;  //!< post-convergence actions, in order (empty = none)
     //! The run's thread counts (deck key `threads`: `{"openmp": N, "blas": M}`; OpenWork §2 "Per-run thread count", user 2026-11-12).  Not
     //! physics: a RESOURCE, so it never enters a state's fingerprint.  0 / absent = the process's own count (QCHEM_OPENMP_THREADS,
     //! QCHEM_BLAS_THREADS), today's behaviour.  \c Run holds the scope for the whole run; a caller of \c Build holds it per call.
     ThreadCounts threads;
-    //! The stages the run executes: \c schedule, or the one stage (\c scf, the run's \c accelerator).
+    //! The stages the run executes: \c schedule, or the one stage (\c opts.scf, the run's \c accelerator).
     std::vector<Stage> Stages() const
-    { return schedule.empty() ? std::vector<Stage>{{scf,opts.accelerator,opts.recipe}} : schedule; }
+    { return schedule.empty() ? std::vector<Stage>{{opts.scf,opts.accelerator,opts.recipe}} : schedule; }
 };
 //! \brief WHICH FACADE a deck drives, decided by its STRUCTURE alone (V-FACADE-PARITY P0c, 2026-11-17): a cell (a \c materials.json
 //! name or an inline entry) runs a \c SolidCalculation, a \c molecules.json entry a \c MoleculeCalculation -- or, when it holds ONE
