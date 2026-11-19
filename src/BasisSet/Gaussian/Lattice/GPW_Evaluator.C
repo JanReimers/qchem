@@ -441,6 +441,11 @@ private:
     //! Both share \c CollocMemo with the ball closures (one collocation per (D, ladder) per iteration).
     std::function<rvec_t(const chmat_t&)> MakeRawCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     std::function<chmat_t(const rvec_t&)> MakeRawIntegrator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    //! The derivatives of \c MakeRawIntegrator's closure at fixed \a v and \a D (\c PairProjection::applyRawAdjointPullback / Virial; lane B
+    //! 2026-11-19): the SAME ladder and the SAME spectral transfer of \a v onto its levels (\c RawLevelFields), then the gather's pullback /
+    //! virial on the SAME screener and relative rule.  No memo: a force is asked once per geometry.
+    std::function<rvec3vec_t(const rvec_t&, const chmat_t&, const Structure*)> MakeRawIntegratorPullback(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    std::function<rmat3d_t  (const rvec_t&, const chmat_t&, const Structure*)> MakeRawIntegratorVirial  (std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     //! The KB-quadrature integration mesh params (uniform): the density grid's cutoff FLOORED at what the
     //! \f$\langle\chi|\beta\rangle\f$ integrand itself needs, \f$C\alpha_{\max}+\alpha_\beta\f$ (V2.5).
     qcMesh::MeshParams PPMeshParams(const Structure* cl, const SpeciesProjectorSet_R& sep) const;

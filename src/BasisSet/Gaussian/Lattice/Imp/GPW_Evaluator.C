@@ -316,6 +316,8 @@ PairProjection<dcmplx> GPW_Evaluator::Overlap3CTensor(std::shared_ptr<const Plan
     g.applyAdjointVirial  =MakeIntegratorVirial(grid);      //           ... its strain derivative at fixed D (the orbital side)
     g.applyRaw       =MakeRawCollocator(grid);              // 0.5(f2): D -> rho_DM(r) raw (XC feed)
     g.applyRawAdjoint=MakeRawIntegrator(grid);              //          v(r) -> <i|v|j> (exact transpose)
+    g.applyRawAdjointPullback=MakeRawIntegratorPullback(grid);   //     ... its derivative at fixed v and D (§13.2)
+    g.applyRawAdjointVirial  =MakeRawIntegratorVirial(grid);     //     ... its strain derivative (moment + the weight's dilation)
     return g;
 }
 
@@ -580,6 +582,29 @@ std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shar
     };
 }
 
+namespace
+{
+//! The raw route's level fields: V_0 = v (the finest level, raw), V_L = BackwardFFT_L(TransferBand(ForwardFFT_0(v))) -- the transpose of
+//! MakeRawCollocator's zero-pad.  ONE helper, so the gather and its derivatives integrate the same fields.
+std::vector<rvec_t> RawLevelFields(const std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>>& levels, const std::vector<ivec3_t>& N_L,
+                                   const rvec_t& v)
+{
+    const size_t K=levels.size();
+    const ivec3_t NT=N_L[0];
+    if (v.size()!=size_t(NT.x)*NT.y*NT.z) throw std::invalid_argument("GPW raw gather: the field is not on the integration raster");
+    cvec_t vt=levels[0]->ForwardFFT(v);
+    std::vector<rvec_t> V_L(K);
+    V_L[0]=v;
+    for (size_t l=1; l<K; l++)
+    {
+        cvec_t ctL(size_t(N_L[l].x)*N_L[l].y*N_L[l].z, dcmplx(0.0));
+        TransferBand(vt, NT, ctL, N_L[l]);
+        V_L[l]=levels[l]->BackwardFFT(ctL);
+    }
+    return V_L;
+}
+} //anon
+
 // The exact transpose: v(r) on grid's raster -> <i|v|j>.  V_0 = v identity (adjoint of the raw keep);
 // V_L = BackwardFFT_L(TransferBand(ForwardFFT_T(v))) -- the ForwardFFT 1/Npts against IntegratePotential's
 // internal Omega/Npts(L) weight leaves NO stray factors (derivation in the interface doc).
@@ -601,18 +626,7 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
     return [A,levels,N_L,ecut_L,mol,lat,phase,memo,gmemo,screen,relFS=itsRelFieldSharp](const rvec_t& v) -> chmat_t
     {
         qchem::report::Timed timer("scf: h raw closure (spectral transfer)");
-        const size_t K=levels.size();
-        const ivec3_t NT=N_L[0];
-        assert(v.size()==size_t(NT.x)*NT.y*NT.z);
-        cvec_t vt=levels[0]->ForwardFFT(v);
-        std::vector<rvec_t> V_L(K);
-        V_L[0]=v;
-        for (size_t l=1; l<K; l++)
-        {
-            cvec_t ctL(size_t(N_L[l].x)*N_L[l].y*N_L[l].z, dcmplx(0.0));
-            TransferBand(vt, NT, ctL, N_L[l]);
-            V_L[l]=levels[l]->BackwardFFT(ctL);
-        }
+        const std::vector<rvec_t> V_L=RawLevelFields(levels, N_L, v);
         // ⛔ THE GATHER IS NO LONGER D-SCREENED (2026-09-04).  Passing the density here was a qchem-only
         // acceleration with three costs and no owner:
         //   1. THE DIAGONAL-SEED DEFECT.  h_ij = <chi_i|V|chi_j> is NOT weighted by D_ij; dropping a term
@@ -637,6 +651,41 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
         h = lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, *screen, 0.0, screenD, 0.0, relFS);
         gmemo->Store(V_L, screenD, h);
         return h;
+    };
+}
+
+std::function<rvec3vec_t(const rvec_t&, const chmat_t&, const Structure*)>
+GPW_Evaluator::MakeRawIntegratorPullback(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
+{
+    RasterLevels lad=itsLadder->MakeLevels(grid);
+    auto levels=std::move(lad.levels);
+    auto N_L=std::move(lad.N);
+    auto ecut_L=std::move(lad.ecut);
+    const UnitCell A = itsCell;
+    auto mol   = itsMol;                                    // keep the molecular basis (lat) alive in the closure
+    const Gaussian::Periodic_Gaussian_IBS* lat = itsLat;
+    auto phase = CellPhase();
+    auto screen= itsScreener;
+    return [A,levels,N_L,ecut_L,mol,lat,phase,screen,relFS=itsRelFieldSharp](const rvec_t& v, const chmat_t& D, const Structure* st) -> rvec3vec_t
+    {
+        return lat->IntegratePotentialPullback(RawLevelFields(levels, N_L, v), D, phase, A, N_L, ecut_L, *screen, relFS, st);
+    };
+}
+std::function<rmat3d_t(const rvec_t&, const chmat_t&, const Structure*)>
+GPW_Evaluator::MakeRawIntegratorVirial(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
+{
+    RasterLevels lad=itsLadder->MakeLevels(grid);
+    auto levels=std::move(lad.levels);
+    auto N_L=std::move(lad.N);
+    auto ecut_L=std::move(lad.ecut);
+    const UnitCell A = itsCell;
+    auto mol   = itsMol;
+    const Gaussian::Periodic_Gaussian_IBS* lat = itsLat;
+    auto phase = CellPhase();
+    auto screen= itsScreener;
+    return [A,levels,N_L,ecut_L,mol,lat,phase,screen,relFS=itsRelFieldSharp](const rvec_t& v, const chmat_t& D, const Structure*) -> rmat3d_t
+    {
+        return lat->IntegratePotentialVirial(RawLevelFields(levels, N_L, v), D, phase, A, N_L, ecut_L, *screen, relFS);
     };
 }
 

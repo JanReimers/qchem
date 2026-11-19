@@ -498,12 +498,19 @@ TEST(HamiltonianForces, OnAGPWBlockEveryTermWithoutAPullbackNamesItself)
     // and the three PP terms (2026-11-19: the short part and the KB projectors are lattice Enzyme walks, M_LatticePullback; the long part is
     // the custom-ladder gather's pullback and its field's structure factor; all three gated at block level by UTLattice_BS GPW_Force and per
     // term at fixed D below).
+    // On the RASTER the XC term's force is the raw gather's pullback (2026-11-19, READY 3); on the Becke mesh it still names itself (READY 4).
     const std::vector<std::string> kGated={"Fitted Hartree", "Ion-Ion", "Kinetic", "PW electron-ion: SHORT", "PW electron-ion: LONG", "PW electron-ion: KB"};
-    auto gated=[&](const std::string& label){ for (const auto& g : kGated) if (label.rfind(g,0)==0) return true; return false; };
+    bool becke=false;
+    auto gated=[&](const std::string& label)
+    {
+        for (const auto& g : kGated) if (label.rfind(g,0)==0) return true;
+        return !becke && label.rfind("XC-mesh",0)==0;
+    };
     const auto mat=Materials::Get("Si_diamond");
     SCFParams p; p.NMaxIter=100; p.MinΔρPerElectron=1e-6; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
-    for (bool becke : {false, true})   // XC on the raster (Uniform), and on the Becke mesh (pin 31)
+    for (bool b : {false, true})   // XC on the raster (Uniform), and on the Becke mesh (pin 31)
     {
+        becke=b;
         RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.label="gpw forces"; o.accuracy.eps=0.0;   // stated rasters: no pilot (not the subject)
         if (becke) o.xcMesh=qcMesh::BeckeXCParams(); else SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
         o.scf=p; auto c=SolidCalculation::Prepare(SolidSetup::Resolve(Lattice_3D(UnitCell(*mat.cell), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o)).TakeValue(); (void)c->Converge();
@@ -711,8 +718,8 @@ TEST(HamiltonianStress, OnPlaneWavesTheWholeVirialIsTheStrainDerivativeOfTheReco
 // THE GPW TERMS' VIRIALS AT FIXED D (lane H 2026-11-11, agreed with lane B): on a Bloch Gaussian (GPW) basis, every term that answers a
 // virial against the strain finite difference of its own energy, D frozen and the molecular basis remade at the strained centres.  The
 // SAME sheared, distorted Si cell and 2 % allowance as the PW gates; the GPW Hartree (Vee_Fit: the fit side and the gather's moment +
-// dilation, IntegratePotentialVirial), the kinetic and ion-ion, and the three PP terms (lane B 2026-11-19).  XC (with the δ XC force)
-// name themselves and are skipped here; a term that gains its virial joins the gate by answering.
+// dilation, IntegratePotentialVirial), the kinetic and ion-ion, the three PP terms and the XC term on the raster (the raw gather's
+// virial plus the term's dilation; lane B 2026-11-19): every term answers.  A term that names a missing virial is skipped.
 TEST(HamiltonianStress, OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFiniteDifference)
 {
     RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="gpw stress"; o.accuracy.eps=0.0;   // stated rasters
@@ -736,11 +743,12 @@ TEST(HamiltonianStress, OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFini
     }
     ASSERT_EQ(Ep[0].size(), V.size()) << "MakeTermVirials is MakeTermEnergies' twin, index for index";
     double largest=0.0;
-    bool sawHartree=false;
+    bool sawHartree=false, sawXC=false;
     for (size_t t=0;t<V.size();t++)
     {
         if (!V[t].missing.empty()) { std::cout << "[stress] GPW " << V[t].label << ": " << V[t].missing << std::endl; continue; }
         if (V[t].label.rfind("Fitted Hartree",0)==0) sawHartree=true;
+        if (V[t].label.rfind("XC-mesh",0)==0) sawXC=true;
         for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++)
         {
             const size_t k=3*(i-1)+j-1;
@@ -751,14 +759,15 @@ TEST(HamiltonianStress, OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFini
         }
     }
     EXPECT_TRUE(sawHartree) << "the GPW Hartree answers its virial";
+    EXPECT_TRUE(sawXC) << "the raster XC answers its virial (the raw gather's)";
     EXPECT_GT(largest, 0.1) << "the terms are stressed (far above the gate, so a sign would show)";
 }
 
 // REAL TRIM BLOCKS ON A k-MESH (lane H 2026-11-11, the forces row's "real TRIM block of a lattice basis"): GPW Si at k222, where every
 // k is a TRIM point and the blocks run REAL (asserted below), each term that answers gives its force and its virial at fixed D equal to
 // the finite difference of its own energy: an atom moved (h 1e-4, three axes) and the cell strained (h 1e-4, six components), D
-// frozen on the remade basis.  The sheared, distorted cell and 2 % allowance of the PW gates.  The three PP terms answer (lane B
-// 2026-11-19); XC (the δ XC) names itself, and the WHOLE force and stress against the re-converged energy wait on it.
+// frozen on the remade basis.  The sheared, distorted cell and 2 % allowance of the PW gates.  Every term answers since 2026-11-19 (lane
+// B: the three PP terms, and XC on this raster through the raw gather's pullback and virial).
 TEST(HamiltonianForces, OnRealTRIMBlocksAtK222EachTermsForceAndVirialAtFixedDAreItsEnergysFiniteDifference)
 {
     RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="gpw k222"; o.accuracy.eps=0.0;   // stated rasters
@@ -886,6 +895,69 @@ TEST(ForceFacade, TheSharedEnergyWeightedSnapshotIsTheFacadesW)
 // so the G set IS QE's sphere.  QE's analytic stress is the derivative at its fixed G set too (no constant-Ecut Pulay correction on
 // either side).  QE prints −σ (pressure positive); ours is σ = V/Ω, tensile positive.  The deck and output:
 // ~/Code/qe-runs/Si/si_shear_e10.scf.{in,out} (pw.x, mpirun -np 1, 2026-11-10): E = −14.57926517 Ry, P = 373.33 kbar.
+// THE WHOLE GPW FORCE AND STRESS (lane B 2026-11-19, READY 3): on the raster XC route every GPW term has its fixed-D force and virial
+// (kinetic, the three PP terms, the fitted Hartree, the raw-gather XC, the Ewald sum) and the Pulay sum has the Bloch overlap's, so the
+// session's force and stress are the derivatives of its RE-CONVERGED energy -- the PW gates' twins on the same sheared, distorted Si cell,
+// 2 % allowance and SCF, the orbital basis GPW (SIPP_SR, Γ).  Every atom and axis (h 1e-3) and the six strain components (h 5e-4).
+TEST(HamiltonianForces, OnAGPWRasterTheSessionsForceAndStressAreTheDerivativesOfItsEnergy_Long)
+{
+    RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="gpw whole"; o.scf=PWStressParams(); o.accuracy.eps=0.0;
+    SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform; o.solid.cellStrainAllowance=kPWStressAllowance;
+    o.solid.xcMeshSymmetric=false;   // a FREE geometry run: one plain mesh at every point (SolidSession refuses a group-adapted one)
+    const auto setup=SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
+    SolidSession pes(setup, {SCFStage{PWStressParams(), SCFAccelerators::Type::Auto}});
+    const PESGeometry ref=pes.Reference();
+    auto p0=pes.ConvergeAt(ref.cell, ref.R, {.forces=true, .stress=true});
+    ASSERT_TRUE(p0) << p0.Error().details;
+    ASSERT_TRUE(p0->forces && p0->stress);
+    const std::vector<rvec3_t>& F=*p0->forces;
+    ASSERT_EQ(F.size(), ref.R.size());
+    std::cout << "[gpw whole] |ΣF| " << norm(F[0]+F[1]) << " (the raster's egg-box)" << std::endl;
+    double worstF=0.0, bigF=0.0;
+    const double h=1e-3;
+    for (size_t A=0;A<F.size();A++) for (int k=0;k<3;k++)
+    {
+        auto E=[&](double s)
+        {
+            auto R=ref.R; (k==0 ? R[A].x : k==1 ? R[A].y : R[A].z)+=s;
+            auto p=pes.ConvergeAt(ref.cell, R);
+            EXPECT_TRUE(p) << p.Error().details;
+            return p ? p->energy : 0.0;
+        };
+        const double fd=-(E(h)-E(-h))/(2*h), an=C(F[A],k);
+        std::cout << "[forces] GPW whole atom " << A << " axis " << k << ": analytic " << an << "  FD " << fd << "  diff " << an-fd << std::endl;
+        worstF=std::max(worstF, std::fabs(an-fd)); bigF=std::max(bigF, std::fabs(fd));
+    }
+    const double Ω=std::fabs(Determinant(*ref.cell));
+    rmat3d_t V; for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) V(i,j)=(*p0->stress)(i,j)*Ω;
+    double worstV=0.0, bigV=0.0;
+    const double hs=5e-4;
+    const std::pair<size_t,size_t> comps[]={{1,1},{2,2},{3,3},{1,2},{2,3},{3,1}};
+    for (const auto& [i,j] : comps)
+    {
+        auto E=[&](double s)
+        {
+            Matrix3D<double> Fm; Fm(i,j)+=s;
+            std::vector<rvec3_t> R; for (const auto& r : ref.R) R.push_back(Fm*r);
+            auto p=pes.ConvergeAt(Fm*(*ref.cell), R);
+            EXPECT_TRUE(p) << p.Error().details;
+            return p ? p->energy : 0.0;
+        };
+        const double fd=(E(hs)-E(-hs))/(2*hs);
+        std::cout << "[stress] GPW whole (" << i << "," << j << "): analytic " << V(i,j) << "  FD " << fd << "  diff " << V(i,j)-fd
+                  << "  (V_ji " << V(j,i) << ")" << std::endl;
+        worstV=std::max(worstV, std::fabs(V(i,j)-fd)); bigV=std::max(bigV, std::fabs(fd));
+    }
+    std::cout << "[gpw whole] worst |F - FD| " << worstF << " of max|F| " << bigF << ";  worst |V - FD| " << worstV << " of max|V| " << bigV << std::endl;
+    EXPECT_GT(bigF, 1e-2) << "the force is not trivially small";
+    EXPECT_GT(bigV, 1e-2) << "the cell is stressed";
+    // MEASURED 2026-11-19: |F - FD| <= 1.8e-7 (max|F| 0.045) and |V - FD| <= 2.3e-6 (max|V| 0.49) -- the SCF's 1e-8-per-electron floor
+    // over h plus h^2 |E'''|/6; the raster's egg-box |ΣF| 2.2e-5 is no gate here.  A missing term of this cell's size (>= 1e-3) cannot hide.
+    EXPECT_LT(worstF, 1e-6) << "the GPW force is not the derivative of the re-converged energy";
+    EXPECT_LT(worstV, 1e-5) << "the GPW virial is not the strain derivative of the re-converged energy";
+    for (size_t i=1;i<=3;i++) for (size_t j=1;j<=3;j++) EXPECT_NEAR(V(i,j), V(j,i), 1e-7) << "the converged virial is symmetric (" << i << "," << j << ")";
+}
+
 TEST(HamiltonianStress, OnPlaneWavesSisStressIsQEs)
 {
     RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=40.0; o.label="pw stress vs QE";

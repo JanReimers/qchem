@@ -226,3 +226,60 @@ TEST(GPW_Force, ThePPForcesAndVirialsAtFixedDAreTheirFiniteDifferences)
         EXPECT_LT(worst[t], 1e-6*big[t]) << "the GPW " << kName[t] << " PP force / virial at fixed D is not its energy's finite difference";
     }
 }
+
+// THE RAW RASTER GATHER's PULLBACK AND VIRIAL (lane B 2026-11-19, READY 3: the XC term's raster route): Overlap3C's applyRawAdjointPullback
+// / Virial against the central difference of Re Tr(D applyRawAdjoint(v)) at a FIXED field v per raster index, the block rebuilt on displaced
+// atoms and on a strained cell (the sizing box holds the raster), at the same NON-TRIM k.  The virial includes the raster weight's dilation.
+TEST(GPW_Force, TheRawRasterGathersPullbackAndVirialAreItsFiniteDifference)
+{
+    const UnitCell cell=CellOf();
+    const auto gpw=Block(cell);
+    const GPW_Evaluator& ev=*gpw;
+    const size_t n=static_cast<const Complex_OIBS&>(*gpw).GetNumFunctions();
+    const chmat_t D=RandomHermitian(n);
+    const PairProjection<dcmplx> g=ev.Overlap3CTensor();
+    ASSERT_TRUE(g.applyRawAdjoint && g.applyRawAdjointPullback && g.applyRawAdjointVirial) << "the GPW tensor carries the raw gather's derivatives";
+    const size_t NR=ev.DensityGrid().RasterSize();
+    rvec_t v(NR);
+    for (size_t r=0;r<NR;r++) v[r]=-0.4+0.3*std::sin(0.37*double(r))+0.1*std::cos(0.011*double(r)*double(r%17));   // a fixed, rough field per index
+    auto ReTr=[&](const chmat_t& M)
+    {
+        double t=0.0;
+        for (size_t i=0;i<n;i++)
+        {
+            t+=std::real(dcmplx(D(i,i)))*std::real(dcmplx(M(i,i)));
+            for (size_t j=i+1;j<n;j++) t+=2.0*std::real(std::conj(dcmplx(D(i,j)))*dcmplx(M(i,j)));
+        }
+        return t;
+    };
+    auto energy=[&](const UnitCell& c)
+    {
+        const auto b=Block(c);
+        const GPW_Evaluator& e=*b;
+        EXPECT_EQ(e.DensityGrid().RasterSize(), NR) << "the sizing box holds the raster";
+        return ReTr(e.Overlap3CTensor().applyRawAdjoint(v));
+    };
+    const rvec3vec_t G=g.applyRawAdjointPullback(v, D, &cell);
+    const rmat3d_t   V=g.applyRawAdjointVirial(v, D, &cell);
+    ASSERT_EQ(G.size(), 2u);
+    double big=0.0, worst=0.0;
+    const double h=1e-3;
+    for (size_t a=0;a<2;a++)
+        for (int c=0;c<3;c++)
+        {
+            auto central=[&](double s){ rvec3_t e(0,0,0); (c==0 ? e.x : c==1 ? e.y : e.z)=s; return (energy(CellOf(a,e))-energy(CellOf(a,-1.0*e)))/(2*s); };
+            const double fd=(4.0*central(0.5*h)-central(h))/3.0, an=Comp(G[a],c);   // Richardson: the rough field's h^2 term is ~1e-6 relative
+            std::printf("  [GPW raw gather] atom %zu %c  analytic % .10e  FD % .10e  diff %.2e\n", a, "xyz"[c], an, fd, an-fd);
+            big=std::max(big,std::fabs(fd)); worst=std::max(worst,std::fabs(an-fd));
+        }
+    for (int u=0;u<3;u++)
+        for (int w=0;w<3;w++)
+        {
+            auto central=[&](double s){ return (energy(StrainedOf(u,w,s))-energy(StrainedOf(u,w,-s)))/(2*s); };
+            const double fd=(4.0*central(0.5*h)-central(h))/3.0, an=V(u+1,w+1);
+            std::printf("  [GPW raw gather] strain %c%c  analytic % .10e  FD % .10e  diff %.2e\n", "xyz"[u], "xyz"[w], an, fd, an-fd);
+            big=std::max(big,std::fabs(fd)); worst=std::max(worst,std::fabs(an-fd));
+        }
+    ASSERT_GT(big, 1e-3) << "a vanishing derivative cannot show the walk is wired";
+    EXPECT_LT(worst, 1e-6*big) << "the raw gather's pullback / virial at fixed v and D is not its finite difference";
+}

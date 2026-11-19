@@ -336,15 +336,26 @@ public:
     mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const override;
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
-    //! The derivatives beside \c Matrix (§13.2): this strategy is the RAW GPW raster gather only (the ball route is
-    //! \c ProjectedDensitySampler's since V-XC-ONE-TERM step 2), and its jets are not built -- so it answers \c false and refuses by
-    //! name, one \c MissingGradients() entry per block (lane B's hunks, moved by lane S 2026-11-10).
-    bool CanPullbackMatrix(const cobs_t*) const override {return false;}
-    bool CanPullbackMatrix(const robs_t*) const override {return false;}
+    //! The derivatives beside \c Matrix (§13.2; lane B 2026-11-19): this strategy is the RAW GPW raster gather only (the ball route is
+    //! \c ProjectedDensitySampler's since V-XC-ONE-TERM step 2), so each is the block tensor's \c applyRawAdjointPullback / Virial at the
+    //! fixed field -- the exact derivative of the gather \c Matrix runs (the same level fields, screener and rule).  A block whose tensor
+    //! does not carry them refuses by name.  The virial is the orbital side INCLUDING the raster weight's dilation \f$\delta_{ab}\int v\rho\f$,
+    //! which with the term's \f$\delta_{ab}(E-\int v\rho)\f$ (\c HasDilationVirial: the raster is fixed in fractional coordinates, weights
+    //! \f$\Omega/N\f$) gives the whole fixed-D strain derivative \f$\delta_{ab}E\f$ + the gather's moment (a raw \f$\rho_g\f$ does not scale as \f$1/\Omega\f$:
+    //! the Gaussians keep their shapes; it moves only with the strained centres, which the moment carries).
+    bool CanPullbackMatrix(const cobs_t* bs) const override;
+    bool CanPullbackMatrix(const robs_t* bs) const override;
     Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const cobs_t* bs, const rvec_t& v, const chmat_t& D, const Structure* st) const override;
     Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const override;
+    bool HasDilationVirial() const override {return true;}
+    bool CanVirialMatrix(const cobs_t* bs) const override;
+    bool CanVirialMatrix(const robs_t* bs) const override;
+    Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const cobs_t* bs, const rvec_t& v, const chmat_t& D, const Structure* st) const override;
+    Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const override;
 private:
     template <class U> hmat_t<U> MatrixT(const tobs_t<U>* bs, const rvec_t& v) const;
+    //! The block's raw tensor when it carries the derivative realizations (null: it refuses).
+    template <class U> const PairProjection<dcmplx>* RawDerivativeTensor(const tobs_t<U>* bs) const;
     //! Ensure \c itsRho holds \f$\rho(r)\f$ on the raster for \a cd, recomputing only on a new density
     //! serial -- so the XC pair's two terms and their energies share ONE collocation per iteration.
     void Refresh(const cChargeDensity* cd) const;

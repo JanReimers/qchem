@@ -9,6 +9,7 @@
 // exactly what module-internal linkage is for -- they are visible to every unit of this module and to
 // nothing outside it.
 module;
+#include <type_traits>
 #include <mutex>
 #include <algorithm>   // std::min (the threaded quadrature's output-column blocking)
 #include <cassert>
@@ -394,18 +395,57 @@ PairDensitySampler::BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb)
 chmat_t PairDensitySampler::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
 rsmat_t PairDensitySampler::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}
 
-// THE DERIVATIVE OF MatrixT at the fixed field v (GeometryOptimizationPlan §13.2): this strategy is the RAW GPW raster gather, whose
-// jets are not built (its box truncation differs from the G-space integrator's, so the Hartree jets are not its exact derivative): a
-// named refusal, a MissingGradients() entry.  (The ball route's pullback lives on ProjectedDensitySampler.)
-Outcome<rvec3vec_t,AD::NoGradient> PairDensitySampler::MakeMatrixPullback(const cobs_t* bs, const rvec_t&, const chmat_t&, const Structure*) const
+// THE DERIVATIVES OF MatrixT at the fixed field v (GeometryOptimizationPlan §13.2; CellHalf_Design §5; lane B 2026-11-19): the block's raw
+// tensor's applyRawAdjointPullback / Virial -- the gather MatrixT runs (applyRawAdjoint), differentiated on the same level fields, screener
+// and rule.  A real TRIM block hands its D over widened: its tensor is the run's complex one (TFit = dcmplx), as MatrixT narrows at the end.
+namespace
 {
-    return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the raw raster XC gather has no geometry gradient on the block "+bs->Name()
-                                                     +" (its collocation jets are not built)"});
+template <class U> chmat_t WidenD(const hmat_t<U>& D)
+{
+    if constexpr (std::is_same_v<U,dcmplx>) return D;
+    else { chmat_t c(D.rows()); for (size_t i=0;i<D.rows();i++) for (size_t j=i;j<D.rows();j++) c(i,j)=dcmplx(D(i,j),0.0); return c; }
 }
-Outcome<rvec3vec_t,AD::NoGradient> PairDensitySampler::MakeMatrixPullback(const robs_t* bs, const rvec_t&, const hmat_t<double>&, const Structure*) const
+} // namespace
+
+template <class U> const PairProjection<dcmplx>* PairDensitySampler::RawDerivativeTensor(const tobs_t<U>* bs) const
 {
-    return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the raw raster XC gather has no geometry gradient on the real block "+bs->Name()
-                                                     +" (its collocation jets are not built)"});
+    const auto* orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>*>(bs);   // abstract -> abstract: a block without the DFT tier refuses
+    if (!orb) return nullptr;
+    const PairProjection<dcmplx>& g=orb->Overlap3C(*itsFitBasis);
+    return (g.applyRawAdjointPullback && g.applyRawAdjointVirial) ? &g : nullptr;
+}
+bool PairDensitySampler::CanPullbackMatrix(const cobs_t* bs) const {return RawDerivativeTensor(bs)!=nullptr;}
+bool PairDensitySampler::CanPullbackMatrix(const robs_t* bs) const {return RawDerivativeTensor(bs)!=nullptr;}
+bool PairDensitySampler::CanVirialMatrix  (const cobs_t* bs) const {return RawDerivativeTensor(bs)!=nullptr;}
+bool PairDensitySampler::CanVirialMatrix  (const robs_t* bs) const {return RawDerivativeTensor(bs)!=nullptr;}
+
+Outcome<rvec3vec_t,AD::NoGradient> PairDensitySampler::MakeMatrixPullback(const cobs_t* bs, const rvec_t& v, const chmat_t& D, const Structure* st) const
+{
+    const auto* g=RawDerivativeTensor(bs);
+    if (!g) return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the raw raster XC gather has no geometry gradient on the block "+bs->Name()
+                                                             +" (its tensor carries no applyRawAdjointPullback)"});
+    return Outcome<rvec3vec_t,AD::NoGradient>::Ok(g->applyRawAdjointPullback(v, D, st));
+}
+Outcome<rvec3vec_t,AD::NoGradient> PairDensitySampler::MakeMatrixPullback(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const
+{
+    const auto* g=RawDerivativeTensor(bs);
+    if (!g) return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"the raw raster XC gather has no geometry gradient on the real block "+bs->Name()
+                                                             +" (its tensor carries no applyRawAdjointPullback)"});
+    return Outcome<rvec3vec_t,AD::NoGradient>::Ok(g->applyRawAdjointPullback(v, WidenD<double>(D), st));
+}
+Outcome<rmat3d_t,AD::NoGradient> PairDensitySampler::MakeMatrixVirial(const cobs_t* bs, const rvec_t& v, const chmat_t& D, const Structure* st) const
+{
+    const auto* g=RawDerivativeTensor(bs);
+    if (!g) return Outcome<rmat3d_t,AD::NoGradient>::Fail({"the raw raster XC gather has no virial on the block "+bs->Name()
+                                                           +" (its tensor carries no applyRawAdjointVirial)"});
+    return Outcome<rmat3d_t,AD::NoGradient>::Ok(g->applyRawAdjointVirial(v, D, st));
+}
+Outcome<rmat3d_t,AD::NoGradient> PairDensitySampler::MakeMatrixVirial(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const
+{
+    const auto* g=RawDerivativeTensor(bs);
+    if (!g) return Outcome<rmat3d_t,AD::NoGradient>::Fail({"the raw raster XC gather has no virial on the real block "+bs->Name()
+                                                           +" (its tensor carries no applyRawAdjointVirial)"});
+    return Outcome<rmat3d_t,AD::NoGradient>::Ok(g->applyRawAdjointVirial(v, WidenD<double>(D), st));
 }
 
 } //namespace
