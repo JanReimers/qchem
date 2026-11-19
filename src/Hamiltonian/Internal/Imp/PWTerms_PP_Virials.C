@@ -2,8 +2,8 @@
 // §6.2, 2026-11-10; lane H).  Its own TU, beside Imp/PWTerms_PP_Forces.C, so the strain work stays out of the term files lane S edits.
 //
 // Each of Ven_PP_Short / Ven_PP_Long / Ven_PP_NonLocal is STATIC and LINEAR in D, E = Re Tr(D† V) (+ a local half's G = 0 alignment
-// E_α = N·α/Ω), so at fixed D, ∂E/∂ε_ab = Σ_blocks MakeSpeciesFieldVirial / MakeProjectorVirial (the basis owns Ω, G and the structure
-// factor) − δ_ab E_α (α/Ω scales as 1/Ω; N is fixed).  A basis whose virial refuses is a MissingVirials() entry, never a silent zero.
+// E_α = N·α/Ω, N the FIXED electron count: Ven_PP_Short::itsNumElectrons), so at fixed D, ∂E/∂ε_ab = Σ_blocks
+// MakeSpeciesFieldVirial / MakeProjectorVirial (the basis owns Ω, G and the structure factor) − δ_ab E_α (α/Ω scales as 1/Ω).  A basis whose virial refuses is a MissingVirials() entry, never a silent zero.
 module;
 #include <stdexcept>
 #include <string>
@@ -50,9 +50,9 @@ void Add(rmat3d_t& V, const rmat3d_t& v, double Ealpha)
 } // namespace
 
 std::string Ven_PP_Short::MissingVirial(const tbs_t<dcmplx>* bs, const Structure*) const
-{return Missing(bs, "Ven_PP_Short", "species-field virial", [&](const auto& pp){return pp.CanVirialSpeciesField(*itsLocal);});}
+{return Missing(bs, "Ven_PP_Short", "species-field virial", [&](const auto& pp){return pp.CanVirialSpeciesField(*itsLocal, BasisSet::FieldRange::Short);});}
 std::string Ven_PP_Long::MissingVirial(const tbs_t<dcmplx>* bs, const Structure*) const
-{return Missing(bs, "Ven_PP_Long", "species-field virial", [&](const auto& pp){return pp.CanVirialSpeciesField(*itsLocal);});}
+{return Missing(bs, "Ven_PP_Long", "species-field virial", [&](const auto& pp){return pp.CanVirialSpeciesField(*itsLocal, BasisSet::FieldRange::Long);});}
 std::string Ven_PP_NonLocal::MissingVirial(const tbs_t<dcmplx>* bs, const Structure*) const
 {return Missing(bs, "Ven_PP_NonLocal", "projector virial", [&](const auto& pp){return pp.CanVirialProjectors(*itsSep);});}
 
@@ -69,8 +69,8 @@ rmat3d_t Ven_PP_NonLocal::Virial(const cobs_t* bs, const Spin&, const chmat_t& D
 rmat3d_t Ven_PP_NonLocal::Virial(const robs_t* bs, const Spin&, const hmat_t<double>& D, const Structure*) const
 {return Value(Need(bs,"Ven_PP_NonLocal").MakeProjectorVirial(&*theStructure, *itsSep, D), "Ven_PP_NonLocal");}
 
-void Ven_PP_Short::AddVirial   (rmat3d_t& V, const cDM_CD* D, const Structure* st) const {Add(V, D->DM_Virial(this, st), D->GetTotalCharge()*itsAlphaZ);}
-void Ven_PP_Long::AddVirial    (rmat3d_t& V, const cDM_CD* D, const Structure* st) const {Add(V, D->DM_Virial(this, st), D->GetTotalCharge()*itsAlphaZ);}
+void Ven_PP_Short::AddVirial   (rmat3d_t& V, const cDM_CD* D, const Structure* st) const {Add(V, D->DM_Virial(this, st), itsNumElectrons*itsAlphaZ);}
+void Ven_PP_Long::AddVirial    (rmat3d_t& V, const cDM_CD* D, const Structure* st) const {Add(V, D->DM_Virial(this, st), itsNumElectrons*itsAlphaZ);}
 void Ven_PP_NonLocal::AddVirial(rmat3d_t& V, const cDM_CD* D, const Structure* st) const {Add(V, D->DM_Virial(this, st), 0.0);}
 
 } // namespace qchem::Hamiltonian

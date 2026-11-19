@@ -237,7 +237,7 @@ TEST(VxcProductSpace, TheProductionsBuildTheOneTerm)
             ? BasisSet::Lattice::GPWFactory(lat, mol, {.densityEcut=8.0})
             : BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, 4.0));
         Hamiltonian::CoulombFitSlot<dcmplx> coulombFit;
-        std::unique_ptr<Hamiltonian::cHamiltonian> ham(Hamiltonian::Factory(SpinGroup::UnPolarized, lat.GetStructure(), bs.get(), coulombFit,
+        std::unique_ptr<Hamiltonian::cHamiltonian> ham(Hamiltonian::Factory(SpinGroup::UnPolarized, lat.GetStructure(), bs.get(), coulombFit, 4.0,
             Pseudopotential::PseudopotentialSet::Get("gth-lda-valence"), mesh, Hamiltonian::XCRoute(fit), {}, {}, {}));
         EXPECT_TRUE(HoldsTheOneTerm(*ham)) << name;
     }

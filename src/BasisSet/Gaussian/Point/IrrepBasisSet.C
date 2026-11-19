@@ -224,7 +224,7 @@ public:
     // kernels (NR_Evaluator::OverlapWithPullback / OperatorThreeCPullback / GaussianRepulsionPullback, lane B 2026-11-13): the force
     // differentiates the formulas the energy sums, libcint out of the path (the user's 2026-11-10 ruling).  The VALUES the projector
     // pullback weights by (b_i = <i|β Y_lm>) are this engine's, exactly as MakeProjectorMatrix forms them.
-    virtual bool CanPullbackSpeciesField(const SpeciesRadialField& f) const override {return kMnD && CanAssembleField(f);}
+    virtual bool CanPullbackSpeciesField(const SpeciesRadialField& f, FieldRange) const override {return kMnD && CanAssembleField(f);}
     virtual bool CanPullbackProjectors(const SpeciesProjectorSet& ps) const override {return kMnD && CanAssembleProjectors(ps);}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure* st, const SpeciesRadialField& f, FieldRange range,
                                                                         const hmat_t<double>& D) const override

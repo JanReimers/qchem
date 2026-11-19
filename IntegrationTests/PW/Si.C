@@ -164,11 +164,11 @@ TEST(PW_Si, Γ_eqPrototype)
     // owns the pseudopotential model (the pseudo-wall) and assembles it through the basis.
     cHamiltonianImp ham(SpinGroup::UnPolarized);
     ham.Add(new Kinetic<dcmplx>);
-    ham.Add(new Ven_PP_Short(si, &loc));                                // electron-ion SHORT-range local
+    ham.Add(new Ven_PP_Short(si, &loc, 8.0));                             // electron-ion SHORT-range local
     ham.Add(new Ven_PP_NonLocal(si, &nl));                              // KB separable projectors
     // The LONG-range core-charge V_long is its OWN term (the CP2K local-PP split, doc/GPWPlan.md 0e-PP);
     // a manual Hamiltonian must add it explicitly or it drops V_long entirely.
-    ham.Add(new Ven_PP_Long(si, &loc));                                 // electron-ion LONG-range
+    ham.Add(new Ven_PP_Long(si, &loc, 8.0));                             // electron-ion LONG-range
     {
         std::shared_ptr<const qchem::BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(nullptr));
         ham.Add(new Vee_Fit<dcmplx>(qchem::Fitting::MakeGSpaceDensityFitter(fb), 0.0, fb));   // the periodic Hartree term (V-ONE-OF-N 3b)
@@ -262,7 +262,7 @@ TEST(PW_Si, Γ_Anchor)
         // Plane-wave LDA Kohn-Sham Hamiltonian: kinetic + external(pseudo) + Hartree + Dirac X + VWN5
         // (heap; the SCFIterator takes ownership).  Atoms from the lattice; the PP model lives on the term.
         qchem::Hamiltonian::CoulombFitSlot<dcmplx> coulombFit;   // the run's Coulomb-fit slot, beside its basis (S2b)
-        cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), coulombFit, "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
+        cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), coulombFit, 8.0, "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
         std::unique_ptr<cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
         // Complex DIIS (Pulay): extrapolate the Fock matrix from the [F,D] history; damps the marginal drift
         // within Si's degenerate Gamma_25' manifold so it converges to a tight |Delta rho|.
@@ -392,7 +392,7 @@ TEST(PW_Si, k222_Anchor)
     Crystal_EC ec(irreps, Nelec);                          // Nval per k-block; weights handle the BZ sum
 
     qchem::Hamiltonian::CoulombFitSlot<dcmplx> coulombFit;   // the run's Coulomb-fit slot, beside its basis (S2b)
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), coulombFit, "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), coulombFit, 8.0, "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
     std::unique_ptr<cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
     using qchem::SCFAccelerators::DIISParams;
     auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{.Nproj=8, .EngageBelowFD=0.5, .SVTol=1e-9});

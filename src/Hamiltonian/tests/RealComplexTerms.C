@@ -46,6 +46,7 @@ import qchem.Hamiltonian.Internal.SlaterExchange;  // SlaterExchange (the Dirac-
 import qchem.BasisSet.Orbital_PP_IBS;              // the real child's own PP pullbacks (the force-walk gate)
 import qchem.Hamiltonian.Internal.GeometryGradient;   // tStatic_PC (the force-walk gate)
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH (Si GTH-LDA-q4)
+import qchem.Pseudopotential.LocalPotential;       // GaussianSmearedNucleus (a local field with no closed-Gaussian form)
 import qchem.ChargeDensity.Imp.IrrepCD;            // PeriodicIrrepCD (the periodic leaf -- 3c-2b)
 import qchem.CompositeCD;                          // tComposite_CD<dcmplx> (the run-shaped density)
 import qchem.Mesh;                                 // qcMesh::MeshParams
@@ -309,8 +310,8 @@ TEST(RealComplexTerms, StaticTermsServeTheRealBlockBitwise)
     const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
 
     Kinetic<dcmplx> kin;
-    Ven_PP_Short    shrt(rig.st, &gth.local);
-    Ven_PP_Long     lng (rig.st, &gth.local);
+    Ven_PP_Short    shrt(rig.st, &gth.local, 4.0*rig.st->GetNumAtoms());
+    Ven_PP_Long     lng (rig.st, &gth.local, 4.0*rig.st->GetNumAtoms());
     Ven_PP_NonLocal nl  (rig.st, &gth.nonlocal);
 
     const std::vector<std::pair<const cStatic_HT*,const char*>> terms =
@@ -391,8 +392,8 @@ TEST(RealComplexTerms, StaticTermsServeTheRealBlockBitwise_FccDiamond)
     const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
 
     Kinetic<dcmplx> kin;
-    Ven_PP_Short    shrt(rig.st, &gth.local);
-    Ven_PP_Long     lng (rig.st, &gth.local);
+    Ven_PP_Short    shrt(rig.st, &gth.local, 4.0*rig.st->GetNumAtoms());
+    Ven_PP_Long     lng (rig.st, &gth.local, 4.0*rig.st->GetNumAtoms());
     Ven_PP_NonLocal nl  (rig.st, &gth.nonlocal);
 
     const std::vector<std::pair<const cStatic_HT*,const char*>> terms =
@@ -483,8 +484,8 @@ TEST(RealComplexTerms, HamiltonianAssemblyServesTheRealBlockBitwise)
 
     MixedHam ham;
     ham.Add(new Kinetic<dcmplx>);
-    ham.Add(new Ven_PP_Short   (rig.st, &gth.local));
-    ham.Add(new Ven_PP_Long    (rig.st, &gth.local));
+    ham.Add(new Ven_PP_Short   (rig.st, &gth.local, 4.0*rig.st->GetNumAtoms()));
+    ham.Add(new Ven_PP_Long    (rig.st, &gth.local, 4.0*rig.st->GetNumAtoms()));
     ham.Add(new Ven_PP_NonLocal(rig.st, &gth.nonlocal));
     {
         std::shared_ptr<const BasisSet::cFIT_CD_ABS> hfb(rig.cx->CreateCDFitBasisSet(rig.st.get()));
@@ -673,9 +674,9 @@ TEST(RealComplexTerms, TheForceWalksARealTRIMBlockThroughItsRealPullbackFace)
     const auto st=rig.cell.Clone();
     const auto* pp=dynamic_cast<const BasisSet::Orbital_PP_IBS<double>*>(rig.blk);
     ASSERT_NE(pp, nullptr);
-    ASSERT_TRUE(pp->CanPullbackSpeciesField(gth.local));
+    ASSERT_TRUE(pp->CanPullbackSpeciesField(gth.local, BasisSet::FieldRange::Short));
     ASSERT_TRUE(pp->CanPullbackProjectors(gth.nonlocal));
-    Ven_PP_Short    vs(st, &gth.local);
+    Ven_PP_Short    vs(st, &gth.local, 4.0*st->GetNumAtoms());
     Ven_PP_NonLocal vn(st, &gth.nonlocal);
     EXPECT_TRUE(vs.MissingGradient(&mixedBS, st.get()).empty());
     EXPECT_TRUE(vn.MissingGradient(&mixedBS, st.get()).empty());
@@ -688,9 +689,10 @@ TEST(RealComplexTerms, TheForceWalksARealTRIMBlockThroughItsRealPullbackFace)
 // THE GPW ONE-ELECTRON FORCE AND VIRIAL THROUGH BOTH BLOCK SCALARS (GeometryOptimizationPlan §13.2, doc/Records/CellHalf_Design.md §5;
 // lane B 2026-11-10).  The real TRIM block a GPW run builds (tGPW_IBS<double>) now gives the kinetic and overlap pullbacks and virials
 // (Enzyme over the MnD kernel per image, gated against the energy's finite difference in UTGaussian_BS M_LatticePullback), so Kinetic and the Pulay sum have
-// their force and virial on it, and on the Bloch block, IDENTICALLY (the real block widens its D onto the same walk at a real phase).  The
-// GPW PP terms still have none: they are NAMED (READY 2), never thrown.
-TEST(RealComplexTerms, ARealTRIMGPWBlockGivesKineticAndPulayForceAndVirialAndNamesTheRest)
+// their force and virial on it, and on the Bloch block, IDENTICALLY (the real block widens its D onto the same walk at a real phase).  Since
+// 2026-11-19 the three GPW PP terms do too (lattice Enzyme walks and the long range's gathers, gated against their energies' finite
+// differences in UTLattice_BS GPW_Force), so they join the identity; a local field WITHOUT the closed-Gaussian form still refuses by name.
+TEST(RealComplexTerms, ARealTRIMGPWBlockGivesTheOneElectronAndPPForcesAndVirialsAndNamesTheRest)
 {
     UnitCell cell(8.0);
     cell.AddAtom(14,{0.40,0.50,0.50});
@@ -711,19 +713,28 @@ TEST(RealComplexTerms, ARealTRIMGPWBlockGivesKineticAndPulayForceAndVirialAndNam
     const qchem::tests::pw::OneBlockBS<dcmplx> cxBS(&cx), reBS(&re);
 
     const auto gth=Pseudopotential::GetGTH("Si","LDA",4);
+    const double N=4.0*st->GetNumAtoms();
     Kinetic<dcmplx> kin;
-    Ven_PP_Short    vs(st, &gth.local);
+    Ven_PP_Short    vs(st, &gth.local, N);
+    Ven_PP_Long     vl(st, &gth.local, N);
+    Ven_PP_NonLocal vn(st, &gth.nonlocal);
     for (const auto* bs : {&cxBS, &reBS})
     {
         EXPECT_EQ(kin.MissingGradient(bs, st.get()), "") << "a GPW block has the kinetic pullback";
         EXPECT_EQ(kin.MissingVirial  (bs, st.get()), "") << "a GPW block has the kinetic virial";
-        EXPECT_NE(vs.MissingGradient(bs, st.get()).find("gives no species-field pullback"), std::string::npos) << "the GPW short PP is named";
+        for (const auto* t : {static_cast<const tGeometryGradient_HT<dcmplx>*>(&vs), static_cast<const tGeometryGradient_HT<dcmplx>*>(&vl),
+                              static_cast<const tGeometryGradient_HT<dcmplx>*>(&vn)})
+            EXPECT_EQ(t->MissingGradient(bs, st.get()), "") << "a GPW block has the PP pullbacks";
+        for (const auto* t : {static_cast<const tStrainGradient_HT<dcmplx>*>(&vs), static_cast<const tStrainGradient_HT<dcmplx>*>(&vl),
+                              static_cast<const tStrainGradient_HT<dcmplx>*>(&vn)})
+            EXPECT_EQ(t->MissingVirial(bs, st.get()), "") << "a GPW block has the PP virials";
     }
-    MixedHam ham; ham.Add(new Kinetic<dcmplx>);
-    EXPECT_TRUE(ham.MissingGradients(&cxBS, st.get()).empty()) << "Kinetic + Pulay: nothing missing on a Bloch GPW block";
-    EXPECT_TRUE(ham.MissingGradients(&reBS, st.get()).empty()) << "Kinetic + Pulay: nothing missing on a real TRIM GPW block";
-    EXPECT_TRUE(ham.MissingVirials  (&cxBS, st.get()).empty()) << "Kinetic + Pulay virials: nothing missing on a Bloch GPW block";
-    EXPECT_TRUE(ham.MissingVirials  (&reBS, st.get()).empty()) << "Kinetic + Pulay virials: nothing missing on a real TRIM GPW block";
+    MixedHam ham; ham.Add(new Kinetic<dcmplx>); ham.Add(new Ven_PP_Short(st, &gth.local, N)); ham.Add(new Ven_PP_Long(st, &gth.local, N));
+    ham.Add(new Ven_PP_NonLocal(st, &gth.nonlocal));
+    EXPECT_TRUE(ham.MissingGradients(&cxBS, st.get()).empty()) << "Kinetic + PP + Pulay: nothing missing on a Bloch GPW block";
+    EXPECT_TRUE(ham.MissingGradients(&reBS, st.get()).empty()) << "Kinetic + PP + Pulay: nothing missing on a real TRIM GPW block";
+    EXPECT_TRUE(ham.MissingVirials  (&cxBS, st.get()).empty()) << "Kinetic + PP + Pulay virials: nothing missing on a Bloch GPW block";
+    EXPECT_TRUE(ham.MissingVirials  (&reBS, st.get()).empty()) << "Kinetic + PP + Pulay virials: nothing missing on a real TRIM GPW block";
 
     const rvec3vec_t Fc=ham.MakeForces(&cxBS, cdc.get(), cdc.get(), st.get()), Fr=ham.MakeForces(&reBS, cdr.get(), cdr.get(), st.get());
     const rmat3d_t   Vc=ham.MakeVirial(&cxBS, cdc.get(), cdc.get(), st.get()), Vr=ham.MakeVirial(&reBS, cdr.get(), cdr.get(), st.get());
@@ -734,21 +745,22 @@ TEST(RealComplexTerms, ARealTRIMGPWBlockGivesKineticAndPulayForceAndVirialAndNam
         dF  =std::max({dF, std::fabs(Fc[A].x-Fr[A].x), std::fabs(Fc[A].y-Fr[A].y), std::fabs(Fc[A].z-Fr[A].z)});
     }
     for (size_t a=1;a<=3;a++) for (size_t b=1;b<=3;b++) { bigV=std::max(bigV, std::fabs(Vc(a,b))); dV=std::max(dV, std::fabs(Vc(a,b)-Vr(a,b))); }
-    std::printf("  [GPW kinetic + Pulay] max|F| %.3e |F_c - F_r| %.2e   max|V| %.3e |V_c - V_r| %.2e\n", bigF, dF, bigV, dV);
+    std::printf("  [GPW kinetic + PP + Pulay] max|F| %.3e |F_c - F_r| %.2e   max|V| %.3e |V_c - V_r| %.2e\n", bigF, dF, bigV, dV);
     ASSERT_GT(bigF, 1e-3) << "a vanishing force cannot show the walk is wired";
     ASSERT_GT(bigV, 1e-3) << "a vanishing virial cannot show the walk is wired";
-    EXPECT_LT(dF, 1e-12*bigF) << "the real TRIM block and the Bloch block give different kinetic + Pulay forces";
-    EXPECT_LT(dV, 1e-12*bigV) << "the real TRIM block and the Bloch block give different kinetic + Pulay virials";
+    EXPECT_LT(dF, 1e-12*bigF) << "the real TRIM block and the Bloch block give different kinetic + PP + Pulay forces";
+    EXPECT_LT(dV, 1e-12*bigV) << "the real TRIM block and the Bloch block give different kinetic + PP + Pulay virials";
 
     // The STRESS is the virial over the cell volume, unsymmetrised (CellHalf_Design §5); with a term that has no virial it REFUSES, naming it.
     const rmat3d_t σ=ham.At(&cxBS, cdc.get()).Stress(cdc.get(), cell);
     const double Ω=cell.GetCellVolume();
     for (size_t a=1;a<=3;a++) for (size_t b=1;b<=3;b++) EXPECT_DOUBLE_EQ(σ(a,b), Vc(a,b)/Ω) << "Stress = MakeVirial / Ω, component " << a << b;
-    MixedHam withPP; withPP.Add(new Kinetic<dcmplx>); withPP.Add(new Ven_PP_Short(st, &gth.local));
+    // A local field WITHOUT the closed-Gaussian form (a Gaussian-smeared nucleus) takes GPW's grid sweep, which has no derivative: the term
+    // HAS the face, and its GPW block refuses ("...gives no species-field virial").
+    const Pseudopotential::GaussianSmearedNucleus smeared(0.5);
+    MixedHam withPP; withPP.Add(new Kinetic<dcmplx>); withPP.Add(new Ven_PP_Short(st, &smeared, N));
     const auto mv=withPP.MissingVirials(&cxBS, st.get());
-    ASSERT_EQ(mv.size(), 1u) << "exactly the short PP has no virial";
-    // It names the term and what it lacks (since lane H's PW virials the term HAS the face, and its GPW block refuses: "...gives no
-    // species-field virial").
+    ASSERT_EQ(mv.size(), 1u) << "exactly the grid-swept short PP has no virial";
     EXPECT_NE(mv[0].find("Ven_PP_Short"), std::string::npos) << mv[0];
     EXPECT_NE(mv[0].find("virial"), std::string::npos) << mv[0];
     try { (void)withPP.At(&cxBS, cdc.get()).Stress(cdc.get(), cell); FAIL() << "a Stress with a missing virial must throw"; }

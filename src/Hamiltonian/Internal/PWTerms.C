@@ -102,7 +102,8 @@ public:
     virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
     virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
-    Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc);
+    //! \a numElectrons: the FIXED electron count the G = 0 alignment multiplies (the run's resolved Nelec; see itsNumElectrons).
+    Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc, double numElectrons);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
@@ -112,6 +113,13 @@ private:
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
     double itsAlphaZ=0.0;   //!< the SHORT G=0 alignment per electron, evaluated ONCE in the ctor (0 if finite)
+    //! THE FIXED ELECTRON COUNT the G = 0 alignment multiplies, E_alphaZ = N alpha_Z: the run's resolved Nelec (SolidSetup's rule, the
+    //! cell's valence minus the STATED RunOptions::charge -- not the sites' formal charges, which RequireConsistentSiteCharges holds to a
+    //! zero sum), handed down by the facade.  NEVER Tr(DS) (lane B 2026-11-19; the user's fixed-N ruling for the Dunlap target, 2026-11-08,
+    //! applied to the same defect class): on a GPW basis S moves with the atoms, and alpha_Z = vbar, so an alignment of Tr(DS) alpha_Z would
+    //! cancel the -vbar S the block's matrix carries -- E = Tr(D L) at fixed D while the matrix is L - vbar S, breaking H = dE/dD and the
+    //! force that pairs with W.  With N fixed, E = Tr(D (L - vbar S)) + N alpha_Z, whose D-derivative is exactly the matrix.
+    double itsNumElectrons=0.0;
 };
 
 //! The KB-separable NON-LOCAL projectors of the pseudopotential (static, density-independent):
@@ -214,7 +222,8 @@ public:
     virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     //! \a loc is REQUIRED (non-owning).  A run with no local PP does not construct this term at all.
-    Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* loc);
+    //! \a numElectrons: as \c Ven_PP_Short's.
+    Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* loc, double numElectrons);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
@@ -224,6 +233,7 @@ private:
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
     double itsAlphaZ=0.0;   //!< the LONG G=0 alignment per electron, evaluated ONCE in the ctor (0 if finite)
+    double itsNumElectrons=0.0;   //!< the FIXED electron count the alignment multiplies: \c Ven_PP_Short::itsNumElectrons's doc
 };
 
 // The non-relativistic kinetic ENERGY term is now the T-templated Kinetic<T>

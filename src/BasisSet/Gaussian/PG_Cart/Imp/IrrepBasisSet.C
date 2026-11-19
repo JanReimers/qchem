@@ -340,6 +340,14 @@ Gaussian::LatticeSum1E::GeometryPullback Orbital_IBS::MakeLatticeOverlapPullback
 Gaussian::LatticeSum1E::GeometryPullback Orbital_IBS::MakeLatticeKineticPullback(const chmat_t& Abar, const cellphase_t& phase,
                                                                                  const UnitCell& A, const Structure* st) const
 {   return NR_Evaluator::LatticeOneElectronPullback(SeriesKernel::Kinetic, Abar, phase, A, st); }
+Gaussian::LatticeSum1E::GeometryPullback Orbital_IBS::MakeLatticeOverlapPullback(const cellphase_t& phase, const UnitCell& A,
+                                                                                 const Gaussian::LatticeSum1E::GaussianFunction& g, size_t gSite,
+                                                                                 const cvec_t& ubar, const Structure* st) const
+{   return NR_Evaluator::LatticeOverlapWithPullback(phase, A, g, gSite, ubar, st); }
+Gaussian::LatticeSum1E::GeometryPullback Orbital_IBS::MakeLatticeLocalGaussianPullback(const chmat_t& Abar, const cellphase_t& phase,
+                                                                                       const UnitCell& A, const Structure* cl,
+                                                                                       const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const
+{   return NR_Evaluator::LatticeLocalGaussianPullback(Abar, phase, A, cl, opForZ); }
 chmat_t Orbital_IBS::MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
                                        const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const
 {   return NR_Evaluator::MakeLocalGaussian(phase,A,cl,opForZ); }
@@ -365,13 +373,13 @@ chmat_t Orbital_IBS::IntegratePotential(const std::vector<rvec_t>& V_L, const ce
 rvec3vec_t Orbital_IBS::IntegratePotentialPullback(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
                                                    const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                                    const std::vector<double>& ecut_L, const LatticeScreener& screener,
-                                                   double relFieldSharp, const Structure* st) const
-{   return NR_Evaluator::IntegratePotentialPullback(V_L,D,phase,A,N_L,ecut_L,screener,relFieldSharp,st); }
+                                                   double relFieldSharp, const Structure* st, const std::vector<size_t>* pairLevels) const
+{   return NR_Evaluator::IntegratePotentialPullback(V_L,D,phase,A,N_L,ecut_L,screener,relFieldSharp,st,pairLevels); }
 rmat3d_t Orbital_IBS::IntegratePotentialVirial(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
                                                const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                                const std::vector<double>& ecut_L, const LatticeScreener& screener,
-                                               double relFieldSharp) const
-{   return NR_Evaluator::IntegratePotentialVirial(V_L,D,phase,A,N_L,ecut_L,screener,relFieldSharp); }
+                                               double relFieldSharp, const std::vector<size_t>* pairLevels) const
+{   return NR_Evaluator::IntegratePotentialVirial(V_L,D,phase,A,N_L,ecut_L,screener,relFieldSharp,pairLevels); }
 std::vector<cvec_t> Orbital_IBS::CollocateTransition(const mat_t<dcmplx>& dD, const cellphase_t& ketPhase, const rvec3_t& q,
                                                      const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                                      const std::vector<double>& ecut_L, double relFieldSharp) const

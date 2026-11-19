@@ -8,8 +8,10 @@ module;
 #include <string>
 #include <vector>
 #include <cmath>       // std::round (the little-group test, S3)
+#include <type_traits> // WidenD (a real TRIM block's D)
 
 module qchem.BasisSet.Gaussian.Lattice.GPW_IBS;
+import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;   // GeometryPullback (the PP pullbacks' gradient + virial)
 import qchem.BasisSet.Lattice_IBS;          // Lattice::ToScalar (the Step-3 exact TRIM narrow; identity for dcmplx)
 import qchem.Symmetry.Factory;              // BlochFactory (the convenience ctor + the k=0 fit-basis irrep)
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (pry k out of the abstract Bloch irrep)
@@ -142,6 +144,32 @@ template <class T> hmat_t<T> tGPW_IBS<T>::MakeProjectorMatrix(const Structure* c
     if (!sepR) throw std::invalid_argument("GPW MakeProjectorMatrix: the projector set must provide the real-space radial face (SpeciesProjectorSet_R)");
     return Lattice::ToScalar<T>(GPW_Evaluator::MakeSeparablePP(cl, *sepR));
 }
+
+namespace
+{
+//! A block's Hermitian D as the evaluator's complex adjoint (a real TRIM block's widened: its Bloch sums are real).
+template <class T> chmat_t WidenD(const hmat_t<T>& D)
+{
+    if constexpr (std::is_same_v<T,dcmplx>) return D;
+    else { chmat_t c(D.rows()); for (size_t i=0;i<D.rows();i++) for (size_t j=i;j<D.rows();j++) c(i,j)=dcmplx(D(i,j),0.0); return c; }
+}
+template <class V> Outcome<V,AD::NoGradient> Part(const Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient>& r, V Gaussian::LatticeSum1E::GeometryPullback::* m)
+{
+    if (!r) return Outcome<V,AD::NoGradient>::Fail(r.Error());
+    return Outcome<V,AD::NoGradient>::Ok((*r).*m);
+}
+} //anon
+
+template <class T> Outcome<rvec3vec_t,AD::NoGradient> tGPW_IBS<T>::MakeSpeciesFieldPullback(const Structure* cl, const SpeciesRadialField& f, FieldRange r,
+                                                                                         const hmat_t<T>& D) const
+{return Part(GPW_Evaluator::LocalPPPullback(cl, f, r, WidenD<T>(D)), &Gaussian::LatticeSum1E::GeometryPullback::gradient);}
+template <class T> Outcome<rvec3vec_t,AD::NoGradient> tGPW_IBS<T>::MakeProjectorPullback(const Structure* cl, const SpeciesProjectorSet& ps, const hmat_t<T>& D) const
+{return Part(GPW_Evaluator::SeparablePPPullback(cl, ps, WidenD<T>(D)), &Gaussian::LatticeSum1E::GeometryPullback::gradient);}
+template <class T> Outcome<rmat3d_t,AD::NoGradient> tGPW_IBS<T>::MakeSpeciesFieldVirial(const Structure* cl, const SpeciesRadialField& f, FieldRange r,
+                                                                                     const hmat_t<T>& D) const
+{return Part(GPW_Evaluator::LocalPPPullback(cl, f, r, WidenD<T>(D), /*virial*/true), &Gaussian::LatticeSum1E::GeometryPullback::virial);}
+template <class T> Outcome<rmat3d_t,AD::NoGradient> tGPW_IBS<T>::MakeProjectorVirial(const Structure* cl, const SpeciesProjectorSet& ps, const hmat_t<T>& D) const
+{return Part(GPW_Evaluator::SeparablePPPullback(cl, ps, WidenD<T>(D)), &Gaussian::LatticeSum1E::GeometryPullback::virial);}
 
 template <class T> std::map<int,hmat_t<T>> tGPW_IBS<T>::MakeProjectorMatrixByL(const Structure* cl, const SpeciesProjectorSet& nl) const
 {

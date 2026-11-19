@@ -172,8 +172,9 @@ public:
     virtual hmat_t<T> MakeProjectorMatrix(const Structure*, const SpeciesProjectorSet&) const=0;
     //! The PULLBACKS of the two assemblies (GeometryOptimizationPlan §13.2): given the block's density matrix \a D (Hermitian),
     //! F[A] = Σ_ij Re(D_ij* ∂M_ij/∂R_A) for every atom A, the basis centres AND the species' sites moving.  CLIENT: the PP terms' forces.
-    //! Each \c Can is false exactly when its \c Make refuses (NoGradient: a family or a field with no derivative yet).
-    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&)  const=0;
+    //! Each \c Can is false exactly when its \c Make refuses (NoGradient: a family or a field with no derivative yet), so it is asked of the
+    //! same RANGE (a GPW block gives the short range's long before the long range's).
+    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&, FieldRange) const=0;
     virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const=0;
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure*, const SpeciesRadialField& field, FieldRange,
                                                                         const hmat_t<T>& D) const=0;
@@ -183,7 +184,7 @@ public:
     //! fixed \a D, a GRADIENT in Ha, channel A (the centres) and channel B (the cell's own appearance: \f$\Omega\f$, \f$G\f$) together.
     //! CLIENT: the PP terms' virials.  Default: a named refusal (a molecule has no cell; a family with no strain derivative yet), and each
     //! \c Can is false exactly when its \c Make refuses.
-    virtual bool CanVirialSpeciesField(const SpeciesRadialField&)  const {return false;}
+    virtual bool CanVirialSpeciesField(const SpeciesRadialField&, FieldRange) const {return false;}
     virtual bool CanVirialProjectors  (const SpeciesProjectorSet&) const {return false;}
     virtual Outcome<rmat3d_t,AD::NoGradient> MakeSpeciesFieldVirial(const Structure*, const SpeciesRadialField&, FieldRange, const hmat_t<T>&) const
     {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"this basis gives no species-field virial"});}

@@ -1013,16 +1013,7 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialF
                                +std::to_string(itsLadder->PPSharpness())+", this field's is "+std::to_string(beta));
     if (beta<=0.0) return MakeLocalPP(cl, loc, FieldRange::Long);   // no closed Gaussian beta: the kappa-sweep path (GPW_LONG_SWEEP A/B retired, D-ENV 6c)
     qchem::report::Timed timed("setup: local-PP LONG (custom G-ball)");
-    assert(itsFFT_R_G_Grids && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0)");
-    const double eps=itsTol.vlocEps>0.0 ? itsTol.vlocEps : kVlocEpsNoTarget;   // 0 = derived: the facade writes the target's (GridAccuracy::VlocEps)
-    const double lnE=-std::log(eps);
-    // The custom ladder (the LADDER's arithmetic, GpwRasterLadder::MakeVlocLongLevels): the density levels + ONE top level at the
-    // sharpest pair's harmonic requirement, every level re-sampled at V_long's own raster demand when it exceeds the density's.
-    RasterLevels vlad=itsLadder->MakeVlocLongLevels(beta, lnE);
-    auto levels=std::move(vlad.levels);
-    auto N_L=std::move(vlad.N);
-    auto ecut_L=std::move(vlad.ecut);
-    const std::vector<size_t> lv=itsLat->StaticFieldPairLevels(ecut_L, beta, lnE);
+    const LongPPAssembly a=MakeLongPPAssembly(beta);
     // (Its audit row is the LADDER's -- GpwRasterLadder::ReportGrids / DeliveredRasterVerdicts, a pure function of the ladder and the
     // PP sharpness it was sized with -- so nothing here depends on whether this sweep ran or a cached matrix stood in for it.)
     // Vtilde(dm) = (1/Omega) Sum_a f_long(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 DROPPED (the E_alphaZ
@@ -1037,19 +1028,126 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialF
         for (const Site& a : cl->Sites()) acc += loc.ValueQ(a.Z,g2,FieldRange::Long)*std::exp(dcmplx(0.0,-(dG*a.R)));
         return acc/itsFFT_R_G_Grids->Volume();
     };
-    const size_t K=levels.size();
+    return GatherLongPP(a, LongPPFields(a, Vt, /*symmetric*/true));   // explicit harmonic routing; NO D screen
+}
+
+GPW_Evaluator::LongPPAssembly GPW_Evaluator::MakeLongPPAssembly(double beta) const
+{
+    assert(itsFFT_R_G_Grids && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0)");
+    const double eps=itsTol.vlocEps>0.0 ? itsTol.vlocEps : kVlocEpsNoTarget;   // 0 = derived: the facade writes the target's (GridAccuracy::VlocEps)
+    const double lnE=-std::log(eps);
+    // The custom ladder (the LADDER's arithmetic, GpwRasterLadder::MakeVlocLongLevels): the density levels + ONE top level at the
+    // sharpest pair's harmonic requirement, every level re-sampled at V_long's own raster demand when it exceeds the density's.
+    LongPPAssembly a{itsLadder->MakeVlocLongLevels(beta, lnE), {}};
+    a.lv=itsLat->StaticFieldPairLevels(a.lad.ecut, beta, lnE);
+    return a;
+}
+
+std::vector<rvec_t> GPW_Evaluator::LongPPFields(const LongPPAssembly& a, const std::function<dcmplx(const ivec3_t&)>& Vt, bool symmetric) const
+{
+    const size_t K=a.lad.levels.size();
     std::vector<rvec_t> V_L(K);
     size_t gRaw=0, gReps=0;
     for (size_t L=0;L<K;L++)
     {
-        size_t nr=0;
-        ΔG_Map vmapL = EvaluateSymmetricGMap(levels[L]->Gs(), *itsGroup, Vt, &nr);   // level L's {G} (low-pass); T1 {G}-star fold as in MakeLocalPP
-        gRaw+=levels[L]->Gs().size(); gReps+=nr;
-        V_L[L]=levels[L]->RhoOnGrid(vmapL);
+        const auto& gs=a.lad.levels[L]->Gs();
+        ΔG_Map vmapL;
+        if (symmetric)
+        {
+            size_t nr=0;
+            vmapL=EvaluateSymmetricGMap(gs, *itsGroup, Vt, &nr);   // level L's {G} (low-pass); T1 {G}-star fold as in MakeLocalPP
+            gRaw+=gs.size(); gReps+=nr;
+        }
+        else for (const ivec3_t& dm : gs) vmapL[dm]=Vt(dm);       // a derivative field breaks the group: the plain evaluation
+        V_L[L]=a.lad.levels[L]->RhoOnGrid(vmapL);
     }
-    qchem::report::EmitFold("V_loc-long {G}-star", itsGroup->size(), gRaw, gReps);
-    return itsLat->IntegratePotential(V_L, CellPhase(), itsCell, N_L, ecut_L, *itsScreener,
-                                      0.0, nullptr, 0.0, itsRelFieldSharp, &lv);   // explicit harmonic routing; NO D screen
+    if (symmetric) qchem::report::EmitFold("V_loc-long {G}-star", itsGroup->size(), gRaw, gReps);
+    return V_L;
+}
+
+chmat_t GPW_Evaluator::GatherLongPP(const LongPPAssembly& a, const std::vector<rvec_t>& V_L) const
+{
+    return itsLat->IntegratePotential(V_L, CellPhase(), itsCell, a.lad.N, a.lad.ecut, *itsScreener,
+                                      0.0, nullptr, 0.0, itsRelFieldSharp, &a.lv);   // explicit harmonic routing; NO D screen
+}
+
+// THE LONG-RANGE PULLBACK AND VIRIAL (lane B 2026-11-19).  E = Re Tr(D h[V]), h = GatherLongPP (linear in the level fields V_L), V_L the
+// level restrictions of Vt(m) = (1/Omega) Sum_a f(Z_a,|G_m|^2) e^{-i G_m.tau_a} (m != 0).  Two channels at fixed D:
+//  - the ORBITALS: the gather's own pullback / virial at the fixed V_L (LatticeCollocation::IntegratePotentialPullback / Virial on the SAME
+//    explicit routing), the virial including the raster weight's dilation, delta_ab E;
+//  - the FIELD: d/dtau_a,x Vt = (1/Omega) f_a (-i G_x) e^{-i G.tau_a} (one gather per atom and axis); under the strain the fractional m and
+//    G.tau are held, so d/deps_ab Vt = -delta_ab Vt - (2/Omega) G_a G_b Sum_a f'(G^2) e^{-i G.tau_a} (f' = SlopeQ): its first part is -delta_ab E,
+//    its second one gather per symmetric component.
+// The level sets {G_m} and the routing are the ladder's, held fixed (integers), as the sizing cell holds them under a strain.
+Gaussian::LatticeSum1E::GeometryPullback GPW_Evaluator::LocalPPLongPullback(const Structure* cl, const SpeciesRadialField& loc, const chmat_t& D,
+                                                                           bool virial) const
+{
+    qchem::report::Timed timed(virial ? "stress: local-PP LONG virial (gathers)" : "force: local-PP LONG pullback (gathers)");
+    const double beta=LocalPPSharpness(*cl, loc);
+    const LongPPAssembly a=MakeLongPPAssembly(beta);
+    const CellGeometry& B=itsFFT_R_G_Grids->Recip().GetCell();
+    const double Omega=itsFFT_R_G_Grids->Volume();
+    auto reTr=[&](const chmat_t& h)
+    {
+        double t=0.0;
+        for (size_t i=0;i<itsN;i++)
+        {
+            t+=std::real(dcmplx(D(i,i)))*std::real(dcmplx(h(i,i)));
+            for (size_t j=i+1;j<itsN;j++) t+=2.0*std::real(std::conj(dcmplx(D(i,j)))*dcmplx(h(i,j)));
+        }
+        return t;
+    };
+    auto field=[&](auto&& term)   // the level fields of (1/Omega) Sum_a term(a, dG, g2) e^{-i dG.tau_a}, dG = 0 dropped
+    {
+        return LongPPFields(a, [&](const ivec3_t& dm)->dcmplx
+        {
+            if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);
+            const rvec3_t dG=B.ToCartesian(rvec3_t(dm));
+            const double  g2=dG*dG;
+            dcmplx acc(0.0);
+            for (size_t ia=0; ia<cl->GetNumAtoms(); ia++)
+            {
+                const Site& s=cl->Sites()[ia];
+                acc+=term(ia, s, dG, g2)*std::exp(dcmplx(0.0,-(dG*s.R)));
+            }
+            return acc/Omega;
+        }, /*symmetric*/false);
+    };
+    const std::vector<rvec_t> V_L=field([&](size_t, const Site& s, const rvec3_t&, double g2){ return dcmplx(loc.ValueQ(s.Z,g2,FieldRange::Long)); });
+    Gaussian::LatticeSum1E::GeometryPullback out{rvec3vec_t(cl->GetNumAtoms(), rvec3_t(0,0,0)), rmat3d_t(0,0,0, 0,0,0, 0,0,0)};
+    if (!virial)
+    {
+        out.gradient=itsLat->IntegratePotentialPullback(V_L, D, CellPhase(), itsCell, a.lad.N, a.lad.ecut, *itsScreener, itsRelFieldSharp, cl, &a.lv);
+        for (size_t A=0; A<cl->GetNumAtoms(); A++)
+            for (int x=0;x<3;x++)
+            {
+                const auto W=field([&](size_t ia, const Site& s, const rvec3_t& dG, double g2)
+                {
+                    if (ia!=A) return dcmplx(0.0);
+                    const double Gx= x==0 ? dG.x : x==1 ? dG.y : dG.z;
+                    return dcmplx(0.0,-Gx)*loc.ValueQ(s.Z,g2,FieldRange::Long);
+                });
+                const double g=reTr(GatherLongPP(a, W));
+                (x==0 ? out.gradient[A].x : x==1 ? out.gradient[A].y : out.gradient[A].z)+=g;
+            }
+        return out;
+    }
+    out.virial=itsLat->IntegratePotentialVirial(V_L, D, CellPhase(), itsCell, a.lad.N, a.lad.ecut, *itsScreener, itsRelFieldSharp, &a.lv);
+    const double E=reTr(GatherLongPP(a, V_L));
+    for (size_t u=1;u<=3;u++) out.virial(u,u)-=E;
+    for (int p=0;p<3;p++)
+        for (int q=p;q<3;q++)
+        {
+            const auto W=field([&](size_t, const Site& s, const rvec3_t& dG, double g2)
+            {
+                const double Gp= p==0 ? dG.x : p==1 ? dG.y : dG.z, Gq= q==0 ? dG.x : q==1 ? dG.y : dG.z;
+                return dcmplx(-2.0*Gp*Gq*loc.SlopeQ(s.Z,g2,FieldRange::Long));
+            });
+            const double v=reTr(GatherLongPP(a, W));
+            out.virial(p+1,q+1)+=v;
+            if (q!=p) out.virial(q+1,p+1)+=v;
+        }
+    return out;
 }
 
 // The SHORT-range local-PP matrix, ANALYTIC via the closed Gaussian form (increment 2, doc/GPWPlan.md 0e-PP):
@@ -1059,12 +1157,13 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialF
 // exposed in closed Gaussian form.  The per-species operator g_Z = Sum_t c_t r^{2n_t} e^{-alpha r^2} is a
 // Cartesian-Gaussian function: r^{2n} = MultiplyR2(1,n) (the l=0 s-harmonic is the constant), all sharing the
 // one exponent alpha = 1/(2 rloc^2); each atom places g_Z at its centre (the OPERATOR slot of Overlap3C).
-chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const SpeciesRadialField& loc) const
+namespace
 {
-    const auto* gauss=dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc);
-    if (!gauss) return MakeLocalPP(cl, loc, FieldRange::Short);   // grid fallback (non-Gaussian short part)
-    qchem::report::Timed timed("setup: local-PP SHORT (analytic lattice sum)");
-    auto opForZ=[gauss](int Z)->Gaussian::LatticeSum1E::GaussianFunction
+//! The per-species SHORT operator g_Z = Sum_t c_t r^{2n_t} e^{-alpha r^2} of a closed-Gaussian field, one Cartesian-Gaussian function:
+//! MakeLocalPPShort's operator AND its pullback's, so the force differentiates the matrix the energy uses.
+std::function<Gaussian::LatticeSum1E::GaussianFunction(int)> ShortOperator(const SpeciesRadialField_Gaussian* gauss)
+{
+    return [gauss](int Z)->Gaussian::LatticeSum1E::GaussianFunction
     {
         Gaussian::LatticeSum1E::GaussianFunction g;
         const auto terms=gauss->AsGaussians(Z,FieldRange::Short);
@@ -1077,6 +1176,15 @@ chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const SpeciesRadial
         }
         return g;
     };
+}
+} //anon
+
+chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const SpeciesRadialField& loc) const
+{
+    const auto* gauss=dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc);
+    if (!gauss) return MakeLocalPP(cl, loc, FieldRange::Short);   // grid fallback (non-Gaussian short part)
+    qchem::report::Timed timed("setup: local-PP SHORT (analytic lattice sum)");
+    const auto opForZ=ShortOperator(gauss);
     chmat_t V = itsHomeOnly ? itsLat->MakeLocalGaussian(cl, opForZ)
                             : itsLat->MakeLocalGaussian(CellPhase(), itsCell, cl, opForZ);
     // PERIODIC G=0 CONVENTION (the 5.7% wiring bug, 2026-07-22): the grid sweep's form-factor closure DROPS
@@ -1139,6 +1247,97 @@ cvec_t GPW_Evaluator::ProjectOntoGaussianYlm(const rvec3_t& C, int l, int m, con
         for (size_t i=0;i<n;i++) b[i]+=bt[i];
     }
     return b;
+}
+
+// THE PP PULLBACKS AND VIRIALS (GPW_Evaluator's doc; lane B 2026-11-19).  Each is the derivative of the matrix its Make* builds, at
+// fixed D and fractional k: the SAME operator / projector functions, the SAME lattice walks (LatticeSum1E's pullbacks of
+// MakeLocalGaussian and MakeOverlap(g)), so a fixed-D finite difference of Re Tr(D M) is what they must equal.
+bool GPW_Evaluator::CanPullbackLocalPP(const SpeciesRadialField& loc, FieldRange r) const
+{
+    return !itsHomeOnly && (r==FieldRange::Short || r==FieldRange::Long) && dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc)!=nullptr;
+}
+bool GPW_Evaluator::CanVirialLocalPP(const SpeciesRadialField& loc, FieldRange r) const
+{
+    return CanPullbackLocalPP(loc, r) && (r!=FieldRange::Long || loc.CanSlopeQ());   // the long field's explicit cell dependence needs f'(G^2)
+}
+bool GPW_Evaluator::CanPullbackSeparablePP(const SpeciesProjectorSet& sep) const
+{
+    return !itsHomeOnly && dynamic_cast<const SpeciesProjectorSet_Gaussian*>(&sep)!=nullptr
+                        && dynamic_cast<const SpeciesProjectorSet_R*>(&sep)!=nullptr;
+}
+
+// SHORT: M = L - vbar S, L = MakeLocalGaussian(phase, cell, cl, g_Z) and vbar = Sum_a CellMean(Z_a)/Omega (the dropped G = 0 mean).
+// The gradient is L's minus vbar times S's (vbar does not move with the atoms).  The virial: L's and -vbar S's image virials, and vbar's
+// own 1/Omega, d vbar/d eps_ab = -vbar delta_ab, which gives +vbar Re Tr(D S) on the diagonal.
+Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient> GPW_Evaluator::LocalPPPullback(const Structure* cl, const SpeciesRadialField& loc,
+                                                                                              FieldRange r, const chmat_t& D, bool virial) const
+{
+    using R=Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient>;
+    if (itsHomeOnly) return R::Fail({"a home-only (molecule in a box) GPW block gives no lattice PP pullback: its matrices are the finite molecule's"});
+    if (r!=FieldRange::Short && r!=FieldRange::Long) return R::Fail({"a GPW block gives no pullback of the FULL-range sweep (a unit-test oracle)"});
+    const auto* gauss=dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc);
+    if (!gauss) return R::Fail({"a GPW block's local PP without the closed-Gaussian form rides a grid sweep, which has no pullback"});
+    if (r==FieldRange::Long)
+    {
+        if (virial && !loc.CanSlopeQ()) return R::Fail({"the long-range local PP's virial needs the field's q-slope, which this model does not give"});
+        return R::Ok(LocalPPLongPullback(cl, loc, D, virial));
+    }
+    qchem::report::Timed timed("force: local-PP SHORT pullback (lattice Enzyme walk)");
+    auto out=itsLat->MakeLatticeLocalGaussianPullback(D, CellPhase(), itsCell, cl, ShortOperator(gauss));
+    const double vbar=cl->G0Background([&loc](int Z){return loc.CellMeanQ(Z,FieldRange::Short);});
+    if (vbar!=0.0)
+    {
+        const auto s=itsLat->MakeLatticeOverlapPullback(D, CellPhase(), itsCell, cl);
+        if (s.gradient.size()!=out.gradient.size()) throw std::logic_error("GPW_Evaluator::LocalPPPullback: the S and local-Gaussian pullbacks differ in site count");
+        for (size_t a=0;a<out.gradient.size();a++) out.gradient[a]-=vbar*s.gradient[a];
+        const chmat_t S=OverlapMatrix();
+        double trDS=0.0;
+        for (size_t i=0;i<itsN;i++)
+        {
+            trDS+=std::real(dcmplx(D(i,i)))*std::real(dcmplx(S(i,i)));
+            for (size_t j=i+1;j<itsN;j++) trDS+=2.0*std::real(std::conj(dcmplx(D(i,j)))*dcmplx(S(i,j)));
+        }
+        for (size_t a=1;a<=3;a++) for (size_t b=1;b<=3;b++) out.virial(a,b)-=vbar*s.virial(a,b);
+        for (size_t a=1;a<=3;a++) out.virial(a,a)+=vbar*trDS;
+    }
+    return R::Ok(std::move(out));
+}
+
+// KB: M = Sum_{a,p,m} h_p b b^H with b = Sum_t MakeOverlap(phase, cell, g_t) over the projector's radial terms (ProjectOntoGaussianYlm), so
+// Re Tr(D M) = h b^H D b and dE = Re Sum_i conj(u_i) db_i with u = 2 h D b: each term g_t's lattice overlap pullback at that u, g_t on site a.
+Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient> GPW_Evaluator::SeparablePPPullback(const Structure* cl, const SpeciesProjectorSet& sep,
+                                                                                                  const chmat_t& D) const
+{
+    using R=Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient>;
+    if (itsHomeOnly) return R::Fail({"a home-only (molecule in a box) GPW block gives no lattice projector pullback: its matrices are the finite molecule's"});
+    const auto* gsep=dynamic_cast<const SpeciesProjectorSet_Gaussian*>(&sep);
+    if (!gsep) return R::Fail({"a GPW block's projectors without the closed-Gaussian form ride a mesh quadrature, which has no pullback"});
+    qchem::report::Timed timed("force: separable PP (KB) pullback (lattice Enzyme walk)");
+    Gaussian::LatticeSum1E::GeometryPullback out{rvec3vec_t(cl->GetNumAtoms(), rvec3_t(0,0,0)), rmat3d_t(0,0,0, 0,0,0, 0,0,0)};
+    const auto phase=CellPhase();
+    const mat_t<dcmplx> Dm(D);
+    for (size_t a=0; a<cl->GetNumAtoms(); a++)
+    {
+        const Site& at=cl->Sites()[a];
+        for (size_t p=0; p<sep.Count(at.Z); p++)
+        {
+            const int    l=sep.L(at.Z,p);
+            const double h=sep.Weight(at.Z,p);
+            const auto   radial=gsep->AsGaussians(at.Z,p);
+            for (int m=-l; m<=l; m++)
+            {
+                const cvec_t b=ProjectOntoGaussianYlm(at.R, l, m, radial, phase);
+                const cvec_t u=(2.0*h)*(Dm*b);
+                for (const auto& g : GaussianYlmTerms(at.R, l, m, radial))
+                {
+                    const auto r=itsLat->MakeLatticeOverlapPullback(phase, itsCell, g, a, u, cl);
+                    for (size_t A=0;A<out.gradient.size();A++) out.gradient[A]+=r.gradient[A];
+                    for (size_t x=1;x<=3;x++) for (size_t y=1;y<=3;y++) out.virial(x,y)+=r.virial(x,y);
+                }
+            }
+        }
+    }
+    return R::Ok(std::move(out));
 }
 
 // HubbardProjectorPlan D2: column (M,m) is the projection of the set's function -- the SAME seam as the KB b.

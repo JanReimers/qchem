@@ -125,13 +125,13 @@ public:
     virtual chmat_t MakeProjectorMatrix(const Structure* cl, const SpeciesProjectorSet& v) const override;
     // d/dR (GeometryOptimizationPlan §13.2): THE STRUCTURE-FACTOR FORCE.  Every species matrix is Σ_a V^a_ij with V^a_ij ∝ e^{-iΔG_ij·τ_a}
     // (ΔG_ij = G_i − G_j) and the plane waves do not move, so ∂V_ij/∂τ_a = −iΔG_ij V^a_ij exactly: Imp/PlaneWave_IBS.C.
-    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&)  const override {return true;}
+    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&, FieldRange) const override {return true;}
     virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const override {return true;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure* cl, const SpeciesRadialField& f, FieldRange, const chmat_t& D) const override;
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure* cl, const SpeciesProjectorSet& v, const chmat_t& D) const override;
     // THE STRAIN DERIVATIVES of the two assemblies (CellHalf_Design §5): ΔG·τ is strain-invariant (fractional), so only Ω and the Cartesian
     // k+G move: ∂M/∂ε_ab = −δ_ab M + (1/Ω) Σ_a e^{−iΔG·τ_a} ∂f/∂ε_ab, with ∂f(q)/∂ε_ab = −q_a ∂f/∂q_b.  They need the model's q-slopes.
-    virtual bool CanVirialSpeciesField(const SpeciesRadialField& f)  const override {return f.CanSlopeQ();}
+    virtual bool CanVirialSpeciesField(const SpeciesRadialField& f, FieldRange) const override {return f.CanSlopeQ();}
     virtual bool CanVirialProjectors  (const SpeciesProjectorSet& v) const override {return v.CanSlopeQ();}
     virtual Outcome<rmat3d_t,AD::NoGradient> MakeSpeciesFieldVirial(const Structure* cl, const SpeciesRadialField& f, FieldRange, const chmat_t& D) const override;
     virtual Outcome<rmat3d_t,AD::NoGradient> MakeProjectorVirial(const Structure* cl, const SpeciesProjectorSet& v, const chmat_t& D) const override;

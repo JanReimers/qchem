@@ -494,8 +494,11 @@ TEST(HamiltonianForces, MissingGradientsNamesTheTermsWithoutAForce)
 TEST(HamiltonianForces, OnAGPWBlockEveryTermWithoutAPullbackNamesItself)
 {
     // The terms whose force a GPW block cannot spoil, by label prefix: the GPW Hartree (c3516017d, GPW_Force: 3e-7 of the FD of E_H), the
-    // ion-ion (Ewald) sum, which depends on the structure alone, and the kinetic energy (Enzyme over MnD per image, 2026-11-13: M_LatticePullback).
-    const std::vector<std::string> kGated={"Fitted Hartree", "Ion-Ion", "Kinetic"};
+    // ion-ion (Ewald) sum, which depends on the structure alone, the kinetic energy (Enzyme over MnD per image, 2026-11-13: M_LatticePullback),
+    // and the three PP terms (2026-11-19: the short part and the KB projectors are lattice Enzyme walks, M_LatticePullback; the long part is
+    // the custom-ladder gather's pullback and its field's structure factor; all three gated at block level by UTLattice_BS GPW_Force and per
+    // term at fixed D below).
+    const std::vector<std::string> kGated={"Fitted Hartree", "Ion-Ion", "Kinetic", "PW electron-ion: SHORT", "PW electron-ion: LONG", "PW electron-ion: KB"};
     auto gated=[&](const std::string& label){ for (const auto& g : kGated) if (label.rfind(g,0)==0) return true; return false; };
     const auto mat=Materials::Get("Si_diamond");
     SCFParams p; p.NMaxIter=100; p.MinΔρPerElectron=1e-6; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
@@ -708,12 +711,16 @@ TEST(HamiltonianStress, OnPlaneWavesTheWholeVirialIsTheStrainDerivativeOfTheReco
 // THE GPW TERMS' VIRIALS AT FIXED D (lane H 2026-11-11, agreed with lane B): on a Bloch Gaussian (GPW) basis, every term that answers a
 // virial against the strain finite difference of its own energy, D frozen and the molecular basis remade at the strained centres.  The
 // SAME sheared, distorted Si cell and 2 % allowance as the PW gates; the GPW Hartree (Vee_Fit: the fit side and the gather's moment +
-// dilation, IntegratePotentialVirial), the kinetic and ion-ion.  The PP terms (lane B, after Enzyme #3753) and XC (with the δ XC force)
+// dilation, IntegratePotentialVirial), the kinetic and ion-ion, and the three PP terms (lane B 2026-11-19).  XC (with the δ XC force)
 // name themselves and are skipped here; a term that gains its virial joins the gate by answering.
 TEST(HamiltonianStress, OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFiniteDifference)
 {
     RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="gpw stress"; o.accuracy.eps=0.0;   // stated rasters
     SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform; o.solid.cellStrainAllowance=kPWStressAllowance;
+    // THE 1E SCREEN AT 1e-12 (default 1e-10): a lattice-series term crossing the screen between the ±h strains is a ~screenEps step, read by
+    // the central difference as screenEps/h ~ 1e-6 -- MEASURED 2026-11-19 on the short local PP's (3,3), 1.2e-6 against neighbours at 2e-9.
+    // The gate tests the derivative of the series, so it runs it where such a step is far below the gate (as M_LatticePullback does).
+    o.solid.tolerances.screenEps=1e-12;
     o.scf=PWStressParams(); o.scf.MinΔρPerElectron=1e-6;   // D is frozen: its convergence is not the subject
     const auto setup=SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
     auto c0=SolidCalculation::Prepare(setup).TakeValue(); (void)c0->Converge();
@@ -750,8 +757,8 @@ TEST(HamiltonianStress, OnAGPWBasisEachTermsVirialAtFixedDIsItsEnergysStrainFini
 // REAL TRIM BLOCKS ON A k-MESH (lane H 2026-11-11, the forces row's "real TRIM block of a lattice basis"): GPW Si at k222, where every
 // k is a TRIM point and the blocks run REAL (asserted below), each term that answers gives its force and its virial at fixed D equal to
 // the finite difference of its own energy: an atom moved (h 1e-4, three axes) and the cell strained (h 1e-4, six components), D
-// frozen on the remade basis.  The sheared, distorted cell and 2 % allowance of the PW gates.  PP (lane B) and XC (the δ XC) name
-// themselves; the WHOLE force and stress against the re-converged energy wait on them.
+// frozen on the remade basis.  The sheared, distorted cell and 2 % allowance of the PW gates.  The three PP terms answer (lane B
+// 2026-11-19); XC (the δ XC) names itself, and the WHOLE force and stress against the re-converged energy wait on it.
 TEST(HamiltonianForces, OnRealTRIMBlocksAtK222EachTermsForceAndVirialAtFixedDAreItsEnergysFiniteDifference)
 {
     RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="gpw k222"; o.accuracy.eps=0.0;   // stated rasters
