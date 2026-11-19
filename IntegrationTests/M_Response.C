@@ -31,9 +31,9 @@ static rmat_t Alpha(const MoleculeCalculation& calc)
 
 TEST(M_Response, HF_Water_PolarizabilityIsPySCF)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.scf=tight, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Converge());   // re-converged on the setup's tight scf
-    const rmat_t a=Alpha(calc);
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.scf=tight, .molecule={.basis="dzvp"}})).TakeValue();
+    ASSERT_TRUE(calc->Converge());   // on the setup's tight scf
+    const rmat_t a=Alpha(*calc);
     for (size_t i=0;i<3;i++)
     {
         EXPECT_NEAR(a(i,i), alphaPySCF[i], 1e-6*alphaPySCF[i]) << "alpha_" << i << i;
@@ -45,11 +45,11 @@ TEST(M_Response, HF_Water_PolarizabilityIsPySCF)
 //! spin-resolved transition density -- must give the same polarisability as the folded doublet.
 TEST(M_Response, HF_Water_Pol_eqUnPol)
 {
-    MoleculeCalculation unpol(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.scf=tight, .molecule={.basis="dzvp"}}));
-    MoleculeCalculation pol  (MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.spin=SpinGroup::Polarized, .scf=tight, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(unpol.Converge());
-    ASSERT_TRUE(pol  .Converge());
-    const rmat_t a=Alpha(unpol), b=Alpha(pol);
+    auto unpol=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.scf=tight, .molecule={.basis="dzvp"}})).TakeValue();
+    auto pol=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.spin=SpinGroup::Polarized, .scf=tight, .molecule={.basis="dzvp"}})).TakeValue();
+    ASSERT_TRUE(unpol->Converge());
+    ASSERT_TRUE(pol  ->Converge());
+    const rmat_t a=Alpha(*unpol), b=Alpha(*pol);
     for (size_t i=0;i<3;i++) for (size_t j=0;j<3;j++) EXPECT_NEAR(a(i,j), b(i,j), 1e-8) << "alpha_" << i << j;
 }
 
@@ -65,10 +65,10 @@ TEST(M_Response, HF_Water_Pol_eqUnPol)
 //! a bigger mesh.
 TEST(M_Response, HF_Water_DipoleMeshConverged)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.scf=tight, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Converge());   // re-converged on the setup's tight scf
-    const rmat_t a=Alpha(calc);
-    auto fine=calc.StaticPolarizability({.radial=qcMesh::RadialKind::MHL, .nRadial=120, .mhl_m=3, .mhl_alpha=2.0,
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.scf=tight, .molecule={.basis="dzvp"}})).TakeValue();
+    ASSERT_TRUE(calc->Converge());   // on the setup's tight scf
+    const rmat_t a=Alpha(*calc);
+    auto fine=calc->StaticPolarizability({.radial=qcMesh::RadialKind::MHL, .nRadial=120, .mhl_m=3, .mhl_alpha=2.0,
                                          .angular=qcMesh::AngularKind::GaussLegendre, .angularDegree=47, .beckeOrder=3});
     ASSERT_TRUE(fine.IsOk()) << fine.Error().detail;
     for (size_t i=0;i<3;i++) EXPECT_NEAR(a(i,i), fine.Value()(i,i), 1e-6*a(i,i)) << "alpha_" << i << i << " moved with the dipole mesh";
@@ -78,6 +78,6 @@ TEST(M_Response, HF_Water_DipoleMeshConverged)
 //! different irreps, and without the point-group product selection rule their response would be silently zero.
 TEST(M_Response, HF_Water_SymmetryAdaptedIsRefused)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.imposeSymmetry=true, .molecule={.basis="dzvp"}}));
-    EXPECT_THROW((void)calc.StaticPolarizability(), std::logic_error);
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.imposeSymmetry=true, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    EXPECT_THROW((void)calc->StaticPolarizability(), std::logic_error);
 }

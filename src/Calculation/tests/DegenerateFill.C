@@ -1,7 +1,7 @@
 // File: Calculation/tests/DegenerateFill.C  The facades' degenerate-level fill policy beside a direct minimiser (D-DEGEN-FILL follow-up,
 // user 2026-11-08: "Many users will have no idea that GDM only works for integers. So we need to guide them."): a GDM run with the
 // fill unstated takes the integer fill and the `choose` row teaches why; a GDM run that STATES Shared gets a `warn` row naming the
-// fallback that will run instead.  One test per case and facade; the rows are filed before the first SCF iteration.
+// fallback that will run instead.  One test per case and facade; the rows are filed at the start of the converge, before its first iteration.
 #include <gtest/gtest.h>
 #include <functional>
 #include <string>
@@ -56,6 +56,7 @@ bool Has(const report::json& row, const char* key, const std::string& text)
 {
     return row.contains(key) && row[key].get<std::string>().find(text)!=std::string::npos;
 }
+//! The row is filed at the start of each converge stage (it reads that stage's settings), so these tests run a 2-iteration SCF.
 SCFParams Bounded(Fill f)
 {
     SCFParams p; p.NMaxIter=2; p.DegenerateLevels=f;
@@ -63,16 +64,17 @@ SCFParams Bounded(Fill f)
     return p;
 }
 //! Boron (2p^1) under LDA: the facade's own default is Shared -- what a stated GDM must override.
-std::shared_ptr<const MoleculeSetup> BoronGDM()
+std::shared_ptr<const MoleculeSetup> BoronGDM(Fill f)
 {
     Molecule b; b.Insert(Site{5, Vector3D<double>(0,0,0)});
-    return MoleculeSetup::Resolve(b, {.multiplicity=2, .model=Model::LDA, .accelerator=qchem::SCFAccelerators::Type::GDM, .molecule={.basis="dzvp"}});
+    return MoleculeSetup::Resolve(b, {.multiplicity=2, .model=Model::LDA, .accelerator=qchem::SCFAccelerators::Type::GDM,
+                                      .scf=Bounded(f), .molecule={.basis="dzvp"}});
 }
 //! Si Γ, small, stated grids (no pilot), GDM.
-std::shared_ptr<const SolidSetup> SiGammaGDM(const char* label)
+std::shared_ptr<const SolidSetup> SiGammaGDM(const char* label, Fill f)
 {
     const auto mat=Materials::Get("Si_diamond");
-    RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.label=label;
+    RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.label=label; o.scf=Bounded(f);
     o.accuracy.eps=0.0; SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
     o.accelerator=SCFAccelerators::Type::GDM;
     return SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
@@ -95,7 +97,7 @@ TEST(DegenerateFillPolicy, AMoleculeWithGDMAndTheFillUnstatedTakesTheIntegerFill
     {
         report::Run run("degen gdm molecule auto");
         BoundedSCF bounded("the policy rows are filed before the first iteration; the SCF is not the subject");
-        MoleculeCalculation c(BoronGDM(), Bounded(Fill::Auto));
+        auto c=MoleculeCalculation::Prepare(BoronGDM(Fill::Auto)).TakeValue(); (void)c->Converge();
     }
     const auto rows=PolicyRows(FiledRun("degen gdm molecule auto@"), "DegenerateLevelFill");
     ASSERT_EQ(rows.size(), 1u);
@@ -110,7 +112,7 @@ TEST(DegenerateFillPolicy, AMoleculeWithGDMAndSharedStatedIsWarnedWhatWillRun)
     {
         report::Run run("degen gdm molecule shared");
         BoundedSCF bounded("the policy rows are filed before the first iteration; the SCF is not the subject");
-        MoleculeCalculation c(BoronGDM(), Bounded(Fill::Shared));
+        auto c=MoleculeCalculation::Prepare(BoronGDM(Fill::Shared)).TakeValue(); (void)c->Converge();
     }
     const auto& R=FiledRun("degen gdm molecule shared@");
     const auto choose=PolicyRows(R, "DegenerateLevelFill");
@@ -129,7 +131,7 @@ TEST(DegenerateFillPolicy, ASolidWithGDMAndTheFillUnstatedTakesTheIntegerFillAnd
     {
         report::Run run("degen gdm solid auto");
         BoundedSCF bounded("the policy rows are filed before the first iteration; the SCF is not the subject");
-        SolidCalculation c(SiGammaGDM("degen gdm solid auto"), Bounded(Fill::Auto));
+        auto c=SolidCalculation::Prepare(SiGammaGDM("degen gdm solid auto", Fill::Auto)).TakeValue(); (void)c->Converge();
     }
     const auto rows=PolicyRows(FiledRun("degen gdm solid auto@"), "DegenerateLevelFill");
     ASSERT_EQ(rows.size(), 1u);
@@ -143,7 +145,7 @@ TEST(DegenerateFillPolicy, ASolidWithGDMAndSharedStatedIsWarnedWhatWillRun)
     {
         report::Run run("degen gdm solid shared");
         BoundedSCF bounded("the policy rows are filed before the first iteration; the SCF is not the subject");
-        SolidCalculation c(SiGammaGDM("degen gdm solid shared"), Bounded(Fill::Shared));
+        auto c=SolidCalculation::Prepare(SiGammaGDM("degen gdm solid shared", Fill::Shared)).TakeValue(); (void)c->Converge();
     }
     const auto& R=FiledRun("degen gdm solid shared@");
     const auto choose=PolicyRows(R, "DegenerateLevelFill");

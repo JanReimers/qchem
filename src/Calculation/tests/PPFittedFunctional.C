@@ -63,9 +63,9 @@ SCFParams Tight()
 double SiPseudoAtom(Model model, const std::string& tag)
 {
     report::Run run(tag);
-    AtomCalculation calc(AtomSetup::Resolve(14, 10, {.model=model, .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Medium, .pseudopotential=true}}), Tight());
-    EXPECT_TRUE(calc.IsConverged()) << tag;
-    return calc.Energy();
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(14, 10, {.model=model, .scf=Tight(), .atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::Medium, .pseudopotential=true}})).TakeValue(); (void)calc->Converge();
+    EXPECT_TRUE(calc->IsConverged()) << tag;
+    return calc->Energy();
 }
 } //anon
 

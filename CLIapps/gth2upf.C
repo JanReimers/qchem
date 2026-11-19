@@ -89,8 +89,11 @@ int main(int argc, char** argv)
     if (lmaxPool<0) lmaxPool = (Z>=21 && Z<=30) || (Z>=39 && Z<=48) || (Z>=57 && Z<=80) ? 2 : (Z<=2 || Z==3 || Z==11 || Z==19 || Z==37 || Z==55) ? 0 : 1;
     for (int l=0;l<=lmaxPool;l++) o.atom.exponentsByL.push_back({l, pool});
     SCFParams& p=o.scf; p.MinVirial=std::nullopt; p.NMaxIter=200; p.Verbose=std::getenv("GTH2UPF_VERBOSE")!=nullptr;   // the setup's (R10)
-    AtomCalculation atom(AtomSetup::Resolve(Z, Z-Zion, o), p);
-    if (!atom.IsConverged())
+    auto built=AtomCalculation::Prepare(AtomSetup::Resolve(Z, Z-Zion, o));
+    if (!built) { std::cerr<<"gth2upf: REFUSED (policy "<<built.Error().policy<<"): "<<built.Error().reason<<"\n"; return 2; }
+    auto atom=built.TakeValue();
+    (void)atom->Converge();
+    if (!atom->IsConverged())
     {
         // A hard-aufbau lock, not a slow descent: some d-block neutrals (Cu 3d10-4s1, Cr 3d5-4s1) have two
         // near-degenerate configurations (here 3d10-4s1 vs 3d9-4s2, split by ~5 mHa) and integer aufbau
@@ -100,15 +103,15 @@ int main(int argc, char** argv)
         // across the near-degeneracy (kT lets both configurations mix fractionally, breaking the limit
         // cycle), then re-converge cold with MOM holding whichever reference the smeared state landed on.
         std::cerr<<"gth2upf: plain aufbau did not converge -- retrying with a kT anneal (hot smear -> cold MOM)\n";
-        (void)atom.Converge([](SCFParams& hot){ hot.SmearingkT=0.02; hot.StartingRelaxRo=0.2; });
-        (void)atom.Converge([](SCFParams& cold){ cold.SmearingkT=0.0; cold.UseMOM=true; cold.MOMStartIter=5; cold.StartingRelaxRo=0.2; });
-        if (!atom.IsConverged()) { std::cerr<<"gth2upf: the pseudo-atom did not converge (even annealed)\n"; return 2; }
+        (void)atom->Converge([](SCFParams& hot){ hot.SmearingkT=0.02; hot.StartingRelaxRo=0.2; });
+        (void)atom->Converge([](SCFParams& cold){ cold.SmearingkT=0.0; cold.UseMOM=true; cold.MOMStartIter=5; cold.StartingRelaxRo=0.2; });
+        if (!atom->IsConverged()) { std::cerr<<"gth2upf: the pseudo-atom did not converge (even annealed)\n"; return 2; }
     }
     std::vector<Wfc> wfcs;
-    for (const Irrep& ir : atom.GetIrreps(Spin::None))
+    for (const Irrep& ir : atom->GetIrreps(Spin::None))
     {
         const auto* as=dynamic_cast<const Symmetry::Atom::AtomicSymmetry*>(ir.sym.get());
-        const auto* os=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(atom.Orbitals(ir));
+        const auto* os=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(atom->Orbitals(ir));
         if (!as || !os) continue;
         const int l=int(as->Getl());
         // An open shell in an UNPOLARIZED spherical atom may be filled unevenly across m (O 2p^4 comes as a
@@ -160,13 +163,13 @@ int main(int argc, char** argv)
      <<"analytic local + separable-nonlocal parts on QE's mesh; PP_CHI are the GTH pseudo-atom's LDA orbitals\n"
      <<"(spherical, unpolarized, "<<npool<<"-exponent even-tempered Gaussian pool per l) -- the +U projector\n"
      <<"qchem uses (its default pseudo-atomic projector).  Element "<<element<<", q"<<Zion<<", functional "<<functional<<".\n"
-     <<"Pseudo-atom E = "<<std::setprecision(8)<<atom.Energy()<<" Ha; orbitals:";
+     <<"Pseudo-atom E = "<<std::setprecision(8)<<atom->Energy()<<" Ha; orbitals:";
     for (const Wfc& w : wfcs) f<<"  "<<w.n<<"spdf"[w.l]<<" occ "<<w.occ<<" eps "<<std::setprecision(6)<<w.eps<<" Ha";
     f<<"\n</PP_INFO>\n<!--                               -->\n<!-- END OF HUMAN READABLE SECTION -->\n<!--                               -->\n";
     f<<"<PP_HEADER generated=\"qchem gth2upf\"\nauthor=\"Goedecker/Teter/Hutter parameters via qchem\"\ndate=\"2026\"\n"
      <<"comment=\"PP_CHI from the qchem GTH pseudo-atom\"\nelement=\""<<std::setw(2)<<element<<"\"\npseudo_type=\"NC\"\nrelativistic=\"scalar\"\n"
      <<"is_ultrasoft=\"F\"\nis_paw=\"F\"\nis_coulomb=\"F\"\nhas_so=\"F\"\nhas_wfc=\"F\"\nhas_gipaw=\"F\"\npaw_as_gipaw=\"F\"\ncore_correction=\"F\"\n"
-     <<"functional=\"SLA PZ NOGX NOGC\"\nz_valence=\""<<E(double(Zion))<<"\"\ntotal_psenergy=\""<<E(2.0*atom.Energy())<<"\"\n"
+     <<"functional=\"SLA PZ NOGX NOGC\"\nz_valence=\""<<E(double(Zion))<<"\"\ntotal_psenergy=\""<<E(2.0*atom->Energy())<<"\"\n"
      <<"wfc_cutoff=\""<<E(0.0)<<"\"\nrho_cutoff=\""<<E(0.0)<<"\"\nl_max=\""<<lmax<<"\"\nl_max_rho=\""<<2*lmax<<"\"\nl_local=\"-3\"\n"
      <<"mesh_size=\""<<N<<"\"\nnumber_of_wfc=\""<<wfcs.size()<<"\"\nnumber_of_proj=\""<<nproj<<"\"/>\n";
     f<<"<PP_MESH dx=\""<<E(dx)<<"\" mesh=\""<<N<<"\" xmin=\""<<E(xmin)<<"\" rmax=\""<<E(r.back())<<"\"\nzmesh=\""<<E(zmesh)<<"\">\n";
@@ -196,6 +199,6 @@ int main(int argc, char** argv)
     double nrho=0.0; for (size_t i=0;i<N;i++) nrho+=rho[i]*rab[i];
     std::cout<<"gth2upf: "<<out<<"  "<<element<<" q"<<Zion<<" "<<functional<<"  mesh "<<N<<"  proj "<<nproj<<" (l_max "<<lmax<<")  wfc";
     for (const Wfc& w : wfcs) std::cout<<" "<<w.n<<"spdf"[w.l]<<"("<<w.occ<<", eps "<<std::setprecision(5)<<w.eps<<" Ha)";
-    std::cout<<"  int rhoatom = "<<std::setprecision(6)<<nrho<<" (expect "<<Zion<<")  E_atom = "<<std::setprecision(8)<<atom.Energy()<<" Ha"<<std::endl;
+    std::cout<<"  int rhoatom = "<<std::setprecision(6)<<nrho<<" (expect "<<Zion<<")  E_atom = "<<std::setprecision(8)<<atom->Energy()<<" Ha"<<std::endl;
     return 0;
 }

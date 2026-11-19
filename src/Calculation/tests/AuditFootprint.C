@@ -100,10 +100,10 @@ SCFParams Tight()
 }
 //! Si Γ, small: a run whose pilot would run (accuracy > 0) or not (accuracy 0, the ball's own rasters stated), with a calibration so
 //! large that ANY reference is refused -- the doors are gated, not the machine's memory.
-std::shared_ptr<const SolidSetup> SiGamma(bool pilot)
+std::shared_ptr<const SolidSetup> SiGamma(bool pilot, const SCFParams& scf)
 {
     const auto mat=Materials::Get("Si_diamond");
-    RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.label="auditMemory";
+    RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.label="auditMemory"; o.scf=scf;
     if (!pilot) { o.accuracy.eps=0.0; SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform; }
     o.solid.auditFootprint.eta=1.0e9;   // ~1e9 x the byte count: no machine has it
     return SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
@@ -141,8 +141,8 @@ TEST(AuditFootprint, APilotThatCannotFitIsRefusedBeforeTheFirstSCF)
 {
     {
         report::Run run("audit memory preflight");
-        SolidCalculation c(SiGamma(/*pilot*/true), Tight());
-        const auto R=c.Result();
+        auto c=SolidCalculation::Prepare(SiGamma(/*pilot*/true, Tight())).TakeValue(); (void)c->Converge();
+        const auto R=c->Result();
         ASSERT_FALSE(R);
         const SCFFailure& f=R.Error();
         EXPECT_EQ(f.why, SCFFailure::Why::ResourceRefused);
@@ -151,7 +151,7 @@ TEST(AuditFootprint, APilotThatCannotFitIsRefusedBeforeTheFirstSCF)
         EXPECT_EQ(f.resource->when, "before the first SCF");
         EXPECT_GT(f.resource->footprint.Low(), f.resource->available.bytes);
         EXPECT_NE(f.resource->escape.find("accuracy 0"), std::string::npos) << "the refusal names the escape: " << f.resource->escape;
-        EXPECT_FALSE(c.PilotCost().settled);
+        EXPECT_FALSE(c->PilotCost().settled);
     }
     const auto* run=FiledRun("audit memory preflight@");
     ASSERT_NE(run, nullptr);
@@ -166,15 +166,15 @@ TEST(AuditFootprint, APilotThatCannotFitIsRefusedBeforeTheFirstSCF)
 //! A postSCF audit that cannot fit is refused at its door (the run's own answer untouched); a run with stated grids has no pilot to refuse.
 TEST(AuditFootprint, APostSCFAuditThatCannotFitIsRefusedAndTheRunStands)
 {
-    SolidCalculation c(SiGamma(/*pilot*/false), Tight());
-    ASSERT_TRUE(c.Result()) << "stated grids (accuracy 0): no pilot, nothing to refuse";
-    const double E=c.Result()->Energy();
-    const auto G=c.GridAudit();
+    auto c=SolidCalculation::Prepare(SiGamma(/*pilot*/false, Tight())).TakeValue(); (void)c->Converge();
+    ASSERT_TRUE(c->Result()) << "stated grids (accuracy 0): no pilot, nothing to refuse";
+    const double E=c->Result()->Energy();
+    const auto G=c->GridAudit();
     ASSERT_FALSE(G);
     EXPECT_EQ(G.Error().when, "postSCF gridAudit");
-    const auto X=c.XCMeshAudit(qcMesh::MeshParams{.nUniform=24, .cellKind=qcMesh::UnitCellKind::Uniform});
+    const auto X=c->XCMeshAudit(qcMesh::MeshParams{.nUniform=24, .cellKind=qcMesh::UnitCellKind::Uniform});
     ASSERT_FALSE(X);
     EXPECT_EQ(X.Error().when, "postSCF xcMeshAudit");
-    ASSERT_TRUE(c.Result());
-    EXPECT_EQ(c.Result()->Energy(), E) << "a refused audit builds nothing and leaves the run's answer alone";
+    ASSERT_TRUE(c->Result());
+    EXPECT_EQ(c->Result()->Energy(), E) << "a refused audit builds nothing and leaves the run's answer alone";
 }

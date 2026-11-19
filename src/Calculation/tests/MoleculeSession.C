@@ -29,17 +29,17 @@ SCFParams Tight()
 
 TEST(MoleculeSession, ConvergeAtTheReferenceIsTheSinglePointBitForBit)
 {
-    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.molecule={.basis="dzvp"}});
-    MoleculeCalculation single(setup, Tight());
-    ASSERT_TRUE(single.IsConverged());
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.scf=Tight(),.molecule={.basis="dzvp"}});
+    auto single=MoleculeCalculation::Prepare(setup).TakeValue(); (void)single->Converge();
+    ASSERT_TRUE(single->IsConverged());
 
     MoleculeSession pes(setup, Tight());
     const PESGeometry ref=pes.Reference();
     EXPECT_FALSE(ref.cell) << "a molecule has no cell";
     auto P=pes.ConvergeAt(std::nullopt, ref.R);
     ASSERT_TRUE(P) << P.Error().details;
-    EXPECT_DOUBLE_EQ(P->energy, single.Energy());
-    EXPECT_EQ(P->iterations, single.IterationCount());
+    EXPECT_DOUBLE_EQ(P->energy, single->Energy());
+    EXPECT_EQ(P->iterations, single->IterationCount());
 }
 
 TEST(MoleculeSession, ACarriedStepEqualsAFreshRunAtTheNewPositionsInFewerIterations)
@@ -53,10 +53,10 @@ TEST(MoleculeSession, ACarriedStepEqualsAFreshRunAtTheNewPositionsInFewerIterati
 
     Molecule moved(h2o);
     moved.MoveSites(R);
-    MoleculeCalculation fresh(MoleculeSetup::Resolve(moved, {.molecule={.basis="dzvp"}}), Tight());   // seeded from scratch at the new positions
-    ASSERT_TRUE(fresh.IsConverged());
-    EXPECT_NEAR(P1->energy, fresh.Energy(), 1e-8);
-    EXPECT_LT(P1->iterations, fresh.IterationCount()) << "the carried density is the point of the session";
+    auto fresh=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(moved, {.scf=Tight(),.molecule={.basis="dzvp"}})).TakeValue(); (void)fresh->Converge();   // seeded from scratch at the new positions
+    ASSERT_TRUE(fresh->IsConverged());
+    EXPECT_NEAR(P1->energy, fresh->Energy(), 1e-8);
+    EXPECT_LT(P1->iterations, fresh->IterationCount()) << "the carried density is the point of the session";
 }
 
 // THE STEP'S CARRY starts the step near its answer (lane A, 2026-11-09): every step's FIRST iterate is within 1e-5 Ha of the step's

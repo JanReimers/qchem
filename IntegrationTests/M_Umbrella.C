@@ -18,13 +18,13 @@ TEST(M_Umbrella, FrontDoorViaUmbrella)
     water.Insert(Site{1, Vector3D<double>(0, -1.431, 1.107)});
 
     // qchem::MoleculeCalculation + RunOptions designated init  (qchem.MoleculeCalculation, re-exported)
-    qchem::MoleculeCalculation calc(MoleculeSetup::Resolve(water, {.molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Converge([](SCFParams& p){ p.NMaxIter = 20; }));   // SCFParams visible; a one-field edit (R10); the Outcome door
+    auto calc=qchem::MoleculeCalculation::Prepare(MoleculeSetup::Resolve(water, {.molecule={.basis="dzvp"}})).TakeValue();
+    ASSERT_TRUE(calc->Converge([](SCFParams& p){ p.NMaxIter = 20; }));   // SCFParams visible; a one-field edit (R10); the Outcome door
 
     const double E_ref = -76.022903;
-    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
+    EXPECT_LT(std::fabs((E_ref - calc->Energy()) / E_ref), 1e-5);
 
     // ScalarFunction<double> sampling  (qchem.ScalarFunction, re-exported)
-    const ScalarFunction<double>& rho = calc.Density();
+    const ScalarFunction<double>& rho = calc->Density();
     EXPECT_GT(rho(Vector3D<double>(0, 0, 0)), 0.0);
 }

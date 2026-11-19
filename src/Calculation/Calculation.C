@@ -282,7 +282,9 @@ public:
     {
         SCFParams params=Options().scf;
         if (edit) edit(params);
-        return ConvergeStage(params);
+        (void)ConvergeStage(params);
+        FinishSchedule(params);   // a single Converge is a one-stage schedule: the kind's pilot runs after it too (the solid's rasters)
+        return Result();
     }
 
     //! \brief RUN A SCHEDULE (V-FACADE-PARITY P4, R7): each stage in turn, every one checkpointed (\c ConvergeStage), each after the first
@@ -347,7 +349,8 @@ protected:
     virtual void ApplySetupEdit(const SetupEdit& edit, size_t index) {RefuseSetupEdit(edit, index);}
     //! After stage \a index of \a count ran: the kind's per-stage summary line (the solid's campaign line).  Nothing by default.
     virtual void LeaveStage(size_t index, size_t count, const SCFParams& params) {(void)index; (void)count; (void)params;}
-    //! After the whole schedule: a pilot the kind runs once, at the final stage's density (the solid's raster pilot).  Nothing by default.
+    //! After the whole schedule, or a single \c Converge (a one-stage schedule): a pilot the kind runs once, at the final stage's density
+    //! (the solid's raster pilot; the molecule's mesh pilot runs inside its \c RunStage).  Nothing by default.
     virtual void FinishSchedule(const SCFParams& last) {(void)last;}
     //!@}
 

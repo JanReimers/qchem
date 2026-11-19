@@ -51,14 +51,8 @@ public:
     //! The proof type is the base's (\c tCalculation<double>::Converged, V-FACADE-PARITY P2): one for every kind.  The facade's own
     //! \c Energy() / \c Density() ... still exist beside it (the pybind bridge and the GUI read them).
 
-    //! \brief Build the whole graph over a RESOLVED setup (doc/CalcNetworkReview.md §7, step 7) -- the geometry point at the
-    //! setup's reference structure -- and converge ONCE on \a scf.  The setup is \c MoleculeSetup::Resolve(structure, options,
-    //! accelerator options), which deep-copies the structure (a periodic UnitCell stays periodic), so the caller's may be freed
-    //! at once.  The only door (user ruling 2026-10-30: clean replace, no (structure, options) constructors).
-    //! \a onIteration, when given, observes THIS constructor's SCF from its first iteration (a GUI streams the trace live);
-    //! it stays attached for later \c Converge calls.  A constructor argument, not a setup field: an observer is not a
-    //! resolved decision.
-    explicit MoleculeCalculation(std::shared_ptr<const MoleculeSetup> setup, const SCFParams& scf = {}, Observer onIteration = nullptr);
+    //! NO CONVERGING CONSTRUCTOR (V-FACADE-PARITY R8, user 2026-11-17: "60-90% of the run time should not be in a constructor"): the
+    //! one path is Setup (\c MoleculeSetup::Resolve / Admit) -> \c Prepare (the build, an Outcome) -> \c Converge (the Go button).
     ~MoleculeCalculation();
 
     MoleculeCalculation(const MoleculeCalculation&)            = delete;  // owns raw resources; non-copyable
@@ -108,10 +102,9 @@ public:
     //! \c Converge(edit) is the base's template method (V-FACADE-PARITY P3): the setup's \c opts.scf, edited by a one-field override
     //! (R10).  It invalidates references previously handed out by Density()/HOMO()/Orbital()/Orbitals() -- the wave function is
     //! rebuilt -- and any \c Converged from an earlier attempt.
-    //! \c Result() (the base's): the outcome of the last attempt -- the constructor's, for a caller that never re-converges.
+    //! \c Result() (the base's): the outcome of the last attempt ("did not converge in 0 iterations" before the first Converge).
 
-    //! Live per-iteration telemetry.  Set BEFORE a Converge() call to observe it (the ctor's initial
-    //! convergence runs before any observer can be attached).
+    //! Live per-iteration telemetry, REPLACING the one handed to \c Prepare.  Set BEFORE a Converge() call to observe it.
     void OnIteration(Observer obs);
 
     double                 Energy()      const;   //!< total energy E (hartree)
@@ -219,7 +212,7 @@ private:
         double                      displacement = 0.0; //!< the step's largest atom move (bohr), for \c RestartedFrom
     };
     //! The point at \a at (\c setup->reference's atoms, moved), seeded from \a carry when given (a WorkingDensity), else from the
-    //! setup's seed strategy.  The public setup constructor is this at the reference with no carry.
+    //! setup's seed strategy.  \c Prepare is this at the reference with no carry; a \c MoleculeSession point, this at its atoms.
     struct BuildOnly {};
     //! Everything but the SCF: the members and the electron configuration (the graph is \c BuildGraph's).
     MoleculeCalculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
@@ -227,8 +220,6 @@ private:
     //! The accelerator, the basis (first time), the Hamiltonian and the SCF iterator -- inside the caller's open report run.
     void BuildGraph();
     bool itsPrepared = false;   //!< \c Prepare built the graph: the next Converge reuses it instead of rebuilding
-    MoleculeCalculation(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
-                const SCFParams& scf, Observer onIteration, bool geometryPoint=false);
     //! The point's Hamiltonian on \a mesh (the setup's model or pseudopotential, this basis): the graph's, and every audit reference's.
     qchem::Hamiltonian::rHamiltonian* MakeHamiltonianOn(const qcMesh::MeshParams& mesh) const;
     //! Does this run integrate on a mesh at all (a DFT model or a pseudopotential)?  HF has none: nothing to audit or climb.
