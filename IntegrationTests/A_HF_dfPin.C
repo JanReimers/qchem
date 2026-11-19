@@ -54,15 +54,14 @@ class A_HF_dfPin : public ::testing::TestWithParam<PinCase> {};
 TEST_P(A_HF_dfPin, SelfPin)
 {
     const PinCase c = GetParam();
-    AtomCalculation calc(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::Polarized, .model=Model::HF, .atom={.type=c.type, .basisPool=c.acc}}),
-                         HFParams(c));
-    const double E = calc.Energy();
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::Polarized, .model=Model::HF, .scf=HFParams(c), .atom={.type=c.type, .basisPool=c.acc}})).TakeValue(); (void)calc->Converge();
+    const double E = calc->Energy();
 
     std::cout.precision(12);
     std::cout << "[df-pin] " << CaseName({c, 0}) << "  E = " << E << "  ";
     RelativeHFError(E, c.Z);                            // prints signed rel. error vs Saito (context only)
 
-    EXPECT_TRUE(calc.IsConverged());
+    EXPECT_TRUE(calc->IsConverged());
     if (c.pin != 0.0) EXPECT_NEAR(E, c.pin, c.atol);   // tight regression guard (skipped while harvesting)
 }
 
@@ -92,10 +91,9 @@ class A_HF_dfPin_HighValidation : public ::testing::TestWithParam<PinCase> {};
 TEST_P(A_HF_dfPin_HighValidation, VsSaito)
 {
     const PinCase c = GetParam();
-    AtomCalculation calc(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::Polarized, .model=Model::HF, .atom={.type=c.type, .basisPool=High}}),
-                         HFParams(c));
-    EXPECT_TRUE(calc.IsConverged());
-    EXPECT_LT(RelativeHFError(calc.Energy(), c.Z), c.atol);   // atol here is the Saito relative-error bound
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::Polarized, .model=Model::HF, .scf=HFParams(c), .atom={.type=c.type, .basisPool=High}})).TakeValue(); (void)calc->Converge();
+    EXPECT_TRUE(calc->IsConverged());
+    EXPECT_LT(RelativeHFError(calc->Energy(), c.Z), c.atol);   // atol here is the Saito relative-error bound
 }
 INSTANTIATE_TEST_SUITE_P(dfHigh, A_HF_dfPin_HighValidation, ::testing::Values(
     PinCase{AtomType::BSpline6, High, 21, 0.0, 5e-6}, PinCase{AtomType::BSpline6, High, 63, 0.0, 5e-6},

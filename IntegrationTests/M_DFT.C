@@ -51,22 +51,22 @@ static Molecule MakeO2()         // O2 at the experimental bond length ~1.208 An
 // move", NOT the physical energy; exchange-only Xalpha at these alphas is not calibrated to it).
 TEST(M_DFT, N2)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeN2(), {.model=Model::Xalpha, .xalpha=0.75197, .molecule={.basis="dzvp"}}));
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeN2(), {.model=Model::Xalpha, .xalpha=0.75197, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
     // δ default, D shells kept: -109.228113.  Was -109.225960 (A1 Vxc fit, d-less Coulomb fit) and -109.21679 at 2e-3 RELATIVE
     // (0.2 Ha!) on the 30/5 mesh.
-    EXPECT_NEAR(calc.Energy(), -109.2281129068, 1e-5);
-    EXPECT_NEAR(calc.Energy(), -109.22810738, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC";
+    EXPECT_NEAR(calc->Energy(), -109.2281129068, 1e-5);
+    EXPECT_NEAR(calc->Energy(), -109.22810738, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC";
 }
 
 TEST(M_DFT, Water)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::Xalpha, .xalpha=0.74000, .molecule={.basis="dzvp"}}));
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::Xalpha, .xalpha=0.74000, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
     // CONVERGED Xalpha total energy (the facade's auto DIIS-from-start): [F,D] and Δρ reach ~1e-13 by
     // ~iter 14, virial V/K = -2.006 (the correct ~-2, vs the buggy -2.11).  A true converged regression
     // sentinel.  (Was -76.123348 interim limit-cycle, -79.414120 stale-cache, -76.149301 on the 30/5 mesh -- 48 mHa low, inside
     // the old 2e-3 relative -- and -76.100897 on the A1 Vxc fit with a d-less Coulomb fit.)
-    EXPECT_NEAR(calc.Energy(), -76.1069880486, 1e-5);
-    EXPECT_NEAR(calc.Energy(), -76.10697987, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC";
+    EXPECT_NEAR(calc->Energy(), -76.1069880486, 1e-5);
+    EXPECT_NEAR(calc->Energy(), -76.10697987, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC";
 }
 
 // --- The spherical-Gaussian (PG_Spherical) basis through the DFT path -----------------------------
@@ -78,11 +78,11 @@ TEST(M_DFT, Water)
 // M_Spherical.fit_kernels.  So this is purely a "did E move" regression anchor, with a loose sanity bound.
 TEST(M_DFT, WaterSpherical)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::Xalpha, .xalpha=0.74000, .molecule={.basis="dzvp", .angular=Angular::Spherical}}));
-    EXPECT_NEAR(calc.Energy(), -76.1069880486, 0.05);                 // sanity: same ballpark as Cartesian
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::Xalpha, .xalpha=0.74000, .molecule={.basis="dzvp", .angular=Angular::Spherical}})).TakeValue(); (void)calc->Converge();
+    EXPECT_NEAR(calc->Energy(), -76.1069880486, 0.05);                 // sanity: same ballpark as Cartesian
     // CONVERGED anchor (δ default, D shells kept).  PySCF spherical dzvp with the Cartesian A1_coul J-fit: -76.10758175 (16 μHa;
     // our spherical fit basis is the spherical view, so not the identical aux set).  0.6 mHa BELOW the Cartesian.
-    EXPECT_NEAR(calc.Energy(), -76.1075980849, 1e-5);
+    EXPECT_NEAR(calc->Energy(), -76.1075980849, 1e-5);
 }
 
 // THE TIGHT RE-CONVERGE these tests run after the constructor's default one.  It lives in the SETUP (\c RunOptions::scf, R10) and
@@ -99,12 +99,12 @@ static const SCFParams kTightHF_Verbose = {.NMaxIter = 80, .MinΔρPerElectron =
 // the SAME energy as the unpolarized anchor -- and it does, to ~1e-11 (confirming a correct seed Fock).
 TEST(M_DFT, WaterPolarizedSAD)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.spin=SpinGroup::Polarized, .model=Model::Xalpha, .xalpha=0.74000, .scf=kTight60, .molecule={.basis="dzvp"}}));
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.spin=SpinGroup::Polarized, .model=Model::Xalpha, .xalpha=0.74000, .scf=kTight60, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
     // Polarized water Xalpha is the oscillatory case (commutator ~2-4; see M_Sym RunDFT) -- it needs more
     // iterations + damping than the facade's quick default, so re-Converge with tight params (DIIS already
     // drives from the start for DFT).
-    ASSERT_TRUE(calc.Converge());
-    EXPECT_NEAR(calc.Energy(), -76.1069880486, 1e-5);   // == the unpolarized Xalpha anchor
+    ASSERT_TRUE(calc->Converge());
+    EXPECT_NEAR(calc->Energy(), -76.1069880486, 1e-5);   // == the unpolarized Xalpha anchor
 }
 
 // Spin-native (polarized) parameter-free LDA water (Dirac exchange + spin-native VWN5 correlation) through
@@ -114,9 +114,9 @@ TEST(M_DFT, WaterPolarizedSAD)
 // the SAD-seed fallback (rho_up=rho_down=rho/2), the per-spin v_c^sigma fit, and the two-channel E_c.
 TEST(M_DFT, WaterPolarizedLDA)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.spin=SpinGroup::Polarized, .model=Model::LDA, .scf=kTight60, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Converge());
-    EXPECT_NEAR(calc.Energy(), -75.8794551388, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.spin=SpinGroup::Polarized, .model=Model::LDA, .scf=kTight60, .molecule={.basis="dzvp"}})).TakeValue();
+    ASSERT_TRUE(calc->Converge());
+    EXPECT_NEAR(calc->Energy(), -75.8794551388, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
 }
 
 // OPEN-SHELL through the facade multiplicity knob (OpenWork B4): triplet O2 (16 e-, multiplicity 3 =>
@@ -126,12 +126,12 @@ TEST(M_DFT, WaterPolarizedLDA)
 // regression sentinel (converged spin-native LDA total energy).
 TEST(M_DFT, OxygenTripletLDA)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeO2(), {.multiplicity=3, .model=Model::LDA, .scf=kTight80, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Converge());
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeO2(), {.multiplicity=3, .model=Model::LDA, .scf=kTight80, .molecule={.basis="dzvp"}})).TakeValue();
+    ASSERT_TRUE(calc->Converge());
     // Converged spin-native LDA triplet (δ default, D shells kept).  Was -149.263716 on the A1 per-spin Vxc fit with a d-less
     // Coulomb fit -- 35.5 mHa above PySCF exact, which a row once blamed on the polarized machinery; it was the fit.
-    EXPECT_NEAR(calc.Energy(), -149.3006843396, 1e-4);
-    EXPECT_NEAR(calc.Energy(), -149.30067460, 1e-4) << "ORACLE: PySCF UKS, the same A1_coul Coulomb fit, exact XC";
+    EXPECT_NEAR(calc->Energy(), -149.3006843396, 1e-4);
+    EXPECT_NEAR(calc->Energy(), -149.30067460, 1e-4) << "ORACLE: PySCF UKS, the same A1_coul Coulomb fit, exact XC";
 }
 
 // THE SPIN-RESOLVED MOLECULAR SAD SEED on the O2 triplet (OpenWork §2 "Molecular spin-resolved SAD seed", lane B 2026-11-16).  The O entry of
@@ -147,11 +147,11 @@ static void SpinResolvedSeedReachesTheCoreGuessState(const RunOptions& base, con
         RunOptions o=base;
         o.seed=seeds[i];
         o.scf=kTight80;
-        MoleculeCalculation calc(MoleculeSetup::Resolve(MakeO2(), o));
-        ASSERT_TRUE(calc.Converge()) << what << (i ? ": core guess" : ": spin-resolved SAD");
-        E[i]=calc.Energy();
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeO2(), o)).TakeValue();
+        ASSERT_TRUE(calc->Converge()) << what << (i ? ": core guess" : ": spin-resolved SAD");
+        E[i]=calc->Energy();
         std::cout << "[O2 triplet, " << what << "] " << (i ? "core guess" : "spin-resolved SAD") << ": E " << std::setprecision(12) << E[i]
-                  << ", " << calc.IterationCount() << " iterations" << std::endl;
+                  << ", " << calc->IterationCount() << " iterations" << std::endl;
     }
     EXPECT_NEAR(E[0], E[1], 1e-7) << what << ": the spin-resolved seed reaches the core guess's triplet";
 }
@@ -170,9 +170,9 @@ TEST(M_DFT, OxygenTripletLDA_TheSpinResolvedSeedReachesTheCoreGuessState)
 // (the crash path) and pins the converged HF triplet energy.  "Did E move" + no-crash.
 TEST(M_DFT, OxygenTripletHF_VerboseDisplay)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeO2(), {.multiplicity=3, .model=Model::HF, .scf=kTightHF_Verbose, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Converge());   // Verbose => DisplayEigen (the crash path)
-    EXPECT_NEAR(calc.Energy(), -149.6295470276, 1e-4);   // converged HF triplet O2
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeO2(), {.multiplicity=3, .model=Model::HF, .scf=kTightHF_Verbose, .molecule={.basis="dzvp"}})).TakeValue();
+    ASSERT_TRUE(calc->Converge());   // Verbose => DisplayEigen (the crash path)
+    EXPECT_NEAR(calc->Energy(), -149.6295470276, 1e-4);   // converged HF triplet O2
 }
 
 // Physics check that the spin channel is doing real work: the triplet ground state must lie BELOW the
@@ -194,9 +194,9 @@ TEST(M_DFT, OxygenTripletBelowSinglet_Panel)   // PANEL case 11: a degenerate pa
         SCFParams p{.NMaxIter = 100, .MinΔρPerElectron = 1e-7, .MinVirial = 1e2, .MinFD = 1e-7,
                     .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false};
         if (mult==1) p.SmearingkT=1e-2;   // open row: doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT"
-        MoleculeCalculation c(MoleculeSetup::Resolve(MakeO2(), {.multiplicity=mult, .model=Model::LDA, .molecule={.basis="dzvp"}}), p);
-        EXPECT_TRUE(c.IsConverged()) << "multiplicity " << mult;
-        const auto E=c.EnergyTerms();
+        auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeO2(), {.multiplicity=mult, .model=Model::LDA, .scf=p, .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
+        EXPECT_TRUE(c->IsConverged()) << "multiplicity " << mult;
+        const auto E=c->EnergyTerms();
         return E.GetTotalEnergy()-E["MinusTS"];   // the internal energy (the -TS of a smeared run left out; 0 for the triplet)
     };
     const double triplet = run(3);   // nUp=9, nDown=7  (SpinGroup::Polarized, auto)
@@ -249,10 +249,10 @@ TEST(M_DFT, TeF6_PP_Spherical_Converges_Long)
     o.molecule.angular    = Angular::Spherical;
     o.seed       = ChargeDensity::SeedStrategy::CoreGuess;
     MoleculeXCMesh(o).nRadial = 50; MoleculeXCMesh(o).angularDegree = 17;                // the first rung that died
-    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeTeF6(), o));
-    ASSERT_TRUE(calc.Result()) << "the 2026-11-05 crash recipe must converge";
-    EXPECT_NEAR(calc.Energy(), -153.4149661057, 1e-5);             // anchor at the stated (50,17)
-    EXPECT_NEAR(calc.Energy(), -153.4140873524, 2e-3) << "the (200,35) value: (50,17) is 0.9 mHa off it, the coarse mesh's own error";
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeTeF6(), o)).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result()) << "the 2026-11-05 crash recipe must converge";
+    EXPECT_NEAR(calc->Energy(), -153.4149661057, 1e-5);             // anchor at the stated (50,17)
+    EXPECT_NEAR(calc->Energy(), -153.4140873524, 2e-3) << "the (200,35) value: (50,17) is 0.9 mHa off it, the coarse mesh's own error";
 }
 
 // AN ALL-ELECTRON MOLECULE PAST NEON STARTS FROM SAD (OpenWork §3 "The default SAD seed stops at Ne", lane B 2026-11-13): the all-electron
@@ -272,55 +272,55 @@ static void ExpectSADMatchesCoreGuess(const Molecule& mol, const std::string& ba
 {
     const auto sad=MoleculeSetup::Resolve(mol, {.model=Model::LDA, .molecule={.basis=basis}});
     ASSERT_EQ(sad->opts.seed, ChargeDensity::SeedStrategy::SAD) << "every element is in the all-electron library, so the Auto rule seeds from SAD";
-    MoleculeCalculation a(sad);
-    MoleculeCalculation b(MoleculeSetup::Resolve(mol, {.model=Model::LDA, .seed=ChargeDensity::SeedStrategy::CoreGuess, .molecule={.basis=basis}}));
-    ASSERT_TRUE(a.Result()) << "the SAD start converges";
-    ASSERT_TRUE(b.Result()) << "the core-guess start converges";
-    EXPECT_NEAR(a.Energy(), b.Energy(), tol) << "one converged state from either start";
+    auto a=MoleculeCalculation::Prepare(sad).TakeValue(); (void)a->Converge();
+    auto b=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(mol, {.model=Model::LDA, .seed=ChargeDensity::SeedStrategy::CoreGuess, .molecule={.basis=basis}})).TakeValue(); (void)b->Converge();
+    ASSERT_TRUE(a->Result()) << "the SAD start converges";
+    ASSERT_TRUE(b->Result()) << "the core-guess start converges";
+    EXPECT_NEAR(a->Energy(), b->Energy(), tol) << "one converged state from either start";
 }
 TEST(M_DFT, H2S_AllElectron_SADSeed_eqCoreGuess)    { ExpectSADMatchesCoreGuess(MakeH2S(),  "dzvp", 1e-6); }
 TEST(M_DFT, TeF6_AllElectron_SADSeed_eqCoreGuess_Long) { ExpectSADMatchesCoreGuess(MakeTeF6(), "dzvp", 1e-6); }
 
 TEST(M_DFT, WaterLDA_AuxiliaryFit)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Result());
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
     // RE-JUDGED 2026-11-15 (pin 10, lane S): FittedVxc retired.  The cell's E is now the exact XC of rho[D] on the run's mesh (FittedVxc fitted eps
     // for E too, the -1.4 mHa it sat off PySCF); only H still sees the A1 fit of v, a second-order error in E.  From -75.8808368818.  Independent
     // route: PySCF's exact XC, 2.1 μHa away (was 1.39 mHa).
-    EXPECT_NEAR(calc.Energy(), -75.8794494584, 1e-5);   // anchor
-    EXPECT_NEAR(calc.Energy(), -75.87944736, 2e-5) << "ORACLE: PySCF A1_coul J-fit route, exact XC; the gap is the A1 fit of v in H (second order)";
+    EXPECT_NEAR(calc->Energy(), -75.8794494584, 1e-5);   // anchor
+    EXPECT_NEAR(calc->Energy(), -75.87944736, 2e-5) << "ORACLE: PySCF A1_coul J-fit route, exact XC; the gap is the A1 fit of v in H (second order)";
 }
 
 TEST(M_DFT, OxygenTripletLDA_AuxiliaryFit)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeO2(), {.multiplicity=3, .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .scf=kTight80, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Converge());
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeO2(), {.multiplicity=3, .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .scf=kTight80, .molecule={.basis="dzvp"}})).TakeValue();
+    ASSERT_TRUE(calc->Converge());
     // RE-JUDGED 2026-11-15 (pin 10, lane S): FittedVxc retired (see WaterLDA_AuxiliaryFit).  From -149.3018824495.  Independent routes: our δ cell
     // (OxygenTripletLDA) -149.3006843397, 7.5 μHa BELOW (the variational minimum: the fitted v only perturbs D), and PySCF 2.2 μHa away.
-    EXPECT_NEAR(calc.Energy(), -149.3006768238, 1e-4);   // anchor
-    EXPECT_NEAR(calc.Energy(), -149.30067460, 2e-5) << "ORACLE: PySCF UKS A1_coul J-fit route, exact XC; the gap is the A1 fit of v in H (second order)";
+    EXPECT_NEAR(calc->Energy(), -149.3006768238, 1e-4);   // anchor
+    EXPECT_NEAR(calc->Energy(), -149.30067460, 2e-5) << "ORACLE: PySCF UKS A1_coul J-fit route, exact XC; the gap is the A1 fit of v in H (second order)";
 }
 
 // F2 GTH q7 (the case the "Molecular PP route is 4 mHa/atom off CP2K" row was filed on) on BOTH routes: the δ default is CP2K's
 // number to 1.4 mHa (PySCF's own A1_coul J-fit route to 57 μHa) -- the PP route was never the defect.
 TEST(M_DFT, F2_PP)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeF2(), {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="valence_lowq_vb"}}));
-    ASSERT_TRUE(calc.Result());
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeF2(), {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="valence_lowq_vb"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
     // Re-judged 2026-11-05 (pin 10): the closed-form PP integrals moved this +4.2e-5, from 5.7e-5 to 1.5e-5 off PySCF.
-    EXPECT_NEAR(calc.Energy(), -48.2018945557, 1e-5);   // anchor (δ default)
-    EXPECT_NEAR(calc.Energy(), -48.20187971, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC (CP2K -48.20058)";
+    EXPECT_NEAR(calc->Energy(), -48.2018945557, 1e-5);   // anchor (δ default)
+    EXPECT_NEAR(calc->Energy(), -48.20187971, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC (CP2K -48.20058)";
 }
 TEST(M_DFT, F2_PP_AuxiliaryFit)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(MakeF2(), {.model=Model::LDA, .pp="gth-lda-valence", .vxcFit=Hamiltonian::VxcFit::Auxiliary, .molecule={.basis="valence_lowq_vb"}}));
-    ASSERT_TRUE(calc.Result());
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeF2(), {.model=Model::LDA, .pp="gth-lda-valence", .vxcFit=Hamiltonian::VxcFit::Auxiliary, .molecule={.basis="valence_lowq_vb"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
     // RE-JUDGED 2026-11-15 (pin 10, lane S): FittedVxc retired (see WaterLDA_AuxiliaryFit).  From -48.1970563871 (+4.8 mHa off PySCF: the eps fit
     // of a PP valence density).  Independent route: our δ cell (F2_PP) -48.2018945557, 93 μHa BELOW (variational); PySCF 78 μHa away.  The
     // larger second-order gap than water's is A1_exch's poorer fit of v on a pseudo-valence density (its P-rho is 29% negative, OpenWork).
-    EXPECT_NEAR(calc.Energy(), -48.2018018561, 1e-5);   // anchor
-    EXPECT_NEAR(calc.Energy(), -48.20187971, 1e-4) << "ORACLE: PySCF A1_coul J-fit route, exact XC; the gap is the A1 fit of v in H (second order)";
+    EXPECT_NEAR(calc->Energy(), -48.2018018561, 1e-5);   // anchor
+    EXPECT_NEAR(calc->Energy(), -48.20187971, 1e-4) << "ORACLE: PySCF A1_coul J-fit route, exact XC; the gap is the A1 fit of v in H (second order)";
 }
 
 // THE A1 Pρ CELL IS RETIRED (user 2026-11-15, pin 28): XC must see ρ[D], and the A1 fit's projection of it is not ρ[D] (water's Pρ held 9.958
@@ -341,13 +341,13 @@ TEST(M_DFT, F2_PP_AuxiliaryFitProjectedIsRefused)
 // The direct sum is coarse, by measurement (TeF₆ prototype: J to about 1e-2), so the oracle tolerance says so.
 TEST(M_DFT, WaterLDA_DeltaCoulomb_Long)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit = Hamiltonian::CoulombFit::Delta, .solver = Hamiltonian::CoulombSolver::DirectSum}, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Result());
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit = Hamiltonian::CoulombFit::Delta, .solver = Hamiltonian::CoulombSolver::DirectSum}, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
     // The mesh pilot sizes XC and leaves this Hartree out (its error does not fall with the mesh, HartreeConvergesWithMesh): chasing it
     // walked the ladder at O(N²) per rung and ran ~10 h (2026-11-08).  A settled climb is the proof it was not chased.
-    EXPECT_TRUE(calc.PilotCost().settled);
-    EXPECT_NEAR(calc.Energy(), -75.8917526160, 1e-5);   // anchor
-    EXPECT_NEAR(calc.Energy(), -75.87729931, 2e-2) << "ORACLE: PySCF, exact J and XC; the gap (-14.5 mHa) is the direct sum";
+    EXPECT_TRUE(calc->PilotCost().settled);
+    EXPECT_NEAR(calc->Energy(), -75.8917526160, 1e-5);   // anchor
+    EXPECT_NEAR(calc->Energy(), -75.87729931, 2e-2) << "ORACLE: PySCF, exact J and XC; the gap (-14.5 mHa) is the direct sum";
 }
 
 // ...and with the radial Poisson solve, the route to use: the same mesh, the operator at the mesh's own limit.  It sits 15x closer
@@ -356,20 +356,20 @@ TEST(M_DFT, WaterLDA_DeltaCoulomb_Long)
 // (100, 29), and the energy moves -39.9 μHa, from +30.6 to -9.3 μHa off the exact-J oracle.
 TEST(M_DFT, WaterLDA_DeltaCoulomb_Poisson)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit = Hamiltonian::CoulombFit::Delta}, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -75.8773086479, 1e-6);   // anchor (re-judged 2026-11-08, above)
-    EXPECT_NEAR(calc.Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC; the gap (-9 μHa) is the mesh's, inside eps x N";
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit = Hamiltonian::CoulombFit::Delta}, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    EXPECT_NEAR(calc->Energy(), -75.8773086479, 1e-6);   // anchor (re-judged 2026-11-08, above)
+    EXPECT_NEAR(calc->Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC; the gap (-9 μHa) is the mesh's, inside eps x N";
 }
 
 // The multipole fit has δ x Poisson's potential, so its SCF is the same one; only the energy's second leg differs.  Re-judged with the
 // δ case above (2026-11-08): the pilot's (100, 29) moves it -39.5 μHa, from +32 to -7.9 μHa off the oracle.
 TEST(M_DFT, WaterLDA_MultipoleCoulomb)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit = Hamiltonian::CoulombFit::Multipole}, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -75.8773072275, 1e-6);   // anchor (re-judged 2026-11-08, above)
-    EXPECT_NEAR(calc.Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC: delta's level, -8 μHa.  This rung was 530 out when rho-tilde was synthesized onto the mesh";
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit = Hamiltonian::CoulombFit::Multipole}, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    EXPECT_NEAR(calc->Energy(), -75.8773072275, 1e-6);   // anchor (re-judged 2026-11-08, above)
+    EXPECT_NEAR(calc->Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC: delta's level, -8 μHa.  This rung was 530 out when rho-tilde was synthesized onto the mesh";
 }
 
 // The multipole route's energy depends less on the l cut than δ's: at 150/35, 11 μHa between l = 12 and 16 where δ moves 35.
@@ -377,11 +377,11 @@ TEST(M_DFT, WaterLDA_MultipoleCoulomb_eqLCut_Long)
 {
     auto energy=[](int lMax)
     {
-        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
             {.model=Model::LDA, .xcMesh=qcMesh::MeshParams{.radial = qcMesh::RadialKind::MHL, .nRadial = 150, .mhl_m = 3, .mhl_alpha = 2.0,
-                                                      .angular = qcMesh::AngularKind::Lebedev, .angularDegree = 35, .beckeOrder = 2}, .coulomb={.fit = Hamiltonian::CoulombFit::Multipole, .lMax = lMax}, .molecule={.basis="dzvp"}}));
-        EXPECT_TRUE(calc.Result());
-        return calc.Energy();
+                                                      .angular = qcMesh::AngularKind::Lebedev, .angularDegree = 35, .beckeOrder = 2}, .coulomb={.fit = Hamiltonian::CoulombFit::Multipole, .lMax = lMax}, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+        EXPECT_TRUE(calc->Result());
+        return calc->Energy();
     };
     const double e12=energy(12);
     EXPECT_NEAR(e12, energy(16), 2e-5);
@@ -393,9 +393,9 @@ TEST(M_DFT, WaterLDA_MultipoleCoulomb_eqLCut_Long)
 // A1-Hartree value; the mesh pilot (GeometryOptimizationPlan §14) climbs it to (100, 41 GL), and it sits -5.1 μHa off, inside eps x N.
 TEST(M_DFT, WaterLDA_MultipoleVxc)
 {
-    MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Multipole, .molecule={.basis="dzvp"}}));
-    ASSERT_TRUE(calc.Result());
-    EXPECT_NEAR(calc.Energy(), -75.87944736, 3e-5) << "the A1 Hartree value (PySCF, exact XC); eps x N_atoms, the run's own target";
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Multipole, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    EXPECT_NEAR(calc->Energy(), -75.87944736, 3e-5) << "the A1 Hartree value (PySCF, exact XC); eps x N_atoms, the run's own target";
 }
 
 // --- Ionic SAD on a molecule (user, 2026-11-12: "we should strive to make seeding ... structure neutral") -------------------------
@@ -426,8 +426,8 @@ void IonicSADReachesTheSADState(const Molecule& mol, const char* what)
     const SeedStrategy seeds[2]={SeedStrategy::SAD, SeedStrategy::IonicSAD};
     for (int i=0;i<2;i++)
     {
-        MoleculeCalculation calc(MoleculeSetup::Resolve(mol, {.model=Model::LDA, .seed=seeds[i], .molecule={.basis="dzvp"}}));
-        const auto r=calc.Result();
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(mol, {.model=Model::LDA, .seed=seeds[i], .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+        const auto r=calc->Result();
         ASSERT_TRUE(r) << what << (i ? " IonicSAD" : " SAD") << " did not converge";
         E[i]=r->Energy();
         std::cout << "[ionic seed] " << what << (i ? " IonicSAD: " : " SAD:       ") << r->IterationCount() << " iterations, E = "

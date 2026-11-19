@@ -4,6 +4,8 @@ module;
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <functional>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -270,5 +272,61 @@ Outcome<RestartSummary, RestartRefusal> Calculation::JudgeRestart(SavedState& sa
     std::cout<<os.str()<<std::endl;
     return O::Ok(std::move(R));
 }
+
+const RunOptions& Calculation::Options() const {return GetSetup().opts;}
+SpinGroup Calculation::StateSpin() const {return GetSetup().opts.spin;}
+
+//====================================================================================================
+//  THE TEMPLATE METHOD (tCalculation<T>): Converge, a schedule, one stage, the outcome
+//====================================================================================================
+template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCalculation<T>::Converge(const SCFEdit& edit)
+{
+    SCFParams params=Options().scf;
+    if (edit) edit(params);
+    (void)ConvergeStage(params);
+    FinishSchedule(params);   // a single Converge is a one-stage schedule: the kind's pilot runs after it too (the solid's rasters)
+    return Result();
+}
+
+template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCalculation<T>::Converge(const std::vector<SCFStage>& schedule, const SCFEdit& edit)
+{
+    if (schedule.empty())
+        throw std::invalid_argument("Calculation::Converge: an EMPTY schedule has no meaning -- pass at least one stage, or call Converge()");
+    for (size_t s=0; s<schedule.size(); ++s)
+    {
+        SCFStage stage=schedule[s];
+        if (edit) edit(stage.params);
+        try
+        {
+            if (!stage.edit.Empty()) ApplySetupEdit(stage.edit, s);
+            EnterStage(stage, s);
+        }
+        catch (const policy::Refused& r)   // a deck can reach it: an Outcome, its policy row already filed
+        {
+            SCFFailure f; f.why=SCFFailure::Why::StageRefused; f.details="schedule stage "+std::to_string(s)+" REFUSED (policy "+r.Name()+"): "+r.what();
+            return Outcome<Converged, SCFFailure>::Fail(std::move(f));
+        }
+        (void)ConvergeStage(stage.params);
+        LeaveStage(s, schedule.size(), stage.params);
+    }
+    FinishSchedule(schedule.back().params);
+    return Result();
+}
+
+template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCalculation<T>::Result() const
+{
+    using O=Outcome<Converged, SCFFailure>;
+    if (std::optional<SCFFailure> f=MakeFailure()) return O::Fail(std::move(*f));
+    return O::Ok(Converged(this));
+}
+
+template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCalculation<T>::ConvergeStage(const SCFParams& params)
+{
+    if (RunStage(params)) Checkpoint(Options().saveStateTo, Tag());
+    return Result();
+}
+
+template class tCalculation<double>;   // the atom and the molecule
+template class tCalculation<dcmplx>;   // the solid's Bloch blocks
 
 } // namespace qchem

@@ -199,7 +199,7 @@ TEST(SolidSetup, ARecipeBindsTheRunsGPWTolerancesAndAPreBuiltBasisCannotTakeOthe
 
     std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_VA, &cell));
     EXPECT_EQ(bound(*mol).screenEps, BasisSet::Gaussian::GPWTolerances{}.screenEps) << "a pre-built basis carries the defaults";
-    EXPECT_THROW(SolidCalculation(SolidSetup::Resolve(lat, mol, o)), std::invalid_argument)
+    EXPECT_THROW((void)SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, o)), std::invalid_argument)
         << "the run asks for tolerances its pre-built basis was not built with";
 }
 

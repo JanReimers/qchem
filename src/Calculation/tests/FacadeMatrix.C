@@ -486,7 +486,7 @@ public:
     std::string ConvergeFilesTheScfHeader() override
     {
         std::unique_ptr<AtomCalculation> calc;
-        { report::Run run(ID()); calc=std::make_unique<AtomCalculation>(AtomSetup::Resolve(Z, 0, Options())); }
+        { report::Run run(ID()); calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue(); (void)calc->Converge(); }
         if (!calc->IsConverged()) return "the O atom did not converge";
         return ScfHeaderFiled(FiledRun(ID()+"@"), ID()+"@");
     }
@@ -502,36 +502,36 @@ public:
     std::string SaveRestartRoundTrips() override
     {
         const std::string path=TempPath("facade_matrix_o_atom.h5");
-        AtomCalculation calc(AtomSetup::Resolve(Z, 0, Options()));
-        if (!calc.IsConverged()) return "the O atom reference did not converge";
-        calc.SaveState(path);
+        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue(); (void)calc->Converge();
+        if (!calc->IsConverged()) return "the O atom reference did not converge";
+        calc->SaveState(path);
         auto restarted=AtomCalculation::Restart(path, AtomSetup::Resolve(Z, 0, Options()));
         std::filesystem::remove(path);
         if (!restarted) return "the restart was refused: "+restarted.Error().details;
-        return Resumed((*restarted)->IsConverged(), (*restarted)->Energy(), calc.Energy(), (*restarted)->IterationCount(),
-                       calc.IterationCount(), (*restarted)->RestartedFrom());
+        return Resumed((*restarted)->IsConverged(), (*restarted)->Energy(), calc->Energy(), (*restarted)->IterationCount(),
+                       calc->IterationCount(), (*restarted)->RestartedFrom());
     }
     std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","B"}});}   // the atom molecules.json carries
     std::string LevelsAnswerTheState() override
     {
-        AtomCalculation calc(AtomSetup::Resolve(Z, 0, Options()));
-        if (!calc.IsConverged()) return "the O atom did not converge";
-        return LevelsHold(calc, Z, true);
+        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue(); (void)calc->Converge();
+        if (!calc->IsConverged()) return "the O atom did not converge";
+        return LevelsHold(*calc, Z, true);
     }
     //! The atom samples no orbital by level index (its Orbital(i) counts occupied orbitals), so rho, m and the levels are compared,
     //! and every level's orbital must answer.  Refused: another element's spec, a missing file.
     std::string ViewMatchesTheLiveState() override
     {
         const std::string path=TempPath("facade_matrix_view_o_atom.h5");
-        AtomCalculation calc(AtomSetup::Resolve(Z, 0, Options()));
-        if (!calc.IsConverged()) return "the O atom did not converge";
-        calc.SaveState(path);
+        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue(); (void)calc->Converge();
+        if (!calc->IsConverged()) return "the O atom did not converge";
+        calc->SaveState(path);
         auto v=Opened("O view", [&]{ return AtomCalculation::ViewState(path, AtomSetup::Resolve(Z, 0, Options())); });
         std::string why;
         if (!v) why="the atom's own state was refused: "+v.Error().details+"; ";
         else
         {
-            why+=ViewMatches(**v, calc, calc.Density(), ZeroField(), [](size_t){ return (const ScalarFunction<double>*)nullptr; });
+            why+=ViewMatches(**v, *calc, calc->Density(), ZeroField(), [](size_t){ return (const ScalarFunction<double>*)nullptr; });
             for (size_t i=0;i<(*v)->GetLevels().size();i++)
                 if (!(*v)->Orbital(i)) why+="level "+std::to_string(i)+"'s orbital was refused; ";
             why+=ViewFiled("O view");
@@ -589,7 +589,7 @@ public:
     std::string ConvergeFilesTheScfHeader() override
     {
         std::unique_ptr<MoleculeCalculation> calc;
-        { report::Run run(ID()); calc=std::make_unique<MoleculeCalculation>(Setup()); }
+        { report::Run run(ID()); calc=MoleculeCalculation::Prepare(Setup()).TakeValue(); (void)calc->Converge(); }
         if (!calc->IsConverged()) return "H2O did not converge";
         return ScfHeaderFiled(FiledRun(ID()+"@"), ID()+"@");
     }
@@ -602,10 +602,10 @@ public:
     {
         const std::string path=TempPath("facade_matrix_h2o.h5");
         const auto setup=Setup();
-        MoleculeCalculation calc(setup);
-        auto saved=calc.Result();
+        auto calc=MoleculeCalculation::Prepare(setup).TakeValue(); (void)calc->Converge();
+        auto saved=calc->Result();
         if (!saved) return "the H2O reference did not converge: "+saved.Error().details;
-        calc.SaveState(path);
+        calc->SaveState(path);
         auto restarted=MoleculeCalculation::Restart(path, Setup());   // a FRESH setup: its mesh is adopted from the state
         std::filesystem::remove(path);
         if (!restarted) return "the restart was refused: "+restarted.Error().details;
@@ -620,11 +620,11 @@ public:
     //! Plus the molecule's own field-carrying list: index i there is index i here (the binding samples orbital i by it).
     std::string LevelsAnswerTheState() override
     {
-        MoleculeCalculation calc(Setup());
-        if (!calc.IsConverged()) return "H2O did not converge";
-        std::string why=LevelsHold(calc, 8.0, true);   // GTH: O 6 + 2 H
-        const auto neutral=calc.MakeLevels();
-        const auto& fields=calc.GetLevels();
+        auto calc=MoleculeCalculation::Prepare(Setup()).TakeValue(); (void)calc->Converge();
+        if (!calc->IsConverged()) return "H2O did not converge";
+        std::string why=LevelsHold(*calc, 8.0, true);   // GTH: O 6 + 2 H
+        const auto neutral=calc->MakeLevels();
+        const auto& fields=calc->GetLevels();
         if (fields.size()!=neutral.size()) return why+"GetLevels has "+std::to_string(fields.size())+" levels, MakeLevels "+std::to_string(neutral.size());
         for (size_t i=0;i<fields.size();i++)
             if (fields[i].e!=neutral[i].e || fields[i].label!=neutral[i].label || !fields[i].phi)
@@ -639,15 +639,15 @@ public:
                           atomPath=TempPath("facade_matrix_view_atom.h5");
         std::string why;
         {
-            MoleculeCalculation calc(Setup());
-            if (!calc.IsConverged()) return "H2O did not converge";
-            calc.SaveState(path);
+            auto calc=MoleculeCalculation::Prepare(Setup()).TakeValue(); (void)calc->Converge();
+            if (!calc->IsConverged()) return "H2O did not converge";
+            calc->SaveState(path);
             auto v=Opened("H2O view", [&]{ return MoleculeCalculation::ViewState(path, Setup()); });
             if (!v) why+="H2O's own state was refused: "+v.Error().details+"; ";
             else
             {
-                const auto& fields=calc.GetLevels();
-                why+=ViewMatches(**v, calc, calc.Density(), calc.GetSpinDensity(),
+                const auto& fields=calc->GetLevels();
+                why+=ViewMatches(**v, *calc, calc->Density(), calc->GetSpinDensity(),
                                  [&](size_t i){ return i<fields.size() ? fields[i].phi : nullptr; });
                 why+=ViewFiled("H2O view");
             }
@@ -655,15 +655,15 @@ public:
         {
             const auto o2=MoleculeSetup::Resolve(StructureData::GetMolecule("O2"),
                                                  {.multiplicity=3, .model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
-            MoleculeCalculation calc(o2);
-            if (!calc.IsConverged()) return why+"O2 (triplet) did not converge";
-            calc.SaveState(path2);
+            auto calc=MoleculeCalculation::Prepare(o2).TakeValue(); (void)calc->Converge();
+            if (!calc->IsConverged()) return why+"O2 (triplet) did not converge";
+            calc->SaveState(path2);
             auto v=MoleculeCalculation::ViewState(path2, o2);
             if (!v) why+="O2's own state was refused: "+v.Error().details+"; ";
             else
             {
-                const auto& fields=calc.GetLevels();
-                why+=ViewMatches(**v, calc, calc.Density(), calc.GetSpinDensity(),
+                const auto& fields=calc->GetLevels();
+                why+=ViewMatches(**v, *calc, calc->Density(), calc->GetSpinDensity(),
                                  [&](size_t i){ return i<fields.size() ? fields[i].phi : nullptr; });
                 if (std::fabs((*v)->SpinDensity()(rvec3_t(0.3,0.2,0.1)))<1e-6) why+="O2's drawn m is ~0 near the bond: the channels did not arrive; ";
             }
@@ -690,8 +690,8 @@ public:
             why+=Refused("the spherical basis", [&]{ return MoleculeCalculation::ViewState(path, spherical); }, RestartRefusal::Why::Mismatch);
         }
         {
-            AtomCalculation atom(AtomSetup::Resolve(8, 0, {.model=Model::LDA, .atom={.type=AtomType::Gaussian}}));
-            atom.SaveState(atomPath);
+            auto atom=AtomCalculation::Prepare(AtomSetup::Resolve(8, 0, {.model=Model::LDA, .atom={.type=AtomType::Gaussian}})).TakeValue(); (void)atom->Converge();
+            atom->SaveState(atomPath);
             why+=Refused("an atom's state", [&]{ return MoleculeCalculation::ViewState(atomPath, Setup()); }, RestartRefusal::Why::Kind);
         }
         for (const auto& p : {path, path2, atomPath}) std::filesystem::remove(p);
@@ -758,7 +758,7 @@ public:
     {
         const auto setup=Setup();
         std::unique_ptr<SolidCalculation> calc;
-        { report::Run run(ID(*setup)); calc=std::make_unique<SolidCalculation>(setup, Params()); }
+        { report::Run run(ID(*setup)); calc=SolidCalculation::Prepare(setup).TakeValue(); (void)calc->Converge(); }
         if (!calc->DidConverge()) return "Si Γ did not converge";
         return ScfHeaderFiled(FiledRun(ID(*setup)+"@"), ID(*setup)+"@");
     }
@@ -772,10 +772,10 @@ public:
     {
         const std::string path=TempPath("facade_matrix_si.h5");
         const auto setup=Setup();
-        SolidCalculation calc(setup, Params());
-        auto saved=calc.Result();
+        auto calc=SolidCalculation::Prepare(setup).TakeValue(); (void)calc->Converge();
+        auto saved=calc->Result();
         if (!saved) return "the Si Γ reference did not converge: "+saved.Error().details;
-        calc.SaveState(path);
+        calc->SaveState(path);
         auto restarted=SolidCalculation::Restart(path, setup, Params());
         std::filesystem::remove(path);
         if (!restarted) return "the restart was refused: "+restarted.Error().details;
@@ -792,9 +792,9 @@ public:
     }
     std::string LevelsAnswerTheState() override
     {
-        SolidCalculation calc(Setup(), Params());
-        if (!calc.DidConverge()) return "Si Γ did not converge";
-        return LevelsHold(calc, 8.0, true);   // two Si, 4 valence each
+        auto calc=SolidCalculation::Prepare(Setup()).TakeValue(); (void)calc->Converge();
+        if (!calc->DidConverge()) return "Si Γ did not converge";
+        return LevelsHold(*calc, 8.0, true);   // two Si, 4 valence each
     }
     //! Si Γ: rho, m and the levels (the solid samples no orbital live; each level's orbital must answer an Outcome).  THE POSITIONS
     //! ROUND TRIP (controller condition 2, 2026-11-13): a deck whose structure is INLINE with an off-symmetry fraction runs and saves,
@@ -804,15 +804,15 @@ public:
         const std::string path=TempPath("facade_matrix_view_si.h5"), deckPath=TempPath("facade_matrix_view_si_deck.h5");
         std::string why;
         {
-            SolidCalculation calc(Setup(), Params());
-            auto r=calc.Result();
+            auto calc=SolidCalculation::Prepare(Setup()).TakeValue(); (void)calc->Converge();
+            auto r=calc->Result();
             if (!r) return "Si Γ did not converge: "+r.Error().details;
-            calc.SaveState(path);
+            calc->SaveState(path);
             auto v=Opened("Si view", [&]{ return SolidCalculation::ViewState(path, Setup()); });
             if (!v) why+="Si's own state was refused: "+v.Error().details+"; ";
             else
             {
-                why+=ViewMatches(**v, calc, r->Density(), r->SpinDensity(), [](size_t){ return (const ScalarFunction<double>*)nullptr; });
+                why+=ViewMatches(**v, *calc, r->Density(), r->SpinDensity(), [](size_t){ return (const ScalarFunction<double>*)nullptr; });
                 why+=ViewFiled("Si view");
             }
             std::filesystem::remove(path);

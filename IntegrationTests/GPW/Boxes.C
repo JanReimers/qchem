@@ -97,12 +97,12 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
     // unsmeared only while the fit bases lacked their D shells (a spherical Hartree).  Compared on its INTERNAL energy, which is
     // what an integer-occupation box approaches (PySCF, the same basis/PP/Coulomb fit: -3.743668).
     // Open row: doc/OpenWork.md §3 "Molecular SCF cannot converge a DEGENERATE open-shell density at small kT".
-    MoleculeCalculation cSipp(MoleculeSetup::Resolve(si, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="sipp"}}), SCFParams{.SmearingkT = 1e-2});
-    ASSERT_TRUE(cSipp.Result());
-    const double Esipp=cSipp.EnergyTerms().GetTotalEnergy()-cSipp.EnergyTerms()["MinusTS"];
+    auto cSipp=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(si, {.model=Model::LDA, .pp="gth-lda-valence", .scf=SCFParams{.SmearingkT = 1e-2}, .molecule={.basis="sipp"}})).TakeValue(); (void)cSipp->Converge();
+    ASSERT_TRUE(cSipp->Result());
+    const double Esipp=cSipp->EnergyTerms().GetTotalEnergy()-cSipp->EnergyTerms()["MinusTS"];
     // Physical oracle (near-complete Slater/High, for context -- a different basis, not the GPW-correctness gate).
-    AtomCalculation cHi(AtomSetup::Resolve(14, 14-4, {.atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::High, .pseudopotential=true}}));
-    std::cout << "[Si finite] sipp="<<Esipp<<"  Slater/High="<<cHi.Energy()<<std::endl;
+    auto cHi=AtomCalculation::Prepare(AtomSetup::Resolve(14, 14-4, {.atom={.type=AtomType::Slater, .basisPool=BasisSetAccuracy::High, .pseudopotential=true}})).TakeValue(); (void)cHi->Converge();
+    std::cout << "[Si finite] sipp="<<Esipp<<"  Slater/High="<<cHi->Energy()<<std::endl;
 
     // Box a=16 (was 11): the analytic collocation always includes the screened cross-cell pair products, so
     // the box must be large enough that they are negligible for the finite-molecule comparison (SIPP's most
@@ -124,13 +124,13 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
     SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
     SCFParams par=TightGates(40);
     GpwReport report("Si "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par);
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o)).TakeValue(); (void)calc->Converge();
 
     // Energy-converged; the density is degenerate at Gamma (see the note above), so these are the LAST
     // ITERATE's numbers by design -- the facade names them so, and this gate asks for exactly that.
-    EXPECT_NEAR(calc.LastIterateCharge(), 4.0, 1e-6);         // 4 valence electrons (Zion=4), charge conserved
+    EXPECT_NEAR(calc->LastIterateCharge(), 4.0, 1e-6);         // 4 valence electrons (Zion=4), charge conserved
     // GPW-in-box (G-space local PP -> box-independent) reproduces the finite SIPP DFT energy to grid tolerance.
-    EXPECT_NEAR(calc.LastIterateTerms().GetTotalEnergy(), Esipp, 5e-2) << "GPW-in-box total vs finite SIPP molecular DFT";
+    EXPECT_NEAR(calc->LastIterateTerms().GetTotalEnergy(), Esipp, 5e-2) << "GPW-in-box total vs finite SIPP molecular DFT";
 }
 
 
@@ -149,10 +149,10 @@ TEST(GPW_SiBox, Γ_Imp_Smear_eqFinite)
 {
     Molecule si; si.Insert(Site{14, {0,0,0}});
     // The finite twin at the SAME kT 1e-2 (2026-10-31), so free energy compares with free energy (see Γ_Uni_Imp_eqFinite above).
-    MoleculeCalculation cSipp(MoleculeSetup::Resolve(si, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="sipp"}}), SCFParams{.SmearingkT = 1e-2});
-    ASSERT_TRUE(cSipp.Result());
-    const double Asipp=cSipp.Energy();   // the finite free energy A = E - TS: -3.781860
-    const double Esipp=Asipp-cSipp.EnergyTerms()["MinusTS"];   // ...and its internal energy: -3.743669
+    auto cSipp=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(si, {.model=Model::LDA, .pp="gth-lda-valence", .scf=SCFParams{.SmearingkT = 1e-2}, .molecule={.basis="sipp"}})).TakeValue(); (void)cSipp->Converge();
+    ASSERT_TRUE(cSipp->Result());
+    const double Asipp=cSipp->Energy();   // the finite free energy A = E - TS: -3.781860
+    const double Esipp=Asipp-cSipp->EnergyTerms()["MinusTS"];   // ...and its internal energy: -3.743669
 
     const Material box=qchem::Materials::Get("Si_box16");
     const Lattice_3D lat=LatticeOf(box);
@@ -163,8 +163,8 @@ TEST(GPW_SiBox, Γ_Imp_Smear_eqFinite)
     SCFParams par=TightGates(60);
     par.SmearingkT=1e-2;
     GpwReport report("Si "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par);
-    auto R=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << "Fermi smearing should converge Δρ where integer aufbau cannot (degenerate 3p): " << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 4.0, 1e-6);
     const qchem::EnergyBreakdown E=R->EnergyTerms();
@@ -205,8 +205,8 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqUnfolded)
     {
         o.solid.policy.streamFold=(std::string(fold)=="1");   // the A/B arm states its route (D-ENV 6b)
         GpwReport report("Si "+o.label, false);
-        qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par);
-        return {calc.LastIterateCharge(), calc.LastIterateTerms().GetTotalEnergy()};
+        o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o)).TakeValue(); (void)calc->Converge();
+        return {calc->LastIterateCharge(), calc->LastIterateTerms().GetTotalEnergy()};
     };
     const Arm R0=arm("0"), R1=arm("1");
 
@@ -246,8 +246,8 @@ TEST(GPW_NaBox, Γ_Imp_M2_eqFinite)
     // functions fit the smooth nodeless pseudo-orbitals poorly -- same reason the Si gate anchors on the
     // basis-matched sipp facade run.)
     Molecule na; na.Insert(Site{11, {0,0,0}});
-    MoleculeCalculation cRef(MoleculeSetup::Resolve(na, {.multiplicity=2, .model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="valence_lowq_sr"}}));
-    const double Eref=cRef.Energy();
+    auto cRef=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(na, {.multiplicity=2, .model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="valence_lowq_sr"}})).TakeValue(); (void)cRef->Converge();
+    const double Eref=cRef->Energy();
     std::cout << "[Na finite] valence_lowq_sr LSDA doublet (q1)="<<Eref<<std::endl;
 
     // Box a=16 (the Si gate's size: cross-cell products of the most diffuse pair negligible).
@@ -260,8 +260,8 @@ TEST(GPW_NaBox, Γ_Imp_M2_eqFinite)
     o.solid.images=BasisSet::Gaussian::CellImages::HomeCellOnly;   // the finite-molecule mode
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;       // SEED PIN: Uniform has a stable wrong basin (header)
     GpwReport report("Na "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), TightGates(40));
-    auto R=calc.Result();
+    o.scf=TightGates(40); auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << "3s^1 is non-degenerate: Δρ converges -- " << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 1.0, 1e-6);                // 1 valence electron (Zion=1), charge conserved
     // GPW-in-box (two-channel) reproduces the finite molecular LSDA doublet (measured 4.8 mHa; the gap is
@@ -283,10 +283,10 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     // The finite twin is the δ route (2026-10-31; the molecular default since, stated here anyway): no Vxc fit, like the GPW it is
     // compared with.  With the fit bases' D shells back it is PySCF's A1_coul J-fit value (-29.999454) and within ~0.7 mHa of the
     // box (CP2K -29.998761); the auxiliary (A1) route sits ~0.1 Ha above it on this soft basis.
-    MoleculeCalculation cRef(MoleculeSetup::Resolve(o2mol, {.multiplicity=3, .model=Model::LDA, .pp="gth-lda-valence", .vxcFit=Hamiltonian::VxcFit::Delta, .molecule={.basis="sipp"}}));
-    const double Eref=cRef.Energy();
+    auto cRef=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(o2mol, {.multiplicity=3, .model=Model::LDA, .pp="gth-lda-valence", .vxcFit=Hamiltonian::VxcFit::Delta, .molecule={.basis="sipp"}})).TakeValue(); (void)cRef->Converge();
+    const double Eref=cRef->Energy();
     {
-        auto E=cRef.EnergyTerms();
+        auto E=cRef->EnergyTerms();
         std::cout << "[O2 finite] sipp GTH-q6 LSDA triplet="<<Eref
                   << "  (Ekin="<<E["Kinetic"]<<" Een="<<E["Een"]<<" Eee="<<E["Eee"]<<" Exc="<<E["Exc"]
                   << " Enn="<<E["Enn"]<<")"<<std::endl;
@@ -306,12 +306,12 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
     o.spins={+1,+1}; // stated (R2.5): the decoration the seed used to derive (the triplet's two O, parallel)
     o.solid.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     GpwReport report("O "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), TightGates(60));
+    o.scf=TightGates(60); auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o)).TakeValue(); (void)calc->Converge();
     // No convergence guard (as before): the box's energy is what is compared, and it is compared as the
     // last iterate, which is what this gate has always read.
-    EXPECT_NEAR(calc.LastIterateCharge(), 12.0, 1e-6);
-    EXPECT_NEAR(calc.LastIterateTerms().GetTotalEnergy(), Eref, 5e-2) << "GPW-in-box triplet vs finite molecular LSDA triplet (δ)";
-    EXPECT_NEAR(calc.LastIterateTerms().GetTotalEnergy(), -29.998761, 1e-4) << "ORACLE: CP2K GPW, the same basis + PP + box";
+    EXPECT_NEAR(calc->LastIterateCharge(), 12.0, 1e-6);
+    EXPECT_NEAR(calc->LastIterateTerms().GetTotalEnergy(), Eref, 5e-2) << "GPW-in-box triplet vs finite molecular LSDA triplet (δ)";
+    EXPECT_NEAR(calc->LastIterateTerms().GetTotalEnergy(), -29.998761, 1e-4) << "ORACLE: CP2K GPW, the same basis + PP + box";
 }
 
 
@@ -361,9 +361,8 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_Anchor_Panel)   // PANEL case 4 (regime 1, Pulay
     std::vector<std::string> xcRho;
     const SCFParams par=O2PulayOnDParams();
     GpwReport report("O "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), par,
-                                 [&xcRho](const qchem::SCFIterator::IterationRow& p){ xcRho.push_back(p.eb.charge.xcRho); });
-    auto R=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), [&xcRho](const qchem::SCFIterator::IterationRow& p){ xcRho.push_back(p.eb.charge.xcRho); }).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     ASSERT_FALSE(xcRho.empty());
     for (size_t i=0;i<xcRho.size();i++) EXPECT_EQ(xcRho[i], "DM") << "iteration " << i+1 << ": V_xc must see rho[D] (pin 28)";
@@ -383,20 +382,20 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_PilotSizesTheRaster)
 {
     const Material box=qchem::Materials::Get("O2_box16");
     const Lattice_3D lat=LatticeOf(box);
-    const RunOptions o=O2PulayOnDOptions(box, "O2 in-box triplet, Pulay on D, pilot");
+    RunOptions o=O2PulayOnDOptions(box, "O2 in-box triplet, Pulay on D, pilot");
     GpwReport report("O "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o), O2PulayOnDParams());
-    auto R=calc.Result();
+    o.scf=O2PulayOnDParams(); auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasis(*box.cell), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
-    const auto cost=calc.PilotCost();
+    const auto cost=calc->PilotCost();
     // 2026-11-02 (the density ball judged): the raster settles in round 1 as before, but the ball doubles in every round and the pilot's
     // four rounds end with it still over (1.1e-4 at cutoffFactor 16 against the 2e-5 target, the tail not yet geometric): NOT settled,
     // said so, and the run keeps cutoffFactor 16.  Pinned as measured; when the ball's slow O tail is understood this goes back to settled.
     EXPECT_FALSE(cost.settled) << "the ball's O tail outruns the pilot's four rounds (OpenWork §3)";
     EXPECT_EQ(cost.rounds, 4);
     EXPECT_LE(cost.reconvergeIterations, 45u) << "three re-convergences from the audited D (37 measured 2026-11-02; 16 with the raster alone)";
-    EXPECT_NEAR(calc.SizedSetup()->opts.solid.tolerances.rasterX, kO2PulayRasterX, 1e-6) << "the panel case states what this settles on";
-    EXPECT_EQ(calc.SizedSetup()->opts.solid.cutoffFactor, kO2PulayCutoffFactor) << "and the ball it ends on";
+    EXPECT_NEAR(calc->SizedSetup()->opts.solid.tolerances.rasterX, kO2PulayRasterX, 1e-6) << "the panel case states what this settles on";
+    EXPECT_EQ(calc->SizedSetup()->opts.solid.cutoffFactor, kO2PulayCutoffFactor) << "and the ball it ends on";
     EXPECT_NEAR(R->Energy(), kO2PulayE, 1e-6) << "the pilot's re-converged point is the stated-grid panel case's";
 }
 
@@ -437,8 +436,8 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     // The finite twin is the δ route (2026-10-31; the molecular default since, stated here anyway): no Vxc fit, like the GPW.  With
     // the fit bases' D shells back it lands 1.5 mHa from the box at its auto cutoff and 0.03 mHa from the box's converged-cutoff
     // value (-14.63650); the auxiliary (A1) route sits 35 mHa above (the A1 Vxc fit on this sextet).
-    MoleculeCalculation cRef(MoleculeSetup::Resolve(mnmol, {.multiplicity=6, .model=Model::LDA, .pp="gth-lda-valence", .vxcFit=Hamiltonian::VxcFit::Delta, .molecule={.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr", .angular=spherical ? Angular::Spherical : Angular::Cartesian}}));
-    const double Eref=cRef.Energy();
+    auto cRef=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(mnmol, {.multiplicity=6, .model=Model::LDA, .pp="gth-lda-valence", .vxcFit=Hamiltonian::VxcFit::Delta, .molecule={.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr", .angular=spherical ? Angular::Spherical : Angular::Cartesian}})).TakeValue(); (void)cRef->Converge();
+    const double Eref=cRef->Energy();
     std::cout << "[Mn finite] "<<(sphBasis?"valence_lowq_sph":"valence_lowq_sr")<<" LSDA sextet (q7, "
               <<(spherical?"SPHERICAL":"CARTESIAN")
               <<")="<<Eref<<"   (CP2K ATOM UKS sextet oracle -14.674425)"<<std::endl;
@@ -460,10 +459,10 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     if (spherical) mnbasis=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(mnbasis);
     std::cout << "[Mn in-box] angular=" << (spherical?"SPHERICAL":"CARTESIAN") << std::endl;
     GpwReport report("Mn "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, mnbasis, o), par);
-    const double E=calc.LastIterateTerms().GetTotalEnergy();   // as before: the energy is pinned, convergence is not asserted
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, mnbasis, o)).TakeValue(); (void)calc->Converge();
+    const double E=calc->LastIterateTerms().GetTotalEnergy();   // as before: the energy is pinned, convergence is not asserted
     std::cout << "[Mn in-box] GPW="<<E<<"  facade="<<Eref<<"  diff="<<(E-Eref)<<std::endl;
-    EXPECT_NEAR(calc.LastIterateCharge(), 7.0, 1e-6);
+    EXPECT_NEAR(calc->LastIterateCharge(), 7.0, 1e-6);
     EXPECT_NEAR(E, Eref, 3e-2) << "GPW d-channel vs the molecular facade, δ route (measured 1.5 mHa)";
     // did-E-move anchor (2s+7d, the SR-trimmed cell basis).  RE-BANKED 2026-10-31 (C2 step 3): -14.6380 carried the ball raster (Hartree 2.4
     // mHa off at fixed D); on the rasters the pilot settles -14.63653, re-judged against the finite twin above (-14.6365281: 4e-6, was 1.5e-3).
@@ -497,21 +496,21 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
     par.StartingRelaxRo=0.45;
     GpwReport report("Mn "+o.label, par.Verbose);
     qchem::BoundedSCF bounded("the gate tests symmetry THROUGH the loop (6 iterations), not convergence");
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
-    const GpwHandles h=LastIterateHandles(calc);
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o)).TakeValue(); (void)calc->Converge();
+    const GpwHandles h=LastIterateHandles(*calc);
     ASSERT_TRUE(h.cd) << "the run must produce a final density";
 
     // The final density through the spin-resolved face: the order must be ALIVE and EXACTLY mirrored.
     const auto* pol=dynamic_cast<const qchem::ChargeDensity::cSpinResolved_CD*>(h.cd);
     ASSERT_NE(pol, nullptr);
     // The INTEGRATED site moments, in electrons, over the Becke basins this gate's mesh pins.
-    const rvec_t mu=calc.LastIterateTerms().charge.siteMoments;
+    const rvec_t mu=calc->LastIterateTerms().charge.siteMoments;
     ASSERT_EQ(mu.size(), box.cell->GetNumAtoms()) << "a Becke mesh has one basin per site";
     const double m1=mu[0], m2=mu[1];
     {   // its own precision, stated: it read 10 digits only while an earlier print leaked setprecision(10) onto cout
         const std::streamsize prec=std::cout.precision(10);
-        std::cout << "[Mn2 imposed] after "<<calc.IterationCount()<<" iterations: m1="<<m1<<" m2="<<m2
-                  << " m1+m2="<<m1+m2<<" Etot="<<calc.LastIterateTerms().GetTotalEnergy()<<std::endl;
+        std::cout << "[Mn2 imposed] after "<<calc->IterationCount()<<" iterations: m1="<<m1<<" m2="<<m2
+                  << " m1+m2="<<m1+m2<<" Etot="<<calc->LastIterateTerms().GetTotalEnergy()<<std::endl;
         std::cout.precision(prec);
     }
     EXPECT_GT(std::abs(m1), 2.0) << "the AFM order must SURVIVE the imposed SCF loop";   // measured 3.94 e
@@ -549,10 +548,9 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_RowMomentsAreTheIterates)
         GpwReport report("Mn "+o.label, par.Verbose);
         qchem::BoundedSCF bounded("a reporting gate on the rows (3 iterations), not convergence");
         std::vector<rvec_t> rows;
-        qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), par,
-                                     [&rows](const qchem::SCFIterator::IterationRow& p){ rows.push_back(p.eb.charge.siteMoments); });
+        o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), [&rows](const qchem::SCFIterator::IterationRow& p){ rows.push_back(p.eb.charge.siteMoments); }).TakeValue(); (void)calc->Converge();
         ASSERT_FALSE(rows.empty());
-        const rvec_t last=rows.back(), final=calc.LastIterateTerms().charge.siteMoments;
+        const rvec_t last=rows.back(), final=calc->LastIterateTerms().charge.siteMoments;
         ASSERT_EQ(last.size(), box.cell->GetNumAtoms()) << o.label << ": a Becke mesh has one basin per site";
         ASSERT_EQ(final.size(), last.size());
         EXPECT_GT(std::abs(final[0]), 0.1) << o.label << ": the instrument -- an order to report";
@@ -597,21 +595,21 @@ TEST(GPW_Mn2Box, k211_Becke_Pol_Smear_EqualsItsSupercellAtGamma_Long)   // ~4.5 
     par.SmearingkT=5e-3; par.StartingRelaxRo=0.45; par.UseMOM=false;
     qchem::BoundedSCF bounded("the identity holds at every iterate; 3 suffice to carry the k = 1/2 block through Fock, fill and mix");
 
-    const RunOptions op=recipe("Mn2 B2 AFM primitive k211", {+1,-1}, box.Nelec());
-    qchem::SolidCalculation prim(SolidSetup::Resolve(LatticeOf(box, ivec3_t(2,1,1)), MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), op), par);
+    RunOptions op=recipe("Mn2 B2 AFM primitive k211", {+1,-1}, box.Nelec());
+    op.scf=par; auto prim=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(LatticeOf(box, ivec3_t(2,1,1)), MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), op)).TakeValue(); (void)prim->Converge();
     const UnitCell super=qchem::Supercell(*box.cell, ivec3_t(2,1,1));   // replica-major: Mn+ Mn- Mn+ Mn-
-    const RunOptions os=recipe("Mn2 B2 AFM 2x1x1 supercell Γ", {+1,-1,+1,-1}, 2*box.Nelec());
-    qchem::SolidCalculation sup(SolidSetup::Resolve(Lattice_3D(super, ivec3_t(1,1,1)), MakeBasisLowQ(super, BasisSetData::VALENCE_LOWQ_SR), os), par);
-    ASSERT_EQ(prim.IterationCount(), sup.IterationCount());
-    const double Ep=prim.LastIterateTerms().GetTotalEnergy(), Es=sup.LastIterateTerms().GetTotalEnergy();
+    RunOptions os=recipe("Mn2 B2 AFM 2x1x1 supercell Γ", {+1,-1,+1,-1}, 2*box.Nelec());
+    os.scf=par; auto sup=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(Lattice_3D(super, ivec3_t(1,1,1)), MakeBasisLowQ(super, BasisSetData::VALENCE_LOWQ_SR), os)).TakeValue(); (void)sup->Converge();
+    ASSERT_EQ(prim->IterationCount(), sup->IterationCount());
+    const double Ep=prim->LastIterateTerms().GetTotalEnergy(), Es=sup->LastIterateTerms().GetTotalEnergy();
     {
         const std::streamsize prec=std::cout.precision(12);
-        std::cout << "[Mn2 supercell identity] after " << prim.IterationCount() << " iterations: primitive k211 " << Ep
+        std::cout << "[Mn2 supercell identity] after " << prim->IterationCount() << " iterations: primitive k211 " << Ep
                   << "  supercell Γ / 2 " << Es/2 << "  diff " << Es/2-Ep << std::endl;
         std::cout.precision(prec);
     }
     EXPECT_NEAR(Es/2, Ep, 1e-6) << "the supercell is the same crystal: E(2x1x1, Γ) = 2 E(prim, k211), iterate by iterate";
-    const rvec_t mp=prim.LastIterateTerms().charge.siteMoments, ms=sup.LastIterateTerms().charge.siteMoments;
+    const rvec_t mp=prim->LastIterateTerms().charge.siteMoments, ms=sup->LastIterateTerms().charge.siteMoments;
     ASSERT_EQ(ms.size(), 2*mp.size());
     for (size_t i=0;i<mp.size();i++)
     {
@@ -686,22 +684,22 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows_Panel)   // PANEL case 9: a c
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);             // coarse: this gate tests the POSTCONDITION
     SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);            // PINNED -- see the header (Auto would pick Uniform)
 
-    const qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
-    auto r=calc.Result();
-    std::cout << "[Na2 T2] converged="<<calc.DidConverge()<<" iters="<<calc.IterationCount()
-              << " E(last iterate)="<<calc.LastIterateTerms().GetTotalEnergy()
-              << "\n[Na2 T2] "<<calc.Diagnostics().Summary() << std::endl;
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o)).TakeValue(); (void)calc->Converge();
+    auto r=calc->Result();
+    std::cout << "[Na2 T2] converged="<<calc->DidConverge()<<" iters="<<calc->IterationCount()
+              << " E(last iterate)="<<calc->LastIterateTerms().GetTotalEnergy()
+              << "\n[Na2 T2] "<<calc->Diagnostics().Summary() << std::endl;
 
     // THE RUN MUST CONVERGE -- otherwise this gate silently stops testing what it is named for.
-    ASSERT_TRUE(calc.DidConverge()) << "the run did not converge, so the postcondition below is "
-                                       "unexercised again: " << calc.Diagnostics().Summary();
+    ASSERT_TRUE(calc->DidConverge()) << "the run did not converge, so the postcondition below is "
+                                       "unexercised again: " << calc->Diagnostics().Summary();
     ASSERT_FALSE(r) << "an imposed, magnetically-seeded run that relaxes to m=0 must NOT hand back an energy";
     EXPECT_EQ(r.Error().why, qchem::SCFFailure::Why::OrderLost)
         << "the failure must be the POSTCONDITION and nothing else: " << r.Error().details;
 
     // ...and the diagnostics must AGREE with the verdict, measured on the INTEGRATED site moment: the
     // seed carried real order (~0.47 e in the Becke basins), the answer carries none.
-    const auto& diag=calc.Diagnostics();
+    const auto& diag=calc->Diagnostics();
     EXPECT_TRUE(diag.HasOrder())      << "the seed must be measurably magnetic, or the check has no teeth";
     EXPECT_GT(diag.OrderPeak(), 0.2)  << "the RAW seed's staggering, before Init's first fill eats it";
     EXPECT_TRUE(diag.OrderCollapsed());
@@ -769,18 +767,18 @@ TEST(GPW_Na2Box, Γ_Pol_Null_Linear_SpinSeed_Converges_Panel)
     };
     double Eunpol=0.0;
     {
-        const qchem::RunOptions o=options(0, "Na2 UNPOLARIZED twin");   // multiplicity 0 = the zeta = 0 collapse
+        qchem::RunOptions o=options(0, "Na2 UNPOLARIZED twin");   // multiplicity 0 = the zeta = 0 collapse
         SCFParams p=par; p.NMaxIter=100;
-        const qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), p);
-        auto r=calc.Result();
+        o.scf=p; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o)).TakeValue(); (void)calc->Converge();
+        auto r=calc->Result();
         ASSERT_TRUE(r) << "the unpolarized twin must converge: " << Why(r);
         Eunpol=r->Energy();
     }
     qchem::IterationBudget budget(38, "Na2 box, polarized singlet from the AFM seed, linear 0.3 (OpenWork §3 Na2 row)");
     qchem::RunOptions o=options(1, "Na2 AFM-seeded singlet, free");   // 1 = the EXPLICIT two-channel singlet
     o.spins={1,-1};                                                       // the +m/-m seed, stated
-    const qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
-    auto r=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o)).TakeValue(); (void)calc->Converge();
+    auto r=calc->Result();
     ASSERT_TRUE(r) << Why(r);
     EXPECT_NEAR(r->Energy(), Eunpol, 1e-6) << "a zeta = 0 singlet's polarized fixed point is its unpolarized one";
 }

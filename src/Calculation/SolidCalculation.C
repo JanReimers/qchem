@@ -198,18 +198,9 @@ public:
     using sf_t     = ScalarFunction<double>;
     using Observer = qchem::SCFIterator::SolidSCFIterator::Observer;
 
-    //! \brief Build the whole graph over a RESOLVED setup (doc/CalcNetworkReview.md §7, step 6) -- the geometry point at the
-    //! setup's reference lattice -- and converge once with \a params and the setup's accelerator.  The setup is
-    //! \c SolidSetup::Resolve(lattice, molecular basis | recipe, options, accelerator options); the only door (user ruling
-    //! 2026-10-30: clean replace, no (lattice, basis, options) constructors).
-    //! \a onIteration, when given, observes THIS constructor's SCF from its first iteration -- the constructor converges, so an
-    //! observer attached afterwards (\c OnIteration) has already missed stage 0, the stage an annealed recipe's trace most wants;
-    //! it stays attached for later \c Converge calls.  A constructor argument, not a setup field: an observer is not a resolved
-    //! decision (the molecular \c MoleculeCalculation takes it the same way).
-    explicit SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {}, Observer onIteration = nullptr);
-    //! \brief The ANNEALED constructor: stage 0 on its own accelerator, then the rest of \a schedule, each stage seeded from the one
-    //! before it.  An empty schedule throws.  \a onIteration observes every stage, from stage 0's first iteration.
-    SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule, Observer onIteration = nullptr);
+    //! NO CONVERGING CONSTRUCTOR (V-FACADE-PARITY R8, user 2026-11-17: "60-90% of the run time should not be in a constructor"): the
+    //! one path is Setup (\c SolidSetup::Resolve / Admit; the SCF settings are the setup's, R10) -> \c Prepare (the build, an Outcome;
+    //! its observer sees every iteration from the first) -> \c Converge (the Go button), or \c Converge(schedule) for an annealed recipe.
     ~SolidCalculation();
 
     //! \brief START FROM A SAVED STATE (CK-1; doc/OpenWork.md §2 "SCF checkpoint/restart"): build the graph for
@@ -281,9 +272,8 @@ public:
     //! caller's one-field override (R10), checkpointed, answered; and \c Converge(schedule), the base's schedule (P4, R7), whose stages
     //! the hooks below stand up.
     using tCalculation<dcmplx>::Converge;
-    //! \c Result() (the base's): the outcome of the last attempt -- the constructor's, for a caller that never re-converges.
-    //! Live per-iteration telemetry, REPLACING the constructor's.  Set BEFORE a Converge() call to observe it (the ctor's
-    //! initial convergence has run by then: to observe it, pass the observer to the constructor).
+    //! \c Result() (the base's): the outcome of the last attempt ("did not converge in 0 iterations" before the first Converge).
+    //! Live per-iteration telemetry, REPLACING the one handed to \c Prepare.  Set BEFORE a Converge() call to observe it.
     void OnIteration(Observer obs);
 
     //! Did it converge?  A cheap STATUS question, kept because reporting and tests ask it without wanting
@@ -634,11 +624,10 @@ private:
     //! gradient, each named; EMPTY = forces are available.  The session's \c NoGradient refusal lists them.
     std::vector<std::string> MissingGradients() const;
     //!@}
-    //! Point + run + the first Converge (the constructors' common body), and the rest of an annealed schedule.
-    void Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel, SCFRecipe recipe);
-    //! Point + run, no SCF: \c Start's build half (and \c Prepare's whole body).
+    //! Point + run, no SCF: \c Prepare's whole body.
     void BuildFirstStage(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel, SCFRecipe recipe);
     friend class ::DeckTests;   //!< tests/Deck.C: an inline deck and its named twin build the same fingerprint
+    //! The rest of an annealed schedule after its stage 0 (\c AtGeometry's cold first point).
     void RunRestOf(const std::vector<SCFStage>& schedule);
     //! This run's saved-state fingerprint, with \a kT the recipe's temperature (the base's record: \c RecordState).
     StateFingerprint Fingerprint(double kT) const;

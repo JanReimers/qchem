@@ -52,10 +52,9 @@ public:
     using orbital_t  = qchem::Orbitals::Orbital;
     using Observer   = qchem::SCFIterator::SCFIterator::Observer;
 
-    //! Build the whole graph from \a setup (\c AtomSetup::Resolve: Z, charge, options, accelerator) and converge ONCE with \a params.
-    //! The EC is chosen from the model: Dirac models get an AtomDirac_EC, the rest an Atom_EC.  (Atom SCFs often want per-Z params and
-    //! some are expensive, so the params go in here -- a single converge -- rather than a default-then-reconverge.)
-    explicit AtomCalculation(std::shared_ptr<const AtomSetup> setup, const SCFParams& params = {});
+    //! NO CONVERGING CONSTRUCTOR (V-FACADE-PARITY R8): Setup (\c AtomSetup::Resolve: Z, charge, options -- the SCF settings among them,
+    //! R10) -> \c Prepare (the build, an Outcome; the EC follows the model: Dirac models get an AtomDirac_EC, the rest an Atom_EC) ->
+    //! \c Converge.
     ~AtomCalculation();
 
     AtomCalculation(const AtomCalculation&)            = delete;

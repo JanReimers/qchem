@@ -68,7 +68,7 @@ SCFParams Params()
 }
 RunOptions Options(int multiplicity, bool forceComplex, const std::string& save)
 {
-    return RunOptions{.Nelec=8, .multiplicity=multiplicity, .spin=multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, .species={{"Si",4}}, .label="ck1", .saveStateTo=save, .solid={.densityEcut=20.0, .forceComplex=forceComplex}};
+    return RunOptions{.Nelec=8, .multiplicity=multiplicity, .spin=multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, .species={{"Si",4}}, .label="ck1", .saveStateTo=save, .scf=Params(), .solid={.densityEcut=20.0, .forceComplex=forceComplex}};
 }
 
 //! One converged-and-saved state per (spin, ansatz), built once for the whole suite.
@@ -86,8 +86,8 @@ Saved& SavedState(int multiplicity, bool forceComplex)
     Saved s;
     s.path=TempPath("ck1_si_m"+std::to_string(multiplicity)+(forceComplex?"_c":"_r")+".h5");
     SiRun si=Si(ivec3_t(2,2,2));
-    SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, Options(multiplicity, forceComplex, s.path)), Params());
-    auto r=calc.Result();
+    auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(*si.lat, si.mol, Options(multiplicity, forceComplex, s.path))).TakeValue(); (void)calc->Converge();
+    auto r=calc->Result();
     EXPECT_TRUE(r) << "the Si reference run must converge";
     if (r) { s.energy=r->Energy(); s.iterations=r->IterationCount(); }
     return cache[key]=s;
@@ -120,8 +120,8 @@ TEST(SolidState, ASizedStateResumesOnItsOwnDensityBall)
     const std::string path=TempPath("ck1_si_ball4.h5");
     SiRun si=Si(ivec3_t(1,1,1));
     RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .label="ck1", .saveStateTo=path, .solid={.cutoffFactor=4.0}};
-    SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), Params());
-    auto r0=calc.Result();
+    o.scf=Params(); auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(*si.lat, si.mol, o)).TakeValue(); (void)calc->Converge();
+    auto r0=calc->Result();
     ASSERT_TRUE(r0);
     o.solid.cutoffFactor=RunOptions{}.solid.cutoffFactor; o.saveStateTo="";   // the resume's setup starts on the DEFAULT ball
     ASSERT_NE(o.solid.cutoffFactor, 4.0);
@@ -459,8 +459,8 @@ TEST(SolidState, LadderRestart_Smeared_StartsOnDIIS)
     p.SmearingkT=0.02;
     double cold=0.0;
     {
-        SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), p);
-        auto r=calc.Result();
+        o.scf=p; auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(*si.lat, si.mol, o)).TakeValue(); (void)calc->Converge();
+        auto r=calc->Result();
         ASSERT_TRUE(r) << "the cold smeared Ladder reference must converge";
         cold=r->Energy();
     }
@@ -485,8 +485,9 @@ TEST(SolidState, SmearedExactResume_StartsAtTheSavedState)
     const std::string path=TempPath("ck1_si_smeared.h5");
     double saved=0.0;
     {
-        SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, Options(0, false, path)), p);
-        auto r=calc.Result();
+        RunOptions o=Options(0, false, path); o.scf=p;
+        auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(*si.lat, si.mol, o)).TakeValue(); (void)calc->Converge();
+        auto r=calc->Result();
         ASSERT_TRUE(r) << "the smeared Si reference must converge";
         saved=r->Energy();
     }
@@ -522,8 +523,8 @@ void ExpectFieldMixerExactResume(double kerkerG0)
     SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);     // the singles route: rho[D] only through the N4 correction
     double saved=0.0;
     {
-        SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), p);
-        auto r=calc.Result();
+        o.scf=p; auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(*si.lat, si.mol, o)).TakeValue(); (void)calc->Converge();
+        auto r=calc->Result();
         ASSERT_TRUE(r) << "the Si field-mixer reference must converge";
         saved=r->Energy();
     }
@@ -609,8 +610,8 @@ void ExpectPlaneWaveExactResume(size_t numBands)
 {
     const std::string path=TempPath("ck1_si_pw_"+std::to_string(numBands)+".h5");
     SiRun si=Si(ivec3_t(1,1,1));
-    SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, PWOptions(numBands, path)), Params());
-    auto r=calc.Result();
+    auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(*si.lat, si.mol, PWOptions(numBands, path))).TakeValue(); (void)calc->Converge();
+    auto r=calc->Result();
     ASSERT_TRUE(r) << "the Si plane-wave reference run must converge";
     ASSERT_TRUE(std::filesystem::exists(path)) << "a plane-wave state must be SAVED";
 
@@ -647,10 +648,9 @@ TEST(SolidState, AnOverTargetSamplerIsFlaggedAndTightenedOnceAtTheNextSCF)
     o.solid.grid.samplerEta=1e-3;   // ~150x below the measured 0.147: the NUFFT runs over its tau, by an error still far below what moves the SCF
     std::vector<std::optional<double>> col;
     testing::internal::CaptureStdout();
-    SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), p,
-                          [&col](const SCFIterator::IterationRow& r){ col.push_back(r.eb.charge.samplingOverTau); });
+    o.scf=p; auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(*si.lat, si.mol, o), [&col](const SCFIterator::IterationRow& r){ col.push_back(r.eb.charge.samplingOverTau); }).TakeValue(); (void)calc->Converge();
     const std::string out=testing::internal::GetCapturedStdout();
-    ASSERT_TRUE(calc.Result()) << "the forced over-target Si run must still converge";
+    ASSERT_TRUE(calc->Result()) << "the forced over-target Si run must still converge";
     // the column FLAGGED it: some row is over target, and the trace marks it
     EXPECT_TRUE(std::any_of(col.begin(), col.end(), [](const auto& v){return v && *v>1.0;}));
     EXPECT_NE(out.find("!"), std::string::npos);
@@ -680,9 +680,8 @@ TEST(SolidState, TheDefaultSamplerCalibrationMeetsItsTarget)
     o.accelerator=SCFAccelerators::Type::Null;
     SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     std::vector<std::optional<double>> col;
-    SolidCalculation calc(SolidSetup::Resolve(*si.lat, si.mol, o), p,
-                          [&col](const SCFIterator::IterationRow& r){ col.push_back(r.eb.charge.samplingOverTau); });
-    ASSERT_TRUE(calc.Result());
+    o.scf=p; auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(*si.lat, si.mol, o), [&col](const SCFIterator::IterationRow& r){ col.push_back(r.eb.charge.samplingOverTau); }).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
     ASSERT_TRUE(std::any_of(col.begin(), col.end(), [](const auto& v){return v.has_value();})) << "the sampler must have run";
     for (const auto& v : col)
         if (v) EXPECT_LE(*v, 1.0);

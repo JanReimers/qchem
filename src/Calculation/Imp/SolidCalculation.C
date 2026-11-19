@@ -379,27 +379,6 @@ static std::vector<Math::Gaussian> PseudoAtomicFunction(const Structure& st, siz
 
 SolidCalculation::SolidCalculation(BuildOnly) : itsImp(std::make_unique<Imp>()) {}
 
-SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, Observer onIteration)
-    : itsImp(std::make_unique<Imp>())
-{
-    itsImp->onIteration=std::move(onIteration);   // before Start: BuildRun attaches it ahead of iteration 1
-    // ★ THE CTOR'S RESIDUE BUCKET (doc/ParallelAndOraclePlan.md 1.1(a)).  Timed is EXCLUSIVE, so this
-    // outer scope charges itself exactly what the named setup buckets below do NOT -- the decisions
-    // between them (the irrep/EC build, the banner).  With the same bracket on Converge and on Iterate, the ledger
-    // PARTITIONS the run and "everything not in a bucket" stops being a place time can hide.
-    qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
-    const SCFAccelerators::Type accel=setup->opts.accelerator;
-    const SCFRecipe recipe=setup->opts.recipe;
-    Start(std::move(setup), params, accel, recipe);
-    CalibrateRasters(params);   // C2 step 3: the pilot, after the (only) stage
-}
-
-void SolidCalculation::Start(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel, SCFRecipe recipe)
-{
-    BuildFirstStage(std::move(setup), params, accel, recipe);
-    (void)ConvergeStage(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
-}
-
 void SolidCalculation::BuildFirstStage(std::shared_ptr<const SolidSetup> setup, const SCFParams& params, SCFAccelerators::Type accel, SCFRecipe recipe)
 {
     const Lattice_3D& reference=setup->lattice;   // held by the setup, which the point keeps alive
@@ -737,21 +716,6 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
 // so the graph is built exactly once and stage 0 runs as the plain ctor's convergence -- then continues
 // through the rest of the schedule.  (Delegating rather than duplicating the build is what keeps the two
 // ctors from drifting; every DECISION in the build is made in one place.)
-SolidCalculation::SolidCalculation(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule, Observer onIteration)
-    : itsImp(std::make_unique<Imp>())
-{
-    itsImp->onIteration=std::move(onIteration);
-    if (schedule.empty())
-        throw std::runtime_error("SolidCalculation: an EMPTY anneal schedule has no meaning -- pass at "
-                                 "least one stage, or use the single-SCFParams constructor.");
-    {
-        qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
-        Start(std::move(setup), schedule.front().params, schedule.front().accelerator, schedule.front().recipe);
-    }
-    RunRestOf(schedule);
-    CalibrateRasters(schedule.back().params);   // C2 step 3: the pilot, after the FINAL stage
-}
-
 // Stage 0 has already run (Start converged it) -- report it, then continue through the rest, each stage seeded from the one
 // before it.
 void SolidCalculation::RunRestOf(const std::vector<SCFStage>& schedule)

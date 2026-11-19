@@ -47,10 +47,9 @@ class A_HF_P : public ::testing::TestWithParam<HFCase> {};
 TEST_P(A_HF_P, Energy)
 {
     const HFCase c = GetParam();
-    AtomCalculation calc(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::Polarized, .model=Model::HF, .atom={.type=c.type, .basisPool=c.acc}}),
-                         MakeParams(c));
-    EXPECT_LT(RelativeHFError(calc.Energy(), c.Z), c.tol);
-    EXPECT_TRUE(calc.IsConverged());
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(c.Z, 0, {.spin=SpinGroup::Polarized, .model=Model::HF, .scf=MakeParams(c), .atom={.type=c.type, .basisPool=c.acc}})).TakeValue(); (void)calc->Converge();
+    EXPECT_LT(RelativeHFError(calc->Energy(), c.Z), c.tol);
+    EXPECT_TRUE(calc->IsConverged());
 }
 
 #ifdef DEBUG
