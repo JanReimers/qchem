@@ -46,22 +46,22 @@ class IrrepBasisSet
 
         // The number of functions is the evaluator's delivered count (Cartesian (l+1)(l+2)/2 or spherical
         // 2l+1 per shell), NOT the raw Cartesian PGData count -- in spherical mode they differ.
-        virtual size_t  GetNumFunctions() const {return NR_Evaluator::size();}
-        virtual size_t  size() const {return NR_Evaluator::size();}
-        virtual rvec_t     operator() (const rvec3_t&) const;
+        virtual size_t  GetNumFunctions() const override {return NR_Evaluator::size();}
+        virtual size_t  size() const override {return NR_Evaluator::size();}
+        virtual rvec_t     operator() (const rvec3_t&) const override;
         // d/dR, forward (GeometryOptimizationPlan §13.2): the gradient source awaits the user's ruling, so every family refuses for now.
         virtual bool CanGiveJets() const override {return false;}
         virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, qchem::BasisSet::PointJets<double>&) const override
             {return qchem::BasisSet::NoGeometryDerivativeYet<size_t>("PG_LibCint", "function jets");}
-        virtual rvec3vec_t Gradient   (const rvec3_t&) const;
+        virtual rvec3vec_t Gradient   (const rvec3_t&) const override;
 
         // Geometry-aware cache key with a DISTINCT prefix per engine+mode: the global Jac/Kab cache keys on
         // BasisSetID, and PGData's is " PG {.." == the M&D PG_Cart IBS, so without a distinct prefix the
         // libcint run would serve / be served M&D's cached matrices in the same process (as PG1-vs-PG).
-        virtual std::string BasisSetID() const
+        virtual std::string BasisSetID() const override
         { return (itsSpherical ? "LibCintSph " : "LibCint ") + PGData::BasisSetID(); }
-        virtual std::string Name     () const {return "Pol. Gaussian (libcint) ";}
-        virtual std::ostream &Write(std::ostream&) const;
+        virtual std::string Name     () const override {return "Pol. Gaussian (libcint) ";}
+        virtual std::ostream &Write(std::ostream&) const override;
 
         //! libcint serves both angular kinds from one class; spherical mode delivers 2l+1 real-harmonic
         //! components while the PGData base still holds the Cartesian layout (so the extractor must NOT read

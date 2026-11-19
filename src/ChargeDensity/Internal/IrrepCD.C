@@ -94,29 +94,29 @@ public:
     IrrepCD_Core();
     IrrepCD_Core(DenSMat,const tobs_t<T>*, Irrep);   //!< D BY VALUE: an rvalue is moved in (a density is n×n)
 
-    virtual double DM_Contract(const tStatic_CC<T>*) const;
-    virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
-    virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>* v, const Structure* st) const {return v->Pullback(itsBasisSet, itsSpin, itsDensityMatrix, st);}
-    virtual rmat3d_t   DM_Virial  (const tStatic_VC<T>* v, const Structure* st) const {return v->Virial  (itsBasisSet, itsSpin, itsDensityMatrix, st);}
-    virtual double DM_ContractBlocks(const std::map<Irrep,hmat_t<T>>&) const;
+    virtual double DM_Contract(const tStatic_CC<T>*) const override;
+    virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const override;
+    virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>* v, const Structure* st) const override {return v->Pullback(itsBasisSet, itsSpin, itsDensityMatrix, st);}
+    virtual rmat3d_t   DM_Virial  (const tStatic_VC<T>* v, const Structure* st) const override {return v->Virial  (itsBasisSet, itsSpin, itsDensityMatrix, st);}
+    virtual double DM_ContractBlocks(const std::map<Irrep,hmat_t<T>>&) const override;
     //! \copydoc tChargeDensity::Project -- the PERIODIC lineage: contract my D into the block's forward.
     virtual Projections Project(const BasisSet::PairProjector<dcmplx>&) const override;
     using tChargeDensity<T>::Project;   // the molecular overload (FiniteIrrepCD overrides it)
     //! The old face, kept one commit (V-ONE-OF-N 3a): forwards to \c Project.
-    virtual double GetTotalCharge(                      ) const;
+    virtual double GetTotalCharge(                      ) const override;
 
-    virtual size_t Version() const {return itsVersion;}
+    virtual size_t Version() const override {return itsVersion;}
     //! THE one density that IS \f$\rho[D]\f$ and nothing else (pin 28, user ruling 2026-11-15): the only true answer in the tree.
     virtual bool   HasNoFitComponent() const override {return true;}
 
-    virtual void   ReScale      (double factor              )      ; // No UT coverage
-    virtual void   Axpy         (double c, const tMixableDensity<T>&)   ;  //this += c*that.
-    virtual double GetChangeFrom(const tMixableDensity<T>&       ) const;  //Frobenius(delta density matrix)
-    virtual double GetMaxChangeFrom(const tMixableDensity<T>&    ) const;  //MaxAbs(delta density matrix) -- CP2K's EPS_SCF measure
-    virtual double SquaredDistanceTo(const tMixableDensity<T>&   ) const;  //Tr(dD S dD S)
-    virtual double Dot          (const tMixableDensity<T>&       ) const;  //Re Tr(this^dagger that)
+    virtual void   ReScale      (double factor              ) override      ; // No UT coverage
+    virtual void   Axpy         (double c, const tMixableDensity<T>&) override   ;  //this += c*that.
+    virtual double GetChangeFrom(const tMixableDensity<T>&       ) const override;  //Frobenius(delta density matrix)
+    virtual double GetMaxChangeFrom(const tMixableDensity<T>&    ) const override;  //MaxAbs(delta density matrix) -- CP2K's EPS_SCF measure
+    virtual double SquaredDistanceTo(const tMixableDensity<T>&   ) const override;  //Tr(dD S dD S)
+    virtual double Dot          (const tMixableDensity<T>&       ) const override;  //Re Tr(this^dagger that)
 
-    virtual double operator()(const rvec3_t&) const;
+    virtual double operator()(const rvec3_t&) const override;
 
     virtual std::ostream&       Write(std::ostream&) const;
 
@@ -140,18 +140,18 @@ class FiniteIrrepCD
 {
 public:
     using IrrepCD_Core<double>::IrrepCD_Core;   // the core's ctors are the leaf's
-    virtual std::unique_ptr<tMixableDensity<double>> MakeCopy() const
+    virtual std::unique_ptr<tMixableDensity<double>> MakeCopy() const override
         {return std::make_unique<FiniteIrrepCD>(this->itsDensityMatrix, this->itsBasisSet, this->itsIrrep);}
 
     //! V1.31 whole-system route: this block's basis answers the capability, and the block folds its own
     //! density up to AO.
-    virtual const BasisSet::WholeSystemFock_IBS<double>* WholeSystemFock() const;
-    virtual void AddAODensity(rsmat_t& Dao) const;
+    virtual const BasisSet::WholeSystemFock_IBS<double>* WholeSystemFock() const override;
+    virtual void AddAODensity(rsmat_t& Dao) const override;
     //! \copydoc tChargeDensity::Project -- the MOLECULAR lineage: contract my D into the block's forward.
     virtual Projections Project(const BasisSet::PairProjector<double>&) const override;
     using IrrepCD_Core<double>::Project;   // the periodic overload
     //! \f$\nabla\rho\f$ from the density matrix (the molecular contraction).
-    virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
+    virtual rvec3_t  Gradient  (const rvec3_t&) const override; // No UT coverage
 
 private:
     friend class IrrepCD_HFPair<FiniteIrrepCD>;   // uses this block's own D/basis; nothing is exposed publicly
@@ -160,12 +160,22 @@ private:
     void AccumulateExchange(rsmat_t& Kii) const;
 };
 
-//! Conditional real-block-energy base for the periodic leaf: ONLY the \c <double> instantiation (a real
-//! block inside a complex run) carries the run-typed energy-contract capability.  This conditional keys
-//! on exactly what it means -- the SCALAR of a periodic leaf -- unlike the retired lineage-by-scalar ones.
+//! \brief The run-typed energy contraction (\c RealBlockEnergy_CD) of a REAL periodic block inside a complex run: this
+//! block's real D against the complex run's dynamic term, through the term's real block face for the run's density.
+//! CRTP on the leaf (\a Leaf, whose D and basis it reads), the shape of \c Composite_HFSystem (CompositeCD.C): only the
+//! \c <double> leaf carries the capability, so only it carries the implementation, and the complex leaf declares
+//! nothing it cannot override (it once declared this member unconditionally, overriding nothing and throwing on <dcmplx>).
+//! The conditional keys on exactly what it means -- the SCALAR of a periodic leaf -- unlike the retired lineage-by-scalar ones.
+template <class Leaf> class PeriodicIrrepCD_RealEnergy : public RealBlockEnergy_CD
+{
+public:
+    virtual double DM_ContractE(const tDynamic_CC<double>*, DensityID) const override;
+private:
+    const Leaf& self() const {return static_cast<const Leaf&>(*this);}
+};
 struct NoRealBlockEnergy {};
-template <class T> using PeriodicRealEnergyBase =
-    std::conditional_t<std::is_same_v<T,double>, RealBlockEnergy_CD, NoRealBlockEnergy>;
+template <class T, class Leaf> using PeriodicRealEnergyBase =
+    std::conditional_t<std::is_same_v<T,double>, PeriodicIrrepCD_RealEnergy<Leaf>, NoRealBlockEnergy>;
 
 //! \brief THE PERIODIC LEAF (Bloch blocks, both scalars -- Step 3c-2b): the core plus the reciprocal
 //! trio.  Carries NEITHER the AO projection NOR the HF faces (no periodic exact exchange, no auxiliary-
@@ -175,7 +185,7 @@ template <class T> using PeriodicRealEnergyBase =
 template <class T> class PeriodicIrrepCD
     : public IrrepCD_Core<T>
     , public IrrepCD_Fourier<PeriodicIrrepCD<T>>   // the reciprocal trio (both scalars)
-    , public PeriodicRealEnergyBase<T>             // run-typed energy contract (double only)
+    , public PeriodicRealEnergyBase<T,PeriodicIrrepCD<T>>   // run-typed energy contract (double only)
 {
 public:
     using IrrepCD_Core<T>::IrrepCD_Core;
@@ -188,12 +198,11 @@ public:
     //! The periodic path is LDA-only: grad(rho) is not wired, and a silent zero would hand a GGA a
     //! plausible wrong field (R1.4) -- THROW.
     virtual rvec3_t Gradient(const rvec3_t&) const;
-    //! The run-typed energy contraction (RealBlockEnergy_CD; meaningful for T==double only -- on the
-    //! complex instantiation this overrides nothing and is never called).
-    virtual double DM_ContractE(const tDynamic_CC<double>*, DensityID) const;
+    // The run-typed energy contraction lives in PeriodicIrrepCD_RealEnergy (a base of the <double> leaf only).
 
 private:
     friend class IrrepCD_Fourier<PeriodicIrrepCD<T>>;  // the trio uses this block's own D/basis
+    friend class PeriodicIrrepCD_RealEnergy<PeriodicIrrepCD<T>>;  // so does the real-block energy contraction
 };
 
 //! \brief SAME DENSITY, SAME VALUE, CHEAPER ROUTE: D stays the truth on the \a Leaf; only \f$\rho(r)\f$ is

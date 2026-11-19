@@ -65,9 +65,9 @@ template <class T> class Orbital_RKB_IBS_Imp
     , public virtual Orbital_RKB_IBS<T>
 {
 public:
-    virtual smat_t<T> MakeOverlap () const;
-    virtual smat_t<T> MakeKinetic () const;
-    virtual smat_t<T> MakeNuclear (const Structure*) const;
+    virtual smat_t<T> MakeOverlap () const override;
+    virtual smat_t<T> MakeKinetic () const override;
+    virtual smat_t<T> MakeNuclear (const Structure*) const override;
     // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
     virtual bool CanPullbackOverlap() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<T>&, const Structure*) const override
@@ -78,14 +78,14 @@ public:
     virtual bool CanPullbackNuclear() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<T>&, const Structure*) const override
         {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the Dirac (RKB) block", "nuclear pullback");}
-    virtual smat_t<T> MakeRestMass() const;
+    virtual smat_t<T> MakeRestMass() const override;
     
-    virtual size_t GetNumFunctions() const {return itsRKBL->GetNumFunctions() + itsRKBS->GetNumFunctions(); }
+    virtual size_t GetNumFunctions() const override {return itsRKBL->GetNumFunctions() + itsRKBS->GetNumFunctions(); }
     // d/dR, forward (GeometryOptimizationPlan §13.2): the gradient source awaits the user's ruling, so every family refuses for now.
     virtual bool CanGiveJets() const override {return false;}
     virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, BasisSet::PointJets<T>&) const override
         {return BasisSet::NoGeometryDerivativeYet<size_t>("the Dirac (RKB) block", "function jets");}
-    virtual vec_t<T> operator() (const rvec3_t& r) const 
+    virtual vec_t<T> operator() (const rvec3_t& r) const override 
     {
         vec_t<T> Lr=(*itsRKBL)(r), Sr=(*itsRKBS)(r);
         size_t N=Lr.size();
@@ -101,7 +101,7 @@ public:
     };
     //! Stacked as operator() stacks the values: the large component's N gradients, then the small component's N.  (It ADDED the two,
     //! N gradients for 2N functions, until the hand-gradient audit of 2026-11-09.)
-    virtual vec3vec_t<T> Gradient(const rvec3_t& r) const
+    virtual vec3vec_t<T> Gradient(const rvec3_t& r) const override
     {
         const vec3vec_t<T> Lg=itsRKBL->Gradient(r), Sg=itsRKBS->Gradient(r);
         const size_t N=Lg.size();
@@ -117,10 +117,10 @@ public:
 
     // Neutral identity: compose from the L/S components' own BasisSetID (each an atom base whose id is
     // radial|angular).  This layer must NOT reach for atom RadialID/AngularID -- it is structure-neutral.
-    virtual std::string BasisSetID() const {return itsRKBL->BasisSetID()+"+"+itsRKBS->BasisSetID();}
-    virtual std::string Name      () const {return itsRKBL->Name();}
+    virtual std::string BasisSetID() const override {return itsRKBL->BasisSetID()+"+"+itsRKBS->BasisSetID();}
+    virtual std::string Name      () const override {return itsRKBL->Name();}
 
-    virtual std::ostream& Write(std::ostream& os) const
+    virtual std::ostream& Write(std::ostream& os) const override
     {
         return os << "Orbital RKB IBS " << *itsRKBL;
     }
@@ -157,10 +157,10 @@ template <class T> class Orbital_RKB_HF_IBS_Imp
     , public Orbital_RKB_IBS_Imp<T>
 {
 
-    virtual ERI4       MakeDirect  (const Orbital_ERI4_IBS<T>& c) const;
-    virtual ERI4       MakeExchange(const Orbital_ERI4_IBS<T>& c) const;
-    virtual ERI4       MakeDirectAgainstL  (const Orbital_ERI4_IBS<T>& aL) const;
-    virtual ERI4       MakeExchangeAgainstL(const Orbital_ERI4_IBS<T>& aL) const;
+    virtual ERI4       MakeDirect  (const Orbital_ERI4_IBS<T>& c) const override;
+    virtual ERI4       MakeExchange(const Orbital_ERI4_IBS<T>& c) const override;
+    virtual ERI4       MakeDirectAgainstL  (const Orbital_ERI4_IBS<T>& aL) const override;
+    virtual ERI4       MakeExchangeAgainstL(const Orbital_ERI4_IBS<T>& aL) const override;
 public:
     // d/dR (GeometryOptimizationPlan §13.2): a Dirac (RKB) block is radial (one centre): no geometry to move.
     virtual bool CanPullbackERI4(const Orbital_HF_IBS<T>*) const override {return false;}

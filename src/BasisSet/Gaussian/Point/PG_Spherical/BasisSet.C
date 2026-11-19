@@ -42,18 +42,18 @@ class IrrepBasisSet
         IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rvec_t& exponents, size_t L, const Structure*);
         virtual ~IrrepBasisSet();
 
-        virtual size_t  GetNumFunctions() const {return SphData::size();}
-        virtual size_t  size() const {return SphData::size();}
-        virtual rvec_t     operator() (const rvec3_t&) const;
+        virtual size_t  GetNumFunctions() const override {return SphData::size();}
+        virtual size_t  size() const override {return SphData::size();}
+        virtual rvec_t     operator() (const rvec3_t&) const override;
         // d/dR, forward (GeometryOptimizationPlan §13.2): the gradient source awaits the user's ruling, so every family refuses for now.
         virtual bool CanGiveJets() const override {return false;}
         virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, qchem::BasisSet::PointJets<double>&) const override
             {return qchem::BasisSet::NoGeometryDerivativeYet<size_t>("PG_Spherical", "function jets");}
-        virtual rvec3vec_t Gradient   (const rvec3_t&) const;
+        virtual rvec3vec_t Gradient   (const rvec3_t&) const override;
 
-        virtual std::string BasisSetID() const {return SphData::BasisSetID();} // geometry-aware cache identity (molecular: no RadialID/AngularID)
-        virtual std::string Name     () const {return "Sph. Gaussian ";}
-        virtual std::ostream &Write(std::ostream&) const;
+        virtual std::string BasisSetID() const override {return SphData::BasisSetID();} // geometry-aware cache identity (molecular: no RadialID/AngularID)
+        virtual std::string Name     () const override {return "Sph. Gaussian ";}
+        virtual std::ostream &Write(std::ostream&) const override;
 
     private:
         std::vector<std::unique_ptr<Cart::GaussianRF>> itsRadials;  // owns the radials comps point into
@@ -97,7 +97,7 @@ public:
     virtual std::string Name() const override {return itsName;}
     //! Atom-centred Gaussians of every l on the structure's sites: no group of their own ({e}, doc/Pins.md pin 30).
     virtual qcMesh::ImposedSymmetry Imposes() const override {return qcMesh::ImposedSymmetry::None;}
-    virtual rsmat_t MakeOverlap  () const {return MakeOverlap2C(this);}
+    virtual rsmat_t MakeOverlap  () const override {return MakeOverlap2C(this);}
     // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative for this fit block yet (the Dunlap increment adds the fit faces').
     virtual bool CanPullbackOverlap() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override
@@ -105,9 +105,9 @@ public:
     virtual bool CanPullbackRepulsion() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const rsmat_t&, const Structure*) const override
         {return qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the PG_Spherical fit block", "Coulomb-metric pullback");}
-    virtual  rvec_t MakeCharge   () const;
-    virtual rsmat_t MakeRepulsion() const {return MakeRepulsion2C(this);}
-    virtual  rmat_t MakeRepulsion(const rFIT_CD_ABS& b) const;
+    virtual  rvec_t MakeCharge   () const override;
+    virtual rsmat_t MakeRepulsion() const override {return MakeRepulsion2C(this);}
+    virtual  rmat_t MakeRepulsion(const rFIT_CD_ABS& b) const override;
 private:
     std::string itsName;
 };
