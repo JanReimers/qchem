@@ -24,6 +24,7 @@ import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Blaze;
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
+import qchem.Reporting;       // report::Timed (the point-set pullback's bucket)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 
 namespace qchem::BasisSet::Gaussian::PG_Cart
@@ -318,6 +319,83 @@ void Orbital_IBS::BlochPointValues(const rvec3vec_t& pts, const cellphase_t& pha
             const rvec_t chi=(*this)(pts[q]-Rc[k]);
             for (size_t i=0;i<n;i++) Phi(q,i)+=ph[k]*chi[i];
         }
+}
+
+// THE DERIVATIVE of a point-set quadrature over BlochPointValues (LatticeCollocation::BlochPointPullback; lane B 2026-11-19).  Per point q,
+// E_q = c_q Re Σ_ij D_ji conj(Φ_qi) Φ_qj, so dE_q = 2 c_q Re Σ_i z_qi dΦ_qi with z_qi = Σ_j D_ij conj(Φ_qj).  Φ_qi = Σ_k phase_k χ_i(r_q - R_k)
+// (BlochPointValues: the same images, bounding-sphere screen and per-function reach), and dΦ_qi/d(centre) = -phase_k ∇χ_i(d), d = r_q - C:
+//   gradient[atom(i)] -= w ∇χ_i(d),   perPoint[q] += w ∇χ_i(d),   moment += w ∇χ_i(d) ⊗ d,   w = 2 c_q Re(z_qi phase_k).
+Gaussian::LatticeCollocation::PointPullback Orbital_IBS::BlochPointPullback(const rvec3vec_t& pts, const rvec_t& c, const chmat_t& D, const cellphase_t& phase,
+                                              const UnitCell& A, const Structure* st) const
+{
+    const size_t n=GetNumFunctions(), npts=pts.size();
+    if (c.size()!=npts) throw std::invalid_argument("BlochPointPullback: the weights are "+std::to_string(c.size())+" for "+std::to_string(npts)+" points");
+    if (D.rows()!=n) throw std::invalid_argument("BlochPointPullback: D is "+std::to_string(D.rows())+" square for "+std::to_string(n)+" functions");
+    if (!st) throw std::invalid_argument("BlochPointPullback: the pullback needs the structure (the sites the functions sit on)");
+    const std::vector<size_t> atom=NR_Evaluator::ComponentSites(st, "BlochPointPullback");
+    PointPullback out{rvec3vec_t(st->GetNumAtoms(), rvec3_t(0,0,0)), rmat3d_t(0,0,0, 0,0,0, 0,0,0), rvec3vec_t(npts, rvec3_t(0,0,0))};
+    if (npts==0) return out;
+    qchem::report::Timed timer("force: point-set quadrature pullback (Bloch jets)");
+    // The images and screens of BlochPointValues, verbatim.
+    const double maxReach=sqrt(-log(1e-10)/MinExponent());
+    const rvec3_t ctr=A.ToCartesian(rvec3_t(0.5,0.5,0.5));
+    double cellRad=0.0;
+    for (int cx=0;cx<=1;cx++) for (int cy=0;cy<=1;cy++) for (int cz=0;cz<=1;cz++)
+        cellRad=std::max(cellRad, norm(A.ToCartesian(rvec3_t(double(cx),double(cy),double(cz)))-ctr));
+    const double Rcut=std::max(2.0*maxReach+2.0*A.GetMaximumCellEdge(), maxReach+2.0*cellRad);
+    const double rr  =cellRad+maxReach;
+    std::vector<ivec3_t> offs=LatticePointsInSphere(A, Rcut);
+    std::vector<rvec3_t> Rc(offs.size());
+    cvec_t               ph(offs.size());
+    for (size_t k=0;k<offs.size();k++)
+    {
+        Rc[k]=A.ToCartesian(rvec3_t(double(offs[k].x),double(offs[k].y),double(offs[k].z)));
+        ph[k]=phase(offs[k]);
+    }
+    const rvec_t& reach=Reaches();
+    const mat_t<dcmplx> Dm(D);
+    double M[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+    cvec_t Phi(n), z(n);
+    for (size_t q=0;q<npts;q++)
+    {
+        if (c[q]==0.0) continue;
+        for (size_t i=0;i<n;i++) Phi[i]=dcmplx(0.0);
+        for (size_t k=0;k<Rc.size();k++)
+        {
+            const rvec3_t d=pts[q]-Rc[k]-ctr;
+            if (d.x*d.x+d.y*d.y+d.z*d.z > rr*rr) continue;
+            const rvec_t chi=(*this)(pts[q]-Rc[k]);
+            for (size_t i=0;i<n;i++) Phi[i]+=ph[k]*chi[i];
+        }
+        for (size_t i=0;i<n;i++)
+        {
+            dcmplx s(0.0);
+            for (size_t j=0;j<n;j++) s+=Dm(i,j)*std::conj(Phi[j]);
+            z[i]=s;
+        }
+        for (size_t k=0;k<Rc.size();k++)
+        {
+            const rvec3_t dk=pts[q]-Rc[k]-ctr;
+            if (dk.x*dk.x+dk.y*dk.y+dk.z*dk.z > rr*rr) continue;
+            const rvec3_t r=pts[q]-Rc[k];   // the point relative to this image's frame: χ_i(r) is the function at X_i + R_k
+            for (size_t i=0;i<n;i++)
+            {
+                const GaussianRF& rf=*radials[i];
+                const rvec3_t dr=r-rf.GetCenter();   // = r_q - (X_i + R_k)
+                if (dr.x*dr.x+dr.y*dr.y+dr.z*dr.z > reach[i]*reach[i]) continue;   // operator()'s screen: the value is 0 there
+                const double w=2.0*c[q]*std::real(z[i]*ph[k]);
+                if (w==0.0) continue;
+                const rvec3_t gchi=ns[i]*rf.Gradient(pols[i], r);   // ∇_r χ_i at the point (Enzyme's, as IrrepBasisSet::Gradient)
+                const rvec3_t wg=w*gchi;
+                out.gradient[atom[i]]-=wg;
+                out.perPoint[q]+=wg;
+                const double gg[3]={wg.x,wg.y,wg.z}, dd[3]={dr.x,dr.y,dr.z};
+                for (int a=0;a<3;a++) for (int b=0;b<3;b++) M[a][b]+=gg[a]*dd[b];
+            }
+        }
+    }
+    out.moment=rmat3d_t(M[0][0],M[0][1],M[0][2], M[1][0],M[1][1],M[1][2], M[2][0],M[2][1],M[2][2]);
+    return out;
 }
 
 chmat_t Orbital_IBS::MakeOverlap(const cellphase_t& phase, const UnitCell& A) const {return NR_Evaluator::MakeOverlap(phase,A);}

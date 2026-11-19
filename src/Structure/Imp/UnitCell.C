@@ -18,6 +18,7 @@ import qchem.Structure;      // Atom (AddAtom inserts atoms given in fractional 
 import qchem.Vector3D;       // norm(rvec3_t)
 import qchem.Mesh.Product;   // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
 import qchem.Mesh.Builder;   // MeshBuilder (efficient incremental accumulation)
+import qchem.Mesh.BeckePartition;   // PeriodicBeckeWeight: the ONE periodic partition (the build and its derivative)
 import qchem.SymmetrizeMesh; // MakeInvariantAngularMesh + FoldPointsPeriodic (the §6a W2b site-adapted mesh)
 import qchem.Ewald;          // EwaldEnergy (IonIonEnergy: a periodic cell's ion-ion sum)
 import qchem.Reporting;      // the Becke mesh's fields, one level into the caller's report scope (inert when no run is open)
@@ -48,13 +49,6 @@ namespace qchem {
 // is the point of the Becke XC grid (doc/GPWPlan1.md).
 namespace {
 
-// One competitor image atom R_b + L for the Becke partition at one mesh point.
-struct BeckeImage
-{
-    rvec3_t R;        // image position
-    double  d;        // |r - R|
-    bool    inPSet;   // cell-function bound >= eps: P is computed and enters the denominator
-};
 
 //! GPW_BECKE_COUNT=1: the per-point COST CENSUS of the partition (doc/OpenWork.md Step 3).  The
 //! partition is the single largest CPU consumer in the code (~50% of cycles), and it is threaded by
@@ -67,17 +61,7 @@ struct BeckeImage
 //! Only the INNER-loop counter is gated on \a census: it fires ~2.3e5 times per point (97% of the work),
 //! where an ungated increment would be a real production cost.  The shell-retest and P-set counters fire
 //! ~6.4e3 and ~1e2 times per point, measured at ~0.03% of the build, and stay ungated for legibility.
-struct BeckePointCost
-{
-    unsigned im=0;        // competitor images gathered
-    unsigned pset=0;      // images retained in the P-set (the denominator sum)
-    unsigned shells=0;    // deepest shell index reached
-    unsigned retest=0;    // BeckeCutoff calls in the shell-convergence retest
-    unsigned final_=0;    // BeckeCutoff calls in the final P-set double loop (== norm() calls too)
-    unsigned bound=0;     // BeckeCutoff calls in the per-shell tail bound + the early-tail drop
-    unsigned dead=0;      // P-set members whose P underflowed to 0 (the whole i iteration bought nothing)
-    unsigned deadWork=0;  // final-loop pairs spent on those members -- work that provably bought nothing
-};
+using qcMesh::BeckePointCost;   // the census (qcMesh::PeriodicBeckeWeight fills it)
 
 //! \brief An ATOM-CENTRED mesh must carry one site block per centre -- checked LIVE, not by \c assert.
 //!
@@ -167,6 +151,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
         // guessed point and calling it a moment (doc/OpenWork.md Step 0a).  Costs one index per atom.
         out.BeginSite();
         qcMesh::Mesh am=qcMesh::ProductMesh(rad, angPerAtom ? (*angPerAtom)[ia] : ang);
+        const rvec3vec_t u=am.Points();   // the TEMPLATE offsets, recorded per kept point (Mesh::OwnerOffsets: a pullback re-forms R_a + u exactly)
         am.ShiftOrigin(R[ia]);
         const rvec3vec_t& pts=am.Points();
         const rvec_t&     wts=am.Weights();
@@ -193,107 +178,26 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
             {
                 if (!keepOf[r0][q]) continue;
                 const rvec3_t f=cell.ToFractional(pts[q]);
-                out.Append(pts[q]-cell.ToCartesian(rvec3_t(floor(f.x),floor(f.y),floor(f.z))), kwtOf[r0][q]);
+                out.Append(pts[q]-cell.ToCartesian(rvec3_t(floor(f.x),floor(f.y),floor(f.z))), kwtOf[r0][q], u[q]);
             }
             continue;
         }
         auto partition=[&](size_t q)
         {
-            BeckePointCost pc;            // recorded on every exit path when the census is on
-            std::vector<BeckeImage> im;   // competitor images for this point (thread-local)
-            auto record=[&] { if (census) { pc.im=unsigned(im.size()); cost[q]=pc; } };
+            BeckePointCost pc;                       // recorded on every exit path when the census is on
+            std::vector<qcMesh::BeckeImage> im;      // competitor images for this point (thread-local)
+            long target=-1;
             const rvec3_t& r=pts[q];
-            // The point's own cell n0 (shells are centred on it, so the s*dPlane floor holds).
-            rvec3_t f=cell.ToFractional(r);
-            const int n0x=int(floor(f.x)), n0y=int(floor(f.y)), n0z=int(floor(f.z));
-
-            long   target=-1;                 // index of THIS grid's own centre (atom ia, L=0) in im
-            double dNear=1e300;
-            auto AddShell=[&](int s)
-            {
-                for (int i=-s; i<=s; i++)
-                    for (int j=-s; j<=s; j++)
-                        for (int l=-s; l<=s; l++)
-                        {
-                            if (max(abs(i),max(abs(j),abs(l)))!=s) continue;   // surface of the cube only
-                            const int nx=n0x+i, ny=n0y+j, nz=n0z+l;
-                            rvec3_t L=cell.ToCartesian(rvec3_t(nx,ny,nz));
-                            for (size_t b=0; b<natom; b++)
-                            {
-                                rvec3_t Rb=R[b]+L;
-                                double  d=norm(r-Rb);
-                                if (b==ia && nx==0 && ny==0 && nz==0) target=long(im.size());
-                                im.push_back({Rb,d,false});
-                                if (d<dNear) dNear=d;
-                            }
-                        }
-            };
-            AddShell(0);
-            AddShell(1);
-            // Early drop of far radial-tail points: dNear over shells 0..1 only DECREASES as more shells
-            // arrive, and s((da-dn)/(da+dn)) is increasing in dn, so this is a valid upper bound on the
-            // point's own cell function.
-            const double da=norm(r-R[ia]);
-            pc.bound++;
-            if (BeckeCutoff((da-dNear)/(da+dNear),k)<eps) { record(); return; }
-
-            for (int s=2; ; s++)
-            {
-                const double Dlow=(s-1)*dPlane;   // distance floor for anything at cell distance >= s
-                pc.bound++; pc.shells=unsigned(s);
-                const double newPB=BeckeCutoff((Dlow-dNear)/(Dlow+dNear),k);
-                if (newPB<eps)
-                {
-                    double facB=0;
-                    for (auto& b : im)
-                    {
-                        double pb=BeckeCutoff((b.d-dNear)/(b.d+dNear),k);
-                        pc.retest++;
-                        b.inPSet=(pb>=eps);
-                        if (!b.inPSet) continue;
-                        double dev=pb*(1.0-BeckeCutoff((b.d-Dlow)/(b.d+Dlow),k));
-                        pc.retest++;
-                        if (dev>facB) facB=dev;
-                    }
-                    if (facB<eps) break;          // both tails below eps: the series is converged
-                }
-                AddShell(s);
-                assert(s<100);                    // physically unreachable; guards a runaway series
-            }
-
-            // If the point's own centre was never gathered, its cell function is below the unseen-image
-            // bound (< eps) -- the partition assigns it ~0 weight.
-            if (target<0 || !im[target].inPSet) { record(); return; }
-
-            double sum=0, Pt=0;
-            for (size_t i=0; i<im.size(); i++)
-            {
-                if (!im[i].inPSet) continue;
-                pc.pset++;
-                double P=1.0;
-                unsigned jThis=0;
-                for (size_t j=0; j<im.size() && P>0; j++)
-                {
-                    if (j==i) continue;
-                    double Rij=norm(im[i].R-im[j].R);
-                    double mu = (Rij>0.0) ? (im[i].d-im[j].d)/Rij : 0.0;  // coincident atoms -> mu=0
-                    P*=BeckeCutoff(mu,k);
-                    if (census) { pc.final_++; jThis++; }   // ONE predictable branch; nothing when off
-                    if (P<1e-300) P=0.0;          // underflow guard, not a screen
-                }
-                if (census && P==0.0) { pc.dead++; pc.deadWork+=jThis; }
-                sum+=P;
-                if (long(i)==target) Pt=P;
-            }
-            assert(sum>0);
-            double w=Pt/sum;
+            // THE ONE PARTITION (qcMesh::PeriodicBeckeWeight, lane B 2026-11-19): the build and its geometry derivative are one computation.
+            const double w=qcMesh::PeriodicBeckeWeight(cell, R, dPlane, ia, r, k, eps, im, target, pc, census);
+            if (census) { pc.im=unsigned(im.size()); cost[q]=pc; }
             if (w>0)   // wrapped into the home cell; slot-indexed so the threaded build stays ordered
             {
+                const rvec3_t f=cell.ToFractional(r);
                 keep[q]=1;
-                kpt[q]=r-cell.ToCartesian(rvec3_t(n0x,n0y,n0z));
+                kpt[q]=r-cell.ToCartesian(rvec3_t(int(floor(f.x)),int(floor(f.y)),int(floor(f.z))));
                 kwt[q]=wts[q]*w;
             }
-            record();
         };
 #ifdef QCHEM_OPENMP
         const int nthreads=qchem::InnerThreads();     // THE one thread count (qchem.Parallel; 1 inside an outer-loop item)
@@ -307,7 +211,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
 #else
         for (size_t q=0; q<nq; q++) partition(q);
 #endif
-        for (size_t q=0; q<nq; q++) if (keep[q]) out.Append(kpt[q], kwt[q]);
+        for (size_t q=0; q<nq; q++) if (keep[q]) out.Append(kpt[q], kwt[q], u[q]);
         if (repOf) { keepOf[ia]=keep; kwtOf[ia]=kwt; }
         for (size_t q=0; q<cost.size(); q++)
         {

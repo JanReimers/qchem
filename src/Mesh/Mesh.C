@@ -37,8 +37,9 @@ public:
     //! Build from ready-made SoA arrays (the efficient path when the size is known up front,
     //! e.g. ProductMesh = nRadial*nAngular).  Sizes must match.
     Mesh(rvec3vec_t r, rvec_t w);
-    //! The atom-centred sibling: \a siteStart is the first point index of each SITE BLOCK (see below).
-    Mesh(rvec3vec_t r, rvec_t w, std::vector<size_t> siteStart);
+    //! The atom-centred sibling: \a siteStart is the first point index of each SITE BLOCK (see below), and \a ownerOffset (empty, or one
+    //! per point) each point's offset from its site's own centre (see \c OwnerOffsets).
+    Mesh(rvec3vec_t r, rvec_t w, std::vector<size_t> siteStart, rvec3vec_t ownerOffset={});
 
     const rvec3vec_t& Points () const override; //!< r_i, for the phi(r) evaluators.
     //! \copydoc PointSampling::MakeFourierSampler
@@ -73,6 +74,11 @@ public:
     size_t NSites  ()          const {return itsSiteStart.size();}
     size_t SiteBegin(size_t a) const {assert(a<NSites()); return itsSiteStart[a];}
     size_t SiteEnd  (size_t a) const {assert(a<NSites()); return a+1<NSites() ? itsSiteStart[a+1] : size();}
+    //! \brief Each point's offset \f$u_i\f$ from its OWNER's centre: the point was generated at \f$R_A+u_i\f$ by site \f$A\f$'s template
+    //! (before any wrap into a home cell).  What a GEOMETRY DERIVATIVE of an atom-centred quadrature needs: the point rides its owner, so
+    //! the partition is re-evaluated at \f$R_A+u_i\f$ and the virial carries \f$u_i\f$ (lane B 2026-11-19).  EMPTY when the builder did not
+    //! record it (a product or uniform grid has no owners); otherwise one per point.
+    const rvec3vec_t& OwnerOffsets() const {return itsU;}
     //!@}
 
     //! Append one (point,weight) pair.  Builders (the incremental Becke mesh) push here.
@@ -84,6 +90,7 @@ private:
     rvec3vec_t          itsR;
     rvec_t              itsW;
     std::vector<size_t> itsSiteStart;   //!< first point index of each site block ({} = no site structure)
+    rvec3vec_t          itsU;           //!< each point's offset from its owner's centre ({} = not recorded)
     std::shared_ptr<const FourierSamplingStrategy> itsSampling;   //!< null = the NUFFT default
     std::shared_ptr<SamplingTarget> itsTarget=std::make_shared<SamplingTarget>();   //!< the sampling slot (unset = step-1 tolerance)
 };

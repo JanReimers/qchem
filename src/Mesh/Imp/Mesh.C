@@ -3,6 +3,7 @@
 module;
 #include <utility>
 #include <cassert>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <memory>
@@ -13,8 +14,12 @@ namespace qchem::qcMesh
 
 Mesh::Mesh(rvec3vec_t r, rvec_t w) : itsR(std::move(r)), itsW(std::move(w)) {}
 
-Mesh::Mesh(rvec3vec_t r, rvec_t w, std::vector<size_t> siteStart)
-    : itsR(std::move(r)), itsW(std::move(w)), itsSiteStart(std::move(siteStart)) {}
+Mesh::Mesh(rvec3vec_t r, rvec_t w, std::vector<size_t> siteStart, rvec3vec_t ownerOffset)
+    : itsR(std::move(r)), itsW(std::move(w)), itsSiteStart(std::move(siteStart)), itsU(std::move(ownerOffset))
+{
+    if (itsU.size()!=0 && itsU.size()!=itsW.size())
+        throw std::invalid_argument("qcMesh::Mesh: the owner offsets are "+std::to_string(itsU.size())+" for "+std::to_string(itsW.size())+" points");
+}
 
 const rvec3vec_t& Mesh::Points() const {return itsR;}
 
@@ -74,6 +79,7 @@ ImposedSymmetry ImposedBy(const MeshParams& mp)
 void Mesh::Append(const rvec3_t& r, double w)
 {
     itsSampling.reset();   // a point added: no longer the structure a builder recorded
+    itsU.resize(0);        // ... nor the owners it recorded
     size_t n=itsW.size();
     assert(itsR.size()==n);
     itsR.resize(n+1,true);
