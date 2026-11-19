@@ -55,6 +55,7 @@ Tooling/build/test-infrastructure rows (moved from OpenWork §3, 2026-10-01) are
 | **D-GPW-RASTER-NAMES** | ✅ closed `d76d9907`; `Records/CleanupHistory.md`.  The plane-wave `RasterPolicy` names stay until the PW raster row (OpenWork) lands. |
 | **D-TEST-NAME-BYTES** | ✅ closed `8edeb9e8`; `Records/CleanupHistory.md`. |
 | **D-CKALPHA-AUTO** (moved from OpenWork §2 "CP2K finite-α LRT (3rd U oracle)", 2026-10-29) | patch + Si validation DONE (χ −14.5164 vs ours −14.5117, 0.033%; `~/Code/cp2k` branch `ck-alpha`, `cp2k_ckalpha.ssmp`); ⚠ CP2K RKS `trq` is scaled by fspin=0.5 (pin 26) | (1) automate the cross-check as a gtest/gpwprobe arm; (2) U_in≠0 needs a CP2K-side V_Hub freeze (not built) · `IntegrationTests/CP2K/ckalpha/` |
+| [G5] **D-STRAY-COUT-BASISCACHE** (lane G, 2026-11-19) | `src/BasisSet/BasisCache.C:117` prints `Insert Cache4_Client RadialType=SL` to stdout on every radial-atom run (seen by lane G's GUI atom binding): a debug print outside the run report.  Delete it, or if the fact matters, `report::Set` it under the caller's scope (CLAUDE.md run-report rule). |
 
 ## ANCHOR-MOVING BATCH — one sprint, re-bank once (user 2026-10-03)
 
