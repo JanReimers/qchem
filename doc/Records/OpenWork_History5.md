@@ -3592,3 +3592,7 @@ The final energies of every variant agree to within 6e-10 Ha.
 - **Short:** 21 of 1702 moved, all piloted atoms (A_DFT_atom, A_DFT_heavy, A_DFT_ion). Iterations only, 851 → 730 summed, |dE| ≤ 6.0e-10.
 - **Long:** 0 of 18. **Panel:** 0 of 27.
 - **RelChecked:** clean.
+
+## ✅ Star-average remainders (a), (c), (d) (lane S, 2026-11-18)
+
+From the live row "Star-average remainders"; (b) stays there.  (d) the raster `StarField` averages on any grid the op leaves invariant (`RasterVoxelMap`, integer W·N_a/N_b) and THROWS on any other (no user chooses the grid: a broken invariant, controller ruling; unreachable today, `AutoGrid` is always cubic).  (a) the T1 {G} fold and the grid report ask `CrystalImposition::densityGroup` (`StarGroup::EvaluateOnGStars`, `CountGStars`); `directDensity` is read only by the stream fold, now its own row.  (c) CLOSED AS STALE: `FoldedMesh::Symmetrize` runs a precomputed `Fold`, and its ops never leave `CrystalImposition::MakeXCMesh`  The stream fold's op list got its own row ("The stream fold's ops list"), and the requests `StarGroup` gained are listed in the `Group`-face row as an input to its design review.  Landing: 0 movers (see the READY to the controller; (d) alone: short 1747/0, long 19/0, decks 67/67, RelChecked rc 0).
