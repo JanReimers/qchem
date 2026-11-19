@@ -52,13 +52,13 @@ public:
     LAPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,
              double Ecut, double Rmt, size_t lmax, double Elin, double Znuc=0.0);
 
-    virtual size_t GetNumFunctions() const {return itsG.size();}
+    virtual size_t GetNumFunctions() const override {return itsG.size();}
 
     // Orbital_1E_IBS building blocks (energy-independent at fixed E_l; Hermitian, real for one origin
     // sphere).  Assemble H = 1/2 Kinetic + Nuclear and solve the generalized problem H c = e O c.
-    virtual chmat_t MakeOverlap() const;                 //!< <phi_i|phi_j>
-    virtual chmat_t MakeKinetic() const;                 //!< <p^2> = <phi_i|-grad^2|phi_j> (NO 1/2)
-    virtual chmat_t MakeNuclear(const Structure*) const; //!< <phi_i|V|phi_j>, V=-Z/r (uses the ctor Z)
+    virtual chmat_t MakeOverlap() const override;                 //!< <phi_i|phi_j>
+    virtual chmat_t MakeKinetic() const override;                 //!< <p^2> = <phi_i|-grad^2|phi_j> (NO 1/2)
+    virtual chmat_t MakeNuclear(const Structure*) const override; //!< <phi_i|V|phi_j>, V=-Z/r (uses the ctor Z)
     // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
     virtual bool CanPullbackOverlap() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<dcmplx>&, const Structure*) const override
@@ -71,16 +71,16 @@ public:
         {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("LAPW", "nuclear pullback");}
 
     // VectorFunction: interstitial plane-wave value (in-sphere augmentation not evaluated pointwise).
-    virtual cvec_t     operator() (const rvec3_t& r) const;
+    virtual cvec_t     operator() (const rvec3_t& r) const override;
     // d/dR, forward (GeometryOptimizationPlan §13.2): the gradient source awaits the user's ruling, so every family refuses for now.
     virtual bool CanGiveJets() const override {return false;}
     virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, BasisSet::PointJets<dcmplx>&) const override
         {return BasisSet::NoGeometryDerivativeYet<size_t>("LAPW", "function jets");}
-    virtual cvec3vec_t Gradient   (const rvec3_t& r) const;
+    virtual cvec3vec_t Gradient   (const rvec3_t& r) const override;
 
-    virtual std::string Name      () const {return "LAPW";}
-    virtual std::string BasisSetID() const;
-    virtual std::ostream& Write(std::ostream&) const;
+    virtual std::string Name      () const override {return "LAPW";}
+    virtual std::string BasisSetID() const override;
+    virtual std::ostream& Write(std::ostream&) const override;
 
 private:
     //! One angular channel l, expressed in the two-function radial basis {u_l, udot_l}.  The three

@@ -105,7 +105,7 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override
         {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a radial (atom) block", "overlap pullback");}
 protected:
-    virtual smat_t<double> MakeOverlap() const 
+    virtual smat_t<double> MakeOverlap() const override 
     {
         auto& e=dynamic_cast<const E&>(*this);
         rsmat_t S(e.size());
@@ -129,7 +129,7 @@ protected:
     // Builds the kinetic BUILDING BLOCK \f$\langle p^2\rangle=\langle -\nabla^2\rangle\f$ (NOT energy,
     // no 1/2 -- see BasisSet/Orbital_1E_IBS.C).  For atoms \f$-\nabla^2\f$ splits into the radial
     // gradient piece e.Grad2(i,j) plus the centrifugal (angular) term \f$l(l+1)\langle r^{-2}\rangle\f$.
-    virtual smat_t<double> MakeKinetic() const
+    virtual smat_t<double> MakeKinetic() const override
     {
         auto& e=dynamic_cast<const E&>(*this);
         int l=e.Getl();
@@ -150,7 +150,7 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<double>&, const Structure*) const override
         {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a radial (atom) block", "nuclear pullback");}
 protected:
-    virtual smat_t<double> MakeNuclear(const Structure* cl) const 
+    virtual smat_t<double> MakeNuclear(const Structure* cl) const override 
     {
         assert(cl);
         assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
@@ -232,7 +232,7 @@ public:
             }
         return Ginv;
     }
-    virtual rsmat_t MakeRepulsion(                ) const 
+    virtual rsmat_t MakeRepulsion(                ) const override 
     {
         auto& e=Cast();
         rsmat_t S(e.size());
@@ -242,7 +242,7 @@ public:
 
         return S;
     }
-    virtual  rmat_t MakeRepulsion(const rFIT_CD_ABS& f) const
+    virtual  rmat_t MakeRepulsion(const rFIT_CD_ABS& f) const override
     {
         auto& ea=Cast();
         auto& eb=dynamic_cast<const Evaluator&>(f);
@@ -253,7 +253,7 @@ public:
 
         return S;
     }
-    virtual  rvec_t MakeCharge   (                ) const 
+    virtual  rvec_t MakeCharge   (                ) const override 
     {
         auto& e=Cast();
         rvec_t c(e.size());
@@ -261,7 +261,7 @@ public:
             c[i]=e.Charge(i);
         return c;
     }
-    virtual std::ostream&  Write(std::ostream& os) const
+    virtual std::ostream&  Write(std::ostream& os) const override
     {
         return os << "Atom fit IBS " << Name() << " " << GetSymmetry();
     }
@@ -290,7 +290,7 @@ template <isDFT_Evaluator E> class Orbital_DFT_IBS
     , public virtual BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual PairProjection<double> MakeOverlap3C  (const rFIT_SF_ABS& _c) const
+    virtual PairProjection<double> MakeOverlap3C  (const rFIT_SF_ABS& _c) const override
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);
@@ -313,7 +313,7 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const rFIT_CD_ABS&, const hmat_t<double>&, const rvec_t&, const Structure*) const override
         {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a radial (atom) block", "3-centre repulsion pullback");}
 protected:
-    virtual PairProjection<double> MakeRepulsion3C(const rFIT_CD_ABS& _c) const
+    virtual PairProjection<double> MakeRepulsion3C(const rFIT_CD_ABS& _c) const override
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);
@@ -349,8 +349,8 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeExchangePullback(const rsmat_t&, const rsmat_t&, const BasisSet::Orbital_HF_IBS<double>*, const Structure*) const override
         {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a radial (atom) block", "exchange pullback");}
 protected:
-    virtual ERI4 MakeDirect  (const BasisSet::Orbital_ERI4_IBS<double>& _c) const;
-    virtual ERI4 MakeExchange(const BasisSet::Orbital_ERI4_IBS<double>& _c) const;
+    virtual ERI4 MakeDirect  (const BasisSet::Orbital_ERI4_IBS<double>& _c) const override;
+    virtual ERI4 MakeExchange(const BasisSet::Orbital_ERI4_IBS<double>& _c) const override;
 
 };
 
@@ -397,11 +397,11 @@ public:
     virtual bool CanPullbackOverlap() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override
         {return BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("the radial RKB small-component block", "overlap pullback");}
-    virtual rsmat_t MakeOverlap() const
+    virtual rsmat_t MakeOverlap() const override
     {
         return Integrals_Kinetic<E>::MakeKinetic();
     }
-    virtual std::ostream&  Write(std::ostream& os) const
+    virtual std::ostream&  Write(std::ostream& os) const override
     {
         return os << Name() << " " << GetSymmetry();
     }

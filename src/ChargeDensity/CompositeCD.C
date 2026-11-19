@@ -122,16 +122,16 @@ public:
     //! tSpinResolved_CD: the \a s channel as a composite VIEW over this density's \a s blocks; null when no
     //! block carries \a s.  A single-spin composite (a view, or an unpolarized run's density asked for
     //! \c None's own channel) IS its channel and answers itself.
-    virtual const tChargeDensity<T>* GetChannel(const Spin& s) const;
+    virtual const tChargeDensity<T>* GetChannel(const Spin& s) const override;
 
     // The whole-system J/K sweep is NOT declared here (V1.6 ISP): it lives in Composite_HFSystem, which
     // only the REAL instantiation inherits -- so tComposite_CD<dcmplx> declares nothing and defines nothing
     // for an operation the periodic path never has (Ham_PW_DFT adds Vee_Hartree, never exact exchange).
-    virtual double DM_Contract(const tStatic_CC<T>*) const;
-    virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
-    virtual double DM_ContractBlocks(const std::map<Irrep,hmat_t<T>>&) const;   // sum over irrep blocks
-    virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>*, const Structure* st) const;   // sum over irrep blocks (§13.2)
-    virtual rmat3d_t   DM_Virial  (const tStatic_VC<T>*, const Structure* st) const;   // sum over irrep blocks (CellHalf_Design §5)
+    virtual double DM_Contract(const tStatic_CC<T>*) const override;
+    virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const override;
+    virtual double DM_ContractBlocks(const std::map<Irrep,hmat_t<T>>&) const override;   // sum over irrep blocks
+    virtual rvec3vec_t DM_Pullback(const tStatic_PC<T>*, const Structure* st) const override;   // sum over irrep blocks (§13.2)
+    virtual rmat3d_t   DM_Virial  (const tStatic_VC<T>*, const Structure* st) const override;   // sum over irrep blocks (CellHalf_Design §5)
     //! \copydoc tDM_CD::ProjectOnto
     //! ALL BLOCKS SUMMED -- for a polarized composite \f$\rho=\rho_\uparrow+\rho_\downarrow\f$, the total a
     //! spin-agnostic consumer wants.  The SPIN-RESOLVED consumer does not come here: it asks each CHANNEL.
@@ -139,7 +139,7 @@ public:
     virtual Projections Project(const BasisSet::PairProjector<dcmplx>&) const override;   //!< sum of the blocks' projections
     //! The old face, kept one commit (V-ONE-OF-N 3a): forwards to \c Project.
 
-    virtual double GetTotalCharge      (                     ) const;
+    virtual double GetTotalCharge      (                     ) const override;
     //! Forwards to my irreps (pin 28, user ruling 2026-11-15): every block must give the same answer, and a disagreement THROWS (a broken
     //! invariant).  An empty composite has no D: false.
     virtual bool   HasNoFitComponent   (                     ) const override;
@@ -148,21 +148,21 @@ public:
     // composite's freshness; forward to the first.  Empty composite -> 0 (the "no density yet" sentinel).
     // NB the Up channel view shares its first block with the total, hence its serial: a cache keyed on
     // Version() must never be warmed with the total and then asked for a channel (FittedVxcPol's note).
-    virtual size_t Version() const
+    virtual size_t Version() const override
     {return itsBlocks.empty() ? 0 : std::visit([](const auto* c){return c->Version();}, itsBlocks.front().cd);}
 
 
-    virtual void   ReScale      (double factor         )      ;  // No UT coverage//Ro *= factor
-    virtual void   Axpy         (double c, const tMixableDensity<T>&)   ;  //this += c*that.
-    virtual double GetChangeFrom(const tMixableDensity<T>&       ) const;  //Sum over blocks of Frobenius(delta density matrix)
-    virtual double GetMaxChangeFrom(const tMixableDensity<T>&    ) const;  //Max over blocks of MaxAbs(delta density matrix)
-    virtual double SquaredDistanceTo(const tMixableDensity<T>&   ) const;  //Sum over blocks of Tr(dD S dD S)
-    virtual double Dot          (const tMixableDensity<T>&       ) const;  //Sum over blocks of Re Tr(A^dagger B)
+    virtual void   ReScale      (double factor         ) override      ;  // No UT coverage//Ro *= factor
+    virtual void   Axpy         (double c, const tMixableDensity<T>&) override   ;  //this += c*that.
+    virtual double GetChangeFrom(const tMixableDensity<T>&       ) const override;  //Sum over blocks of Frobenius(delta density matrix)
+    virtual double GetMaxChangeFrom(const tMixableDensity<T>&    ) const override;  //Max over blocks of MaxAbs(delta density matrix)
+    virtual double SquaredDistanceTo(const tMixableDensity<T>&   ) const override;  //Sum over blocks of Tr(dD S dD S)
+    virtual double Dot          (const tMixableDensity<T>&       ) const override;  //Sum over blocks of Re Tr(A^dagger B)
     //! A deep, untracked copy: same group, a copy of every block (a view copies into an OWNING composite).
-    virtual std::unique_ptr<tMixableDensity<T>> MakeCopy() const;
+    virtual std::unique_ptr<tMixableDensity<T>> MakeCopy() const override;
 
-    virtual double operator()(const rvec3_t&) const;
-    virtual rvec3_t  Gradient  (const rvec3_t&) const;
+    virtual double operator()(const rvec3_t&) const override;
+    virtual rvec3_t  Gradient  (const rvec3_t&) const override;
 
     // The reciprocal trio is NOT declared here (V1.7 ISP) -- see Composite_Fourier below, inherited only
     // on the periodic path, so the finite composite is not asked questions it cannot answer.

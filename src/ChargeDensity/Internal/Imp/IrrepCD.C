@@ -646,19 +646,17 @@ template <class T> rvec3_t PeriodicIrrepCD<T>::Gradient(const rvec3_t&) const
 
 // The run-typed energy contraction (Step 3c-2b): this REAL block's D against the complex run's dynamic
 // term, through the term's real block face for the run's density \a id.  Same trace identity as the core's DM_Contract.
-template <class T> double PeriodicIrrepCD<T>::DM_ContractE(const tDynamic_CC<double>* v, DensityID id) const
+template <class Leaf> double PeriodicIrrepCD_RealEnergy<Leaf>::DM_ContractE(const tDynamic_CC<double>* v, DensityID id) const
 {
-    if constexpr (std::is_same_v<T,double>)
-        return blazem::sum(this->itsDensityMatrix % blazem::trans(v->GetEMatrix(this->itsBasisSet,this->itsSpin,id)));
-    else
-        throw std::logic_error("PeriodicIrrepCD<dcmplx>::DM_ContractE: the run-typed contraction serves "
-                               "REAL blocks inside a complex run; a complex block contracts natively");
+    const Leaf& b=self();
+    return blazem::sum(b.itsDensityMatrix % blazem::trans(v->GetEMatrix(b.itsBasisSet,b.itsSpin,id)));
 }
 
 template class IrrepCD_Fourier<PeriodicIrrepCD<double>>;
 template class IrrepCD_Fourier<PeriodicIrrepCD<dcmplx>>;
 template class PeriodicIrrepCD<double>;
 template class PeriodicIrrepCD<dcmplx>;
+template class PeriodicIrrepCD_RealEnergy<PeriodicIrrepCD<double>>;
 
 //-------------------------------------------------------------------------
 //

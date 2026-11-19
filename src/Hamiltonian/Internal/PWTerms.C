@@ -100,14 +100,14 @@ public:
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
     virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
-    virtual bool IsVirialValid() const {return false;}
+    virtual bool IsVirialValid() const override {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc);
-    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
-    virtual std::ostream& Write(std::ostream&) const;
+    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const override;
+    virtual std::ostream& Write(std::ostream&) const override;
 private:
-    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
-    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&) const;    // Step 3c: the real TRIM block (V1.35: an overload)
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const override;
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&) const override;    // Step 3c: the real TRIM block (V1.35: an overload)
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
@@ -150,15 +150,15 @@ public:
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
     virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
-    virtual bool IsVirialValid() const {return false;}
+    virtual bool IsVirialValid() const override {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     //! \a nl is REQUIRED (non-owning).  A local-only pseudopotential does not construct this term at all.
     Ven_PP_NonLocal(const st_t& st, const Pseudopotential::SeparablePotential* nl);
-    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
-    virtual std::ostream& Write(std::ostream&) const;
+    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const override;
+    virtual std::ostream& Write(std::ostream&) const override;
 private:
-    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
-    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&) const;    // Step 3c: the real TRIM block (V1.35: an overload)
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const override;
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&) const override;    // Step 3c: the real TRIM block (V1.35: an overload)
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::SeparablePotential* itsSep;   //!< KB nonlocal model (non-owning).
@@ -211,15 +211,15 @@ public:
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     //! The pseudopotential acts on both spin channels alike: ONE cached block, not one per channel.
     virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
-    virtual bool IsVirialValid() const {return false;}
+    virtual bool IsVirialValid() const override {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     //! \a loc is REQUIRED (non-owning).  A run with no local PP does not construct this term at all.
     Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* loc);
-    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
-    virtual std::ostream& Write(std::ostream&) const;
+    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const override;
+    virtual std::ostream& Write(std::ostream&) const override;
 private:
-    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
-    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&) const;    // Step 3c: the real TRIM block (V1.35: an overload)
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const override;
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&) const override;    // Step 3c: the real TRIM block (V1.35: an overload)
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
