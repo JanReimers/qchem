@@ -462,7 +462,7 @@ NB_MODULE(qchem_py, mod)
              "restart_from: a saved state (save_state's file) to start from (MoleculeCalculation::Restart): an exact resume or a "
              "warm start (restarted_from() says which); a state the facade refuses raises RestartRefused; options the setup refuses (MoleculeSetup::Admit) raise SetupRefused.  build_only: BUILD the whole graph (basis, every mesh, the SCF "
              "iterator) and stop before iteration 1, filed as the report run '<ID> build'; run_scf then converges on that graph.  basis_file: a .bsd path used instead of the "
-             "shipped file `basis` names (CalcOptions::basisFile; `basis` is then its label).  seed / angular: the STRUCTURE-NEUTRAL "
+             "shipped file `basis` names (RunOptions::molecule.basisFile; `basis` is then its label).  seed / angular: the STRUCTURE-NEUTRAL "
              "options by the deck's names (a crystal's deck: solid.seed, basis.angular): seed Default (the Auto rule) | CoreGuess | Uniform | "
              "SAD | IonicSAD, angular cartesian | spherical ('' = Default / cartesian); the facade refuses a combination it cannot build.")
         .def("run_scf", &Calculator::RunSCF, nb::arg("on_iteration"), nb::arg("max_iter") = 100,

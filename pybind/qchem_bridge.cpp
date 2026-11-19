@@ -4,7 +4,7 @@
 // textually including STL alongside `import qchem.*` does not trigger std-header ODR errors.  The public
 // surface is the flat extern "C" API in qcb_api.h (C linkage -> links from nanobind).
 //
-// The bridge holds NO recipe of its own.  A molecule: it fills CalcOptions / AcceleratorOptions / SCFParams, calls
+// The bridge holds NO recipe of its own.  A molecule: it fills RunOptions / AcceleratorOptions / SCFParams, calls
 // MoleculeSetup::Admit, and owns one qchem::MoleculeCalculation.  A crystal: it parses the caller's INPUT DECK and calls
 // deck::Build, owning the SolidCalculation that returns.  Everything it answers comes from the facade.
 module;
@@ -37,7 +37,7 @@ import qchem.BasisSet.Gaussian.Point.Factory;    // BasisSet::Gaussian::Angular 
 import qchem.Calculation;    // Calculation::MakeLevels (the structure-neutral levels, either door)
 import qchem.StateView;      // StateView: a saved state, drawn (qcb_view)
 import qchem.ScalarFunction; // the one field face every sampler reads
-import qchem.MoleculeCalculation;    // MoleculeCalculation, MoleculeSetup, CalcOptions, AcceleratorOptions
+import qchem.MoleculeCalculation;    // MoleculeCalculation, MoleculeSetup, RunOptions, AcceleratorOptions
 import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
 import qchem.Deck;           // deck::RunSpec, FromJson, Build, ScheduleToRun
 import qchem.Symmetry.Molecule.PointGroup;      // DetectPointGroup
@@ -53,7 +53,6 @@ import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94Import;   // a downloaded
 extern "C++" struct qcb_calc
 {
     std::unique_ptr<qchem::MoleculeCalculation> calc;
-    qchem::SCFParams                    params;      // as asked at qcb_make; a re-run changes only NMaxIter
     std::vector<double>                 positions;   // flat 3N bohr, as asked
     std::string                         id;          // the structure's ID: the name of the report runs the bridge opens
 };
@@ -248,7 +247,7 @@ void sample_box(const qchem::ScalarFunction<double>* f, const int* n3, const dou
 struct MoleculeRequest
 {
     qchem::Molecule           mol;
-    qchem::CalcOptions        opts;
+    qchem::RunOptions         opts;
     qchem::AcceleratorOptions acc;
 };
 
@@ -257,22 +256,22 @@ MoleculeRequest molecule_request(const qcb_request* req)
     MoleculeRequest r;
     for (int a = 0; a < req->nat; ++a)
         r.mol.Insert(qchem::Site{req->Z[a], rvec3_t(req->pos3[3*a], req->pos3[3*a+1], req->pos3[3*a+2])});
-    r.opts.basis        = req->basis;
+    r.opts.molecule.basis     = req->basis;
     r.opts.model        = parse_model(req->model);
     r.opts.pp           = req->pp ? req->pp : "";
-    r.opts.basisFile    = req->basisFile ? req->basisFile : "";
+    r.opts.molecule.basisFile = req->basisFile ? req->basisFile : "";
     r.opts.seed         = parse_seed(req->seed);
-    r.opts.angular      = parse_angular(req->angular);
-    r.opts.symmetry     = req->symmetry != 0;
+    r.opts.molecule.angular   = parse_angular(req->angular);
+    r.opts.imposeSymmetry  = req->symmetry != 0;
     r.opts.spin         = req->polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized;
     r.opts.multiplicity = req->multiplicity;
-    if (req->meshRadial  > 0) r.opts.mesh.nRadial       = req->meshRadial;
-    if (req->meshAngular > 0) r.opts.mesh.angularDegree = req->meshAngular;
-    r.acc.type = req->accelerator && *req->accelerator ? req->accelerator : "DIIS";
-    if (req->diisDepth    > 0)   r.acc.nProj = req->diisDepth;
-    if (req->diisSVTol    > 0.0) r.acc.svTol = req->diisSVTol;
-    if (req->diisEngageFD > 0.0) r.acc.eMax  = req->diisEngageFD;
-    if (req->ladderSwitchAt >= 0.0) r.acc.ladderSwitchAt = req->ladderSwitchAt;   // 0 = no tail trigger (stall only)
+    if (req->meshRadial  > 0) qchem::MoleculeXCMesh(r.opts).nRadial       = req->meshRadial;
+    if (req->meshAngular > 0) qchem::MoleculeXCMesh(r.opts).angularDegree = req->meshAngular;
+    r.opts.accelerator = qchem::AcceleratorTypeByName(req->accelerator && *req->accelerator ? req->accelerator : "DIIS", "the GUI's accelerator");
+    if (req->diisDepth    > 0)   r.acc.diis.nProj         = req->diisDepth;
+    if (req->diisSVTol    > 0.0) r.acc.diis.svTol         = req->diisSVTol;
+    if (req->diisEngageFD > 0.0) r.acc.diis.engageBelowFD = req->diisEngageFD;   // an unstated gdm gate follows it (the resolver)
+    if (req->ladderSwitchAt >= 0.0) r.acc.ladder.switchAt = req->ladderSwitchAt;   // 0 = no tail trigger (stall only)
     return r;
 }
 
@@ -387,17 +386,17 @@ qcb_calc* qcb_start(const qcb_request* req, const char* path, int buildOnly, qcb
         // A BUILD (no SCF) files "<ID> build", as a crystal's deck build does; its first qcb_converge reuses the graph.
         h->id     = r.mol.ID();
         const qchem::report::Run run(buildOnly ? h->id + " build" : h->id);
+        r.opts.scf = scf_params(*req);   // the run's SCF settings live in the setup (R10); a re-run edits only NMaxIter
         auto admitted = qchem::MoleculeSetup::Admit(r.mol, r.opts, r.acc);       // deep-copies mol
         if (!admitted) { setup_refused(admitted.Error(), refused, err, errlen); return nullptr; }
         const auto setup = admitted.TakeValue();
-        // The observer rides the constructor, so the trace of ITS SCF streams from the first iteration.
-        h->params = scf_params(*req);
+        // The observer rides Prepare, so the trace of the first SCF streams from its first iteration.
         auto observer = step ? forward_to(step, sink) : MoleculeCalculation::Observer{};
         if (path && *path)
         {
             // A refusal is a VALUE (the facade's RestartRefusal): the caller decides on a fresh run, so it is told apart from a failure.
-            auto R = buildOnly ? MoleculeCalculation::PrepareRestart(path, setup, h->params, std::move(observer))
-                               : MoleculeCalculation::Restart(path, setup, h->params, std::move(observer));
+            auto R = buildOnly ? MoleculeCalculation::PrepareRestart(path, setup, r.opts.scf, std::move(observer))
+                               : MoleculeCalculation::Restart(path, setup, r.opts.scf, std::move(observer));
             if (!R)
             {
                 if (refused) *refused = 1;
@@ -406,10 +405,15 @@ qcb_calc* qcb_start(const qcb_request* req, const char* path, int buildOnly, qcb
             }
             h->calc = R.TakeValue();
         }
-        else if (buildOnly)
-            h->calc = MoleculeCalculation::Prepare(setup, std::move(observer));
         else
-            h->calc = std::make_unique<MoleculeCalculation>(setup, h->params, std::move(observer));
+        {
+            // A build refusal is the call's error (its policy row is already in the run's record).
+            auto P = MoleculeCalculation::Prepare(setup, std::move(observer));
+            if (!P) { write_error(("build refused (" + P.Error().policy + "): " + P.Error().reason).c_str(), err, errlen); return nullptr; }
+            h->calc = P.TakeValue();
+            // A non-converged SCF is not a failure of this call: the caller reads it through qcb_failure / the result.
+            if (!buildOnly) (void)h->calc->Converge();
+        }
         // The sink lives only for this call: detach it before returning (qcb_converge attaches its own).
         h->calc->OnIteration(MoleculeCalculation::Observer{});
         return h.release();
@@ -453,9 +457,8 @@ int qcb_converge(qcb_calc* h, int maxIter, qcb_row_fn step, qcb_sink* sink, char
     try
     {
         h->calc->OnIteration(step ? forward_to(step, sink) : MoleculeCalculation::Observer{});
-        qchem::SCFParams p = h->params;
-        p.NMaxIter = size_t(maxIter);
-        const auto out = [&]{ const qchem::report::Run run(h->id); return h->calc->Converge(p); }();
+        const auto out = [&]{ const qchem::report::Run run(h->id);
+                              return h->calc->Converge([&](qchem::SCFParams& q){ q.NMaxIter = size_t(maxIter); }); }();
         h->calc->OnIteration(MoleculeCalculation::Observer{});      // the sink lives only for this call
         if (out) return 1;
         write_error(describe(out.Error()).c_str(), err, errlen);
@@ -628,7 +631,7 @@ int qcb_solid_field(const qcb_solid* h, int spin, int iterate, const int* n3, co
             proof.emplace(h->calc->Result());
             if (!*proof) throw std::runtime_error("the SCF did not converge, so there is no converged density (" + describe(proof->Error())
                                                   + "); its last iterate can be sampled instead");
-            f = spin ? proof->Value().SpinDensity() : &proof->Value().Density();
+            f = spin ? &proof->Value().SpinDensity() : &proof->Value().Density();
         }
         sample_box(f, n3, origin, spacing, out);
         return 1;
