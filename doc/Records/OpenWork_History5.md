@@ -3597,9 +3597,6 @@ The final energies of every variant agree to within 6e-10 Ha.
 - **Long:** 0 of 18. **Panel:** 0 of 27.
 - **RelChecked:** clean.
 
-## ✅ Star-average remainders (a), (c), (d) (lane S, 2026-11-18)
-
-From the live row "Star-average remainders"; (b) stays there.  (d) the raster `StarField` averages on any grid the op leaves invariant (`RasterVoxelMap`, integer W·N_a/N_b) and THROWS on any other (no user chooses the grid: a broken invariant, controller ruling; unreachable today, `AutoGrid` is always cubic).  (a) the T1 {G} fold and the grid report ask `CrystalImposition::densityGroup` (`StarGroup::EvaluateOnGStars`, `CountGStars`); `directDensity` is read only by the stream fold, now its own row.  (c) CLOSED AS STALE: `FoldedMesh::Symmetrize` runs a precomputed `Fold`, and its ops never leave `CrystalImposition::MakeXCMesh`  The stream fold's op list got its own row ("The stream fold's ops list"), and the requests `StarGroup` gained are listed in the `Group`-face row as an input to its design review.  Landing: 0 movers (see the READY to the controller; (d) alone: short 1747/0, long 19/0, decks 67/67, RelChecked rc 0).
 ## ✅ Nd⁵⁹⁺ [F,D] gate sits on the cond(S) = 1e15 floor (lane B, 2026-11-18)
 
 `A/A_SL_HF_ion.A/60` (gtest `A/A_SL_HF_ion.A/2`): a one-electron ion in a 40-function even-tempered Slater basis, cond(S) = 1.1e15.  The
@@ -3660,3 +3657,6 @@ layer (CLAUDE.md), where it reports itself:
 Original row:
 
 | **The exact-resume "pulayStart -> 0" policy lives in the SCF library** (S; lane A 2026-11-12, found building B5) | `src/SCFIterator/Imp/SCFIterator.C` (~408) drops PulayStart to 0 on an exact resume ("priming is for a start far from the fixed point").  A policy, so by CLAUDE.md it belongs in the policy layer (`qchem.SCFRecipe`, B5), where it would print under `[policy]` | move it into the recipe's RESTORED column, bit-identical (0 anchors moved) · `doc/SCFRobustnessPlan.md` R4.1 |
+## ✅ Star-average remainders (a), (c), (d) (lane S, 2026-11-18)
+
+From the live row "Star-average remainders"; (b) stays there.  (d) the raster `StarField` averages on any grid the op leaves invariant (`RasterVoxelMap`, integer W·N_a/N_b) and THROWS on any other (no user chooses the grid: a broken invariant, controller ruling; unreachable today, `AutoGrid` is always cubic).  (a) the T1 {G} fold and the grid report ask `CrystalImposition::densityGroup` (`StarGroup::EvaluateOnGStars`, `CountGStars`); `directDensity` is read only by the stream fold, now its own row.  (c) CLOSED AS STALE: `FoldedMesh::Symmetrize` runs a precomputed `Fold`, and its ops never leave `CrystalImposition::MakeXCMesh`  The stream fold's op list got its own row ("The stream fold's ops list"), and the requests `StarGroup` gained are listed in the `Group`-face row as an input to its design review.  Landing: 0 movers (see the READY to the controller; (d) alone: short 1747/0, long 19/0, decks 67/67, RelChecked rc 0).
