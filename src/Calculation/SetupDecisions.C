@@ -8,6 +8,7 @@
 // its magnetic decoration, the XC-mesh sizing (an entry rung on a molecule, the sharpness gather on a cell), the basis recipe.
 //
 // Each decision is a policy of the policy layer: a refusal files its row (policy::RefuseAs) at the caller's report cursor, as before.
+// The bodies live in Imp/SetupDecisions.C.
 module;
 #include <optional>
 #include <string>
@@ -24,7 +25,6 @@ export import qchem.SCFAccelerator.Factory;  // SCFAccelerators::Type, Accelerat
 export import qchem.SCFRecipe;               // SCFRecipe (AcceleratorOptions::recipe)
 export import qchem.RunOptions;              // AcceleratorOptions (the block ResolveAcceleratorParams reads)
 import qchem.Hamiltonian.Factory;            // AdmitVxc, VxcFit
-import qchem.Policy;                         // policy::Refuse / RefuseAs
 export import qchem.Symmetry.Spin;           // SpinGroup: ResolveSpinGroup's answer
 
 export namespace qchem
@@ -43,19 +43,7 @@ struct SpinChannels {int nUp = 0, nDown = 0;};
 //! are only the split the occupations start from); \c nullopt where it is not one -- when true keeps the nel mod 2 split for a singlet
 //! on an odd count instead of refusing it, and when false the refusal names it as the way out.  \a who prefixes the refusal (the options
 //! struct the caller states).  Whether the run is then spin-POLARIZED is \c ResolveSpinGroup, below.
-inline SpinChannels ResolveSpinChannels(int multiplicity, int nel, std::optional<bool> spinsShareFermi, const std::string& who)
-{
-    const bool singlet = multiplicity==1 && !spinsShareFermi.value_or(false);
-    if (singlet && nel%2!=0)
-        policy::RefuseAs("SpinMultiplicity", who+": multiplicity 1 is the SINGLET (nUp = nDown), impossible with an odd Nelec "
-                                            +std::to_string(nel)+" -- state multiplicity 2 (a doublet) or 0 (minimal spin)"
-                                            +(spinsShareFermi ? ", or spinsShareFermi true so one Fermi level sets the channels (a metal)" : ""));
-    const int twoS = multiplicity>1 ? multiplicity-1 : (singlet ? 0 : nel%2);
-    if (twoS>nel || (nel-twoS)%2!=0)
-        policy::RefuseAs("SpinMultiplicity", who+": multiplicity "+std::to_string(multiplicity)+" (2S="+std::to_string(twoS)
-                                            +") parity disagrees with Nelec "+std::to_string(nel)+" -- need 0 <= 2S <= Nelec and Nelec-2S even");
-    return {(nel+twoS)/2, (nel-twoS)/2};
-}
+SpinChannels ResolveSpinChannels(int multiplicity, int nel, std::optional<bool> spinsShareFermi, const std::string& who);
 
 //! \brief THE SPIN-GROUP RULE, every structure (user ruling R6, 2026-11-17, V-FACADE-PARITY): TWO ORTHOGONAL KNOBS.  The stated spin
 //! group says whether the channels may differ (\c Polarized: two independent channels, so a local moment m(r) may be nonzero with zero
@@ -63,64 +51,20 @@ inline SpinChannels ResolveSpinChannels(int multiplicity, int nel, std::optional
 //! open shell, which an unpolarized run cannot hold, so it FORCES \c Polarized.  A broken-symmetry or AFM singlet, molecule or solid,
 //! states \c Polarized with multiplicity 1.  (Until R6 the solid read multiplicity >= 1 as polarized and had no spin knob; a schema-1
 //! deck's \c solid.multiplicity keeps that meaning through the deck's translator.)
-inline SpinGroup ResolveSpinGroup(SpinGroup stated, int multiplicity)
-{
-    return multiplicity>1 ? SpinGroup::Polarized : stated;
-}
+SpinGroup ResolveSpinGroup(SpinGroup stated, int multiplicity);
 
 //=== THE ACCELERATOR BLOCK ============================================================================================================
 //! The accelerator BLOCK (\c AcceleratorOptions) lives in \c qchem.RunOptions; its resolution is here.
 
+//! \brief \a p (the kind's defaults) with every knob \a acc STATES laid over it: the one place an accelerator block becomes concrete parameters.
+SCFAccelerators::AcceleratorParams ResolveAcceleratorParams(const AcceleratorOptions& acc, SCFAccelerators::AcceleratorParams p);
 
-//! \brief \a kindDefaults with every knob \a acc STATES laid over it: the one place an accelerator block becomes concrete parameters.
 //! \brief The MOLECULE's and the ATOM's defaults (the chain they always ran): Nproj 4, the absolute SV floor off, the relative prune
 //! 1e-4, standalone GDM engaging at the same gate \a eMax as DIIS, trust 0.1, a Ladder GDM rung that always steps (gate 1e10).
+SCFAccelerators::AcceleratorParams MolecularAcceleratorDefaults(double eMax);
+
 //! The json door's keys for \a p (the atom's accelerator-sweep escape hatch merges over them; nothing else uses the json door).
-
-inline SCFAccelerators::AcceleratorParams ResolveAcceleratorParams(const AcceleratorOptions& acc, SCFAccelerators::AcceleratorParams p)
-{
-    auto gdm=[](const AcceleratorOptions::GDM& g, SCFAccelerators::GDMParams& o)
-    {
-        if (g.engageBelowFD) o.EngageBelowFD=*g.engageBelowFD;
-        if (g.trust)         o.Trust=*g.trust;
-        if (g.trustBackoff)  o.TrustBackoff=*g.trustBackoff;
-        if (g.trustMin)      o.TrustMin=*g.trustMin;
-        if (g.pcFloor)       o.PCFloor=*g.pcFloor;
-        if (g.aufbauTol)     o.AufbauTol=*g.aufbauTol;
-        if (g.aufbauMaxRepicks) o.AufbauMaxRepicks=*g.aufbauMaxRepicks;
-    };
-    if (acc.diis.nProj)         p.diis.Nproj=*acc.diis.nProj;
-    if (acc.diis.engageBelowFD) p.diis.EngageBelowFD=*acc.diis.engageBelowFD;
-    if (acc.diis.svTol)         p.diis.SVTol=*acc.diis.svTol;
-    if (acc.diis.svTolRel)      p.diis.SVTolRel=*acc.diis.svTolRel;
-    gdm(acc.gdm, p.gdm);
-    gdm(acc.ladder.gdm, p.ladderGdm);
-    if (acc.ladder.eThresh)  p.ladderEThresh=*acc.ladder.eThresh;
-    if (acc.ladder.stall)    p.ladderStall=*acc.ladder.stall;
-    if (acc.ladder.floor)    p.ladderFloor=*acc.ladder.floor;
-    if (acc.ladder.switchAt) p.ladderSwitchAt=*acc.ladder.switchAt;
-    if (acc.ladder.signal)   p.ladderSignal=*acc.ladder.signal;
-    p.ladderStartOnGDM = p.ladderStartOnGDM || acc.ladder.startOnGDM;
-    return p;
-}
-
-inline SCFAccelerators::AcceleratorParams MolecularAcceleratorDefaults(double eMax)
-{
-    SCFAccelerators::AcceleratorParams p;
-    p.diis      = {.Nproj=4, .EngageBelowFD=eMax, .SVTol=0.0, .SVTolRel=1e-4};
-    p.gdm       = {.EngageBelowFD=eMax, .Trust=0.1};
-    p.ladderGdm = {.EngageBelowFD=1e10, .Trust=0.1};    // the rung always steps once it is the active one
-    p.ladderEThresh=1e-8; p.ladderStall=5; p.ladderFloor=1e-8; p.ladderSwitchAt=1e-6;
-    p.ladderSignal=SCFAccelerators::ScheduleSignal::EnergyChange;
-    return p;
-}
-
-inline nlohmann::json ToAcceleratorJson(const SCFAccelerators::AcceleratorParams& p)
-{
-    return {{"NProj",p.diis.Nproj},{"EngageBelowFD",p.diis.EngageBelowFD},{"SVTol",p.diis.SVTol},{"SVTolRel",p.diis.SVTolRel},{"Trust",p.ladderGdm.Trust},
-            {"ethresh",p.ladderEThresh},{"stall",p.ladderStall},{"floor",p.ladderFloor},{"switchat",p.ladderSwitchAt},
-            {"signal",p.ladderSignal==SCFAccelerators::ScheduleSignal::EnergyChange ? "EnergyChange" : "Error"}};
-}
+nlohmann::json ToAcceleratorJson(const SCFAccelerators::AcceleratorParams& p);
 
 //=== THE SEED ===========================================================================================================================
 //! The run's resolved seed and the key of the seed library it reads.
@@ -133,59 +77,27 @@ struct RunSeed
 //! library when \a pp is null), carrying the stated charge order and magnetic ordering, and the seed is \a stated or the Auto rule
 //! (\c ResolveSeed) over the run's properties: does its iteration-0 Fock read a density (\a densityFock), does the structure repeat, are
 //! formal charges stated, does the library hold every species.  Files the AutoSeed row when the rule runs.
-inline RunSeed ResolveRunSeed(ChargeDensity::SeedStrategy stated, const Structure& st, const Pseudopotential::PseudopotentialSet* pp,
-                              bool densityFock, const std::vector<int>& siteCharges = {}, const std::vector<int>& siteSpins = {})
-{
-    RunSeed r;
-    if (pp) r.key=SeedKeyOf(*pp, st);
-    r.key.siteCharges=siteCharges;
-    r.key.siteSpins=siteSpins;
-    r.seed=ResolveSeed(stated, st, {.densityFock = densityFock, .periodic = st.Admits(qcMesh::ImposedSymmetry::Translations),
-                                    .chargesStated = !siteCharges.empty(),
-                                    .covered = [key=r.key](int Z){ return SeedLibraryCovers(key, Z); }});
-    return r;
-}
+RunSeed ResolveRunSeed(ChargeDensity::SeedStrategy stated, const Structure& st, const Pseudopotential::PseudopotentialSet* pp,
+                              bool densityFock, const std::vector<int>& siteCharges = {}, const std::vector<int>& siteSpins = {});
 
 //=== THE ACCELERATOR ====================================================================================================================
 //! \brief The accelerator a run STATES BY NAME: DIIS | GDM | Ladder.  Any other name is REFUSED (row AcceleratorType), naming the three
 //! -- never a silent DIIS.  \a who prefixes the refusal.
-inline SCFAccelerators::Type AcceleratorTypeByName(const std::string& name, const std::string& who)
-{
-    using T=SCFAccelerators::Type;
-    if (name=="DIIS")   return T::DIIS;
-    if (name=="GDM")    return T::GDM;
-    if (name=="Ladder") return T::Ladder;
-    policy::RefuseAs("AcceleratorType", who+": unknown accelerator type \""+name+"\" (expected DIIS | GDM | Ladder)");
-}
+SCFAccelerators::Type AcceleratorTypeByName(const std::string& name, const std::string& who);
 //! \brief THE MOLECULE'S AND THE ATOM'S ACCELERATOR, from its ONE home (\c RunOptions::accelerator, V-FACADE-PARITY P2): \c Auto is
 //! their policy, \c DIIS; \c Null is REFUSED (policy AcceleratorType): with no Fock extrapolation a molecular SCF steps on the bare
 //! diagonalization, and it has no density mixer to pair \c Null with, as the solid does.
-inline SCFAccelerators::Type MolecularAcceleratorType(SCFAccelerators::Type asked, const std::string& who)
-{
-    using T=SCFAccelerators::Type;
-    if (asked==T::Auto) return T::DIIS;
-    if (asked==T::Null)
-        policy::RefuseAs("AcceleratorType", who+": the Null accelerator -- a molecular SCF has no density mixer to pair it with (expected "
-                                            "DIIS | GDM | Ladder, or Auto = DIIS)");
-    return asked;
-}
+SCFAccelerators::Type MolecularAcceleratorType(SCFAccelerators::Type asked, const std::string& who);
 //! \brief DIIS's ENGAGE GATE (EMax, on [F,D]): \a stated when > 0, else the run's default.  A model whose Fock reads a density (DFT, a
 //! pseudopotential run; \a densityFock) engages DIIS from iteration 0 (EMax 100): the Z-scaled gate keeps it off and the SCF limit-cycles
 //! to a non-converged snapshot (the "M_Sym layout UB" mechanism, M_DFT).  Otherwise the proven Z-scaled gate \f$Z^2\cdot 0.08/32\f$
 //! (0.08, was 0.1: the [F,D] it compares against changed UNIT on 2026-10-29 to the worst irrep, and on Kr the two differ by ~0.8 at
 //! the engage step -- unrescaled, DIIS engaged one step early and the Kr libxc run went chaotic).
-inline double DIISEngageGate(double stated, int Z, bool densityFock)
-{
-    return stated>0.0 ? stated : (densityFock ? 100.0 : Z*Z*0.08/32);
-}
+double DIISEngageGate(double stated, int Z, bool densityFock);
 
 //=== THE Vxc ADMISSION (pin 30) =========================================================================================================
 //! \brief Ask the Hamiltonian's admission rule (\c Hamiltonian::AdmitVxc) of the stated Vxc fit and XC mesh on \a st, BEFORE the basis
 //! and the Hamiltonian are built: REFUSED (row AdmitVxc) with the rule's own reason.  \a where names the structure in the refusal.
-inline void RequireVxcAdmitted(const Structure& st, Hamiltonian::VxcFit fit, const qcMesh::MeshParams& mesh, const std::string& where)
-{
-    if (const auto a=Hamiltonian::AdmitVxc(st, fit, mesh); !a)
-        policy::Refuse("AdmitVxc", "the stated Vxc fit and XC mesh on this "+where, a.Error());
-}
+void RequireVxcAdmitted(const Structure& st, Hamiltonian::VxcFit fit, const qcMesh::MeshParams& mesh, const std::string& where);
 
 } //namespace qchem

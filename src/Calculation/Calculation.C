@@ -199,9 +199,9 @@ protected:
     //! conditioning restart: doc/OpenWork.md "Setup edits by copy-and-patch") and two pointers would drift.
     virtual const Setup& GetSetup() const = 0;
     //! The run's options as the setup resolved them: \c scf is what \c Converge runs, \c saveStateTo where it checkpoints.
-    const RunOptions& Options() const {return GetSetup().opts;}
+    const RunOptions& Options() const;
     //! The spin group the run's blocks are walked in (every saved state, carry and restore): the setup's resolved one (R6).
-    SpinGroup StateSpin() const {return GetSetup().opts.spin;}
+    SpinGroup StateSpin() const;
     //! THE RUN'S TAG on its console lines, its run-report rows and its saved state's summary: the setup's stated \c label, else the kind's
     //! own name (\c KindTag).  One rule for every kind: a molecule used to print "molecule" whatever label it was given.
     std::string Tag() const;
@@ -241,6 +241,7 @@ struct ZeroField : public virtual ScalarFunction<double>
 //! \b without \b the \b proof.  (CLAUDE.md: give capabilities only to types that have them.)
 //!
 //! Each kind answers the protected \c Proof* hooks and \c MakeFailure; \c Converged and \c Result are written ONCE, here.
+//! Its member bodies live in Imp/Calculation.C, instantiated there for the two scalar types every kind runs on (\c double, \c dcmplx).
 template <class T> class tCalculation : public virtual Calculation
 {
 public:
@@ -278,63 +279,24 @@ public:
     //! this call), edited by \a edit when one is given; checkpoint the state; answer the outcome.  Every kind's \c Converge is this one:
     //! the steps it calls are the kind's (\c RunStage) and the base's (\c Checkpoint, \c Result).  The stage's params AS RUN are what
     //! the run report's `scf` header files, so an edit is visible there.  Invalidates any \c Converged from an earlier attempt.
-    Outcome<Converged, SCFFailure> Converge(const SCFEdit& edit = {})
-    {
-        SCFParams params=Options().scf;
-        if (edit) edit(params);
-        (void)ConvergeStage(params);
-        FinishSchedule(params);   // a single Converge is a one-stage schedule: the kind's pilot runs after it too (the solid's rasters)
-        return Result();
-    }
+    Outcome<Converged, SCFFailure> Converge(const SCFEdit& edit = {});
 
     //! \brief RUN A SCHEDULE (V-FACADE-PARITY P4, R7): each stage in turn, every one checkpointed (\c ConvergeStage), each after the first
     //! seeded from the density the one before it reached; \a edit (R10 (d)) applies to EVERY stage's params.  The outcome is the FINAL
     //! stage's -- the honest one, since the earlier stages exist only to deliver a good starting density to it.  An empty schedule is a
     //! caller error and throws; a stage the kind cannot run as stated (a setup edit, an accelerator a molecule's setup did not admit) is
     //! REFUSED by name before it runs: the answer is an \c SCFFailure (\c StageRefused) naming the policy, and the schedule stops there.
-    Outcome<Converged, SCFFailure> Converge(const std::vector<SCFStage>& schedule, const SCFEdit& edit = {})
-    {
-        if (schedule.empty())
-            throw std::invalid_argument("Calculation::Converge: an EMPTY schedule has no meaning -- pass at least one stage, or call Converge()");
-        for (size_t s=0; s<schedule.size(); ++s)
-        {
-            SCFStage stage=schedule[s];
-            if (edit) edit(stage.params);
-            try
-            {
-                if (!stage.edit.Empty()) ApplySetupEdit(stage.edit, s);
-                EnterStage(stage, s);
-            }
-            catch (const policy::Refused& r)   // a deck can reach it: an Outcome, its policy row already filed
-            {
-                SCFFailure f; f.why=SCFFailure::Why::StageRefused; f.details="schedule stage "+std::to_string(s)+" REFUSED (policy "+r.Name()+"): "+r.what();
-                return Outcome<Converged, SCFFailure>::Fail(std::move(f));
-            }
-            (void)ConvergeStage(stage.params);
-            LeaveStage(s, schedule.size(), stage.params);
-        }
-        FinishSchedule(schedule.back().params);
-        return Result();
-    }
+    Outcome<Converged, SCFFailure> Converge(const std::vector<SCFStage>& schedule, const SCFEdit& edit = {});
 
     //! \brief The outcome of the LAST attempt (a Prepare'd run that never converged says "did not converge in 0 iterations"): the
     //! answers, or the reason there are none.  \c [[nodiscard]] via \c Outcome.
-    Outcome<Converged, SCFFailure> Result() const
-    {
-        using O=Outcome<Converged, SCFFailure>;
-        if (std::optional<SCFFailure> f=MakeFailure()) return O::Fail(std::move(*f));
-        return O::Ok(Converged(this));
-    }
+    Outcome<Converged, SCFFailure> Result() const;
 
 protected:
     //! \brief ONE STAGE, the same steps on every kind: the kind runs it (\c RunStage), the base checkpoints it (CK-1: after every
     //! stage, converged or not, when \c saveStateTo is set) and answers it.  \c Converge runs one; a kind's own multi-stage driver (the
     //! solid's annealed schedule, its +U loop, its raster pilot) runs one per stage, so each is checkpointed alike.
-    Outcome<Converged, SCFFailure> ConvergeStage(const SCFParams& params)
-    {
-        if (RunStage(params)) Checkpoint(Options().saveStateTo, Tag());
-        return Result();
-    }
+    Outcome<Converged, SCFFailure> ConvergeStage(const SCFParams& params);
     //! \name THE STEPS EACH KIND TAKES (\c Converge's)
     //!@{
     //! \brief Build, iterate and report ONE SCF stage on \a params (as run: the caller's edit applied).  FALSE when it was refused
