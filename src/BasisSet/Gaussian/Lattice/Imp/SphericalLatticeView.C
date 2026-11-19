@@ -288,6 +288,14 @@ public:
                 Phi(q,s)=a;
             }
     }
+    //! The inner CARTESIAN images with my sparse transform on top, applied after the phase sum exactly as \c BlochPointValues
+    //! above applies it -- so the record's Bloch rows equal that table bit for bit.
+    virtual BasisSet::PointImages MakePointImages(const rvec3vec_t& pts, const UnitCell& A) const override
+    {
+        BasisSet::PointImages im=itsLat->MakePointImages(pts,A);
+        im.SetTransform(itsTnz, itsT.columns());
+        return im;
+    }
     virtual chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const override
     { return CongruenceC(itsLat->MakeKinetic(phase,A)); }
     //! Through T, as IntegratePotentialPullback: Re Tr(Ā_sph† TᵀMT) = Re Tr((TĀTᵀ)† M), and T is geometry-free.

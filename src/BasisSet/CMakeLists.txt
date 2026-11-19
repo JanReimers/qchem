@@ -4,6 +4,7 @@ target_sources(qcBasisSet PRIVATE
   Imp/Conditioning.C
   Imp/BareCoulombSource.C
   Imp/AtomCentredSet.C
+  Imp/PointImages.C
   Internal/Imp/Fit_IBS.C
   Imp/DeltaFit_IBS.C
   Internal/Imp/SymmetryAdapted_IBS.C
@@ -27,6 +28,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Conditioning.C                        # the basis conditioning report, one phase on every facade (pin 7)
   GridResolution.C                      # 'how fine and how far must a grid over me reach' -- the grid builders' query (V-BS-RASTER; 2026-11-02)
   AoShellSource.C                       # 'I am built from atom-centred shells' (+U manifolds, SALC induction; 2026-09-19)
+  PointImages.C                         # the k-independent lattice images of a Bloch basis on a point set (shared Φ; 2026-11-19)
   OrbitalImageSource.C                  # 'the image of my Bloch orbitals under a crystal op' (KAxisPlan P4, D5/CK-3a; 2026-10-27)
   AtomCentredSet.C                      # an atom-centred function set + 'my overlap with it' (+U projectors, HubbardProjectorPlan D1/D2)
   BareCoulombSource.C                   # 'bare (m1m2|m3m4) over a function subset' -- the ACBN0 face (+U increment 3; 2026-09-21)

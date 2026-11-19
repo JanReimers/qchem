@@ -96,6 +96,9 @@ struct XCRoute
 {
     VxcFit fit = VxcFit::Auto;
     XCρ    rho = XCρ::Exact;
+    //! How a δ fit holds its per-k orbital tables: the POLICY layer's door (\c BasisSet::PhiChooser; the solid setup's \c xcOrbitalTables),
+    //! handed to the fit factory at creation (user ruling 2026-11-19).  Empty = dense.
+    BasisSet::PhiChooser phiTables = {};
     XCRoute() = default;
     XCRoute(VxcFit f, XCρ r=XCρ::Exact) : fit(f), rho(r) {}
 };

@@ -18,6 +18,7 @@ export import qchem.BasisSet.Lattice.BasisSet;  // CellImages, GPWTolerances, Gr
 export import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSet::Gaussian::Angular
 export import qchem.RunPolicy;                  // RunPolicySpec
 export import qchem.AuditFootprint;             // AuditFootprintCalibration
+export import qchem.PhiTablesPolicy;            // policy::XCOrbitalTables (the δ fit's orbital tables)
 export import qchem.ChargeDensity.Seed;         // SeedStrategy
 export import qchem.LASolver;                   // qchem::Ortho
 export import qchem.SCFAccelerator.Factory;     // SCFAccelerators::Type, ScheduleSignal
@@ -350,6 +351,16 @@ struct RunOptions
         //! (OpenWork, X): a session invariant under the group the WHOLE session keeps (a symmetry-preserving relaxation keeps its space
         //! group), so one mesh serves both.
         bool xcMeshSymmetric = true;
+        //! \brief HOW THE δ FIT HOLDS ITS ORBITAL TABLES ON THE XC MESH -- a MEMORY-vs-SPEED TRADE-OFF the user may decide (lane S 2026-11-19;
+        //! the user: "For some of these the user should be allowed to decide").  Both give the same numbers (to roundoff):
+        //!   \c dense   one table \f$\Phi^k_{gi}\f$ per k-block: nk x points x functions x 16 B.  The fastest contractions, the largest RAM.
+        //!   \c images  one k-independent record of the lattice-image values, shared by every k-block and phased when used: ~25-30 B per
+        //!              (point, function) whatever nk -- smaller from about two complex k-blocks on, a few percent slower.
+        //!   \c auto    (default) the realization with the lower PEAK memory, unless the other is faster by more than
+        //!              \c policy::kPhiSpeedGainThreshold and still fits (qchem.PhiTablesPolicy).
+        //! A stated value wins; one the policy finds peculiar (dense near the memory budget, images where they are larger) runs with a
+        //! warning naming what \c auto would pick.  The [policy] line prints both realizations' peak, average and wall either way.
+        policy::XCOrbitalTables xcOrbitalTables = policy::XCOrbitalTables::Auto;
         //! THE CELL'S STRAIN ALLOWANCE s (linear, a fraction; the cell half's frozen rule, doc/Records/CellHalf_Design.md §3, ruled
         //! 2026-11-10).  0 (default): the cell is fixed -- a geometry session refuses a moved cell (\c PESFailure::CellChange) and every size
         //! is decided on the cell itself, as always.  > 0: every discrete size (G sets, raster and FFT counts, uniform-mesh divisions) is

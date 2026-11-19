@@ -34,10 +34,12 @@ module;
 #include <string>
 #include <type_traits> // std::is_same_v (the same-scalar table cache)
 #include <utility>
+#include <vector>
 export module qchem.BasisSet.DeltaFit_IBS;
 export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary                    // cFIT_SF_ABS + Integrals_Overlap3C + FitQuadrature
+export import qchem.BasisSet.PointImages;          // PhiRealization / PhiChooser / BlochImageSource: the shared-Φ realization (2026-11-19)
 export import qchem.BasisSet.Transition_DFT_IBS;   // Transition_Overlap3C: the (k+q, k) pair on my Φ tables (LinearResponsePlan B2)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep)
@@ -112,12 +114,18 @@ public:
     //! block's 3-D face -- which is display work, to become an honest \f$Y_{lm}\f$ per (i, m).  Unset (every other lineage): the block's
     //! own \c op(r).  Concrete wiring in the factory, never a capability cast here.
     using RealPointValues=std::function<mat_t<double>(const Orbital_1E_IBS<double>&, const rvec3vec_t&)>;
+    //! \brief Where a block's k-independent lattice IMAGES come from, when its basis set's factory says so (the shared \f$\Phi\f$, lane S
+    //! 2026-11-19): the periodic factory hands a closure answering a block's \c BlochImageSource face, or null for a block without one.
+    //! Concrete wiring in the factory, never a capability cast here.  Empty (every non-periodic lineage): no images, dense tables.
+    using ImageSourceOf=std::function<const BlochImageSource*(const IrrepBasisSet_IDs&)>;
     //! \a q is the FINISHED quadrature (mesh + fold + Shubnikov tags) from \c MakeXCQuadrature, and \a sym the irrep the caller's lineage gives a fit block (see the class note).
-    //! \a realValues: see \c RealPointValues (empty = each block's \c op(r)).
-    DeltaFit_IBS(const std::shared_ptr<BasisCache>& cache, FitQuadrature q, const sym_t& sym, RealPointValues realValues={})
+    //! \a realValues: see \c RealPointValues (empty = each block's \c op(r)).  \a imageSourceOf: see \c ImageSourceOf.
+    DeltaFit_IBS(const std::shared_ptr<BasisCache>& cache, FitQuadrature q, const sym_t& sym, RealPointValues realValues={},
+                 ImageSourceOf imageSourceOf={})
         : IrrepBasisSetImp<T>(sym, cache)
         , itsQuad(std::move(q))
         , itsRealValues(std::move(realValues))
+        , itsImageSourceOf(std::move(imageSourceOf))
     {
         assert(itsQuad.GetMesh() && itsQuad.GetMesh()->size()>0 && "DeltaFit_IBS: a delta basis IS its mesh -- it cannot be empty");
         // The invariants of the bundle, checked HERE, once, where it becomes an object -- they used to be
@@ -172,6 +180,14 @@ public:
     // and it applies the free SymmetrizeValues / SymmetrizeValuesSigned itself.  Same cure, and the same
     // reason, as SiteIntegrals leaving here in increment 5.
 
+    //! \brief THE FACTORY'S SETUP STEP for the shared \f$\Phi\f$ (not a face: the factory holds the concrete object it just built).  Counts
+    //! both realizations' memory for the orbital blocks \a cblocks (complex) and \a rblocks (real TRIM) -- the dense tables exactly, the image
+    //! records from an exact count on a subsample -- asks \a choose (the policy layer's door) which realization to take, and on \c Images builds
+    //! the shared records now, at setup, so the run's console reads in run order.  On \c Dense nothing is built here: the tables fill as they
+    //! always did (lazily, per block, bit-identical).  Returns the realization taken.
+    PhiRealization ChoosePhiRealization(const std::vector<const Orbital_1E_IBS<dcmplx>*>& cblocks,
+                                        const std::vector<const Orbital_1E_IBS<double>*>&  rblocks, const PhiChooser& choose);
+
     //! One \f$\delta\f$ function per mesh point -- ~100k of them, so anything reasoning about a fit basis
     //! by COUNTING functions (grid sizing, memory reports, cache dimensions) must not choke on that.
     size_t GetNumFunctions() const override {return itsQuad.GetMesh()->size();}
@@ -209,29 +225,53 @@ private:
                                        const cvec_t& v) const;
     //! ONE body for both \c Overlap3C overloads, each with its own typed cache.  R2.9(i) idiom: the
     //! accessor is const and the tensor is a lazily-built, geometry-fixed cache, so the maps are \c mutable.
+    //! \brief ONE BLOCK'S \f$\Phi\f$, one of two realizations (V-ONE-OF-N; exactly one populated): the DENSE table, or the shared IMAGE
+    //! record plus this block's phases, from which a contraction forms a point batch of rows when it needs one.  Read only by this class's
+    //! own contraction bodies (they are the record's realization-aware clients); nothing above them sees which one is filled.
+    template <class U> struct PhiRows
+    {
+        mat_t<U>                           dense;    //!< (npts x n), or empty
+        std::shared_ptr<const PointImages> images;   //!< the shared record, or null
+        cvec_t                             phases;   //!< this block's Bloch phase per image offset (with \c images)
+        bool   IsDense()  const {return !images;}
+        size_t NumRows()  const {return images ? images->NumPoints()    : dense.rows();}
+        size_t NumCols()  const {return images ? images->NumFunctions() : dense.columns();}
+    };
     template <class U> const PairProjection<U>& Tensor(const InstanceSlotMap<PairProjection<U>>& cache,
-                                                   const InstanceSlotMap<mat_t<U>>& phis,
+                                                   const InstanceSlotMap<PhiRows<U>>& phis,
                                                    const Orbital_1E_IBS<U>& orb) const;
     //! \f$\Phi_{gi}=\chi_i(r_g)\f$ -- HOW this class evaluates its own 3-centre integral, cached per block.
     //! Entirely private since 2026-08-23: a table of values is not an integral and has no business in an
     //! interface (user).  The three contractions below are what leaves.
-    template <class U> const mat_t<U>& Table(const InstanceSlotMap<mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const;
+    template <class U> const PhiRows<U>& Table(const InstanceSlotMap<PhiRows<U>>& cache, const Orbital_1E_IBS<U>& orb) const;
+    //! Rows [lo,hi) of a block's \f$\Phi\f$ as a plain matrix, whichever realization holds it (a copy from a dense table; a phase sum
+    //! from the images, bit-identical to the dense table's rows).
+    template <class U> mat_t<U> Rows(const PhiRows<U>& P, size_t lo, size_t hi) const;
+    //! The shared image record of \a src on my points, built once (threaded over point chunks) and cached per source.
+    std::shared_ptr<const PointImages> Images(const BlochImageSource& src) const;
     //! \f$\langle\chi_i|\sum_g c_g\delta_g|\chi_j\rangle=\Phi^\dagger\mathrm{diag}(w\,c)\Phi\f$
-    template <class U> hmat_t<U> AdjointT(const mat_t<U>& P, const rvec_t& c) const;
+    template <class U> hmat_t<U> AdjointT(const PhiRows<U>& P, const rvec_t& c) const;
+    template <class U> hmat_t<U> AdjointDenseT(const mat_t<U>& P, const rvec_t& c) const;
+    template <class U> hmat_t<U> AdjointBatchedT(const PhiRows<U>& P, const rvec_t& c) const;
     //! \f$\langle\delta_g|\rho[D]\rangle/w_g=[\Phi D\Phi^\dagger]_{gg}\f$ -- the full quadratic form
-    template <class U> rvec_t ForwardT(const mat_t<U>& P, const hmat_t<U>& D) const;
+    template <class U> rvec_t ForwardT(const PhiRows<U>& P, const hmat_t<U>& D) const;
+    template <class U> rvec_t ForwardDenseT(const mat_t<U>& P, const hmat_t<U>& D) const;
     //! ...and the same thing for a caller holding \f$D=LL^\dagger\f$: \f$\sum_m|[\Phi L]_{gm}|^2\f$
-    template <class U> rvec_t ForwardFactoredT(const mat_t<U>& P, const mat_t<U>& L) const;
+    template <class U> rvec_t ForwardFactoredT(const PhiRows<U>& P, const mat_t<U>& L) const;
     // Per orbital BLOCK, keyed by the block's InstanceToken (S3c, user ruling 2026-11-14: the δ fit caches Φ itself).  Not by its
     // spatial sym_t: two blocks of equal symmetry (two basis sets, or one rebuilt at a new geometry against a surviving fit) are two
     // tables.  The spin channels share one block object, so they share its table.  A dead block's entries go on the next fill.
     // Thread-safe once-fills (the parallel Fock pass reaches them per block); a Tensor fill asks its Table, never the reverse.
-    InstanceSlotMap<mat_t<dcmplx>> itsPhi;    //!< Bloch blocks' tables (npts x n)
-    InstanceSlotMap<mat_t<double>> itsPhiR;   //!< real TRIM blocks' tables (3c-3)
+    InstanceSlotMap<PhiRows<dcmplx>> itsPhi;    //!< Bloch blocks' Φ (npts x n), dense or images
+    InstanceSlotMap<PhiRows<double>> itsPhiR;   //!< real TRIM blocks' Φ (3c-3)
+    //! The shared image records, one per lattice basis behind the blocks (keyed by \c BlochImageSource::ImageSource), on the images route.
+    InstanceSlotMap<std::shared_ptr<const PointImages>> itsImages;
     InstanceSlotMap<PairProjection<dcmplx>> itsO3;   //!< the Bloch blocks' 3-centre tensors, built on itsPhi
     InstanceSlotMap<PairProjection<double>> itsO3R;  //!< ...and the real TRIM blocks', on itsPhiR
     FitQuadrature itsQuad;   //!< the mesh + its orbit fold + the Shubnikov spin tags
     RealPointValues itsRealValues;   //!< the factory's evaluation of a real block at my points, or empty (\c RealPointValues)
+    ImageSourceOf   itsImageSourceOf;   //!< the factory's image source of a block, or empty (\c ImageSourceOf)
+    PhiRealization  itsRealization=PhiRealization::Dense;   //!< set once, at setup, by \c ChoosePhiRealization
 };
 
 } //namespace

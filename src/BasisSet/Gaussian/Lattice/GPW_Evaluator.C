@@ -35,6 +35,7 @@ import qchem.BasisSet.AtomCentredSet;              // AtomCentredSet_Gaussian (t
 import qchem.Mesh;                                 // qcMesh::MeshParams (the PP-quadrature integration mesh)
 import qchem.BasisSet;                             // Real_BS (the molecular Gaussian basis we own)
 import qchem.BasisSet.Orbital_1E_IBS;              // Real_OIBS (its orbital block: op()/Gradient/size)
+export import qchem.BasisSet.PointImages;      // PointImages: the k-independent images of my molecular block (shared Φ)
 export import qchem.BasisSet.PairProjection;   // PairProjection<dcmplx>, ΔG_Map
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // DirectOp, ReciprocalOp
 export import qchem.Symmetry.StarGroup;   // StarGroup: the imposed group the T1 {G}-star fold asks (the ctor's group param)
@@ -102,6 +103,14 @@ public:
     //! running it here, which is what lets a TRANSFORMED basis apply its transform once per POINT rather
     //! than once per image -- impossible from this side, which holds an abstract basis (OpenWork Step 3).
     mat_t<dcmplx> EvalMany(const rvec3vec_t& pts) const;
+    //! \name THE SHARED-Φ FACE's engine side (\c BasisSet::BlochImageSource, lane S 2026-11-19): \c EvalMany's image sum split at the phase.
+    //! The images are the molecular block's (k-independent, so every k-block over it shares one record); the phases are mine.
+    //!@{
+    bool CanMakePointImages() const {return !itsHomeOnly;}
+    const InstanceToken& ImageSource() const;
+    BasisSet::PointImages MakePointImages(const rvec3vec_t& pts) const;   //!< THROWS in the home-only mode (no images)
+    cvec_t ImagePhases(const BasisSet::PointImages& images) const;
+    //!@}
     chmat_t    OverlapMatrix()                 const;   //!< \f$\sum_R\langle i|j(\cdot-R)\rangle\f$
     chmat_t    KineticMatrix()                 const;   //!< \f$\sum_R\langle i|-\nabla^2|j(\cdot-R)\rangle\f$ (no 1/2)
     chmat_t    NuclearMatrix(const Structure* cl) const;//!< \f$\sum_R\langle i|\sum_c -Z_c/|r-R_c||j(\cdot-R)\rangle\f$

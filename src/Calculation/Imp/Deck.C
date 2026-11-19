@@ -127,6 +127,8 @@ using qcMesh::UnitCellKind; using qcMesh::RadialKind; using qcMesh::AngularKind;
 
 #define NAMES(T,...) std::initializer_list<std::pair<const char*,T>>{__VA_ARGS__}
 const auto kImages = NAMES(CellImages,   {"Periodic",CellImages::Periodic}, {"HomeCellOnly",CellImages::HomeCellOnly});
+const auto kOrbitalTables = NAMES(policy::XCOrbitalTables, {"auto",policy::XCOrbitalTables::Auto}, {"dense",policy::XCOrbitalTables::Dense},
+                                {"images",policy::XCOrbitalTables::Images});
 const auto kAngularForm = NAMES(BasisSet::Gaussian::Angular, {"cartesian",BasisSet::Gaussian::Angular::Cartesian}, {"spherical",BasisSet::Gaussian::Angular::Spherical});
 const auto kFamily = NAMES(RunOptions::Solid::OrbitalBasis, {"gaussian",RunOptions::Solid::OrbitalBasis::GPW}, {"planeWave",RunOptions::Solid::OrbitalBasis::PlaneWave});
 const auto kVxc    = NAMES(Hamiltonian::VxcFit, {"Auto",Hamiltonian::VxcFit::Auto}, {"PlaneWave",Hamiltonian::VxcFit::PlaneWave}, {"Delta",Hamiltonian::VxcFit::Delta}, {"Auxiliary",Hamiltonian::VxcFit::Auxiliary});
@@ -472,6 +474,7 @@ json ToJson(const RunOptions& o)
             {"images",NameOf(o.solid.images,kImages)},{"kShift",{o.solid.kShift.x,o.solid.kShift.y,o.solid.kShift.z}},
             {"tolerances",ToJson(o.solid.tolerances)},{"policy",ToJson(o.solid.policy)},{"hubbard",hub},
             {"perKFermiLevels",o.solid.perKFermiLevels},{"xcMeshSymmetric",o.solid.xcMeshSymmetric},
+            {"xcOrbitalTables",NameOf(o.solid.xcOrbitalTables,kOrbitalTables)},
             {"numBands",o.solid.numBands},{"forceComplex",o.solid.forceComplex},
             {"spinsShareFermi",o.solid.spinsShareFermi},{"greyImposition",o.solid.greyImposition},{"momFromSeed",o.solid.momFromSeed},
             {"siteCharges",o.solid.siteCharges}};
@@ -590,6 +593,7 @@ static void SolidBlockFromJson(const json& j, RunOptions& o)
                                  "smeared run; delete the key (true), or set solid.perKFermiLevels true for the old per-k default (false)");
     f.Get("perKFermiLevels",o.solid.perKFermiLevels);
     f.Get("xcMeshSymmetric",o.solid.xcMeshSymmetric);   // false = the plain atom-centred mesh: a displacement path needs it (RunOptions)
+    f.GetEnum("xcOrbitalTables",o.solid.xcOrbitalTables,kOrbitalTables);   // dense | images | auto: a memory-vs-speed trade-off (RunOptions)
     f.Get("numBands",o.solid.numBands); f.Get("forceComplex",o.solid.forceComplex);
     f.Get("spinsShareFermi",o.solid.spinsShareFermi); f.Get("greyImposition",o.solid.greyImposition); f.Get("momFromSeed",o.solid.momFromSeed);
     f.Get("siteCharges",o.solid.siteCharges);

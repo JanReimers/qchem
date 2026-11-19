@@ -42,6 +42,7 @@ import qchem.SetupDecisions;                 // ResolveSpinGroup: the banner sta
 import qchem.Mesh.XCPolicy;                     // BeckeXCParams / BeckeEntryRung and the rungs above (a geometry run's XC route and its nested ladder)
 import qchem.Mesh.BeckeClimb;                   // ClimbBeckeLadder: the pilot's one-round Becke climb at a fixed D
 import qchem.Policy;                            // policy::Report: a stated grid that misses eps reports itself (StatedDensityEcutMissesEps)
+import qchem.PhiTablesPolicy;                    // MakeXCOrbitalTablesChooser: the δ fit's orbital tables (dense | images | auto)
 import qchem.XCRhoPolicy;                        // RefuseGradientConsumers: the fitted-potential cell refuses GDM / the Ladder
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
 import qchem.SCFCap;                           // SetupSCF / AuditSCF -- the seed's atomic solves and the pilot's re-convergence are not the run's iterations
@@ -639,9 +640,13 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         }
         const auto a1=PeriodicA1Set(opts, *itsImp->st);
         if (a1) ReportPeriodicA1Cost(*a1, SizeReference("periodic A1 Vxc fit", opts.solid.tolerances, 1.0, &xc), Tag());
+        // The XC route carries the δ fit's orbital-table door: the user's stated xcOrbitalTables, judged at the fit factory on both
+        // realizations' footprints (qchem.PhiTablesPolicy; user ruling 2026-11-19, option (a)).
+        qchem::Hamiltonian::XCRoute route(opts.vxcFit, opts.xcRho);
+        route.phiTables=qchem::policy::MakeXCOrbitalTablesChooser(opts.solid.xcOrbitalTables);
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, *itsImp->setup->pp, xc, {opts.vxcFit, opts.xcRho}, hubbard,
+            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, *itsImp->setup->pp, xc, route, hubbard,
             qchem::Hamiltonian::ModelToXC(*opts.model), a1));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness

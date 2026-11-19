@@ -109,6 +109,8 @@ public:
     //! image sum belongs on this side of the seam rather than in the periodic caller.
     virtual void    BlochPointValues(const rvec3vec_t& pts, const cellphase_t& phase, const UnitCell& A,
                                      mat_t<dcmplx>& Phi) const override;
+    //! The same image terms, k-independent and sparse (\c LatticeCollocation::MakePointImages).
+    virtual ::qchem::BasisSet::PointImages MakePointImages(const rvec3vec_t& pts, const UnitCell& A) const override;
     virtual chmat_t MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
                                       const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const override;
     virtual chmat_t MakeLocalGaussian(const Structure* cl,

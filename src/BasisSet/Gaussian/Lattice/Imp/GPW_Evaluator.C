@@ -816,6 +816,22 @@ mat_t<dcmplx> GPW_Evaluator::EvalMany(const rvec3vec_t& pts) const
     return Phi;
 }
 
+// The shared-Φ face's engine side: EvalMany's image sum split at the phase (the molecular seam's own record, so Bloch(ImagePhases) is
+// EvalMany bit for bit).  Home-only has no images: the caller asks CanMakePointImages first and keeps a dense table.
+const InstanceToken& GPW_Evaluator::ImageSource() const {return itsOrb->Instance();}
+BasisSet::PointImages GPW_Evaluator::MakePointImages(const rvec3vec_t& pts) const
+{
+    if (itsHomeOnly) throw std::logic_error("GPW_Evaluator::MakePointImages: a home-cell-only block has no lattice images (ask CanMakePointImages)");
+    return itsLat->MakePointImages(pts, itsCell);
+}
+cvec_t GPW_Evaluator::ImagePhases(const BasisSet::PointImages& images) const
+{
+    const auto phase=CellPhase();
+    cvec_t ph(images.Offsets().size());
+    for (size_t k=0;k<ph.size();k++) ph[k]=phase(images.Offsets()[k]);
+    return ph;
+}
+
 cvec3vec_t GPW_Evaluator::EvalGradient(const rvec3_t& r) const
 {
     cvec3vec_t v(itsN, vec3_t<dcmplx>(dcmplx(0.0),dcmplx(0.0),dcmplx(0.0)));

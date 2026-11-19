@@ -43,6 +43,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     RunOptions.C                          # THE one options tree (V-FACADE-PARITY P0b-2)
     SetupDecisions.C                      # the structure-neutral setup decisions (V-FACADE-SETUP)
     AuditFootprint.C
+    PhiTablesPolicy.C                     # the δ fit's XC orbital tables: dense or shared images, a memory-vs-speed choice (lane S 2026-11-19)
     ERI4MemoryPolicy.C                    # the ERI4 RAM cap as a setup policy (IntegralCacheOwnershipPlan S6, ruling 6)
 )
 target_include_directories(qchem PRIVATE
