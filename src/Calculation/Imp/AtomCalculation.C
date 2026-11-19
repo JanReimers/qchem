@@ -105,18 +105,17 @@ static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, int Z, const Electr
     return BasisSet::Radial::Factory(opts.atom.basisPool, opts.atom.type, Z, ec);
 }
 
-AtomCalculation::AtomCalculation(std::shared_ptr<const AtomSetup> setup, const SCFParams& params)
-    : AtomCalculation(BuildOnly{}, std::move(setup), nullptr)
+Outcome<std::unique_ptr<AtomCalculation>, BuildRefusal> AtomCalculation::Prepare(std::shared_ptr<const AtomSetup> setup, Observer onIteration)
 {
-    (void)Converge(params);
-}
-
-std::unique_ptr<AtomCalculation> AtomCalculation::Prepare(std::shared_ptr<const AtomSetup> setup, Observer onIteration)
-{
-    std::unique_ptr<AtomCalculation> c(new AtomCalculation(BuildOnly{}, std::move(setup), std::move(onIteration)));
-    c->BuildGraph();                                  // into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
+    std::unique_ptr<AtomCalculation> c;
+    try   // the configuration (the constructor) and the graph, into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
+    {
+        c.reset(new AtomCalculation(BuildOnly{}, std::move(setup), std::move(onIteration)));
+        c->BuildGraph();
+    }
+    catch (const policy::Refused& r) { return Outcome<std::unique_ptr<AtomCalculation>, BuildRefusal>::Fail(BuildRefusal{r.Name(), r.what()}); }   // its policy row is filed
     c->itsPrepared=true;
-    return c;
+    return Outcome<std::unique_ptr<AtomCalculation>, BuildRefusal>::Ok(std::move(c));
 }
 
 // THE CONFIGURATION POLICY (OpenWork row "All-electron ION seeds", 2026-11-15): STATED (opts.atom.configuration, NIST's notation) or derived --
@@ -322,7 +321,15 @@ void AtomCalculation::BuildGraph()
     // (directmin => AType::GDM above, whose WantsLineSearch() drives the direct-min loop -- no SetDirectMin needed.)
 }
 
-Outcome<AtomCalculation::Converged, SCFFailure> AtomCalculation::Converge(const SCFParams& params)
+
+void AtomCalculation::EnterStage(const SCFStage& stage, size_t index)
+{
+    AdmitStageOnSetup(stage, itsSetup->opts, itsSetup->accelerator, "atom");
+    if (index==0 && (itsPrepared || !itsScf)) return;   // the Prepare'd graph, from the setup's seed
+    itsCarried=itsScf->GetWaveFunction()->GetChargeDensity();   // the density reached drives the next stage's first Fock (as the pilot's)
+}
+
+bool AtomCalculation::RunStage(const SCFParams& params)
 {
     // The atomic SCF writes into the CALLER'S report run, as every facade does (user ruling D, 2026-11-02): scfrun, valgen, the
     // valence-basis generator and the tests that read the report open it.  With no run open every write is a no-op.
@@ -342,8 +349,8 @@ Outcome<AtomCalculation::Converged, SCFFailure> AtomCalculation::Converge(const 
     itsIterations+=pilotIterations;
     // (No end-of-run cache snapshot since S6: each owner-held table reported its own bytes under `cache` where it was filled.)
     RebuildSampling();
-    ReportResult("atom "+thePeriodicTable().GetSymbol(itsSetup->Z), ok, itsIterations, itsDensity->GetTotalCharge(), itsScf->GetEnergy(), 0.0, pilotIterations);
-    return Result();
+    ReportResult(Tag(), ok, itsIterations, itsDensity->GetTotalCharge(), itsScf->GetEnergy(), 0.0, pilotIterations);
+    return true;
 }
 
 std::optional<SCFFailure> AtomCalculation::MakeFailure() const
@@ -432,10 +439,9 @@ const AtomCalculation::orbital_t* AtomCalculation::GetOrbital(size_t index, cons
 //====================================================================================================
 //  THE SAVED STATE (V-FACADE-STATE): the atom's hooks and its restart
 //====================================================================================================
-Calculation::StateIdentity AtomCalculation::MakeStateIdentity() const
-{
-    return {.Nelec=itsSetup->Ne, .spin=itsSetup->opts.spin, .multiplicity=0, .functional=FunctionalName(), .kT=itsLastkT};
-}
+std::string AtomCalculation::StateFunctional() const {return FunctionalName();}
+std::string AtomCalculation::KindTag()         const {return "atom "+thePeriodicTable().GetSymbol(itsSetup->Z);}
+double      AtomCalculation::StateKT()         const {return itsLastkT;}
 
 std::string AtomCalculation::FunctionalName() const
 {
@@ -450,7 +456,7 @@ std::vector<StateBlock> AtomCalculation::StateBlocks(bool withOrbitals) const
     const auto* wf = withOrbitals && itsScf ? itsScf->GetWaveFunction() : nullptr;
     if (withOrbitals && !wf) throw std::logic_error("AtomCalculation: no wave function yet (a saved state needs a Converge)");
     std::vector<StateBlock> out;   // spin irreps outer, basis blocks inner (the order the composite wave function builds)
-    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+    for (Spin s : SpinIrreps(StateSpin()))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
         {
             StateBlock b;
@@ -465,7 +471,7 @@ std::vector<StateBlock> AtomCalculation::StateBlocks(bool withOrbitals) const
 StateSummary AtomCalculation::MakeStateSummary() const
 {
     if (!itsScf || !itsScf->GetWaveFunction()) throw std::logic_error("AtomCalculation: no wave function yet");
-    return {.label="atom "+thePeriodicTable().GetSymbol(itsSetup->Z), .converged=itsScf->Converged(), .iterations=itsIterations,
+    return {.label=Tag(), .converged=itsScf->Converged(), .iterations=itsIterations,
             .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0,
             .recipe="model "+FunctionalName()+", basis "+AtomTypeName(itsSetup->opts.atom.type)+", accelerator "+AcceleratorTag()};
 }
@@ -501,7 +507,7 @@ std::unique_ptr<qchem::ChargeDensity::rDM_CD> AtomCalculation::RestoredDensity()
     using namespace qchem::ChargeDensity;
     auto cd=std::make_unique<tComposite_CD<double>>(itsBasis->GetImposition() ? itsBasis->GetImposition()->DensityGroup() : nullptr);
     size_t b=0;
-    for (Spin s : SpinIrreps(itsSetup->opts.spin))
+    for (Spin s : SpinIrreps(StateSpin()))
         for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
         {
             if (b>=itsRestored.size() || itsRestored[b].rows()!=ibs->GetNumFunctions())
@@ -547,7 +553,7 @@ Outcome<std::unique_ptr<AtomCalculation>, RestartRefusal>
 AtomCalculation::Restart(const std::string& path, std::shared_ptr<const AtomSetup> setup, const SCFParams& params, Observer onIteration)
 {
     auto R=PrepareRestart(path, std::move(setup), params, std::move(onIteration));
-    if (R) (void)R.Value()->Converge(params);
+    if (R) (void)R.Value()->ConvergeStage(params);
     return R;
 }
 
@@ -677,6 +683,33 @@ qchem::Hamiltonian::rHamiltonian* AtomCalculation::MakeHamiltonianOn(const Grids
                          H::XCRoute(itsSetup->opts.vxcFit, itsSetup->opts.xcRho), g.coulomb);
 }
 
+// THE PILOT'S WARM START (policy AtomPilotWarmStart, approved by the user 2026-11-17): a pilot re-convergence starts its linear D step at
+// the run's relax CEILING (MaxRelaxRo), not at its cold-start StartingRelaxRo; the accelerator is the run's own, unchanged.  The carried D
+// is already at the answer in energy (|E1 - E_final| <= 4e-8 Ha, 3.4e-5 on SL_U), so the cold start's damping (0.1 on A_DFT, a far-from-
+// seed recipe) only made DIIS work from damped inputs while the mixer climbed 0.1 -> 0.16 -> 0.26 -> ...
+// WHERE MEASURED (a scoped best practice, not a law; lane B 2026-11-17, doc/Records/OpenWork_History5.md): the piloted atoms only --
+// A_DFT_heavy SL/SG x Xe/U, the A_DFT_U Kr pair, the Gd q18 PP atom, the Mn q7 PP pilot, the Fe+/V+/Co+ cations -- each a RAISED-GRID
+// re-convergence, which is a CHANGED H ([F,D] at the carried D 3e-5 .. 2e-2), not an exact resume.  Rounds per re-convergence:
+//     atom      cold start   GDM    relax <= 0.3   start at the ceiling
+//     Xe SL        15         28        11              7
+//     Xe SG        21          9        20              5
+//     U SL         10         14        10              7
+//     U SG         14         17        17              6
+//     Kr / Gd / Mn PP and the cations: within +-2 (they already start at 0.5 or 1.0, or are open shells GDM declines)
+// Final energies of every variant agree to 6e-10 Ha.  GDM was NOT chosen here: it was slower in 7 of 9 closed-shell rounds, declines
+// every open shell and is refused on the Auxiliary Vxc fit (pin 32) -- CLAUDE.md's "restarts use GDM" was measured on an exact resume
+// ([F,D] ~4e-8), a different case.  A re-convergence whose D moved further (a stiffer H change) may want the cold start back.
+SCFParams AtomCalculation::PilotWarmStart(const SCFParams& params) const
+{
+    SCFParams warm=params;
+    if (params.StartingRelaxRo>=params.MaxRelaxRo) return warm;
+    warm.StartingRelaxRo=params.MaxRelaxRo;
+    policy::Report("AtomPilotWarmStart", "the pilot re-convergence's linear step starts at relax "+std::to_string(warm.StartingRelaxRo),
+                   policy::Verdict::Choose, "the carried density is at the answer in energy, so the cold start's relax "+
+                   std::to_string(params.StartingRelaxRo)+" only damps it; the accelerator is unchanged");
+    return warm;
+}
+
 // THE ATOM PILOT (pin 31; the molecule's mesh pilot, one-dimensional per axis).  The run has converged on its entry grids.  At THIS D,
 // each unstated axis climbs its ladder: the distance between a rung and the rung above is the worst change of any term energy (each axis
 // moves only its own term), and the rung's error is BeckeTailEstimate of it.  Up to three axes: the XC radial count, the Hartree route's
@@ -792,7 +825,7 @@ size_t AtomCalculation::PilotGrids(const SCFParams& params)
         itsCarried=itsScf->GetWaveFunction()->GetChargeDensity();
         BuildGraph();
         if (itsObserver) itsScf->SetObserver(itsObserver);
-        itsScf->Iterate(params);
+        itsScf->Iterate(PilotWarmStart(params));
         reconverged+=itsScf->GetIterationCount();
         RebuildSampling();
         if (!itsScf->Converged()) { std::cout<<tag<<"WARNING: the re-convergence on the raised grids did not converge"<<std::endl; break; }

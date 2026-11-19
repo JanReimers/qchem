@@ -47,9 +47,9 @@ TEST(ValenceBasisGen, Fluorine_q7)
     r.Zion           = 7;
     r.electrons      = 8;                                   // F-
     // The DIIS->GDM Ladder.  The 2p is unbound in this window (eps +0.07).  Under the old Dunlap fit (the atom's Hartree until
-    // 2026-11-14) DIIS jittered at 5e-6 Ha, so the recipe stated GDM.  Under the exact radial-Poisson Hartree, standalone GDM sits in a
-    // 4-step handoff limit cycle ([F,D] 0.13-0.5, never under its engage gate; OpenWork row), while DIIS, the Ladder and directmin all
-    // converge to -24.2047246 (the fit gave -24.2047251).
+    // 2026-11-14) DIIS jittered at 5e-6 Ha, so the recipe stated GDM.  Under the exact radial-Poisson Hartree, standalone GDM sat in a
+    // hand-off limit cycle ([F,D] 0.13-0.85, never under its engage gate) until its waiting phase took the DeclinedDirectMinRelax cap
+    // (2026-11-17, the twin below); DIIS, the Ladder, directmin and now GDM all converge to -24.2047246 (the fit gave -24.2047251).
     r.accelerator    = "Ladder";
     r.shells         = { {0, EvenTemperedWindow(8, 0.12, 40.0)},
                          {1, EvenTemperedWindow(6, 0.14, 12.0)} };
@@ -61,6 +61,30 @@ TEST(ValenceBasisGen, Fluorine_q7)
     // set against the BROKEN 3-D-mesh KB route -- see A_PP.PerLKleinmanBylanderOracle.
     EXPECT_NEAR(g.energy, -24.2135, 0.10);   // vs the CP2K pseudo-ion oracle (window incompleteness)
     EXPECT_GT (g.energy, -24.3);             // not a variational collapse (below the complete-basis oracle)
+}
+
+// THE WAITING-PHASE RELAX CAP (OpenWork row "Standalone GDM cycles at its handoff on F-", lane B 2026-11-17).  On standalone GDM the
+// F- pseudo-ion (2p unbound in this window) never engaged: its linear mixer grew to relax 0.97 and limit-cycled [F,D] around the 0.20
+// engage gate until the 100 cap.  A seeded GDM that waits now mixes under DeclinedDirectMinRelax, engages, and lands on the Ladder's
+// answer; the hand-off line names why.
+TEST(ValenceBasisGen, Fluorine_q7_StandaloneGDMWaitsUnderTheRelaxCapAndReachesTheLadder)
+{
+    auto recipe=[](const char* acc)
+    {
+        ValenceBasisRecipe r;
+        r.element="F"; r.Zion=7; r.electrons=8; r.accelerator=acc;
+        r.shells = { {0, EvenTemperedWindow(8, 0.12, 40.0)}, {1, EvenTemperedWindow(6, 0.14, 12.0)} };
+        return r;
+    };
+    const GeneratedBasis ladder=GenerateValenceBasis(recipe("Ladder"));
+    testing::internal::CaptureStdout();
+    const GeneratedBasis gdm=GenerateValenceBasis(recipe("GDM"));
+    const std::string out=testing::internal::GetCapturedStdout();
+    std::cout << out;
+    ASSERT_TRUE(ladder.converged);
+    EXPECT_TRUE(gdm.converged) << "standalone GDM on F- must engage and converge, not limit-cycle at its hand-off";
+    EXPECT_NEAR(gdm.energy, ladder.energy, 1e-6);
+    EXPECT_NE(out.find("WAITING to engage"), std::string::npos) << "the cap's hand-off line names the waiting phase";
 }
 
 TEST(ValenceBasisGen, Sodium_q1)
@@ -254,20 +278,20 @@ TEST(ValenceBasisGen, MnQ7PseudoAtomInTheVAExponentsShowsTheDiffuseTrim)
     o.atom.exponentsByL={{0,{0.1,0.24928829,0.62144650,1.54919334,3.86195754,9.62740780,24.0}},
                     {2,{0.38369936,0.81791778,1.74352515,3.71660826,7.92255676,16.88822203,36.0}}};
     SCFParams p; p.MinVirial=std::nullopt;
-    AtomCalculation atom(AtomSetup::Resolve(25, 18, o), p);
-    ASSERT_TRUE(atom.IsConverged());
-    EXPECT_NEAR(atom.Energy(), -14.1949, 0.005) << "46 mHa above CP2K ATOM: the VA span's incompleteness for the free atom";
+    o.scf=p; auto atom=AtomCalculation::Prepare(AtomSetup::Resolve(25, 18, o)).TakeValue(); (void)atom->Converge();
+    ASSERT_TRUE(atom->IsConverged());
+    EXPECT_NEAR(atom->Energy(), -14.1949, 0.005) << "46 mHa above CP2K ATOM: the VA span's incompleteness for the free atom";
     std::map<int,double> eps;                                   // lowest occupied eigenvalue per l
-    for (const Irrep& ir : atom.GetIrreps(Spin::None))
+    for (const Irrep& ir : atom->GetIrreps(Spin::None))
     {
         const auto* as=dynamic_cast<const Symmetry::Atom::AtomicSymmetry*>(ir.sym.get());
         ASSERT_TRUE(as);
-        const auto* os=atom.Orbitals(ir);
+        const auto* os=atom->Orbitals(ir);
         for (const auto* orb : os->Iterate())
             if (orb->IsOccupied()) { const int l=int(as->Getl()); if (!eps.count(l) || orb->GetEigenEnergy()<eps[l]) eps[l]=orb->GetEigenEnergy(); }
     }
     ASSERT_TRUE(eps.count(0) && eps.count(2));
-    std::cout << "[Mn q7 pseudo-atom] E=" << atom.Energy() << " eps(4s)=" << eps[0] << " eps(3d)=" << eps[2]
+    std::cout << "[Mn q7 pseudo-atom] E=" << atom->Energy() << " eps(4s)=" << eps[0] << " eps(3d)=" << eps[2]
               << "   (CP2K ATOM: -14.241357, -0.194010, -0.257385)" << std::endl;
     EXPECT_NEAR(eps[0], -0.1596, 0.005) << "4s: 34 mHa shallower than CP2K's -0.194";
     EXPECT_NEAR(eps[2], -0.1802, 0.005) << "3d: 77 mHa shallower than CP2K's -0.257 -- the trimmed 0.18 d shell";
@@ -283,18 +307,18 @@ TEST(ValenceBasisGen, MnQ7PseudoAtomInALargePool)
     o.atom.type=AtomType::Gaussian; o.atom.pseudopotential=true; o.atom.valence=7;
     o.atom.exponentsByL={{0,pool(16,0.05,200.0)},{2,pool(16,0.08,200.0)}};
     SCFParams p; p.MinVirial=std::nullopt;
-    AtomCalculation atom(AtomSetup::Resolve(25, 18, o), p);
-    ASSERT_TRUE(atom.IsConverged());
+    o.scf=p; auto atom=AtomCalculation::Prepare(AtomSetup::Resolve(25, 18, o)).TakeValue(); (void)atom->Converge();
+    ASSERT_TRUE(atom->IsConverged());
     std::map<int,double> eps;
-    for (const Irrep& ir : atom.GetIrreps(Spin::None))
+    for (const Irrep& ir : atom->GetIrreps(Spin::None))
     {
         const auto* as=dynamic_cast<const Symmetry::Atom::AtomicSymmetry*>(ir.sym.get());
-        for (const auto* orb : atom.Orbitals(ir)->Iterate())
+        for (const auto* orb : atom->Orbitals(ir)->Iterate())
             if (orb->IsOccupied()) { const int l=int(as->Getl()); if (!eps.count(l) || orb->GetEigenEnergy()<eps[l]) eps[l]=orb->GetEigenEnergy(); }
     }
-    std::cout << "[Mn q7 pseudo-atom, 16+16 pool] E=" << atom.Energy() << " eps(4s)=" << eps[0] << " eps(3d)=" << eps[2]
+    std::cout << "[Mn q7 pseudo-atom, 16+16 pool] E=" << atom->Energy() << " eps(4s)=" << eps[0] << " eps(3d)=" << eps[2]
               << "   (CP2K ATOM: -14.241357, -0.194010, -0.257385)" << std::endl;
-    EXPECT_NEAR(atom.Energy(), -14.241357, 0.02);
+    EXPECT_NEAR(atom->Energy(), -14.241357, 0.02);
     EXPECT_NEAR(eps[0], -0.194010, 0.01) << "4s";
     EXPECT_NEAR(eps[2], -0.257385, 0.01) << "3d";
 }

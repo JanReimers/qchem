@@ -28,9 +28,9 @@ double H2O2(double dx)
     m.Insert(Site{1, rvec3_t(-0.949557, 1.520749, 0.878005)});
     m.Insert(Site{1, rvec3_t( 0.949557,-1.520749, 0.878005)});
     SCFParams p; p.NMaxIter=100; p.MinΔρPerElectron=1e-9;
-    MoleculeCalculation calc(MoleculeSetup::Resolve(m, {.model=Hamiltonian::Model::HF, .molecule={.basis="dzvp"}}), p);
-    EXPECT_TRUE(calc.IsConverged());
-    return calc.Energy();
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(m, {.model=Hamiltonian::Model::HF, .scf=p, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    EXPECT_TRUE(calc->IsConverged());
+    return calc->Energy();
 }
 //! (S6: every run builds its own basis set and so its own caches; there is no process-wide cache left to clear, so every run here is
 //! fresh by construction.  The gate stays: a second geometry must never be served the first's integrals, whatever caches them.)

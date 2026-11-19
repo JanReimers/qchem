@@ -81,10 +81,9 @@ bool Has(const std::string& line, const std::string& col) {return line.find(col)
 TEST(SCFTrace, MolecularNonPP_ShowsTheVirialColumn)
 {
     std::string trace = CapturedTrace([]{
-        AtomCalculation calc(AtomSetup::Resolve(2, 0, {.atom={.type=AtomType::Slater, .basisPool=Low}}),
-            {.NMaxIter = 40, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
-             .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
-        calc.Energy();
+        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(2, 0, {.scf={.NMaxIter = 40, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
+             .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true},.atom={.type=AtomType::Slater, .basisPool=Low}})).TakeValue(); (void)calc->Converge();
+        calc->Energy();
     });
     const std::string h = HeaderLine(trace);
     ASSERT_FALSE(h.empty()) << "no trace was printed at all:\n" << trace;
@@ -99,10 +98,10 @@ TEST(SCFTrace, MolecularNonPP_ShowsTheVirialColumn)
 TEST(SCFTrace, HartreeFockShowsTheDensityMatrixNormNotDeltaRho)
 {
     std::string trace = CapturedTrace([]{
-        AtomCalculation calc(AtomSetup::Resolve(2, 0, {.atom={.type=AtomType::Slater, .basisPool=Low}}), // the default model is HF
+        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(2, 0, {.scf=// the default model is HF
             {.NMaxIter = 40, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
-             .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
-        calc.Energy();
+             .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true},.atom={.type=AtomType::Slater, .basisPool=Low}})).TakeValue(); (void)calc->Converge();
+        calc->Energy();
     });
     const std::string h = HeaderLine(trace);
     ASSERT_FALSE(h.empty()) << "no trace was printed at all:\n" << trace;
@@ -117,10 +116,9 @@ TEST(SCFTrace, HartreeFockShowsTheDensityMatrixNormNotDeltaRho)
 TEST(SCFTrace, MolecularPP_HidesTheVirialColumn)
 {
     std::string trace = CapturedTrace([]{
-        AtomCalculation calc(AtomSetup::Resolve(14, 10, {.atom={.type=AtomType::Slater, .basisPool=Medium, .pseudopotential=true}}),
-            {.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
-             .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
-        calc.Energy();
+        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(14, 10, {.scf={.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
+             .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true},.atom={.type=AtomType::Slater, .basisPool=Medium, .pseudopotential=true}})).TakeValue(); (void)calc->Converge();
+        calc->Energy();
     });
     const std::string h = HeaderLine(trace);
     ASSERT_FALSE(h.empty()) << "no trace was printed at all:\n" << trace;
@@ -133,10 +131,9 @@ TEST(SCFTrace, MolecularPP_HidesTheVirialColumn)
 TEST(SCFTrace, ThresholdSubLineMatchesTheColumns)
 {
     std::string trace = CapturedTrace([]{
-        AtomCalculation calc(AtomSetup::Resolve(14, 10, {.atom={.type=AtomType::Slater, .basisPool=Medium, .pseudopotential=true}}),
-            {.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
-             .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
-        calc.Energy();
+        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(14, 10, {.scf={.NMaxIter = 60, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-6, .MinVirial = std::nullopt,
+             .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true},.atom={.type=AtomType::Slater, .basisPool=Medium, .pseudopotential=true}})).TakeValue(); (void)calc->Converge();
+        calc->Energy();
     });
     std::istringstream is(trace);
     std::string head, thresh;
@@ -170,8 +167,8 @@ TEST(SCFTrace, SolidPP_ShowsGridColumnsAndNoVirial)
         par.NMaxIter=2; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6; par.MinΔFD=std::nullopt;
         par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
         qchem::BoundedSCF bounded("the trace's columns are the subject: 2 iterations print them");
-        SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}}), par);
-        (void)calc.Result();   // NMaxIter=2: this deliberately does NOT converge -- the trace is the subject
+        auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .scf=par, .solid={.densityEcut=20.0}})).TakeValue(); (void)calc->Converge();
+        (void)calc->Result();   // NMaxIter=2: this deliberately does NOT converge -- the trace is the subject
     });
     const std::string h = HeaderLine(trace);
     ASSERT_FALSE(h.empty()) << "the solid layout printed no trace at all:\n" << trace;
@@ -294,10 +291,9 @@ TEST(SCFTrace, MolecularConsoleIsByteIdentical)
         Molecule o2;
         o2.Insert(Site{8, Vector3D<double>(0, 0,  1.141)});
         o2.Insert(Site{8, Vector3D<double>(0, 0, -1.141)});
-        MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.multiplicity=3, .molecule={.basis="dzvp"}}),
-                         {.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
-                          .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true});
-        (void)calc.Result();
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(o2, {.multiplicity=3, .scf={.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
+                          .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true}, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+        (void)calc->Result();
     }));
     EXPECT_EQ(got, std::string(kMolecularGolden));
 }
@@ -319,8 +315,8 @@ TEST(SCFTrace, SolidConsoleIsByteIdentical)
         SCFParams par;
         par.NMaxIter=4; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6; par.MinΔFD=std::nullopt;
         par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
-        SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}}), par);
-        (void)calc.Result();
+        auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .scf=par, .solid={.densityEcut=20.0}})).TakeValue(); (void)calc->Converge();
+        (void)calc->Result();
     }));
     EXPECT_EQ(got, std::string(kSolidGolden));
 }
@@ -339,8 +335,8 @@ TEST(SCFTrace, ADegenerateClosedShellAcrossIrrepsNeverFlagsCfg)
     ch4.Insert(Site{1, Vector3D<double>( a,-a,-a)});
     std::vector<double> cfg;
     auto sink=[&cfg](const SCFIterator::IterationRow& r){ cfg.push_back(r.ValueOf("cfg")); };
-    MoleculeCalculation calc(MoleculeSetup::Resolve(ch4, {.imposeSymmetry=true, .molecule={.basis="dzvp"}}), {.NMaxIter = 80, .Verbose = false}, sink);
-    (void)calc.Result();
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(ch4, {.imposeSymmetry=true, .scf={.NMaxIter = 80, .Verbose = false}, .molecule={.basis="dzvp"}}), sink).TakeValue(); (void)calc->Converge();
+    (void)calc->Result();
     ASSERT_GT(cfg.size(), 3u);
     for (size_t i=0;i<cfg.size();++i) EXPECT_EQ(cfg[i], 0.0) << "iteration " << i+1 << " flagged an occupation change";
 }
@@ -356,8 +352,8 @@ TEST(SCFTrace, AnElectronMovingBetweenIrrepsFlagsCfg)
     qchem::BoundedSCF bounded("six iterations of NO: the π* electron's move between irreps is the subject");
     std::vector<double> cfg;
     auto sink=[&cfg](const SCFIterator::IterationRow& r){ cfg.push_back(r.ValueOf("cfg")); };
-    MoleculeCalculation calc(MoleculeSetup::Resolve(no, {.multiplicity=2, .imposeSymmetry=true, .molecule={.basis="dzvp"}}), {.NMaxIter = 6, .Verbose = false}, sink);
-    (void)calc.Result();
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(no, {.multiplicity=2, .imposeSymmetry=true, .scf={.NMaxIter = 6, .Verbose = false}, .molecule={.basis="dzvp"}}), sink).TakeValue(); (void)calc->Converge();
+    (void)calc->Result();
     ASSERT_EQ(cfg.size(), 6u);
     EXPECT_EQ(cfg[0], 0.0) << "iteration 1 has no previous configuration to differ from";
     EXPECT_GT(std::count(cfg.begin(), cfg.end(), 1.0), 0) << "the π* electron moved between irreps and no row flagged it";
@@ -405,8 +401,8 @@ TEST(SCFTrace, AnObserverExceptionLeavesConvergeUntouched)
         Molecule o2;
         o2.Insert(Site{8, Vector3D<double>(0, 0,  1.141)});
         o2.Insert(Site{8, Vector3D<double>(0, 0, -1.141)});
-        MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.multiplicity=3, .molecule={.basis="dzvp"}}), {.NMaxIter = 80, .Verbose = false}, throwAt2);
-        (void)calc.Result();
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(o2, {.multiplicity=3, .scf={.NMaxIter = 80, .Verbose = false}, .molecule={.basis="dzvp"}}), throwAt2).TakeValue(); (void)calc->Converge();
+        (void)calc->Result();
         ADD_FAILURE() << "the molecular run did not stop";
     }
     catch (const SinkStop& e) { EXPECT_STREQ(e.what(), "the sink stopped at iteration 2"); }
@@ -420,8 +416,8 @@ TEST(SCFTrace, AnObserverExceptionLeavesConvergeUntouched)
             BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
                                         BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
         SCFParams par; par.NMaxIter=4; par.Verbose=false;
-        SolidCalculation calc(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}}), par, throwAt2);
-        (void)calc.Result();
+        auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, {.Nelec=8, .species={{"Si",4}}, .scf=par, .solid={.densityEcut=20.0}}), throwAt2).TakeValue(); (void)calc->Converge();
+        (void)calc->Result();
         ADD_FAILURE() << "the solid run did not stop";
     }
     catch (const SinkStop& e) { EXPECT_STREQ(e.what(), "the sink stopped at iteration 2"); }
@@ -434,10 +430,8 @@ TEST(SCFTrace, AMolecularLadderHandsOffToGDMBelowTheEnergyTail)
 {
     std::vector<SCFIterator::IterationRow> rows;
     (void)CapturedTrace([&rows]{
-        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}}),
-                         {.NMaxIter = 80, .Verbose = true},
-                         [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
-        (void)calc.Result();
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::Ladder, .scf={.NMaxIter = 80, .Verbose = true}, .molecule={.basis="dzvp"}}), [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); }).TakeValue(); (void)calc->Converge();
+        (void)calc->Result();
     });
     auto accel=[](const SCFIterator::IterationRow& r)
     {
@@ -485,10 +479,8 @@ TEST(SCFTrace, ALineSearchingRunShowsEachGeodesicStepsT)
 {
     std::vector<SCFIterator::IterationRow> rows;
     (void)CapturedTrace([&rows]{
-        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}}),
-                         {.NMaxIter = 80, .Verbose = true},
-                         [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
-        (void)calc.Result();
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::Ladder, .scf={.NMaxIter = 80, .Verbose = true}, .molecule={.basis="dzvp"}}), [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); }).TakeValue(); (void)calc->Converge();
+        (void)calc->Result();
     });
     ASSERT_FALSE(rows.empty());
     auto text=[](const SCFIterator::IterationRow& r, const char* title)
@@ -527,9 +519,8 @@ TEST(SCFTrace, AMolecularLadderEngagesGDMOnASymmetryBlockedMolecule)
     ch4.Insert(Site{1, Vector3D<double>( a,-a,-a)});
     auto run=[&ch4](const char* accel, std::vector<SCFIterator::IterationRow>& rows)
     {
-        MoleculeCalculation calc(MoleculeSetup::Resolve(ch4, {.accelerator=AcceleratorTypeByName(accel, "the test"), .imposeSymmetry=true, .molecule={.basis="dzvp"}}),
-                                 {.NMaxIter = 80, .Verbose = false}, [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
-        auto r=calc.Result();
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(ch4, {.accelerator=AcceleratorTypeByName(accel, "the test"), .imposeSymmetry=true, .scf={.NMaxIter = 80, .Verbose = false}, .molecule={.basis="dzvp"}}), [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); }).TakeValue(); (void)calc->Converge();
+        auto r=calc->Result();
         EXPECT_TRUE(r) << accel << " did not converge";
         return r ? r->Energy() : 0.0;
     };
@@ -559,11 +550,9 @@ TEST(SCFTrace, TheObserverReceivesTheConsoleRow)
         Molecule o2;
         o2.Insert(Site{8, Vector3D<double>(0, 0,  1.141)});
         o2.Insert(Site{8, Vector3D<double>(0, 0, -1.141)});
-        MoleculeCalculation calc(MoleculeSetup::Resolve(o2, {.multiplicity=3, .molecule={.basis="dzvp"}}),
-                         {.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
-                          .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true},
-                         [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
-        (void)calc.Result();
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(o2, {.multiplicity=3, .scf={.NMaxIter = 80, .MinΔρPerElectron = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
+                          .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true}, .molecule={.basis="dzvp"}}), [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); }).TakeValue(); (void)calc->Converge();
+        (void)calc->Result();
     });
     ASSERT_FALSE(rows.empty());
     std::istringstream is(trace); std::vector<std::string> lines; for (std::string l; std::getline(is,l); ) lines.push_back(l);

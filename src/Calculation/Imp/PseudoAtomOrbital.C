@@ -21,6 +21,7 @@ import qchem.SCFParams;                         // SCFParams (the atom solve)
 import qchem.Hamiltonian.Factory;              // Hamiltonian::VxcFit (the stated route)
 import qchem.Types;
 import qchem.Reporting;                         // report::Run -- the pseudo-atom solve's own nested run
+import qchem.Policy;                            // policy::Refused (a build refusal throws, as the converging constructor did)
 
 namespace qchem
 {
@@ -69,7 +70,14 @@ PseudoAtomOrbital Build(const std::string& element, int Zion, int l, int lmax)
     // ruling D, 2026-11-02) -- without this bracket the pseudo-atom's basis / grids / scf would land over the solid run's own sections.
     // Nested, so it stays console-quiet and files under its own key, as it did when the atom facade opened the run itself.
     std::unique_ptr<AtomCalculation> solved;
-    { report::Run run("pseudo-atom "+element+" (+U projector)"); solved=std::make_unique<AtomCalculation>(AtomSetup::Resolve(Z, Z-Zion, o), p); }
+    o.scf=p;
+    {
+        report::Run run("pseudo-atom "+element+" (+U projector)");
+        auto built=AtomCalculation::Prepare(AtomSetup::Resolve(Z, Z-Zion, o));
+        if (!built) throw policy::Refused(built.Error().policy, built.Error().reason);   // as the converging constructor did
+        solved=built.TakeValue();
+        (void)solved->Converge();   // read below: IsConverged()
+    }
     const AtomCalculation& atom=*solved;
     if (!atom.IsConverged()) throw std::runtime_error("PseudoAtomOrbital: the "+element+" pseudo-atom did not converge");
     PseudoAtomOrbital out;

@@ -75,7 +75,7 @@ rvec_t Fit_IBS::OverlapDiagonal() const
 
 rvec_t Fit_IBS::MakeNorm() const
 {
-    const rsmat_t& S=Integrals_Overlap<double>::Overlap();   // analytic, in op(r)'s normalisation
+    const rsmat_t& S=Overlap();   // analytic, in op(r)'s normalisation (the cached overlap: a virtual call, the family lists CachedOverlap)
     rvec_t n(S.rows());
     for (size_t a=0; a<n.size(); a++) n[a]=1.0/std::sqrt(S(a,a));
     return n;

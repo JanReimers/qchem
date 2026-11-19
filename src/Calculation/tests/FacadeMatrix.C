@@ -64,8 +64,12 @@ enum class Capability
                                 //!< another basis, another kind and a missing file are REFUSED as Outcomes, never thrown
     SetupRefusesAnUnrealisableRequest,  //!< the setup's Admit door answers an unknown accelerator, an impossible spin and a foreign option
                                         //!< with a SetupRefusal naming its policy -- a value, never a throw and never a silent substitution
-    ConvergeAnswersAnOutcome            //!< Converge answers the ONE proof type (tCalculation<T>): an SCFFailure value for an attempt that
+    ConvergeAnswersAnOutcome,           //!< Converge answers the ONE proof type (tCalculation<T>): an SCFFailure value for an attempt that
                                         //!< runs out, a Converged whose answers are the run's own (its typed density's charge, m = 0 unpolarized)
+    EveryConvergeCheckpoints,           //!< a setup's saveStateTo is written by EVERY Converge, converged or not (the base's template method),
+                                        //!< and the converged one is an exact resume of its own run
+    ScheduleRunsOnEveryKind             //!< Converge(schedule) runs a kT ramp on every kind and lands where its final stage alone lands; a stage
+                                        //!< naming another setup is REFUSED by name (R7: the schedule is structure-neutral, V-FACADE-PARITY P4)
 };
 
 //! THE EXPECTED FAILURES: the row whose work will make the cell hold; nullptr = the cell must hold now.
@@ -93,6 +97,8 @@ const char* ExpectedFailure(Kind k, Capability c)
         case Capability::ViewMatchesTheLiveState:   return nullptr;
         case Capability::SetupRefusesAnUnrealisableRequest: return nullptr;   // the atom's setup and the solid's block type (V-FACADE-PARITY P1)
         case Capability::ConvergeAnswersAnOutcome:  return nullptr;   // one proof type for every kind (V-FACADE-PARITY P2)
+        case Capability::EveryConvergeCheckpoints:  return nullptr;   // one template method for every kind (V-FACADE-PARITY P3)
+        case Capability::ScheduleRunsOnEveryKind:   return nullptr;   // the schedule is the base's (V-FACADE-PARITY P4)
     }
     return nullptr;
 }
@@ -235,6 +241,8 @@ public:
     virtual std::string ViewMatchesTheLiveState()   = 0;
     virtual std::string SetupRefusesAnUnrealisableRequest() = 0;
     virtual std::string ConvergeAnswersAnOutcome()  = 0;
+    virtual std::string EveryConvergeCheckpoints()  = 0;
+    virtual std::string ScheduleRunsOnEveryKind()   = 0;
 
     std::string Check(Capability c)
     {
@@ -249,6 +257,8 @@ public:
             case Capability::ViewMatchesTheLiveState:   return ViewMatchesTheLiveState();
             case Capability::SetupRefusesAnUnrealisableRequest: return SetupRefusesAnUnrealisableRequest();
             case Capability::ConvergeAnswersAnOutcome:  return ConvergeAnswersAnOutcome();
+            case Capability::EveryConvergeCheckpoints:  return EveryConvergeCheckpoints();
+            case Capability::ScheduleRunsOnEveryKind:   return ScheduleRunsOnEveryKind();
         }
         return "unknown capability";
     }
@@ -268,24 +278,24 @@ template <class F> std::string RefusedBy(const std::string& what, const std::str
     catch (const std::exception& e) { return what+": THREW ("+e.what()+") instead of answering a refusal; "; }
 }
 
-//! THE OUTCOME'S CLAIM, for every kind (V-FACADE-PARITY P2): on a Prepare'd \a calc, a ONE-iteration attempt answers an SCFFailure VALUE
-//! (never a throw, never a proof) that counts its iteration; a converged attempt (\a full) answers the proof, and \c Result() re-reads
+//! THE OUTCOME'S CLAIM, for every kind (V-FACADE-PARITY P2): on a Prepare'd \a calc, a ONE-iteration attempt (the setup's scf, edited:
+//! R10) answers an SCFFailure VALUE (never a throw, never a proof) that counts its iteration; a converged attempt (the setup's scf as it
+//! stands) answers the proof, and \c Result() re-reads
 //! the same outcome.  The proof's answers are the run's own: Energy = its terms' total, TotalCharge = \a N = its TYPED density's charge
 //! (\c tDM_CD<T>, no cast), and m(r) the zero field on these unpolarized runs (R2: a field, never a null).  "" when so.
-template <class C> std::string AnswersAnOutcome(C& calc, SCFParams one, const SCFParams& full, double N)
+template <class C> std::string AnswersAnOutcome(C& calc, double N)
 {
     std::ostringstream why;
-    one.NMaxIter=1;
     try
     {
         qchem::BoundedSCF bounded("the outcome cell's FAILING attempt: one iteration, so Converge must answer an SCFFailure");
-        auto r=calc.Converge(one);
+        auto r=calc.Converge([](SCFParams& p){ p.NMaxIter=1; });
         if (r) why << "a 1-iteration attempt answered a proof; ";
         else if (r.Error().iterations!=1) why << "the failure counts " << r.Error().iterations << " iterations, not 1; ";
         if (calc.Result()) why << "Result() after the failed attempt answered a proof; ";
     }
     catch (const std::exception& e) { why << "the failing attempt THREW (" << e.what() << ") instead of answering an SCFFailure; "; }
-    auto r=calc.Converge(full);
+    auto r=calc.Converge();
     if (!r) return why.str()+"the full attempt did not converge: "+r.Error().details;
     auto again=calc.Result();
     if (!again) return why.str()+"Result() after a converged attempt answered a failure: "+again.Error().details;
@@ -297,6 +307,51 @@ template <class C> std::string AnswersAnOutcome(C& calc, SCFParams one, const SC
     for (const rvec3_t& p : {rvec3_t(0,0,0), rvec3_t(0.31,0.17,-0.12), rvec3_t(1.1,0.53,0.21)})
         if (r->SpinDensity()(p)!=0.0) why << "m(r) is " << r->SpinDensity()(p) << " on an UNPOLARIZED run; ";
     if (r->IterationCount()==0) why << "the proof counts 0 iterations; ";
+    return why.str();
+}
+
+//! THE CHECKPOINT'S CLAIM, for every kind (V-FACADE-PARITY P3): on a Prepare'd \a calc whose setup states \c saveStateTo = \a path, a
+//! ONE-iteration attempt (not converged) writes it -- the net covers a failed SCF too -- and the converged attempt writes it again, a
+//! state its own run judges an EXACT resume (no differences).  Each attempt is the base's \c Converge, so no kind can skip the step.
+template <class C> std::string Checkpoints(C& calc, const std::string& path)
+{
+    std::ostringstream why;
+    std::filesystem::remove(path);
+    {
+        qchem::BoundedSCF bounded("the checkpoint cell's UNCONVERGED attempt: one iteration, whose state must still be saved");
+        (void)calc.Converge([](SCFParams& p){ p.NMaxIter=1; });
+    }
+    if (!std::filesystem::exists(path)) why << "an unconverged attempt wrote no checkpoint to " << path << "; ";
+    std::filesystem::remove(path);
+    auto r=calc.Converge();
+    if (!r) return why.str()+"the full attempt did not converge: "+r.Error().details;
+    if (!std::filesystem::exists(path)) return why.str()+"a converged attempt wrote no checkpoint to "+path;
+    auto judged=calc.JudgeState(path);
+    std::filesystem::remove(path);
+    if (!judged) why << "the checkpoint does not judge against its own run: " << judged.Error().details << "; ";
+    else if (!judged->empty()) why << "the checkpoint is not an exact resume of its own run: " << judged->front() << "; ";
+    return why.str();
+}
+
+//! The schedule's claim, for every kind (R7): a two-stage kT ramp (hot, then the setup's own settings) on \a ramped lands within 1e-6 Ha of
+//! the one-stage schedule of its final stage on \a direct (a fresh run on the same setup: both pilot alike, so the ramp's only difference is
+//! where the final stage STARTS), and a stage carrying a setup edit (no kind applies one yet) is refused by name before it runs, as a value.
+template <class C> std::string Scheduled(C& ramped, C& direct, const SCFParams& base)
+{
+    std::ostringstream why;
+    SCFParams hot=base; hot.SmearingkT=0.01;   // Ha: a hot stage that smears the frontier, then the cold finish
+    auto r=ramped.Converge({SCFStage{.params=hot}, SCFStage{.params=base}});
+    if (!r) return "the kT ramp did not converge: "+r.Error().details;
+    const double Eramp=r->Energy();
+    auto d=direct.Converge({SCFStage{.params=base}});
+    if (!d) return "the one-stage schedule did not converge: "+d.Error().details;
+    std::cout << "[schedule cell] ramp E=" << std::setprecision(12) << Eramp << " direct E=" << d->Energy()
+              << " |dE|=" << std::fabs(Eramp-d->Energy()) << std::endl;
+    if (std::fabs(Eramp-d->Energy())>1e-6) why << "the ramp lands at " << Eramp << ", its final stage alone at " << d->Energy() << "; ";
+    auto refused=ramped.Converge({SCFStage{.params=base, .edit={.spin=SpinGroup::UnPolarized}}});   // a deck can reach it: a value, never a throw
+    if (refused) why << "a stage with a setup edit RAN; ";
+    else if (refused.Error().why!=SCFFailure::Why::StageRefused || refused.Error().details.find("StageSetup")==std::string::npos)
+        why << "refused for another reason: " << refused.Error().details << "; ";
     return why.str();
 }
 
@@ -425,13 +480,13 @@ public:
     std::string PrepareFilesTheSetup() override
     {
         size_t rows=0;
-        { report::Run run(ID()+" build"); AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options()), [&](const SCFIterator::IterationRow&){ rows++; }); }   // the probe is the DRIVER: it opens the runs, the facade writes into them (user ruling D)
+        { report::Run run(ID()+" build"); if (auto b=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options()), [&](const SCFIterator::IterationRow&){ rows++; }); !b) return "Prepare refused: "+b.Error().reason; }   // the probe is the DRIVER: it opens the runs, the facade writes into them (user ruling D)
         return SetupFiled(FiledRun(ID()+" build@"), ID()+" build@", rows);
     }
     std::string ConvergeFilesTheScfHeader() override
     {
         std::unique_ptr<AtomCalculation> calc;
-        { report::Run run(ID()); calc=std::make_unique<AtomCalculation>(AtomSetup::Resolve(Z, 0, Options())); }
+        { report::Run run(ID()); calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue(); (void)calc->Converge(); }
         if (!calc->IsConverged()) return "the O atom did not converge";
         return ScfHeaderFiled(FiledRun(ID()+"@"), ID()+"@");
     }
@@ -441,42 +496,42 @@ public:
         RunOptions o=Options();
         o.atom.accelerator={{"type","Ladder"}, {"NProj",6}, {"EngageBelowFD",0.05}, {"SVTol",1e-8},
                        {"Trust",0.2}, {"ethresh",1e-7}, {"stall",4}, {"floor",1e-9}, {"switchat",1e-5}};
-        { report::Run run(ID()+" build"); AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, o)); }
+        { report::Run run(ID()+" build"); if (auto b=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, o)); !b) return "Prepare refused: "+b.Error().reason; }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
     }
     std::string SaveRestartRoundTrips() override
     {
         const std::string path=TempPath("facade_matrix_o_atom.h5");
-        AtomCalculation calc(AtomSetup::Resolve(Z, 0, Options()));
-        if (!calc.IsConverged()) return "the O atom reference did not converge";
-        calc.SaveState(path);
+        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue(); (void)calc->Converge();
+        if (!calc->IsConverged()) return "the O atom reference did not converge";
+        calc->SaveState(path);
         auto restarted=AtomCalculation::Restart(path, AtomSetup::Resolve(Z, 0, Options()));
         std::filesystem::remove(path);
         if (!restarted) return "the restart was refused: "+restarted.Error().details;
-        return Resumed((*restarted)->IsConverged(), (*restarted)->Energy(), calc.Energy(), (*restarted)->IterationCount(),
-                       calc.IterationCount(), (*restarted)->RestartedFrom());
+        return Resumed((*restarted)->IsConverged(), (*restarted)->Energy(), calc->Energy(), (*restarted)->IterationCount(),
+                       calc->IterationCount(), (*restarted)->RestartedFrom());
     }
     std::string DeckRoundTrips()        override {return DeckBuilds({{"structure","B"}});}   // the atom molecules.json carries
     std::string LevelsAnswerTheState() override
     {
-        AtomCalculation calc(AtomSetup::Resolve(Z, 0, Options()));
-        if (!calc.IsConverged()) return "the O atom did not converge";
-        return LevelsHold(calc, Z, true);
+        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue(); (void)calc->Converge();
+        if (!calc->IsConverged()) return "the O atom did not converge";
+        return LevelsHold(*calc, Z, true);
     }
     //! The atom samples no orbital by level index (its Orbital(i) counts occupied orbitals), so rho, m and the levels are compared,
     //! and every level's orbital must answer.  Refused: another element's spec, a missing file.
     std::string ViewMatchesTheLiveState() override
     {
         const std::string path=TempPath("facade_matrix_view_o_atom.h5");
-        AtomCalculation calc(AtomSetup::Resolve(Z, 0, Options()));
-        if (!calc.IsConverged()) return "the O atom did not converge";
-        calc.SaveState(path);
+        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue(); (void)calc->Converge();
+        if (!calc->IsConverged()) return "the O atom did not converge";
+        calc->SaveState(path);
         auto v=Opened("O view", [&]{ return AtomCalculation::ViewState(path, AtomSetup::Resolve(Z, 0, Options())); });
         std::string why;
         if (!v) why="the atom's own state was refused: "+v.Error().details+"; ";
         else
         {
-            why+=ViewMatches(**v, calc, calc.Density(), ZeroField(), [](size_t){ return (const ScalarFunction<double>*)nullptr; });
+            why+=ViewMatches(**v, *calc, calc->Density(), ZeroField(), [](size_t){ return (const ScalarFunction<double>*)nullptr; });
             for (size_t i=0;i<(*v)->GetLevels().size();i++)
                 if (!(*v)->Orbital(i)) why+="level "+std::to_string(i)+"'s orbital was refused; ";
             why+=ViewFiled("O view");
@@ -488,8 +543,21 @@ public:
     }
     std::string ConvergeAnswersAnOutcome() override
     {
-        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options()));
-        return AnswersAnOutcome(*calc, SCFParams{}, SCFParams{}, Z);
+        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue();
+        return AnswersAnOutcome(*calc, Z);
+    }
+    std::string EveryConvergeCheckpoints() override
+    {
+        const std::string path=TempPath("facade_matrix_checkpoint_o_atom.h5");
+        RunOptions o=Options(); o.saveStateTo=path;
+        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, o)).TakeValue();
+        return Checkpoints(*calc, path);
+    }
+    std::string ScheduleRunsOnEveryKind() override
+    {
+        auto ramped=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue();
+        auto direct=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue();
+        return Scheduled(*ramped, *direct, Options().scf);
     }
     std::string SetupRefusesAnUnrealisableRequest() override
     {
@@ -504,38 +572,40 @@ public:
 
 class MoleculeProbe : public FacadeProbe
 {
-    static std::shared_ptr<const MoleculeSetup> Setup(const AcceleratorOptions& acc={}, SCFAccelerators::Type type=SCFAccelerators::Type::Auto)
+    static std::shared_ptr<const MoleculeSetup> Setup(const AcceleratorOptions& acc={}, SCFAccelerators::Type type=SCFAccelerators::Type::Auto,
+                                                      const std::string& saveStateTo="")
     {
-        return MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"), {.model=Model::LDA, .pp="gth-lda-valence", .accelerator=type, .molecule={.basis="dzvp"}}, acc);
+        return MoleculeSetup::Resolve(StructureData::GetMolecule("H2O"), {.model=Model::LDA, .pp="gth-lda-valence", .accelerator=type,
+                                      .saveStateTo=saveStateTo, .molecule={.basis="dzvp"}}, acc);
     }
     static std::string ID() {return StructureData::GetMolecule("H2O").ID();}
 public:
     std::string PrepareFilesTheSetup() override
     {
         size_t rows=0;
-        { report::Run run(ID()+" build"); MoleculeCalculation::Prepare(Setup(), [&](const SCFIterator::IterationRow&){ rows++; }); }
+        { report::Run run(ID()+" build"); if (auto b=MoleculeCalculation::Prepare(Setup(), [&](const SCFIterator::IterationRow&){ rows++; }); !b) return "Prepare refused: "+b.Error().reason; }
         return SetupFiled(FiledRun(ID()+" build@"), ID()+" build@", rows);
     }
     std::string ConvergeFilesTheScfHeader() override
     {
         std::unique_ptr<MoleculeCalculation> calc;
-        { report::Run run(ID()); calc=std::make_unique<MoleculeCalculation>(Setup()); }
+        { report::Run run(ID()); calc=MoleculeCalculation::Prepare(Setup()).TakeValue(); (void)calc->Converge(); }
         if (!calc->IsConverged()) return "H2O did not converge";
         return ScfHeaderFiled(FiledRun(ID()+"@"), ID()+"@");
     }
     std::string AcceleratorKnobsArrive() override
     {
-        { report::Run run(ID()+" build"); (void)MoleculeCalculation::Prepare(Setup(LadderKnobs(), SCFAccelerators::Type::Ladder)); }
+        { report::Run run(ID()+" build"); if (auto b=MoleculeCalculation::Prepare(Setup(LadderKnobs(), SCFAccelerators::Type::Ladder)); !b) return "Prepare refused: "+b.Error().reason; }
         return AcceleratorFiled(FiledRun(ID()+" build@"), ID()+" build@");
     }
     std::string SaveRestartRoundTrips() override
     {
         const std::string path=TempPath("facade_matrix_h2o.h5");
         const auto setup=Setup();
-        MoleculeCalculation calc(setup);
-        auto saved=calc.Result();
+        auto calc=MoleculeCalculation::Prepare(setup).TakeValue(); (void)calc->Converge();
+        auto saved=calc->Result();
         if (!saved) return "the H2O reference did not converge: "+saved.Error().details;
-        calc.SaveState(path);
+        calc->SaveState(path);
         auto restarted=MoleculeCalculation::Restart(path, Setup());   // a FRESH setup: its mesh is adopted from the state
         std::filesystem::remove(path);
         if (!restarted) return "the restart was refused: "+restarted.Error().details;
@@ -550,11 +620,11 @@ public:
     //! Plus the molecule's own field-carrying list: index i there is index i here (the binding samples orbital i by it).
     std::string LevelsAnswerTheState() override
     {
-        MoleculeCalculation calc(Setup());
-        if (!calc.IsConverged()) return "H2O did not converge";
-        std::string why=LevelsHold(calc, 8.0, true);   // GTH: O 6 + 2 H
-        const auto neutral=calc.MakeLevels();
-        const auto& fields=calc.GetLevels();
+        auto calc=MoleculeCalculation::Prepare(Setup()).TakeValue(); (void)calc->Converge();
+        if (!calc->IsConverged()) return "H2O did not converge";
+        std::string why=LevelsHold(*calc, 8.0, true);   // GTH: O 6 + 2 H
+        const auto neutral=calc->MakeLevels();
+        const auto& fields=calc->GetLevels();
         if (fields.size()!=neutral.size()) return why+"GetLevels has "+std::to_string(fields.size())+" levels, MakeLevels "+std::to_string(neutral.size());
         for (size_t i=0;i<fields.size();i++)
             if (fields[i].e!=neutral[i].e || fields[i].label!=neutral[i].label || !fields[i].phi)
@@ -569,15 +639,15 @@ public:
                           atomPath=TempPath("facade_matrix_view_atom.h5");
         std::string why;
         {
-            MoleculeCalculation calc(Setup());
-            if (!calc.IsConverged()) return "H2O did not converge";
-            calc.SaveState(path);
+            auto calc=MoleculeCalculation::Prepare(Setup()).TakeValue(); (void)calc->Converge();
+            if (!calc->IsConverged()) return "H2O did not converge";
+            calc->SaveState(path);
             auto v=Opened("H2O view", [&]{ return MoleculeCalculation::ViewState(path, Setup()); });
             if (!v) why+="H2O's own state was refused: "+v.Error().details+"; ";
             else
             {
-                const auto& fields=calc.GetLevels();
-                why+=ViewMatches(**v, calc, calc.Density(), calc.GetSpinDensity(),
+                const auto& fields=calc->GetLevels();
+                why+=ViewMatches(**v, *calc, calc->Density(), calc->GetSpinDensity(),
                                  [&](size_t i){ return i<fields.size() ? fields[i].phi : nullptr; });
                 why+=ViewFiled("H2O view");
             }
@@ -585,15 +655,15 @@ public:
         {
             const auto o2=MoleculeSetup::Resolve(StructureData::GetMolecule("O2"),
                                                  {.multiplicity=3, .model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}});
-            MoleculeCalculation calc(o2);
-            if (!calc.IsConverged()) return why+"O2 (triplet) did not converge";
-            calc.SaveState(path2);
+            auto calc=MoleculeCalculation::Prepare(o2).TakeValue(); (void)calc->Converge();
+            if (!calc->IsConverged()) return why+"O2 (triplet) did not converge";
+            calc->SaveState(path2);
             auto v=MoleculeCalculation::ViewState(path2, o2);
             if (!v) why+="O2's own state was refused: "+v.Error().details+"; ";
             else
             {
-                const auto& fields=calc.GetLevels();
-                why+=ViewMatches(**v, calc, calc.Density(), calc.GetSpinDensity(),
+                const auto& fields=calc->GetLevels();
+                why+=ViewMatches(**v, *calc, calc->Density(), calc->GetSpinDensity(),
                                  [&](size_t i){ return i<fields.size() ? fields[i].phi : nullptr; });
                 if (std::fabs((*v)->SpinDensity()(rvec3_t(0.3,0.2,0.1)))<1e-6) why+="O2's drawn m is ~0 near the bond: the channels did not arrive; ";
             }
@@ -620,8 +690,8 @@ public:
             why+=Refused("the spherical basis", [&]{ return MoleculeCalculation::ViewState(path, spherical); }, RestartRefusal::Why::Mismatch);
         }
         {
-            AtomCalculation atom(AtomSetup::Resolve(8, 0, {.model=Model::LDA, .atom={.type=AtomType::Gaussian}}));
-            atom.SaveState(atomPath);
+            auto atom=AtomCalculation::Prepare(AtomSetup::Resolve(8, 0, {.model=Model::LDA, .atom={.type=AtomType::Gaussian}})).TakeValue(); (void)atom->Converge();
+            atom->SaveState(atomPath);
             why+=Refused("an atom's state", [&]{ return MoleculeCalculation::ViewState(atomPath, Setup()); }, RestartRefusal::Why::Kind);
         }
         for (const auto& p : {path, path2, atomPath}) std::filesystem::remove(p);
@@ -630,8 +700,20 @@ public:
     }
     std::string ConvergeAnswersAnOutcome() override
     {
-        auto calc=MoleculeCalculation::Prepare(Setup());
-        return AnswersAnOutcome(*calc, SCFParams{}, SCFParams{}, 8.0);   // H2O's 8 valence electrons (gth-lda-valence)
+        auto calc=MoleculeCalculation::Prepare(Setup()).TakeValue();
+        return AnswersAnOutcome(*calc, 8.0);   // H2O's 8 valence electrons (gth-lda-valence)
+    }
+    std::string EveryConvergeCheckpoints() override
+    {
+        const std::string path=TempPath("facade_matrix_checkpoint_h2o.h5");
+        auto calc=MoleculeCalculation::Prepare(Setup({}, SCFAccelerators::Type::Auto, path)).TakeValue();
+        return Checkpoints(*calc, path);
+    }
+    std::string ScheduleRunsOnEveryKind() override
+    {
+        auto ramped=MoleculeCalculation::Prepare(Setup()).TakeValue();
+        auto direct=MoleculeCalculation::Prepare(Setup()).TakeValue();
+        return Scheduled(*ramped, *direct, SCFParams{});
     }
     std::string SetupRefusesAnUnrealisableRequest() override
     {
@@ -654,10 +736,12 @@ class SolidProbe : public FacadeProbe
         return p;
     }
     static std::shared_ptr<const SolidSetup> Setup(SCFAccelerators::Type type=SCFAccelerators::Type::Auto,
-                                                   const AcceleratorOptions& acc={})
+                                                   const AcceleratorOptions& acc={}, const std::string& saveStateTo="")
     {
         const auto mat=Materials::Get("Si_diamond");
         RunOptions o; o.Nelec=8; o.species=mat.species; o.solid.densityEcut=20.0; o.label="matrix"; o.accelerator=type;
+        o.scf=Params();   // Converge()'s settings are the setup's (R10)
+        o.saveStateTo=saveStateTo;
         return SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)),
                                    GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o, acc);
     }
@@ -667,31 +751,31 @@ public:
     {
         const auto setup=Setup();
         size_t rows=0;
-        { report::Run run(ID(*setup)+" build"); SolidCalculation::Prepare(setup, {{Params(), SCFAccelerators::Type::Auto}}, [&](const auto&){ rows++; }); }
+        { report::Run run(ID(*setup)+" build"); if (auto b=SolidCalculation::Prepare(setup, [&](const auto&){ rows++; }); !b) return "Prepare refused: "+b.Error().reason; }
         return SetupFiled(FiledRun(ID(*setup)+" build@"), ID(*setup)+" build@", rows);
     }
     std::string ConvergeFilesTheScfHeader() override
     {
         const auto setup=Setup();
         std::unique_ptr<SolidCalculation> calc;
-        { report::Run run(ID(*setup)); calc=std::make_unique<SolidCalculation>(setup, Params()); }
+        { report::Run run(ID(*setup)); calc=SolidCalculation::Prepare(setup).TakeValue(); (void)calc->Converge(); }
         if (!calc->DidConverge()) return "Si Γ did not converge";
         return ScfHeaderFiled(FiledRun(ID(*setup)+"@"), ID(*setup)+"@");
     }
     std::string AcceleratorKnobsArrive() override
     {
         const auto setup=Setup(SCFAccelerators::Type::Ladder, LadderKnobs());
-        { report::Run run(ID(*setup)+" build"); SolidCalculation::Prepare(setup, {{Params(), SCFAccelerators::Type::Ladder}}); }
+        { report::Run run(ID(*setup)+" build"); if (auto b=SolidCalculation::Prepare(setup); !b) return "Prepare refused: "+b.Error().reason; }
         return AcceleratorFiled(FiledRun(ID(*setup)+" build@"), ID(*setup)+" build@");
     }
     std::string SaveRestartRoundTrips() override
     {
         const std::string path=TempPath("facade_matrix_si.h5");
         const auto setup=Setup();
-        SolidCalculation calc(setup, Params());
-        auto saved=calc.Result();
+        auto calc=SolidCalculation::Prepare(setup).TakeValue(); (void)calc->Converge();
+        auto saved=calc->Result();
         if (!saved) return "the Si Γ reference did not converge: "+saved.Error().details;
-        calc.SaveState(path);
+        calc->SaveState(path);
         auto restarted=SolidCalculation::Restart(path, setup, Params());
         std::filesystem::remove(path);
         if (!restarted) return "the restart was refused: "+restarted.Error().details;
@@ -708,9 +792,9 @@ public:
     }
     std::string LevelsAnswerTheState() override
     {
-        SolidCalculation calc(Setup(), Params());
-        if (!calc.DidConverge()) return "Si Γ did not converge";
-        return LevelsHold(calc, 8.0, true);   // two Si, 4 valence each
+        auto calc=SolidCalculation::Prepare(Setup()).TakeValue(); (void)calc->Converge();
+        if (!calc->DidConverge()) return "Si Γ did not converge";
+        return LevelsHold(*calc, 8.0, true);   // two Si, 4 valence each
     }
     //! Si Γ: rho, m and the levels (the solid samples no orbital live; each level's orbital must answer an Outcome).  THE POSITIONS
     //! ROUND TRIP (controller condition 2, 2026-11-13): a deck whose structure is INLINE with an off-symmetry fraction runs and saves,
@@ -720,15 +804,15 @@ public:
         const std::string path=TempPath("facade_matrix_view_si.h5"), deckPath=TempPath("facade_matrix_view_si_deck.h5");
         std::string why;
         {
-            SolidCalculation calc(Setup(), Params());
-            auto r=calc.Result();
+            auto calc=SolidCalculation::Prepare(Setup()).TakeValue(); (void)calc->Converge();
+            auto r=calc->Result();
             if (!r) return "Si Γ did not converge: "+r.Error().details;
-            calc.SaveState(path);
+            calc->SaveState(path);
             auto v=Opened("Si view", [&]{ return SolidCalculation::ViewState(path, Setup()); });
             if (!v) why+="Si's own state was refused: "+v.Error().details+"; ";
             else
             {
-                why+=ViewMatches(**v, calc, r->Density(), r->SpinDensity(), [](size_t){ return (const ScalarFunction<double>*)nullptr; });
+                why+=ViewMatches(**v, *calc, r->Density(), r->SpinDensity(), [](size_t){ return (const ScalarFunction<double>*)nullptr; });
                 why+=ViewFiled("Si view");
             }
             std::filesystem::remove(path);
@@ -756,8 +840,20 @@ public:
     }
     std::string ConvergeAnswersAnOutcome() override
     {
-        auto calc=SolidCalculation::Prepare(Setup(), {{Params(), SCFAccelerators::Type::Auto}});
-        return AnswersAnOutcome(*calc, Params(), Params(), 8.0);
+        auto calc=SolidCalculation::Prepare(Setup()).TakeValue();
+        return AnswersAnOutcome(*calc, 8.0);
+    }
+    std::string EveryConvergeCheckpoints() override
+    {
+        const std::string path=TempPath("facade_matrix_checkpoint_si.h5");
+        auto calc=SolidCalculation::Prepare(Setup(SCFAccelerators::Type::Auto, {}, path)).TakeValue();
+        return Checkpoints(*calc, path);
+    }
+    std::string ScheduleRunsOnEveryKind() override
+    {
+        auto ramped=SolidCalculation::Prepare(Setup()).TakeValue();
+        auto direct=SolidCalculation::Prepare(Setup()).TakeValue();
+        return Scheduled(*ramped, *direct, Params());
     }
     std::string SetupRefusesAnUnrealisableRequest() override
     {
@@ -797,6 +893,8 @@ const char* Name(Capability c)
         case Capability::ViewMatchesTheLiveState:   return "ViewMatchesTheLiveState";
         case Capability::SetupRefusesAnUnrealisableRequest: return "SetupRefusesAnUnrealisableRequest";
         case Capability::ConvergeAnswersAnOutcome:  return "ConvergeAnswersAnOutcome";
+        case Capability::EveryConvergeCheckpoints:  return "EveryConvergeCheckpoints";
+        case Capability::ScheduleRunsOnEveryKind:   return "ScheduleRunsOnEveryKind";
     }
     return "?";
 }
@@ -814,7 +912,8 @@ std::vector<CellId> AllCells()
         for (Capability c : {Capability::PrepareFilesTheSetup, Capability::ConvergeFilesTheScfHeader, Capability::AcceleratorKnobsArrive,
                              Capability::SaveRestartRoundTrips, Capability::DeckRoundTrips, Capability::LevelsAnswerTheState,
                              Capability::ViewMatchesTheLiveState, Capability::SetupRefusesAnUnrealisableRequest,
-                             Capability::ConvergeAnswersAnOutcome})
+                             Capability::ConvergeAnswersAnOutcome, Capability::EveryConvergeCheckpoints,
+                             Capability::ScheduleRunsOnEveryKind})
             cells.push_back({k,c});
     return cells;
 }

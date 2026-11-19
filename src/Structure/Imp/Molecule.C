@@ -12,7 +12,6 @@ import qchem.Streamable;
 import qchem.Mesh.Product;         // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
 import qchem.Mesh.Builder;         // MeshBuilder (efficient incremental accumulation)
 import qchem.Mesh.BeckePartition;  // BeckePartitionWeight (the partition, one home with its geometry gradient)
-import qchem.Vector3D;             // norm(rvec3_t)
 import qchem.Reporting;            // the mesh files its fields one level into the caller's report scope (Set; inert outside a run)
 
 namespace qchem {

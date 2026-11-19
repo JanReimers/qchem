@@ -35,7 +35,10 @@ struct SCFFailure
         UnphysicalEnergy,
         //! an audit reference the run needs (the raster pilot's) cannot fit in the memory available: REFUSED ON RESOURCES (CLAUDE.md, three
         //! outcomes).  \c resource carries the numbers and the escape; a refusal mid-pilot keeps the converged run and its record.
-        ResourceRefused
+        ResourceRefused,
+        //! a SCHEDULE STAGE the kind cannot run as stated (another setup, an accelerator its setup did not admit; V-FACADE-PARITY P4) was
+        //! REFUSED before it ran: \c details names the policy row and its reason.  The stages before it ran and were checkpointed.
+        StageRefused
     };
     Why         why        = Why::NotConverged;
     size_t      iterations = 0;

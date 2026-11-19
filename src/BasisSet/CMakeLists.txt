@@ -4,15 +4,13 @@ target_sources(qcBasisSet PRIVATE
   Imp/Conditioning.C
   Imp/BareCoulombSource.C
   Imp/AtomCentredSet.C
-  Imp/IrrepBasisSet.C
-  Imp/Orbital_1E_IBS.C
-  Imp/Orbital_DFT_IBS.C
-  Imp/Orbital_DHF_IBS.C
   Internal/Imp/Fit_IBS.C
   Imp/DeltaFit_IBS.C
   Internal/Imp/SymmetryAdapted_IBS.C
   Internal/Imp/Orbital_DHF_IBS.C
   Internal/Imp/Orbital_ERI4_IBS.C
+  Internal/Imp/CacheSlot.C
+  Internal/Imp/CachedIntegrals.C
   Internal/Imp/Cache4.C
   Internal/Imp/Cache2.C
   Internal/Imp/Cache3.C
@@ -54,6 +52,8 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/SymmetryAdapted_IBS.C
   Internal/BasisSetImp.C
   Internal/IrrepBasisSetImp.C
+  Internal/CacheSlot.C                  # a block's slot in its parent's cache + the cached overlap (D-BASISCACHE-FANIN, 2026-11-18)
+  Internal/CachedIntegrals.C            # the cached kinetic and 3-centre accessors through it
   BasisCache.C                          # the parent-made cache of a basis's own tables (IntegralCacheOwnershipPlan S3a)
   Internal/Orbital_DHF_IBS.C
   Internal/Orbital_ERI4_IBS.C

@@ -14,7 +14,6 @@ import qchem.Blaze;   // blazem:: in the asserts: invisible to an NDEBUG build
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet;
 import qchem.Structure;
-import qchem.Streamable;
 import qchem.BasisSet.Internal.PrimitiveStore;   // S5: the store the kernels take (an Internal module: imported directly, never re-exported)
 
 namespace qchem::BasisSet::Gaussian::PG_Cart

@@ -11,7 +11,6 @@ module;
 module qchem.CompositeCD;
 import qchem.BasisSet.G_RasterStarField; // the raster as a field my group star-averages
 import qchem.Blaze;
-import qchem.Reporting;                 // report::Timed -- splitting the V_H field build (ParallelAndOraclePlan 1.3b)
 import qchem.ChargeDensity.Types;
 
 namespace qchem::ChargeDensity

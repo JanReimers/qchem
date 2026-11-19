@@ -250,6 +250,7 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, co
     else
     {
         if (!recipe.trim.empty()) { std::cout<<"[basis trim] STATED (no vet loop): "; recipe.trim.Write(std::cout); std::cout<<std::endl; }
+        qchem::report::Scope basis("basis");   // the build files its rows (basis.elements) one level in, as the molecule's does
         mol=rec.Make(*cell, pp);
     }
     std::shared_ptr<SolidSetup> s=Decide(lat, std::move(mol), opts, acc);

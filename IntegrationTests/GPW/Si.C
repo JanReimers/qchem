@@ -47,7 +47,6 @@
 #include <filesystem>    // the deck run's scratch directory
 #include <nlohmann/json.hpp>  // the deck the supercell gate is run from
 
-import qchem.Structure;                          // Molecule, Atom
 import qchem.SCFCap;                             // BoundedSCF (one-iteration and setup-only arms)
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
 import qchem.Matrix3D;                           // Matrix3D<double> (the rhombohedral AFM-II cell matrix)
@@ -108,8 +107,8 @@ TEST(GPW_Si, Γ_Imp_CP2K)
     o.solid.densityEcut=20.0; o.imposeSymmetry=true;   // IMPOSED (the RunGPW default every Si anchor carried; V1.30)
     SCFParams par=ProductionGates();
     GpwReport report("Si "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    auto R=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);      // 8 valence electrons
     EXPECT_NEAR(R->Energy(), -7.11506, 2e-3);      // CP2K FCC-Si Gamma reference (grid-gap tolerance)
@@ -124,10 +123,10 @@ TEST(GPW_Si, Γ_CP2K)
     RunOptions o=OptionsFor(si, "Si SR Gamma (free, the facade's own recipe)");
     o.solid.densityEcut=20.0;                              // FREE: the facade's default -- the imposed sibling is GPW_Si.Γ_Imp_CP2K
     SCFParams par=ProductionGates();
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
 
     // N1/T1: the answers are reachable only through the PROOF, so a non-converged run cannot serve them.
-    auto r = calc.Result();
+    auto r = calc->Result();
     ASSERT_TRUE(r) << "SCF did not converge: " << (r ? std::string() : r.Error().details);
     EXPECT_NEAR(r->TotalCharge(), 8.0, 1e-6);
     EXPECT_NEAR(r->Energy(), -7.11506, 2e-3)        // the GPW_Si.Γ_Imp_CP2K anchor, same tolerance
@@ -135,8 +134,8 @@ TEST(GPW_Si, Γ_CP2K)
            "recipe it fronts is worse than no facade";
     // The facade OWNS the grid decision, so it must be able to say what it chose (V1.26/V2.4): Si is soft
     // enough that the cost selector routes it to the uniform mesh, SIZED from this run's sharpness.
-    EXPECT_EQ(calc.ResolvedXCMesh().cellKind, qcMesh::UnitCellKind::Uniform);
-    EXPECT_GT(calc.ResolvedXCMesh().eCut, 0.0) << "an Auto-resolved uniform mesh must carry its own cutoff, "
+    EXPECT_EQ(calc->ResolvedXCMesh().cellKind, qcMesh::UnitCellKind::Uniform);
+    EXPECT_GT(calc->ResolvedXCMesh().eCut, 0.0) << "an Auto-resolved uniform mesh must carry its own cutoff, "
                                                   "never fall back on nUniform's basis-blind default";
     // rho(r) is reachable through the same neutral ScalarFunction face the molecular facade exposes.
     EXPECT_GT(r->Density()(rvec3_t(0.1,0.1,0.1)), 0.0);
@@ -158,8 +157,8 @@ TEST(GPW_Si, Γ_Null_Linear_Converges_Panel)
     SCFParams par=Gates(60, 1e-6, std::nullopt);
     par.Mixer=SCFParams::Mixing::Linear; par.StartingRelaxRo=0.30;
     qchem::IterationBudget budget(22, "free Si Gamma, linear D-mixing alpha 0.3, Null, cp2kCompat (regime 1; OpenWork §3 linear row; 17 measured 2026-10-29)");
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    auto r=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+    auto r=calc->Result();
     ASSERT_TRUE(r) << Why(r);
     EXPECT_NEAR(r->Energy(), -7.115067447, 1e-5) << "the free Si Gamma fixed point (Kerker+Pulay 8: -7.115067447)";
 }
@@ -178,8 +177,8 @@ TEST(GPW_Si, Γ_Imp_Schema)
     report::ClearGlobal();                          // isolate this test's run
     {
         GpwReport report("Si "+o.label, false);
-        qchem::BoundedSCF bounded("the run report's SETUP schema is the subject (basis, grids): a couple of iterations is plenty");
-        qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), Gates(4, 1e-3, 1e-6));
+        // the run report's SETUP schema is the subject (basis, grids): the build files it, so no SCF runs (CleanCode D-BOUNDED-ANCHOR (2))
+        ASSERT_TRUE(qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)));
     }
 
     const report::json& all = report::GlobalReport();
@@ -231,10 +230,9 @@ TEST(GPW_Si, Γ_RunsReal)
     const Lattice_3D lat=LatticeOf(si);
     RunOptions o=OptionsFor(si, "Si real-block report");
     o.solid.densityEcut=20.0;
-    const SCFParams par=Gates(3, 1e-3, 1e-6);
+    // the report's per-block SETUP rows are the subject: the build files them, so no SCF runs (CleanCode D-BOUNDED-ANCHOR (2))
     auto run=[&]{ GpwReport report("Si "+o.label, false);
-                  qchem::BoundedSCF bounded("the report's per-block SETUP rows are the subject; 3 iterations run the loop once over");
-                  qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par); };
+                  ASSERT_TRUE(qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o))); };
 
     report::ClearGlobal();
     o.solid.forceComplex=false;                            // real TRIM blocks (the shipped default)
@@ -281,8 +279,8 @@ TEST(GPW_Si, Γ_Deterministic)
     for (int r=0;r<3;++r)
     {
         std::cout<<"[xrun] ================= RUN "<<r<<" ================="<<std::endl;
-        qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}}), par);
-        auto res=calc.Result();
+        auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .scf=par, .solid={.densityEcut=20.0}})).TakeValue(); (void)calc->Converge();
+        auto res=calc->Result();
         ASSERT_TRUE(res) << "run "<<r<<" did not converge: "<<res.Error().details;
         E[r]=res->Energy();
         std::cout.precision(15);
@@ -322,8 +320,8 @@ TEST(GPW_Si, Γ_Deterministic)
 //  bit-for-bit, gated by GPW_Si.Γ_Deterministic above, so the arms run cold.)
 static void ExpectRealComplexTwins(const Lattice_3D& lat, const Material& si, const char* what)
 {
-    const qchem::RunOptions optOn {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}};
-    const qchem::RunOptions optOff{.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0, .forceComplex=true}};
+    qchem::RunOptions optOn {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}};
+    qchem::RunOptions optOff{.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0, .forceComplex=true}};
 
     SCFParams one;                                   // the one-iteration recipe (gates 0 = strict-< never trips)
     one.NMaxIter=1; one.MinΔρPerElectron=0.0; one.MinΔE=0.0;
@@ -331,9 +329,11 @@ static void ExpectRealComplexTwins(const Lattice_3D& lat, const Material& si, co
 
     {   // (1) the arithmetic arm: exactly one iteration each
         qchem::BoundedSCF bounded("arm (1) compares the real and complex FIRST iterates term by term at roundoff; arm (2) converges");
-        qchem::SolidCalculation on(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOn), one), off(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOff), one);
+        optOn.scf=one; optOff.scf=one;
+        auto on =qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOn )).TakeValue(); (void)on ->Converge();
+        auto off=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOff)).TakeValue(); (void)off->Converge();
         // ONE iteration by construction, so these are LAST-ITERATE diagnostics, not answers (N1/T1).
-        const qchem::EnergyBreakdown En=on.LastIterateTerms(), Ec=off.LastIterateTerms();
+        const qchem::EnergyBreakdown En=on->LastIterateTerms(), Ec=off->LastIterateTerms();
         // 1e-8: real-vs-complex roundoff headroom -- Een's large-cancellation assembly (vs Enn~8 Ha)
         // measured 2e-9 across the 3-block mesh.  Roundoff grade, far below any defect scale.
         EXPECT_NEAR(En.GetTotalEnergy(), Ec.GetTotalEnergy(), 1e-8) << what << " (iteration 1)";
@@ -341,14 +341,16 @@ static void ExpectRealComplexTwins(const Lattice_3D& lat, const Material& si, co
         EXPECT_NEAR(En["Een"],     Ec["Een"],     1e-8) << what << " (iteration 1)";
         EXPECT_NEAR(En["Eee"],     Ec["Eee"],     1e-8) << what << " (iteration 1)";
         EXPECT_NEAR(En["Exc"],     Ec["Exc"],     1e-8) << what << " (iteration 1)";
-        EXPECT_NEAR(on.LastIterateCharge(), off.LastIterateCharge(), 1e-10) << what << " (iteration 1)";
+        EXPECT_NEAR(on->LastIterateCharge(), off->LastIterateCharge(), 1e-10) << what << " (iteration 1)";
     }
     {   // (2) the physics arm: both converge on the production-shaped gates
         SCFParams par;
         par.NMaxIter=60; par.MinΔρPerElectron=1e-3; par.MinΔE=1e-6;
         par.MinΔFD=std::nullopt; par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
-        qchem::SolidCalculation on(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOn), par), off(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOff), par);
-        auto ron=on.Result(), roff=off.Result();
+        optOn.scf=par; optOff.scf=par;
+        auto on =qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOn )).TakeValue(); (void)on ->Converge();
+        auto off=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOff)).TakeValue(); (void)off->Converge();
+        auto ron=on->Result(), roff=off->Result();
         ASSERT_TRUE(ron)  << what << ": " << (ron  ? std::string() : ron .Error().details);
         ASSERT_TRUE(roff) << what << ": " << (roff ? std::string() : roff.Error().details);
         EXPECT_NEAR(ron->Energy(), roff->Energy(), 2e-5) << what;    // MinΔE=1e-6 resolution (measured 4.8e-6)
@@ -433,8 +435,8 @@ TEST(GPW_Si, Γ_Imp_Smear_eqAufbau)
     SCFParams par=ProductionGates();
     par.SmearingkT=1e-3;
     GpwReport report("Si "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    auto R=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
     EXPECT_NEAR(R->Energy(), -7.11506, 2e-3);                // == the no-smear anchor: smearing is inert on a gap
@@ -458,8 +460,8 @@ TEST(GPW_Si, Γ_Imp_Pol_eqUnpol)
     o.spins={0,0};   // stated (R2.5): Si is non-magnetic
     o.solid.densityEcut=20.0;
     GpwReport report("Si "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
-    auto R=calc.Result();
+    o.scf=ProductionGates(); auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
     EXPECT_NEAR(R->Energy(), -7.11506, 2e-3);          // == the unpolarized Becke anchor (ζ=0 collapse exact)
@@ -477,8 +479,8 @@ TEST(GPW_Si, Γ_Imp_Pol_SpinSeed_eqUnpol)
     o.solid.densityEcut=20.0;
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;    // -> PolarizedSeedCD (rho/2 channels for pairless Si)
     GpwReport report("Si "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
-    auto R=calc.Result();
+    o.scf=ProductionGates(); auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
     EXPECT_NEAR(R->Energy(), -7.11506, 2e-3);          // the SAME unpolarized Becke anchor
@@ -518,10 +520,10 @@ TEST(GPW_Si, Γ_Imp_M3_Smear_ShFermi_MomentRelaxes)
         SCFParams par=ProductionGates();
         par.SmearingkT=5e-3;                           // a shared mu needs smearing to relax the moment with
         GpwReport report("Si "+o.label, false);
-        qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
+        o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
         // Both arms are read as LAST ITERATES on purpose: the held arm is a constrained state that need not
         // meet the production gates, and the comparison below is between the two arms, not against a pin.
-        return {calc.LastIterateCharge(), calc.LastIterateTerms().GetTotalEnergy()};
+        return {calc->LastIterateCharge(), calc->LastIterateTerms().GetTotalEnergy()};
     };
 
     const Arm shared=TripletSi(true);
@@ -557,10 +559,10 @@ TEST(GPW_Si, Γ_Imp_eqUnfolded)
     {
         o.solid.policy.streamFold=(std::string(fold)=="1");   // the A/B arm states its route (D-ENV 6b)
         GpwReport report("Si "+o.label, false);
-        qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
-        auto R=calc.Result();
+        o.scf=ProductionGates(); auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+        auto R=calc->Result();
         EXPECT_TRUE(R) << Why(R);
-        return {calc.LastIterateCharge(), calc.LastIterateTerms().GetTotalEnergy()};
+        return {calc->LastIterateCharge(), calc->LastIterateTerms().GetTotalEnergy()};
     };
     const Arm R0=arm("0"), R1=arm("1");
 
@@ -597,9 +599,9 @@ TEST(GPW_Si, Γ_Becke_Imp_eqUni)
     SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;   // the gate's SCF arm is the uniform route BY DESIGN (Auto would flip it)
     SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;   // (this gate never set MergeTol)
     GpwReport report("Si "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    ASSERT_TRUE(calc.Result()) << Why(calc.Result());
-    const GpwHandles h=Handles(calc);
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result()) << Why(calc->Result());
+    const GpwHandles h=Handles(*calc);
 
     XCProbe U=UniformXCProbe(h, lat.GetStructure());
     XCProbe B=BeckeXCProbe(h, lat.GetStructure(), "B40", qcMesh::BeckeXCParams());
@@ -642,8 +644,8 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_CP2K)
     report::ClearGlobal();
     {
         GpwReport report("Si "+o.label, false);
-        qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-        auto R=calc.Result();
+        o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+        auto R=calc->Result();
         ASSERT_TRUE(R) << Why(R);
         EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
         EXPECT_NEAR(R->Energy(), -7.11506, 2e-3) << "Kerker must not change the physics: the Γ_Imp_CP2K anchor";
@@ -670,7 +672,7 @@ TEST(GPW_Si, Γ_Becke_Imp_Kerker_FitXC_Pin28Throws)
     std::string what;
     {
         GpwReport report("Si "+o.label, false);
-        try { qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par); }
+        try { o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge(); }
         catch (const std::logic_error& e) { what=e.what(); }
     }
     EXPECT_NE(what.find("pin 28"), std::string::npos) << "the fitted-XC run must THROW, naming pin 28 (got: '" << what << "')";
@@ -695,8 +697,8 @@ TEST(GPW_Si, Γ_Uni_DeltaFit_Imp_eqPWFit)
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;
     auto energy=[&]{ GpwReport report("Si "+o.label, false);
-                     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-                     auto r=calc.Result(); EXPECT_TRUE(r) << Why(r);
+                     o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+                     auto r=calc->Result(); EXPECT_TRUE(r) << Why(r);
                      return r ? r->Energy() : 0.0; };
 
     SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;                        // (PlaneWave, raster)
@@ -730,8 +732,8 @@ TEST(GPW_Si, Γ_Uni_PWFit_Imp_Pol_eqUnpol)
     SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;
     struct Arm { double charge, E; };
     auto arm=[&]() -> Arm { GpwReport report("Si "+o.label, false);
-                            qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-                            auto r=calc.Result(); EXPECT_TRUE(r) << Why(r);
+                            o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+                            auto r=calc->Result(); EXPECT_TRUE(r) << Why(r);
                             return r ? Arm{r->TotalCharge(), r->Energy()} : Arm{0,0}; };
     const Arm U=arm();
 
@@ -776,8 +778,8 @@ TEST(GPW_Si, k211_Imp_Anchor)
     o.solid.densityEcut=20.0; o.imposeSymmetry=true;   // IMPOSED, as every RunGPW anchor was (its default; V1.30)
     SCFParams par=ProductionGates();
     GpwReport report("Si "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    auto R=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);                  // 8 valence e- (BZ-weighted Sum_k, not x Nk)
     // Did-E-move anchor, RE-PINNED 2026-09-09 to the value measured with correct weights (was -7.45137,
@@ -806,8 +808,8 @@ TEST(GPW_Si, k222_CP2K)
     o.solid.densityEcut=20.0; o.imposeSymmetry=false;      // FREE (2026-09-15): the full 8-k mesh; GPW_Si.k222_Imp_CP2K is the IMPOSED arm at the same anchor
     SCFParams par=TightGates(60);
     GpwReport report("Si "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    auto R=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
     EXPECT_NEAR(R->Energy(), -7.77846, 3e-3) << "GPW 2x2x2 Gamma-centred vs CP2K same-mesh -7.77846";
@@ -829,8 +831,8 @@ TEST(GPW_Si, k222_Imp_CP2K)
     o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     GpwReport report("Si "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
-    auto R=calc.Result();
+    o.scf=ProductionGates(); auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     // Target: the IBZ-reduced total reproduces the full-mesh Γ-centred 2×2×2 (DISABLED_SR_2x2x2GammaCentred,
     // -7.77846) to grid/SCF tolerance -- the non-symmorphic glide τ-phase makes the reduced density exact
@@ -858,8 +860,8 @@ TEST(GPW_Si, k222_Becke_Imp_eqFree)
     o.xcMesh=qcMesh::BeckeXCParams(15, 2.0, 9);          // explicit coarse Becke (nR=15, GL-9), same on both arms
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     auto energy=[&]{ GpwReport report("Si "+o.label, false);
-                     qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
-                     auto r=calc.Result(); EXPECT_TRUE(r) << Why(r);
+                     o.scf=ProductionGates(); auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+                     auto r=calc->Result(); EXPECT_TRUE(r) << Why(r);
                      return r ? r->Energy() : 0.0; };
 
     o.imposeSymmetry=false;
@@ -912,8 +914,8 @@ TEST(GPW_Si, k222s_Imp_CP2K)
     o.solid.densityEcut=20.0; o.imposeSymmetry=true; o.solid.kShift=rvec3_t(0.5,0.5,0.5);
     SCFParams par=TightGates(60);
     GpwReport report("Si "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    auto R=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << "the shifted mesh must converge, not merely stop: " << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
     // vs CP2K's OWN shifted 2x2x2 deck (scripts/bench 2026-08-19: -7.867436530).  Measured -7.867453736 =
@@ -957,9 +959,9 @@ TEST(GPW_Si, k311_Uni_MOM_eqCplx)
     par.MinΔFD=std::nullopt; par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
     par.UseMOM=true; par.MOMStartIter=2;              // armed EARLY: the reference must be live in-run
 
-    qchem::SolidCalculation on (SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}}), par);
-    qchem::SolidCalculation off(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0, .forceComplex=true}}), par);
-    auto ron=on.Result(), roff=off.Result();
+    auto on=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .scf=par, .solid={.densityEcut=20.0}})).TakeValue(); (void)on->Converge();
+    auto off=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .scf=par, .solid={.densityEcut=20.0, .forceComplex=true}})).TakeValue(); (void)off->Converge();
+    auto ron=on->Result(), roff=off->Result();
     ASSERT_TRUE(ron)  << "MOM on a mixed real/complex mesh must converge (R2.21): "
                       << (ron ? std::string() : ron.Error().details);
     ASSERT_TRUE(roff) << (roff ? std::string() : roff.Error().details);
@@ -981,11 +983,11 @@ TEST(GPW_Si, Γ_U_ZeroUIsExactlyAbsent)
     const Lattice_3D lat=LatticeOf(si);
     RunOptions o=OptionsFor(si, "Si SR Gamma (free)");
     o.solid.densityEcut=20.0;
-    qchem::SolidCalculation plain(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
+    o.scf=ProductionGates(); auto plain=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)plain->Converge();
     o.solid.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};   // the term is BUILT, with U=0 on both Si p shells
     o.label="Si SR Gamma (free, U=0)";
-    qchem::SolidCalculation withU(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
-    auto a=plain.Result(), b=withU.Result();
+    o.scf=ProductionGates(); auto withU=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)withU->Converge();
+    auto a=plain->Result(), b=withU->Result();
     ASSERT_TRUE(a) << (a ? std::string() : a.Error().details);
     ASSERT_TRUE(b) << (b ? std::string() : b.Error().details);
     EXPECT_NEAR(a->Energy(), b->Energy(), 1e-10) << "a U=0 Hubbard term must contribute exactly nothing";
@@ -999,8 +1001,8 @@ TEST(GPW_Si, Γ_U_IsAPositiveSelfConsistentFunctional)
     RunOptions o=OptionsFor(si, "Si SR Gamma (free, U=2 eV on p)");
     o.solid.densityEcut=20.0;
     o.solid.hubbard={HubbardU_SiteShells(0,1,2.0), HubbardU_SiteShells(1,1,2.0)};
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), ProductionGates());
-    auto r=calc.Result();
+    o.scf=ProductionGates(); auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+    auto r=calc->Result();
     ASSERT_TRUE(r) << (r ? std::string() : r.Error().details);
     EXPECT_NEAR(r->TotalCharge(), 8.0, 1e-6);
     const double EU=r->EnergyTerms()["E_U"];
@@ -1023,10 +1025,10 @@ TEST(GPW_Si, Γ_U_Imp_Pol_Kerker_eqUnpol)
     o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     o.solid.hubbard={HubbardU_SiteShells(0,1,2.0), HubbardU_SiteShells(1,1,2.0)};
     SCFParams par=ProductionGates(); par.KerkerG0=1.0;                                 // the rho-tilde mixer
-    qchem::SolidCalculation unpol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
+    o.scf=par; auto unpol=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)unpol->Converge();
     o.multiplicity=1; o.spin=SpinGroup::Polarized; o.spins={0,0}; o.label="Si SR Gamma Kerker U=2 eV pol-singlet";                // PolarizedMixCD in the loop
-    qchem::SolidCalculation pol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    auto a=unpol.Result(), b=pol.Result();
+    o.scf=par; auto pol=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)pol->Converge();
+    auto a=unpol->Result(), b=pol->Result();
     ASSERT_TRUE(a) << Why(a);
     ASSERT_TRUE(b) << Why(b);
     EXPECT_NEAR(a->TotalCharge(), 8.0, 1e-6);
@@ -1050,12 +1052,12 @@ TEST(GPW_Si, Γ_U_ACBN0_Imp_Pol_eqUnpol)
     o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     o.solid.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};                                  // U=0: a plain LDA run that carries the manifolds
     SCFParams par=ProductionGates();
-    qchem::SolidCalculation unpol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
+    o.scf=par; auto unpol=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)unpol->Converge();
     o.multiplicity=1; o.spin=SpinGroup::Polarized; o.spins={0,0}; o.label="Si SR Gamma ACBN0 on p, pol-singlet";
-    qchem::SolidCalculation pol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    ASSERT_TRUE(unpol.Result()) << Why(unpol.Result());
-    ASSERT_TRUE(pol.Result())   << Why(pol.Result());
-    const auto a=unpol.EstimateHubbardU(), b=pol.EstimateHubbardU();
+    o.scf=par; auto pol=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)pol->Converge();
+    ASSERT_TRUE(unpol->Result()) << Why(unpol->Result());
+    ASSERT_TRUE(pol->Result())   << Why(pol->Result());
+    const auto a=unpol->EstimateHubbardU(), b=pol->EstimateHubbardU();
     ASSERT_EQ(a.size(), 2u); ASSERT_EQ(b.size(), 2u);
     const double eV=27.211386245988;
     for (size_t M=0;M<2;M++)
@@ -1096,10 +1098,10 @@ TEST(GPW_Si, Γ_U_PseudoAtomic3p_Imp_Pol_eqUnpol)
     o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     o.solid.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};                                  // the default projector: pseudo-atomic
     SCFParams par=ProductionGates();
-    qchem::SolidCalculation unpol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
+    o.scf=par; auto unpol=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)unpol->Converge();
     o.multiplicity=1; o.spin=SpinGroup::Polarized; o.spins={0,0}; o.label="Si SR Gamma U=2 eV on the pseudo-atomic 3p projector, pol-singlet";
-    qchem::SolidCalculation pol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    auto a=unpol.Result(), b=pol.Result();
+    o.scf=par; auto pol=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)pol->Converge();
+    auto a=unpol->Result(), b=pol->Result();
     ASSERT_TRUE(a) << Why(a);
     ASSERT_TRUE(b) << Why(b);
     const double U=2.0/27.211386245988;
@@ -1107,7 +1109,7 @@ TEST(GPW_Si, Γ_U_PseudoAtomic3p_Imp_Pol_eqUnpol)
     EXPECT_LT(a->EnergyTerms()["E_U"], 1.5*U) << "Sum U/2 lambda(1-lambda) per site is below the half-filled p's 3U/4";
     EXPECT_NEAR(b->EnergyTerms()["E_U"], a->EnergyTerms()["E_U"], 1e-6);
     EXPECT_NEAR(b->Energy(), a->Energy(), 1e-6);
-    const auto ea=unpol.EstimateHubbardU(), eb=pol.EstimateHubbardU();
+    const auto ea=unpol->EstimateHubbardU(), eb=pol->EstimateHubbardU();
     ASSERT_EQ(ea.size(), 2u); ASSERT_EQ(eb.size(), 2u);
     for (size_t M=0;M<2;M++)
     {
@@ -1134,19 +1136,19 @@ TEST(GPW_Si, Γ_U_ACBN0_OuterLoopFeelsTheNewU)
     o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     o.solid.hubbard={HubbardU_SiteShells(0,1,0.0), HubbardU_SiteShells(1,1,0.0)};
     SCFParams par=ProductionGates();
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    ASSERT_TRUE(calc.Result()) << Why(calc.Result());
-    EXPECT_NEAR(calc.Result()->EnergyTerms()["E_U"], 0.0, 1e-12) << "U=0 start";
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result()) << Why(calc->Result());
+    EXPECT_NEAR(calc->Result()->EnergyTerms()["E_U"], 0.0, 1e-12) << "U=0 start";
     // tolU 0 can never be met (dmax < 0), so the loop must stop at maxOuter.  (It was 1e-6, "too tight to converge in 3" -- true only
     // while the first SCF stopped loose: on this exactly half-filled p manifold the +U potential commutes with D, the re-converged
     // state is the same state, and a tight first SCF gives U_SC = U_0 to < 1e-6 at step 2 -- measured 2026-10-26, Pulay on D.)
     qchem::SolidCalculation::HubbardLoop lp; lp.maxOuter=3; lp.tolU_eV=0.0;
-    const auto R=calc.ConvergeHubbardU(par, lp);
+    const auto R=calc->ConvergeHubbardU(par, lp);
     EXPECT_EQ(R.outer, 3u);
     ASSERT_EQ(R.U_eV.size(), 3u);
     EXPECT_TRUE(R.scfConverged);
     EXPECT_GT(R.U_eV[0][0], 1.0) << "the U=0 run's estimate (7.2 eV on this p manifold)";
-    auto res=calc.Result();
+    auto res=calc->Result();
     ASSERT_TRUE(res) << Why(res);
     EXPECT_GT(res->EnergyTerms()["E_U"], 1e-3) << "the re-converged SCF ran with the applied U_eff: the +U blocks were rebuilt";
     // The applied U is the previous step's estimate; the energy carries it (1.5 U on the exact half-filled p at Γ).
@@ -1168,8 +1170,8 @@ TEST(GPW_Si, Γ_Imp_Kerker_Pulay_ConvergesOnMaxDeltaD)
     o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     SCFParams par=Gates(60, 1e-6, std::nullopt); par.KerkerG0=1.0; par.PulayDepth=8; par.PulayStart=3;
     par.Δρmeasure=SCFParams::Measure::MaxΔD;
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    auto R=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
     EXPECT_NEAR(R->Energy(), -7.115067, 1e-5) << "the Γ_Imp anchor to the digits a 1e-6 max|dD| criterion buys";
@@ -1188,10 +1190,10 @@ TEST(GPW_Si, Γ_Imp_Pol_Kerker_eqUnpol)
     RunOptions o=OptionsFor(si, "Si SR Gamma Kerker");
     o.solid.densityEcut=20.0; o.imposeSymmetry=true;
     SCFParams par=ProductionGates(); par.KerkerG0=1.0;
-    qchem::SolidCalculation unpol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
+    o.scf=par; auto unpol=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)unpol->Converge();
     o.multiplicity=1; o.spin=SpinGroup::Polarized; o.spins={0,0}; o.label="Si SR Gamma Kerker pol-singlet";
-    qchem::SolidCalculation pol(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o), par);
-    auto a=unpol.Result(), b=pol.Result();
+    o.scf=par; auto pol=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)pol->Converge();
+    auto a=unpol->Result(), b=pol->Result();
     ASSERT_TRUE(a) << Why(a);
     ASSERT_TRUE(b) << Why(b);
     EXPECT_NEAR(b->Energy(), a->Energy(), 1e-6) << "the zeta=0 collapse on the Kerker mixer, whatever the channel basis";

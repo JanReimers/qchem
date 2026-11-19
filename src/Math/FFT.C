@@ -21,7 +21,6 @@ module;
 #include "pocketfft_hdronly.h"   // submodules/pocketfft (header-only; include path on qcMath)
 export module qchem.FFT;
 import qchem.Types;   // cvec_t, ivec3_t
-import qchem.CMath;    // Pi
 
 export namespace qchem::FFT
 {

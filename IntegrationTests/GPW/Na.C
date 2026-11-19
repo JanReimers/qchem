@@ -22,16 +22,13 @@
 #include <string>
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
 
-import qchem.Structure;                          // Molecule, Atom
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
-import qchem.Matrix3D;                           // Matrix3D<double> (the rhombohedral AFM-II cell matrix)
 import qchem.Lattice_3D;                         // Lattice_3D
 import qchem.BasisSet;                           // Complex_BS, Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;            // Complex_OIBS (the overlap-spectrum diagnostic)
 import qchem.BasisSet.PlaneWave.PlaneWave_IBS;   // PlaneWave_IBS (the seed's CD fit basis)
 import qchem.BasisSet.Lattice.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Gaussian.Point.Factory;          // Gaussian::Factory, BasisSetData/Engine/Angular
-import qchem.Outcome;                           // Outcome<Converged,SCFFailure> -- the facade's result
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Tests.GPW_Harness;                   // THE HARNESS (IntegrationTests/GPW/Harness.C): Materials cells, gates, recipes, the XC probes
 import qchem.Materials;                           // Materials::Get -- the cells come from src/Structure/Data/materials.json (row MD)
@@ -46,9 +43,7 @@ import qchem.SCFIterator;                        // cSCFIterator, SCFParams
 import qchem.SCFParams;                          // SCFParams
 import qchem.ChargeDensity.Seed;                 // SeedStrategy
 import qchem.WaveFunction;                       // cWaveFunction (the converged state)
-import qchem.Energy;                             // EnergyBreakdown
 import qchem.Symmetry.Irrep;                     // Irrep
-import qchem.Reporting;                          // report:: -- bracket the GPW run so grids/basis sections land
 import qchem.Symmetry.Spin;                      // Spin
 import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
@@ -85,8 +80,8 @@ TEST(GPW_Na, k222s_Imp_Smear_GlobalMu_Anchor)
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     SCFParams par=Gates(60, 1e-5, std::nullopt); par.SmearingkT=0.01;
     GpwReport report("Na "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*na.cell, BasisSetData::VALENCE_LOWQ_SR2), o), par);
-    auto R=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*na.cell, BasisSetData::VALENCE_LOWQ_SR2), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << "global μ + smearing converges the half-filled-band metal: " << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 1.0, 1e-6);  // one valence electron, BZ-weighted Σ_k w_k n_k = 1
     EXPECT_LT(R->EnergyTerms()["MinusTS"], -1e-4);   // −TS<0 AND non-trivial: the Fermi surface IS fractionally filled

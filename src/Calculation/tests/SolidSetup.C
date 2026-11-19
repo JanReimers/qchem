@@ -199,7 +199,7 @@ TEST(SolidSetup, ARecipeBindsTheRunsGPWTolerancesAndAPreBuiltBasisCannotTakeOthe
 
     std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_VA, &cell));
     EXPECT_EQ(bound(*mol).screenEps, BasisSet::Gaussian::GPWTolerances{}.screenEps) << "a pre-built basis carries the defaults";
-    EXPECT_THROW(SolidCalculation(SolidSetup::Resolve(lat, mol, o)), std::invalid_argument)
+    EXPECT_THROW((void)SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, o)), std::invalid_argument)
         << "the run asks for tolerances its pre-built basis was not built with";
 }
 
@@ -479,15 +479,14 @@ TEST(SolidSetup, ThePeriodicA1FittedPotentialCellRefusesGDMAndTheLadder)
     const auto mat=Materials::Get("Si_diamond");
     RunOptions o; o.Nelec=8; o.solid.densityEcut=12.0; o.accuracy.eps=0.0; o.xcRho=Hamiltonian::XCρ::Exact; o.vxcFit=Hamiltonian::VxcFit::Auxiliary;
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);
-    const auto setup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSetData::SIPP_SR}, o);
     for (auto t : {SCFAccelerators::Type::GDM, SCFAccelerators::Type::Ladder})
     {
-        try { (void)SolidCalculation::Prepare(setup, {{SCFParams{}, t}}); FAIL() << "a gradient descent was built on the fitted-potential cell"; }
-        catch (const std::invalid_argument& e)
-        {
-            const std::string what=e.what();
-            EXPECT_NE(what.find("xc.rho exact"), std::string::npos) << what;
-        }
+        o.accelerator=t;
+        const auto setup=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSetData::SIPP_SR}, o);
+        auto built=SolidCalculation::Prepare(setup);   // refused while built: Prepare's BuildRefusal (R9), its policy named
+        ASSERT_FALSE(built) << "a gradient descent was built on the fitted-potential cell";
+        EXPECT_EQ(built.Error().policy, "XCRhoFittedPotentialGradient");
+        EXPECT_NE(built.Error().reason.find("xc.rho exact"), std::string::npos) << built.Error().reason;
     }
 }
 

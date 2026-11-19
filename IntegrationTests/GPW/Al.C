@@ -24,17 +24,14 @@
 #include <string>
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
 
-import qchem.Structure;                          // Molecule, Atom
 import qchem.SCFCap;                             // IterationBudget: the convergence PANEL's budget (doc/SCFRobustnessPlan.md §4)
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
-import qchem.Matrix3D;                           // Matrix3D<double> (the rhombohedral AFM-II cell matrix)
 import qchem.Lattice_3D;                         // Lattice_3D
 import qchem.BasisSet;                           // Complex_BS, Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;            // Complex_OIBS (the overlap-spectrum diagnostic)
 import qchem.BasisSet.PlaneWave.PlaneWave_IBS;   // PlaneWave_IBS (the seed's CD fit basis)
 import qchem.BasisSet.Lattice.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Gaussian.Point.Factory;          // Gaussian::Factory, BasisSetData/Engine/Angular
-import qchem.Outcome;                           // Outcome<Converged,SCFFailure> -- the facade's result
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Tests.GPW_Harness;                   // THE HARNESS (IntegrationTests/GPW/Harness.C): Materials cells, gates, recipes, the XC probes
 import qchem.Materials;                           // Materials::Get -- the cells come from src/Structure/Data/materials.json (row MD)
@@ -87,13 +84,13 @@ TEST(GPW_Al, Γ_Imp_Converges)
     RunOptions o=AlOptions(al);
     SCFParams par=AlGates(40); par.SmearingkT=0.0; par.Verbose=true;   // aufbau (no smearing)
     GpwReport report("Al "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o)).TakeValue(); (void)calc->Converge();
 
-    auto R=calc.Result();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << "the star-averaged density of an imposed aufbau run is stationary: the residual gate converges";
     EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);
     EXPECT_NEAR(R->Energy(), -1.92115, 2e-4) << "near the annealed anchor's internal energy";
-    EXPECT_NEAR(calc.LastIterateTerms()["MinusTS"], 0.0, 1e-12);   // no smearing => no entropy term
+    EXPECT_NEAR(calc->LastIterateTerms()["MinusTS"], 0.0, 1e-12);   // no smearing => no entropy term
 }
 
 
@@ -117,10 +114,11 @@ TEST(GPW_Al, Γ_Imp_EverySeedReachesTheSameAufbauState)
         RunOptions o=AlOptions(al);
         o.seed=seeds[i];
         GpwReport report(std::string("Al ")+name[i]+" seed "+o.label, par.Verbose);
+        o.scf=par;
         const auto setup=SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o);
         EXPECT_EQ(setup->opts.seed, resolved[i]) << name[i];
-        qchem::SolidCalculation calc(setup, par);
-        auto R=calc.Result();
+        auto calc=qchem::SolidCalculation::Prepare(setup).TakeValue(); (void)calc->Converge();
+        auto R=calc->Result();
         ASSERT_TRUE(R) << "the " << name[i] << " seed must reach the imposed aufbau state";
         EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);
         E[i]=R->Energy();
@@ -160,8 +158,10 @@ TEST(GPW_Al, Γ_Imp_Anneal_Anchor_Panel)   // PANEL case 12 (regime 3, metal kT 
         schedule.push_back({par, qchem::SCFAccelerators::Type::DIIS});
     }
     GpwReport report("Al "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o), schedule);
-    auto R=calc.Result();
+    o.scf=schedule.front().params; o.accelerator=schedule.front().accelerator;   // stage 0 runs on the graph Prepare builds
+    auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o)).TakeValue();
+    (void)calc->Converge(schedule);
+    auto R=calc->Result();
     ASSERT_TRUE(R) << "Fermi-smearing annealing converges Δρ where integer aufbau cannot (degenerate 3p): " << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);
     const qchem::EnergyBreakdown E=R->EnergyTerms();
@@ -191,8 +191,8 @@ TEST(GPW_Al, k222_Smear_GlobalMu_Anchor)
     o.imposeSymmetry=false;                    // the FULL mesh: the IBZ-folded sibling below must reproduce it
     SCFParams par=AlGates(); par.SmearingkT=0.01;
     GpwReport report("Al "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
-    auto R=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << "one μ across the BZ converges the dispersive metal (per-block filling cannot): " << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);  // BZ-weighted Σ_k w_k n_k = 3 (weight-consistency guard)
     const qchem::EnergyBreakdown E=R->EnergyTerms();
@@ -217,8 +217,8 @@ TEST(GPW_Al, k222_Imp_Smear_GlobalMu_eqFree)
     o.imposeSymmetry=true;       // fold to the irreducible wedge AND star-average the density
     SCFParams par=AlGates(); par.SmearingkT=0.01;
     GpwReport report("Al "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o), par);
-    auto R=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);
     // Re-anchored 2026-08-01: the 0i custom V_loc G-ball (harmonic routing + custom top level) moved the

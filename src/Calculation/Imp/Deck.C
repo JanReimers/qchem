@@ -990,7 +990,7 @@ json ToJson(const RunSpec& r)
             j["state"]=st;
         }
         if (r.threads!=ThreadCounts{}) j["threads"]={{"openmp",r.threads.openmp},{"blas",r.threads.blas}};
-        if (r.schedule.empty()) j["scf"]=StageScfJson(r.scf,r.opts.recipe);
+        if (r.schedule.empty()) j["scf"]=StageScfJson(r.opts.scf,r.opts.recipe);
         else
         {
             json st=json::array();
@@ -1013,7 +1013,7 @@ json ToJson(const RunSpec& r)
     }
     if (!r.postSCF.empty()) { json a=json::array(); for (const auto& x : r.postSCF) a.push_back(PostJson(x)); j["postSCF"]=a; }
     if (r.threads!=ThreadCounts{}) j["threads"]={{"openmp",r.threads.openmp},{"blas",r.threads.blas}};   // stated only: absent = the process's
-    if (r.schedule.empty()) j["scf"]=StageScfJson(r.scf,r.opts.recipe);    // one stage: the record says it once
+    if (r.schedule.empty()) j["scf"]=StageScfJson(r.opts.scf,r.opts.recipe);    // one stage: the record says it once
     else
     {
         json st=json::array();
@@ -1078,7 +1078,7 @@ void FromJson(const json& jIn, RunSpec& r)
     else f.At("postSCF");
     if (j.contains("scf") && j.contains("schedule"))
         throw std::runtime_error("deck: give 'scf' (one stage) OR 'schedule' (an annealed recipe), not both -- which would run?");
-    if (j.contains("scf")) { FromJson(f.At("scf"),r.scf); r.opts.recipe=RecipeOf(j.at("scf"),"scf"); } else f.At("scf");
+    if (j.contains("scf")) { FromJson(f.At("scf"),r.opts.scf); r.opts.recipe=RecipeOf(j.at("scf"),"scf"); } else f.At("scf");
     if (j.contains("schedule"))
     {
         r.schedule.clear(); size_t i=0;
@@ -1563,7 +1563,8 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         out.converged=true; out.energy=calc->LastIterateTerms().GetTotalEnergy();
         out.summary="CONVERGED  "+calc->Diagnostics().Summary();
     }
-    else out.summary=(R.Error().why==SCFFailure::Why::ResourceRefused ? "REFUSED ON RESOURCES: " : "NOT converged: ")+R.Error().details;
+    else out.summary=(R.Error().why==SCFFailure::Why::ResourceRefused ? "REFUSED ON RESOURCES: "
+                    : R.Error().why==SCFFailure::Why::StageRefused    ? "REFUSED: " : "NOT converged: ")+R.Error().details;
     // A run REFUSED ON RESOURCES (the audit RSS policy) did not reach the state its postSCF actions read: before the first SCF there is no D
     // at all, and mid-pilot the rasters are not settled.  Each action is recorded as skipped, and the record carries the refusal's numbers.
     std::optional<ResourceRefusal> refused;
@@ -1769,8 +1770,8 @@ std::vector<SCFStage> ScheduleToRun(const RunSpec& spec)
 }
 
 // THE SETUP, resolved ONCE: the basis from the deck's recipe (the trim stated, or vetted at the run's own orthoTol and frozen), and every
-// decision the run makes before it builds anything.  The first stage's accelerator (a restart's: its one stage's) is the setup's; each
-// later stage names its own.  \a spec is Build's (its family copied into solid, its save path resolved).
+// decision the run makes before it builds anything.  The first stage's SCF settings, accelerator and recipe (a restart's: its one stage's)
+// are the setup's, so Prepare builds exactly stage 0; each later stage names its own.  \a spec is Build's (its family copied into solid, its save path resolved).
 // A deck is USER INPUT, so its setup goes through SolidSetup::Admit (OpenWork "SolidSetup refusals are throws", 2026-11-14): Run reports a
 // refusal as its outcome and files it in the record; the doors whose signatures carry no refusal (Build, View, MakeBasisShells: the GUI
 // binding calls them) say it as the deck's own refusal, a throw naming the policy -- the deck's convention for every key it refuses.
@@ -1778,10 +1779,11 @@ static Outcome<std::shared_ptr<const SolidSetup>, SetupRefusal> AdmitSetup(const
                                                                            const std::vector<SCFStage>& stages)
 {
     Lattice_3D lat(*mat.cell, spec.kmesh);
-    RunOptions so=spec.opts; so.accelerator=stages.front().accelerator; so.recipe=stages.front().recipe;
+    RunOptions so=spec.opts; so.scf=stages.front().params; so.accelerator=stages.front().accelerator; so.recipe=stages.front().recipe;
     return SolidSetup::Admit(lat, RecipeOf(spec.basis), so, spec.accel);
 }
 static std::string Refusal(const SetupRefusal& r) {return "deck: the setup refused the deck (policy "+r.policy+"): "+r.reason;}
+static std::string Refusal(const BuildRefusal& r) {return "deck: the build refused the deck (policy "+r.policy+"): "+r.reason;}
 static std::shared_ptr<const SolidSetup> SetupOf(const RunSpec& spec, const Materials::Material& mat, const std::vector<SCFStage>& stages)
 {
     auto S=AdmitSetup(spec, mat, stages);
@@ -1805,13 +1807,17 @@ std::unique_ptr<Calculation> Prepare(const RunSpec& spec)
     {
         auto setup=MoleculeSetup::Admit(StructureData::GetMolecule(spec.structure), spec.opts, spec.accel);
         if (!setup) throw std::runtime_error(Refusal(setup.Error()));
-        return MoleculeCalculation::Prepare(setup.Value());
+        auto built=MoleculeCalculation::Prepare(setup.Value());
+        if (!built) throw std::runtime_error(Refusal(built.Error()));
+        return built.TakeValue();
     }
     case RunKind::Atom:
     {
         auto setup=AtomSetup::Admit(StructureData::GetMolecule(spec.structure), spec.opts, spec.accel);   // ONE atom: its Z and charge are the structure's
         if (!setup) throw std::runtime_error(Refusal(setup.Error()));
-        return AtomCalculation::Prepare(setup.Value());
+        auto built=AtomCalculation::Prepare(setup.Value());
+        if (!built) throw std::runtime_error(Refusal(built.Error()));
+        return built.TakeValue();
     }
     }
     throw std::logic_error("deck::Prepare: RunKind");
@@ -1841,7 +1847,12 @@ static Outcome<std::unique_ptr<SolidCalculation>, SetupRefusal> PrepareOf(const 
     auto admitted=AdmitSetup(spec, mat, stages);
     if (!admitted) return R::Fail(admitted.Error());
     const auto setup=admitted.TakeValue();
-    if (r.empty()) return R::Ok(SolidCalculation::Prepare(setup, stages, std::move(onIteration)));
+    if (r.empty())
+    {   // a BUILD refusal is reported as the setup's is (Run files both alike: a policy row and its sentence, no SCF ran)
+        auto built=SolidCalculation::Prepare(setup, std::move(onIteration));
+        if (!built) return R::Fail(SetupRefusal{built.Error().policy, built.Error().reason});
+        return R::Ok(built.TakeValue());
+    }
     // a refusal THROWS -- a deck never silently re-seeds
     auto P=SolidCalculation::PrepareRestart(r, setup, stages.front().params, std::move(onIteration));
     if (!P) throw std::runtime_error("deck: state.restartFrom "+r+" refused: "+P.Error().details);

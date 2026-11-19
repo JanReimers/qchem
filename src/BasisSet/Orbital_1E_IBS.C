@@ -36,8 +36,9 @@ template <class T> class Integrals_Kinetic : public virtual IrrepBasisSet_IDs
 public:
     //! \return \f$\langle p^2\rangle=\langle -\nabla^2\rangle\f$ (NO 1/2). Built once per {radial,angular} ID pair.
     virtual hmat_t<T>  MakeKinetic() const=0;
-    //! Cached accessor for the \f$\langle p^2\rangle\f$ block (see MakeKinetic()).
-    const   hmat_t<T>&     Kinetic() const;
+    //! Cached accessor for the \f$\langle p^2\rangle\f$ block (see MakeKinetic()).  Pure here: a family implements it by listing the
+    //! Internal CachedKinetic<T> (the parent's cache).
+    virtual const hmat_t<T>& Kinetic() const=0;
 
     //! \name d/dR (the user's ruling 2026-11-08: a derivative version beside a hub face's method; GeometryOptimizationPlan §13.2)
     //!@{

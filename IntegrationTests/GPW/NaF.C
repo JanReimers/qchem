@@ -27,10 +27,8 @@
 #include <filesystem>
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
 
-import qchem.Structure;                          // Molecule, Atom
 import qchem.SCFCap;                             // IterationBudget: the convergence PANEL's budget (doc/SCFRobustnessPlan.md §4)
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
-import qchem.Matrix3D;                           // Matrix3D<double> (the rhombohedral AFM-II cell matrix)
 import qchem.Lattice_3D;                         // Lattice_3D
 import qchem.BasisSet;                           // Complex_BS, Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;            // Complex_OIBS (the overlap-spectrum diagnostic)
@@ -55,7 +53,6 @@ import qchem.SCFAccelerator.Factory;              // the PUBLIC complex accelera
 import qchem.WaveFunction;                       // cWaveFunction (the converged state)
 import qchem.Energy;                             // EnergyBreakdown
 import qchem.Symmetry.Irrep;                     // Irrep
-import qchem.Reporting;                          // report:: -- bracket the GPW run so grids/basis sections land
 import qchem.Symmetry.Spin;                      // Spin
 import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
@@ -100,8 +97,8 @@ TEST(GPW_NaF, Γ_Imp_Anchor)   // RE-ENABLED 2026-09-15: 15 s, converged in 23 i
     SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     SCFParams par=NaFGates(); par.StartingRelaxRo=0.25; par.MergeTol=1e-4;
     GpwReport report("NaF "+o.label, par.Verbose);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), par);
-    auto R=calc.Result();
+    o.scf=par; auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);           // 1 (Na) + 7 (F) valence electrons, conserved
     EXPECT_NEAR(R->Energy(), -24.4304, 0.01);           // did-E-move anchor at Γ (CP2K agrees to 0.2 mHa, doc/GPWPlan.md)
@@ -156,19 +153,19 @@ const NaFRestartFixture& NaFRestart()
             o.accuracy.eps=0.0;
             o.solid.tolerances.rasterX=o.solid.tolerances.vlocRasterX=o.solid.tolerances.xcRasterX=16.0;
             o.saveStateTo=r.coarsePath;
-            qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams());
-            auto R=calc.Result();
+            o.scf=NaFAnchorParams(); auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o)).TakeValue(); (void)calc->Converge();
+            auto R=calc->Result();
             if (!R) { r.why="coarse: "+Why(R); return r; }
             r.coarseEnergy=R->Energy();
         }
         {   // the COLD fine reference (what Γ_Imp_Anchor runs), also saved for the exact-resume claim
             RunOptions o=NaFAnchorOptions(naf, "NaF restart cold fine");
             o.saveStateTo=r.finePath;
-            qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFAnchorParams());
-            auto R=calc.Result();
+            o.scf=NaFAnchorParams(); auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o)).TakeValue(); (void)calc->Converge();
+            auto R=calc->Result();
             if (!R) { r.why="cold fine: "+Why(R); return r; }
             r.coldEnergy=R->Energy(); r.coldIterations=R->IterationCount();
-            r.fineSetup=calc.SizedSetup();   // the PRODUCTION grid, as this run's pilot sized it (C2 step 3): what the coarse state restarts onto
+            r.fineSetup=calc->SizedSetup();   // the PRODUCTION grid, as this run's pilot sized it (C2 step 3): what the coarse state restarts onto
         }
         r.ok=true;
         return r;
@@ -268,10 +265,10 @@ TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke intern
     RunOptions o=NaFOptions(naf, "NaF Becke gate");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     GpwReport report("NaF "+o.label, false);
-    qchem::SolidCalculation calc(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o), NaFGates());
-    ASSERT_TRUE(calc.Result()) << Why(calc.Result());
-    EXPECT_NEAR(calc.Result()->TotalCharge(), 8.0, 1e-6);
-    const GpwHandles h=Handles(calc);
+    o.scf=NaFGates(); auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o)).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result()) << Why(calc->Result());
+    EXPECT_NEAR(calc->Result()->TotalCharge(), 8.0, 1e-6);
+    const GpwHandles h=Handles(*calc);
 
     auto st=lat.GetStructure();
     XCProbe U  =UniformXCProbe(h, st);

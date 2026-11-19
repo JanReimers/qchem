@@ -18,8 +18,6 @@ import qchem.Mesh.Quadrature;           // qcMesh quadrature + ScalarField/Basis
 import qchem.VectorFunction;
 import qchem.Symmetry.Factory;
 import qchem.Symmetry.Atom.Spherical;
-import qchem.Streamable;
-import qchem.Constants;
 import qchem.Blaze;
 using namespace qchem;
 

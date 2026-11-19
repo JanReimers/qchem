@@ -29,7 +29,6 @@ module;
 export module qchem.NUFFT;
 import qchem.Types;   // cvec_t, ivec3_t, rvec3_t, dcmplx
 import qchem.FFT;     // FFT3D, Next5Smooth
-import qchem.CMath;   // Pi
 
 namespace qchem::NUFFT
 {

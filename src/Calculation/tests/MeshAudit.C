@@ -41,10 +41,10 @@ RunOptions F2Options() {return {.model=Model::LDA, .pp="gth-lda-valence", .molec
 
 TEST(MeshAudit, AgainstItsOwnMeshEveryTermReadsZero)
 {
-    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
-    MoleculeCalculation c(setup, Tight());
-    ASSERT_TRUE(c.Result());
-    const GridAuditResult R=c.MeshAudit(c.SizedSetup()->xcMesh);
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .scf=Tight(), .molecule={.basis="dzvp"}});
+    auto c=MoleculeCalculation::Prepare(setup).TakeValue(); (void)c->Converge();
+    ASSERT_TRUE(c->Result());
+    const GridAuditResult R=c->MeshAudit(c->SizedSetup()->xcMesh);
     ASSERT_FALSE(R.terms.empty());
     for (const auto& t : R.terms)
     {
@@ -59,11 +59,11 @@ TEST(MeshAudit, AFinerMeshMovesOnlyTheMeshBorneTerms)
 {
     for (auto fit : {Hamiltonian::CoulombFit::Auto, Hamiltonian::CoulombFit::Delta})
     {
-        const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit=fit}, .molecule={.basis="dzvp"}});
-        MoleculeCalculation c(setup, Tight());
-        ASSERT_TRUE(c.Result());
-        const double E0=c.Energy();
-        const GridAuditResult R=c.MeshAudit(Finer(c.SizedSetup()->xcMesh));
+        const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit=fit}, .scf=Tight(), .molecule={.basis="dzvp"}});
+        auto c=MoleculeCalculation::Prepare(setup).TakeValue(); (void)c->Converge();
+        ASSERT_TRUE(c->Result());
+        const double E0=c->Energy();
+        const GridAuditResult R=c->MeshAudit(Finer(c->SizedSetup()->xcMesh));
         const bool hartreeOnMesh = fit==Hamiltonian::CoulombFit::Delta;
         double sum=0.0, largest=0.0;
         bool sawExc=false, sawEee=false;
@@ -88,7 +88,7 @@ TEST(MeshAudit, AFinerMeshMovesOnlyTheMeshBorneTerms)
         EXPECT_TRUE(sawExc && sawEee);
         EXPECT_NEAR(R.ΔE, sum, 1e-14*std::fabs(E0));
         EXPECT_EQ(R.maxAbsΔH, largest);
-        EXPECT_EQ(c.Energy(), E0) << "the audit is fixed-D: the run's answer is untouched";
+        EXPECT_EQ(c->Energy(), E0) << "the audit is fixed-D: the run's answer is untouched";
         // The pilot sized the mesh to the energy run's eps x N_atoms, so a finer mesh moves the energy by less than that.
         EXPECT_LT(std::fabs(R.ΔE), setup->opts.accuracy.Target(ClientConsumes::Energy, 3));
     }
@@ -104,10 +104,10 @@ TEST(MeshAudit, TheDunlapHartreeIsMeshFreeAtAFixedD)
     const double a=1.186;   // C-H 2.054 bohr
     ch4.Insert(Site{6, Vector3D<double>(0,0,0)});
     for (const rvec3_t& h : {rvec3_t(a,a,a), rvec3_t(-a,-a,a), rvec3_t(-a,a,-a), rvec3_t(a,-a,-a)}) ch4.Insert(Site{1, Vector3D<double>(h.x,h.y,h.z)});
-    const auto setup=MoleculeSetup::Resolve(ch4, {.model=Model::LDA, .molecule={.basis="dzvp"}});
-    MoleculeCalculation c(setup, Tight());
-    ASSERT_TRUE(c.Result());
-    const GridAuditResult R=c.MeshAudit(Finer(c.SizedSetup()->xcMesh));
+    const auto setup=MoleculeSetup::Resolve(ch4, {.model=Model::LDA, .scf=Tight(), .molecule={.basis="dzvp"}});
+    auto c=MoleculeCalculation::Prepare(setup).TakeValue(); (void)c->Converge();
+    ASSERT_TRUE(c->Result());
+    const GridAuditResult R=c->MeshAudit(Finer(c->SizedSetup()->xcMesh));
     bool sawEee=false, sawExc=false;
     for (const auto& t : R.terms)
     {
@@ -120,7 +120,7 @@ TEST(MeshAudit, TheDunlapHartreeIsMeshFreeAtAFixedD)
 TEST(MeshAudit, BeforeAConvergeItThrows)
 {
     const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
-    const auto c=MoleculeCalculation::Prepare(setup);
+    const auto c=MoleculeCalculation::Prepare(setup).TakeValue();
     EXPECT_THROW((void)c->MeshAudit(Finer(setup->xcMesh)), std::logic_error);
 }
 
@@ -130,29 +130,30 @@ TEST(MeshPilot, AnEnergyRunSettlesWhereItsAuditMeetsEps)
 {
     for (bool f2 : {false, true})
     {
-        const auto setup = f2 ? MoleculeSetup::Resolve(MakeF2(), F2Options())
-                              : MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .molecule={.basis="dzvp"}});
+        RunOptions F2o=F2Options(); F2o.scf=Tight();
+        const auto setup = f2 ? MoleculeSetup::Resolve(MakeF2(), F2o)
+                              : MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .scf=Tight(), .molecule={.basis="dzvp"}});
         EXPECT_FALSE(setup->meshStated);
         EXPECT_FALSE(setup->meshResolved);
         EXPECT_EQ(setup->xcMesh.nRadial,       kMolecularMeshEntryRadial);
         EXPECT_EQ(setup->xcMesh.angularDegree, kMolecularMeshEntryDegree);
-        MoleculeCalculation c(setup, Tight());
-        ASSERT_TRUE(c.Result());
-        EXPECT_EQ(c.Consumes(), ClientConsumes::Energy);
-        const auto cost=c.PilotCost();
+        auto c=MoleculeCalculation::Prepare(setup).TakeValue(); (void)c->Converge();
+        ASSERT_TRUE(c->Result());
+        EXPECT_EQ(c->Consumes(), ClientConsumes::Energy);
+        const auto cost=c->PilotCost();
         EXPECT_TRUE(cost.settled);
         EXPECT_FALSE(cost.statedOver);
         EXPECT_GE(cost.rounds, 1);
         EXPECT_GE(cost.referencesBuilt, 2) << "each axis's rung above, at least";
-        const auto sized=c.SizedSetup();
+        const auto sized=c->SizedSetup();
         EXPECT_TRUE(sized->meshResolved);
         EXPECT_GE(sized->xcMesh.nRadial,       setup->xcMesh.nRadial)       << "the climb only goes up";
         EXPECT_GE(sized->xcMesh.angularDegree, setup->xcMesh.angularDegree) << "the climb only goes up";
         const bool raised = sized->xcMesh.nRadial!=setup->xcMesh.nRadial || sized->xcMesh.angularDegree!=setup->xcMesh.angularDegree;
         EXPECT_EQ(cost.reconvergeIterations>0, raised) << "a raise re-converges once from the carried D";
         // The settled mesh meets the energy run's target against a finer one, at the converged D.
-        const GridAuditResult R=c.MeshAudit(Finer(sized->xcMesh));
-        EXPECT_LT(std::fabs(R.ΔE), setup->opts.accuracy.Target(ClientConsumes::Energy, c.GetStructure().GetNumAtoms()));
+        const GridAuditResult R=c->MeshAudit(Finer(sized->xcMesh));
+        EXPECT_LT(std::fabs(R.ΔE), setup->opts.accuracy.Target(ClientConsumes::Energy, c->GetStructure().GetNumAtoms()));
     }
 }
 
@@ -193,10 +194,10 @@ TEST(MeshPilot, AStatedMeshIsKeptAndAMissIsReported)
 
 TEST(MeshPilot, HartreeFockHasNoMeshToPilot)
 {
-    MoleculeCalculation c(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::HF, .molecule={.basis="dzvp"}}), Tight());
-    ASSERT_TRUE(c.Result());
-    EXPECT_EQ(c.PilotCost().rounds, 0);
-    EXPECT_FALSE(c.SizedSetup()->meshResolved);
+    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::HF, .scf=Tight(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
+    ASSERT_TRUE(c->Result());
+    EXPECT_EQ(c->PilotCost().rounds, 0);
+    EXPECT_FALSE(c->SizedSetup()->meshResolved);
 }
 
 TEST(MeshPilot, ASessionPilotsItsFirstPointOnMatrixElementsAndStepsTheRestOnIt)
