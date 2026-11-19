@@ -7,6 +7,8 @@
 //   M_LibCint.C) contracted with the adjoint; translation invariance; a mismatched adjoint throws.
 // - PG_Cart's Coulomb-fit (Dunlap) pullbacks, MakeRepulsion3CPullback and its fit's MakeRepulsionPullback, against the central difference
 //   of the same faces' contractions at displaced atoms; translation invariance; a mismatched adjoint throws.
+// - The libcint ORACLES: the S/T/V, Coulomb-fit and ERI4 pullbacks, and the two PP primitives (the local short part's 3-centre overlap,
+//   int3c1e_ip1; the KB projectors' overlap, int1e_ipovlp), contracted with an adjoint; translation invariance.
 // - The SALC decorator's pullbacks (1E, and the ERI pair and whole-system ones) against the central difference of its OWN blocks' matrices,
 //   the raw basis rebuilt at displaced atoms under the SAME SALC columns.
 // - A family with no derivative yet answers Can...() false and refuses with NoGradient.
@@ -32,6 +34,9 @@ import qchem.BasisSet.Gaussian.Point.BasisFiles;          // BasisFile (the cont
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;
 import qchem.BasisSet.Gaussian.Evaluators.PG_LibCint;
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;          // NR_Evaluator: the PP primitives' pullbacks (the IBS IS-A one)
+import qchem.Math.SolidHarmonics;                              // CartGaussian, YlmCartesian, MultiplyR2 (the PP field Gaussians)
+import qchem.Math.Angular;                                     // CartTerm, Monomial (the field polynomial)
 import qchem.BasisSet.Gaussian.PG_Cart.Symmetry;               // ExtractAoShells, StructureToSymPoints (the SALC gate)
 import qchem.BasisSet.Internal.SymmetryAdapted_IBS;
 import qchem.BasisSet.Gaussian.Point.SymmetryAdaptedBasisSet;
@@ -406,6 +411,99 @@ TEST(GeometryDerivatives, PG_CartsCoulombFitPullbacksAgreeWithLibcintsGradients)
             worst3=std::max(worst3, std::fabs(C((*F3)[at],k)-C(g3[at],k))); worst2=std::max(worst2, std::fabs(C((*F2)[at],k)-C(g2[at],k)));
         }
     std::printf("  [Coulomb fit, MnD vs libcint] worst |Enzyme-MnD - libcint|: 3-centre %.2e, metric %.2e\n", worst3, worst2);
+}
+
+// ORACLE for the two PP primitives lane B moved to Enzyme over MnD (b314a325c, 2026-11-13), until then gated only by the FD of our own kernel
+// (KetGradient.TheThreeCentreTwins...): the molecular GTH forces stand on them.  libcint is the oracle here only (the user's 2026-11-10
+// ruling: it stays out of the production path).  Both are OVERLAPS -- no Boys function -- so the two engines are the same closed form by
+// different recursions, and they agree to roundoff, not to the Coulomb oracles' Boys-difference 1e-9: 1e-11 relative above 1, as the S/T
+// oracle above (measured 2026-11-19: 3-centre 4.7e-14 against |F| up to 3.8; projectors 1.2e-15 against 0.54).  The contracted DZVP
+// block (s, p, d) on H2O; each field Gaussian sits on one atom, as the PP's do.
+namespace
+{
+//! The worst |a-b| over every atom and axis, with the per-entry tolerance \a tol relative above 1; \a biggest tracks the largest |libcint| entry, so a
+//! comparison of two zero vectors cannot pass for an agreement.
+double CompareForces(const rvec3vec_t& ours, const std::vector<rvec3_t>& lc, double tol, const std::string& what, double& biggest)
+{
+    EXPECT_EQ(ours.size(), lc.size()) << what;
+    double worst=0.0;
+    for (size_t at=0;at<std::min(ours.size(),lc.size());at++)
+        for (int k=0;k<3;k++)
+        {
+            EXPECT_NEAR(C(ours[at],k), C(lc[at],k), tol*std::max(1.0,std::fabs(C(lc[at],k)))) << what << ", atom " << at << " axis " << k;
+            worst=std::max(worst, std::fabs(C(ours[at],k)-C(lc[at],k)));
+            biggest=std::max(biggest, std::fabs(C(lc[at],k)));
+        }
+    return worst;
+}
+}
+
+// (1) The local PP's short part, <i| r^2n e^{-α|r-R|²} |j> summed against a symmetric D: OperatorThreeCPullback (Enzyme over the cache-free
+// twin of PrimGaussian::Overlap3C, GaussianRF::ThreeCentreGradient(Overlap)) against libcint's int3c1e_ip1 (OperatorThreeCGradient).  The
+// GTH short part reaches r⁴ (n = 0, 1, 2); every atom carries the field in turn, so the field centre coincides with each basis centre
+// once.  Translation invariance: the field moves with the atoms, so Σ_A F[A] = 0.
+TEST(GeometryDerivatives, PG_CartsLocalPPShortPullbackAgreesWithLibcintsThreeCentreOverlapGradient)
+{
+    const auto h2o=Water();
+    auto ibs=Dzvp(h2o.get());
+    const BasisSet::Gaussian::Evaluators::PG_Cart_MnD::NR_Evaluator& mnd=*ibs;   // the IBS IS-A MnD evaluator
+    using LC=BasisSet::Gaussian::Evaluators::PG_LibCint::NR_Evaluator;
+    const LC lc(dynamic_cast<const BasisSet::Gaussian::Evaluators::PG_Cart_MnD::PGData&>(*ibs), h2o.get());
+    const size_t n=ibs->GetNumFunctions();
+    std::mt19937 rng(17); std::uniform_real_distribution<double> U(-1,1);
+    rmat_t D(n,n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=D(j,i)=U(rng);   // libcint's route doubles <∇i j|g>: D symmetric
+    const std::vector<rvec3_t> R=Sites(*h2o);
+    const double alphas[3]={0.6, 1.7, 4.3};   // GTH-scale exponents (1/(2 r_loc²) for r_loc 0.2..0.9)
+    double worst=0.0, biggest=0.0;
+    for (size_t A=0;A<R.size();A++)
+        for (int nr=0;nr<=2;nr++)
+        {
+            const Math::CartGaussian g{R[A], alphas[(A+nr)%3], Math::MultiplyR2({Math::CartTerm{Math::Monomial{0,0,0},1.0}}, nr)};
+            const std::string what="field on atom "+std::to_string(A)+", r^"+std::to_string(2*nr);
+            const auto ours=mnd.OperatorThreeCPullback(g, A, D, h2o.get());
+            const auto ref =lc.OperatorThreeCGradient(g, A, D);
+            worst=std::max(worst, CompareForces(ours, ref, 1e-11, what, biggest));
+            rvec3_t s(0,0,0); for (size_t B=0;B<ours.size();B++) s+=ours[B];   // indexed: range-for can't see Blaze's iterator op!=
+            EXPECT_LT(norm(s), 1e-11) << what << ": translation invariance";
+        }
+    EXPECT_GT(biggest, 1e-2) << "the forces compared are not all ~0";
+    std::printf("  [local PP short, MnD vs libcint int3c1e_ip1] worst |Enzyme-MnD - libcint|: %.2e (largest |F| %.2e)\n", worst, biggest);
+}
+
+// (2) The KB projectors' overlap <i|g>, g = r^2n Y_lm e^{-α|r-R|²} on one atom (the projector Gaussian as the bra of libcint's 2-centre
+// gradient), summed against weights w: OverlapWithPullback (Enzyme over GaussianRF::KetGradient(Overlap)) against libcint's int1e_ipovlp
+// (OverlapWithGradient).  GTH projectors reach l = 2 here (the s, p, d of the DZVP elements) with n = 0, 1; every m.  Translation
+// invariance of a 2-centre integral: Σ_A F[A] = 0.
+TEST(GeometryDerivatives, PG_CartsProjectorPullbackAgreesWithLibcintsOverlapGradient)
+{
+    const auto h2o=Water();
+    auto ibs=Dzvp(h2o.get());
+    const BasisSet::Gaussian::Evaluators::PG_Cart_MnD::NR_Evaluator& mnd=*ibs;
+    using LC=BasisSet::Gaussian::Evaluators::PG_LibCint::NR_Evaluator;
+    const LC lc(dynamic_cast<const BasisSet::Gaussian::Evaluators::PG_Cart_MnD::PGData&>(*ibs), h2o.get());
+    const size_t n=ibs->GetNumFunctions();
+    std::mt19937 rng(23); std::uniform_real_distribution<double> U(-1,1);
+    rvec_t w(n); for (size_t i=0;i<n;i++) w[i]=U(rng);
+    const std::vector<rvec3_t> R=Sites(*h2o);
+    const double alphas[3]={0.8, 2.1, 5.0};
+    double worst=0.0, biggest=0.0;
+    size_t cases=0;
+    for (size_t A=0;A<R.size();A++)
+        for (int l=0;l<=2;l++)
+            for (int nr=0;nr<=1;nr++)
+                for (int m=-l;m<=l;m++)
+                {
+                    const Math::CartGaussian g{R[A], alphas[(A+l+nr)%3], Math::MultiplyR2(Math::YlmCartesian(l,m), nr)};
+                    const std::string what="projector on atom "+std::to_string(A)+", l="+std::to_string(l)+" m="+std::to_string(m)+" r^"+std::to_string(2*nr);
+                    const auto ours=mnd.OverlapWithPullback(g, A, w, h2o.get());
+                    const auto ref =lc.OverlapWithGradient(g, A, w);
+                    worst=std::max(worst, CompareForces(ours, ref, 1e-11, what, biggest));
+                    rvec3_t s(0,0,0); for (size_t B=0;B<ours.size();B++) s+=ours[B];   // indexed: range-for can't see Blaze's iterator op!=
+                    EXPECT_LT(norm(s), 1e-11) << what << ": translation invariance";
+                    cases++;
+                }
+    EXPECT_GT(biggest, 1e-2) << "the forces compared are not all ~0";
+    std::printf("  [KB projector, MnD vs libcint int1e_ipovlp] worst |Enzyme-MnD - libcint| over %zu projectors: %.2e (largest |F| %.2e)\n", cases, worst, biggest);
 }
 
 // The Coulomb-fit Can queries agree with their methods: PG_Cart with its own fit answers both; PG_Spherical, and its own fit, refuse both
