@@ -200,7 +200,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         {
             auto* b=new Gaussian::tGPW_IBS<U>(BlockCache(), lat.GetUnitCell(), irrep,
                                     mol, ladder, p.images,  // mol and the ladder shared across k-blocks
-                                    ops.directDensity,    // {W|τ} = the IBZ raster star ops
+                                    ops.densityGroup,     // the imposed density group (null = {E}): the T1 {G}-star fold asks it
                                     p.tol);               // the typed GPW tolerances (D-ENV step 5)
             Insert(b);
         };
@@ -209,7 +209,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
     }
     // GRID DIAGNOSTIC (doc/GPWPlan §0e): every stored grid, once per basis.  When a run report is open the orchestrator emits grids
     // EXPLICITLY (EmitGpwGrids) AFTER its conditioning pre-flight; only the legacy unbracketed console path stays here.
-    if (!blocks.empty() && report::Depth() == 0) ladder->PrintGrids(std::cout, mol->GetNumFunctions(), ops.directDensity);
+    if (!blocks.empty() && report::Depth() == 0) ladder->PrintGrids(std::cout, mol->GetNumFunctions(), ops.densityGroup.get());
     // The Shubnikov PAIR projection: only where every op maps the one block onto itself with no Bloch phase -- a magnetic
     // imposition of a single Γ block.  That rule is the imposition's now (CrystalImposition::SpinPairOps), and the projection is
     // Symmetry::ProjectSpinPair over the block's own DenseRepresentation (V-BS-SYMMETRY S3).
@@ -228,7 +228,7 @@ std::shared_ptr<const Gaussian::GpwRasterLadder> MakeRasterLadder(const ::qchem:
 void EmitGpwGrids(const Gaussian::GpwRasterLadder& ladder, const BasisSet::Real_BS& mol, const CrystalImposition& imp)
 {
     if (report::Depth()==0) return;
-    ladder.ReportGrids(imp.directDensity);
+    ladder.ReportGrids(imp.densityGroup.get());
     // The lattice-sum economy readout (grids.latticeSums + the [lattice sums] console line): the numbers that JUMP when diffuse
     // functions are added -- the owner of the screens (the molecular basis's orbital block) reports them.
     for (auto ibs : mol.Iterate<BasisSet::Real_OIBS>())

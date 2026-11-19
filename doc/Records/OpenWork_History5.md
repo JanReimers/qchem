@@ -3638,3 +3638,202 @@ REMAINDER (open row): a solid builds its basis outside a "basis" scope (`SolidSe
 Original row:
 
 | **The basis report has nFunctions per irrep but no shells per element** (S; 2026-11-02) | the GUI's Basis tab '3s 2p 1d' table reads the `.bsd` file itself -- a second reader of the basis data | the basis builder writes a per-element shells row into the `basis` section as it builds (caller sets context, callee writes one level in; CLAUDE.md 'THE RUN REPORT') · lane G's audit |
+
+## ✅ The exact-resume Pulay policy moved out of the SCF library (lane S, 2026-11-19, c9521438b)
+
+`tSCFIterator::Iterate` set pulayStart to 0 on the first Iterate of an iterator seeded `SeedRole::ExactResume` (beta-MnO2 A1AFM r015:
+23 iterations with pulayStart 5, 4 with 0) and printed it as a `[handoff]` line.  A policy inside a library, so it moved to the policy
+layer (CLAUDE.md), where it reports itself:
+- `tCalculation::ExactResumeMixing(params, resolved)` (the base of every facade) holds the rule, its `[<tag> policy] ExactResumePulay`
+  line plus `policy` row, and the first-stage bit.  `SeededIterator(exact)` sets the bit at EVERY iterator construction in each kind, so
+  it always describes the iterator the kind holds: a stage 0 rebuilt from the seed, or a conditioning restart, is not a resume.  The
+  trigger is the EXACT flag, not `SCFStageKind::Restored` (which also covers a WARM restart and the raster pilot's re-convergence).
+- Each kind calls it on ONE line at its Iterate site.  Not one call in `ConvergeStage`: the rule needs the params AS ITERATED and
+  RESOLVED; each kind transforms them inside `RunStage` (the solid's recipe knobs and restored step, every kind's degenerate-level fill),
+  and only the kind's iterator resolves `Mixing::Auto`.  Applied earlier, Auto's resolution would write start 5 back.
+- A stated start is still overridden (bit-identical); the policy row says so.  Whether it should be is an open USER question (OpenWork §3).
+- Gate: `SolidState` field-mixer exact resume now looks for the `[policy]` line.
+
+Original row:
+
+| **The exact-resume "pulayStart -> 0" policy lives in the SCF library** (S; lane A 2026-11-12, found building B5) | `src/SCFIterator/Imp/SCFIterator.C` (~408) drops PulayStart to 0 on an exact resume ("priming is for a start far from the fixed point").  A policy, so by CLAUDE.md it belongs in the policy layer (`qchem.SCFRecipe`, B5), where it would print under `[policy]` | move it into the recipe's RESTORED column, bit-identical (0 anchors moved) · `doc/SCFRobustnessPlan.md` R4.1 |
+## ✅ Star-average remainders (a), (c), (d) (lane S, 2026-11-18)
+
+From the live row "Star-average remainders"; (b) stays there.  (d) the raster `StarField` averages on any grid the op leaves invariant (`RasterVoxelMap`, integer W·N_a/N_b) and THROWS on any other (no user chooses the grid: a broken invariant, controller ruling; unreachable today, `AutoGrid` is always cubic).  (a) the T1 {G} fold and the grid report ask `CrystalImposition::densityGroup` (`StarGroup::EvaluateOnGStars`, `CountGStars`); `directDensity` is read only by the stream fold, now its own row.  (c) CLOSED AS STALE: `FoldedMesh::Symmetrize` runs a precomputed `Fold`, and its ops never leave `CrystalImposition::MakeXCMesh`  The stream fold's op list got its own row ("The stream fold's ops list"), and the requests `StarGroup` gained are listed in the `Group`-face row as an input to its design review.  Landing: 0 movers (see the READY to the controller; (d) alone: short 1747/0, long 19/0, decks 67/67, RelChecked rc 0).
+
+# Tracker sweep 2026-11-19 (lane A, from the controller's audit): rows closed or shrunk in `doc/OpenWork.md`, verbatim
+
+## ✅ `CalcOptions`'s default basis `"sto-3g"` is not a registered basis (closed 2026-11-19, tracker sweep)
+
+From the live row; with its duplicate "The molecular facade's default basis cannot build" (§3 bullet, below): an unstated basis is refused at Resolve, naming the registered bases (dabf1441e, 2026-11-07; `RunOptions.C` NO DEFAULT)
+
+Original row:
+
+| **`CalcOptions`'s default basis `"sto-3g"` is not a registered basis** (lane B, 2026-10-30) | `qchem::Calculation(st)` with default options throws `Gaussian::Factory: unknown basis "sto-3g"` (valid: dzvp, dzvp2, orb, orb1, sipp, ..., tzvp, valence_*); every test states its basis, so nothing caught it (found writing `MoleculeSession` UTs) | user's call: register an STO-3G file, or default to one that exists (`dzvp`); then a UT that a default-options `Calculation` on H₂O converges · `src/Calculation/MoleculeSetup.C` |
+
+## ✅ The molecular facade's default basis cannot build (closed 2026-11-19, tracker sweep)
+
+From the live row; duplicate of "`CalcOptions`'s default basis `"sto-3g"` is not a registered basis", closed with it (dabf1441e)
+
+Original row:
+
+· **The molecular facade's default basis cannot build** (lane G 2026-11-07).  `CalcOptions::basis` defaults to `"sto-3g"`, and there is no `sto-3g.bsd`: `Gaussian::Factory` throws "unknown basis".  Resolve-only tests pass because they never build a basis.  "No tokens" is supposed to be what a user gets (CLAUDE.md test grammar), so the default must name a basis that exists, or there is no default and the deck must state one (a refuse policy row).  Next action: decide which; a facade unit test that BUILDS with every default.
+
+## ✅ The atom facade has no setup, so no `Admit` door: its refusals throw from the constructor (closed 2026-11-19, tracker sweep)
+
+From the live row; P1 948d82334 built `AtomSetup::Admit`
+
+Original row:
+
+| **The atom facade has no setup, so no `Admit` door: its refusals throw from the constructor** (lane B 2026-11-14, found closing the row above) | `AtomCalculation(Z, charge, opts, params)` decides and converges in its constructor; a refused choice (δ Hartree `AtomHartreeRoute`, a gradient consumer under GDM) throws `policy::Refused` from there, where the solid and molecular facades now return a `SetupRefusal` at `Admit`.  scfrun's atom path and the GUI's atom runs reach it | split an `AtomSetup` (the decisions: grids, Hartree route, accelerator) from the atom facade with the same `Admit` / `Resolve` pair, so the three facades stay at parity · `src/Calculation/Imp/AtomCalculation.C` |
+
+## ✅ After the atom pilot re-converges, the atom's `iters=` line counts only the last SCF (closed 2026-11-19, tracker sweep)
+
+From the live row; landed on main as 00dcde5b0; the molecule twin is the next row, still open
+
+Original row:
+
+| **After the atom pilot re-converges, the atom's `iters=` line counts only the last SCF** (lane B 2026-11-14) | **DONE on lane-b (2026-11-17), 00dcde5b0, awaiting the controller's bank**: `PilotGrids` returns its re-convergence iterations, `Converge` keeps the run's total (`IterationCount()`, the StateSummary, the result row), the report files `pilotIterations` and prints `iters=N (pilot P)`; gate `AtomPilot.TheIterationCountIsTheRunsTotalAndThePilotsShareIsFiled`.  Movers vs main-a87a7cf4: 32 short + 1 long, iterations only, each now equal to its trace-row count | move to history on landing |
+
+## ✅ A cache for basis values on a grid (closed 2026-11-19, tracker sweep)
+
+From the live row; P1+P3 8c20acca0, P2 32874db40, landed as 6a7f1d76 (75bc646e6)
+
+Original row:
+
+| **A cache for basis values on a grid** (user 2026-11-14, on S3c: "Unlike (expensive) integral tables, we don't have a framework for caching anything.op(grid of r's).  Maybe we should?") | **SURVEYED 2026-11-15 (lane H; design note `side-session-notes/.../laneH-BasisOnGrid-survey.md`, controller rulings the same day).**  Only ONE orbital χ table exists: the δ fit's Φ (`DeltaFit_IBS::itsPhi`, keyed by the block's InstanceToken since S3c, reported as `cache.deltaPhiBytes`; 2.87 GB on TiO₂, the §4 screened-Φ row).  Every other holder is a VIEW over it or over another basis table, plus small weight vectors; the GPW raster route stores no χ and re-collocates by design (its 4 GB value cache was deleted).  Ruled: Φ stays on the δ fit (the user's 2026-11-14 wording).  P1 (8 views re-keyed from the block's `sym_t` to its InstanceToken, the latent collision, unreachable in production) + P3 (one shared weight vector per fitter; PW columns counted in `BasisCache::BytesOf`) = lane H READY, gate `UTChargeDensity` `FitterBlockKeys.*` | **P0 RULED (user 2026-11-15, verbatim): "Regarding the grid cache. I am not sure when is the right time. Hopfully we can wait until the grid usage code settles."  So NO general op(grid) caching framework now; trigger to revisit: the grid usage code settles, or a second consumer needs the same (block, grid) values.**  P2 (lane H READY after P1+P3): a molecular δ/multipole Hartree run builds a SECOND δ fit on the identical mesh beside Vxc's (Hamiltonians.C, when `coulomb.nRadial == 0`), so every block's Φ is held twice; the factory shares one quadrature and one δ fit, gated by `deltaPhiBytes` both-terms = Vxc-only and anchordiff 0 moved · lane H |
+
+## ✅ The Hartree and XC δ bases each build their own Φ table (closed 2026-11-19, tracker sweep)
+
+From the live row; duplicate of the basis-on-grid row's P2, landed as 32874db40 (one δ fit per molecular Hamiltonian)
+
+Original row:
+
+| **The Hartree and XC δ bases each build their own Φ table** (lane S 2026-11-06) | on `CoulombFit::Delta` the two terms hold the same mesh and the same orbitals, but each `DeltaFit_IBS` collocates separately: twice the table RAM, twice the build.  Numbers are unaffected | share one collocation between the two terms, in the shape of the exch/corr sharing (`project_densitysampler_rename` in memory; measure first on TeF₆) · `src/Hamiltonian/Internal/Imp/Hamiltonians.C` |
+
+## ✅ The Gaussian94 reader silently lost a file's FIRST element block (closed 2026-11-19, tracker sweep)
+
+From the live row; FIXED by lane G 2026-11-10, 907186d20 / de9afa435
+
+Original row:
+
+| **The Gaussian94 reader silently lost a file's FIRST element block** (lane G 2026-11-10, found by `Deck.EveryShippedDeckVets` on the inlined Mn+O subset of `decks/panel/MnO2_control.bsd`) | `Gaussian94Reader::TopOfFile` stopped at the first "!" TOKEN anywhere, skipped two lines, and `FindAtom` then skipped to the next "****" when what stood there was not a header: a preamble that opens with its own "!" lines cost the file its first block, with no message.  SURVEY (every .bsd in BasisSetData/, decks/, IntegrationTests/): `decks/panel/MnO2_control.bsd` and `MnO2_p5f3_dD.bsd` lost F (their six MnO2_beta panel decks use Mn, O: NO number moved); `BasisSetData/demon_coul.bsd` is an HTML page ("<pre>!", "<p>BASIS=") no element of which could ever be read (unused, but listed by `BasisNames()`); every other file read every block.  **FIXED by lane G (2026-11-10):** the body starts after the BASIS= line (else the historical "!"+title layout), headers are found line by line, and a file with neither is refused by name; gates `Gaussian94Reader.APreambleThatOpensWithBangLinesLosesNoBlock`, `.TheHistoricalBangTitleLayoutStillReads`, `.AFileWithNoLocatableBodyIsRefusedByName`, `.EveryShippedFileReadsEveryBlockItHolds` | demon_coul.bsd (a saved HTML page, not a basis, used by nothing) DELETED on the user's ruling 2026-11-10 ("If we don't need it we can remove it"); `EveryShippedFileReadsEveryBlockItHolds` now covers every BasisNames() file with no exception.  CLOSED · `src/BasisSet/Gaussian/Point/Readers/Imp/Gaussian94.C` |
+
+## ✅ No way to bring a crystal structure into the GUI (closed 2026-11-19, tracker sweep)
+
+From the live row; BUILT by lane G 2026-11-09, 6feedb0e5 `qchem.CrystalFiles` + the GUI import/export and picker; any GUI remainder is lane G's
+
+Original row:
+
+| **No way to bring a crystal structure into the GUI** (user 2026-11-09) | the File menu imports a molecule (.xyz) only; a crystal reaches the GUI only through the agent (`lookup_structure` over the 32 entries of `src/Structure/Data/materials.json`, or a rocksalt / diamond / fcc prototype).  There is no materials picker in Setup and no reader for any crystal file format (CIF, POSCAR, extended xyz) in the library or the GUI | **DESIGN RULED (user 2026-11-09):** `materials.json` is the INTERNAL format; CIF, POSCAR and extended xyz are IMPORTS and EXPORTS only.  (1) A reader is a TRANSLATOR: it emits one `materials.json` entry (Å → bohr; CIF asymmetric unit symmetry-expanded) and `Materials::Inline` builds the cell through the one parser, so an imported structure IS an entry.  The entry schema must stay a superset of what the three formats carry for an ORDERED crystal; what it cannot represent is REFUSED by name, never dropped silently (CIF partial site occupancy / disorder; ADPs are ignored as irrelevant).  (2) The shipped file stays CURATED (its lattice constants anchor tests); imports go to a PER-USER library `~/.solid2/materials.json` (same schema), and a workspace may add its own on top; a user entry may not reuse a shipped name; promoting a material into the shipped file is a deliberate commit.  (3) Every imported entry records provenance (source file, database id / DOI, date) beside `comment`.  (4) CIF's stated space group is kept as provenance and CHECKED against the library's own detection (warn on mismatch); the first version stores `vectors_bohr` (Bravais recognition later); site spins are stated in the GUI after import.  (5) Export writes an entry as POSCAR / CIF / extended xyz for the oracles.  Order: extended xyz + POSCAR readers, CIF reader, per-user library, then the GUI (lane G: File → Import crystal, a picker over shipped + user materials)  **WHO RESOLVES ~ (controller ruling 2026-11-09):** the C++ library reads NO environment (the getenv audit: a user library CAN move a number through a deck that names it): callers pass the user / workspace library PATHS (`StructureData::CellEntries(layers)`, `SaveMaterial(into, ...)`), the GUI resolves `~/.solid2/materials.json` in Python, and a DECK NEVER NAMES a user material -- it inlines the entry with its provenance (a deck naming an unknown structure is refused, saying so); shipped names work as before.  BUILT by lane G (2026-11-09): `qchem.CrystalFiles` (readers + writers, COD/ASE-checked), the explicit-path layers, `qchem_py.materials`, GUI File → Import / Export crystal, Setup's Material picker + Site spins + Save to my materials · `src/Calculation/Materials.C`, `src/Structure/Data/materials.json`, qchem-GUI `app_desktop.py` |
+
+## ✅ A deck inlines a non-shipped basis, with its attribution (closed 2026-11-19, tracker sweep)
+
+From the live row; 64917e42f `basis.inline`
+
+Original row:
+
+| **A deck inlines a non-shipped basis, with its attribution** (RULED by the user 2026-11-10: *"Should decks also carry a downloaded basis inline? that seems like the safe option. It should also carry the attribution. In general the more self contained the decks are the better."*  Also: *"The shipped ones are really just our testing basis sets. They are unlikely to satisfy most user demands."* -- downloaded bases are the main user path) | `CalcOptions::basisFile` / the deck's `basis.file` name a PATH (a GUI download lives under `~/.solid2/bases/`), so a deck naming one is not portable | **BUILT by lane G (2026-11-10):** `basis.inline` (the BasisSetData text, its preamble the attribution); `Resolve` turns a non-shipped `basis.file` into it, keeping only the material's elements (`SubsetBasis`), so the revision record runs without the file; a run builds from a content-addressed cache file.  As ruled: a deck that uses a non-shipped basis INLINES it -- only the elements the deck uses -- with its attribution (the Exchange name + version, the reference / DOI, the download date: the importer's preamble provenance); the checksum fingerprint applies to the inlined text; a deck never depends on a per-user `~/.solid2` lookup to run (the materials precedent) · `src/Calculation/Deck.C` (`basis.file`), `CalcOptions::basisFile` |
+
+## ✅ The multipole Vxc fit has no Pρ cell: `xc.rho fit` with `VxcFit::Multipole` throws `logic_error` ("not realized yet") (closed 2026-11-19, tracker sweep)
+
+From the live row; superseded by pin 28: 2a992c0da retired the ρ axis (`XCRhoPolicy.C`)
+
+Original row:
+
+· **The multipole Vxc fit has no Pρ cell: `xc.rho fit` with `VxcFit::Multipole` throws `logic_error` ("not realized yet")** (lane S 2026-11-10, V-XC-ONE-TERM step 3).  The ρ axis is realized for A1 (`OverlapProjectedDensitySampler`) and δ (exact); the multipole fit's projection is a different metric (its moments).  Next action: realize it as a projected-sampler strategy over the multipole fit's own forward/adjoint, gated by the FD H = dE/dD test `VxcProductSpace.TheA1ProjectedCellsMatrixIsItsEnergysDerivative` extended to it; until then the throw becomes an Outcome refusal by name · `src/Hamiltonian/Internal/Imp/Hamiltonians.C` (`MolecularVxcTerm`), `src/ChargeDensity/Internal/Imp/DensitySampler_OverlapProjected.C`
+
+## ✅ GUI: browse and download a basis from the Basis Set Exchange (closed 2026-11-19, tracker sweep)
+
+From the live row; BUILT by lane G 2026-11-10 (8ca925212); the per-element ECP admission stays live
+
+Original row:
+
+| **GUI: browse and download a basis from the Basis Set Exchange** (user 2026-11-05; future enhancement; heavy atoms wanted anyway) | feasible: the Exchange has a public REST API (`/api/metadata/`, 776 sets, `/api/basis/<name>/format/gaussian94/?elements=...`, `/api/references/...`) and serves one format we nearly read already, since `.bsd` is Gaussian94 layout | one `gaussian94` importer in the lib (element case, the `BASIS=` header) and a GUI picker filtered by the structure's elements, role orbital.  Save the set locally with its version and citations, so a run stays reproducible offline; refuse ECP sets until there is an ECP route; say so when no Coulomb fit set covers an element.  The GUI side is lane G's.  **BUILT by lane G (2026-11-10):** `qchem.BasisSet.Gaussian.Point.Readers.Gaussian94Import` (D exponents, element case, the `!`/BASIS= header, SP shells split exactly; ECP, scaled shells, labels past I refused by name; provenance in the preamble); `CalcOptions::basisFile` (controller ruling: the molecular twin of the solid `file`; the report states path + checksum, a saved state refuses another checksum); GUI Basis ▸ Basis Set Exchange (`qviz.bse`: each download in its own directory, translated by the lib, saved with version and citations under `~/.solid2/bases/`).  REMAINDER: a set with ECPs only for elements the structure lacks (def2-SVP on water) is refused whole -- per-element ECP detection would admit it · `BasisSetData/`, qchem-GUI |
+
+## ✅ Save / restart for the GUI: the binding and the deck keys (closed 2026-11-19, tracker sweep)
+
+From the live row; the binding is BUILT (74cf67efc); the molecular deck keys moved to the row "Deck: Run / Vet / View for a molecule or an atom"
+
+Original row:
+
+| **Save / restart for the GUI: the binding and the deck keys** (lane A, 2026-11-09, from V-FACADE-STATE) | every facade now saves and restarts (`Calculation::SaveState` / `JudgeState` / `RestartedFrom`, `MoleculeCalculation::Restart` / `PrepareRestart`, `AtomCalculation::Restart`), but the binding does not expose them and a molecular deck has no `state.save` / `state.restartFrom` | lane G: bind save, restart and the judgement (`JudgeState` = refusal or warm list, `RestartedFrom` = exact / warm / displacement / electrons) and show them in the GUI; the h5py reader sees format `qchem-state 2.0` with root `kind` and per-block `irrep` + `S`.  The molecular deck keys wait for V-FACADE-OPTS · `src/Calculation/Calculation.C`, `src/Calculation/SCFState.C` |
+
+## ✅ The GUI's Build -> Run trigger for molecules and atoms (remainder of "a molecule has no build-only step", ✅ 2026-11-02 lane B → `Records/OpenWork_History5.md`) (closed 2026-11-19, tracker sweep)
+
+From the live row; the molecule half is BOUND (fae1d72fc); the atom half stays
+
+Original row:
+
+| **The GUI's Build -> Run trigger for molecules and atoms (remainder of "a molecule has no build-only step", ✅ 2026-11-02 lane B → `Records/OpenWork_History5.md`)** (S) | `Calculation::Prepare(setup, observer)` / `AtomCalculation::Prepare(Z, charge, opts, acc, observer)` build the whole graph in their own report run "<ID> build" (basis.perIrrep, grids.xcQuadrature / ppQuadrature / auxiliaryFit) with no SCF; the first `Converge` reuses it | lane G: delete `qcb_basis_info`, read basis.perIrrep from the build run, bind the Build -> Run trigger · `src/Calculation/Calculation.C` |
+
+## ✅ `state.save` into a missing directory silently does not save, and the run reads CONVERGED (closed 2026-11-19, tracker sweep)
+
+From the live row; the DECK case is fixed (917b350fd: `deck::Run` creates the save directory, `Imp/Deck.C`); the library-level `Checkpoint` stays
+
+Original row:
+
+| **`state.save` into a missing directory silently does not save, and the run reads CONVERGED** (lane H, 2026-11-18) | the save only WARNS after the SCF ("state NOT saved ... cannot create the file"); a deck that asked for a state finishes green without it.  Cost one 26-min TiO₂ run | create the directory, or refuse at vet / pre-flight before the SCF starts; a requested save that cannot happen must not read green · `src/Calculation/SCFState.C`, `CLIapps/rundeck` |
+
+## ✅ Enzyme non-optional, then the energy path's hand derivatives move to Enzyme (closed 2026-11-19, tracker sweep)
+
+From the live row; Enzyme REQUIRED (lane B 4c65d826); both hand-derivative families moved; next action "none on the energy path"
+
+Original row:
+
+· **Enzyme non-optional, then the energy path's hand derivatives move to Enzyme** (user ruling 2026-11-08; GeometryOptimizationPlan, the AD
+  verdict).  **RULED 2026-11-09 (user, on the audit's 5 of ~30): Enzyme is REQUIRED** -- *"Seems like a small burden for a lot of
+  functionality."*  Work in this order: (1) configure FAILS, with a clear message, when the plugin is missing (no OFF build); every tree
+  (Release, RelChecked, the lane trees, the GUI's) gets configured with it -- **DONE (lane B 4c65d826)**: root `CMakeLists.txt` finds
+  `~/Code/Enzyme-<pin>` by default (now `~/Code/Enzyme-cdd0d1c2`; it was `~/Code/Enzyme-main` at 871de19f until 2026-11-13, a tree left
+  frozen there so no plugin is swapped under an old tree), checks the pin and runs a smoke derivative; a tree with an empty plugin cache finds it on
+  reconfigure; (2) the hand derivatives below move to in-place AD registrations, one family per commit, each behind its existing FD gate;
+  the hand version is deleted.  Every Enzyme derivative keeps its FD gate (EnzymeAD/Enzyme#3747, a SILENT wrong reverse-mode gradient, was
+  fixed only at the cdd0d1c2 pin, 2026-11-13; the gates stay, controller ruling).  The principle is one derivative method for all derivatives, Enzyme.
+  - **DONE (lane B bafecbbb)**: the basis `Gradient(r)` faces (`PrimGaussian`, `GaussianRF`, `Polarization`; PG_Cart, PG_LibCint,
+    PG_Spherical consume it), Enzyme's in `GaussianRF_AD.C`; the FD gates gained a permanent on-axis point.
+  - **DONE (lane B 6a95ce87f)**: our LDA functionals' `GetVxc` / `GetFxc` (`SlaterExchange`, `VWN_Correlation`): each states its energy
+    density once, v is Enzyme's reverse mode, f forward over it (`Imp/SlaterExchange.C`, `Imp/VWN_Correlation.C`).  A negative channel maps
+    to the physical point BEFORE AD; the kernel alone floors the minority at 1e-10 rho (libxc's zeta threshold); Slater is rho^{4/3} and VWN's
+    rs constant sits outside the cube root, so the subnormal tail (1e-323 in the H atom) stays finite.  The base `ExFunctional::GetFxc` FD
+    default remains for libxc's functionals only.  No hand derivative family is left in the list.
+
+  New force derivatives are Enzyme only.  Both listed families are moved (in-place AD registrations beside their values, one family per
+  commit, behind their FD gates, the hand versions deleted); next action: none on the energy path, a new hand derivative found later moves the same way.  Every Enzyme
+  derivative keeps its FD gate; #3747's trigger (fixed at the cdd0d1c2 pin) (a callee filling a loop-local array through an inner loop with a data-dependent trip count) is
+  common in `Gradient(r)` contraction loops.  **TRIGGER (user 2026-11-08):** if the per-face FD gates of the force work
+  (lane B, §13.2) turn up a lot of testing and fixing in these hand gradient functions, that is the signal to make Enzyme non-optional NOW
+  and use it consistently everywhere, rather than keep repairing hand derivatives.  The lane that hits it reports the count (gates failed,
+  functions fixed) to the controller.
+  **AUDIT DONE (lane B 2026-11-09): 5 wrong of ~30 live hand gradients.**  Every family now has an FD gate against its own values:
+  - `GeometryDerivatives.EveryPointGaussian…` (PG_Spherical, PG_LibCint, SALC);
+  - `RadialHandGradient.*` (Slater, Gaussian, BSpline, BSpline r^l, both Dirac RKB);
+  - `HandGradient.EveryLatticeFamilys…` (PW, LAPW, APW, GPW, the spherical view);
+  - `SeedHandGradient.*` (NumericCD, SeedCD, PolarizedSeedCD);
+  - `HandGradient.TheConvergedStates…` (ρ, m, every MO; free and SALC).
+
+  The 5 wrong:
+  - the 2026-11-08 `PrimGaussian` sign;
+  - `BSpline::Evaluator_r` (s′ for s/r);
+  - the Dirac block's `Gradient`, which added L and S where `operator()` stacks them;
+  - both `RKBS_Evaluator`s, which missed f′g.
+
+  All four new ones are in the atom (radial) families, which the ⟨∇φ|∇φ⟩ kinetic gates cannot see.  None was on an energy path.  Six
+  silent zero-gradient stubs now throw by name, and `HalfDensity` is exact.  XC `GetVxc`/`GetFxc` were already gated (vs libxc; FD
+  kernels).
+
+## ✅ The basis conditioning report is OPT-IN (closed 2026-11-19, tracker sweep)
+
+From the live row; CLOSED 2026-11-04 (lane S, 5de0114f + 10c0468a); the parked ε-verdict remainder stays
+
+Original row:
+
+| ~~The basis conditioning report is OPT-IN~~ ✅ CLOSED 2026-11-04 (lane S, 5de0114f + 10c0468a): every SCF log carries `[basis trim]` on atom, molecule and solid; `basis.conditioning` summary; 1e-6 warning floor; `basis.autoTrim` replaces `basis.vet`.  REMAINDER: the ε verdict is PARKED (the 1/λ_min bound is valid but ~10⁶-10¹⁰ too loose and diverges at completeness; only error that is not a bounded operator amplifies; unmeasured idea) | `QueueCampaignPlan.md` §10 | |
+
+## ✅ A molecular geometry point rebuilt its ERI4 on MnD at ~80 % of the wall (closed 2026-11-19, tracker sweep)
+
+From the live row; lane H 2026-11-11: shell-quartet ERI4 on MnD, HF/DZVP H₂O₂ single point 5.7 → 0.63 s
+
+Original row:
+
+· **A molecular geometry point rebuilt its ERI4 on MnD at ~80 % of the wall** ✅ (lane H, 2026-11-11).  MEASURED, three layers of work that should not have been happening: (1) `FourC` per Cartesian COMPONENT quartet, each redoing the primitive-quartet work (a `findRNLM` std::map lookup, λ, the Hermite expansions: 6⁴ times per primitive quartet on a d quartet); (2) J and K computed separately, 0.75 N⁴ quartets against N⁴/8 unique.  FIX, MnD only (no libcint: the user's ruling, the two engines never entangled outside oracle tests): `GaussianRF::Repulsion4CBlock` / `NR_Evaluator::FourCBlock` take a SHELL quartet (Ω, RNLM, λ once per primitive quartet, the Hermite tables once per primitive pair; bit-identical to `FourC`), the Gaussian IBS walks shell quartets when the evaluator offers it (`isShellBlock_HF_Evaluator`, additive: `BareCoulomb` keeps `FourC`), and a block against itself reads `UniqueQuartets` (8-fold symmetry, built once for J and K, released after both read it).  HF/DZVP H₂O₂: J+K 5.4 s → 0.44 s, the single point 5.7 s → 0.63 s, the 13-point relaxation ~150 s → 32 s (moved to the short tier); J/K = the per-element `FourC` to 1e-14 of the largest integral (H₂O₂ 1.1e-15, TiH contracted d 6.2e-15; `UTGaussian_BS` `M_ERI4Blocks.*`).  Remaining per-point cost: the HF force's ERI4 pullback (lane B's, through the temporary libcint seam) · `doc/GeometryOptimizationPlan.md` §15

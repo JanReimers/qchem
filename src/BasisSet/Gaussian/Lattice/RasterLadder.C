@@ -24,7 +24,7 @@ export import qchem.BasisSet.PlaneWave.Evaluators;             // PlaneWave::PW_
 export import qchem.BasisSet.GridResolution;                     // Resolution: the basis's answer the ladder is sized from
 import qchem.BasisSet;                                           // Real_BS (the molecular basis a ladder is sized from)
 import qchem.BasisSet.Orbital_PP_IBS;                            // SpeciesRadialField(_Gaussian): the local PP's sharpness
-import qchem.Symmetry.Lattice_3D.SpaceGroup;                     // DirectOp {W|τ} (the grids report's {G}-star column)
+import qchem.Symmetry.StarGroup;                                 // StarGroup: the imposed group the grids report's {G}-star column asks
 import qchem.Structure;
 import qchem.UnitCell;
 import qchem.ReciprocalLattice;
@@ -109,11 +109,11 @@ public:
     //! The grid-audit verdicts: the density raster's, then V_long's (with a \c PPSharpness).  Empty when the DFT tier is off.
     std::vector<RasterVerdict> DeliveredRasterVerdicts() const;
     //! \brief The `grids` facts, written CURSOR-RELATIVE into the caller's open scope (the facade opens "grids"): the density-floor
-    //! settings, the ladder rows (with the {G}-star count under \a ops -- interim, V-BS-SYMMETRY moves it), the local-PP and V_long
+    //! settings, the ladder rows (with the {G}-star count under \a group, null = {E}: no column), the local-PP and V_long
     //! settings, and the audit rows (\c auditDensity, \c auditVlocLong), each with its UNDER line on the console when it fails.
-    void ReportGrids(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops) const;
+    void ReportGrids(const Symmetry::StarGroup* group) const;
     //! The same facts as console lines, for a run with no report open (\a nFunctions: the basis size the header line names).
-    void PrintGrids(std::ostream& os, size_t nFunctions, const std::vector<Symmetry::Lattice_3D::DirectOp>& ops) const;
+    void PrintGrids(std::ostream& os, size_t nFunctions, const Symmetry::StarGroup* group) const;
 
     const RasterLadderInputs& Inputs() const {return itsInputs;}   //!< what the ladder was built from (a handed-in ladder is checked)
     double CutoffFactor() const {return itsInputs.cutoffFactor;}   //!< C in the auto density floor C*alpha_max

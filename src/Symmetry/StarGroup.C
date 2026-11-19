@@ -19,8 +19,10 @@
 module;
 #include <memory>
 #include <vector>
+#include <functional>
 export module qchem.Symmetry.StarGroup;
 export import qchem.Symmetry.SymOp;
+import qchem.Types;   // ivec3_t, dcmplx
 
 export namespace qchem::Symmetry
 {
@@ -62,6 +64,22 @@ public:
         for (const SymOp& g : itsOps) f.AddImage(g);
         f.FinishStar(1.0/double(itsOps.size()));
     }
+
+    // ---- G-space requests (the GPW client's T1 {G}-star fold; Star-average remainder (a), controller ruling 2026-11-18).
+    // Named for what the client CONSUMES, and no op list goes back out: the group folds under its own reciprocal
+    // face U = W^T (the G-index map of {W|tau}) and the client never sees an op.  Both are crystal requests: \a gs are
+    // Miller indices of a set the group maps onto itself (a G ball).  Inputs to the pending Group-face design review
+    // (OpenWork "A Group face: the symmetry chain").
+
+    //! How many stars \a gs falls into under my ops (\c gs.size() for the trivial group): the grids report's {G}-star column.
+    size_t CountGStars(const std::vector<ivec3_t>& gs) const;
+    //! \brief Evaluate a field that carries my FULL symmetry on \a gs: \a field runs only at the star representatives, and
+    //! each member is filled through the glide identity \f$f(Um)=e^{+2\pi i\,m\cdot\tau}f(m)\f$ (a member no single op reaches
+    //! is evaluated directly).  An EXPANSION, exact to roundoff, never an average -- so valid only for a field symmetric by
+    //! construction (a structure-factor sum over the atoms the ops were detected from).  Returns values parallel to \a gs.
+    //! \a nReps (optional out): how many times \a field ran -- the caller reports the achieved fold.
+    std::vector<dcmplx> EvaluateOnGStars(const std::vector<ivec3_t>& gs, const std::function<dcmplx(const ivec3_t&)>& field,
+                                         size_t* nReps=nullptr) const;
 
 private:
     std::vector<SymOp> itsOps;   //!< the group's ops, in the acting space's own basis (\c SymOp)

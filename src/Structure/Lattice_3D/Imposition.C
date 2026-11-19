@@ -36,8 +36,10 @@ struct ImpositionOptions
 //!    Time reversal supplies the inversion a non-symmorphic Td subgroup lacks, so the fold is maximal without the glide.
 //!  - \c densityGroup: the full crystal point group with fractional translations {W|τ}, as the GROUP the composite density
 //!    star-averages under (ρ̃ in G-space with the glide phase, the raster ρ with the voxel shift N·τ).  No time reversal.
-//!  - \c directDensity {W|τ}: the same ops as a list, still read by the GPW blocks (the T1 {G} fold, the stream fold, the
-//!    grid report) -- the remainder of V-SYM-SEQUESTER-OPS.
+//!    The GPW blocks ask it too: the T1 {G}-star fold (\c StarGroup::EvaluateOnGStars) and the grid report's star column
+//!    (\c StarGroup::CountGStars).
+//!  - \c directDensity {W|τ}: the same ops as a list, read only by the collocation stream fold (a representation of the group
+//!    on AO pairs; it waits on the S3 \c Representation<T> design -- the remainder of V-SYM-SEQUESTER-OPS).
 //!  - \c magneticDirect {W|τ,σ}: the Shubnikov group on a magnetic imposition ({} otherwise).  The two density faces are then
 //!    its σ=None subgroup only (a sublattice swap is not a symmetry of ONE channel); σ is consumed by the spin-pair machinery.
 //!  - \c meshInvariance: FREE run only, the detected spatial group the XC mesh is built invariant under (no density average).
@@ -71,7 +73,7 @@ public:
     Symmetry::Lattice_3D::SymmetryPolicy                 policy;         //!< the ONE run-level imposition decision (§3)
     std::vector<Matrix3D<double>>                        recipFold;      //!< linear reciprocal ops (+TR) for the k-fold ({} unless imposed, grey)
     std::shared_ptr<const Symmetry::StarGroup>           densityGroup;   //!< the density's star-average group (null = {E}: not imposed)
-    std::vector<Symmetry::Lattice_3D::DirectOp>          directDensity;  //!< the same {W|τ} as a list, for the GPW blocks ({} unless imposed)
+    std::vector<Symmetry::Lattice_3D::DirectOp>          directDensity;  //!< the same {W|τ} as a list, for the stream fold only ({} unless imposed)
     std::vector<Symmetry::Lattice_3D::SymOp>             magneticDirect; //!< the Shubnikov group of a magnetic imposition ({} = grey or free)
     std::vector<Symmetry::Lattice_3D::SymOp>             meshInvariance; //!< free run: the XC mesh's invariance group ({} when imposing)
     std::vector<Symmetry::SymOp>                         spinPairOps;    //!< magneticDirect on a single unshifted Γ block, else {}

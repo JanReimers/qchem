@@ -207,8 +207,17 @@ TEST(EvaluateSymmetricGMap, ReducedEqualsFullAtRepCallCount)
     const int fullCalls = calls;
 
     calls = 0;
-    ΔG_Map reduced = EvaluateSymmetricGMap(S, ops, field);
+    size_t nReps = 0;
+    ΔG_Map reduced = EvaluateSymmetricGMap(S, ops, field, &nReps);
     const int repCalls = calls;
+    EXPECT_EQ(size_t(repCalls), nReps) << "nReps reports how many times the field ran";
+    {   // the group's other G-space request agrees: the star count of the same set (the grids report's column)
+        std::vector<Symmetry::SymOp> direct;
+        for (const auto& op : ops) direct.push_back({Transpose(op.U), op.tau});
+        const Symmetry::StarGroup group(std::move(direct));
+        EXPECT_EQ(group.CountGStars(S), nReps);
+        EXPECT_EQ(Symmetry::StarGroup().CountGStars(S), S.size()) << "the trivial group: every G its own star";
+    }
 
     ASSERT_EQ(reduced.size(), full.size());
     for (const auto& [m, v] : full)
