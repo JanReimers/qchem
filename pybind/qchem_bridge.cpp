@@ -53,7 +53,6 @@ import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94Import;   // a downloaded
 extern "C++" struct qcb_calc
 {
     std::unique_ptr<qchem::MoleculeCalculation> calc;
-    qchem::SCFParams                    params;      // as asked at qcb_make; a re-run changes only NMaxIter
     std::vector<double>                 positions;   // flat 3N bohr, as asked
     std::string                         id;          // the structure's ID: the name of the report runs the bridge opens
 };
@@ -387,17 +386,17 @@ qcb_calc* qcb_start(const qcb_request* req, const char* path, int buildOnly, qcb
         // A BUILD (no SCF) files "<ID> build", as a crystal's deck build does; its first qcb_converge reuses the graph.
         h->id     = r.mol.ID();
         const qchem::report::Run run(buildOnly ? h->id + " build" : h->id);
+        r.opts.scf = scf_params(*req);   // the run's SCF settings live in the setup (R10); a re-run edits only NMaxIter
         auto admitted = qchem::MoleculeSetup::Admit(r.mol, r.opts, r.acc);       // deep-copies mol
         if (!admitted) { setup_refused(admitted.Error(), refused, err, errlen); return nullptr; }
         const auto setup = admitted.TakeValue();
-        // The observer rides the constructor, so the trace of ITS SCF streams from the first iteration.
-        h->params = scf_params(*req);
+        // The observer rides Prepare, so the trace of the first SCF streams from its first iteration.
         auto observer = step ? forward_to(step, sink) : MoleculeCalculation::Observer{};
         if (path && *path)
         {
             // A refusal is a VALUE (the facade's RestartRefusal): the caller decides on a fresh run, so it is told apart from a failure.
-            auto R = buildOnly ? MoleculeCalculation::PrepareRestart(path, setup, h->params, std::move(observer))
-                               : MoleculeCalculation::Restart(path, setup, h->params, std::move(observer));
+            auto R = buildOnly ? MoleculeCalculation::PrepareRestart(path, setup, r.opts.scf, std::move(observer))
+                               : MoleculeCalculation::Restart(path, setup, r.opts.scf, std::move(observer));
             if (!R)
             {
                 if (refused) *refused = 1;
@@ -406,10 +405,15 @@ qcb_calc* qcb_start(const qcb_request* req, const char* path, int buildOnly, qcb
             }
             h->calc = R.TakeValue();
         }
-        else if (buildOnly)
-            h->calc = MoleculeCalculation::Prepare(setup, std::move(observer));
         else
-            h->calc = std::make_unique<MoleculeCalculation>(setup, h->params, std::move(observer));
+        {
+            // A build refusal is the call's error (its policy row is already in the run's record).
+            auto P = MoleculeCalculation::Prepare(setup, std::move(observer));
+            if (!P) { write_error(("build refused (" + P.Error().policy + "): " + P.Error().reason).c_str(), err, errlen); return nullptr; }
+            h->calc = P.TakeValue();
+            // A non-converged SCF is not a failure of this call: the caller reads it through qcb_failure / the result.
+            if (!buildOnly) (void)h->calc->Converge();
+        }
         // The sink lives only for this call: detach it before returning (qcb_converge attaches its own).
         h->calc->OnIteration(MoleculeCalculation::Observer{});
         return h.release();
@@ -453,9 +457,8 @@ int qcb_converge(qcb_calc* h, int maxIter, qcb_row_fn step, qcb_sink* sink, char
     try
     {
         h->calc->OnIteration(step ? forward_to(step, sink) : MoleculeCalculation::Observer{});
-        qchem::SCFParams p = h->params;
-        p.NMaxIter = size_t(maxIter);
-        const auto out = [&]{ const qchem::report::Run run(h->id); return h->calc->Converge(p); }();
+        const auto out = [&]{ const qchem::report::Run run(h->id);
+                              return h->calc->Converge([&](qchem::SCFParams& q){ q.NMaxIter = size_t(maxIter); }); }();
         h->calc->OnIteration(MoleculeCalculation::Observer{});      // the sink lives only for this call
         if (out) return 1;
         write_error(describe(out.Error()).c_str(), err, errlen);
