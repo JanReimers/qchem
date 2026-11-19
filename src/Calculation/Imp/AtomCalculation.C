@@ -108,7 +108,7 @@ static BasisSet::Real_BS* BuildBasis(const RunOptions& opts, int Z, const Electr
 AtomCalculation::AtomCalculation(std::shared_ptr<const AtomSetup> setup, const SCFParams& params)
     : AtomCalculation(BuildOnly{}, std::move(setup), nullptr)
 {
-    Converge(params);
+    (void)Converge(params);
 }
 
 std::unique_ptr<AtomCalculation> AtomCalculation::Prepare(std::shared_ptr<const AtomSetup> setup, Observer onIteration)
@@ -322,7 +322,7 @@ void AtomCalculation::BuildGraph()
     // (directmin => AType::GDM above, whose WantsLineSearch() drives the direct-min loop -- no SetDirectMin needed.)
 }
 
-bool AtomCalculation::Converge(const SCFParams& params)
+Outcome<AtomCalculation::Converged, SCFFailure> AtomCalculation::Converge(const SCFParams& params)
 {
     // The atomic SCF writes into the CALLER'S report run, as every facade does (user ruling D, 2026-11-02): scfrun, valgen, the
     // valence-basis generator and the tests that read the report open it.  With no run open every write is a no-op.
@@ -343,13 +343,39 @@ bool AtomCalculation::Converge(const SCFParams& params)
     // (No end-of-run cache snapshot since S6: each owner-held table reported its own bytes under `cache` where it was filled.)
     RebuildSampling();
     ReportResult("atom "+thePeriodicTable().GetSymbol(itsSetup->Z), ok, itsIterations, itsDensity->GetTotalCharge(), itsScf->GetEnergy(), 0.0, pilotIterations);
-    return ok;
+    return Result();
+}
+
+std::optional<SCFFailure> AtomCalculation::MakeFailure() const
+{
+    if (itsScf && itsScf->Converged()) return std::nullopt;
+    SCFFailure f;   // the atom's detectors, the molecule's: the iterator's own refusal, else a run out of iterations
+    if (!itsScf) { f.details="the atom has not run an SCF yet (Prepare'd, not converged)"; return f; }
+    const bool refused=!itsScf->UnphysicalStop().empty();
+    f.why        = refused ? SCFFailure::Why::UnphysicalEnergy : SCFFailure::Why::NotConverged;
+    f.iterations = itsIterations;
+    f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
+    f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
+    return f;
+}
+
+EnergyBreakdown AtomCalculation::ProofEnergyTerms() const {return itsScf->GetEnergy();}
+double          AtomCalculation::ProofCharge()      const {assert(itsDensity); return itsDensity->GetTotalCharge();}
+size_t          AtomCalculation::ProofIterations()  const {return itsIterations;}
+const ChargeDensity::tDM_CD<double>& AtomCalculation::ProofDensity() const {assert(itsDensity); return *itsDensity;}
+const ScalarFunction<double>& AtomCalculation::ProofSpinDensity() const
+{
+    const auto* wf=itsScf->GetWaveFunction();
+    if (wf->GetSpinGroup()!=SpinGroup::Polarized) return TheZeroField();
+    if (!itsSpin) itsSpin=wf->GetSpinDensity();
+    return *itsSpin;
 }
 
 void AtomCalculation::RebuildSampling()
 {
     const auto* wf = itsScf->GetWaveFunction();
     itsDensity = wf->GetChargeDensity();               // it BUILDS the density and hands ownership over
+    itsSpin.reset();                                   // m(r) is the NEW attempt's, built on first use
 
     itsOccupied.clear();
     for (const Irrep& irr : wf->GetQNs())
@@ -651,6 +677,33 @@ qchem::Hamiltonian::rHamiltonian* AtomCalculation::MakeHamiltonianOn(const Grids
                          H::XCRoute(itsSetup->opts.vxcFit, itsSetup->opts.xcRho), g.coulomb);
 }
 
+// THE PILOT'S WARM START (policy AtomPilotWarmStart, approved by the user 2026-11-17): a pilot re-convergence starts its linear D step at
+// the run's relax CEILING (MaxRelaxRo), not at its cold-start StartingRelaxRo; the accelerator is the run's own, unchanged.  The carried D
+// is already at the answer in energy (|E1 - E_final| <= 4e-8 Ha, 3.4e-5 on SL_U), so the cold start's damping (0.1 on A_DFT, a far-from-
+// seed recipe) only made DIIS work from damped inputs while the mixer climbed 0.1 -> 0.16 -> 0.26 -> ...
+// WHERE MEASURED (a scoped best practice, not a law; lane B 2026-11-17, doc/Records/OpenWork_History5.md): the piloted atoms only --
+// A_DFT_heavy SL/SG x Xe/U, the A_DFT_U Kr pair, the Gd q18 PP atom, the Mn q7 PP pilot, the Fe+/V+/Co+ cations -- each a RAISED-GRID
+// re-convergence, which is a CHANGED H ([F,D] at the carried D 3e-5 .. 2e-2), not an exact resume.  Rounds per re-convergence:
+//     atom      cold start   GDM    relax <= 0.3   start at the ceiling
+//     Xe SL        15         28        11              7
+//     Xe SG        21          9        20              5
+//     U SL         10         14        10              7
+//     U SG         14         17        17              6
+//     Kr / Gd / Mn PP and the cations: within +-2 (they already start at 0.5 or 1.0, or are open shells GDM declines)
+// Final energies of every variant agree to 6e-10 Ha.  GDM was NOT chosen here: it was slower in 7 of 9 closed-shell rounds, declines
+// every open shell and is refused on the Auxiliary Vxc fit (pin 32) -- CLAUDE.md's "restarts use GDM" was measured on an exact resume
+// ([F,D] ~4e-8), a different case.  A re-convergence whose D moved further (a stiffer H change) may want the cold start back.
+SCFParams AtomCalculation::PilotWarmStart(const SCFParams& params) const
+{
+    SCFParams warm=params;
+    if (params.StartingRelaxRo>=params.MaxRelaxRo) return warm;
+    warm.StartingRelaxRo=params.MaxRelaxRo;
+    policy::Report("AtomPilotWarmStart", "the pilot re-convergence's linear step starts at relax "+std::to_string(warm.StartingRelaxRo),
+                   policy::Verdict::Choose, "the carried density is at the answer in energy, so the cold start's relax "+
+                   std::to_string(params.StartingRelaxRo)+" only damps it; the accelerator is unchanged");
+    return warm;
+}
+
 // THE ATOM PILOT (pin 31; the molecule's mesh pilot, one-dimensional per axis).  The run has converged on its entry grids.  At THIS D,
 // each unstated axis climbs its ladder: the distance between a rung and the rung above is the worst change of any term energy (each axis
 // moves only its own term), and the rung's error is BeckeTailEstimate of it.  Up to three axes: the XC radial count, the Hartree route's
@@ -766,7 +819,7 @@ size_t AtomCalculation::PilotGrids(const SCFParams& params)
         itsCarried=itsScf->GetWaveFunction()->GetChargeDensity();
         BuildGraph();
         if (itsObserver) itsScf->SetObserver(itsObserver);
-        itsScf->Iterate(params);
+        itsScf->Iterate(PilotWarmStart(params));
         reconverged+=itsScf->GetIterationCount();
         RebuildSampling();
         if (!itsScf->Converged()) { std::cout<<tag<<"WARNING: the re-convergence on the raised grids did not converge"<<std::endl; break; }

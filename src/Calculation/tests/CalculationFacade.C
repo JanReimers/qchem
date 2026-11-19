@@ -414,7 +414,7 @@ TEST(CalculationFacade, TheGaussianDeltaXCCellWarnsAndRefusesGDM)
     {
         try
         {
-            MoleculeSetup::Resolve(water, {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .molecule={.basis="dzvp"}}, {.type=type});
+            MoleculeSetup::Resolve(water, {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .accelerator=AcceleratorTypeByName(type, "the test"), .molecule={.basis="dzvp"}});
             ADD_FAILURE() << type << " on the Gaussian x δ cell was not refused";
         }
         catch (const std::invalid_argument& e)

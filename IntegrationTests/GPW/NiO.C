@@ -16,7 +16,6 @@ import qchem.SCFCap;        // IterationBudget
 import qchem.SCFIterator;   // IterationRow (the first-iterate probe)
 import qchem.SolidCalculation;
 import qchem.Reporting;
-import qchem.Types;
 
 // Vendored state decks/states/NiO_AFM2_k222_MagneticInsulator.h5: saved by ~/Code/qchem6-runs/NiO/laneA_qr_cold.json (MagneticInsulator
 // cold, 18 iterations on the ball rasters, then the raster pilot's 10-iteration re-convergence onto cutoffFactor 4 / V_long x 4.97,

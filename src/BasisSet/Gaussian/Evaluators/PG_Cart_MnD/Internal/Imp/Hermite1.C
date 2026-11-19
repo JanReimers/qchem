@@ -5,7 +5,6 @@ module;
 #include <stdexcept>
 #include <string>
 module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Hermite;
-import qchem.IntPow;
 
 //----------------------------------------------------------------------------------------
 //

@@ -35,7 +35,7 @@ template <class T> const Orbital_ERI4_IBS<T>& Orbital_ERI4_IBS<T>::Substrate(con
 // canonical).  Both blocks must be children of ONE parent: a pair across two parents has no single owner.
 template <class T> void Orbital_ERI4_IBS<T>::RequireSameParent(const Orbital_ERI4_IBS<T>& c) const
 {
-    if (&c.Cache()!=&this->Cache())
+    if (!this->SharesCacheWith(c))
         throw std::logic_error("Orbital_ERI4_IBS: '"+this->Name()+"' and '"+c.Name()+"' belong to two different basis sets; an ERI4 "
                                "block pairs two blocks of ONE parent (its cache owns the pair)");
 }

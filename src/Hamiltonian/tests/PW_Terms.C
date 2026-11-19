@@ -26,7 +26,6 @@ import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
 import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
 import qchem.Blaze;          // mat_t<dcmplx>
-import qchem.Math;           // Pi
 import qchem.Hamiltonian.Internal.SlaterExchange;   // Dirac exchange (alpha=2/3), eps_x = 3/4 v_x
 import qchem.Hamiltonian.Internal.VWN_Correlation;   // VWN5 (full LDA in the XC FD test)
 import qchem.Hamiltonian.Internal.ExFunctional;      // CompositeExFunctional

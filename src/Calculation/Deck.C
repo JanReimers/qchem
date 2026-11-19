@@ -168,8 +168,7 @@ struct RunSpec
     //! `acceleratorOptions`: the stated knobs; an unstated one is the GPW production recipe's (\c AcceleratorParams), filled by the
     //! setup, and the record writes the resolved chain.
     AcceleratorOptions accel;
-    SCFParams        scf;             //!< the single-stage recipe (with the run's \c accelerator) ...
-    SCFRecipe        scfRecipe = SCFRecipe::Auto;   //!< ... its `scf.recipe` (the material regime; qchem.SCFRecipe) ...
+    SCFParams        scf;             //!< the single-stage recipe (with the run's \c opts.accelerator, and \c opts.recipe: its `scf.recipe`) ...
     std::vector<Stage> schedule;      //!< ... OR an annealed one; a deck gives one or the other (never both)
     std::vector<PostAction> postSCF;  //!< post-convergence actions, in order (empty = none)
     //! The run's thread counts (deck key `threads`: `{"openmp": N, "blas": M}`; OpenWork §2 "Per-run thread count", user 2026-11-12).  Not
@@ -178,7 +177,7 @@ struct RunSpec
     ThreadCounts threads;
     //! The stages the run executes: \c schedule, or the one stage (\c scf, the run's \c accelerator).
     std::vector<Stage> Stages() const
-    { return schedule.empty() ? std::vector<Stage>{{scf,opts.accelerator,scfRecipe}} : schedule; }
+    { return schedule.empty() ? std::vector<Stage>{{scf,opts.accelerator,opts.recipe}} : schedule; }
 };
 //! \brief WHICH FACADE a deck drives, decided by its STRUCTURE alone (V-FACADE-PARITY P0c, 2026-11-17): a cell (a \c materials.json
 //! name or an inline entry) runs a \c SolidCalculation, a \c molecules.json entry a \c MoleculeCalculation -- or, when it holds ONE

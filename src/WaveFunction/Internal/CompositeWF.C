@@ -12,7 +12,6 @@ import qchem.ElectronConfiguration;
 import qchem.WaveFunction.Internal.IrrepWF;
 import qchem.WaveFunction.Types;
 import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation: Cholesky | Eigen | SVD + tol)
-import qchem.Matrix3D;   // Matrix3D -- the reciprocal point ops passed to each composite density (IBZ symmetrization)
 
 export namespace qchem::WaveFunction
 {

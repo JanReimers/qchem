@@ -24,14 +24,11 @@ import qchem.BasisSet.Lattice.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, n
 import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
 import qchem.Mesh;                           // qcMesh::MeshParams (the Hartree fit basis factory arg; ignored)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
-import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
 import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
 import qchem.Blaze;          // mat_t<dcmplx>
-import qchem.Math;           // Pi
 import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
 import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
-import qchem.Energy;                                // EnergyBreakdown
 import qchem.ChargeDensity.SeedCD;                  // SeedCD + PolarizedSeedCD (the spin-SAD staggering gate)
 import qchem.Fitting.FunctionFitter;                // Factory / ProjectedDensity_G / FunctionFitter_Density (item B)
 import qchem.BasisSet.G_FieldEvaluator;             // the grid-engine seam (GridPoints/RhoOnGrid/Integral) for the item-K probe
@@ -39,10 +36,7 @@ import qchem.BasisSet.GMap;                             // ΔG_Map (the G-space 
 import qchem.BasisSet.Orbital_DFT_IBS;                      // cFIT_CD_ABS (the ortho density-fit basis face)
 import qchem.Symmetry.Irrep;                        // Irrep
 import qchem.LASolver;                              // complex Hermitian eigensolver
-import qchem.Structure;                             // Molecule, Atom (the Si diamond basis)
-import qchem.Matrix3D;                              // Matrix3D<double> (the FCC cell matrix)
 import qchem.SCFIterator;                           // cSCFIterator (the real framework SCF driver)
-import qchem.SCFParams;                             // SCFParams
 import qchem.WaveFunction;                          // cWaveFunction (read view of the converged state)
 import qchem.ElectronConfiguration;                 // ElectronConfiguration base
 import qchem.ElectronConfiguration.Crystal;         // Crystal_EC (single-k Bloch configuration)

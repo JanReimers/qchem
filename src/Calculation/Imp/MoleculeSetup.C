@@ -34,8 +34,6 @@ RunOptions MoleculeOptions(const RunOptions& asked)
     if (asked.charge!=0)    refuse("charge", "a molecule's charge is its structure's -- state it on the structure");
     if (asked.ortho || asked.orthoTol!=0.0) refuse("ortho / orthoTol", "the molecular solver picks its own orthogonalisation (Auto)");
     if (!asked.spins.empty()) refuse("spins", "a per-site magnetic decoration is a periodic imposition's");
-    if (asked.accelerator!=def.accelerator || asked.recipe!=def.recipe)
-        refuse("accelerator / recipe (top level)", "a molecule names them in its accelerator block (AcceleratorOptions::type / recipe)");
     if (!o.model) { o.model=Hamiltonian::Model::HF; policy::Report("DefaultModel", "model unstated: a molecule's default", policy::Verdict::Choose, "HF"); }
     if (!o.pp)     o.pp=std::string();                      // all-electron
     if (!o.xcMesh) o.xcMesh=kMolecularMeshDefault;          // climbed to eps from its entry rung
@@ -151,9 +149,9 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
         ReportXCRho(opts.vxcFit, opts.xcRho);   // the ρ axis (user ruling 2026-11-09): warns on the Gaussian x δ cell
     }
 
-    AdmitRecipe(acc.recipe, /*kT: not read for a molecule*/0.0, /*molecule*/true);   // Auto | Insulator only (R4.1 ruling (c))
-    s->accelerator = AcceleratorTypeByName(acc.type, "qchem::MoleculeCalculation");   // DIIS | GDM | Ladder, any other refused
-    if (dft || !opts.pp->empty()) RefuseGradientConsumers(opts.vxcFit, opts.xcRho, acc.type);   // GDM needs H = dE/dD (pin 32)
+    AdmitRecipe(opts.recipe, /*kT: not read for a molecule*/0.0, /*molecule*/true);   // Auto | Insulator only (R4.1 ruling (c))
+    s->accelerator = MolecularAcceleratorType(opts.accelerator, "qchem::MoleculeCalculation");   // Auto = DIIS; Null refused
+    if (dft || !opts.pp->empty()) RefuseGradientConsumers(opts.vxcFit, opts.xcRho, NameOf(s->accelerator));   // GDM needs H = dE/dD (pin 32)
     const double eMax=DIISEngageGate(acc.diis.engageBelowFD.value_or(0.0), point->GetNuclearCharge(), dft || !opts.pp->empty());   // DIIS from the start on a density Fock
     s->accParams = ResolveAcceleratorParams(acc, MolecularAcceleratorDefaults(eMax));   // the gate lands in accParams.diis.EngageBelowFD
     return s;

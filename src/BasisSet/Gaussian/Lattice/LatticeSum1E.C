@@ -71,7 +71,6 @@ import qchem.Structure;      // Structure (the nuclear-attraction centres)
 import qchem.UnitCell;       // UnitCell (the cell geometry the internal enumeration walks)
 import qchem.Types;          // rvec3_t, cvec_t, chmat_t, rmat_t, ivec3_t
 export import qchem.Math.SolidHarmonics;   // Math::CartGaussian
-import qchem.Math.Angular;   // Math::CartTerm (the Cartesian-monomial expansion of a GaussianFunction)
 export import qchem.BasisSet.GridResolution;   // GaussianSharpness IS-A GridResolution (V-BS-RASTER)
 export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;     // Tolerances() / BindTolerances' type
 export import qchem.BasisSet.Gaussian.Lattice.LatticeScreener;   // LatticeScreener -- the collocation tolerance policy

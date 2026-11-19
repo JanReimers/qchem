@@ -30,8 +30,8 @@ TEST(AtomSetup, TheAcceleratorIsResolvedByNameAndAnUnknownOneIsRefused)
     RunOptions o;
     o.atom.accelerator={{"type","Ladder"}};
     EXPECT_EQ(AtomSetup::Resolve(8, 0, o)->accelerator, AType::Ladder) << "the json escape hatch names it";
-    AcceleratorOptions gdm; gdm.type="GDM";
-    EXPECT_EQ(AtomSetup::Resolve(8, 0, {}, gdm)->accelerator, AType::GDM) << "or the accelerator block does";
+    RunOptions gdm; gdm.accelerator=AType::GDM;
+    EXPECT_EQ(AtomSetup::Resolve(8, 0, gdm)->accelerator, AType::GDM) << "or the options do (its one home)";
 
     o.atom.accelerator={{"type","directmin"}};
     const auto dm=AtomSetup::Resolve(8, 0, o);
@@ -44,8 +44,9 @@ TEST(AtomSetup, TheAcceleratorIsResolvedByNameAndAnUnknownOneIsRefused)
     EXPECT_EQ(bogus.Error().policy, "AcceleratorType");
 
     o.atom.accelerator={{"type","Ladder"}};
-    const auto both=AtomSetup::Admit(Atom(8), o, gdm);
-    ASSERT_FALSE(both) << "the block and the escape hatch naming different accelerators";
+    o.accelerator=AType::GDM;
+    const auto both=AtomSetup::Admit(Atom(8), o);
+    ASSERT_FALSE(both) << "the options and the escape hatch naming different accelerators";
     EXPECT_EQ(both.Error().policy, "AcceleratorType");
 }
 

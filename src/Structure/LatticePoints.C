@@ -6,7 +6,6 @@ module;
 export module qchem.LatticePoints;
 import qchem.Types;      // vec3_t, rvec3_t
 import qchem.UnitCell;   // CellGeometry
-import qchem.Math;       // ceil
 
 namespace qchem {
 

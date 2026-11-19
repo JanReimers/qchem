@@ -326,15 +326,9 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
 {
     std::shared_ptr<SolidSetup> s(new SolidSetup(Pseudopotential::PseudopotentialSet::Get(*opts.pp).With(opts.species), lat));
     s->opts=opts;
-    // A periodic run names its accelerator TYPE and recipe at the top level (RunOptions::accelerator / recipe: a stage decides per regime
-    // under Auto).  The block's own type / recipe would be IGNORED here -- a silent substitution (until 2026-11-17 it was): refuse them.
-    if (acc.type!=AcceleratorOptions{}.type || acc.recipe!=AcceleratorOptions{}.recipe)
-        policy::Refuse("AcceleratorType", "the accelerator block's type \""+acc.type+"\" / recipe on a periodic run",
-                       "a periodic run names its accelerator and recipe at the top level (RunOptions::accelerator / recipe), so the block's "
-                       "would be ignored -- state them there");
     s->acc      =acc;
     s->accParams=ResolveAcceleratorParams(acc, SCFAccelerators::AcceleratorParams{});   // the solid's defaults: the GPW production recipe
-    s->accelerator=opts.accelerator;   // the top-level type: Auto lets each stage decide
+    s->accelerator=opts.accelerator;   // its one home: Auto lets each stage decide
     s->mol =std::move(mol);
     const std::shared_ptr<const Structure> st=s->structure;
     RequireStatedMagneticOrdering(opts, *st);

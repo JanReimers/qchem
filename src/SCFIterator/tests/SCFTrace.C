@@ -434,7 +434,7 @@ TEST(SCFTrace, AMolecularLadderHandsOffToGDMBelowTheEnergyTail)
 {
     std::vector<SCFIterator::IterationRow> rows;
     (void)CapturedTrace([&rows]{
-        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .molecule={.basis="dzvp"}}, {.type = "Ladder"}),
+        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}}),
                          {.NMaxIter = 80, .Verbose = true},
                          [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
         (void)calc.Result();
@@ -485,7 +485,7 @@ TEST(SCFTrace, ALineSearchingRunShowsEachGeodesicStepsT)
 {
     std::vector<SCFIterator::IterationRow> rows;
     (void)CapturedTrace([&rows]{
-        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .molecule={.basis="dzvp"}}, {.type = "Ladder"}),
+        MoleculeCalculation calc(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=qchem::Model::LDA, .accelerator=qchem::SCFAccelerators::Type::Ladder, .molecule={.basis="dzvp"}}),
                          {.NMaxIter = 80, .Verbose = true},
                          [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
         (void)calc.Result();
@@ -527,7 +527,7 @@ TEST(SCFTrace, AMolecularLadderEngagesGDMOnASymmetryBlockedMolecule)
     ch4.Insert(Site{1, Vector3D<double>( a,-a,-a)});
     auto run=[&ch4](const char* accel, std::vector<SCFIterator::IterationRow>& rows)
     {
-        MoleculeCalculation calc(MoleculeSetup::Resolve(ch4, {.imposeSymmetry=true, .molecule={.basis="dzvp"}}, {.type = accel}),
+        MoleculeCalculation calc(MoleculeSetup::Resolve(ch4, {.accelerator=AcceleratorTypeByName(accel, "the test"), .imposeSymmetry=true, .molecule={.basis="dzvp"}}),
                                  {.NMaxIter = 80, .Verbose = false}, [&rows](const SCFIterator::IterationRow& r){ rows.push_back(r); });
         auto r=calc.Result();
         EXPECT_TRUE(r) << accel << " did not converge";

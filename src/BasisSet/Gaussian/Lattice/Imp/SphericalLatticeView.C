@@ -21,6 +21,7 @@ import qchem.BasisSet.Gaussian.Point.IBS;           // Gaussian::Orbital_1E_IBS 
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;  // the periodic capability the view answers
 import qchem.BasisSet.Internal.BasisSetImp;   // the one-block Real_BS container
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // the view block's cache, index and token (S3a)
+import qchem.BasisSet.Internal.CachedIntegrals;   // the Cached* mixins the family lists beside its Make* (D-BASISCACHE-FANIN)
 import qchem.Symmetry.Molecule.OperationRep;  // AoShell (+ ShellRep::Monomials soft capability)
 import qchem.Symmetry.Molecule.SphericalRep;  // SphericalShellRep -- the view's own shell reps (GetAoShells)
 import qchem.BasisSet.AoShellSource;          // the face the inner block answers and this view forwards
@@ -120,7 +121,9 @@ static rmat_t BuildCartToSphere(const std::vector<AoShell>& shells, const hmat_t
 // congruence/forward over the inner faces.  Hermitian/symmetric packing is explicit (upper triangle,
 // real diagonal), mirroring the GPW evaluator's own convention.
 class SphericalView_IBS
-    : public virtual Gaussian::Orbital_1E_IBS
+    : public virtual BasisSet::CachedOverlap<double>   // Overlap() / Kinetic(): the congruences below, cached in the view set's cache
+    , public virtual BasisSet::CachedKinetic<double>   //   (D-BASISCACHE-FANIN)
+    , public virtual Gaussian::Orbital_1E_IBS
     , public virtual Gaussian::Periodic_Gaussian_IBS   // all four faces (ISP split 2026-09-08): this view FORWARDS every one
     , public virtual Gaussian::TransitionCollocation   // forwarded through T like the ground-state pair (LinearResponsePlan B1)
     , public virtual BasisSet::BareCoulombSource       // the inner block's bare (ab|cd) through T (ACBN0, 2026-09-21)

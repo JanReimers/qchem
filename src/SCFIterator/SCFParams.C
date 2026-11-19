@@ -74,7 +74,9 @@ export struct SCFParams
     //! integer-occupation manifold -- a kT = 0 fill that shares a partly filled degenerate level (D-DEGEN-FILL) is the
     //! case: GDM's steps then fall back to mixed fixed-point steps for the rest of the run, and CLAUDE.md's rule is that a
     //! declined GDM's linear fallback runs at 0.2-0.3, never 1.0 (the passthrough a molecular GDM recipe otherwise
-    //! carries).  Applied once, announced as a hand-off; a field mixer (Kerker/Pulay) is left alone.
+    //! carries).  The same ceiling holds while a seeded standalone GDM WAITS to engage ([F,D] above its engage threshold;
+    //! F- limit-cycled at 0.97 for 100 iterations, lane B 2026-11-17).  Applied once, announced as a hand-off; a field mixer
+    //! (Kerker/Pulay) is left alone.
     double DeclinedDirectMinRelax = 0.25;
     //! Merge eigen levels (like Px,Py Pz) that are equal within +/- MergeTol -- in the level table AND, under
     //! \c DegenerateLevels = Shared, in the kT = 0 fill (\c OccupationConfig::levelTol; D-DEGEN-FILL 2026-11-08).

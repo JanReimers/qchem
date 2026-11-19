@@ -36,10 +36,11 @@ template <class T, class TFit = T> class Orbital_DFT_IBS
 {
 public:
     //! 3 centre overlap used for DFT \f$ \left\langle ab\left|1\right|c\right\rangle \f$.  The fit \a c is an
-    //! overlap-metric (scalar-function) aux basis, in the FIT representation.
-    virtual const PairProjection<TFit>& Overlap3C  (const FIT_SF_ABS<TFit>& c) const;
+    //! overlap-metric (scalar-function) aux basis, in the FIT representation.  Cached; pure here: a family implements both by listing
+    //! the Internal CachedFit3C<T,TFit> (the parent's cache).
+    virtual const PairProjection<TFit>& Overlap3C  (const FIT_SF_ABS<TFit>& c) const=0;
     //! 3 centre repulsion used for DFT.  The fit \a c is a Coulomb-metric (charge-density) aux basis.
-    virtual const PairProjection<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
+    virtual const PairProjection<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
     //! Can this block give MakeRepulsion3CPullback against the fit \a c?  CLIENT: the Dunlap Hartree term's MissingGradients() entry,
     //! through its fitter.  False exactly when it would refuse.
     virtual bool CanPullbackRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;

@@ -17,6 +17,7 @@ import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.Fit_IBS;   // the shared Gaussian-family implementation base we DERIVE
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
+import qchem.BasisSet.Internal.CachedIntegrals;   // the Cached* mixins the family lists beside its Make* (D-BASISCACHE-FANIN)
 import qchem.BasisSet.Internal.Cache4;   // Cache4 / Cacheable4: the parent's Rk table (S5a)
 import qchem.BasisSet.Radial.Evaluators;
 import qchem.BasisSet.Internal.Cache4;
@@ -95,7 +96,8 @@ protected:
 //  Fit_IBS also uses Overlap.
 //
 template <is1E_Evaluator E> class Integrals_Overlap
-: public virtual BasisSet::Integrals_Overlap<double>
+: public virtual BasisSet::CachedOverlap<double>   // Overlap(): MakeOverlap() cached in the parent's cache (D-BASISCACHE-FANIN)
+, public virtual BasisSet::Integrals_Overlap<double>
 {
 public:
     // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
@@ -115,7 +117,8 @@ protected:
     }
 };
 template <is1E_Evaluator E> class Integrals_Kinetic
-: public virtual BasisSet::Integrals_Kinetic<double>
+: public virtual BasisSet::CachedKinetic<double>   // Kinetic(): MakeKinetic() cached in the parent's cache (D-BASISCACHE-FANIN)
+, public virtual BasisSet::Integrals_Kinetic<double>
 {
 public:
     // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative in this family yet.
@@ -193,6 +196,12 @@ public:
     //! rungs -- the classic fit (rung 0) is near-singular too, 4-9 of 36-46 modes on Gaussian and 1 of 21-22 on Slater Au, Rn, U, which
     //! the plain inverse had been inverting silently; the dense Slater rungs drop most of theirs (U rung 4: 472 of 510).  Truncated, every
     //! Dunlap energy agrees with the radial-Poisson Hartree to a few μHa (A_DFT_heavy).  A truncation REPORTS itself (count and floor).
+    //! THE FLOOR IS BRACKETED (lane B 2026-11-17, OpenWork row closed; A_DFT_heavy SL/SG x Xe/U).  Dunlap's robust Hartree
+    //! 2<rho|f> - <f|f> is a LOWER bound on J, so every mode the fit loses LOWERS E: a looser floor drops modes that carry J --
+    //! 1e-10 opens SL_U's Poisson - Dunlap gap to 1.4 mHa, 1e-8 puts U 0.57 Ha BELOW NIST.  A tighter floor admits the metric's
+    //! quadrature-noise modes: at 1e-13 and 1e-14 SL_Xe's SCF stalls at its cap ([F,D] 3e-4).  PRUNING the fit set instead
+    //! (pivoted Cholesky on G, pin 7) was measured and REJECTED: it keeps ~40 of 2022 functions on the dense rungs, its kept block
+    //! is still cond 1e13, and its energies run 1.2 Ha below NIST (tol 1e-8) to blow-ups of 1e4-1e18 Ha (1e-10 .. 1e-14).
     static constexpr double kMetricRelTol=1e-12;
     virtual rsmat_t MakeInvRepulsion() const override
     {
@@ -277,7 +286,8 @@ public:
 
 
 template <isDFT_Evaluator E> class Orbital_DFT_IBS
-    : public virtual BasisSet::Orbital_DFT_IBS<double>
+    : public virtual BasisSet::CachedFit3C<double>   // Overlap3C / Repulsion3C cached in the parent's cache (D-BASISCACHE-FANIN)
+    , public virtual BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
     virtual PairProjection<double> MakeOverlap3C  (const rFIT_SF_ABS& _c) const
@@ -371,7 +381,8 @@ public:
 };
 
 template <is1E_Evaluator E> class Orbital_RKBS_IBS
-    : public virtual BasisSet::Orbital_RKBS_IBS<double> 
+    : public virtual BasisSet::CachedOverlap<double>   // its MakeOverlap (the small-component metric) cached (D-BASISCACHE-FANIN)
+    , public virtual BasisSet::Orbital_RKBS_IBS<double> 
     , public Integrals_Kinetic<E>
     , public Integrals_Nuclear<E> //RKBS Evaluator overrides Inv_r1 definition
 {

@@ -202,53 +202,12 @@ struct SCFStage
 };
 
 //! \brief A periodic SCF: attempt it, and get back either the ANSWERS or the reason there are none.
-class SolidCalculation : public virtual Calculation
+class SolidCalculation : public virtual tCalculation<dcmplx>
 {
-    struct Imp;   //!< fwd: \c Converged holds one (the definition lives in the .C, as always)
+    struct Imp;   //!< fwd (the definition lives in the .C, as always)
 public:
-    //! \brief PROOF that the SCF converged, and the only place the answers live.
-    //!
-    //! WHY A SEPARATE TYPE rather than \c Fallible<double> on each accessor (user, 2026-08-25).
-    //! "Did it converge?" is ONE fact governing a whole FAMILY of queries; wrapping each accessor repeats
-    //! it and asks the caller to check N times.  Worse, a Fallible-style accessor ASSERTS on misuse, and
-    //! an assert is compiled out under NDEBUG -- exactly how the imposed-mesh site-blocks defect stayed
-    //! invisible in Release.  Here there is no check to forget and nothing to compile out: \b the
-    //! \b accessors \b do \b not \b exist \b without \b the \b proof.  (CLAUDE.md: give capabilities only
-    //! to types that have them.)
-    //!
-    //! \warning NON-OWNING, and invalidated by the next \c Converge() -- the same contract \c Density()
-    //! has always carried.  Take it fresh from each attempt; do not store one across a re-run.
-    class Converged
-    {
-    public:
-        double                 Energy()         const;   //!< total energy (hartree)
-        qchem::EnergyBreakdown EnergyTerms()    const;
-        double                 TotalCharge()    const;   //!< the electron count (a charge-conservation check)
-        size_t                 IterationCount() const;
-        //! rho(r) of the converged state (see the class \warning for its lifetime).
-        const ScalarFunction<double>& Density() const;
-        //! \brief \f$m(r)=\rho_\uparrow-\rho_\downarrow\f$, or NULL on an unpolarized run.
-        //!
-        //! WHY (ρ, m) AND NOT (ρ↑, ρ↓).  They are the same information -- \f$\rho_\uparrow=(\rho+m)/2\f$ --
-        //! but they are not equally good to hand out.  Charge and spin are the channels that BEHAVE
-        //! differently: the Hartree restoring force acts on ρ alone, which is why Kerker preconditions the
-        //! charge channel and has no business on the spin one (doc/OpenWork.md N3).  Exposing (↑,↓) invites
-        //! exactly the channel-blind handling that costs magnetic runs their basin; exposing (ρ, m) makes
-        //! the physical split the obvious one.  It is also what a magnetic diagnostic actually wants --
-        //! \f$m(r)\f$ near a site, in one call rather than a cross-cast and a subtraction.
-        const ScalarFunction<double>* SpinDensity() const;
-        //! \brief The converged density OBJECT, for a caller that must CROSS-CAST it for a capability --
-        //! \c FourierDensity to take a G-space component, \c cSpinResolved_CD to reach the channels.
-        //!
-        //! \c Density()/\c SpinDensity() are the convenient views and cover most consumers; this is the
-        //! escape hatch for a campaign diagnostic that needs to ASK THE DENSITY WHAT IT CAN DO, which is
-        //! how capabilities are reached everywhere else in this tree.  Same lifetime as the rest.
-        const qchem::ChargeDensity::cDM_CD& DensityMatrix() const;
-    private:
-        friend class SolidCalculation;
-        explicit Converged(const Imp* imp) : itsImp(imp) {}
-        const Imp* itsImp;
-    };
+    //! The proof type is the base's (\c tCalculation<dcmplx>::Converged, V-FACADE-PARITY P2): \c Density() is the converged
+    //! \c cDM_CD itself (ask it what it can do: a G-space component, the spin channels), \c SpinDensity() the zero field when unpolarized.
 
     using sf_t     = ScalarFunction<double>;
     using Observer = qchem::SCFIterator::SolidSCFIterator::Observer;
@@ -341,10 +300,7 @@ public:
     //! deliver a good starting density to it.  Every stage's own summary is still printed.
     //! An empty schedule is a caller error (there is no sensible "no stages" run) and throws.
     Outcome<Converged, SCFFailure> Converge(const std::vector<SCFStage>& schedule);
-    //! \brief The outcome of the attempt the CONSTRUCTOR made, so a caller that never re-converges still
-    //! has to face it.  (The ctor converges on construction; without this, its result would be silently
-    //! unreachable and the old \c Energy() would happily serve a failed run.)
-    Outcome<Converged, SCFFailure> Result() const;
+    //! \c Result() (the base's): the outcome of the last attempt -- the constructor's, for a caller that never re-converges.
     //! Live per-iteration telemetry, REPLACING the constructor's.  Set BEFORE a Converge() call to observe it (the ctor's
     //! initial convergence has run by then: to observe it, pass the observer to the constructor).
     void OnIteration(Observer obs);
@@ -369,7 +325,7 @@ public:
     double                 LastIterateCharge() const;
     //! The last iterate's DENSITY OBJECT (null before the first Converge) -- for a symmetry or order probe
     //! that deliberately runs a BOUNDED number of iterations and asks the density what it can do
-    //! (\c cSpinResolved_CD for the channels), exactly as \c Converged::DensityMatrix does for an answer.
+    //! (\c cSpinResolved_CD for the channels), exactly as \c Converged::Density does for an answer.
     const qchem::ChargeDensity::cDM_CD* LastIterateDensity() const;
     //!@}
 
@@ -726,9 +682,15 @@ private:
     void MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe recipe, const SCFParams& params, SCFStageKind kind);
     //! \c Converge(params) after the stage's own adjustment (a restored Auto stage's linear step capped at 0.3).
     Outcome<Converged, SCFFailure> ConvergeStage(const SCFParams& params);
-    //! The one place a Converged/SCFFailure is minted, so \c Converge() and \c Result() cannot drift
-    //! apart in what they call a success.
-    Outcome<Converged, SCFFailure> Outcome_() const;
+    //! \name THE PROOF'S ANSWERS (\c tCalculation's hooks): the one place a failure is ranked, so \c Converge() and \c Result() cannot drift
+    //!@{
+    std::optional<SCFFailure>             MakeFailure()      const override;
+    EnergyBreakdown                       ProofEnergyTerms() const override;
+    double                                ProofCharge()      const override;
+    size_t                                ProofIterations()  const override;
+    const ChargeDensity::tDM_CD<dcmplx>&  ProofDensity()     const override;
+    const ScalarFunction<double>&         ProofSpinDensity() const override;
+    //!@}
     //! Install the composed order probe + observer on the current iterator (see the .C for why the
     //! facade takes both hooks and hands the caller's back through them).
     void AttachProbes();

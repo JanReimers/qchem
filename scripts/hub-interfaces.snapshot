@@ -43,8 +43,8 @@ export import qchem.BasisSet.PairProjection;
 namespace qchem::BasisSet {
     template <class T, class TFit = T> class Orbital_DFT_IBS : public virtual Orbital_1E_IBS<T> , public virtual IrrepBasisSet_IDs {
     public:
-        virtual const PairProjection<TFit>& Overlap3C (const FIT_SF_ABS<TFit>& c) const;
-        virtual const PairProjection<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
+        virtual const PairProjection<TFit>& Overlap3C (const FIT_SF_ABS<TFit>& c) const=0;
+        virtual const PairProjection<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
         virtual bool CanPullbackRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
         virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const FIT_CD_ABS<TFit>& c, const hmat_t<T>& D, const vec_t<TFit>& a, const Structure* st) const=0;
         virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*) const=0;
@@ -116,7 +116,7 @@ namespace qchem::BasisSet {
     template <class T> class Integrals_Kinetic : public virtual IrrepBasisSet_IDs {
     public:
         virtual hmat_t<T> MakeKinetic() const=0;
-        const hmat_t<T>& Kinetic() const;
+        virtual const hmat_t<T>& Kinetic() const=0;
         virtual bool CanPullbackKinetic() const=0;
         virtual Outcome<rvec3vec_t,AD::NoGradient> MakeKineticPullback(const hmat_t<T>& D, const Structure* st) const=0;
         virtual bool CanVirialKinetic() const;

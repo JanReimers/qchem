@@ -18,6 +18,12 @@ template <class T> const mat_t<T>& Orbital_RKBL_IBS<T>::Kinetic(const Orbital_RK
 }
 
 template class Orbital_RKBL_IBS<double>;
+
+template <class T> const smat_t<T>& CachedRestMass<T>::RestMass() const
+{
+    return this->Cache().template Get<T>(BasisCache::Own::RestMass, this->CacheIndex(), [this]{ return this->MakeRestMass(); });
+}
+template class CachedRestMass<double>;
 template class Orbital_RKBS_IBS<double>;
 
 

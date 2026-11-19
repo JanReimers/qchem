@@ -538,11 +538,22 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         // (GDM/OT: geodesic line search, no mixing) or fixed-point (diagonalize + density-mix).  Queried
         // every iteration so a ladder tail hand-off flips the loop the moment it switches rungs.  The step
         // BODY is virtual (was a mode `if`); the density LIFECYCLE stays here behind the context callbacks.
-        // A DECLINED direct minimiser (D-DEGEN-FILL): GDM has seen a D' outside its integer-occupation manifold (a kT = 0 fill
-        // sharing a degenerate level), so its every step from here is a MIXED fixed-point step.  A linear (adaptive) mixer then
-        // runs under the declined ceiling, not the passthrough a molecular GDM recipe carries (CLAUDE.md: 0.2-0.3, never 1.0).
-        if (!itsDeclinedRelaxApplied && itsAdaptive && itsAccelerator->WantsLineSearch() && !itsAccelerator->Engageable()
-            && itsMixer->GetRelax()>ipar.DeclinedDirectMinRelax)
+        // A direct minimiser that is not stepping takes MIXED fixed-point steps, and a linear (adaptive) mixer then runs under
+        // DeclinedDirectMinRelax, not the passthrough a molecular GDM recipe carries (CLAUDE.md: 0.2-0.3, never 1.0).  Two cases:
+        //  - DECLINED (D-DEGEN-FILL): GDM has seen a D' outside its integer-occupation manifold (a kT = 0 fill sharing a degenerate
+        //    level), so its every step from here is a mixed one.
+        //  - WAITING (OpenWork row "Standalone GDM cycles at its handoff on F-", lane B 2026-11-17): seeded (iteration > 1) but not
+        //    ready, i.e. [F,D] above its engage threshold.  Uncapped, the adaptive step grew to 0.97 on F-'s unbound 2p and
+        //    limit-cycled [F,D] in 0.13-0.85 around the 0.20 gate for 100 iterations; every dip under it bought one more mixed
+        //    step at 0.97 from the direct driver.  Capped, [F,D] settles, GDM engages at iteration 11 and converges at 19.
+        //    A Ladder's GDM rung engages at any [F,D], so it never waits; iteration 1 is the seed, not a wait.
+        //    WHERE MEASURED (a scoped best practice, not a law): one failing case, F- q7 on the atom's Z-scaled engage gate
+        //    (Z^2*0.08/32 = 0.20); the landing sweep met only the standalone molecular GDM recipes (M_Calculation WaterPureGDM
+        //    34 -> 33, BoronUHFPureGDM 11 -> 12 iterations, energies unmoved) and no solid, field mixer or Ladder run.  A run
+        //    whose mixer limit-cycles under a looser gate, or a stiff system where 0.25 crawls, may want its own ceiling.
+        const bool declined = itsAccelerator->WantsLineSearch() && !itsAccelerator->Engageable();
+        const bool waiting  = itsAccelerator->WantsLineSearch() && itsIterationCount>1 && !itsAccelerator->CanLineSearch();
+        if (!itsDeclinedRelaxApplied && itsAdaptive && (declined || waiting) && itsMixer->GetRelax()>ipar.DeclinedDirectMinRelax)
         {
             SCFParams capped=ipar;
             capped.StartingRelaxRo=std::min(ipar.StartingRelaxRo, ipar.DeclinedDirectMinRelax);
@@ -552,8 +563,12 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
             itsAdaptive=dynamic_cast<qchem::ChargeDensity::tAdaptiveMixer<T>*>(itsMixer.get());
             SeatDMSource(*itsMixer, itsCD);
             std::ostringstream why;
-            why<<"the direct minimiser DECLINED this density (fractional occupations, outside its integer manifold): linear mixing "
-                 "capped at relax "<<capped.MaxRelaxRo;
+            if (declined)
+                why<<"the direct minimiser DECLINED this density (fractional occupations, outside its integer manifold): linear mixing "
+                     "capped at relax "<<capped.MaxRelaxRo;
+            else
+                why<<"the direct minimiser is WAITING to engage ([F,D] above its engage threshold): linear mixing capped at relax "
+                   <<capped.MaxRelaxRo<<" until it steps";
             HandOff({itsAccelerator->Tag(), "mixed fixed-point steps", why.str()}, false);
             itsDeclinedRelaxApplied=true;
         }

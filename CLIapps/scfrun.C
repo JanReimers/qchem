@@ -352,7 +352,7 @@ static int Main(int argc, char** argv)
         if (dft) { copts.model=(model=="Xalpha")?Model::Xalpha:Model::LDA; if(model=="Xalpha") copts.xalpha=alpha>0?alpha:0.7; }
         else if (models.count(model)) copts.model=models[model];
         else { cout<<"molecular --model must be HF|LDA|Xalpha"<<endl; return 1; }
-        AcceleratorOptions aopts; aopts.type=accel;
+        AcceleratorOptions aopts; copts.accelerator=AcceleratorTypeByName(accel, "scfrun --accel");   // the type's one home: the options (V-FACADE-PARITY P2)
         if (accj.contains("EngageBelowFD")) aopts.diis.engageBelowFD=(double)accj["EngageBelowFD"];   // the standalone GDM gate follows it (unstated)
         if (accj.contains("NProj")) aopts.diis.nProj=(size_t)(int)accj["NProj"];
         if (accj.contains("Trust"))    { aopts.gdm.trust=(double)accj["Trust"]; aopts.ladder.gdm.trust=(double)accj["Trust"]; }   // both, as the json door read it

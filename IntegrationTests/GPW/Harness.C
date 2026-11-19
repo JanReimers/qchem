@@ -298,7 +298,7 @@ GpwHandles Handles(const qchem::SolidCalculation& calc)
 {
     auto r=calc.Result();
     if (!r) throw std::runtime_error("Handles: the run did not converge -- "+r.Error().details);
-    return {&calc.Basis(), &r->DensityMatrix()};
+    return {&calc.Basis(), &r->Density()};
 }
 //! ...and from a BOUNDED run (a symmetry probe that stops at a fixed iteration): the last iterate's.
 GpwHandles LastIterateHandles(const qchem::SolidCalculation& calc) { return {&calc.Basis(), calc.LastIterateDensity()}; }

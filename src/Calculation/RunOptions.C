@@ -47,12 +47,8 @@ using BasisSet::Radial::BasisSetAccuracy;   //!< the atom's preset exponent pool
 //! the Ladder's triggers one to one, so a knob added there has one spelling here.
 struct AcceleratorOptions
 {
-    //! The accelerator BY NAME (molecule and atom; the solid's is \c RunOptions::accelerator until P0b-2): "DIIS" (default) |
-    //! "GDM" (direct minimisation, robust for hard/open-shell SCF) | "Ladder" (DIIS -> GDM).  Any other name is REFUSED at Admit.
-    std::string type = "DIIS";
-    //! The SCF RECIPE by material regime (qchem.SCFRecipe; doc/SCFRobustnessPlan.md R4.1 as ruled for B5, ruling (c)): a molecule takes
-    //! \c Auto or \c Insulator only; MagneticInsulator and Metal are REFUSED there (their Kerker+Pulay mixes in G space).
-    SCFRecipe recipe = SCFRecipe::Auto;
+    //! (WHICH accelerator, and the SCF recipe, are \c RunOptions::accelerator / \c recipe -- their ONE home, every kind, V-FACADE-PARITY
+    //! P2; until then a molecule and an atom named theirs here, as text.  This block holds only how each one is TUNED.)
     struct DIIS
     {
         std::optional<size_t> nProj;          //!< history depth
@@ -145,7 +141,10 @@ struct RunOptions
 
     //! \name Convergence machinery
     //!@{
-    //! The Fock-side accelerator.  \c Auto (default) is the facade's policy, resolved per stage, PAIRED with an \c Auto mixer
+    //! \brief THE ACCELERATOR TYPE, every kind: its ONE home (V-FACADE-PARITY P2; a molecule and an atom used to name theirs as text in
+    //! \c AcceleratorOptions, the solid here).  \c Auto (default) is the KIND's policy.  A molecule and an atom run \c DIIS under it and
+    //! REFUSE \c Null (no density mixer to pair it with); a text name (a GUI form, the atom's json escape hatch) becomes a type through
+    //! \c AcceleratorTypeByName, which refuses an unknown one.  A SOLID resolves \c Auto per stage, PAIRED with an \c Auto mixer
     //! (OpenWork §3 "Kerker/Pulay as the DEFAULT mixer", measured 2026-10-22: Pulay on ρ beside DIIS on F fights -- free Si
     //! k222 stalls, Si Γ diverges -- while Kerker/Pulay with NO Fock extrapolator beat linear + DIIS on every probe; the
     //! DEFAULT since 2026-10-26): a seeded or carried stage -> \c Null + Pulay on D (no Kerker, no fit: pin 28); a RESTORED
@@ -153,8 +152,9 @@ struct RunOptions
     //! beside a linear step capped at 0.3.
     SCFAccelerators::Type accelerator = SCFAccelerators::Type::Auto;
     //! The SCF RECIPE by material regime (qchem.SCFRecipe; deck key `scf.recipe`, doc/SCFRobustnessPlan.md R4.1 as ruled for B5):
-    //! \c Auto (default) = the policy above, named and printed; \c MagneticInsulator / \c Metal fill Kerker+Pulay on a cold or carried
-    //! stage and REFUSE kT = 0.  A stated accelerator or mixer knob beside it wins (a deviation, printed).
+    //! \c Auto (default) = the policy above, named and printed; \c MagneticInsulator / \c Metal fill Kerker+Pulay on a solid's cold or
+    //! carried stage and REFUSE kT = 0.  A molecule takes \c Auto or \c Insulator only (ruling (c)): the other two are REFUSED there (their
+    //! Kerker+Pulay mixes in G space).  A stated accelerator or mixer knob beside it wins (a deviation, printed).
     SCFRecipe recipe = SCFRecipe::Auto;
     //! Impose the detected space group (IBZ k-fold + per-iteration density star-average + site-adapted
     //! Becke mesh).  OPT-IN (default \c false): it roughly doubles the XC grid, and see the warning below.

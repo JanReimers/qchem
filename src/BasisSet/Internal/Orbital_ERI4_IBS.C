@@ -3,6 +3,7 @@ module;
 export module qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 export import qchem.BasisSet.Orbital_HF_IBS;
 export import qchem.BasisSet.Internal.ERI4;
+export import qchem.BasisSet.Internal.CacheSlot;   // an ERI4 pair is cached in the parent's cache
 
 export namespace qchem::BasisSet
 {
@@ -23,7 +24,8 @@ export namespace qchem::BasisSet
 //! A basis with no ERI4 substrate (the SALC decorator) simply does not derive from this class.
 //
 template <class T> class Orbital_ERI4_IBS
-    : public virtual Orbital_HF_IBS<T>
+    : protected virtual CacheSlot   // the pair's cache (non-public base first: the cross-cast trap)
+    , public virtual Orbital_HF_IBS<T>
 {
 public:
     //! Build the Coulomb block \f$J(ab,cd)\f$.  Only called once for a given {radial,angular} ID pair.

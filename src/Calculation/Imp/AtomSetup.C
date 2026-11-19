@@ -30,8 +30,6 @@ RunOptions AtomOptions(const RunOptions& asked)
         refuse("pp / species", "an atom states its pseudo-atom in the `atom` block (pseudopotential, valence)");
     if (asked.imposeSymmetry || asked.symmetryTol!=def.symmetryTol || !asked.spins.empty())
         refuse("imposeSymmetry / symmetryTol / spins", "an atom's symmetry is spherical by construction");
-    if (asked.accelerator!=def.accelerator || asked.recipe!=def.recipe)
-        refuse("accelerator / recipe (top level)", "an atom names them in its accelerator block (AcceleratorOptions)");
     if (asked.orthoTol!=def.orthoTol) refuse("orthoTol", "the atom's solver takes no truncation floor");
     if (asked.label!=def.label || !asked.saveStateTo.empty()) refuse("label / saveStateTo", "an atom saves its state through SaveState");
     if (!o.model)  o.model=Hamiltonian::Model::HF;
@@ -75,24 +73,22 @@ std::shared_ptr<const AtomSetup> AtomSetup::Resolve(const Structure& atom, const
     if (o.seed==SeedStrategy::Default) o.seed=SeedStrategy::CoreGuess;
     if (o.atom.pseudopotential) s->seedKey=ChargeDensity::SeedKey("LDA", {{s->Z, s->PseudoValence()}});
 
-    // THE ACCELERATOR, BY NAME: the atom block's json escape hatch names it (its "type") when it states one, else the accelerator block.
-    // An unknown name is REFUSED (AcceleratorTypeByName) -- until 2026-11-17 the atom ran DIIS on it silently.  `directmin` is kept as
-    // an alias: GDM stepping from the first iteration.
-    std::string name=acc.type;
+    // THE ACCELERATOR: the options' type (its one home, V-FACADE-PARITY P2; Auto = DIIS, Null refused), unless the atom block's json escape
+    // hatch NAMES one (its "type"), read through AcceleratorTypeByName: an unknown name is REFUSED -- until 2026-11-17 the atom ran DIIS on it
+    // silently.  `directmin` is kept as an alias there: GDM stepping from the first iteration.  The two stated and different are refused.
     if (o.atom.accelerator.is_object() && o.atom.accelerator.contains("type"))
     {
         const std::string stated=o.atom.accelerator.value("type", std::string());
-        if (acc.type!=AcceleratorOptions{}.type && acc.type!=stated)
-            policy::Refuse("AcceleratorType", "accelerator \""+acc.type+"\" and atom.accelerator type \""+stated+"\"",
+        s->directMin = stated=="directmin" || stated=="DirectMin";
+        const auto t = s->directMin ? SCFAccelerators::Type::GDM : AcceleratorTypeByName(stated, "qchem::AtomCalculation");
+        if (o.accelerator!=SCFAccelerators::Type::Auto && o.accelerator!=t)
+            policy::Refuse("AcceleratorType", "accelerator "+std::string(NameOf(o.accelerator))+" and atom.accelerator type \""+stated+"\"",
                            "the two name different accelerators -- state one");
-        name=stated;
+        s->accelerator=t;
     }
-    s->directMin = name=="directmin" || name=="DirectMin";
-    s->accelerator = s->directMin ? SCFAccelerators::Type::GDM : AcceleratorTypeByName(name, "qchem::AtomCalculation");
+    else s->accelerator=MolecularAcceleratorType(o.accelerator, "qchem::AtomCalculation");
     const bool densityFock = o.atom.pseudopotential || o.atom.xc.has_value() || Hamiltonian::IsDFT(*o.model);
-    if (densityFock)   // GDM needs H = dE/dD (pin 32)
-        RefuseGradientConsumers(o.vxcFit, o.xcRho, s->accelerator==SCFAccelerators::Type::GDM ? "GDM"
-                                                  : s->accelerator==SCFAccelerators::Type::Ladder ? "Ladder" : "DIIS");
+    if (densityFock) RefuseGradientConsumers(o.vxcFit, o.xcRho, NameOf(s->accelerator));   // GDM needs H = dE/dD (pin 32)
     // Atoms keep the proven Z-scaled DIIS engage gate unless the caller pins one (DFT too: \c DIISEngageGate's density-Fock rule is
     // the molecule's), over the molecular defaults.  The json escape hatch merges over these when the graph is built.
     const double eMax=DIISEngageGate(acc.diis.engageBelowFD.value_or(0.0), s->Z, /*the atom keeps the Z-scaled gate, DFT too*/false);

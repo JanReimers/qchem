@@ -9,6 +9,7 @@ export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 export import qchem.BasisSet.Orbital_DHF_IBS;
+export import qchem.BasisSet.Internal.CachedIntegrals;   // CacheSlot and the Cached* mixins
 export import qchem.Structure;
 
 
@@ -18,7 +19,8 @@ export namespace qchem::BasisSet
 template <class T> class Orbital_RKBS_IBS;
 //  Large portion of an RKB irrep basis set for DHF calculations.
 template <class T> class Orbital_RKBL_IBS
-    : public virtual Evaluatable_IBS<T>
+    : protected virtual CacheSlot   // the RKB cross term is cached in the parent's cache (non-public base first: the cross-cast trap)
+    , public virtual Evaluatable_IBS<T>
     , public virtual Integrals_Overlap<T>
     , public virtual Integrals_Nuclear<T>
     , public virtual IrrepBasisSet_IDs   // Name / BasisSetID identity face (neutral)
@@ -45,9 +47,22 @@ public:
     // virtual void Insert(const Orbital_RKBL_IBS<T>* rkbl)=0;
 };
 
+//! The cached rest mass: MakeRestMass() built once, in the parent's cache under this block's index (D-BASISCACHE-FANIN; see
+//! Internal/CacheSlot.C).
+template <class T> class CachedRestMass
+    : protected virtual CacheSlot
+    , public    virtual Orbital_RKB_IBS<T>
+{
+public:
+    const smat_t<T>& RestMass() const override;
+};
+
 // Implement Orbital_RKB_IBS using pointers to Orbital_RKBL_IBS and Orbital_RKBS_IBS.
 template <class T> class Orbital_RKB_IBS_Imp
-    : public virtual Orbital_RKB_IBS<T>
+    : public virtual CachedOverlap<T>    // the merged L/S Make* below, cached in the parent's cache (D-BASISCACHE-FANIN)
+    , public virtual CachedKinetic<T>
+    , public virtual CachedRestMass<T>
+    , public virtual Orbital_RKB_IBS<T>
 {
 public:
     virtual smat_t<T> MakeOverlap () const;
