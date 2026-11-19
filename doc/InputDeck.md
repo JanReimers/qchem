@@ -75,7 +75,7 @@ forces Polarized.  An AFM crystal states `"spin": "Polarized", "multiplicity": 1
   "xc": { "fit": "Auto", "rho": "exact",  // the Vxc fit basis, the density XC sees
           "mesh": { "cellKind": "Auto|Uniform|Becke", "nRadial": 40, "angularDegree": 29, "beckeEps": 1e-6, ... } },   // was solid.xcMesh
   "solid": {                              // the PERIODIC-ONLY options
-    "forceComplex": false, "kShift": [0,0,0], "densityEcut": -1, "cutoffFactor": 2,
+    "kShift": [0,0,0], "densityEcut": -1, "cutoffFactor": 2,
     "xcMeshSymmetric": true,              // FREE run: XC mesh invariant under the group detected at THIS geometry; false = the plain atom-centred mesh (a displacement path needs false)
     "tolerances": { "screenEps": 1e-10, "densityEps": 1e-10, "vlocEps": 1e-5, "fieldSharp": 0.667, "relCutoff": 0, "mgridEcuts": [], ... },
     "policy": { "cp2kCompat": false, "streamFold": true, ... },     // the declared CP2K deviations; ONLY stated routes are recorded
@@ -101,7 +101,7 @@ forces Polarized.  An AFM crystal states `"spin": "Polarized", "multiplicity": 1
     {"estimateHubbardU": {}},                                            // ACBN0 (U,J) from the last iterate
     {"hubbardLoop": {"maxOuter":8, "tolU_eV":1e-3}},                     // ACBN0 outer loop
     {"independentResponse": {"nq":2}},                                   // chi0 on an nq^3 q-mesh (nq must divide every kmesh division)
-    {"hubbardLinearResponse": {"nq":2, "perturb":[0,1], "tol":1e-8, "maxIter":200, "restart":40}},   // the self-consistent chi on an nq^3 q-mesh (default 1 = q=0 of this cell; no forceComplex needed: the deck runs the ground state on real TRIM blocks and the response as a second, complex run that adopts the state -- the `ResponseSplit` / `AdoptState` policy rows); U over the q-mesh's supercell
+    {"hubbardLinearResponse": {"nq":2, "perturb":[0,1], "tol":1e-8, "maxIter":200, "restart":40}},   // the self-consistent chi on an nq^3 q-mesh (default 1 = q=0 of this cell; complex is never stated -- `solid.forceComplex` is RETIRED, refused by name (2026-11-19): the deck runs the ground state on real TRIM blocks and the response as a second, complex run that adopts the state -- the `ResponseSplit` / `AdoptState` policy rows); U over the q-mesh's supercell
     {"hubbardLinearResponse": {"perturb":[0], "resolve":"eigen"}},       // ORBITAL-RESOLVED: "manifold" (default, hp.x) | "slot" (one channel per +U slot = site irrep) |
                                                                          //   "eigen" (occupation eigen-orbitals inside each slot; QE orbital_resolved / Macke 2024).  perturb still names
                                                                          //   MANIFOLDS (all their channels are perturbed); prints a [response] channel table with each channel's composition
