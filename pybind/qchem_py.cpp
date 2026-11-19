@@ -149,6 +149,24 @@ public:
         if (sink.error) { if (h) qcb_free(h); h = nullptr; throw std::move(*sink.error); }
         if (!h) raise_refusal(refused, err);
     }
+    //! THE RADIAL ATOM (qcb_start_atom): Z, net charge, and the options as JSON in the deck's spelling.
+    static Calculator* Atom(int Z, int charge, const std::string& optionsJson, const std::string& restartFrom, bool buildOnly,
+                            nb::object onIteration)
+    {
+        qcb_sink sink{onIteration, std::nullopt};
+        const bool stream = !onIteration.is_none();
+        char err[errlen] = {0};
+        int refused = 0;
+        qcb_calc* h;
+        {
+            nb::gil_scoped_release nogil;
+            h = qcb_start_atom(Z, charge, optionsJson.c_str(), restartFrom.c_str(), buildOnly ? 1 : 0, stream ? step_trampoline : nullptr,
+                               stream ? &sink : nullptr, &refused, err, errlen);
+        }
+        if (sink.error) { if (h) qcb_free(h); throw std::move(*sink.error); }
+        if (!h) raise_refusal(refused, err);
+        return new Calculator(h);
+    }
     ~Calculator() { qcb_free(h); }
     Calculator(const Calculator&)            = delete;
     Calculator& operator=(const Calculator&) = delete;
@@ -237,7 +255,8 @@ public:
         auto arr = make_array({size_t(n), size_t(n), size_t(n)});
         double o[3], s[3];
         if (!qcb_orbital(h, index, n, pad, arr.data(), o, s))
-            throw std::out_of_range("orbital index " + std::to_string(index) + " is not a level");
+            throw std::out_of_range("orbital index " + std::to_string(index) + " is not a level, or this calculation draws no 3-D orbital "
+                                    "(a radial atom: OpenWork \"an honest atomic op(r)\")");
         nb::dict d = grid_dict("values", arr, o, s);
         d["signed"] = true;
         return d;
@@ -252,6 +271,7 @@ public:
     }
 
 private:
+    explicit Calculator(qcb_calc* c) : h(c) {}
     qcb_calc* h = nullptr;
 };
 
@@ -372,6 +392,11 @@ public:
                               0.0, 0.0, 0.0, 0.0, "", 0.0, basisFile.c_str(), "Default", angular.c_str()};
         return Open([&](int* refused, char* err){ return qcb_view_molecule(&req, path.c_str(), refused, err, errlen); });
     }
+    //! A radial atom's: Z, net charge and its options (deck spelling), as Calculator.atom.
+    static StateView* Atom(int Z, int charge, const std::string& optionsJson, const std::string& path)
+    {
+        return Open([&](int* refused, char* err){ return qcb_view_atom(Z, charge, optionsJson.c_str(), path.c_str(), refused, err, errlen); });
+    }
     //! A crystal's: its deck (the run's resolved deck, or the deck it ran).
     static StateView* Crystal(const std::string& deckJson, const std::string& path)
     {
@@ -465,6 +490,12 @@ NB_MODULE(qchem_py, mod)
              "shipped file `basis` names (RunOptions::molecule.basisFile; `basis` is then its label).  seed / angular: the STRUCTURE-NEUTRAL "
              "options by the deck's names (a crystal's deck: solid.seed, basis.angular): seed Default (the Auto rule) | CoreGuess | Uniform | "
              "SAD | IonicSAD, angular cartesian | spherical ('' = Default / cartesian); the facade refuses a combination it cannot build.")
+        .def_static("atom", &Calculator::Atom, nb::arg("Z"), nb::arg("charge") = 0, nb::arg("options") = "", nb::arg("restart_from") = "",
+                    nb::arg("build_only") = false, nb::arg("on_iteration") = nb::none(), nb::rv_policy::take_ownership,
+                    "THE RADIAL ATOM (AtomSetup::Admit + AtomCalculation): the lone atom Z with net charge `charge`, its options as JSON in the "
+                    "input deck's spelling (schema 2: top-level model, spin, scf, xc, accelerator, ... and the `atom` block; '' = every default). "
+                    "restart_from / build_only / on_iteration as for a molecule.  The same Calculator: run_scf, levels, density, the report; "
+                    "iterate_density raises (no iterate field) and orbital raises (no 3-D atomic orbital yet).")
         .def("run_scf", &Calculator::RunSCF, nb::arg("on_iteration"), nb::arg("max_iter") = 100,
              "Run the SCF (after build_only: on the built graph; else again from the seed), streaming each iteration; returns converged.")
         .def("save_state", &Calculator::SaveState, nb::arg("path"),
@@ -589,6 +620,7 @@ NB_MODULE(qchem_py, mod)
         .def_static("molecule", &StateView::Molecule, nb::arg("numbers"), nb::arg("positions"), nb::arg("basis"), nb::arg("model") = "HF",
                     nb::arg("symmetry") = false, nb::arg("polarized") = false, nb::arg("multiplicity") = 0, nb::arg("pp") = "",
                     nb::arg("basis_file") = "", nb::arg("angular") = "cartesian", nb::arg("path"), nb::rv_policy::take_ownership)
+        .def_static("atom", &StateView::Atom, nb::arg("Z"), nb::arg("charge"), nb::arg("options"), nb::arg("path"), nb::rv_policy::take_ownership)
         .def_static("crystal", &StateView::Crystal, nb::arg("deck"), nb::arg("path"), nb::rv_policy::take_ownership)
         .def("levels",  &StateView::Levels,  "As Calculator.levels: the saved state's every level, in the live run's order.")
         .def("summary", &StateView::Summary, "{'path','label','converged','iterations','energy','exact','warm','electrons'}: what is drawn.")

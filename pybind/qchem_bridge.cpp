@@ -5,8 +5,10 @@
 // surface is the flat extern "C" API in qcb_api.h (C linkage -> links from nanobind).
 //
 // The bridge holds NO recipe of its own.  A molecule: it fills RunOptions / AcceleratorOptions / SCFParams, calls
-// MoleculeSetup::Admit, and owns one qchem::MoleculeCalculation.  A crystal: it parses the caller's INPUT DECK and calls
-// deck::Build, owning the SolidCalculation that returns.  Everything it answers comes from the facade.
+// MoleculeSetup::Admit, and owns one qchem::MoleculeCalculation.  A radial atom: it reads the caller's options in the DECK's
+// spelling (deck::FromJson -> RunOptions, the `atom` block included), calls AtomSetup::Admit on the lone atom (Z, net charge),
+// and owns one qchem::AtomCalculation -- the same qcb_calc handle, through Driven.  A crystal: it parses the caller's INPUT
+// DECK and calls deck::Build, owning the SolidCalculation that returns.  Everything it answers comes from the facade.
 module;
 #include <algorithm>
 #include <clocale>
@@ -19,6 +21,7 @@ module;
 #include <limits>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
@@ -38,6 +41,7 @@ import qchem.Calculation;    // Calculation::MakeLevels (the structure-neutral l
 import qchem.StateView;      // StateView: a saved state, drawn (qcb_view)
 import qchem.ScalarFunction; // the one field face every sampler reads
 import qchem.MoleculeCalculation;    // MoleculeCalculation, MoleculeSetup, RunOptions, AcceleratorOptions
+import qchem.AtomCalculation;        // AtomCalculation, AtomSetup: the radial atom (qcb_start_atom, qcb_view_atom)
 import qchem.SolidCalculation;  // SolidCalculation (what deck::Build returns)
 import qchem.Deck;           // deck::RunSpec, FromJson, Build, ScheduleToRun
 import qchem.Symmetry.Molecule.PointGroup;      // DetectPointGroup
@@ -48,11 +52,86 @@ import qchem.StructureData;                      // the materials layers (shippe
 import qchem.Pseudopotential.Set;                // PseudopotentialSet: the q each element resolves to (the one reader of the choice)
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94Import;   // a downloaded basis -> the BasisSetData layout
 
+//! \brief WHAT THE qcb_calc CALLS ASK OF A FINITE SYSTEM'S FACADE, a molecule's or a radial atom's, so one handle drives either.
+//! The base's answers (Converge, Result, SaveState, JudgeState, RestartedFrom, MakeLevels) come through \c Base(); the rest are each
+//! facade's own members under one name here (the facades do not share them on a base: their spellings and their gaps differ).
+extern "C++" struct Driven
+{
+    using sf_t     = qchem::ScalarFunction<double>;
+    using Observer = qchem::SCFIterator::SCFIterator::Observer;
+    virtual ~Driven() = default;
+    virtual qchem::tCalculation<double>&       Base()       = 0;
+    virtual const qchem::tCalculation<double>& Base() const = 0;
+    virtual void                    OnIteration(Observer obs) = 0;
+    virtual double                  Energy()         const = 0;
+    virtual bool                    IsConverged()    const = 0;
+    virtual size_t                  IterationCount() const = 0;
+    virtual const qchem::Structure& GetStructure()   const = 0;
+    virtual const sf_t&             Density()        const = 0;
+    virtual const sf_t&             SpinDensity()    const = 0;   //!< m(r); the zero field for an unpolarized (or unconverged atom's) run
+    //! The CURRENT ITERATE's rho (spin: m), built fresh; THROWS when the facade offers none.
+    virtual std::unique_ptr<sf_t>   MakeIterateDensity(bool spin) const = 0;
+    //! Level \a i's orbital as a 3-D field, in \c MakeLevels' order; null when the facade draws none (out of range included).
+    virtual const sf_t*             Orbital(size_t i) const = 0;
+};
+
+//! A molecule: every answer is the facade's own.
+extern "C++" struct DrivenMolecule final : Driven
+{
+    explicit DrivenMolecule(std::unique_ptr<qchem::MoleculeCalculation> c) : calc(std::move(c)) {}
+    qchem::tCalculation<double>&       Base()       override {return *calc;}
+    const qchem::tCalculation<double>& Base() const override {return *calc;}
+    void                    OnIteration(Observer obs)     override {calc->OnIteration(std::move(obs));}
+    double                  Energy()         const override {return calc->Energy();}
+    bool                    IsConverged()    const override {return calc->IsConverged();}
+    size_t                  IterationCount() const override {return calc->IterationCount();}
+    const qchem::Structure& GetStructure()   const override {return calc->GetStructure();}
+    const sf_t&             Density()        const override {return calc->Density();}
+    const sf_t&             SpinDensity()    const override {return calc->GetSpinDensity();}
+    std::unique_ptr<sf_t>   MakeIterateDensity(bool spin) const override
+    { return spin ? calc->MakeIterateSpinDensity() : calc->MakeIterateDensity(); }
+    const sf_t*             Orbital(size_t i) const override
+    {
+        const auto& levels = calc->GetLevels();
+        return i < levels.size() ? levels[i].phi : nullptr;
+    }
+    std::unique_ptr<qchem::MoleculeCalculation> calc;
+};
+
+//! A radial atom.  Its gaps are the LIBRARY's, stated here rather than papered over: no current-iterate field (a live 3-D view of an
+//! atom in progress), and no orbital as a 3-D field (OpenWork "Atomic orbitals in the GUI's 3D view: an honest atomic op(r)" -- the
+//! facade's Orbital(i) is a radial function, not chi(r) Y_lm per (i, m)).  Its m(r) is the converged proof's.
+extern "C++" struct DrivenAtom final : Driven
+{
+    explicit DrivenAtom(std::unique_ptr<qchem::AtomCalculation> c) : calc(std::move(c)) {}
+    qchem::tCalculation<double>&       Base()       override {return *calc;}
+    const qchem::tCalculation<double>& Base() const override {return *calc;}
+    void                    OnIteration(Observer obs)     override {calc->OnIteration(std::move(obs));}
+    double                  Energy()         const override {return calc->Energy();}
+    bool                    IsConverged()    const override {return calc->IsConverged();}
+    size_t                  IterationCount() const override {return calc->IterationCount();}
+    const qchem::Structure& GetStructure()   const override {return calc->GetStructure();}
+    const sf_t&             Density()        const override {return calc->Density();}
+    const sf_t&             SpinDensity()    const override
+    {
+        static const qchem::ZeroField zero;
+        const auto r = calc->Result();
+        return r ? r.Value().SpinDensity() : zero;
+    }
+    std::unique_ptr<sf_t>   MakeIterateDensity(bool) const override
+    {
+        throw std::runtime_error("the radial atom offers no field of its SCF iterate (a live 3-D view of an atom in progress): "
+                                 "its density draws once the SCF ends");
+    }
+    const sf_t*             Orbital(size_t) const override {return nullptr;}
+    std::unique_ptr<qchem::AtomCalculation> calc;
+};
+
 // The opaque handle: the facade plus the request's geometry (for the sampling box).  extern "C++" attaches it to the
 // GLOBAL module, where qcb_api.h (in the GMF) forward-declares it -- a purview definition would be a different entity.
 extern "C++" struct qcb_calc
 {
-    std::unique_ptr<qchem::MoleculeCalculation> calc;
+    std::unique_ptr<Driven>             calc;
     std::vector<double>                 positions;   // flat 3N bohr, as asked
     std::string                         id;          // the structure's ID: the name of the report runs the bridge opens
 };
@@ -184,6 +263,7 @@ std::string why_name(qchem::SCFFailure::Why w)
         case Why::OrderLost:    return "magnetic order lost";
         case Why::UnphysicalEnergy: return "unphysical first iterate (electronic energy > 0)";
         case Why::ResourceRefused:  return "refused on resources (the run would not fit)";
+        case Why::StageRefused:     return "schedule stage refused (the kind cannot run it as stated)";
     }
     return "unknown SCF failure";
 }
@@ -275,6 +355,29 @@ MoleculeRequest molecule_request(const qcb_request* req)
     return r;
 }
 
+//! What an atom request resolves to: the lone atom (Z, net charge) and its options, read in the DECK's spelling by the deck's own
+//! readers -- the top-level keys and the `atom` block into RunOptions (deck::FromJson: schema 2, strict), the deck's
+//! `acceleratorOptions` into AcceleratorOptions -- so the GUI states an atom exactly as a deck does, with no names of its own.
+struct AtomRequest
+{
+    qchem::Atom               atom;
+    qchem::RunOptions         opts;
+    qchem::AcceleratorOptions acc;
+};
+
+AtomRequest atom_request(int Z, int charge, const char* optionsJson)
+{
+    AtomRequest r{qchem::Atom(Z, double(charge)), {}, {}};
+    nlohmann::json j = optionsJson && *optionsJson ? nlohmann::json::parse(optionsJson) : nlohmann::json{{"schema", 2}};
+    if (j.contains("acceleratorOptions"))
+    {
+        qchem::deck::FromJson(j["acceleratorOptions"], r.acc);
+        j.erase("acceleratorOptions");
+    }
+    qchem::deck::FromJson(j, r.opts);
+    return r;
+}
+
 const char* why_name(qchem::RestartRefusal::Why w)
 {
     using W = qchem::RestartRefusal::Why;
@@ -349,6 +452,13 @@ void setup_refused(const qchem::SetupRefusal& r, int* refused, char* err, int er
     write_error(("setup refused (policy " + r.policy + "): " + r.reason).c_str(), err, errlen);
 }
 
+//! A refused BUILD (a facade's Prepare: its BuildRefusal): "build refused (<policy>): <reason>", a failure of the call (its policy row
+//! is already in the run's record).
+void build_refused(const qchem::BuildRefusal& r, char* err, int errlen)
+{
+    write_error(("build refused (" + r.policy + "): " + r.reason).c_str(), err, errlen);
+}
+
 //! The view's field: 0 = rho, 1 = m, 2 = level \a index's orbital (refused with the reason: no orbitals saved, a complex one).
 const qchem::ScalarFunction<double>& view_field(const qcb_view* h, int field, int index)
 {
@@ -403,19 +513,63 @@ qcb_calc* qcb_start(const qcb_request* req, const char* path, int buildOnly, qcb
                 write_error(("restart refused (" + std::string(why_name(R.Error().why)) + "): " + R.Error().details).c_str(), err, errlen);
                 return nullptr;
             }
-            h->calc = R.TakeValue();
+            h->calc = std::make_unique<DrivenMolecule>(R.TakeValue());
         }
         else
         {
             // A build refusal is the call's error (its policy row is already in the run's record).
             auto P = MoleculeCalculation::Prepare(setup, std::move(observer));
-            if (!P) { write_error(("build refused (" + P.Error().policy + "): " + P.Error().reason).c_str(), err, errlen); return nullptr; }
-            h->calc = P.TakeValue();
+            if (!P) { build_refused(P.Error(), err, errlen); return nullptr; }
+            h->calc = std::make_unique<DrivenMolecule>(P.TakeValue());
             // A non-converged SCF is not a failure of this call: the caller reads it through qcb_failure / the result.
-            if (!buildOnly) (void)h->calc->Converge();
+            if (!buildOnly) (void)h->calc->Base().Converge();
         }
         // The sink lives only for this call: detach it before returning (qcb_converge attaches its own).
         h->calc->OnIteration(MoleculeCalculation::Observer{});
+        return h.release();
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
+    return nullptr;
+}
+
+qcb_calc* qcb_start_atom(int Z, int charge, const char* optionsJson, const char* path, int buildOnly, qcb_row_fn step, qcb_sink* sink,
+                         int* refused, char* err, int errlen)
+{
+    const HostLocale host;
+    if (refused) *refused = 0;
+    try
+    {
+        auto h = std::make_unique<qcb_calc>();
+        h->positions = {0.0, 0.0, 0.0};                 // the radial atom sits at the origin
+        auto r = atom_request(Z, charge, optionsJson);
+        // The bridge is the DRIVER: it opens the run (its build run, as a molecule's) before the setup's checks, so a refusal files its record.
+        h->id = r.atom.ID();
+        const qchem::report::Run run(buildOnly ? h->id + " build" : h->id);
+        auto admitted = qchem::AtomSetup::Admit(r.atom, r.opts, r.acc);
+        if (!admitted) { setup_refused(admitted.Error(), refused, err, errlen); return nullptr; }
+        const auto setup = admitted.TakeValue();
+        auto observer = step ? forward_to(step, sink) : Driven::Observer{};
+        if (path && *path)
+        {
+            auto R = buildOnly ? qchem::AtomCalculation::PrepareRestart(path, setup, setup->opts.scf, std::move(observer))
+                               : qchem::AtomCalculation::Restart(path, setup, setup->opts.scf, std::move(observer));
+            if (!R)
+            {
+                if (refused) *refused = 1;
+                write_error(("restart refused (" + std::string(why_name(R.Error().why)) + "): " + R.Error().details).c_str(), err, errlen);
+                return nullptr;
+            }
+            h->calc = std::make_unique<DrivenAtom>(R.TakeValue());
+        }
+        else
+        {
+            auto P = qchem::AtomCalculation::Prepare(setup, std::move(observer));
+            if (!P) { build_refused(P.Error(), err, errlen); return nullptr; }
+            h->calc = std::make_unique<DrivenAtom>(P.TakeValue());
+            if (!buildOnly) (void)h->calc->Base().Converge();
+        }
+        h->calc->OnIteration(Driven::Observer{});       // the sink lives only for this call
         return h.release();
     }
     catch (const std::exception& e) { write_error(e.what(), err, errlen); }
@@ -430,7 +584,7 @@ int qcb_save_state(const qcb_calc* h, const char* path, char* err, int errlen)
     {
         // The save is its own run in the record, "<ID> state save" (its timing), so the SCF run stays the last one a reader picks.
         const qchem::report::Run run(h->id + " state save");
-        h->calc->SaveState(path);
+        h->calc->Base().SaveState(path);
         return 1;
     }
     catch (const std::exception& e) { write_error(e.what(), err, errlen); }
@@ -441,12 +595,12 @@ int qcb_save_state(const qcb_calc* h, const char* path, char* err, int errlen)
 int qcb_judge_state(const qcb_calc* h, const char* path, char* out, int outlen)
 {
     const HostLocale host;
-    return write_json(judged_json(h->calc->JudgeState(path)), out, outlen);
+    return write_json(judged_json(h->calc->Base().JudgeState(path)), out, outlen);
 }
 
 int qcb_restarted_from(const qcb_calc* h, char* out, int outlen)
 {
-    return write_json(restarted_json(h->calc->RestartedFrom()), out, outlen);
+    return write_json(restarted_json(h->calc->Base().RestartedFrom()), out, outlen);
 }
 
 void qcb_free(qcb_calc* h) { delete h; }
@@ -458,7 +612,7 @@ int qcb_converge(qcb_calc* h, int maxIter, qcb_row_fn step, qcb_sink* sink, char
     {
         h->calc->OnIteration(step ? forward_to(step, sink) : MoleculeCalculation::Observer{});
         const auto out = [&]{ const qchem::report::Run run(h->id);
-                              return h->calc->Converge([&](qchem::SCFParams& q){ q.NMaxIter = size_t(maxIter); }); }();
+                              return h->calc->Base().Converge([&](qchem::SCFParams& q){ q.NMaxIter = size_t(maxIter); }); }();
         h->calc->OnIteration(MoleculeCalculation::Observer{});      // the sink lives only for this call
         if (out) return 1;
         write_error(describe(out.Error()).c_str(), err, errlen);
@@ -472,7 +626,7 @@ int qcb_converge(qcb_calc* h, int maxIter, qcb_row_fn step, qcb_sink* sink, char
 
 int qcb_failure(const qcb_calc* h, char* out, int outlen)
 {
-    const auto r = h->calc->Result();
+    const auto r = h->calc->Base().Result();
     write_error(r ? "" : describe(r.Error()).c_str(), out, outlen);
     return r ? 0 : 1;
 }
@@ -490,7 +644,7 @@ void qcb_atoms(const qcb_calc* h, int* Z_out, double* xyz_out)
     std::memcpy(xyz_out, h->positions.data(), h->positions.size()*sizeof(double));
 }
 
-int qcb_levels(const qcb_calc* h, char* out, int outlen) { return write_json(levels_json(*h->calc), out, outlen); }
+int qcb_levels(const qcb_calc* h, char* out, int outlen) { return write_json(levels_json(h->calc->Base()), out, outlen); }
 
 void qcb_density(const qcb_calc* h, int n, double pad, double* out, double* origin, double* spacing)
 {
@@ -503,7 +657,7 @@ int qcb_iterate_density(const qcb_calc* h, int spin, int n, double pad, double* 
     const HostLocale host;
     try
     {
-        const auto f = spin ? h->calc->MakeIterateSpinDensity() : h->calc->MakeIterateDensity();
+        const auto f = h->calc->MakeIterateDensity(spin != 0);
         sample(h->positions, *f, n, pad, out, origin, spacing);
         return 1;
     }
@@ -514,14 +668,14 @@ int qcb_iterate_density(const qcb_calc* h, int spin, int n, double pad, double* 
 
 void qcb_spin_density(const qcb_calc* h, int n, double pad, double* out, double* origin, double* spacing)
 {
-    sample(h->positions, h->calc->GetSpinDensity(), n, pad, out, origin, spacing);
+    sample(h->positions, h->calc->SpinDensity(), n, pad, out, origin, spacing);
 }
 
 int qcb_orbital(const qcb_calc* h, int index, int n, double pad, double* out, double* origin, double* spacing)
 {
-    const auto& levels = h->calc->GetLevels();
-    if (index < 0 || size_t(index) >= levels.size()) return 0;
-    sample(h->positions, *levels[size_t(index)].phi, n, pad, out, origin, spacing);
+    const auto* phi = index < 0 ? nullptr : h->calc->Orbital(size_t(index));
+    if (!phi) return 0;
+    sample(h->positions, *phi, n, pad, out, origin, spacing);
     return 1;
 }
 
@@ -671,6 +825,29 @@ qcb_view* qcb_view_molecule(const qcb_request* req, const char* path, int* refus
         auto admitted = qchem::MoleculeSetup::Admit(r.mol, r.opts, r.acc);
         if (!admitted) { setup_refused(admitted.Error(), refused, err, errlen); return nullptr; }
         auto V = MoleculeCalculation::ViewState(path ? path : "", admitted.TakeValue());
+        if (!V) { view_refused(V.Error(), refused, err, errlen); return nullptr; }
+        h->view = V.TakeValue();
+        return h.release();
+    }
+    catch (const std::exception& e) { write_error(e.what(), err, errlen); }
+    catch (...)                     { write_error("qchem_py: unknown failure", err, errlen); }
+    return nullptr;
+}
+
+qcb_view* qcb_view_atom(int Z, int charge, const char* optionsJson, const char* path, int* refused, char* err, int errlen)
+{
+    const HostLocale host;
+    if (refused) *refused = 0;
+    try
+    {
+        auto h = std::make_unique<qcb_view>();
+        h->positions = {0.0, 0.0, 0.0};
+        auto r = atom_request(Z, charge, optionsJson);
+        const qchem::report::Run     run(r.atom.ID() + " view");
+        const qchem::report::Section section("view");
+        auto admitted = qchem::AtomSetup::Admit(r.atom, r.opts, r.acc);
+        if (!admitted) { setup_refused(admitted.Error(), refused, err, errlen); return nullptr; }
+        auto V = qchem::AtomCalculation::ViewState(path ? path : "", admitted.TakeValue());
         if (!V) { view_refused(V.Error(), refused, err, errlen); return nullptr; }
         h->view = V.TakeValue();
         return h.release();
