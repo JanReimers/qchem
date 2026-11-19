@@ -3615,3 +3615,22 @@ on a cond(S) ~ 1e15 basis should try pivoted Cholesky before suspecting the SCF.
 Original row:
 
 | **Nd⁵⁹⁺ [F,D] gate sits on the cond(S) = 1e15 floor** (lane S, 2026-11-09, exposed by E[D_out]) | `A/A_SL_HF_ion.A/60` (gtest `A/A_SL_HF_ion.A/2`, one electron, Slater basis): E is exact (-Z²/2) to 1e-11 from iteration 1, but [F,D] scatters 6e-4..5e-3 every iteration on main and after, on a basis whose `[basis trim]` reports cond(S) = 1.1e15 with 18 AOs that would drop.  The gate MinFD = Z·1e-5 = 6e-4 sits on that floor: main crossed it by luck at iteration 14; E[D_out] rounds the (algebraically identical) retraction differently and it never does within NMaxIter 20.  **On `QCHEM_KNOWN_RED`** (a4afb9989); gate NOT loosened | **TRIM FIRST** (CLAUDE.md: "we have lost a lot of time on this"): run it with `basis.autoTrim` (the atom path's ortho tolerance) and see whether [F,D] then meets Z·1e-5; only if trimming is not enough, rescale the gate to F's Z² scale (a ruling, not a loosening by hand) · record: this row |
+
+## ✅ basis.elements: the shells per element, filed by the reader as it builds (molecules; lane B, 2026-11-18, feb612774)
+
+The GUI's Basis tab ("3s 2p 1d" per element, `qviz/basisinfo.py` `element_rows`) parsed the `.bsd` itself, a second reader of the basis
+data.  `ReadShells` (`src/BasisSet/Gaussian/Point/Imp/Reader.C`), the one shell loop the three Gaussian readers share, now files one
+`basis.elements` row per element while it reads: `{element, Z, atoms, shells, nFunctions}`.
+- `shells` counts the contracted shells as read, after the duplicate drop.  An SP shell counts once as s and once as p.
+- `nFunctions` is per atom, under the basis's angular kind: 2l+1 spherical, (l+1)(l+2)/2 Cartesian.
+- It is silent unless a "basis" section is open (the caller sets the context).  So a fit basis, built under "hamiltonian", files nothing.
+
+Gates:
+- `Gaussian94Reader.AnOrbitalBuildFilesItsShellsPerElement`: Cartesian and spherical, invariants over every row; the rows sum to the basis.
+- `M_Calculation.BasisReportSchema`: symmetry-imposed water, through the SALC route; one row per element, the sum is `basis.nFunctions`.
+
+REMAINDER (open row): a solid builds its basis outside a "basis" scope (`SolidSetup`'s `GaussianBasisRecipe::Make`), so it files none.
+
+Original row:
+
+| **The basis report has nFunctions per irrep but no shells per element** (S; 2026-11-02) | the GUI's Basis tab '3s 2p 1d' table reads the `.bsd` file itself -- a second reader of the basis data | the basis builder writes a per-element shells row into the `basis` section as it builds (caller sets context, callee writes one level in; CLAUDE.md 'THE RUN REPORT') · lane G's audit |
