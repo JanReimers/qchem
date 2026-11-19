@@ -211,10 +211,11 @@ template <class HT> const tDynamic_CC<double>& DynamicRealOf(const HT& t)
 }
 } //anon
 
-template <class T> hmat_t<double> tHamiltonianImp<T>::GetMatrix(const tobs_t<double>* bs,const Spin& S,
-                                                                const tChargeDensity<dcmplx>* cd,
-                                                                const tbs_t<dcmplx>*) const
+template <class Imp> hmat_t<double> HamiltonianImp_RealBlock<Imp>::GetMatrix(const tobs_t<double>* bs,const Spin& S,
+                                                                             const tChargeDensity<dcmplx>* cd,
+                                                                             const tbs_t<dcmplx>*) const
 {
+    const auto& itsSHTs=self().itsSHTs; const auto& itsDHTs=self().itsDHTs; const auto& itsHF_HTs=self().itsHF_HTs;
     assert((!cd || cd->isActive()) && "Hamiltonian::GetMatrix computing with a superseded charge density");
     int n=bs->GetNumFunctions();
     hmat_t<double> H=blazem::zeroH<double>(n);
@@ -311,5 +312,6 @@ template <class T> std::ostream& tHamiltonianImp<T>::Write(std::ostream& os) con
 
 template class tHamiltonianImp<double>;
 template class tHamiltonianImp<dcmplx>;
+template class HamiltonianImp_RealBlock<tHamiltonianImp<dcmplx>>;
 
 } //namespace

@@ -28,17 +28,17 @@ public:
 
 
     virtual ds_t      Fill(const qchem::BlockFill&) override;   // the ONE fill primitive (V1.11 inc 4)
-    virtual double    GetChemicalPotential   () const {return itsMu;}
+    virtual double    GetChemicalPotential   () const override {return itsMu;}
     virtual const tobs_t<T>* GetBasisSet     () const override {return itsBasisSet;}
-    virtual size_t    GetNumOrbitals     (               ) const;
-    virtual size_t    GetNumOccOrbitals  (               ) const;
-    virtual double    GetEigenValueChange(const Orbitals&) const;
-    virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity() const;   //!< BUILDS it (V1.25: owning return)
+    virtual size_t    GetNumOrbitals     (               ) const override;
+    virtual size_t    GetNumOccOrbitals  (               ) const override;
+    virtual double    GetEigenValueChange(const Orbitals&) const override;
+    virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity() const override;   //!< BUILDS it (V1.25: owning return)
     virtual const hmat_t<T>& GetDensityMatrix() const override {return itsD;}
     virtual std::unique_ptr<tDM_CD<T>> MakeChargeDensity(const hmat_t<T>& D) const override;
-    virtual rvec_t    GetBasisPopulations(const hmat_t<T>& S) const;
-    virtual void      UpdateOrbitals     (const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e);
-    virtual Irrep GetQNs() const;
+    virtual rvec_t    GetBasisPopulations(const hmat_t<T>& S) const override;
+    virtual void      UpdateOrbitals     (const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e) override;
+    virtual Irrep GetQNs() const override;
 
     // OrbitalView<T> (the OccupationPolicy's DIP face -- V1.11 inc 3)
     virtual size_t   NumOrbitals()         const override {return itsOrbitals.size();}
@@ -46,15 +46,15 @@ public:
     virtual double   Degeneracy (size_t i) const override {return itsOrbitals[i]->GetDegeneracy();}
     virtual vec_t<T> CoeffPrime (size_t i) const override;
     
-    virtual vec_t    <T> operator() (const rvec3_t&) const;
-    virtual vec3vec_t<T> Gradient   (const rvec3_t&) const;
+    virtual vec_t    <T> operator() (const rvec3_t&) const override;
+    virtual vec3vec_t<T> Gradient   (const rvec3_t&) const override;
 
 
-    virtual const Orbital* GetOrbital(size_t i) const {return itsOrbitals[i].get();}
-    virtual       Orbital* GetOrbital(size_t i)       {return itsOrbitals[i].get();}
+    virtual const Orbital* GetOrbital(size_t i) const override {return itsOrbitals[i].get();}
+    virtual       Orbital* GetOrbital(size_t i) override       {return itsOrbitals[i].get();}
 
 
-    virtual std::ostream&          Write(std::ostream&) const;
+    virtual std::ostream&          Write(std::ostream&) const override;
 
 private:
     // The five ex-TakeElectrons* bodies, now Fill's private realizations (one per meaningful point of the

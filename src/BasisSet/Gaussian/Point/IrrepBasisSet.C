@@ -91,7 +91,7 @@ class EOrbital_1E_IBS
     , public virtual AoShellRepresentation  // every molecular Gaussian AO block states its representation (S3)
 {
 protected:
-    virtual rsmat_t MakeOverlap() const
+    virtual rsmat_t MakeOverlap() const override
     {
         if constexpr (Evaluators::isM_1E_Evaluator<E>) return Cast().OverlapMatrix();
         else { const E& e=Cast(); rsmat_t S(e.size());
@@ -99,13 +99,13 @@ protected:
     }
     // <p^2>=<-nabla^2> building block: NO 1/2 (the Hamiltonian applies it) and NO centrifugal term (the
     // molecular Grad2 is already the full Cartesian -nabla^2).  See BasisSet/Orbital_1E_IBS.C.
-    virtual rsmat_t MakeKinetic() const
+    virtual rsmat_t MakeKinetic() const override
     {
         if constexpr (Evaluators::isM_1E_Evaluator<E>) return Cast().KineticMatrix();
         else { const E& e=Cast(); rsmat_t S(e.size());
                for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Grad2(i,j); return S; }
     }
-    virtual rsmat_t MakeNuclear(const Structure* cl) const
+    virtual rsmat_t MakeNuclear(const Structure* cl) const override
     {
         if constexpr (Evaluators::isM_1E_Evaluator<E>) return Cast().NuclearMatrix(cl);
         else { const E& e=Cast(); rsmat_t S(e.size());
@@ -319,7 +319,7 @@ class Orbital_DFT_IBS
     , public virtual ::qchem::BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual PairProjection<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const
+    virtual PairProjection<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const override
     {
         if constexpr (Evaluators::isM_DFT_Evaluator<E>)
             return dynamic_cast<const E&>(*this).OverlapThreeC_Matrix(dynamic_cast<const E&>(c));
@@ -329,7 +329,7 @@ protected:
         else return Make3C(c, [](const auto& ps, const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
                                    {return aE.OverlapThreeC(ps, ia, aE, ib, cE, ic);});
     }
-    virtual PairProjection<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const
+    virtual PairProjection<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const override
     {
         if constexpr (Evaluators::isM_DFT_Evaluator<E>)
             return dynamic_cast<const E&>(*this).RepulsionThreeC_Matrix(dynamic_cast<const E&>(c));
@@ -656,7 +656,7 @@ public:
     }
 protected:
     // 4-centre HF Coulomb (ab|cd): a,b on this orbital basis, c,d on the partner.
-    virtual ERI4 MakeDirect(const ::qchem::BasisSet::Orbital_ERI4_IBS<double>& _c) const
+    virtual ERI4 MakeDirect(const ::qchem::BasisSet::Orbital_ERI4_IBS<double>& _c) const override
     {
         if constexpr (Evaluators::isM_HF_Evaluator<E>)
             return dynamic_cast<const E&>(*this).DirectMatrix(dynamic_cast<const E&>(_c));
@@ -736,7 +736,7 @@ protected:
         }
     }
     // 4-centre HF Exchange: slots (a b | a b).  Symmetry packing preserved exactly.
-    virtual ERI4 MakeExchange(const ::qchem::BasisSet::Orbital_ERI4_IBS<double>& _b) const
+    virtual ERI4 MakeExchange(const ::qchem::BasisSet::Orbital_ERI4_IBS<double>& _b) const override
     {
         if constexpr (Evaluators::isM_HF_Evaluator<E>)
             return dynamic_cast<const E&>(*this).ExchangeMatrix(dynamic_cast<const E&>(_b));

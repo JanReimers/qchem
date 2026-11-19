@@ -23,14 +23,14 @@ public:
     //! are its derivatives (Imp/SlaterExchange.C).
     using ExFunctional::GetVxc;     // keep the two-channel face visible beside the scalar override
     using ExFunctional::GetEpsXc;
-    virtual double GetVxc(double ChargeDensity) const;
-    virtual double GetEpsXc(double ChargeDensity) const;
+    virtual double GetVxc(double ChargeDensity) const override;
+    virtual double GetEpsXc(double ChargeDensity) const override;
     //! Exchange is channel-separable, so the cross-channel kernel is exactly 0, and
     //! \f$f^{\sigma\sigma}=d\,v_x(2\rho_\sigma)/d\rho_\sigma\f$ (Enzyme, forward over reverse).
     virtual double GetFxc(double up, double dn, const Spin& s, const Spin& t) const override;
 
 
-    virtual std::ostream& Write(std::ostream&) const;
+    virtual std::ostream& Write(std::ostream&) const override;
 
 private:
     double itsAlpha;

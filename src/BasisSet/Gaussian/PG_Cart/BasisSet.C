@@ -44,18 +44,18 @@ class IrrepBasisSet
         IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, const rvec_t &exponents, size_t L);
         virtual ~IrrepBasisSet(); //g++ 15.2 BUG Compiler generated, or inline destructor does instance std::vector templates destructor.
 
-        virtual size_t  GetNumFunctions() const {return PGData::size();}
-        virtual size_t  size() const {return PGData::size();}
-        virtual rvec_t     operator() (const rvec3_t&) const;
+        virtual size_t  GetNumFunctions() const override {return PGData::size();}
+        virtual size_t  size() const override {return PGData::size();}
+        virtual rvec_t     operator() (const rvec3_t&) const override;
         // d/dR, forward (GeometryOptimizationPlan §13.2; the user's ruling 2026-11-08: "Use Gradient(r)"): the jets come from this block's
         // values and its hand Gradient(r), since ∂φ/∂R_centre = -∇_r φ.  So they need no Enzyme, and the block never refuses.
         virtual bool CanGiveJets() const override {return true;}
         virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t& pts, size_t owner, const Structure* st, qchem::BasisSet::PointJets<double>& out) const override;
-        virtual rvec3vec_t Gradient   (const rvec3_t&) const;
+        virtual rvec3vec_t Gradient   (const rvec3_t&) const override;
 
-        virtual std::string BasisSetID() const {return PGData::BasisSetID();} // geometry-aware cache identity (molecular: no RadialID/AngularID)
-        virtual std::string Name     () const;
-        virtual std::ostream &Write(std::ostream &) const;
+        virtual std::string BasisSetID() const override {return PGData::BasisSetID();} // geometry-aware cache identity (molecular: no RadialID/AngularID)
+        virtual std::string Name     () const override;
+        virtual std::ostream &Write(std::ostream &) const override;
 
     private:
         
@@ -176,7 +176,7 @@ public:
     virtual std::string Name() const override {return itsName;}
     //! Atom-centred Gaussians of every l on the structure's sites: no group of their own ({e}, doc/Pins.md pin 30).
     virtual qcMesh::ImposedSymmetry Imposes() const override {return qcMesh::ImposedSymmetry::None;}
-    virtual rsmat_t MakeOverlap() const {return MakeOverlap2C(this);}
+    virtual rsmat_t MakeOverlap() const override {return MakeOverlap2C(this);}
     // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative for this fit block yet (the Dunlap increment adds the fit faces').
     virtual bool CanPullbackOverlap() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeOverlapPullback(const hmat_t<double>&, const Structure*) const override
@@ -184,9 +184,9 @@ public:
     // The Coulomb metric's pullback (the Dunlap force, §13.2): Enzyme over this block's own MnD Repulsion2C (Imp/Fit_IBS.C).
     virtual bool CanPullbackRepulsion() const override {return true;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const rsmat_t& A, const Structure* st) const override;
-    virtual  rvec_t MakeCharge   () const;
-    virtual rsmat_t MakeRepulsion() const {return MakeRepulsion2C(this);}
-    virtual  rmat_t MakeRepulsion(const rFIT_CD_ABS& b) const;
+    virtual  rvec_t MakeCharge   () const override;
+    virtual rsmat_t MakeRepulsion() const override {return MakeRepulsion2C(this);}
+    virtual  rmat_t MakeRepulsion(const rFIT_CD_ABS& b) const override;
 private:
     std::string itsName;
 };

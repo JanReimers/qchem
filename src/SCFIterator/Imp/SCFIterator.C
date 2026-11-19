@@ -426,23 +426,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     if (itsAdopting)
         throw std::logic_error("SCFIterator::Iterate: an iterator built to ADOPT a converged state (SeedRole::Adopted) never iterates -- "
                                "a state that fails its check is restarted on a fresh iterator");
-    itsIterationCount=0;   // a hand-off decided before the first iteration (the exact resume below) reads iteration 0
-    const SCFParams ipar=[&]
-    {
-        SCFParams r=ResolveMixing(callerParams);   // Mixing::Auto -> this run's mixer (CreateMixer reads the result)
-        // AN EXACT RESUME STARTS PULAY AT ONCE (OpenWork §3, 2026-10-29; the field-mixer twin of "a restart enters the Ladder at
-        // its GDM rung").  Plain-Kerker priming exists because a history built far from the fixed point is unstable; an exact
-        // resume starts AT it, where priming only hands a soft mode five undamped-ish steps: beta-MnO2 A1AFM r015 walked 0.29 Ha
-        // away and took 23 iterations back with pulayStart 5, 4 with 0.  The history itself is NOT saved (qchem.SolidState: a
-        // WARM restart's old residuals extrapolate onto the old fixed point); an exact resume rebuilds it in two steps.
-        if (itsCarriedIsWorking && r.PulayDepth>0 && r.PulayStart>0)
-        {
-            HandOff({"restored state", "Pulay history from iteration 1",
-                     "exact resume: pulayStart "+std::to_string(r.PulayStart)+" -> 0, priming is for a start far from the fixed point"}, false);
-            r.PulayStart=0;
-        }
-        return r;
-    }();
+    itsIterationCount=0;
+    // Mixing::Auto -> this run's mixer (CreateMixer reads the result).  A restart's mixing policy (the exact resume's pulayStart -> 0)
+    // is the facade's, applied before it calls in (tCalculation::ExactResumeMixing).
+    const SCFParams ipar=ResolveMixing(callerParams);
     // ★ THE RESIDUE BUCKET (doc/ParallelAndOraclePlan.md 1.1(a)).  report::Timed is EXCLUSIVE, so an outer
     // scope around the whole loop charges itself precisely what its children do NOT -- i.e. this bucket IS
     // the answer to "how much of the unbucketed time is inside Iterate", with no guessing about where to

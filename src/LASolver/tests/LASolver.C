@@ -167,6 +167,7 @@ INSTANTIATE_TEST_SUITE_P(AllMethods, LASolverTest,
             case qchem::SVD:     return "SVD";
             case qchem::Auto:    return "Auto";
             case qchem::CholeskyPivoted: return "CholeskyPivoted";
+            case qchem::Orthonormal: return "Orthonormal";
         }
         return "Unknown";
     });

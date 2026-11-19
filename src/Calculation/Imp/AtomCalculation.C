@@ -302,6 +302,7 @@ void AtomCalculation::BuildGraph()
         delete itsScf; itsScf = nullptr;
         itsHam.reset(ham);
         itsAccel.reset(accel);
+        SeededIterator(!itsCarried && !itsRestored.empty() && itsRestoredExact);   // the exact-resume Pulay policy's first-stage bit
         if (itsCarried)   // the atom pilot's re-convergence on raised grids: the converged D drives the first Fock
             itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), itsCarried.release(), itsSetup->structure.get(), ortho,
                                  0.0, qchem::SCFIterator::SeedRole::WorkingDensity);
@@ -342,7 +343,7 @@ bool AtomCalculation::RunStage(const SCFParams& params)
     if (itsObserver) itsScf->SetObserver(itsObserver);
 
     itsLastkT=params.SmearingkT;
-    bool ok = itsScf->Iterate(params);
+    bool ok = itsScf->Iterate(ExactResumeMixing(params, itsScf->ResolveMixing(params)));   // the exact-resume Pulay policy
     itsIterations=itsScf->GetIterationCount();
     size_t pilotIterations=0;   // the pilot builds a fresh iterator per re-convergence, so its iterations are counted here (OpenWork row, 2026-11-14)
     if (ok && itsDFT && !itsPiloted && itsSetup->opts.accuracy.eps>0.0) { RebuildSampling(); pilotIterations=PilotGrids(params); ok=itsScf->Converged(); }

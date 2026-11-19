@@ -54,21 +54,21 @@ class GaussianProjector : public virtual SeparablePotential, public virtual Sepa
 {
 public:
     GaussianProjector(double sigma, double D, int l=0) : itsSigma(sigma), itsD(D), itsL(l) {}
-    virtual size_t Count  (int) const {return 1;}
-    virtual double Weight (int, size_t) const {return itsD;}
-    virtual double RadialQ(int, size_t, double q) const {return std::exp(-0.5*itsSigma*itsSigma*q*q);}
+    virtual size_t Count  (int) const override {return 1;}
+    virtual double Weight (int, size_t) const override {return itsD;}
+    virtual double RadialQ(int, size_t, double q) const override {return std::exp(-0.5*itsSigma*itsSigma*q*q);}
     virtual bool   CanSlopeQ() const override {return true;}
     virtual double RadialQSlope(int, size_t, double q) const override {return -itsSigma*itsSigma*q*std::exp(-0.5*itsSigma*itsSigma*q*q);}
-    virtual int    L      (int, size_t) const {return itsL;}
+    virtual int    L      (int, size_t) const override {return itsL;}
     //! Real-space s-channel demonstrator: the Gaussian whose j_0 transform is sqrt(4pi) e^{-sigma^2 q^2/2},
     //! i.e. beta(r) = (2 sqrt2 / sigma^3) e^{-r^2/2 sigma^2}.  (Consistent for l=0, the default channel.)
-    virtual double RadialR(int, size_t, double r) const
+    virtual double RadialR(int, size_t, double r) const override
     {
         return 2.0*std::sqrt(2.0)/(itsSigma*itsSigma*itsSigma) * std::exp(-0.5*r*r/(itsSigma*itsSigma));
     }
-    virtual double SharpnessR(int, size_t) const {return 0.5/(itsSigma*itsSigma);}   // the one exponent
+    virtual double SharpnessR(int, size_t) const override {return 0.5/(itsSigma*itsSigma);}   // the one exponent
     //! The same radial in closed Gaussian form (one term, n=0; BetaR == c e^{-alpha r^2} by construction).
-    virtual std::vector<Math::Gaussian> AsGaussians(int, size_t) const
+    virtual std::vector<Math::Gaussian> AsGaussians(int, size_t) const override
     {
         return { { 2.0*std::sqrt(2.0)/(itsSigma*itsSigma*itsSigma), 0, 0.5/(itsSigma*itsSigma) } };
     }
@@ -100,10 +100,10 @@ public:
     //! ONE species, \a Z: every \a Z-taking face THROWS for any other (OOD D13; see \c HGH_LocalPotential).
     explicit HGH_SeparablePotential(int Z) : itsZ(Z) {}
 
-    virtual size_t Count  (int Z)           const {RequireSpecies(Z); return itsProj.size();}
-    virtual double Weight (int Z, size_t p) const {RequireSpecies(Z); return itsProj[p].D;}
-    virtual int    L      (int Z, size_t p) const {RequireSpecies(Z); return itsProj[p].l;}
-    virtual double RadialQ(int Z, size_t p, double q) const
+    virtual size_t Count  (int Z)           const override {RequireSpecies(Z); return itsProj.size();}
+    virtual double Weight (int Z, size_t p) const override {RequireSpecies(Z); return itsProj[p].D;}
+    virtual int    L      (int Z, size_t p) const override {RequireSpecies(Z); return itsProj[p].l;}
+    virtual double RadialQ(int Z, size_t p, double q) const override
     {
         RequireSpecies(Z);
         const Proj& pr=itsProj[p];
@@ -124,7 +124,7 @@ public:
     //! Real-space radial projector \f$\beta_p(r)=\sum_i v_i\,p_i^l(r)\f$ (the diagonalised KB combination of
     //! the analytic HGH real-space radials).  Its \f$j_l\f$ transform reproduces \f$\mathrm{Projector}_p(q)/
     //! \sqrt{4\pi}\f$ (the SeparablePotential_R contract; checked in UTPseudopotential).
-    virtual double RadialR(int Z, size_t p, double r) const
+    virtual double RadialR(int Z, size_t p, double r) const override
     {
         RequireSpecies(Z);
         const Proj& pr=itsProj[p];
@@ -133,11 +133,11 @@ public:
         return s;
     }
     //! Every term of channel \a p shares the exponent \f$1/2r_l^2\f$ (AsGaussians below), so that IS the sharpness.
-    virtual double SharpnessR(int Z, size_t p) const {RequireSpecies(Z); return 0.5/(itsProj[p].rl*itsProj[p].rl);}
+    virtual double SharpnessR(int Z, size_t p) const override {RequireSpecies(Z); return 0.5/(itsProj[p].rl*itsProj[p].rl);}
     //! The same radial in CLOSED Gaussian form: ProjR is \f$\sqrt2\,r^{l+2i}e^{-r^2/2r_l^2}/(r_l^a\sqrt{\Gamma(a)})\f$,
     //! so \f$\beta_p(r)=\sum_i c_i\,r^{\,l+2i}\,e^{-\alpha r^2}\f$ with \f$c_i=v_i\sqrt2/(r_l^{a_i}\sqrt{\Gamma(a_i)})\f$,
     //! \f$\alpha=1/2r_l^2\f$ -- term-by-term identical to BetaR (exact, not a fit).
-    virtual std::vector<Math::Gaussian> AsGaussians(int Z, size_t p) const
+    virtual std::vector<Math::Gaussian> AsGaussians(int Z, size_t p) const override
     {
         RequireSpecies(Z);
         const Proj& pr=itsProj[p];
