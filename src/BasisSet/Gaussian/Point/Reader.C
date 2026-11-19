@@ -41,23 +41,14 @@ struct ReadShell { std::unique_ptr<GaussianRF> rf; std::vector<int> Ls; };
 //!     functions, not 68 -- the Coulomb fit 4-62 mHa low against PySCF's own A1_coul density fit.  The "Si2 size-consistency"
 //!     that once argued for keeping it was an ill-posed SCF the d-less (spherical) Hartree had masked: a degenerate 3p^2 at
 //!     integer occupation does not converge in PySCF either, with exact integrals or with the full fit.
-inline std::vector<ReadShell> ReadShells(Reader& bsr, const Structure& cl)
-{
-    std::vector<ReadShell> out;
-    for (const Site& site : cl.Sites())
-    {
-        bsr.FindAtom(site);
-        while (std::unique_ptr<GaussianRF> rf{bsr.ReadNext(site)})
-        {
-            const std::vector<int> newLs=bsr.GetLs();
-            bool duplicate=false;
-            for (auto& s : out)
-                if (*s.rf==*rf && s.Ls==newLs) { duplicate=true; break; }   // the same shell twice: drop the repeat
-            if (!duplicate) out.push_back({std::move(rf), newLs});          // another l on a shared radial: its own block
-        }
-    }
-    return out;
-}
+//!
+//! THE BASIS REPORT'S PER-ELEMENT SHELLS (OpenWork "The basis report has nFunctions per irrep but no shells per element", lane B
+//! 2026-11-18): while it reads, this loop files one `basis.elements` row per ELEMENT of \a cl -- {element, Z, atoms, shells
+//! ("3s 2p 1d", contracted shells as read, after the duplicate drop; an SP shell counts once as s and once as p), nFunctions (per
+//! atom: 2l+1 per l when \a spherical, else (l+1)(l+2)/2)}.  Silent unless a "basis" section is open (the caller's context: an
+//! orbital build is, a fit basis built under "hamiltonian" is not), so the run report holds what the file gave the run and a
+//! client (the GUI's Basis tab) reads it there instead of parsing the .bsd a second time.
+std::vector<ReadShell> ReadShells(Reader& bsr, const Structure& cl, bool spherical);
 
 } //namespace qchem::BasisSet::Gaussian
 

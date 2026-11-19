@@ -5,6 +5,7 @@
 // scaffold.  Same geometry, same basis, same anchor.  Also a quick smoke of the ScalarFunction
 // sampling surface (Density/HOMO/Orbital), the win the API-ergonomics review highlighted.
 #include "gtest/gtest.h"
+#include <set>
 #include <unistd.h>    // getpid: per-process temp names (ctest runs cases in parallel)
 #include <cmath>
 #include <filesystem>
@@ -98,6 +99,21 @@ TEST(M_Calculation, BasisReportSchema)
     for (const report::json& row : (*basis)["perIrrep"])
         for (const char* k : { "irrep", "nFunctions", "lambdaMin", "lambdaMax", "cond" })
             EXPECT_TRUE(row.contains(k)) << "perIrrep row missing key: " << k;   // cond came from the LASolver
+
+    // basis.elements: the file's shells per element, filed by the reader as it builds (OpenWork "The basis report has nFunctions per
+    // irrep but no shells per element", lane B 2026-11-18) -- one row per element, even through the SALC route, and the rows' functions
+    // times atoms are the basis.
+    ASSERT_TRUE(basis->contains("elements") && (*basis)["elements"].is_array()) << "no basis.elements rows";
+    long total=0;
+    std::set<long> seen;
+    for (const report::json& row : (*basis)["elements"])
+    {
+        for (const char* k : { "element", "Z", "atoms", "shells", "nFunctions" })
+            EXPECT_TRUE(row.contains(k)) << "elements row missing key: " << k;
+        EXPECT_TRUE(seen.insert(row["Z"].get<long>()).second) << "two rows for one element: " << row.dump();
+        total+=row["atoms"].get<long>()*row["nFunctions"].get<long>();
+    }
+    EXPECT_EQ(total, (*basis)["nFunctions"].get<long>()) << "the elements rows do not add up to the basis";
 }
 
 // The cache run-report SCHEMA CHECK (doc/IntegralCacheOwnershipPlan.md S6).  There is no process-wide cache to snapshot: every owner-held
