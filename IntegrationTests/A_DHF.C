@@ -46,7 +46,10 @@ TEST_P(A_SL_HF_ion,A)
     int N=21;
     if (Z>12) N=35;
     if (Z>50) N=40;
-    AtomCalculation calc(AtomSetup::Resolve(Z, Z-1, {.spin=SpinGroup::Polarized, .model=Model::HF, .ortho=qchem::Cholesky, .atom={.type=AtomType::Slater, .N=N, .emin=Z/20., .emax=Z*Z*5.}}), // keep the wide even-tempered basis whole (no truncation)
+    AtomCalculation calc(AtomSetup::Resolve(Z, Z-1, {.spin=SpinGroup::Polarized, .model=Model::HF, .ortho=qchem::CholeskyPivoted, .atom={.type=AtomType::Slater, .N=N, .emin=Z/20., .emax=Z*Z*5.}}), // keep the wide even-tempered basis whole (no truncation)
+        // PIVOTED Cholesky at its default floor keeps all N functions (pivot floor n.eps) yet factors S, cond(S) ~ 1e15, stably: plain
+        // Cholesky left [F,D] scattering 7e-4..4e-3 at Z = 60, on the Z.1e-5 gate (OpenWork_History5 "Nd59+ [F,D] gate"), and Auto's
+        // canonical trim meets the gate but drops 13 modes and 4 uHa (2e-9 relative) of the exact -Z^2/2.
         {.NMaxIter = 20, .MinΔρPerElectron = Z*1e-4, .MinFD = Z*1e-5, .StartingRelaxRo = 1.0, .MergeTol = 1e-4, .Verbose = true});
     // One electron: J and K cancel, so F is D-independent and the first real diagonalization is exact -- but the SCF must still
     // CONFIRM it on its own gates (it used to stop at NMaxIter 2 behind a Δ[F,D] gate it could not meet: user 2026-10-29).
