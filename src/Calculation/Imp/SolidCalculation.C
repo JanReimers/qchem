@@ -695,6 +695,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
             itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
             itsImp->lat->GetUnitCell(), seed.release(), *opts.ortho, opts.SolverTruncation(), seedRole, opts.solid.numBands);   // the iterator consumes it in Init
     }
+    SeededIterator(seedRole==qchem::SCFIterator::SeedRole::ExactResume);   // the exact-resume Pulay policy's first-stage bit
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
     // missed stage 0 (hence the constructors' onIteration argument).
@@ -1001,6 +1002,7 @@ void SolidCalculation::BuildStage(const std::string& why, SCFAccelerators::Type 
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
               itsImp->lat->GetUnitCell(), itsImp->setup->opts.seed, *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.solid.numBands);
+    SeededIterator(false);   // a fresh stage is never an exact resume
     // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
     // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on
     // survives the fresh wavefunction, exactly as the density does.
@@ -1248,7 +1250,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::IterateStage(
                        + " MOM="+(params.UseMOM?"on":"off")+" KerkerG0="+std::to_string(resolved.KerkerG0)
                        + " PulayDepth="+std::to_string(resolved.PulayDepth)+" NMaxIter="+std::to_string(params.NMaxIter);
     itsImp->samplingScfWorst=0.0; itsImp->samplingScfFirstOver=0;
-    itsImp->scf->Iterate(params);
+    itsImp->scf->Iterate(ExactResumeMixing(params, resolved));   // the exact-resume Pulay policy (here: only the kind holds these params)
     itsImp->stageIterated=true;   // a schedule's stage 0 no longer finds this graph fresh
     if (itsImp->samplingScfWorst>1.0)   // never silent: reported here, acted on (once) at the next SCF boundary
     {

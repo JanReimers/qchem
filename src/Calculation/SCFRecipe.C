@@ -17,7 +17,7 @@
 // WHY a named magnetic or metallic regime restores on its OWN mixer (Q-R, user ruling 2026-11-13: "OK b then"): DIIS beside linear
 // D-mixing is the Insulator's restore, and on a smeared, degenerate d frontier the Fock-extrapolating stack fights the frontier where K+P
 // converges it (CLAUDE.md, the TMO note); K+P and Pulay-on-D reach the same NiO state to 1e-9 Ha (lane B, 2026-11-13).  pulayStart 0:
-// a restored density starts AT the fixed point, where priming only hands a soft mode undamped steps (the exact-resume rule in Iterate).
+// a restored density starts AT the fixed point, where priming only hands a soft mode undamped steps (the exact-resume rule, tCalculation::ExactResumeMixing).
 // Auto and Insulator keep row 4 as it was.
 //
 // AUTO, in B5, IS TODAY'S POLICY NAMED AND PRINTED, and nothing else: it resolves every stage to the Insulator column, which is exactly what
@@ -94,7 +94,7 @@ inline constexpr MixingRecipe theKerkerPulayRecipe{.relax=0.45, .G0=1.0, .depth=
 inline constexpr double theRestoredLinearStep=0.3;
 //! A named MagneticInsulator / Metal RESTORED stage's Pulay history starts at iteration 1: plain-Kerker priming is for a start far from
 //! the fixed point, and a restored density starts at it (beta-MnO2 A1AFM r015: 23 iterations with pulayStart 5, 4 with 0; Iterate's
-//! exact-resume rule).  Q-R ruling (b), user 2026-11-13.
+//! exact-resume rule, tCalculation::ExactResumeMixing).  Q-R ruling (b), user 2026-11-13.
 inline constexpr int theRestoredPulayStart=0;
 
 //! The regime the policy RUNS: Auto resolves to Insulator in B5 (see the file comment).
