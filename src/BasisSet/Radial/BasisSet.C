@@ -24,7 +24,6 @@ import qchem.BasisSet.Radial.IBS;
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
-import qchem.BasisSet.Internal.Cache4;   // Cache4 / Cacheable4: the parent's Rk table (S5a)
 import qchem.BasisSet.Radial.Factory;   // CoulombFitLadder (the face BasisSet_HF realizes)
 import qchem.BasisSet.DeltaFit_IBS;      // DeltaFit_IBS::RealPointValues: the δ fit evaluates these blocks through their RADIAL face
 import qchem.Symmetry.Unit;              // UnitQN: the real δ basis's trivial irrep (as tBasisSet's own δ build)

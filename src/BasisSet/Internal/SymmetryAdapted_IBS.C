@@ -31,6 +31,7 @@ export import qchem.BasisSet.Orbital_HF_IBS;         // HF 2-electron CONTRACTIO
 export import qchem.BasisSet.Orbital_PP_IBS;         // species fields, forwarded to the raw basis
 export import qchem.BasisSet.Orbital_DFT_IBS;        // DFT 3-centre mixin (fitted Coulomb / Vxc)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
+import qchem.BasisSet.Internal.CachedIntegrals;   // the Cached* mixins the family lists beside its Make* (D-BASISCACHE-FANIN)
 import qchem.Structure;
 import qchem.Types;
 
@@ -44,7 +45,10 @@ export namespace qchem::BasisSet
 // irrep slices that -- so there is nothing left to memoize.  See doc/CleanupCandidates.md V1.31.
 
 class SymmetryAdapted_IBS
-    : public virtual Orbital_1E_IBS<double>
+    : public virtual CachedOverlap<double>   // Overlap / Kinetic / the 3-centre pair: the SALC Make* below, cached in the parent's cache
+    , public virtual CachedKinetic<double>   //   (D-BASISCACHE-FANIN)
+    , public virtual CachedFit3C<double>
+    , public virtual Orbital_1E_IBS<double>
     , public virtual Orbital_HF_IBS<double>  // HF Coulomb/exchange CONTRACTION only -- no ERI4 substrate
     , public virtual WholeSystemFock_IBS<double>  // ...and it builds the AO Fock ONCE, then slices (V1.31)
     , public virtual Orbital_DFT_IBS<double> // DFT 3-centre fitted Coulomb / Vxc

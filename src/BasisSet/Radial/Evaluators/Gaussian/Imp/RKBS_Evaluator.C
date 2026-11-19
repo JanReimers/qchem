@@ -4,7 +4,6 @@ module;
 #include <cassert>
 #include <string>
 module qchem.BasisSet.Radial.Evaluators.Gaussian.IBS; 
-import qchem.BasisSet.Radial.Evaluators.Gaussian.Internal.GaussianIntegrals; 
 import qchem.Blaze;
 
 namespace qchem::BasisSet::Radial::Evaluators::Gaussian

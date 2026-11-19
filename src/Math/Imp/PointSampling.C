@@ -15,7 +15,6 @@ module;
 module qchem.PointSampling;
 import qchem.NUFFT;
 import qchem.FFT;
-import qchem.CMath;   // Pi
 
 namespace qchem
 {

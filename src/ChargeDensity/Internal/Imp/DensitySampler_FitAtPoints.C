@@ -20,7 +20,6 @@ import qchem.ChargeDensity;
 import qchem.BasisSet.G_FieldEvaluator;
 import qchem.BasisSet.Orbital_1E_IBS;   // the periodic A1 Gamma block's overlap and point values
 import qchem.Reporting;
-import qchem.Parallel;    // InnerThreads: the synthesis is per-point parallel
 import qchem.Blaze;
 
 namespace qchem::ChargeDensity

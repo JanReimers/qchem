@@ -14,7 +14,6 @@ export import qchem.BasisSet.DBCacheClient;         // the cache-key contract th
 export import qchem.VectorFunction;   // Evaluatable_IBS's base (NOT IrrepBasisSet's -- see above)
 export import qchem.Symmetry.Representation;   // every block IS a representation of its stabiliser (V-BS-SYMMETRY S3)
 export import qchem.InstanceToken;    // a block's identity as a cache PARTNER (IntegralCacheOwnershipPlan §3b)
-import qchem.BasisSet.BasisCache;   // the parent-made cache the accessors read through (S3a); a block's family wires it, nobody else names it
 import qchem.Streamable;
 
 export namespace qchem::BasisSet
@@ -38,11 +37,8 @@ public:
     //! This block's INSTANCE identity (§3b): a never-reused serial and a weak handle.  CLIENT: an orbital block that keys a table over its
     //! own functions against THIS block as a partner (⟨ab|c⟩ against a fit basis c), and drops the table when this block dies.
     virtual const InstanceToken& Instance() const=0;
-protected:
-    //! The parent's cache, given at construction, and this block's index in it: what the cached accessors key on.  Protected: only the
-    //! block's own accessors read through it (an ERI4 pair asks its partner, a block of the same face, for the partner's index).
-    virtual const BasisCache& Cache     () const=0;
-    virtual size_t      CacheIndex() const=0;
+    // The parent's cache and this block's index in it are NOT on this face (D-BASISCACHE-FANIN, the user's ruling 2026-11-18): they
+    // live in the Internal CacheSlot, and the Internal Cached* mixins implement the faces' cached Gets through it.
 };
 
 //! The one-line refusal of a family with no geometry derivative yet (GeometryOptimizationPlan §13.2): \a family names the block, \a what
@@ -67,7 +63,8 @@ template <class T> class Integrals_Overlap : public virtual IrrepBasisSet_IDs
 {
 public:
     virtual hmat_t<T>  MakeOverlap() const=0; //Only called once for a given {radial,angular} ID pair.
-    const   hmat_t<T>&     Overlap() const;
+    //! MakeOverlap(), cached.  Pure here: a family implements it by listing the Internal CachedOverlap<T> (the parent's cache).
+    virtual const hmat_t<T>& Overlap() const=0;
 
     //! \name d/dR (the user's ruling 2026-11-08: a derivative version beside a hub face's method; GeometryOptimizationPlan §13.2)
     //!@{

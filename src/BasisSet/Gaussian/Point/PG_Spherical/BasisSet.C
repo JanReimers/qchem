@@ -10,6 +10,7 @@ module;
 #include <memory>
 export module qchem.BasisSet.Gaussian.Point.PG_Spherical;
 export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
+import qchem.BasisSet.Internal.CachedIntegrals;   // the Cached* mixins the family lists beside its Make* (D-BASISCACHE-FANIN)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;        // the radial (shared with PG_Cart)
 import qchem.BasisSet.Gaussian.Point.Reader;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Spherical_MnD;              // NR_Evaluator: the IBS IS-A evaluator
@@ -81,7 +82,8 @@ public:
 // The spherical fit (auxiliary) basis: same IBS tree, exposing the Coulomb-fit metric + charges.  E prefix
 // to avoid the clash with the interface class Fit_IBS (as in PG_Cart).
 class EFit_IBS
-    : public virtual Fit_IBS
+    : public virtual CachedOverlap<double>   // Overlap(): the MakeOverlap below, cached in the parent's cache (D-BASISCACHE-FANIN)
+    , public virtual Fit_IBS
     , public Symmetry::IdentityRepresentation<double>
     , public IrrepBasisSet
 {

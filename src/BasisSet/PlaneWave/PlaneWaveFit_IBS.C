@@ -30,7 +30,6 @@ import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep, shared with the orbital basis)
 import qchem.BasisSet.G_RasterStarField;                 // G_RasterStarField: my raster as a field the run's group averages
 import qchem.Types;                                      // dcmplx
-import qchem.Matrix3D;                                   // Matrix3D
 
 export namespace qchem::BasisSet::PlaneWave
 {

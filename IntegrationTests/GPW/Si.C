@@ -47,7 +47,6 @@
 #include <filesystem>    // the deck run's scratch directory
 #include <nlohmann/json.hpp>  // the deck the supercell gate is run from
 
-import qchem.Structure;                          // Molecule, Atom
 import qchem.SCFCap;                             // BoundedSCF (one-iteration and setup-only arms)
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
 import qchem.Matrix3D;                           // Matrix3D<double> (the rhombohedral AFM-II cell matrix)

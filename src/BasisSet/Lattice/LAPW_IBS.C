@@ -27,6 +27,7 @@ export module qchem.BasisSet.Lattice.LAPW_IBS;
 export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 import qchem.BasisSet.Orbital_1E_IBS;             // Orbital_1E_IBS<dcmplx>: Overlap/Kinetic/Nuclear
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
+import qchem.BasisSet.Internal.CachedIntegrals;   // the Cached* mixins the family lists beside its Make* (D-BASISCACHE-FANIN)
 export import qchem.ReciprocalLattice;
 import qchem.Structure;
 import qchem.Types;
@@ -36,7 +37,9 @@ export namespace qchem::BasisSet::Lattice
 
 //! \brief Linearized Augmented Plane Wave basis for one k-point (single origin muffin-tin sphere).
 class LAPW_IBS
-    : public virtual BasisSet::Orbital_1E_IBS<dcmplx>
+    : public virtual BasisSet::CachedOverlap<dcmplx>   // Overlap() / Kinetic(): the Make* below, cached in the parent's cache
+    , public virtual BasisSet::CachedKinetic<dcmplx>   //   (D-BASISCACHE-FANIN)
+    , public virtual BasisSet::Orbital_1E_IBS<dcmplx>
     , public         BasisSet::IrrepBasisSetImp<dcmplx>
     , public         Symmetry::IdentityRepresentation<dcmplx>   // identity at E only: no imposition client (S3)
 {

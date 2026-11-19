@@ -617,3 +617,19 @@ forgotten one is a compile error, never a silently free evaluator; the `GPW_IBS`
 Original row:
 
 | **D4** | Most of this went with V-BS-SYMMETRY (the policy is `ResolveImposition`, `tBasisSet` only records it).  LEFT: `SetSymmetryOps` on `GPW_Evaluator` (`GPW_Evaluator.C:201`, called from the `GPW_IBS` ctor), a setter where a ctor argument belongs | Pass the ops through the evaluator's ctor · H2 D4 |
+
+### D-BASISCACHE-FANIN ✅ (lane B, 2026-11-18)
+
+Landed on main as 2f73d49b (lane commits 27ae3f477 code + hub snapshot, a34e33f03 docs; together with the stale-import
+removal 10020ace2), 0 movers: short 1740/1740, long 19/19, Release and RelChecked green.  The cached Gets (`Overlap`,
+`Kinetic`, `Overlap3C`, `Repulsion3C`, `RestMass`) are pure virtual on their faces; `Cache()` / `CacheIndex()` live on the
+internal data-free `qchem.BasisSet.Internal.CacheSlot` (`IrrepBasisSetImp` its one implementer, plus `SharesCacheWith`,
+which ERI4's `RequireSameParent` now asks); the mixins `CachedOverlap<T>`, `CachedKinetic<T>`, `CachedFit3C<T,TFit>` and
+`CachedRestMass<T>` implement them, each `protected virtual CacheSlot` before its public face, listed in the family mixins
+that supply the matching `Make*`.  Blast: BasisCache 382 -> 180 TUs (predicted ~169: the mixin modules carry the families'
+own edges), ERI4 400 -> 195, Cache4 411 -> 211, PrimitiveStore 407 -> 215, Cache2 415 -> 217.  Record:
+`doc/Records/BuildBlast.md` §"D-BASISCACHE-FANIN".
+
+Original row:
+
+| **D-BASISCACHE-FANIN** (user 2026-11-18, option (a): "Yes I agree I also lean toward 2.  IrrepBasisSetImp has historically been (almost) everything except integrals.  Good plan.") | `IrrepBasisSet_IDs` declares `Cache()` / `CacheIndex()`, so a face 381 TUs import carries `qchem.BasisSet.BasisCache` and with it ERI4 / Cache4 / PrimitiveStore / Cache2 (~400 TUs each) | **BUILT on lane-b-cache 2026-11-18** (BasisCache 382 -> 180, ERI4 / Cache4 / PrimitiveStore / Cache2 ~400 -> ~200; details `doc/Records/BuildBlast.md` §"D-BASISCACHE-FANIN"); the ✅ moves to H3 when it lands.  The design: The cached Gets (Overlap, Kinetic, Overlap3C, Repulsion3C, RestMass) go pure virtual on their faces.  Cache() / CacheIndex() move to a new internal data-free `CacheSlot` (IrrepBasisSetImp its one implementer).  Internal mixins `CachedOverlap<T>` / `CachedKinetic<T>` / `CachedFit3C<T,TFit>` / `CachedRestMass<T>` (each `protected virtual CacheSlot` BEFORE `public virtual <face>`, the cross-cast trap) implement them, listed in the family mixins that supply the matching Make*.  ERI4 `RequireSameParent` becomes a CacheSlot query.  Regenerate the hub snapshot citing the ruling; 0 movers.  Payoff: BasisCache 382 -> ~169, ERI4 / Cache4 / PrimitiveStore / Cache2 ~400 -> ~200 (`scripts/import-blast`) · `doc/Records/BuildBlast.md` §"Item 3 (2)" |

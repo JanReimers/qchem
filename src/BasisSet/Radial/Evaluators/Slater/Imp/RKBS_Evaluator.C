@@ -4,7 +4,6 @@ module;
 #include <cassert>
 #include <string>
 module qchem.BasisSet.Radial.Evaluators.Slater.IBS;
-import qchem.BasisSet.Radial.Evaluators.Slater.Internal.Integrals; 
 import qchem.Blaze;
 
 namespace qchem::BasisSet::Radial::Evaluators::Slater

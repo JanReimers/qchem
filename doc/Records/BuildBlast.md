@@ -104,3 +104,41 @@ Tools: `scripts/import-blast` (blast radius per module, `--module`, `--why`, `--
 - Most of those changed DECLARATIONS, which still rebuild every importer. Only 1 + 2 were body-only edits, which now rebuild a single TU.
 - Estimate: about 1,400 TU compiles saved over those two months.
 - The convention earns its keep where bodies churn while the declarations hold still. It does not help an interface that is still growing.
+
+## D-BASISCACHE-FANIN: option (a) built (lane B 2026-11-18)
+**Ruling (user, 2026-11-18):** "Yes I agree I also lean toward 2.  IrrepBasisSetImp has historically been (almost) everything except integrals.  Good plan."
+
+**What changed:**
+- **The faces:** the cached Gets are now pure virtual. That covers `Integrals_Overlap::Overlap`, `Integrals_Kinetic::Kinetic`, `Orbital_DFT_IBS::Overlap3C` / `Repulsion3C` and `Orbital_RKB_IBS::RestMass`.
+  - `Cache()` / `CacheIndex()` and the `import qchem.BasisSet.BasisCache` are gone from `IrrepBasisSet_IDs`.
+  - The face bodies in `src/BasisSet/Imp/{IrrepBasisSet,Orbital_1E_IBS,Orbital_DFT_IBS,Orbital_DHF_IBS}.C` are deleted.
+- **`qchem.BasisSet.Internal.CacheSlot`:** holds the data-free `CacheSlot` and `CachedOverlap<T>`.
+  - `CacheSlot` has protected `Cache()`, `CacheIndex()` and `SharesCacheWith()`. Its one implementer is `IrrepBasisSetImp`.
+  - ERI4's `RequireSameParent` now asks `SharesCacheWith`.
+- **`qchem.BasisSet.Internal.CachedIntegrals`:** holds `CachedKinetic<T>` and `CachedFit3C<T,TFit>`.
+- **`CachedRestMass<T>`:** lives beside the RKB classes in `Internal.Orbital_DHF_IBS`.
+- **Inheritance:** each mixin is `protected virtual CacheSlot` and `public virtual <face>`, with the non-public base first.
+- **Where the mixins are listed:** in each family mixin that supplies the matching Make*:
+  - Radial: `Integrals_Overlap<E>`, `Integrals_Kinetic<E>`, `Orbital_DFT_IBS<E>`, `Orbital_RKBS_IBS<E>`.
+  - Gaussian point: `EOrbital_1E_IBS<E>` and `Orbital_DFT_IBS<E>`.
+  - The PG_Cart and PG_Spherical `EFit_IBS`.
+  - Lattice: `Orbital_1E_IBS<E,T>` and `Orbital_DFT_IBS<E,T>`, which give GPW and plane waves.
+  - `LAPW_IBS`, `SymmetryAdapted_IBS`, `SphericalView_IBS`.
+  - The Dirac `Orbital_RKB_IBS_Imp<T>`.
+- **The Internal RKB-large and ERI4 faces** read the cache themselves, so they inherit `protected virtual CacheSlot` directly.
+- **Final classes are unchanged.**
+- **One call fixed:** `Fit_IBS::MakeNorm` called `Integrals_Overlap<double>::Overlap()` QUALIFIED, which is a non-virtual call to what is now pure. It now calls `Overlap()` virtually.
+
+**Blast, measured on the built graph (import-blast):**
+
+| module | before | after |
+|---|---|---|
+| BasisCache | 382 | 180 |
+| Internal.ERI4 | 400 | 195 |
+| Internal.Cache4 | 411 | 211 |
+| Internal.PrimitiveStore | 407 | 215 |
+| Internal.Cache2 | 415 | 217 |
+
+- The predicted 169 for BasisCache came from cutting one edge. The new mixin modules add the families' own edges.
+- The faces themselves: IrrepBasisSet 372, Orbital_1E_IBS 362, Orbital_DFT_IBS 357.
+- HubInterfaceAudit's snapshot is regenerated, citing the ruling. Its diff is exactly the two Gets on the hub faces becoming `=0`.

@@ -33,6 +33,7 @@ import qchem.Math;                                      // Pi
 import qchem.Math.SolidHarmonics;                       // CartGaussian, MultiplyR2, YlmCartesian
 import qchem.Math.Angular;                               // CartTerm, Monomial
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
+import qchem.BasisSet.Internal.CachedIntegrals;   // the Cached* mixins the family lists beside its Make* (D-BASISCACHE-FANIN)
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.PrimitiveStore;   // Make3C's fill-scoped scratch store (S5)
 import qchem.BasisSet.Gaussian.Evaluators;      // concepts + generic 1E matrix builders
@@ -84,7 +85,9 @@ protected:
 // practice -- a kernel evaluator wants the loop + shared cache, an assembler hands us the matrix.)
 template <class E> requires (Evaluators::is1E_Evaluator<E> || Evaluators::isM_1E_Evaluator<E>)
 class EOrbital_1E_IBS
-    : public virtual Orbital_1E_IBS         // the molecule 1E interface (IS-A Real_OIBS + GetAoShells)
+    : public virtual ::qchem::BasisSet::CachedOverlap<double>   // Overlap() / Kinetic(): the Make* below, cached in the parent's cache
+    , public virtual ::qchem::BasisSet::CachedKinetic<double>   //   (D-BASISCACHE-FANIN)
+    , public virtual Orbital_1E_IBS         // the molecule 1E interface (IS-A Real_OIBS + GetAoShells)
     , public virtual AoShellRepresentation  // every molecular Gaussian AO block states its representation (S3)
 {
 protected:
@@ -312,7 +315,8 @@ private:
 // Forward Cast().*ThreeC_Matrix(fit) when E delivers the dense PairProjection (isM_DFT_Evaluator); else run the Make3C loop.
 template <class E> requires (Evaluators::isDFT_Evaluator<E> || Evaluators::isM_DFT_Evaluator<E>)
 class Orbital_DFT_IBS
-    : public virtual ::qchem::BasisSet::Orbital_DFT_IBS<double>
+    : public virtual ::qchem::BasisSet::CachedFit3C<double>   // Overlap3C / Repulsion3C cached in the parent's cache (D-BASISCACHE-FANIN)
+    , public virtual ::qchem::BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
     virtual PairProjection<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const
