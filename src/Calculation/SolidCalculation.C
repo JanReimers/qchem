@@ -224,6 +224,17 @@ public:
     static Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
         Restart(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {},
                 Observer onIteration = nullptr);
+    //! \brief RUN #2 OF THE TWO-RUN SPLIT (user ruling 2026-11-18, OpenWork "LR on REAL TRIM blocks"): the converged state at \a path
+    //! ADOPTED on \a setup's basis -- PROMOTE AND VERIFY, no SCF.  Built as \c PrepareRestart builds it (the fingerprint judged, the
+    //! saved rasters adopted); then the saved orbitals (C, eps, f) are installed as the wave function -- a real TRIM block's promote to
+    //! complex exactly when \a setup builds that k complex -- and VERIFIED once against their own Fock (\c Response::EigenpairResidual,
+    //! the response's own reference gate): one Fock build, no iteration.  Measured before the ruling (TiO₂ k222, real -> complex): the
+    //! complex SCF's answer IS the real state (E equal to 1e-12, max|Im D| 0, D to 1.8e-9).  A state that fails the check (or saved no
+    //! orbitals) is CONVERGED as \c Restart would -- never used unverified; the run report's `policy` scope says which happened.
+    //! The use: a real ground state (run #1, real TRIM blocks, its objects destroyed with it) handing a complex response run its state.
+    static Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
+        Adopt(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params = {},
+              Observer onIteration = nullptr);
 
     //! \name BUILT, NOT CONVERGED (2026-10-31, the deck's \c deck::Build: lane G binds the GUI to the deck)
     //! For a caller that must HOLD the calculation before its SCF starts -- a GUI hands it to a worker thread and watches it.
@@ -569,8 +580,17 @@ private:
     //! WARM difference (SeedRole::ExactResume -- it becomes the first working density, not just the first Fock's).
     //! \a accel: the first stage's accelerator, as asked.  \a restored: \a seed is a SAVED state of this same Hamiltonian (Restart);
     //! false for a carried one (a geometry step: the Hamiltonian moved with the atoms) -- the Auto accelerator policy reads it.
+    //! \a adopt: \a seed is a converged state whose orbitals \c Adopt installs (SeedRole::Adopted: the iterator builds nothing from it).
     void BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed, const SCFParams& params,
-                  SCFAccelerators::Type accel, SCFRecipe recipe, bool restored, bool exactResume);
+                  SCFAccelerators::Type accel, SCFRecipe recipe, bool restored, bool exactResume, bool adopt=false);
+    //! \c PrepareRestart's body; \a adopt builds the iterator to ADOPT the restored state (\c Adopt) instead of iterating from it.
+    static Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
+        PrepareRestartAs(const std::string& path, std::shared_ptr<const SolidSetup> setup, const SCFParams& params, Observer onIteration,
+                         bool adopt);
+    //! \c Adopt's install-and-verify on a \c PrepareRestart-built calculation: \a state's orbitals installed (their orthonormal-frame
+    //! coefficients rebuilt on each block's own LASolver), then the eigenpair residual measured once.  Returns the residual (Hartree),
+    //! NaN when \a state saved no orbitals (nothing installed), +inf when the run's fill does not reproduce the saved occupations.
+    double AdoptSavedOrbitals(const SavedState& state, const SCFParams& params);
     //! \name THE GEOMETRY POINT a SolidSession steps to (step 8)
     //!@{
     friend class SolidSession;

@@ -626,7 +626,7 @@ TEST(Deck, HubbardLoopEstimatorRoundTripsAndOwnsItsKeys)
     json cplx=hub; cplx["forceComplex"]=true;
     auto deckWith=[](json solid, json loop, json kmesh){ return json{{"structure","NiO_AFM2"},{"kmesh",kmesh},{"solid",solid},{"postSCF",{{{"hubbardLoop",loop}}}}}; };
     const json lr={{"estimator","linearResponse"}};
-    EXPECT_NE(msg(deckWith(hub,lr,{1,1,1})).find("forceComplex"),std::string::npos) << "an LR loop runs the response: complex ansatz";
+    EXPECT_EQ(msg(deckWith(hub,lr,{1,1,1})),"NO THROW") << "an LR loop needs no forceComplex: its setup decides the ansatz from k and q";
     EXPECT_EQ(msg(deckWith(cplx,lr,{1,1,1})),"NO THROW");
     EXPECT_NE(msg(deckWith(cplx,{{"estimator","linearResponse"},{"nq",2}},{3,3,3})).find("incommensurate"),std::string::npos);
     EXPECT_EQ(msg(deckWith(hub,json::object(),{1,1,1})),"NO THROW") << "an ACBN0 loop needs no complex ansatz";
@@ -649,7 +649,7 @@ TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
 
     EXPECT_NE(msg(base({{{"estimateHubbardU",json::object()}}},json::object())).find("no Hubbard manifold"),std::string::npos);
     EXPECT_EQ(msg(base({{{"estimateHubbardU",json::object()}}},hub)),"NO THROW");
-    EXPECT_NE(msg(base({{{"hubbardLinearResponse",json::object()}}},hub)).find("forceComplex"),std::string::npos) << "the real-TRIM response face is not built";
+    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},hub)),"NO THROW") << "no forceComplex needed: the setup builds a response run complex";
     json cplx=hub; cplx["forceComplex"]=true;
     EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},cplx)),"NO THROW");
     EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},cplx,json::array({1,1,1}),{{"imposeSymmetry",true}})),"NO THROW")

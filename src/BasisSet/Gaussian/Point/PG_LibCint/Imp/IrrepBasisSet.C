@@ -57,7 +57,7 @@ IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, Reader* b
 {
     // An ORBITAL basis only (no libcint fit tree): KeepEachL.  (The copy of the loop this replaces also erased-then-inserted
     // through an invalidated iterator and never broke out of its search.)
-    std::vector<ReadShell> shells=ReadShells(*bsr, *cl);
+    std::vector<ReadShell> shells=ReadShells(*bsr, *cl, spherical);
     std::vector<GaussianRF*> radials;
     std::vector<std::vector<int> >    Ls;
     for (auto& sh : shells) { radials.push_back(sh.rf.release()); Ls.push_back(sh.Ls); }   // Block takes ownership below

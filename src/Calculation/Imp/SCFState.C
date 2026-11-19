@@ -59,19 +59,22 @@ void AddElectrons(StateFingerprint& fp, int Nelec, SpinGroup g, int multiplicity
 
 void AddBlocks(StateFingerprint& fp, const std::vector<StateBlock>& blocks)
 {
-    std::vector<double> ms, n, real;
+    std::vector<double> ms, n;
     std::string labels;
     for (const StateBlock& b : blocks)
     {
         ms.push_back(double(int(b.irrep.ms)));
         n.push_back(double(b.n()));
-        real.push_back(b.real ? 1.0 : 0.0);
         labels += (labels.empty() ? "" : ",") + b.Label();
     }
     fp.refuseNum["blocks.ms"]=ms;
     fp.refuseNum["blocks.n"]=n;
     fp.refuseStr["blocks.irrep"]=labels;
-    fp.warmNum  ["blocks.real"]=real;          // a working-type change promotes/demotes D
+    // (No blocks.real entry since 2026-11-18, user ruling: "changing from real to complex really contains no information one way or the
+    //  other about whether this is a warm start or not."  A block's working type is REPRESENTATION, not physics: a real block widens to
+    //  complex exactly, and complex narrows to real only when Im D is zero to round-off -- judged on load (CheckedBlockDensities), an
+    //  Outcome when it is not.  Whether a restart is exact or warm is the PHYSICS entries' business.  Each block's type is still in the
+    //  file, as the block's own `real` attribute.)
 }
 
 namespace
@@ -163,7 +166,6 @@ std::string Consequence(const std::string& key)
         {"ortho.",                "the basis orthogonalisation changed: functions may be dropped or kept differently"+moves},
         {"scf.kT",                "the smearing changed: the occupations are re-filled at the new temperature"+moves},
         {"accuracy.eps",          "a different accuracy target: the meshes it sizes may differ"},
-        {"blocks.real",           "a block's working type changed: D is promoted/demoted exactly, the physics does not move"},
         {"basis.shellCenters",    "the basis centres moved with the atoms"+moves},
     };
     if (auto it=table.find(key); it!=table.end()) return it->second;
@@ -475,6 +477,7 @@ Outcome<SavedState, RestartRefusal> ReadState(const std::string& path)
         H5::Group g=f.OpenGroup("fingerprint");
         ReadMaps(g.OpenGroup("refuse"), st.fingerprint.refuseNum, st.fingerprint.refuseStr);
         ReadMaps(g.OpenGroup("warm"),   st.fingerprint.warmNum,   st.fingerprint.warmStr);
+        st.fingerprint.warmNum.erase("blocks.real");   // representation, not physics (see AddBlocks): a state written before 2026-11-18 carries it
     }
     static const std::set<std::string> payload={"D","C","eps","f","S"};
     H5::Group blocks=f.OpenGroup("blocks");
@@ -612,11 +615,12 @@ Outcome<std::vector<mat_t<dcmplx>>, RestartRefusal> CheckedBlockDensities(const 
             throw std::logic_error("SCFState restore: block "+std::to_string(b)+" does not match this run's -- the fingerprint should have refused");
         if (r.real)
         {
-            // A complex-saved TRIM block restarting REAL: its D is real up to eigenvector-phase noise, or the two runs are not the
-            // same state.
-            double imax=0.0;
-            for (size_t a=0;a<n;a++) for (size_t c=0;c<n;c++) imax=std::max(imax, std::fabs(sb.D(a,c).imag()));
-            if (imax>1e-8)
+            // NARROWING: a complex-saved TRIM block restarting REAL.  Exact only when Im D is zero to ROUND-OFF (a phase-invariant
+            // D = sum f c c^H of a real Hamiltonian's eigenvectors is real to that); anything larger is a state the real block cannot
+            // hold, REFUSED, never cast (user ruling 2026-11-18).  Widening (a real-saved block restarting complex) is always exact.
+            double imax=0.0, scale=1.0;
+            for (size_t a=0;a<n;a++) for (size_t c=0;c<n;c++) {imax=std::max(imax, std::fabs(sb.D(a,c).imag())); scale=std::max(scale, std::abs(sb.D(a,c)));}
+            if (imax>1e-12*scale)
                 return O::Fail({RestartRefusal::Why::Realness, "block "+std::to_string(b)+" restarts REAL but its saved D has |Im D| up to "
                                 +std::to_string(imax)+" (run with forceComplex, or resave)"});
         }

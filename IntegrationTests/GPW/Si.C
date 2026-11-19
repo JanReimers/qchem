@@ -32,6 +32,7 @@
 
 #include "gtest/gtest.h"
 #include <optional>   // std::nullopt: an OFF SCF gate
+#include <limits>
 #include <memory>
 #include <vector>
 #include <cmath>
@@ -59,6 +60,7 @@ import qchem.BasisSet.Gaussian.Point.Factory;          // Gaussian::Factory, Bas
 import qchem.Outcome;                           // Outcome<Converged,SCFFailure> -- the facade's result
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Deck;                            // deck::Run -- the supercell gate below is run FROM A DECK (D-ENV step 6d.5)
+import qchem.Reporting;                       // the run report: the split's policy rows and run #2's adoption numbers
 import qchem.Tests.GPW_Harness;                   // THE HARNESS (IntegrationTests/GPW/Harness.C): Materials cells, gates, recipes, the XC probes
 import qchem.Materials;                           // Materials::Get -- the cells come from src/Structure/Data/materials.json (row MD)
 import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
@@ -1518,6 +1520,80 @@ TEST(GPW_Si, Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint_Panel)   // PAN
     EXPECT_NEAR(Uout, USC, 1e-4) << "(3) U_SC is not a fixed point of U_out(U_in)";
 }
 
+
+// THE TWO-RUN SPLIT (OpenWork "LR on REAL TRIM blocks", user ruling 2026-11-18).  A Γ point is a TRIM, so the deck's ground state runs on
+// REAL blocks (run #1); at its linear response the deck hands the converged state to run #2, a setup that plans the response (every
+// block complex), which ADOPTS it -- the saved orbitals promoted, verified by one Fock build, no SCF iteration (SolidCalculation::Adopt).
+// The claims: U is the forced-complex run's (the same state, so equal to the two SCFs' convergence); run #2 ran NO SCF iteration; its
+// energy is run #1's; its eigenpair residual meets the response's reference gate; and both decisions are filed as policy rows.
+TEST(GPW_Si, Γ_U_LinearResponseAdoptsTheRealGroundState)
+{
+    namespace fs=std::filesystem;
+    struct Ran { double U=0.0, E=0.0; std::vector<qchem::report::json> split, adopt, run2; };
+    auto run=[](bool forceComplex, const std::string& tag)
+    {
+        const nlohmann::json scf={{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-8},{"minDeltaE",1e-11},{"minDeltaFD",1e-8},{"minVirial","off"},
+                                  {"minFD","off"},{"pulayDepth",8},{"pulayStart",3},{"kerkerG0",1.0},{"startingRelaxRo",0.3}};
+        const nlohmann::json deck={
+            {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
+            {"solid",{{"densityEcut",20.0},{"forceComplex",forceComplex},
+                      {"hubbard",{{{"site",0},{"l",1},{"U_eV",0.0},{"projector","siteShells"}}}}}},
+            {"scf",scf}, {"postSCF",{{{"hubbardLinearResponse",{{"perturb",{0}}}}}}}};
+        qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
+        const fs::path dir=fs::temp_directory_path()/("qchem_it_si_lr_adopt_"+tag+"_"+std::to_string(::getpid()));
+        fs::remove_all(dir);
+        qchem::deck::Provenance pv; pv.codeVersion="it";
+        qchem::report::ClearGlobal();
+        const auto out=qchem::deck::Run(spec, pv, dir);
+        EXPECT_TRUE(out.converged) << tag << ": " << out.summary;
+        std::ifstream in(out.revision);
+        const nlohmann::json rec=nlohmann::json::parse(in);
+        fs::remove_all(dir);
+        Ran r; r.E=out.energy.value_or(std::numeric_limits<double>::quiet_NaN());
+        std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& j)
+        {
+            if (j.is_object())
+                for (auto it=j.begin(); it!=j.end(); ++it)
+                {
+                    if (it.key()=="policy" && it.value().is_array())
+                        for (const auto& row : it.value())
+                        {
+                            if (row.value("name","")=="ResponseSplit") r.split.push_back(row);
+                            if (row.value("name","")=="AdoptState")    r.adopt.push_back(row);
+                        }
+                    if (it.key()=="responseRun") r.run2.push_back(it.value());
+                    walk(it.value());
+                }
+            else if (j.is_array()) for (const auto& e : j) walk(e);
+        };
+        walk(qchem::report::GlobalReport());
+        const auto& lr=rec.at("results").at("postSCF").at(0);
+        EXPECT_TRUE(lr.at("ok").get<bool>()) << tag << ": " << lr.at("summary");
+        r.U=lr.at("U_eV").at(0).get<double>();
+        return r;
+    };
+    const Ran split=run(false, "split");
+    const Ran cplx =run(true,  "cplx");
+    std::cout << "[split gate] U split " << std::setprecision(10) << split.U << "  forceComplex " << cplx.U << "  diff " << split.U-cplx.U << " eV" << std::endl;
+    // Two independent SCFs, each converged to drho/N 1e-8: U agrees to their convergence, far inside the 1e-4 eV the U loop gates on.
+    EXPECT_NEAR(split.U, cplx.U, 1e-6);
+    ASSERT_FALSE(split.split.empty()) << "the split deck filed no ResponseSplit row";
+    for (const auto& row : split.split)
+        EXPECT_NE(row.value("decided","").find("TWO runs"), std::string::npos) << "a Γ ground state has a real block to hand over: " << row.dump();
+    ASSERT_FALSE(split.adopt.empty()) << "run #2 filed no AdoptState row";
+    for (const auto& row : split.adopt)
+        EXPECT_NE(row.value("decided","").find("ADOPTED"), std::string::npos) << "the state must be adopted, not re-converged: " << row.dump();
+    ASSERT_FALSE(split.run2.empty()) << "run #2 reported nothing under the hand-over";
+    for (const auto& r2 : split.run2)
+    {
+        EXPECT_EQ(r2.at("scfIterations").get<double>(), 0.0) << "run #2 ran SCF iterations";
+        EXPECT_LT(r2.at("eigenpairResidual").get<double>(), 1e-4) << "the response's reference gate";
+        // The same state: run #2's E[D] is run #1's to round-off (TiO₂ k222 real vs complex: 1e-12).
+        EXPECT_NEAR(r2.at("energy").get<double>(), split.E, 1e-9) << "run #2's energy is run #1's";
+    }
+    EXPECT_TRUE(cplx.split.empty()) << "forceComplex states one complex run: nothing to split";
+    EXPECT_TRUE(cplx.adopt.empty()) << "a forced-complex deck adopts nothing";
+}
 
 // PANEL case 6 (OpenWork §3 "GDM false-converges on a carried stage whose Hamiltonian CHANGED", CLOSED 2026-10-29): the loop arm
 // of Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint_Panel under an EXPLICIT Ladder (DIIS -> GDM).  On 2026-10-26 a carried stage

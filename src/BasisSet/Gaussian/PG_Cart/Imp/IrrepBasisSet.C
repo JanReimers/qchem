@@ -66,7 +66,7 @@ IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, Reader* b
     //  Read in all the radial functions (contracted or single Gaussians) and their l-sets (ReadShells: a shared-exponent
     //  shell of another l is its own block, for orbital and fit bases alike).
     //
-    std::vector<ReadShell> shells=ReadShells(*bsr, *cl);
+    std::vector<ReadShell> shells=ReadShells(*bsr, *cl, false);
     std::vector<std::unique_ptr<GaussianRF>> radials;
     std::vector<std::vector<int> >    Ls;
     for (auto& sh : shells) { radials.push_back(std::move(sh.rf)); Ls.push_back(sh.Ls); }

@@ -176,6 +176,10 @@ struct SolidSetup : Setup
     //! How \c mol was made, the trim FROZEN; empty when the caller handed a pre-built basis (that setup cannot follow moved atoms).
     std::optional<GaussianBasisRecipe>       recipe;
     bool planeWave = false;   //!< \c opts.solid.orbitalBasis is PlaneWave
+    //! \brief THE ANSATZ, decided ONCE from k and q (user ruling 2026-11-18): a TRIM block may run REAL (\c GPWParams::hamPreservesReal;
+    //! a non-TRIM block is complex regardless).  False when \c opts.solid.forceComplex is stated or \c opts.solid.responseQMeshes plans a
+    //! response.  The run's ONE source of the decision: nothing reads \c opts.solid.forceComplex after Resolve.
+    bool realTRIMBlocks = true;
     std::vector<int> decoration;   //!< \c spins, or all zeros: the per-site spins the run was built with (the +U site groups read it)
     //! \brief THE GROUP A GEOMETRY STEP MUST KEEP, read at \a at: the space group detected there (\c GetSpaceGroup's \f$\{W|\tau\}\f$, or
     //! the Shubnikov group under \c spins) when the setup is \c imposed, P1 (the identity alone) when it is free.  ONE rule for its two

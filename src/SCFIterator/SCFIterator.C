@@ -176,6 +176,10 @@ enum class SeedRole
                      //!< two undamped steps before the mixer saw it -- the iteration-0 fill and iteration 1 -- and a 6e-6 residual
                      //!< came back as drho 1e-2; the fresh mixer then walked 0.25 Ha away.)  Not for a PERTURBED stage (+-alpha, a
                      //!< new U, an anneal): those need that first step (see Initialize).
+    Adopted,         //!< a CONVERGED state whose ORBITALS the caller installs (\c AdoptConvergedOrbitals: promote-and-verify, the
+                     //!< two-run split, user ruling 2026-11-18): the seed becomes the working density and NOTHING is built from it --
+                     //!< no Fock, no diagonalisation, no fill.  Such an iterator never iterates (\c Iterate THROWS): its client
+                     //!< reads the adopted state, and one that fails its check is restarted on a fresh iterator.
 };
 
 template <class T> class tSCFIterator
@@ -263,6 +267,19 @@ public:
             itsOccState.AdoptReference(q, *v);   // R2.21: a reference is the STATE's memory, not the policy's
         }
     }
+    //! \brief One block of a CONVERGED state (\c AdoptConvergedOrbitals): its irrep (matched by \c SequenceIndex), the AO
+    //! coefficients \a C (n x m), the orthonormal-frame ones \a Cprime (m x m, C = V C' for the block's LASolver V), the
+    //! eigenvalues \a e and the occupations \a f (each orbital's, its degeneracy included), all m long.
+    struct AdoptedBlock {Irrep irrep; mat_t<T> C, Cprime; rvec_t e, f;};
+    //! \brief THE INSTALL STEP OF PROMOTE-AND-VERIFY (the two-run split, user ruling 2026-11-18): set this iterator's wave function
+    //! to a converged state's orbitals -- no Fock, no diagonalisation, no iteration.  Every block of the wave function is named exactly
+    //! once in \a blocks; a real TRIM block of a complex run takes the real part of a block whose imaginary part is exactly zero.  The
+    //! occupations are then FILLED under \a params' own rule at the saved energies, exactly as the SCF's last fill was (so D, the
+    //! cross-k chemical potential and the Mermin -TS come from the one fill path), and the return is the largest |f_fill - f_saved|:
+    //! the caller judges it.  THROWS on a missing, duplicated or mis-sized block, a real block handed a complex state, a MOM run (its
+    //! fill depends on a reference the state does not carry), or an iterator not built with SeedRole::Adopted.  The caller (the
+    //! facade) also VERIFIES the result against its own Fock (\c Response::EigenpairResidual) before it is used.
+    double AdoptConvergedOrbitals(const std::vector<AdoptedBlock>& blocks, const SCFParams& params);
     EnergyBreakdown     GetEnergy() const;
     size_t              GetIterationCount() const {return itsIterationCount;}
     bool                Converged() const {return itsConverged;}
@@ -404,6 +421,7 @@ private:
 
     size_t          itsIterationCount;
     bool            itsConverged;
+    bool            itsAdopting=false;   //!< built with SeedRole::Adopted: AdoptConvergedOrbitals installs the state, Iterate refuses
     bool            itsDeclinedRelaxApplied=false;   //!< the declined-GDM linear ceiling (SCFParams::DeclinedDirectMinRelax) is in force
     bool            itsGeodesicTaken=false;   //!< the last \c DirectMinStep committed a geodesic (else it fell back to a MIXED step)
     double          itsLineT=std::numeric_limits<double>::quiet_NaN();   //!< that geodesic's t (NaN when none was committed)
