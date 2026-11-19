@@ -95,7 +95,7 @@ OrbitalFrame<T>::ToAO(const BlockPairs& dD, std::shared_ptr<const Symmetry::Sele
             for (size_t i=0;i<A.rows();i++) for (size_t j=0;j<A.columns();j++) A(i,j)=H(i,j);
         }
         else if constexpr (std::is_floating_point_v<T>)
-            throw std::logic_error("OrbitalFrame::ToAO: a (k+q, k) pair of REAL blocks -- q != 0 rides forceComplex "
+            throw std::logic_error("OrbitalFrame::ToAO: a (k+q, k) pair of REAL blocks -- q != 0 needs the response planned at setup "
                                    "(doc/LinearResponsePlan.md §3d Q8)");
         else
             A=M;                                   // q != 0: bra x ket, NOT Hermitian (its partner is the (k, k+q) pair)

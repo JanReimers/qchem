@@ -39,7 +39,7 @@ public:
     OrbitalFrame(const Reference& ref, std::vector<FrameBlock<T>> blocks);
     //! δD (MO basis, on \a rule's pairs) -> the AO transition density, \f$w_k C_{\rm bra}\delta D C_{\rm ket}^\dagger\f$.
     //! THROWS if a self-paired block's δD is not Hermitian, a real block receives a complex δD, or a real block is
-    //! paired with another (q != 0 rides forceComplex).
+    //! paired with another (q != 0 needs the response planned at setup).
     std::unique_ptr<ChargeDensity::TransitionDensity<T>> ToAO(const BlockPairs& dD,
                                                               std::shared_ptr<const Symmetry::SelectionRule> rule) const;
     //! δF (AO basis) -> MO block pairs on \a rule's pairs: \f$C_{\rm bra}^\dagger\,\delta F\,C_{\rm ket}\f$.

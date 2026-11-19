@@ -457,8 +457,8 @@ public:
     //! carry a +U (hp.x's "Hubbard sites"), or every manifold when none does.  Every channel is MEASURED; U is read
     //! from the J x J inverse, because an inverse-response U depends on the set it spans (§3d Q10).
     //! FAILS on an inverted/unresolved pair (E1) or a Krylov solve short of \a krylov.tol.  THROWS when the run
-    //! carries no +U manifold, reduced its k-mesh (D5), or has a REAL TRIM block (run with \c forceComplex: the
-    //! real-block response face is not built).
+    //! carries no +U manifold, reduced its k-mesh (D5), or has a REAL TRIM block (plan the response at setup,
+    //! \c RunOptions::Solid::responseQMeshes: the real-block response face is not built).
     //! \note const, although it freezes and unfreezes the +U term: the Hamiltonian comes back exactly as it was.
     Outcome<Response::SelfConsistentResponse,Response::ResponseFailure> HubbardLinearResponse(
         const KrylovParams& krylov={.tol=1e-8}, std::vector<size_t> perturbed={}) const;
@@ -513,7 +513,8 @@ public:
     };
     //! Three SCFs (+alpha, -alpha, then the unperturbed state RESTORED, unfrozen), each a fresh stage with
     //! \a params.  FAILS with the first perturbed SCF that does not converge (the state is still restored).
-    //! THROWS when the run carries no +U manifold or \a J is out of range.
+    //! THROWS when the run carries no +U manifold, \a J is out of range, or the setup built REAL TRIM blocks (the
+    //! Hubbard probe is complex-only: state \c RunOptions::Solid::responseQMeshes = {{1,1,1}}; a deck does it).
     //! \a reseed: false (default) starts each SCF from the CURRENT state; true starts each from the run's SEED
     //! STRATEGY (R2 gate (b)'s route) and restores from the ground-state density kept aside.  ⚠ A restart sees the
     //! MIXING undressed (measured 2026-09-29, Si Γ): its error vectors are one mode, DIIS keeps 2 of them, so a

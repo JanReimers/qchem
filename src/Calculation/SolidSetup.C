@@ -177,8 +177,9 @@ struct SolidSetup : Setup
     std::optional<GaussianBasisRecipe>       recipe;
     bool planeWave = false;   //!< \c opts.solid.orbitalBasis is PlaneWave
     //! \brief THE ANSATZ, decided ONCE from k and q (user ruling 2026-11-18): a TRIM block may run REAL (\c GPWParams::hamPreservesReal;
-    //! a non-TRIM block is complex regardless).  False when \c opts.solid.forceComplex is stated or \c opts.solid.responseQMeshes plans a
-    //! response.  The run's ONE source of the decision: nothing reads \c opts.solid.forceComplex after Resolve.
+    //! a non-TRIM block is complex regardless).  False exactly when \c opts.solid.responseQMeshes plans a response.  The run's ONE source
+    //! of the decision; there is no user knob (\c forceComplex retired 2026-11-19).  A test comparing real against complex on purpose sets
+    //! it on a COPY of a resolved setup (tests may cheat).
     bool realTRIMBlocks = true;
     std::vector<int> decoration;   //!< \c spins, or all zeros: the per-site spins the run was built with (the +U site groups read it)
     //! \brief THE GROUP A GEOMETRY STEP MUST KEEP, read at \a at: the space group detected there (\c GetSpaceGroup's \f$\{W|\tau\}\f$, or

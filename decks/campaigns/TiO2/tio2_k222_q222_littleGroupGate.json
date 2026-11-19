@@ -32,7 +32,6 @@
   "angular": "spherical"
  },
  "solid": {
-  "forceComplex": true,
   "hubbard": [
    {
     "site": 0,

@@ -93,6 +93,16 @@ using qchem::BasisSet::Gaussian::BasisSetData;
 
 using namespace qchem::tests::gpw;   // the harness: Materials cells, gates, recipes, probes (IntegrationTests/GPW/Harness.C)
 
+//! TEST-ONLY HOOK (tests may cheat): \a s with every TRIM block COMPLEX -- the ansatz the retired \c forceComplex stated (OpenWork G4,
+//! 2026-11-19: no user knob; a run is complex only when it plans a response).  For the gates that compare the two representations
+//! ON PURPOSE: the setup's one decision, \c SolidSetup::realTRIMBlocks, set on a copy.
+static std::shared_ptr<const SolidSetup> ComplexBlocks(std::shared_ptr<const SolidSetup> s)
+{
+    auto c=std::make_shared<SolidSetup>(*s);
+    c->realTRIMBlocks=false;
+    return c;
+}
+
 
 // (1) THE GAMMA ANCHOR == THE CP2K ENERGY GATE.  SR basis, Rcut=2a (every term translation-invariant and
 // screened-complete), densityEcut=20 (FFT N=32): reproduces the CP2K FCC-Si Gamma GPW reference (SIPP_SR /
@@ -233,12 +243,12 @@ TEST(GPW_Si, Γ_RunsReal)
     RunOptions o=OptionsFor(si, "Si real-block report");
     o.solid.densityEcut=20.0;
     // the report's per-block SETUP rows are the subject: the build files them, so no SCF runs (CleanCode D-BOUNDED-ANCHOR (2))
-    auto run=[&]{ GpwReport report("Si "+o.label, false);
-                  ASSERT_TRUE(qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o))); };
+    auto run=[&](bool complexBlocks){ GpwReport report("Si "+o.label, false);
+                  auto s=SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o);
+                  ASSERT_TRUE(qchem::SolidCalculation::Prepare(complexBlocks ? ComplexBlocks(s) : s)); };
 
     report::ClearGlobal();
-    o.solid.forceComplex=false;                            // real TRIM blocks (the shipped default)
-    run();
+    run(false);                                            // real TRIM blocks (the shipped default)
     report::json rows=perIrrep();
     ASSERT_GE(rows.size(), 1u);
     for (const auto& row : rows)
@@ -248,8 +258,7 @@ TEST(GPW_Si, Γ_RunsReal)
     }
 
     report::ClearGlobal();
-    o.solid.forceComplex=true;                             // the control: same irrep fact, complex build
-    run();
+    run(true);                                             // the control (the test hook): same irrep fact, complex build
     rows=perIrrep();
     ASSERT_GE(rows.size(), 1u);
     for (const auto& row : rows)
@@ -298,7 +307,7 @@ TEST(GPW_Si, Γ_Deterministic)
 //================================================================================================
 //  STEP 3c-3 -- THE FACTORY-FLIP ACCEPTANCE (doc/RealComplexPlan.md).  SolidCalculation now computes
 //  the working-type rule (irrep.IsReal() ∧ ham.PreservesReal()) and builds every TRIM block REAL by
-//  default; forceComplex is the §6 ansatz-policy downgrade and this gate's A/B door.  The two runs
+//  default; the complex arm runs on the ComplexBlocks test hook (forceComplex retired 2026-11-19).  The two runs
 //  must be the SAME PHYSICS to machine precision: every per-term gate (RealComplexTerms.*) pinned the
 //  real block's matrices bitwise except the quadrature GEMM's summation order (~1e-15/element), so
 //  through a whole SCF the totals may differ only at accumulated-roundoff level.  A loose tolerance
@@ -323,7 +332,7 @@ TEST(GPW_Si, Γ_Deterministic)
 static void ExpectRealComplexTwins(const Lattice_3D& lat, const Material& si, const char* what)
 {
     qchem::RunOptions optOn {.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}};
-    qchem::RunOptions optOff{.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0, .forceComplex=true}};
+    qchem::RunOptions optOff{.Nelec=8, .species={{"Si",4}}, .solid={.densityEcut=20.0}};   // run on ComplexBlocks (the test hook)
 
     SCFParams one;                                   // the one-iteration recipe (gates 0 = strict-< never trips)
     one.NMaxIter=1; one.MinΔρPerElectron=0.0; one.MinΔE=0.0;
@@ -333,7 +342,7 @@ static void ExpectRealComplexTwins(const Lattice_3D& lat, const Material& si, co
         qchem::BoundedSCF bounded("arm (1) compares the real and complex FIRST iterates term by term at roundoff; arm (2) converges");
         optOn.scf=one; optOff.scf=one;
         auto on =qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOn )).TakeValue(); (void)on ->Converge();
-        auto off=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOff)).TakeValue(); (void)off->Converge();
+        auto off=qchem::SolidCalculation::Prepare(ComplexBlocks(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOff))).TakeValue(); (void)off->Converge();
         // ONE iteration by construction, so these are LAST-ITERATE diagnostics, not answers (N1/T1).
         const qchem::EnergyBreakdown En=on->LastIterateTerms(), Ec=off->LastIterateTerms();
         // 1e-8: real-vs-complex roundoff headroom -- Een's large-cancellation assembly (vs Enn~8 Ha)
@@ -351,7 +360,7 @@ static void ExpectRealComplexTwins(const Lattice_3D& lat, const Material& si, co
         par.MinΔFD=std::nullopt; par.MinVirial=std::nullopt; par.MinFD=std::nullopt; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
         optOn.scf=par; optOff.scf=par;
         auto on =qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOn )).TakeValue(); (void)on ->Converge();
-        auto off=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOff)).TakeValue(); (void)off->Converge();
+        auto off=qchem::SolidCalculation::Prepare(ComplexBlocks(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), optOff))).TakeValue(); (void)off->Converge();
         auto ron=on->Result(), roff=off->Result();
         ASSERT_TRUE(ron)  << what << ": " << (ron  ? std::string() : ron .Error().details);
         ASSERT_TRUE(roff) << what << ": " << (roff ? std::string() : roff.Error().details);
@@ -949,7 +958,7 @@ TEST(GPW_Si, k311_eqCplx)
 //
 //  The gate drives the case that could not previously run AT ALL: (3,1,1) -- one real Γ block beside
 //  two complex ±⅓ blocks -- with MOM armed early (MOMStartIter=2, so the reference is captured and
-//  consulted well inside the run), real vs forceComplex.  Equal converged energy = the real block's
+//  consulted well inside the run), real vs complex (the ComplexBlocks hook).  Equal converged energy = the real block's
 //  reference was captured, scored and applied exactly as its complex twin's.
 TEST(GPW_Si, k311_Uni_MOM_eqCplx)
 {
@@ -962,7 +971,7 @@ TEST(GPW_Si, k311_Uni_MOM_eqCplx)
     par.UseMOM=true; par.MOMStartIter=2;              // armed EARLY: the reference must be live in-run
 
     auto on=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .scf=par, .solid={.densityEcut=20.0}})).TakeValue(); (void)on->Converge();
-    auto off=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .scf=par, .solid={.densityEcut=20.0, .forceComplex=true}})).TakeValue(); (void)off->Converge();
+    auto off=qchem::SolidCalculation::Prepare(ComplexBlocks(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), {.Nelec=8, .species={{"Si",4}}, .scf=par, .solid={.densityEcut=20.0}}))).TakeValue(); (void)off->Converge();
     auto ron=on->Result(), roff=off->Result();
     ASSERT_TRUE(ron)  << "MOM on a mixed real/complex mesh must converge (R2.21): "
                       << (ron ? std::string() : ron.Error().details);
@@ -1390,7 +1399,7 @@ TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
             {"structure",structure}, {"kmesh",kmesh}, {"basis",{{"data","SIPP_SR"}}},
             // xcMesh STATED: Auto resolves to the uniform raster on the multi-k primitive arm but to BECKE on the Γ supercell arm (measured
             // 2026-10-04), and the arms must differ only in the cell.
-            {"xc",{{"mesh",{{"cellKind","Uniform"}}}}},{"solid",{{"densityEcut",20.0},{"forceComplex",true},{"hubbard",hub}}},
+            {"xc",{{"mesh",{{"cellKind","Uniform"}}}}},{"solid",{{"densityEcut",20.0},{"hubbard",hub}}},
             // The Kerker/Pulay recipe (the TMO one), on BOTH arms: SiParams' linear relax-1.0 D-mixing ran the primitive k211 ground state into
             // its 200-iteration cap (measured 2026-10-04: eigenvalue noise 9e-4 Ha against the supercell's 1.5e-8), and the arms must differ only in the cell.
             {"scf",{{"NMaxIter",200},{"minDeltaRhoPerElectron",1e-7},{"minDeltaE",1e-10},{"minDeltaFD",1e-7},{"minVirial","off"},{"minFD","off"},
@@ -1485,7 +1494,7 @@ TEST(GPW_Si, Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint_Panel)   // PAN
         scf.update(mixing);
         const nlohmann::json deck={
             {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
-            {"solid",{{"densityEcut",20.0},{"forceComplex",true},{"hubbard",{{{"site",0},{"l",1},{"U_eV",U_eV},{"projector","siteShells"}}}}}},
+            {"solid",{{"densityEcut",20.0},{"hubbard",{{{"site",0},{"l",1},{"U_eV",U_eV},{"projector","siteShells"}}}}}},
             {"scf",scf}, {"postSCF",post}};
         qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
         const fs::path dir=fs::temp_directory_path()/("qchem_it_si_lrloop_"+tag+"_"+std::to_string(::getpid()));
@@ -1524,21 +1533,26 @@ TEST(GPW_Si, Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint_Panel)   // PAN
 // THE TWO-RUN SPLIT (OpenWork "LR on REAL TRIM blocks", user ruling 2026-11-18).  A Γ point is a TRIM, so the deck's ground state runs on
 // REAL blocks (run #1); at its linear response the deck hands the converged state to run #2, a setup that plans the response (every
 // block complex), which ADOPTS it -- the saved orbitals promoted, verified by one Fock build, no SCF iteration (SolidCalculation::Adopt).
-// The claims: U is the forced-complex run's (the same state, so equal to the two SCFs' convergence); run #2 ran NO SCF iteration; its
+// The claims: U is the one-complex-run control's (the same state, so equal to the two SCFs' convergence); run #2 ran NO SCF iteration; its
 // energy is run #1's; its eigenpair residual meets the response's reference gate; and both decisions are filed as policy rows.
 TEST(GPW_Si, Γ_U_LinearResponseAdoptsTheRealGroundState)
 {
     namespace fs=std::filesystem;
     struct Ran { double U=0.0, E=0.0; std::vector<qchem::report::json> split, adopt, run2; };
-    auto run=[](bool forceComplex, const std::string& tag)
+    // The CONTROL is the same deck as ONE complex run: an action after the response that needs an SCF'd run (an ACBN0 estimate) keeps
+    // the deck from splitting (SplitsAtResponse), so it plans the response at setup and converges complex from the start -- the
+    // production route that replaced forceComplex (retired 2026-11-19, OpenWork G4).
+    auto run=[](bool oneComplexRun, const std::string& tag)
     {
         const nlohmann::json scf={{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-8},{"minDeltaE",1e-11},{"minDeltaFD",1e-8},{"minVirial","off"},
                                   {"minFD","off"},{"pulayDepth",8},{"pulayStart",3},{"kerkerG0",1.0},{"startingRelaxRo",0.3}};
+        nlohmann::json post={{{"hubbardLinearResponse",{{"perturb",{0}}}}}};
+        if (oneComplexRun) post.push_back({{"estimateHubbardU",nlohmann::json::object()}});
         const nlohmann::json deck={
             {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
-            {"solid",{{"densityEcut",20.0},{"forceComplex",forceComplex},
+            {"solid",{{"densityEcut",20.0},
                       {"hubbard",{{{"site",0},{"l",1},{"U_eV",0.0},{"projector","siteShells"}}}}}},
-            {"scf",scf}, {"postSCF",{{{"hubbardLinearResponse",{{"perturb",{0}}}}}}}};
+            {"scf",scf}, {"postSCF",post}};
         qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
         const fs::path dir=fs::temp_directory_path()/("qchem_it_si_lr_adopt_"+tag+"_"+std::to_string(::getpid()));
         fs::remove_all(dir);
@@ -1574,7 +1588,7 @@ TEST(GPW_Si, Γ_U_LinearResponseAdoptsTheRealGroundState)
     };
     const Ran split=run(false, "split");
     const Ran cplx =run(true,  "cplx");
-    std::cout << "[split gate] U split " << std::setprecision(10) << split.U << "  forceComplex " << cplx.U << "  diff " << split.U-cplx.U << " eV" << std::endl;
+    std::cout << "[split gate] U split " << std::setprecision(10) << split.U << "  one complex run " << cplx.U << "  diff " << split.U-cplx.U << " eV" << std::endl;
     // Two independent SCFs, each converged to drho/N 1e-8: U agrees to their convergence, far inside the 1e-4 eV the U loop gates on.
     EXPECT_NEAR(split.U, cplx.U, 1e-6);
     ASSERT_FALSE(split.split.empty()) << "the split deck filed no ResponseSplit row";
@@ -1591,8 +1605,60 @@ TEST(GPW_Si, Γ_U_LinearResponseAdoptsTheRealGroundState)
         // The same state: run #2's E[D] is run #1's to round-off (TiO₂ k222 real vs complex: 1e-12).
         EXPECT_NEAR(r2.at("energy").get<double>(), split.E, 1e-9) << "run #2's energy is run #1's";
     }
-    EXPECT_TRUE(cplx.split.empty()) << "forceComplex states one complex run: nothing to split";
-    EXPECT_TRUE(cplx.adopt.empty()) << "a forced-complex deck adopts nothing";
+    EXPECT_TRUE(cplx.split.empty()) << "an action after the response that needs an SCF'd run keeps the deck one complex run";
+    EXPECT_TRUE(cplx.adopt.empty()) << "a one-run deck adopts nothing";
+}
+
+// A deck's hubbardFiniteDifference needs complex blocks (its +-alpha SCFs measure occupations through the complex-only Hubbard probe),
+// and since forceComplex was retired (OpenWork G4, 2026-11-19) nothing states that but the deck's own plan: PlannedResponseQMeshes
+// counts it as a q = 0 response, so the setup builds every block complex, and the deck runs as ONE run (the
+// +-alpha SCFs cannot be adopted).  Before the rule a Γ deck would have built REAL blocks and the probe would have thrown.
+TEST(GPW_Si, Γ_U_FiniteDifferencePlansComplexBlocks)
+{
+    namespace fs=std::filesystem;
+    const nlohmann::json scf={{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7},{"minDeltaE",1e-10},{"minDeltaFD",1e-7},{"minVirial","off"},
+                              {"minFD","off"},{"pulayDepth",8},{"pulayStart",5},{"kerkerG0",1.0},{"startingRelaxRo",0.45}};
+    const nlohmann::json deck={
+        {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
+        {"solid",{{"densityEcut",20.0},{"hubbard",{{{"site",0},{"l",1},{"U_eV",0.0},{"projector","siteShells"}}}}}},
+        {"scf",scf}, {"postSCF",{{{"hubbardFiniteDifference",{{"perturb",{0}},{"alpha_eV",0.1}}}}}}};
+    qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
+    const fs::path dir=fs::temp_directory_path()/("qchem_it_si_fd_"+std::to_string(::getpid()));
+    fs::remove_all(dir);
+    qchem::deck::Provenance pv; pv.codeVersion="it";
+    qchem::report::ClearGlobal();
+    const auto out=qchem::deck::Run(spec, pv, dir);
+    ASSERT_TRUE(out.converged) << out.summary;
+    std::ifstream in(out.revision);
+    const nlohmann::json rec=nlohmann::json::parse(in);
+    fs::remove_all(dir);
+    std::vector<qchem::report::json> split;
+    std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& j)
+    {
+        if (j.is_object())
+            for (auto it=j.begin(); it!=j.end(); ++it)
+            {
+                if (it.key()=="policy" && it.value().is_array())
+                    for (const auto& row : it.value())
+                    {
+                        if (row.value("name","")=="ResponseSplit") split.push_back(row);
+                    }
+                walk(it.value());
+            }
+        else if (j.is_array()) for (const auto& e : j) walk(e);
+    };
+    walk(qchem::report::GlobalReport());
+    // (The setup's Ansatz row is not asserted here: a deck run's report does not carry the setup's policy rows -- OpenWork row "A deck
+    //  run's report drops its setup's policy rows".  The proof the plan worked is that the probe ran: on REAL blocks it throws.)
+    for (const auto& row : split) EXPECT_EQ(row.value("decided","").find("TWO runs"), std::string::npos) << "the +-alpha SCFs cannot be adopted: " << row.dump();
+    const auto& fd=rec.at("results").at("postSCF").at(0);
+    EXPECT_TRUE(fd.at("ok").get<bool>()) << fd.dump();
+    ASSERT_FALSE(fd.at("fd").empty());
+    const auto& one=fd.at("fd").at(0);
+    ASSERT_TRUE(one.contains("chi")) << "the finite difference failed: " << one.dump();
+    EXPECT_TRUE(one.at("restored").get<bool>());
+    for (const auto& c : one.at("chi")) EXPECT_TRUE(std::isfinite(c.get<double>()));
+    EXPECT_LT(one.at("chi").at(0).get<double>(), 0.0) << "a bare occupation response chi_JJ is negative";
 }
 
 // PANEL case 6 (OpenWork §3 "GDM false-converges on a carried stage whose Hamiltonian CHANGED", CLOSED 2026-10-29): the loop arm
@@ -1608,7 +1674,7 @@ TEST(GPW_Si, Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel)
     const nlohmann::json deck={
         {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
         {"accelerator","Ladder"},
-        {"solid",{{"densityEcut",20.0},{"forceComplex",true},
+        {"solid",{{"densityEcut",20.0},
                   {"hubbard",{{{"site",0},{"l",1},{"U_eV",0.0},{"projector","siteShells"}}}}}},
         {"scf",scf},
         {"postSCF",{{{"hubbardLoop",{{"estimator","linearResponse"},{"perturb",{0}},{"tolU_eV",1e-4},{"maxOuter",12}}}}}}};

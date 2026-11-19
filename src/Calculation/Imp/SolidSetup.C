@@ -390,9 +390,10 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // opts.imposeSymmetry again, or the two would drift.
     s->imposed = opts.imposeSymmetry && theRunPolicy().SymmetryImposition();
     // THE ANSATZ (OpenWork "LR on REAL TRIM blocks", option 1, user ruling 2026-11-18: "decide once based on k and q").  Every term of
-    // the GPW stack preserves realness, so a TRIM block runs real unless the caller forces complex or the run plans a response.
-    s->realTRIMBlocks = !opts.solid.forceComplex && opts.solid.responseQMeshes.empty();
-    if (!opts.solid.forceComplex && !opts.solid.responseQMeshes.empty())
+    // the GPW stack preserves realness, so a TRIM block runs real unless the run plans a response.  No knob forces complex (user
+    // 2026-11-19, OpenWork G4: "we can prove rigorously whether it is needed or not"; forceComplex retired).
+    s->realTRIMBlocks = opts.solid.responseQMeshes.empty();
+    if (!opts.solid.responseQMeshes.empty())
     {
         std::string qs;
         for (const ivec3_t& q : opts.solid.responseQMeshes)
