@@ -198,14 +198,15 @@ TEST(A_DFT_pilot, SG_Xe_TheReconvergenceStartsAtTheAnswer)
 {
     RunOptions o{.spin=SpinGroup::UnPolarized, .model=Model::LDA, .atom={.type=AtomType::Gaussian, .basisPool=BasisSetAccuracy::High}};
     o.coulomb.fit=Hamiltonian::CoulombFit::Auxiliary;
+    o.scf=dft_scf_params(54);
     std::vector<std::vector<double>> scfs;   // the total energy of every iterate, one vector per SCF
     qchem::report::Run run("SG_Xe pilot warm start");
     auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(54, 0, o), [&scfs](const SCFIterator::IterationRow& r)
     {
         if (scfs.empty() || r.iteration<=1) scfs.emplace_back();
         scfs.back().push_back(r.eb.GetTotalEnergy());
-    });
-    ASSERT_TRUE(calc->Converge(dft_scf_params(54)));
+    }).TakeValue();
+    ASSERT_TRUE(calc->Converge());
     EXPECT_NE(qchem::report::CurrentRunReport().dump().find("\"AtomPilotWarmStart\""), std::string::npos)
         << "the warm start is a policy, and every policy reports itself";
     ASSERT_GE(scfs.size(), 2u) << "the pilot must raise a grid and re-converge, or this does not test its warm start";
