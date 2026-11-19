@@ -3596,3 +3596,45 @@ The final energies of every variant agree to within 6e-10 Ha.
 - **Short:** 21 of 1702 moved, all piloted atoms (A_DFT_atom, A_DFT_heavy, A_DFT_ion). Iterations only, 851 → 730 summed, |dE| ≤ 6.0e-10.
 - **Long:** 0 of 18. **Panel:** 0 of 27.
 - **RelChecked:** clean.
+
+## ✅ Nd⁵⁹⁺ [F,D] gate sits on the cond(S) = 1e15 floor (lane B, 2026-11-18)
+
+`A/A_SL_HF_ion.A/60` (gtest `A/A_SL_HF_ion.A/2`): a one-electron ion in a 40-function even-tempered Slater basis, cond(S) = 1.1e15.  The
+row's next action was TRIM FIRST.  Measured on all five Z (1, 20, 60, 86, 100), gate unchanged (MinFD = Z·1e-5, NMaxIter 20):
+
+| ortho | Nd⁵⁹⁺ functions kept | [F,D] | E - (-Z²/2) | all five Z |
+|---|---|---|---|---|
+| plain `Cholesky` (as it was) | 40 | 7e-4 .. 4e-3 every iteration, never under 6e-4 | -1.8e-8 Ha | Z = 60 hits the cap |
+| `Auto` (the atom's default: the canonical trim) | 27 (13 modes below its 1e-8 floor, "no clean gap") | 9.6e-6 at iteration 1 | +4.0e-6 Ha (2.2e-9 relative) | all CONVERGE, all FAIL the 4e-12 exactness check (0.9..2.4e-9) |
+| `CholeskyPivoted`, default floor | 40 (min kept pivot 1.1e-13) | 1.15e-4 at iteration 1 | 0 to 1e-12 | all PASS |
+
+So the [F,D] floor was not the near-null modes themselves but UNPIVOTED Cholesky's rounding on them: pivoting orders the factor by the
+residual diagonal and the same full basis factors stably.  Trimming also meets the gate, but it takes part of the exact span with it,
+which is what this test exists to check (its comment: keep the wide basis whole).  So the test states `.ortho=CholeskyPivoted`; no gate
+moved and no rescale was needed (the F-scale ruling the row held in reserve was not asked for).  Off `QCHEM_KNOWN_RED`.
+
+Not done here (no row: no defect measured): the solid's default is still plain Cholesky (`SolidOptions`); a solid whose [F,D] stalls
+on a cond(S) ~ 1e15 basis should try pivoted Cholesky before suspecting the SCF.
+
+Original row:
+
+| **Nd⁵⁹⁺ [F,D] gate sits on the cond(S) = 1e15 floor** (lane S, 2026-11-09, exposed by E[D_out]) | `A/A_SL_HF_ion.A/60` (gtest `A/A_SL_HF_ion.A/2`, one electron, Slater basis): E is exact (-Z²/2) to 1e-11 from iteration 1, but [F,D] scatters 6e-4..5e-3 every iteration on main and after, on a basis whose `[basis trim]` reports cond(S) = 1.1e15 with 18 AOs that would drop.  The gate MinFD = Z·1e-5 = 6e-4 sits on that floor: main crossed it by luck at iteration 14; E[D_out] rounds the (algebraically identical) retraction differently and it never does within NMaxIter 20.  **On `QCHEM_KNOWN_RED`** (a4afb9989); gate NOT loosened | **TRIM FIRST** (CLAUDE.md: "we have lost a lot of time on this"): run it with `basis.autoTrim` (the atom path's ortho tolerance) and see whether [F,D] then meets Z·1e-5; only if trimming is not enough, rescale the gate to F's Z² scale (a ruling, not a loosening by hand) · record: this row |
+
+## ✅ basis.elements: the shells per element, filed by the reader as it builds (molecules; lane B, 2026-11-18, feb612774)
+
+The GUI's Basis tab ("3s 2p 1d" per element, `qviz/basisinfo.py` `element_rows`) parsed the `.bsd` itself, a second reader of the basis
+data.  `ReadShells` (`src/BasisSet/Gaussian/Point/Imp/Reader.C`), the one shell loop the three Gaussian readers share, now files one
+`basis.elements` row per element while it reads: `{element, Z, atoms, shells, nFunctions}`.
+- `shells` counts the contracted shells as read, after the duplicate drop.  An SP shell counts once as s and once as p.
+- `nFunctions` is per atom, under the basis's angular kind: 2l+1 spherical, (l+1)(l+2)/2 Cartesian.
+- It is silent unless a "basis" section is open (the caller sets the context).  So a fit basis, built under "hamiltonian", files nothing.
+
+Gates:
+- `Gaussian94Reader.AnOrbitalBuildFilesItsShellsPerElement`: Cartesian and spherical, invariants over every row; the rows sum to the basis.
+- `M_Calculation.BasisReportSchema`: symmetry-imposed water, through the SALC route; one row per element, the sum is `basis.nFunctions`.
+
+REMAINDER (open row): a solid builds its basis outside a "basis" scope (`SolidSetup`'s `GaussianBasisRecipe::Make`), so it files none.
+
+Original row:
+
+| **The basis report has nFunctions per irrep but no shells per element** (S; 2026-11-02) | the GUI's Basis tab '3s 2p 1d' table reads the `.bsd` file itself -- a second reader of the basis data | the basis builder writes a per-element shells row into the `basis` section as it builds (caller sets context, callee writes one level in; CLAUDE.md 'THE RUN REPORT') · lane G's audit |

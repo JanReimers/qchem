@@ -10,6 +10,7 @@ target_sources(qcGaussian_BS PRIVATE
     Readers/Imp/Gaussian94.C
     Readers/Imp/Gaussian94Import.C
     Imp/ShellTrim.C
+    Imp/Reader.C         # ReadShells: the one shell loop, and its basis.elements report rows
 )
 target_sources(qcGaussian_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Factory.C

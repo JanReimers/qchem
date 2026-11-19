@@ -30,6 +30,7 @@ import qchem.Structure;
 import qchem.Types;
 import qchem.PeriodicTable;                      // the element of each header line
 import qchem.Mesh;                               // qcMesh::MeshParams (the Vxc fit's factory takes one)
+import qchem.Reporting;                          // the basis.elements rows ReadShells files inside a "basis" section
 
 using namespace qchem;
 using namespace qchem::BasisSet::Gaussian;
@@ -94,7 +95,7 @@ TEST(Gaussian94Reader, ReadShellsKeepsEachLOfASharedExponent)
 {
     Molecule m; m.Insert(Site{1, Vector3D(0,0,0)});
     Gaussian94Reader reader(SharedExponentFile().string());
-    const auto sh=ReadShells(reader, m);
+    const auto sh=ReadShells(reader, m, false);
     ASSERT_EQ(sh.size(), 2u) << "the s and the p are two blocks";
     EXPECT_EQ(sh[0].Ls, std::vector<int>{0});
     EXPECT_EQ(sh[1].Ls, std::vector<int>{1});
@@ -113,7 +114,7 @@ TEST(Gaussian94Reader, TheFitBasesCarryEveryShellOfTheirFile)
     {
         Gaussian94Reader reader(BasisFile(file));
         size_t n=0;
-        for (const auto& sh : ReadShells(reader, n2)) for (int l : sh.Ls) n+=size_t((l+1)*(l+2)/2);
+        for (const auto& sh : ReadShells(reader, n2, false)) for (int l : sh.Ls) n+=size_t((l+1)*(l+2)/2);
         return n;
     };
     std::unique_ptr<BasisSet::Real_BS> bs(Factory(BasisSetData::DZVP, &n2));
@@ -124,7 +125,7 @@ TEST(Gaussian94Reader, TheFitBasesCarryEveryShellOfTheirFile)
     EXPECT_EQ(sf->GetNumFunctions(), cartesianCount("A1_exch.bsd")) << "the Vxc fit basis dropped shells of its file";
     // ...and the d shells are really there: a d shell on a shared exponent adds 6 Cartesian functions per atom
     Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
-    size_t nd=0; for (const auto& sh : ReadShells(reader, n2)) for (int l : sh.Ls) if (l==2) ++nd;
+    size_t nd=0; for (const auto& sh : ReadShells(reader, n2, false)) for (int l : sh.Ls) if (l==2) ++nd;
     EXPECT_GT(nd, 0u) << "A1_coul N has d shells (on the SP exponents) -- else this test tests nothing";
 }
 
@@ -319,5 +320,53 @@ TEST(Gaussian94Reader, EveryShippedFileReadsEveryBlockItHolds)
             Gaussian94Reader reader(BasisFile(name+".bsd"));
             EXPECT_NO_THROW(reader.FindAtom(Site{Z, Vector3D(0,0,0)})) << name << ": " << a;
         }
+    }
+}
+
+// THE BASIS REPORT'S PER-ELEMENT SHELLS (OpenWork "The basis report has nFunctions per irrep but no shells per element", lane B
+// 2026-11-18): an orbital basis built inside a "basis" section files one basis.elements row per element.  Invariants over EVERY row
+// (no count pins): its atoms are the structure's count of that element, its shells string agrees with its per-atom function count
+// under the basis's angular kind, and the rows' functions times atoms add up to the basis the factory built; built OUTSIDE a "basis"
+// section (a fit basis under "hamiltonian", a bare unit test) the same loop files nothing.
+TEST(Gaussian94Reader, AnOrbitalBuildFilesItsShellsPerElement)
+{
+    Molecule h2o;
+    h2o.Insert(Site{8, Vector3D( 0.0, 0.0, 0.0)});
+    h2o.Insert(Site{1, Vector3D( 1.4, 1.1, 0.0)});
+    h2o.Insert(Site{1, Vector3D(-1.4, 1.1, 0.0)});
+    auto functionsOf=[](const std::string& shells, bool spherical)   // "3s 2p 1d" -> functions per atom
+    {
+        std::istringstream is(shells); std::string tok; size_t n=0;
+        while (is>>tok)
+        {
+            const int l=int(std::string("spdfghik").find(tok.back()));
+            n+=size_t(std::stoi(tok.substr(0,tok.size()-1)))*(spherical ? size_t(2*l+1) : size_t((l+1)*(l+2)/2));
+        }
+        return n;
+    };
+    for (const auto angular : {Angular::Cartesian, Angular::Spherical})
+    {
+        const bool spherical=(angular==Angular::Spherical);
+        qchem::report::Run run("basis.elements");
+        std::unique_ptr<BasisSet::Real_BS> bs;
+        { qchem::report::Scope basis("basis"); bs.reset(Factory(BasisSetData::DZVP, &h2o, Engine::MnD, angular)); }
+        std::unique_ptr<BasisSet::rFIT_CD_ABS> fit(bs->CreateCDFitBasisSet(&h2o));   // outside the section: no rows
+        const auto& doc=qchem::report::CurrentRunReport();
+        ASSERT_TRUE(doc.contains("basis") && doc["basis"].contains("elements")) << "no basis.elements rows";
+        const auto& rows=doc["basis"]["elements"];
+        std::set<long> seen;
+        size_t total=0;
+        for (const auto& r : rows)
+        {
+            const long Z=r["Z"].get<long>();
+            EXPECT_TRUE(seen.insert(Z).second) << "two rows for Z=" << Z;
+            size_t atoms=0; for (const Site& s : h2o.Sites()) if (s.Z==Z) ++atoms;
+            EXPECT_EQ(r["atoms"].get<long>(), long(atoms)) << r.dump();
+            EXPECT_EQ(r["element"].get<std::string>(), thePeriodicTable().GetSymbol(int(Z))) << r.dump();
+            EXPECT_EQ(functionsOf(r["shells"].get<std::string>(), spherical), size_t(r["nFunctions"].get<long>())) << r.dump();
+            total+=atoms*size_t(r["nFunctions"].get<long>());
+        }
+        for (const Site& s : h2o.Sites()) EXPECT_TRUE(seen.count(s.Z)) << "no row for Z=" << s.Z;
+        EXPECT_EQ(total, bs->GetNumFunctions()) << "the rows do not add up to the basis built";
     }
 }

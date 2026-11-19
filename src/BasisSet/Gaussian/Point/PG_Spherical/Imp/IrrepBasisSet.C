@@ -37,7 +37,7 @@ IrrepBasisSet::IrrepBasisSet(const std::shared_ptr<BasisCache>& cache, Reader* b
     //  Read in all the radial functions and their l-sets -- the SAME ReadShells as PG_Cart, so the
     //  (radial, Ls) set is identical; the only divergence is the angular expansion below.
     //
-    std::vector<ReadShell> shells=ReadShells(*bsr, *cl);
+    std::vector<ReadShell> shells=ReadShells(*bsr, *cl, true);
     std::vector<std::unique_ptr<GaussianRF>> radials;
     std::vector<std::vector<int> >    Ls;
     for (auto& sh : shells) { radials.push_back(std::move(sh.rf)); Ls.push_back(sh.Ls); }
