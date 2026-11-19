@@ -37,6 +37,7 @@ import qchem.BasisSet;                             // Real_BS (the molecular Gau
 import qchem.BasisSet.Orbital_1E_IBS;              // Real_OIBS (its orbital block: op()/Gradient/size)
 export import qchem.BasisSet.PairProjection;   // PairProjection<dcmplx>, ΔG_Map
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // DirectOp, ReciprocalOp
+export import qchem.Symmetry.StarGroup;   // StarGroup: the imposed group the T1 {G}-star fold asks (the ctor's group param)
 import qchem.UnitCell;                             // UnitCell (the direct lattice; ToCartesian)
 import qchem.Structure;                            // Structure (the nuclear-attraction centres)
 import qchem.Types;                                // rvec3_t, cvec_t, cvec3vec_t, chmat_t, rmat_t
@@ -76,17 +77,17 @@ public:
     //!              (default) every lattice sum is an \f$\varepsilon\f$-CONVERGED SERIES enumerated internally
     //!              per shell pair -- THERE IS NO CUT in r SPACE, and no radius parameter exists
     //!              (user pin; doc/Pins.md pin 1).
-    //! \param symOps  the run's IMPOSED crystal ops \f$\{W|\tau\}\f$ -- §3 policy-gated (doc/SymmetryUpgradePlan.md):
-    //!              \c GPW_IBS passes them NON-EMPTY only when the caller asserted imposition (imposeSymmetry); {} -- stated -- on a free run.
-    //!              Consumed by the T1 {G}-star reduced structure-factor assembly (\c MakeLocalPP / \c MakeLocalPPLong -- exact
-    //!              for the static \f$V_{loc}\f$ by construction: the ops were detected from these very atoms).  (The raster
-    //!              star-average no longer reads them: the run's group averages, 2026-11-09.)  A ctor argument with NO
-    //!              default since D4 (was the setter SetSymmetryOps): the factory gathers the ops, so a caller that forgets them
-    //!              is a compile error, never a silently free evaluator.
+    //! \param group  the run's IMPOSED density group (\f$\{W|\tau\}\f$) -- §3 policy-gated (doc/SymmetryUpgradePlan.md):
+    //!              \c GPW_IBS passes it only when the caller asserted imposition (imposeSymmetry); null -- stated -- on a free run,
+    //!              which is the trivial group {E}.  Asked (\c StarGroup::EvaluateOnGStars) by the T1 {G}-star reduced
+    //!              structure-factor assembly (\c MakeLocalPP / \c MakeLocalPPLong -- exact for the static \f$V_{loc}\f$ by
+    //!              construction: the ops were detected from these very atoms); no op list reaches the evaluator (Star-average
+    //!              remainder (a), 2026-11-18).  A ctor argument with NO default since D4 (was the setter SetSymmetryOps): the
+    //!              factory gathers the group, so a caller that forgets it is a compile error, never a silently free evaluator.
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                   std::shared_ptr<const GpwRasterLadder> ladder, const rvec3_t& kFrac, bool kIsReal,
                   bool homeCellOnly,
-                  std::vector<Symmetry::Lattice_3D::DirectOp> symOps,   // NO default: a forgotten one must not build a free evaluator
+                  std::shared_ptr<const Symmetry::StarGroup> group,   // NO default: a forgotten one must not build a free evaluator
                   const GPWTolerances& tol = {});     //!< the typed numerical tolerances (D-ENV step 5; was env reads inside)
     //! Polymorphic (reached by the Lattice::*_IBS mixins' Cast() cross-cast); out of line as the key function.
     virtual ~GPW_Evaluator();
@@ -237,10 +238,7 @@ public:
                                            const cvec_t& v, const rvec3_t& q) const;
 
 private:
-    //! The reciprocal \f$\{U|\tau\}\f$ face of \c itsSymOps (\f$U=W^\top\f$, the G-index scatter map) --
-    //! what \c EvaluateSymmetricGMap folds under (empty = the plain sweep).
-    std::vector<Symmetry::Lattice_3D::ReciprocalOp> RecipSymOps() const;
-    std::vector<Symmetry::Lattice_3D::DirectOp> itsSymOps;   //!< imposed crystal ops ({} on a free run -- §3)
+    std::shared_ptr<const Symmetry::StarGroup> itsGroup;   //!< the imposed density group (never null: {E} on a free run -- §3)
     std::shared_ptr<const BasisSet::Real_BS> itsMol;   //!< owns the molecular Gaussian basis (lifetime)
     const BasisSet::Real_OIBS*          itsOrb = nullptr; //!< its single orbital block (op()/Gradient/size)
     const Gaussian::Periodic_Gaussian_IBS* itsLat = nullptr; //!< the same block's periodic-1E capability (cross-cast)

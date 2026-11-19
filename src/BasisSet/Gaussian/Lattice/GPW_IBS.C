@@ -23,6 +23,7 @@ import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;  // GPW_Evaluator (base su
 import qchem.BasisSet.Lattice_IBS;                // the G=T spec: isLattice_{1E,DFT}_Evaluator + Lattice::Orbital_{1E,DFT}_IBS<E,T> (mixins)
 import qchem.Matrix3D;                             // Matrix3D
 import qchem.Symmetry.Lattice_3D.SpaceGroup;       // DirectOp {W|τ} -- the direct ops threaded to the Vxc fit basis
+export import qchem.Symmetry.StarGroup;            // StarGroup: the imposed density group (the primary ctor's group param)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;  // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.BasisSet.Orbital_DFT_IBS;          // Orbital_DFT_IBS<T,dcmplx> (the DFT capability; Create*FitBasisSet)
 export import qchem.BasisSet.Orbital_PP_IBS;          // the species-field integral service (V1.2)
@@ -133,7 +134,7 @@ public:
     tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const sym_t& irrep,
             std::shared_ptr<const BasisSet::Real_BS> mol, std::shared_ptr<const GpwRasterLadder> ladder,
             CellImages images = CellImages::Periodic,
-            std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {},   //!< crystal direct ops {W|τ} for the T1 {G}-star fold
+            std::shared_ptr<const Symmetry::StarGroup> group = nullptr,   //!< the imposed density group the T1 {G}-star fold asks (null = {E})
             const GPWTolerances& tol = {});                               //!< the typed numerical tolerances (D-ENV step 5)
 
     //! \brief A block built BARE (the unit tests): its OWN ladder from \a densityEcut (\f$<0\f$ AUTO floor
@@ -197,7 +198,7 @@ protected:
     virtual PairProjection<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS& c) const override;
     virtual PairProjection<dcmplx> MakeOverlap3C  (const cFIT_SF_ABS& c) const override;
 
-    // (The ctor-injected crystal ops live on GPW_Evaluator -- its symOps ctor argument / SymmetryOps: the T1 {G}-star fold's.  The
+    // (The ctor-injected density group lives on GPW_Evaluator -- its group ctor argument: the T1 {G}-star fold asks it.  The
     //  raster star-average is the run's group's since 2026-11-09, not the basis's.)
 private:
     //! THROWS unless \a bra is built over my molecular AOs and \a rows x \a cols is bra x ket (finding 6).

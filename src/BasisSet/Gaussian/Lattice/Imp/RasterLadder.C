@@ -15,8 +15,6 @@ module;
 module qchem.BasisSet.Gaussian.Lattice.RasterLadder;
 import qchem.BasisSet.Orbital_1E_IBS;   // Real_OIBS (the molecular basis's one orbital block)
 import qchem.Reporting;                 // the grids facts and audit rows, written cursor-relative
-import qchem.Symmetry.Lattice_3D.Fold;  // FoldGVectors (the grids report's {G}-star column)
-import qchem.Matrix3D;                  // Transpose (the reciprocal face of a direct op)
 import qchem.Vector3D;                  // norm (the raster Nyquist radius, |G|)
 import qchem.Math;                      // Pi
 
@@ -103,13 +101,6 @@ size_t FinestLevel(const RasterLevels& L)
     size_t Lf=0;
     for (size_t l=1;l<L.ecut.size();l++) if (L.ecut[l]>L.ecut[Lf]) Lf=l;
     return Lf;
-}
-//! The reciprocal {U|τ} face of the imposed direct ops (U = Wᵀ, the G-index scatter map) -- what the {G}-star column folds under.
-std::vector<Symmetry::Lattice_3D::SymOp> StarOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops)
-{
-    std::vector<Symmetry::Lattice_3D::SymOp> sops;
-    for (const auto& op : ops) sops.push_back({Transpose(op.W), op.tau});
-    return sops;
 }
 }
 
@@ -311,7 +302,7 @@ std::vector<RasterVerdict> GpwRasterLadder::DeliveredRasterVerdicts() const
     return v;
 }
 
-void GpwRasterLadder::ReportGrids(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops) const
+void GpwRasterLadder::ReportGrids(const Symmetry::StarGroup* group) const
 {
     namespace rpt = qchem::report;
     // The density ball the ladder RUNS: a stated densityEcut (honoured even under the floor, warned above), else the auto floor C*alpha_max.
@@ -332,8 +323,8 @@ void GpwRasterLadder::ReportGrids(const std::vector<Symmetry::Lattice_3D::Direct
     rpt::Set("routingBeta",  itsRelFieldSharp>=0.0 ? itsRelFieldSharp : itsTol.fieldSharp*itsAlphaMax);
     if (!itsGrid) return;                                              // DFT tier off: no grids
     // The {G}-star column (see PrintGrids): star counts per level under the imposed ops, so the fold is VISIBLE in the grids table
-    // (nG vs Gstars = the T1 reduction).  Empty ops = no column.
-    const auto sops=StarOps(ops);
+    // (nG vs Gstars = the T1 reduction).  The trivial group = no column.
+    const bool fold=group && !group->IsTrivial();
     const size_t Lf=FinestLevel(itsLevels);
     rpt::json ladder = rpt::json::array();
     for (size_t L = 0; L < itsLevels.levels.size(); ++L)
@@ -352,14 +343,14 @@ void GpwRasterLadder::ReportGrids(const std::vector<Symmetry::Lattice_3D::Direct
             const double GN=RasterNyquist(N, itsCell);
             row["x"] = GN*GN/PairCap(lv.Ecut(), itsLevels.ecut[0], L==Lf);
         }
-        if (!sops.empty())
-            row["Gstars"] = (long)Symmetry::Lattice_3D::FoldGVectors(lv.Gs(), sops).Reps();
+        if (fold)
+            row["Gstars"] = (long)group->CountGStars(lv.Gs());
         row["role"]  = role;
         ladder.push_back(row);
     }
     rpt::Set("ladder", ladder);
-    if (!sops.empty())
-        rpt::Set("GstarFold", { { "ops", (long)sops.size() },
+    if (fold)
+        rpt::Set("GstarFold", { { "ops", (long)group->size() },
                                 { "activeOn", "static local-PP sweeps (T1); per-iteration G fields unfolded" } });
     rpt::Set("localPP", { { "kappa", itsTol.localPPRelCutoff } });
     // the V_loc long routing tolerance that RUNS, and where it came from (MakeLocalPPLong's rule)
@@ -395,7 +386,7 @@ std::ostream& PrintGrid(std::ostream& os, const std::string& tag, const PlaneWav
              <<" Ha nG="<<g.size()<<" |G|min="<<gmin<<" |G|max="<<gmax<<"\n";
 }
 
-void GpwRasterLadder::PrintGrids(std::ostream& os, size_t nFunctions, const std::vector<Symmetry::Lattice_3D::DirectOp>& ops) const
+void GpwRasterLadder::PrintGrids(std::ostream& os, size_t nFunctions, const Symmetry::StarGroup* group) const
 {
     os<<"[GPW basis] n="<<nFunctions<<" alpha_min="<<itsAlphaMin<<" alpha_max="<<itsAlphaMax
       <<" cutoffFactor="<<itsInputs.cutoffFactor
@@ -412,23 +403,19 @@ void GpwRasterLadder::PrintGrids(std::ostream& os, size_t nFunctions, const std:
     // T1 {G}-STAR FOLD VISIBILITY (user 2026-08-15: "no hint anywhere of folding").  Under imposed ops each level's ball partitions
     // into stars; report the count + reduction beside nG.  HONESTY NOTE: today the fold is CONSUMED only by the static local-PP sweeps
     // (MakeLocalPP/MakeLocalPPLong T1 reduced evaluation); the per-iteration G-space consumers run unfolded -- doc/OpenWork.md item 5.
-    const auto sops=StarOps(ops);
+    const bool fold=group && !group->IsTrivial();
     for (size_t L=0;L<itsLevels.levels.size();L++)
     {
         std::string tag="ladder L="+std::to_string(L);
-        if (!sops.empty())
-        {
-            const size_t stars=Symmetry::Lattice_3D::FoldGVectors(itsLevels.levels[L]->Gs(), sops).Reps();
-            tag+=" stars="+std::to_string(stars);
-        }
+        if (fold) tag+=" stars="+std::to_string(group->CountGStars(itsLevels.levels[L]->Gs()));
         if (L==0)                     tag+=" (== FFT grid; resolution reference)";
         else if (L>=itsLevels.nBase) tag+=" (top completion rung; local-PP uses base sub-ladder only)";
         PrintGrid(os, tag, *itsLevels.levels[L]);
     }
     os<<"[GPW grid] local-PP integration: FULL ladder L=0.."<<itsLevels.levels.size()-1
       <<" absolute REL_CUTOFF kappa="<<itsTol.localPPRelCutoff<<" Ha (e^{-kappa/2} pair tails)"<<std::endl;
-    if (!sops.empty())
-        os<<"[GPW grid] T1 {G}-star fold: "<<sops.size()<<" imposed ops; ACTIVE on the static local-PP"
+    if (fold)
+        os<<"[GPW grid] T1 {G}-star fold: "<<group->size()<<" imposed ops; ACTIVE on the static local-PP"
             " sweeps (form factor at star reps); per-iteration G fields UNFOLDED (OpenWork item 5)"<<std::endl;
     os.flush();
 }

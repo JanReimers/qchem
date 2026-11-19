@@ -24,11 +24,11 @@ namespace qchem::BasisSet::Gaussian
 
 template <class T> tGPW_IBS<T>::tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const sym_t& irrep,
                  std::shared_ptr<const BasisSet::Real_BS> mol, std::shared_ptr<const GpwRasterLadder> ladder, CellImages images,
-                 std::vector<Symmetry::Lattice_3D::DirectOp> directOps, const GPWTolerances& tol)
+                 std::shared_ptr<const Symmetry::StarGroup> group, const GPWTolerances& tol)
     : BasisSet::IrrepBasisSetImp<T>(irrep, cache)
-    // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1); directOps = the evaluator's T1 {G} fold
+    // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1); group = what the evaluator's T1 {G} fold asks
     , GPW_Evaluator(std::move(mol), cell, std::move(ladder), Symmetry::Lattice_3D::Getk(irrep), irrep->IsReal(),
-                    images==CellImages::HomeCellOnly, std::move(directOps), tol)
+                    images==CellImages::HomeCellOnly, std::move(group), tol)
 {}
 
 // A bare block: its own ladder from the same builder the factory uses, then the primary constructor.
