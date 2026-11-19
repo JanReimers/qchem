@@ -5,6 +5,7 @@
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Fit_Types;
+export import qchem.BasisSet.PointImages;
 export import qchem.BasisSet.GridResolution;
 export import qchem.Structure;
 export import qchem.Symmetry;
@@ -19,7 +20,7 @@ namespace qchem::BasisSet {
         virtual size_t GetNumFunctions() const=0;
         virtual irrepv_t GetIrreps(const Spin& ms) const=0;
         virtual FIT_CD_ABS<T>* CreateCDFitBasisSet(const Structure* cl) const;
-        virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&, VxcFit fit=VxcFit::Auto, const FitQuadrature* quad=nullptr) const;
+        virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&, VxcFit fit=VxcFit::Auto, const FitQuadrature* quad=nullptr, const PhiChooser& phiTables={}) const;
         virtual const Symmetry::SymmetryImposition* GetImposition() const=0;
         Resolution MakeResolution(double eps) const;
         auto Iterate() const;
