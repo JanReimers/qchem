@@ -34,14 +34,14 @@ public:
 
     using obs_t = typename tBasisSet<T>::obs_t;
 
-    virtual size_t GetNumFunctions() const
+    virtual size_t GetNumFunctions() const override
     {
         size_t ret=0;
         for (auto& c:itsBasisSets)
             ret+=std::visit([](const auto& b){return b->GetNumFunctions();}, c);
         return ret;
     }
-    virtual irrepv_t GetIrreps(const Spin& ms) const
+    virtual irrepv_t GetIrreps(const Spin& ms) const override
     {
         irrepv_t irrepv;
         for (auto& c:itsBasisSets)
@@ -51,7 +51,7 @@ public:
 //
 //  StreamableObject stuff.
 //
-    virtual std::ostream&  Write(std::ostream& os) const
+    virtual std::ostream&  Write(std::ostream& os) const override
     {
         for (auto& c:itsBasisSets) std::visit([&](const auto& b){os << *b;}, c);
         return os;
@@ -81,10 +81,10 @@ protected:
         itsBasisSets.push_back(ibs_child_t(std::unique_ptr<Orbital_1E_IBS<dcmplx>>(bs)));
     }
 
-    virtual size_t      GetNumIBS()      const {return itsBasisSets.size();}
+    virtual size_t      GetNumIBS()      const override {return itsBasisSets.size();}
     //! The cross-scalar view (Step 3c-2): the <double> alternative of a COMPLEX-faced set's child.  A
     //! real-faced set answers null (its double children are the same-scalar ones GetIBS already serves).
-    virtual const Orbital_1E_IBS<double>* GetRealIBS(size_t i) const
+    virtual const Orbital_1E_IBS<double>* GetRealIBS(size_t i) const override
     {
         if constexpr (std::is_same_v<T,dcmplx>)
         {
@@ -95,7 +95,7 @@ protected:
     //! The tBasisSet<T> face's storage primitive: the SAME-SCALAR view (Iterate<D> casts from it).  A
     //! cross-scalar child THROWS -- loud in Release -- until Step 3c makes the consumers per-block-typed;
     //! until then nothing builds a mixed set on a shipped path.
-    virtual const obs_t* GetIBS(size_t i) const
+    virtual const obs_t* GetIBS(size_t i) const override
     {
         if (auto* p=std::get_if<std::unique_ptr<Orbital_1E_IBS<T>>>(&itsBasisSets[i])) return p->get();
         throw std::logic_error("tBasisSet: a basis block's scalar differs from the set's face -- the typed "

@@ -228,7 +228,7 @@ TEST(SolidSetup, AnElectronCountThatDisagreesWithTheSpeciesIsRefused)
     cell.AddAtom( 9,{0.5,0.5,0.5});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     const GaussianBasisRecipe q9{.file="valence_lowq_sr2_naq9.bsd"};
-    const RunOptions semicore{.species={{"Na",9},{"F",7}}, .pp="gth-lda-valence"};
+    const RunOptions semicore{.pp="gth-lda-valence", .species={{"Na",9},{"F",7}}};
     RunOptions old=semicore; old.Nelec=8;   // the q1 count, the bug
     {   // the user door (a deck's): a refusal is a VALUE naming its policy
         const auto refused=SolidSetup::Admit(lat, q9, old);

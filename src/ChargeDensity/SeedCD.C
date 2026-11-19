@@ -64,19 +64,19 @@ public:
 
     // ScalarFunction<double> -- real-space rho(r) = Sum_atoms rho_atom(|r-R|) (not used by the PW Fock build,
     // which goes through FourierComponents, but provided so the type is whole).
-    virtual double  operator()(const rvec3_t&) const;
-    virtual rvec3_t Gradient  (const rvec3_t&) const;
+    virtual double  operator()(const rvec3_t&) const override;
+    virtual rvec3_t Gradient  (const rvec3_t&) const override;
     //! Batch \f$\rho(r_g)\f$ over a whole mesh -- the \c ScalarFunction default loop, THREADED (opt-in,
     //! \c QCHEM_OPENMP_THREADS).  This is how the atom-centred XC route samples the SEED (the one iteration
     //! with no density matrix to GEMM), and on a magnetic cell it was the largest single bucket of the
     //! whole run: 28 s of image-summed radial lookups over 48k mesh points x 2 channels.  Every point is
     //! independent and \c op() is pure, so the raster is bit-identical at any thread count.
-    virtual rvec_t  operator()(const rvec3vec_t&) const;
+    virtual rvec_t  operator()(const rvec3vec_t&) const override;
 
     // tChargeDensity<dcmplx>
-    virtual double GetTotalCharge() const {return itsScale*itsCharge;}
-    virtual size_t Version       () const {return itsVersion;}
-    virtual void   ReScale(double factor);
+    virtual double GetTotalCharge() const override {return itsScale*itsCharge;}
+    virtual size_t Version       () const override {return itsVersion;}
+    virtual void   ReScale(double factor) override;
 
 private:
     ΔG_Map StructureFactorDensity() const;        //!< the seed's rho-tilde = per-species structure-factor sum
@@ -122,20 +122,20 @@ public:
                     const SeedKey& key=SeedKey{}, const std::vector<int>& ionicNvalBySite = {});
 
     // cSpinResolved_CD -- the spin-native XC engine's channel access.
-    virtual const cChargeDensity* GetChannel(const Spin&) const;
+    virtual const cChargeDensity* GetChannel(const Spin&) const override;
 
     // AnalyticFourier -- the ↑+↓ TOTAL (what Hartree consumes; spin never enters V_H).
     virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override;
 
     // ScalarFunction<double> -- the total rho(r).
-    virtual double  operator()(const rvec3_t&) const;
-    virtual rvec3_t Gradient  (const rvec3_t&) const;
+    virtual double  operator()(const rvec3_t&) const override;
+    virtual rvec3_t Gradient  (const rvec3_t&) const override;
 
     // tChargeDensity<dcmplx>
-    virtual double GetTotalCharge() const;
-    double         GetTotalSpin  () const;   //!< <up>-<down>: ~0 for an AFM staggering, 2S for FM/Hund
-    virtual size_t Version       () const {return itsVersion;}
-    virtual void   ReScale(double factor);
+    virtual double GetTotalCharge() const override;
+    double         GetTotalSpin  () const override;   //!< <up>-<down>: ~0 for an AFM staggering, 2S for FM/Hund
+    virtual size_t Version       () const override {return itsVersion;}
+    virtual void   ReScale(double factor) override;
 
 private:
     SeedCD itsUp, itsDn;   //!< the two channel seeds (share tables via the library; cheap value members)

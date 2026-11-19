@@ -34,8 +34,8 @@ class SphericalShellRep : public ShellRep
 {
 public:
     explicit SphericalShellRep(HarmonicC2S c2s) : itsC2S(std::move(c2s)) {}
-    virtual size_t nComponents() const {return itsC2S.size();}
-    virtual rmat_t Rep(const rmat3d_t& R) const;
+    virtual size_t nComponents() const override {return itsC2S.size();}
+    virtual rmat_t Rep(const rmat3d_t& R) const override;
     //! A real solid harmonic is a homogeneous polynomial of degree \f$l\f$; the first term of the first
     //! harmonic says it.
     virtual int    L() const override

@@ -124,8 +124,8 @@ public:
 class BareCoulomb : public LocalPotential
 {
 public:
-    virtual double FormFactorLong(int Z, double G2) const {return -FourPi*Z/G2;}   // pure Coulomb: all long
-    virtual double VlocLong      (int Z, double r)  const {return -double(Z)/r;}    // -Z/r (singular at r=0)
+    virtual double FormFactorLong(int Z, double G2) const override {return -FourPi*Z/G2;}   // pure Coulomb: all long
+    virtual double VlocLong      (int Z, double r)  const override {return -double(Z)/r;}    // -Z/r (singular at r=0)
     virtual bool   CanSlopeQ() const override {return true;}
     virtual double FormFactorLongSlope(int Z, double G2) const override {return FourPi*Z/(G2*G2);}
 };
@@ -139,12 +139,12 @@ class GaussianSmearedNucleus : public LocalPotential
 public:
     explicit GaussianSmearedNucleus(double sigma) : itsSigma(sigma) {}
     //! A Gaussian core charge is a pure long-range (softened-Coulomb) field, no short remainder.
-    virtual double FormFactorLong(int Z, double G2) const
+    virtual double FormFactorLong(int Z, double G2) const override
     {
         return -FourPi*Z*std::exp(-0.5*itsSigma*itsSigma*G2)/G2;
     }
     //! \f$v(G)+4\pi Z/G^2 = 4\pi Z(1-e^{-\sigma^2G^2/2})/G^2 \to 2\pi Z\sigma^2\f$ as \f$G\to0\f$.
-    virtual double FormFactorG0Long(int Z) const {return 2*Pi*Z*itsSigma*itsSigma;}
+    virtual double FormFactorG0Long(int Z) const override {return 2*Pi*Z*itsSigma*itsSigma;}
     //! \f$d/dG^2\f$ of \c FormFactorLong: \f$4\pi Z e^{-\sigma^2G^2/2}(\sigma^2/2+1/G^2)/G^2\f$.
     virtual bool   CanSlopeQ() const override {return true;}
     virtual double FormFactorLongSlope(int Z, double G2) const override
@@ -153,7 +153,7 @@ public:
     }
     //! Real space: the point charge smeared into a Gaussian -> \f$V(r)=-Z\,\mathrm{erf}(r/\sqrt2\sigma)/r\f$
     //! (finite \f$-Z\sqrt{2/\pi}/\sigma\f$ at \f$r=0\f$).
-    virtual double VlocLong(int Z, double r) const
+    virtual double VlocLong(int Z, double r) const override
     {
         double x=r/(std::sqrt(2.0)*itsSigma);
         return (r>1e-12) ? -double(Z)*std::erf(x)/r
