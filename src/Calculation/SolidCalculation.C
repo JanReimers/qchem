@@ -185,21 +185,7 @@ private:
     std::vector<double> itsEee;               //!< per iteration, the Hartree term
 };
 
-//! \brief ONE STAGE of an ANNEALED convergence: its own SCF parameters and its own accelerator.
-//!
-//! A descending-kT schedule with density + MOM continuation between stages is a DECISION ABOVE THE SCF
-//! ITERATOR, which is what this class exists to own -- it lived in an integration-test driver instead,
-//! which is why an MnO recipe was spread across four thousand lines of that file.
-//!
-//! Each stage gets a FRESH Hamiltonian and accelerator: a kT change must not carry stale DIIS history
-//! across the re-seed.  What DOES carry across is the density, and -- under \c momFromSeed -- the occupied
-//! SUBSPACE, so the configuration a hot stage settled on survives into the colder one.
-struct SCFStage
-{
-    SCFParams             params;        //!< this stage's parameters; \c SmearingkT is its temperature
-    SCFAccelerators::Type accelerator;   //!< per stage, so a recipe can anneal on DIIS and finish on GDM
-    SCFRecipe             recipe = SCFRecipe::Auto;   //!< per stage: the material regime (qchem.SCFRecipe), so a schedule can anneal under Metal and finish under Insulator
-};
+//! (\c SCFStage, one stage of a schedule, is the base's: qchem.Calculation, V-FACADE-PARITY P4.)
 
 //! \brief A periodic SCF: attempt it, and get back either the ANSWERS or the reason there are none.
 class SolidCalculation : public virtual tCalculation<dcmplx>
@@ -264,10 +250,11 @@ public:
     //! The graph is built exactly as the constructors build it; the caller runs the SCF.  ONE path: the annealed constructor
     //! is \c Prepare + \c Converge(schedule), \c Restart is \c PrepareRestart + \c Converge(params).
     //!@{
-    //! \a schedule's stage 0 standing (its parameters, accelerator and seed) and no SCF; run it with \c Converge(schedule).
-    //! \a onIteration observes from that first iteration.  An empty schedule throws.
-    static std::unique_ptr<SolidCalculation> Prepare(std::shared_ptr<const SolidSetup> setup, const std::vector<SCFStage>& schedule,
-                                                     Observer onIteration = nullptr);
+    //! The SETUP's stage standing (its \c opts.scf, accelerator, recipe and seed) and no SCF (R9: Setup -> Build -> Go); run it with
+    //! \c Converge() or \c Converge(schedule) -- a schedule's stage 0 runs on this graph when it names the setup's accelerator, recipe
+    //! and kT, and is rebuilt over the seed otherwise.  \a onIteration observes from the first iteration.  REFUSED (a value) when a policy
+    //! refuses while the graph is built (an accelerator the cell cannot run).
+    static Outcome<std::unique_ptr<SolidCalculation>, BuildRefusal> Prepare(std::shared_ptr<const SolidSetup> setup, Observer onIteration = nullptr);
     //! \c Restart up to its SCF: the fingerprint judged, the saved density restored, the restored stage standing for \a params;
     //! run it with \c Converge(params).  Refused exactly when \c Restart is; an exact resume's first convergence prints the resumed
     //! energy beside the saved one, whoever runs it.
@@ -290,16 +277,10 @@ public:
     SolidCalculation(const SolidCalculation&)            = delete;   // owns raw resources
     SolidCalculation& operator=(const SolidCalculation&) = delete;
 
-    //! \brief Re-run the SCF (e.g. with tighter tolerances) and hand back the ANSWERS or the REASON.
-    //! Invalidates any \c Converged handed out by an earlier attempt.
-    //! \c [[nodiscard]] via \c Outcome: dropping the result is a compile-time warning.
-    Outcome<Converged, SCFFailure> Converge(const SCFParams& params = {});
-    //! \brief Run an ANNEALED schedule: each stage in turn, seeded from the one before it.
-    //!
-    //! The outcome is the FINAL stage's -- which is the honest one, since the earlier stages exist only to
-    //! deliver a good starting density to it.  Every stage's own summary is still printed.
-    //! An empty schedule is a caller error (there is no sensible "no stages" run) and throws.
-    Outcome<Converged, SCFFailure> Converge(const std::vector<SCFStage>& schedule);
+    //! \brief \c Converge(edit), the base's template method (V-FACADE-PARITY P3): ONE stage on the setup's \c opts.scf, edited by the
+    //! caller's one-field override (R10), checkpointed, answered; and \c Converge(schedule), the base's schedule (P4, R7), whose stages
+    //! the hooks below stand up.
+    using tCalculation<dcmplx>::Converge;
     //! \c Result() (the base's): the outcome of the last attempt -- the constructor's, for a caller that never re-converges.
     //! Live per-iteration telemetry, REPLACING the constructor's.  Set BEFORE a Converge() call to observe it (the ctor's
     //! initial convergence has run by then: to observe it, pass the observer to the constructor).
@@ -666,11 +647,12 @@ private:
     void                    RecordState(StateRecord&, double kT) const override;   //!< the base's keys + the solid's (\c AddSolidKeys)
     std::string             StateKind() const override {return "solid";}
     const Structure&        StateStructure() const override;
-    StateIdentity           MakeStateIdentity() const override;
+    std::string             StateFunctional() const override;
+    std::string             KindTag() const override {return RunOptions{}.label;}   //!< the solid's default label ("gpw") is its name
+    double                  StateKT() const override;
     std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
     StateSummary            MakeStateSummary() const override;
     FingerprintMigration    StateMigration() const override {return MigrateSolidFingerprint;}
-    SpinGroup               StateSpin() const;   //!< the spin group the blocks are walked under (the setup's resolved spin group, R6)
     //!@}
     //!@}
     //! Stand up one stage's Hamiltonian + accelerator + iterator, seeded from \a carried when given.  \a params are the
@@ -680,8 +662,21 @@ private:
     //! and the stage \a kind (qchem.SCFRecipe: \c ChooseAccelerator), and record them for the banner, the recipe's report and for the
     //! stages that re-resolve it.  THROWS (policy::Refuse) on a recipe that refuses the stage's kT.
     void MakeAccelerator(SCFAccelerators::Type asked, SCFRecipe recipe, const SCFParams& params, SCFStageKind kind);
-    //! \c Converge(params) after the stage's own adjustment (a restored Auto stage's linear step capped at 0.3).
-    Outcome<Converged, SCFFailure> ConvergeStage(const SCFParams& params);
+    //! \name \c Converge's STEPS (\c tCalculation's hooks)
+    //!@{
+    const Setup& GetSetup() const override;
+    //! One stage: the audit RSS preflight (FALSE = refused before any iteration), the restored step and the recipe's knobs, then
+    //! \c IterateStage (and its one conditioning-aware restart).
+    bool RunStage(const SCFParams& params) override;
+    //! A schedule's stage: stage 0 runs on the standing graph when that graph has not iterated and was built for the stage's accelerator,
+    //! recipe and kT (what \c Prepare built for the setup); otherwise the stage is rebuilt over the density the last stage reached (over the
+    //! seed, before any SCF).  Every later stage is rebuilt over the carried density, MOM continuation included (\c BuildStage).
+    void EnterStage(const SCFStage& stage, size_t index) override;
+    void LeaveStage(size_t index, size_t count, const SCFParams& params) override;   //!< the campaign's per-stage summary line
+    void FinishSchedule(const SCFParams& last) override;                              //!< the raster pilot, after the FINAL stage
+    //!@}
+    //! The stage's SCF after its own adjustment (a restored Auto stage's linear step capped at 0.3): iterate, take the density, report.
+    Outcome<Converged, SCFFailure> IterateStage(const SCFParams& params);
     //! \name THE PROOF'S ANSWERS (\c tCalculation's hooks): the one place a failure is ranked, so \c Converge() and \c Result() cannot drift
     //!@{
     std::optional<SCFFailure>             MakeFailure()      const override;

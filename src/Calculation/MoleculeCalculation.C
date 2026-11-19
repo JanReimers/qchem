@@ -74,7 +74,9 @@ public:
     //! observes from that first iteration.  Until it runs, \c Result() says "did not converge in 0 iterations" and the energy /
     //! density / orbital accessors have nothing to read.
     //!@{
-    static std::unique_ptr<MoleculeCalculation> Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration = nullptr);
+    //! REFUSED (a value, R9) when a policy refuses while the graph is built (a 4-centre tensor that cannot fit in memory, a PP the run
+    //! cannot hold); its policy row is already filed.
+    static Outcome<std::unique_ptr<MoleculeCalculation>, BuildRefusal> Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration = nullptr);
     //!@}
 
     //! \name RESTART FROM A SAVED STATE (V-FACADE-STATE; \c SaveState / \c JudgeState are the base's)
@@ -103,10 +105,9 @@ public:
     //! report one level in, under the scope its caller opened (a \c report::Section "view").
     static Outcome<std::unique_ptr<StateView>, RestartRefusal> ViewState(const std::string& path, std::shared_ptr<const MoleculeSetup> setup);
 
-    //! Re-run the SCF (e.g. with tighter tolerances) and hand back the ANSWERS or the REASON (it was a bool until 2026-10-31).
-    //! Invalidates references previously handed out by Density()/HOMO()/Orbital()/Orbitals() -- the wave function is rebuilt --
-    //! and any \c Converged from an earlier attempt.  \c [[nodiscard]] via \c Outcome.
-    Outcome<Converged, SCFFailure> Converge(const SCFParams& params = {});
+    //! \c Converge(edit) is the base's template method (V-FACADE-PARITY P3): the setup's \c opts.scf, edited by a one-field override
+    //! (R10).  It invalidates references previously handed out by Density()/HOMO()/Orbital()/Orbitals() -- the wave function is
+    //! rebuilt -- and any \c Converged from an earlier attempt.
     //! \c Result() (the base's): the outcome of the last attempt -- the constructor's, for a caller that never re-converges.
 
     //! Live per-iteration telemetry.  Set BEFORE a Converge() call to observe it (the ctor's initial
@@ -263,7 +264,9 @@ private:
     void                    RecordState(StateRecord&, double kT) const override;   //!< the base's keys + the basis, PP, model, mesh
     std::string             StateKind() const override {return "molecule";}
     const Structure&        StateStructure() const override {return *itsStructure;}
-    StateIdentity           MakeStateIdentity() const override;
+    std::string             StateFunctional() const override;
+    std::string             KindTag() const override {return "molecule";}
+    double                  StateKT() const override;
     std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
     StateSummary            MakeStateSummary() const override;
     //!@}
@@ -271,6 +274,15 @@ private:
     bool   itsCarryExact = false;   //!< \c itsCarry is an EXACT RESUME (\c PrepareRestart): the first Fock is built from it
     bool   itsStartOnGDM = false;   //!< the next accelerator built is a Ladder started on its GDM rung (an exact resume at kT = 0), once
     double itsLastkT     = 0.0;     //!< the last Converge's smearing (the saved state's scf.kT)
+    //! \name \c Converge's STEPS (\c tCalculation's hooks)
+    //!@{
+    const Setup& GetSetup() const override;
+    //! One stage: the recipe's report, the graph (\c Prepare's, reused once, else rebuilt), the SCF, the mesh pilot, the result line.
+    bool RunStage(const SCFParams& params) override;
+    //! A schedule's stage (P4): on the setup's accelerator and recipe (\c AdmitStageOnSetup refuses another), from the density the last
+    //! stage reached once any SCF has run -- stage 0 of a \c Prepare'd graph runs on that graph, from the setup's seed.
+    void EnterStage(const SCFStage& stage, size_t index) override;
+    //!@}
     //! \name THE PROOF'S ANSWERS (\c tCalculation's hooks): the one place a failure is ranked, so \c Converge() and \c Result() cannot drift
     //!@{
     std::optional<SCFFailure>             MakeFailure()      const override;

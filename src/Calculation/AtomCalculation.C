@@ -66,7 +66,9 @@ public:
     //! basis.perIrrep) -- into the CALLER'S report run (a facade never opens one, user ruling D 2026-11-02); no SCF.  Run it with
     //! \c Converge(params), whose FIRST call reuses this graph.  Until then the accessors have no SCF to read.
     //!@{
-    static std::unique_ptr<AtomCalculation> Prepare(std::shared_ptr<const AtomSetup> setup, Observer onIteration = nullptr);
+    //! REFUSED (a value, R9) when a policy refuses while the graph is built (a 4-centre tensor that cannot fit in memory, a PP the run
+    //! cannot hold); its policy row is already filed.
+    static Outcome<std::unique_ptr<AtomCalculation>, BuildRefusal> Prepare(std::shared_ptr<const AtomSetup> setup, Observer onIteration = nullptr);
     //!@}
     //! \name RESTART FROM A SAVED STATE (V-FACADE-STATE; \c SaveState / \c JudgeState are the base's)
     //! The atomic twins of \c MoleculeCalculation::Restart / \c PrepareRestart, built from a setup as the constructor is:
@@ -88,9 +90,8 @@ public:
     static Outcome<std::unique_ptr<StateView>, RestartRefusal>
         ViewState(const std::string& path, std::shared_ptr<const AtomSetup> setup);
 
-    //! Run the SCF (the first call reuses a \c Prepare'd graph) and hand back the ANSWERS or the REASON (a bool until V-FACADE-PARITY P2).
-    //! Invalidates any \c Converged from an earlier attempt.  \c [[nodiscard]] via \c Outcome.  \c Result() (the base's) re-reads it.
-    Outcome<Converged, SCFFailure> Converge(const SCFParams& params = {});
+    //! \c Converge(edit) is the base's template method (V-FACADE-PARITY P3): the setup's \c opts.scf, edited by a one-field override
+    //! (R10); the first call reuses a \c Prepare'd graph.  \c Result() (the base's) re-reads its outcome.
     void OnIteration(Observer obs);
 
     double                 Energy()      const;
@@ -112,7 +113,7 @@ public:
     bool             IsConverged()    const;
     int              GetZ()           const {return itsSetup->Z;}
     const Structure& GetStructure()   const {return *itsSetup->structure;}
-    const AtomSetup& GetSetup()       const {return *itsSetup;}   //!< the setup this atom was built from (a restart or a sibling reads its decisions)
+    const AtomSetup& GetSetup()       const override {return *itsSetup;}   //!< the setup this atom was built from (a restart or a sibling reads its decisions); the base's hook, covariant
 
 private:
     typedef std::pair<double, const sf_t*> occ_t;
@@ -124,6 +125,14 @@ private:
     std::string AcceleratorTag() const;   //!< the accelerator type the setup resolved, as the scf header names it
     bool itsPrepared = false;             //!< \c Prepare built the graph: the next Converge reuses it instead of rebuilding
     void RebuildSampling();
+    //! \name \c Converge's STEPS (\c tCalculation's hooks)
+    //!@{
+    //! One stage: the recipe's report, the graph (\c Prepare's, reused once, else rebuilt), the SCF, the grid pilot, the result line.
+    bool RunStage(const SCFParams& params) override;
+    //! A schedule's stage (P4): on the setup's accelerator and recipe (\c AdmitStageOnSetup refuses another), from the density the last
+    //! stage reached once any SCF has run -- stage 0 of a \c Prepare'd graph runs on that graph, from the setup's seed.
+    void EnterStage(const SCFStage& stage, size_t index) override;
+    //!@}
     //! \name THE PROOF'S ANSWERS (\c tCalculation's hooks)
     //!@{
     std::optional<SCFFailure>             MakeFailure()      const override;
@@ -139,7 +148,9 @@ private:
     void                    RecordState(StateRecord&, double kT) const override;   //!< the base's keys + the radial basis, model, mesh
     std::string             StateKind() const override {return "atom";}
     const Structure&        StateStructure() const override {return *itsSetup->structure;}
-    StateIdentity           MakeStateIdentity() const override;
+    std::string             StateFunctional() const override;
+    std::string             KindTag() const override;
+    double                  StateKT() const override;
     std::vector<StateBlock> StateBlocks(bool withOrbitals) const override;
     StateSummary            MakeStateSummary() const override;
     //!@}

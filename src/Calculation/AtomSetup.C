@@ -22,7 +22,7 @@ inline const qcMesh::MeshParams kAtomMeshDefault = {.radial = qcMesh::RadialKind
 //! THE ATOM'S VIEW of the options tree: \a asked with the atom's defaults filled (model HF, \c kAtomMeshDefault, ortho Auto) and what an
 //! atom does not consume REFUSED (policy ForeignOption): the molecule and solid blocks, Nelec / charge / multiplicity (the atom's Z and
 //! charge are its structure's, its spin from the configuration), pp / species (the atom block's pseudopotential + valence), the
-//! imposition, spins, the top-level accelerator / recipe, orthoTol, label, saveStateTo.
+//! imposition, spins, orthoTol, label.  (\c saveStateTo is every kind's checkpoint, V-FACADE-PARITY P3.)
 RunOptions AtomOptions(const RunOptions& asked);
 //! A caller that edits ONE field of an atom's XC mesh starts from the atom's default (\c kAtomMeshDefault), filled on first use.
 inline qcMesh::MeshParams& AtomXCMesh(RunOptions& o) { if (!o.xcMesh) o.xcMesh=kAtomMeshDefault; return *o.xcMesh; }
