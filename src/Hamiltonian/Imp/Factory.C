@@ -11,7 +11,6 @@ module;
 module qchem.Hamiltonian.Factory;
 import qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Libxc_LDA;             // XC::LibXC selector (one libxc LDA functional)
-import qchem.Hamiltonian.Internal.Libxc_GGA;             // XC::LibXCGGA (one libxc GGA functional per part)
 import qchem.Hamiltonian.Internal.SlaterExchange;        // the DiracVWN functional list
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 
@@ -135,13 +134,10 @@ namespace qchem::Hamiltonian
                 return {std::make_shared<Libxc_LDA>(1), f};
             }
             case XC::LibXCGGA:
-            {
-                // Each part as libxc names it; an exchange-correlation id stands alone (libxcCorrId 0).  No Dirac exchange is added: a
-                // GGA's exchange part IS its exchange.
-                std::vector<std::shared_ptr<ExFunctional>> parts{std::make_shared<Libxc_GGA>(xc.libxcId)};
-                if (xc.libxcCorrId) parts.push_back(std::make_shared<Libxc_GGA>(xc.libxcCorrId));
-                return parts;
-            }
+                // A GGA is not a list of ExFunctional parts (it is a GGAFunctional, with sigma in its input TYPE), and no Hamiltonian
+                // term takes one until GGA stage 2: the setups refuse it first (policy GGARoute), so reaching here is a broken invariant.
+                throw std::logic_error("Hamiltonian::MakeXCParts: "+Describe(xc)+" is a GGA, which has no LDA parts and no XC term yet -- "
+                                       "the setup should have refused it (policy GGARoute)");
         }
         throw std::logic_error("Hamiltonian::MakeXCParts: an XC kind with no functional");
     }
@@ -264,11 +260,7 @@ namespace qchem::Hamiltonian
         }
     }
 
-    bool ConsumesDensityGradient(const XCFunctional& xc)
-    {
-        for (const auto& p : MakeXCParts(xc)) if (p->ConsumesDensityGradient()) return true;
-        return false;
-    }
+    bool ConsumesDensityGradient(const XCFunctional& xc) {return xc.kind==XC::LibXCGGA;}
 
     // THE single DFT build site: an XCFunctional choice -> the concrete polymorphic Hamiltonian, building
     // the Internal ExFunctional where one is needed.  Every other DFT entry point (the Model resolver, the

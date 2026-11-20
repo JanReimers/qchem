@@ -12,34 +12,24 @@ export import qchem.Types;           // rvec_t -- the batch records
 export namespace qchem::Hamiltonian
 {
 
-//! \brief THE BATCH INPUT of an XC evaluation, spin-native (GGA design note §2; user ruling 2026-11-20).  One entry per point, in the
-//! caller's order.  \c up / \c dn are \f$\rho_\uparrow,\rho_\downarrow\f$; the \f$\sigma\f$ triple
-//! \f$\sigma_{\sigma\tau}=\nabla\rho_\sigma\cdot\nabla\rho_\tau\f$ is filled only for a functional that \c ConsumesDensityGradient (empty
-//! otherwise: an LDA pays nothing).  An unpolarized run is its \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$,
-//! \f$\sigma_{\sigma\tau}=\sigma/4\f$ collapse, which the TERM supplies (pin 5): no functional carries a polarization flag.
-struct XCInput
+//! \brief THE BATCH INPUT of an LDA evaluation, spin-native: \f$\rho_\uparrow,\rho_\downarrow\f$, one entry per point in the caller's order.
+//! An LDA reads nothing else, so this record HAS nothing else: a GGA's input is its own type (\c GGAInput, \c qchem.Hamiltonian.Internal.GGAFunctional)
+//! with \f$\sigma\f$ required, never an optional member of a shared record (user, 2026-11-20).  An unpolarized run is its
+//! \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$ collapse, which the TERM supplies (pin 5).
+struct LDAInput
 {
-    rvec_t up, dn;                 //!< \f$\rho_\uparrow,\rho_\downarrow\f$
-    rvec_t sigUU, sigUD, sigDD;    //!< \f$\sigma_{\uparrow\uparrow},\sigma_{\uparrow\downarrow},\sigma_{\downarrow\downarrow}\f$; empty for an LDA
+    rvec_t up, dn;   //!< \f$\rho_\uparrow,\rho_\downarrow\f$
     size_t size() const {return up.size();}
-    bool   HasGradient() const {return sigUU.size()!=0;}
 };
 
-//! \brief THE BATCH OUTPUT: the energy density PER UNIT VOLUME \f$e\f$ (what a quadrature integrates, \f$E_{xc}=\sum_g w_g e_g\f$), its
-//! derivatives \f$v_{\rho\sigma}=\partial e/\partial\rho_\sigma\f$ and, for a GGA, \f$v_{\sigma\sigma\tau}=\partial e/\partial\sigma_{\sigma\tau}\f$
-//! (libxc's \c vsigma layout).  The \f$v_\sigma\f$ triple is empty when the input carried no gradient.  A composite SUMS outputs.
-struct XCOutput
+//! \brief THE BATCH OUTPUT of an LDA: the energy density PER UNIT VOLUME \f$e\f$ (\f$E_{xc}=\sum_g w_g e_g\f$) and
+//! \f$v_{\rho\sigma}=\partial e/\partial\rho_\sigma\f$.  A composite SUMS outputs.
+struct LDAOutput
 {
-    rvec_t e;                      //!< energy density per unit volume, \f$\sum_\sigma\rho_\sigma\varepsilon^\sigma\f$
-    rvec_t vUp, vDn;               //!< \f$\partial e/\partial\rho_\uparrow,\ \partial e/\partial\rho_\downarrow\f$
-    rvec_t vsUU, vsUD, vsDD;       //!< \f$\partial e/\partial\sigma_{\uparrow\uparrow},\ \partial e/\partial\sigma_{\uparrow\downarrow},\ \partial e/\partial\sigma_{\downarrow\downarrow}\f$; empty for an LDA input
-    //! Zeroed and sized for \a in (the gradient triple only when \a in carries one): what an \c Evaluate accumulates into.
-    void Reset(const XCInput& in)
-    {
-        const size_t n=in.size(), m=in.HasGradient() ? n : 0;
-        e=rvec_t(n,0.0); vUp=rvec_t(n,0.0); vDn=rvec_t(n,0.0);
-        vsUU=rvec_t(m,0.0); vsUD=rvec_t(m,0.0); vsDD=rvec_t(m,0.0);
-    }
+    rvec_t e;          //!< energy density per unit volume, \f$\sum_\sigma\rho_\sigma\varepsilon^\sigma\f$
+    rvec_t vUp, vDn;   //!< \f$\partial e/\partial\rho_\uparrow,\ \partial e/\partial\rho_\downarrow\f$
+    //! Zeroed, one entry per point of \a in: what an \c Evaluate accumulates into.
+    explicit LDAOutput(const LDAInput& in) : e(in.size(),0.0), vUp(in.size(),0.0), vDn(in.size(),0.0) {}
 };
 
 //! \brief An XC functional as a pure VALUE face: \f$\rho\mapsto v_{xc}\f$ and \f$\rho\mapsto
@@ -127,14 +117,13 @@ public:
     //! LDA is band-limited to the density's own bandwidth \f$\Rightarrow 1\f$; a GGA overrides with ~1.5--2.
     virtual double GridCutoffFactor() const {return 1.0;}
 
-    //! \name THE BATCH FACE (GGA design note §2; user ruling 2026-11-20, "Yes, all seven").
-    //! One evaluation over many points, records in and out: what a GGA needs (libxc evaluates a batch in one call) and what the XC
-    //! terms will move onto.  \c Evaluate ADDS this functional's contribution to \a out (sized by \c XCOutput::Reset), so a composite
-    //! is a loop.  The DEFAULT loops the spin-native scalar face above, so every LDA (Slater, VWN, the libxc LDAs) answers with the
-    //! numbers it gives today, point for point (a COMPOSITE's e associates its sum differently from its point face: roundoff, measured
-    //! 1 ulp); a GGA overrides it (its scalar faces cannot answer without \f$\sigma\f$).
+    //! \name THE BATCH FACE (GGA design note §2, revised 2026-11-20: an LDA batch, typed).
+    //! One evaluation over many points, records in and out.  \c Evaluate ADDS this functional's contribution to \a out, so a composite
+    //! is a loop.  The DEFAULT loops the spin-native scalar face above, so every LDA answers with the numbers it gives today, point for
+    //! point (a COMPOSITE's e associates its sum differently from its point face: roundoff, measured 1 ulp).  A GGA is NOT an
+    //! \c ExFunctional: it has no \f$\rho\f$-only face to give, and its batch takes a \c GGAInput (\c qchem.Hamiltonian.Internal.GGAFunctional).
     //!@{
-    virtual void Evaluate(const XCInput& in, XCOutput& out) const
+    virtual void Evaluate(const LDAInput& in, LDAOutput& out) const
     {
         for (size_t g=0;g<in.size();++g)
         {
@@ -144,10 +133,6 @@ public:
             out.vDn[g]+=GetVxc(u,d,Spin::Down);
         }
     }
-    //! Does this functional read \f$\nabla\rho\f$?  What the CLIENT does with the answer: a term asks its sampler for the \f$\sigma\f$
-    //! triple (and gathers the \f$\mathbf w\f$ field) only when this is true, so an LDA pays nothing; a policy refuses a route that
-    //! cannot supply the gradient.
-    virtual bool ConsumesDensityGradient() const {return false;}
     //!@}
 };
 
@@ -194,12 +179,9 @@ public:
     //! Each part answers with its OWN kernel (an analytic override where it has one) -- never a difference of the sum.
     virtual double GetFxc(double up, double dn, const Spin& s, const Spin& t) const
     {double f=0.0; for (const auto& p : itsParts) f+=p->GetFxc(up,dn,s,t); return f;}
-    //! The batch: each part adds its own contribution (an LDA part leaves the \f$v_\sigma\f$ triple untouched, i.e. zero).
-    virtual void Evaluate(const XCInput& in, XCOutput& out) const
+    //! The batch: each part adds its own contribution.
+    virtual void Evaluate(const LDAInput& in, LDAOutput& out) const
     {for (const auto& p : itsParts) p->Evaluate(in,out);}
-    //! Any part that reads \f$\nabla\rho\f$ makes the sum read it.
-    virtual bool ConsumesDensityGradient() const
-    {for (const auto& p : itsParts) if (p->ConsumesDensityGradient()) return true; return false;}
     //! The DENSEST part wins: a GGA in the mix sets the fit grid for the whole sum.
     virtual double GridCutoffFactor() const
     {double f=1.0; for (const auto& p : itsParts) f=max(f,p->GridCutoffFactor()); return f;}

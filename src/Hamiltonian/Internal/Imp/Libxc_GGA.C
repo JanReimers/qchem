@@ -28,23 +28,9 @@ Libxc_GGA::~Libxc_GGA() {xc_func_end(&itsPol);}
 
 bool Libxc_GGA::IsExchangeCorrelation() const {return itsPol.info->kind==XC_EXCHANGE_CORRELATION;}
 
-[[noreturn]] static void NoPointFace(const xc_func_type& f, const char* face)
-{
-    throw std::logic_error(std::string("Libxc_GGA (")+f.info->name+"): "+face+" asked without the density gradient -- a GGA answers "
-                           "only the batch face with the sigma triple; the route that called this should have been refused by policy");
-}
-double Libxc_GGA::GetVxc  (double) const {NoPointFace(itsPol, "GetVxc(rho)");}
-double Libxc_GGA::GetEpsXc(double) const {NoPointFace(itsPol, "GetEpsXc(rho)");}
-double Libxc_GGA::GetVxc  (double, double, const Spin&) const {NoPointFace(itsPol, "GetVxc(up,dn)");}
-double Libxc_GGA::GetEpsXc(double, double, const Spin&) const {NoPointFace(itsPol, "GetEpsXc(up,dn)");}
-double Libxc_GGA::GetFxc  (double, double, const Spin&, const Spin&) const {NoPointFace(itsPol, "GetFxc");}
-
 // libxc's polarized layout: rho[2g+s], sigma[3g+{uu,ud,dd}], zk[g] (per PARTICLE of the total), vrho[2g+s], vsigma[3g+{uu,ud,dd}].
-void Libxc_GGA::Evaluate(const XCInput& in, XCOutput& out) const
+void Libxc_GGA::Evaluate(const GGAInput& in, GGAOutput& out) const
 {
-    if (!in.HasGradient())
-        throw std::logic_error(std::string("Libxc_GGA (")+itsPol.info->name+")::Evaluate: the input carries no sigma triple -- the term "
-                               "must sample the density gradient for a functional that ConsumesDensityGradient");
     const size_t n=in.size();
     if (n==0) return;
     std::vector<double> rho(2*n), sigma(3*n), zk(n), vrho(2*n), vsigma(3*n);

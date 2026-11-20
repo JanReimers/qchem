@@ -60,6 +60,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/Hubbard.C                    # DFT+U: Hubbard_U + LowdinProjector (born on MatrixForward/Adjoint)
     Internal/ACBN0.C                      # DFT+U increment 3: ACBN0 realises HubbardUEstimator over HubbardProjection
     Internal/Libxc_LDA.C
+    Internal/GGAFunctional.C
     Internal/Libxc_GGA.C
     Internal/IonIon.C
     Internal/Kinetic.C

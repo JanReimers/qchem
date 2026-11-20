@@ -4,7 +4,6 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 #include <functional>
-#include <memory>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -23,9 +22,6 @@ import qchem.Types;
 import qchem.Mesh;                    // UnitCellKind, BeckeXCParams: the solid route families
 import qchem.Reporting;               // the filed run's policy row
 import qchem.Deck;                    // a deck stating model PBE
-import qchem.Hamiltonian.Internal.ExFunctional;   // CompositeExFunctional: the backstop
-import qchem.Hamiltonian.Internal.Libxc_GGA;
-import qchem.Hamiltonian.Internal.SlaterExchange;
 
 using namespace qchem;
 
@@ -120,8 +116,10 @@ std::vector<RouteCase> RouteFamilies()
 } // namespace
 
 // THE NO-SILENT-SUBSTITUTION INVARIANT (GGA stage 1): a GGA is REFUSED by name -- policy GGARoute, a "refuse" row in the run report's
-// policy scope -- on EVERY XC route family, since none samples the density gradient yet (stages 2-4).  Never an LDA in its place, never
-// a run with v_sigma dropped.
+// policy scope -- on EVERY XC route family, since none has a density-gradient sampler yet (stages 2-4).  This is the factory side's ONE
+// run-time check (user 2026-11-20: the gradient is a TYPE): past it, a GGA term cannot be constructed without a GGA functional and a
+// gradient sampler, and a GGA functional has no rho-only face to be misused through (GGA_XC.C's static_asserts) -- so there is no
+// "ran with v_sigma dropped" state left to guard at run time.
 TEST(GGARoute, EveryRouteRefusesAGGAUntilItSamplesTheGradient)
 {
     for (const RouteCase& c : RouteFamilies())
@@ -161,24 +159,5 @@ TEST(GGARoute, ADeckStatingPBEIsRefusedByName)
         {
             EXPECT_NE(std::string(e.what()).find("density gradient"), std::string::npos) << door << ": " << e.what();
         }
-    }
-}
-
-// THE BACKSTOP behind the policy: a route that reached a GGA anyway, through the point face every LDA term calls, THROWS -- alone or as
-// one part of a sum -- and so does the batch face handed no sigma.  An assert would be dead in Release, a silent v_sigma = 0 run.
-TEST(GGARoute, ARouteThatReachesAGGAWithoutTheGradientThrows)
-{
-    using namespace Hamiltonian;
-    const CompositeExFunctional pbe({std::make_shared<Libxc_GGA>(101), std::make_shared<Libxc_GGA>(130)});
-    const CompositeExFunctional mixed({std::make_shared<SlaterExchange>(2.0/3.0), std::make_shared<Libxc_GGA>(131)});
-    for (const CompositeExFunctional* f : {&pbe, &mixed})
-    {
-        ASSERT_TRUE(f->ConsumesDensityGradient());
-        EXPECT_THROW((void)f->GetVxc(0.1), std::logic_error);
-        EXPECT_THROW((void)f->GetExcDensity(0.1, 0.05), std::logic_error);
-        EXPECT_THROW((void)f->GetVxc(0.1, 0.05, Spin::Up), std::logic_error);
-        XCInput in; in.up=rvec_t{0.1}; in.dn=rvec_t{0.05};
-        XCOutput out; out.Reset(in);
-        EXPECT_THROW(f->Evaluate(in, out), std::logic_error) << "the batch face without sigma";
     }
 }

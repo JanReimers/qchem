@@ -71,8 +71,10 @@ export namespace qchem::Hamiltonian
     //! The DFT \a m as its functional (LDA -> DiracVWN, PADE -> libxc 20, Xalpha -> SlaterXalpha at \a xalpha, PBE -> libxc GGA {101,130},
     //! PBEsol -> {116,133}, BLYP -> {106,131}).  THROWS for a non-DFT model.
     XCFunctional ModelToXC(Model m, double xalpha=2.0/3.0);
-    //! Does \a xc read \f$\nabla\rho\f$ (a GGA, or a sum containing one)?  What the CLIENT does with it: a setup REFUSES every XC route
-    //! that cannot sample the density gradient (GGA design note §5), before anything is built.
+    //! Does the CHOICE \a xc name a GGA (a \c GGAFunctional, whose input TYPE carries \f$\sigma\f$)?  A question about the deck's
+    //! choice, not about a functional object.  What the CLIENT does with it: the setup -- the factory side, the ONE run-time check --
+    //! refuses (policy GGARoute, an Outcome) every route with no density-gradient sampler, which in GGA stage 1 is all of them; from
+    //! stage 2 it picks the GGA term, whose constructor demands the GGA functional and a gradient sampler.
     bool ConsumesDensityGradient(const XCFunctional& xc);
     //! The model's NAME, as decks, the facades' reports, saved states and a GUI spell it ("LDA", "PADE", "Xalpha", "HF", ...).
     std::string Name(Model);

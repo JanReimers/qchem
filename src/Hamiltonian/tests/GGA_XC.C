@@ -1,13 +1,16 @@
 // File: Hamiltonian/tests/GGA_XC.C  The GGA functionals from libxc (GGA stage 1, user ruling 2026-11-20): libxc's derivatives against a
-// finite difference of libxc's own energy (trust but verify), and the batch face against the point face for the LDAs.
+// finite difference of libxc's own energy (trust but verify), the LDA batch face against the LDA point face, and the gradient as a TYPE
+// (user 2026-11-20): a GGA has no rho-only face and its input cannot be made without sigma -- checked at COMPILE time.
 #include <algorithm>
 #include <cmath>
 #include <memory>
 #include <stdexcept>
+#include <type_traits>
 #include <vector>
 #include "gtest/gtest.h"
 
-import qchem.Hamiltonian.Internal.ExFunctional;      // XCInput / XCOutput, the batch face
+import qchem.Hamiltonian.Internal.ExFunctional;      // LDAInput / LDAOutput, the LDA batch face
+import qchem.Hamiltonian.Internal.GGAFunctional;     // GGAInput / GGAOutput
 import qchem.Hamiltonian.Internal.Libxc_GGA;         // the GGA under test
 import qchem.Hamiltonian.Internal.Libxc_LDA;
 import qchem.Hamiltonian.Internal.SlaterExchange;
@@ -39,21 +42,21 @@ std::vector<P> Points()
     return ps;
 }
 
-XCInput Input(const std::vector<P>& ps)
+GGAInput Input(const std::vector<P>& ps)
 {
     const size_t n=ps.size();
-    XCInput in{rvec_t(n), rvec_t(n), rvec_t(n), rvec_t(n), rvec_t(n)};
-    for (size_t g=0;g<n;++g) { in.up[g]=ps[g].up; in.dn[g]=ps[g].dn; in.sigUU[g]=ps[g].uu; in.sigUD[g]=ps[g].ud; in.sigDD[g]=ps[g].dd; }
-    return in;
+    rvec_t up(n), dn(n), uu(n), ud(n), dd(n);
+    for (size_t g=0;g<n;++g) { up[g]=ps[g].up; dn[g]=ps[g].dn; uu[g]=ps[g].uu; ud[g]=ps[g].ud; dd[g]=ps[g].dd; }
+    return GGAInput(up, dn, uu, ud, dd);
 }
 
-XCOutput Eval(const ExFunctional& f, const XCInput& in)
+GGAOutput Eval(const GGAFunctional& f, const GGAInput& in)
 {
-    XCOutput out; out.Reset(in); f.Evaluate(in, out); return out;
+    GGAOutput out(in); f.Evaluate(in, out); return out;
 }
 
 //! e at one point with one argument displaced by \a h.
-double EAt(const ExFunctional& f, P p, int arg, double h)
+double EAt(const GGAFunctional& f, P p, int arg, double h)
 {
     double* a[5]={&p.up, &p.dn, &p.uu, &p.ud, &p.dd};
     *a[arg]+=h;
@@ -72,7 +75,7 @@ TEST(LibxcGGA, EachDerivativeIsItsEnergysFiniteDifference)
     {
         const Libxc_GGA f(id);
         const std::vector<P> ps=Points();
-        const XCOutput out=Eval(f, Input(ps));
+        const GGAOutput out=Eval(f, Input(ps));
         for (size_t g=0;g<ps.size();++g)
         {
             const double v[5]={out.vUp[g], out.vDn[g], out.vsUU[g], out.vsUD[g], out.vsDD[g]};
@@ -99,7 +102,7 @@ TEST(LibxcGGA, TheUnpolarizedCollapseAnswersBothChannelsAlike)
         const Libxc_GGA f(id);
         std::vector<P> ps;
         for (double rho : {1e-3, 0.2, 5.0}) for (double sig : {1e-6, 0.03, 2.0}) ps.push_back({rho/2, rho/2, sig/4, sig/4, sig/4});
-        const XCOutput out=Eval(f, Input(ps));
+        const GGAOutput out=Eval(f, Input(ps));
         for (size_t g=0;g<ps.size();++g)
         {
             EXPECT_NEAR(out.vUp[g], out.vDn[g], 1e-13*std::abs(out.vUp[g])) << id;
@@ -108,21 +111,18 @@ TEST(LibxcGGA, TheUnpolarizedCollapseAnswersBothChannelsAlike)
     }
 }
 
-// THE BATCH FACE OF AN LDA IS ITS POINT FACE, number for number, PART BY PART: the default loops the spin-native face, so every LDA term
+// THE LDA BATCH FACE IS ITS POINT FACE, number for number, PART BY PART: the default loops the spin-native face, so every LDA term
 // moved onto the batch later keeps each functional's numbers.  The SUM associates differently (the composite's point face is
-// up·Σε↑ + dn·Σε↓, the batch Σ(up·ε↑ + dn·ε↓)): its e agrees to roundoff, its v (a plain sum either way) bit for bit.  And the gradient
-// question: no LDA reads ∇ρ; any sum holding a GGA does.
-TEST(LibxcGGA, AnLDAsBatchFaceIsItsPointFaceAndOnlyAGGAReadsTheGradient)
+// up·Σε↑ + dn·Σε↓, the batch Σ(up·ε↑ + dn·ε↓)): its e agrees to roundoff, its v (a plain sum either way) bit for bit.
+TEST(LibxcGGA, AnLDAsBatchFaceIsItsPointFace)
 {
     const std::vector<std::shared_ptr<ExFunctional>> parts{std::make_shared<SlaterExchange>(2.0/3.0), std::make_shared<VWN_Correlation>(),
                                                            std::make_shared<Libxc_LDA>(20)};
     const CompositeExFunctional lda(parts);
-    XCInput in;
-    in.up=rvec_t{0.3, 1e-3, 2.0, 0.4}; in.dn=rvec_t{0.3, 4e-3, 0.5, 0.0};   // ζ = 0, ζ < 0, ζ > 0, fully polarized
+    const LDAInput in{rvec_t{0.3, 1e-3, 2.0, 0.4}, rvec_t{0.3, 4e-3, 0.5, 0.0}};   // ζ = 0, ζ < 0, ζ > 0, fully polarized
     for (const auto& f : parts)
     {
-        XCOutput out; out.Reset(in); f->Evaluate(in, out);
-        EXPECT_EQ(out.vsUU.size(), 0u) << "an LDA input carries no sigma, and the output no v_sigma";
+        LDAOutput out(in); f->Evaluate(in, out);
         for (size_t g=0;g<in.size();++g)
         {
             EXPECT_EQ(out.e  [g], f->GetExcDensity(in.up[g], in.dn[g]));
@@ -130,7 +130,7 @@ TEST(LibxcGGA, AnLDAsBatchFaceIsItsPointFaceAndOnlyAGGAReadsTheGradient)
             EXPECT_EQ(out.vDn[g], f->GetVxc(in.up[g], in.dn[g], Spin::Down));
         }
     }
-    XCOutput out; out.Reset(in); lda.Evaluate(in, out);
+    LDAOutput out(in); lda.Evaluate(in, out);
     for (size_t g=0;g<in.size();++g)
     {
         const double e=lda.GetExcDensity(in.up[g], in.dn[g]);
@@ -138,24 +138,32 @@ TEST(LibxcGGA, AnLDAsBatchFaceIsItsPointFaceAndOnlyAGGAReadsTheGradient)
         EXPECT_EQ(out.vUp[g], lda.GetVxc(in.up[g], in.dn[g], Spin::Up));
         EXPECT_EQ(out.vDn[g], lda.GetVxc(in.up[g], in.dn[g], Spin::Down));
     }
-    EXPECT_FALSE(lda.ConsumesDensityGradient());
-    const CompositeExFunctional pbe({std::make_shared<Libxc_GGA>(101), std::make_shared<Libxc_GGA>(130)});
-    EXPECT_TRUE(pbe.ConsumesDensityGradient());
-    const CompositeExFunctional mixed({std::make_shared<SlaterExchange>(2.0/3.0), std::make_shared<Libxc_GGA>(131)});
-    EXPECT_TRUE(mixed.ConsumesDensityGradient()) << "one GGA part makes the sum read the gradient";
 }
 
-// THE REFUSALS: a GGA has no ρ-only point value (a route that reaches one should have been refused by policy), an input without σ is a
-// broken invariant, and an id that is not a pure GGA (an LDA, a hybrid with exact exchange) is not this evaluator's.
-TEST(LibxcGGA, APointFaceAMissingGradientAndANonGGAIdThrow)
+// THE GRADIENT IS A TYPE (user 2026-11-20: "If b the compile fails"): these are COMPILE-TIME facts, so a regression fails the build.
+// A GGA is not an ExFunctional, so it has no rho-only (or rho_up, rho_dn) face to call; it takes no LDA input; and a GGA input cannot be
+// made from densities alone.  Nothing here is a run-time refusal to test, because the wrong call does not exist.
+template <class F>            concept HasRhoOnlyFace   = requires(const F& f) { f.GetVxc(0.1); };
+template <class F>            concept HasSpinPointFace = requires(const F& f) { f.GetExcDensity(0.1, 0.1); };
+template <class F, class In, class Out> concept TakesInput = requires(const F& f, const In& in, Out& out) { f.Evaluate(in, out); };
+static_assert(!std::is_base_of_v<ExFunctional, Libxc_GGA>,             "a GGA is not an LDA-faced functional");
+static_assert(!std::is_base_of_v<ExFunctional, CompositeGGAFunctional>);
+static_assert( HasRhoOnlyFace<SlaterExchange> && HasSpinPointFace<SlaterExchange>, "(the probes see an LDA's faces)");
+static_assert(!HasRhoOnlyFace<Libxc_GGA>,                              "no rho-only face on a GGA");
+static_assert(!HasSpinPointFace<Libxc_GGA>,                            "no (rho_up, rho_dn) face on a GGA");
+static_assert( TakesInput<Libxc_GGA, GGAInput, GGAOutput> && TakesInput<SlaterExchange, LDAInput, LDAOutput>, "(the probes see the right inputs)");
+static_assert(!TakesInput<Libxc_GGA, LDAInput, LDAOutput>,                      "a GGA takes no LDA input");
+static_assert(!TakesInput<SlaterExchange, GGAInput, GGAOutput>,                 "an LDA takes no GGA input");
+static_assert(!std::is_constructible_v<GGAInput, rvec_t, rvec_t>,      "sigma is REQUIRED: no GGA input from densities alone");
+static_assert(!std::is_default_constructible_v<GGAInput>);
+
+// WHAT IS LEFT AT RUN TIME is what only a run-time value can get wrong: a libxc id (user-reachable through XCFunctional) that is not a
+// pure GGA, and a GGA input whose five arrays disagree in length.
+TEST(LibxcGGA, ANonGGAIdAndAMisSizedInputThrow)
 {
-    const Libxc_GGA f(101);
-    EXPECT_THROW((void)f.GetVxc(0.1), std::logic_error);
-    EXPECT_THROW((void)f.GetEpsXc(0.1, 0.05, Spin::Up), std::logic_error);
-    XCInput lda; lda.up=rvec_t{0.1}; lda.dn=rvec_t{0.1};
-    XCOutput out; out.Reset(lda);
-    EXPECT_THROW(f.Evaluate(lda, out), std::logic_error);
     EXPECT_THROW(Libxc_GGA(1),   std::invalid_argument) << "LDA_X is an LDA";
     EXPECT_THROW(Libxc_GGA(402), std::invalid_argument) << "B3LYP is a hybrid";
     EXPECT_THROW(Libxc_GGA(-7),  std::invalid_argument) << "no such id";
+    EXPECT_THROW(GGAInput(rvec_t{0.1}, rvec_t{0.1}, rvec_t{0.0}, rvec_t{}, rvec_t{0.0}), std::invalid_argument) << "sigma_ud has no entry";
+    EXPECT_THROW(CompositeGGAFunctional({}), std::invalid_argument);
 }
