@@ -11,6 +11,7 @@ module;
 module qchem.Hamiltonian.Factory;
 import qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Libxc_LDA;             // XC::LibXC selector (one libxc LDA functional)
+import qchem.Hamiltonian.Internal.Libxc_GGA;             // XC::LibXCGGA: the GGA functional the factory asks
 import qchem.Hamiltonian.Internal.SlaterExchange;        // the DiracVWN functional list
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 
@@ -260,7 +261,22 @@ namespace qchem::Hamiltonian
         }
     }
 
-    bool ConsumesDensityGradient(const XCFunctional& xc) {return xc.kind==XC::LibXCGGA;}
+    //! A GGA choice as its functional: one \c Libxc_GGA per part (THROWS for an id that is not a pure GGA), summed.  GGA stage 2's term
+    //! factory takes it from here; until then only the query below asks it.
+    static std::shared_ptr<const GGAFunctional> MakeGGAFunctional(const XCFunctional& xc)
+    {
+        std::vector<std::shared_ptr<const GGAFunctional>> parts{std::make_shared<Libxc_GGA>(xc.libxcId)};
+        if (xc.libxcCorrId) parts.push_back(std::make_shared<Libxc_GGA>(xc.libxcCorrId));
+        return std::make_shared<CompositeGGAFunctional>(std::move(parts));
+    }
+
+    //! THE FACTORY ASKS THE FUNCTIONAL (user, 2026-11-20: "the sampler should know (or be able to ask) Exc if σ are needed or not"):
+    //! the choice is built as its functional, of the face its kind names, and that object answers.
+    bool ConsumesDensityGradient(const XCFunctional& xc)
+    {
+        if (xc.kind==XC::LibXCGGA) return MakeGGAFunctional(xc)->ConsumesDensityGradient();
+        return CompositeExFunctional(MakeXCParts(xc)).ConsumesDensityGradient();
+    }
 
     // THE single DFT build site: an XCFunctional choice -> the concrete polymorphic Hamiltonian, building
     // the Internal ExFunctional where one is needed.  Every other DFT entry point (the Model resolver, the

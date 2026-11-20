@@ -5,6 +5,7 @@
 #include <cmath>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
 #include <vector>
 #include "gtest/gtest.h"
@@ -166,4 +167,24 @@ TEST(LibxcGGA, ANonGGAIdAndAMisSizedInputThrow)
     EXPECT_THROW(Libxc_GGA(-7),  std::invalid_argument) << "no such id";
     EXPECT_THROW(GGAInput(rvec_t{0.1}, rvec_t{0.1}, rvec_t{0.0}, rvec_t{}, rvec_t{0.0}), std::invalid_argument) << "sigma_ud has no entry";
     EXPECT_THROW(CompositeGGAFunctional({}), std::invalid_argument);
+}
+
+// THE QUERY each face answers (what the factory asks), and THE FORGOTTEN-GRADIENT DETECTOR the GGA term runs per refresh: an all-zero
+// sigma over a varying density THROWS, naming the route; a real sigma, or a uniform density (sigma = 0 is physics there), passes.
+TEST(LibxcGGA, AZeroedSigmaOverAVaryingDensityThrows)
+{
+    EXPECT_TRUE (Libxc_GGA(101).ConsumesDensityGradient());
+    EXPECT_FALSE(SlaterExchange(2.0/3.0).ConsumesDensityGradient());
+    const rvec_t up{0.3, 0.1, 0.02}, dn{0.2, 0.1, 0.01}, zero(3, 0.0);
+    try
+    {
+        RequireGradientSampled(GGAInput(up, dn, zero, zero, zero), "the test route");
+        ADD_FAILURE() << "a zeroed sigma over a varying density passed";
+    }
+    catch (const std::logic_error& e)
+    {
+        EXPECT_NE(std::string(e.what()).find("the test route"), std::string::npos) << e.what();
+    }
+    EXPECT_NO_THROW(RequireGradientSampled(GGAInput(up, dn, rvec_t{1e-3, 2e-4, 0.0}, zero, zero), "real sigma"));
+    EXPECT_NO_THROW(RequireGradientSampled(GGAInput(rvec_t(3, 0.2), rvec_t(3, 0.2), zero, zero, zero), "the uniform gas"));
 }

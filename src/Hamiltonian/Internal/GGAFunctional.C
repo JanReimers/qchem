@@ -60,7 +60,34 @@ class GGAFunctional
 public:
     //! ADDS this functional's \f$e\f$, \f$v_\rho\f$, \f$v_\sigma\f$ to \a out (one entry per point of \a in), so a composite is a loop.
     virtual void Evaluate(const GGAInput& in, GGAOutput& out) const=0;
+    //! TRUE: what the factory asks (user, 2026-11-20: "the sampler should know (or be able to ask) Exc if σ are needed or not") to
+    //! build the GGA term with a density-gradient sampler, which then builds and caches \f$\nabla\rho\f$ at \c RefreshForDensity.
+    //! The TYPE already says it (an \c ExFunctional answers false); the query lets a factory or a report ask either face the same way.
+    virtual bool ConsumesDensityGradient() const final {return true;}
 };
+
+//! \brief THE FORGOTTEN-GRADIENT DETECTOR, a live check the GGA term runs once per refresh (user, 2026-11-20: "I have no problem if want to
+//! check for σ = 0 everywhere just in case we have a bug and we forgot to calculate (and cache) σ").  THROWS, naming \a route, when
+//! \f$\max_g(\sigma_{\uparrow\uparrow}+\sigma_{\downarrow\downarrow})=0\f$ over every point while the density is NOT uniform
+//! (\f$\max\rho-\min\rho>10^{-12}\max\rho\f$): a varying density has a nonzero gradient somewhere, so an all-zero \f$\sigma\f$ is a
+//! gradient that was never computed, not physics.  A uniform density (the electron gas) passes, as it must.  One pass over the batch:
+//! cheap beside the libxc call it guards.  A throw, not an assert: an assert is dead in Release, where the bug would run as an LDA.
+void RequireGradientSampled(const GGAInput& in, const std::string& route)
+{
+    const size_t n=in.size();
+    if (n==0) return;
+    double sMax=0.0, rMin=in.up[0]+in.dn[0], rMax=rMin;
+    for (size_t g=0;g<n;++g)
+    {
+        const double s=in.sigUU[g]+in.sigDD[g], r=in.up[g]+in.dn[g];
+        if (s>sMax) sMax=s;
+        if (r<rMin) rMin=r;
+        if (r>rMax) rMax=r;
+    }
+    if (sMax==0.0 && rMax-rMin>1e-12*rMax)
+        throw std::logic_error("GGA on "+route+": sigma is zero at all "+std::to_string(n)+" points while rho varies ("+std::to_string(rMin)+
+                               " .. "+std::to_string(rMax)+") -- the density gradient was never computed (or cached), and the run would be an LDA");
+}
 
 //! \brief A SUM OF GGA PARTS behaving as one (PBE = GGA_X_PBE + GGA_C_PBE): the GGA twin of \c CompositeExFunctional, for the same
 //! reason (one gather of the summed potential, not one per part).

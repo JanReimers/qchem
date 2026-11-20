@@ -133,6 +133,9 @@ public:
             out.vDn[g]+=GetVxc(u,d,Spin::Down);
         }
     }
+    //! FALSE: an LDA reads no \f$\nabla\rho\f$, so the factory builds its term with no gradient sampler (the \c GGAFunctional face
+    //! answers true).  User, 2026-11-20: "the sampler should know (or be able to ask) Exc if σ are needed or not".
+    virtual bool ConsumesDensityGradient() const final {return false;}
     //!@}
 };
 
