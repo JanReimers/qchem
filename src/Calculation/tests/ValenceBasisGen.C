@@ -33,7 +33,6 @@ import qchem.Symmetry.Irrep;
 import qchem.Structure;                  // Molecule, Atom
 import qchem.BasisSet;                   // Real_BS
 import qchem.BasisSet.Gaussian.Point.Factory;  // Gaussian::Factory, BasisSetData
-import qchem.Types;
 import qchem.Reporting;                  // report::GlobalReport -- inspect the recorded basis.usage
 
 using namespace qchem;

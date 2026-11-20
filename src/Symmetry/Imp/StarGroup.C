@@ -5,7 +5,6 @@ module;
 #include <functional>
 module qchem.Symmetry.StarGroup;
 import qchem.Symmetry.Lattice_3D.Fold;   // FoldGVectors: the star partition of a G set
-import qchem.CMath;                      // Pi
 
 namespace qchem::Symmetry
 {
