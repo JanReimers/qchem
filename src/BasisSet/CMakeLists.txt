@@ -17,6 +17,7 @@ target_sources(qcBasisSet PRIVATE
   Internal/Imp/Cache3.C
   Imp/PairProjection.C
   Imp/GSpaceDensityProjector.C
+  Imp/RasterDensityProjector.C
   Internal/Imp/ERI4.C
   Internal/Imp/ERI4T.C
 
@@ -52,6 +53,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   CoulombDeltaFit_IBS.C
   GSpaceDensityProjector.C              # the ρ̃ projector FACTORY (returns the PairProjector<dcmplx> face)
   Internal/GSpaceDensityProjector.C     # ...its class (only the factory names it)
+  RasterDensityProjector.C              # the raw rho_DM projector on a fit raster (R1.0n/o, 2026-11-19)
   Internal/SymmetryAdapted_IBS.C
   Internal/BasisSetImp.C
   Internal/IrrepBasisSetImp.C

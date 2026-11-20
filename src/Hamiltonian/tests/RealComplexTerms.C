@@ -52,6 +52,7 @@ import qchem.CompositeCD;                          // tComposite_CD<dcmplx> (the
 import qchem.Mesh;                                 // qcMesh::MeshParams
 import qchem.Fitting.FunctionFitter;               // DeltaScalarFit
 import qchem.BasisSet.GSpaceDensityProjector;      // ρ̃ through the one projection face (V-ONE-OF-N 3c)
+import qchem.BasisSet.RasterDensityProjector;      // raw ρ_DM through the same face (R1.0n/o)
 import qchem.Types;
 
 using namespace qchem;
@@ -447,6 +448,40 @@ TEST(RealComplexTerms, SeedDensityTrioMatches_FccDiamond)
     const rvec_t cgr=fm.GetRhoOnGrid(*sf), cgc=fx.GetRhoOnGrid(*sf);
     ASSERT_EQ(cgr.size(), cgc.size());
     for (size_t g=0; g<cgr.size(); g++) EXPECT_EQ(cgr[g], cgc[g]) << "composite raw rho mismatch at g="<<g;
+}
+
+// R1.0n/o (2026-11-19): the raw ρ_DM on the fit's raster, asked through the one projection face (MakeRasterDensityProjector), is the
+// interim face's answer BIT FOR BIT -- for the real TRIM leaf, the Bloch leaf, and the run-shaped composites over each.  The same
+// collocation (applyRaw) runs on the same D, and a composite sums its blocks in the same order.
+TEST(RealComplexTerms, TheRasterProjectorIsTheRawRasterBitForBit)
+{
+    using namespace qchem::ChargeDensity;
+    FccRig rig;
+    const size_t n=rig.re->GetNumFunctions();
+    rsmat_t Dr(n); chmat_t Dc(n);
+    for (size_t i=0;i<n;i++) { Dr(i,i)=8.0/double(n); Dc(i,i)=8.0/double(n); }
+    Dr(0,1)=Dr(1,0)=0.25; Dc(0,1)=Dc(1,0)=0.25;   // an off-diagonal pair, so the collocation sums pairs
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    const auto raster=BasisSet::MakeRasterDensityProjector(sf);
+    EXPECT_NE(dynamic_cast<const BasisSet::RasterPairCollocation*>(rig.cx.get()), nullptr) << "a GPW block has the raw route";
+
+    auto same=[](const rvec_t& a, const rvec_t& b, const char* what)
+    {
+        ASSERT_EQ(a.size(), b.size()) << what;
+        ASSERT_GT(a.size(), 0u) << what;
+        for (size_t g=0; g<a.size(); g++) ASSERT_EQ(a[g], b[g]) << what << " at g=" << g;
+    };
+    PeriodicIrrepCD<double> cdr(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None));
+    PeriodicIrrepCD<dcmplx> cdc(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None));
+    same(cdr.Project(*raster).Vector(), cdr.GetRhoOnGrid(*sf), "real TRIM leaf");
+    same(cdc.Project(*raster).Vector(), cdc.GetRhoOnGrid(*sf), "Bloch leaf");
+
+    tComposite_CD<dcmplx> mixed;  mixed.Insert(std::unique_ptr<tDM_CD<double>>(
+        new PeriodicIrrepCD<double>(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None))), rig.re->GetIrrep(Spin::None));
+    tComposite_CD<dcmplx> cplx;   cplx.Insert(std::unique_ptr<tDM_CD<dcmplx>>(
+        new PeriodicIrrepCD<dcmplx>(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None))), rig.cx->GetIrrep(Spin::None));
+    same(mixed.Project(*raster).Vector(), dynamic_cast<const RasterDensity&>(mixed).GetRhoOnGrid(*sf), "mixed composite");
+    same(cplx .Project(*raster).Vector(), dynamic_cast<const RasterDensity&>(cplx ).GetRhoOnGrid(*sf), "complex composite");
 }
 
 // The RAW-route pair-quadrature gate (Step 3c-3): the production Uniform-mesh XC.  The collocated rho_DM

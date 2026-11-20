@@ -65,12 +65,13 @@ struct GField
 //! The ledger row a mixer's ρ̃ star-average is timed under (its projector's; the Hartree fitter keeps its own).
 inline constexpr const char* kMixerStarAverageBucket="mixer: rho-tilde IBZ star-average (SymmetrizeGMap)";
 
-//! \brief \a d's field on \a fit's G-space: ρ̃(G), the density's projection onto \a p (\a fit's ρ̃ projector; V-ONE-OF-N 3c, it
-//! used to be a FourierDensity face of the density's own), and its raw-raster shadow (empty when \a d has no raw path).
-inline GField FieldOf(const tChargeDensity<dcmplx>& d, const BasisSet::PairProjector<dcmplx>& p, const BasisSet::cFIT_SF_ABS& fit)
+//! \brief \a d's field on the mixer's G-space: ρ̃(G), the density's projection onto \a p (the fit's ρ̃ projector; V-ONE-OF-N 3c),
+//! and its raw-raster shadow, the density's projection onto \a raster (the same fit's raw ρ_DM projector; R1.0n/o, 2026-11-19).
+//! \a raster is null when the run has no raw route (decided once at setup, from the orbital lineage): the shadow is then empty, the
+//! raw pipeline off.  A density with no D answers its own raster values, empty when it has none (a seed; the pipeline not yet on).
+inline GField FieldOf(const tChargeDensity<dcmplx>& d, const BasisSet::PairProjector<dcmplx>& p, const BasisSet::PairProjector<dcmplx>* raster)
 {
-    auto* rd=dynamic_cast<const RasterDensity*>(&d);   // the interim raw-raster face (abstract -> abstract)
-    return {d.Project(p).GMap(), rd ? rd->GetRhoOnGrid(fit) : rvec_t{}};
+    return {d.Project(p).GMap(), raster ? d.Project(*raster).Vector() : rvec_t{}};
 }
 
 //! The result of ONE Kerker step on a field: the mixed map, plus the two pieces of PROVENANCE the mixed
@@ -125,16 +126,19 @@ inline std::shared_ptr<FourierMixCD> PresentFromD(const GField& f, const Recipro
 class KerkerPreconditioner
 {
 public:
-    KerkerPreconditioner(double relax, double G0, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, ReciprocalLattice recip)
+    //! \a raster is the fit's raw ρ_DM projector, or null when the run has no raw route (the shadow is then off for the run).
+    KerkerPreconditioner(double relax, double G0, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, ReciprocalLattice recip,
+                         std::shared_ptr<const BasisSet::PairProjector<dcmplx>> raster={})
         : itsRelax(relax), itsG0(G0), itsFit(std::move(fit))
         , itsProjector(itsFit ? BasisSet::MakeGSpaceDensityProjector(itsFit, kMixerStarAverageBucket) : nullptr)
+        , itsRaster(std::move(raster))
         , itsRecip(std::move(recip)) {}
     //! \a d's field on this mixer's G-space: ρ̃(G) and its raster shadow.  A preconditioner built with no fit basis (a unit test
     //! driving the algebra on hand-made fields) cannot answer.
     GField FieldOf(const tChargeDensity<dcmplx>& d) const
     {
         if (!itsProjector) throw std::logic_error("KerkerPreconditioner::FieldOf: built with no fit basis, so it has no G-space to project onto");
-        return ChargeDensity::FieldOf(d, *itsProjector, *itsFit);
+        return ChargeDensity::FieldOf(d, *itsProjector, itsRaster.get());
     }
     //! The filtered step on the (in, out) pair the extrapolator chose (\c KerkerStep; \a cusp forms the N4 correction).
     KerkerStepResult Step(const ΔG_Map& in, const ΔG_Map& out, bool cusp=false) const
@@ -152,6 +156,7 @@ private:
     double itsRelax, itsG0;
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsFit;
     std::shared_ptr<const BasisSet::PairProjector<dcmplx>> itsProjector;   //!< ρ̃ on itsFit (shared: a preconditioner is copyable)
+    std::shared_ptr<const BasisSet::PairProjector<dcmplx>> itsRaster;      //!< raw ρ_DM on itsFit's raster; null = no raw route
     ReciprocalLattice itsRecip;
 };
 

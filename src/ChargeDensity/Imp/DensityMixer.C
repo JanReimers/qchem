@@ -10,6 +10,7 @@ module qchem.ChargeDensity.DensityMixer;
 import qchem.ChargeDensity.Internal.LinearMixer;
 import qchem.ChargeDensity.Internal.FieldMixer;
 import qchem.BasisSet.GSpaceDensityProjector;   // the ρ̃ projector factory
+import qchem.BasisSet.RasterDensityProjector;   // the raw ρ_DM projector factory + the lineage face that decides it (R1.0n/o)
 import qchem.ChargeDensity.Internal.KerkerMixer;
 import qchem.ChargeDensity.Internal.PulayMixer;
 import qchem.ChargeDensity.Internal.PolarizedDensityMixer;
@@ -30,9 +31,25 @@ namespace {
 //! emitted HERE because this is where the ρ̃ map and the raw-raster shadow are in hand.
 //! \a cusp: does THIS leaf present the N4 correction?  Yes for an unpolarized or (ρ↑,ρ↓) leaf; no for a (ρ,m) leaf, whose
 //! channel is not a spin channel -- there the polarized mixer forms the per-spin corrections itself.
+using rproj_t = std::shared_ptr<const BasisSet::PairProjector<dcmplx>>;   //!< the raw ρ_DM projector (null = no raw route)
 using LeafBuilder = std::function<std::unique_ptr<tDensityMixer<dcmplx>>(
     GField seed0, double charge, double G0, const std::string& label,
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip, bool cusp)>;
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip, bool cusp, rproj_t raster)>;
+
+//! THE RAW ROUTE, DECIDED ONCE FROM THE ORBITAL LINEAGE (R1.0n/o): every block collocates its pair products raw on a raster (GPW).  A
+//! plane-wave block's pair products ARE plane waves, so it has no raw route and the mixer's raster shadow stays off for the run.  Until
+//! 2026-11-19 this was rediscovered on every call, by an empty vector from each block.
+bool HasRawRasterRoute(const BasisSet::tBasisSet<dcmplx>& bs)
+{
+    if (bs.GetNumIBS()==0) return false;
+    for (size_t i=0;i<bs.GetNumIBS();++i)
+    {
+        const bool raw = bs.GetRealIBS(i) ? dynamic_cast<const BasisSet::RasterPairCollocation*>(bs.GetRealIBS(i))!=nullptr
+                                          : dynamic_cast<const BasisSet::RasterPairCollocation*>(bs[i])!=nullptr;   // abstract -> abstract
+        if (!raw) return false;
+    }
+    return true;
+}
 
 void Banner(const char* tag, const std::string& label, double G0, double charge, const GField& seed0)
 {
@@ -57,7 +74,8 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
                   return std::shared_ptr<const BasisSet::cFIT_SF_ABS>(basis->CreateVxcFitBasisSet(&cell, qcMesh::MeshParams{})); }();
     ReciprocalLattice recip(cell.MakeReciprocal());
     const auto proj=BasisSet::MakeGSpaceDensityProjector(fit, kMixerStarAverageBucket);   // the seed's ρ̃ (V-ONE-OF-N 3c)
-    auto field=[&](const tChargeDensity<dcmplx>& cd){return FieldOf(cd, *proj, *fit);};
+    const rproj_t raster=HasRawRasterRoute(*basis) ? rproj_t(BasisSet::MakeRasterDensityProjector(fit)) : rproj_t{};
+    auto field=[&](const tChargeDensity<dcmplx>& cd){return FieldOf(cd, *proj, raster.get());};
     // POLARIZED: one ρ̃ mixer PER CHANNEL, composed (PolarizedDensityMixer).  A single-map mixer would hand the
     // Fock a spin-blind total and collapse v_xc to the ζ=0 branch from iteration 1 -- the MnO AFM-II collapse,
     // 2026-08-07.  (KerkerParams::spinBlind takes the single-map path on a polarized density anyway: the negative
@@ -83,18 +101,18 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
             // leaves present none.
             const GField gu=field(*up), gd=field(*dn);
             auto mr=leaf(GField{gu.tilde+gd.tilde, RawCombine(gu.raster,gd.raster,+1.0,1.0)},
-                         up->GetTotalCharge()+dn->GetTotalCharge(), p.G0, "ρ", fit, recip, /*cusp*/false);
+                         up->GetTotalCharge()+dn->GetTotalCharge(), p.G0, "ρ", fit, recip, /*cusp*/false, raster);
             auto mm=leaf(GField{gu.tilde-gd.tilde, RawCombine(gu.raster,gd.raster,-1.0,1.0)},
-                         0.0, /*G0*/0.0, "m: LINEAR, undamped", fit, recip, /*cusp*/false);
+                         0.0, /*G0*/0.0, "m: LINEAR, undamped", fit, recip, /*cusp*/false, raster);
             return std::make_unique<PolarizedDensityMixer>(std::move(mr), std::move(mm), fit, recip,
-                                                           ChannelBasis::TotalAndMoment, p.cuspDeficit);
+                                                           ChannelBasis::TotalAndMoment, p.cuspDeficit, raster);
         }
-        auto mu=leaf(field(*up), up->GetTotalCharge(), p.G0, "↑", fit, recip, p.cuspDeficit);
-        auto md=leaf(field(*dn), dn->GetTotalCharge(), p.G0, "↓", fit, recip, p.cuspDeficit);
+        auto mu=leaf(field(*up), up->GetTotalCharge(), p.G0, "↑", fit, recip, p.cuspDeficit, raster);
+        auto md=leaf(field(*dn), dn->GetTotalCharge(), p.G0, "↓", fit, recip, p.cuspDeficit, raster);
         return std::make_unique<PolarizedDensityMixer>(std::move(mu), std::move(md), fit, recip,
-                                                       ChannelBasis::SpinChannels);
+                                                       ChannelBasis::SpinChannels, /*cusp*/false, raster);
     }
-    return leaf(field(*seed), seed->GetTotalCharge(), p.G0, "", fit, recip, p.cuspDeficit);
+    return leaf(field(*seed), seed->GetTotalCharge(), p.G0, "", fit, recip, p.cuspDeficit, raster);
 }
 
 } // anonymous
@@ -123,11 +141,11 @@ std::unique_ptr<tDensityMixer<dcmplx>> KerkerMixerFactory(const KerkerParams& p,
                                                           const UnitCell& cell, const tChargeDensity<dcmplx>* seed)
 {
     LeafBuilder leaf=[&p](GField seed0, double charge, double G0, const std::string& label,
-                          std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip, bool cusp)
+                          std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip, bool cusp, rproj_t raster)
     {
         Banner("Kerker", label, G0, charge, seed0);
         return std::unique_ptr<tDensityMixer<dcmplx>>(
-            std::make_unique<KerkerMixer>(KerkerPreconditioner(p.relax, G0, std::move(fit), recip), std::move(seed0), charge, cusp));
+            std::make_unique<KerkerMixer>(KerkerPreconditioner(p.relax, G0, std::move(fit), recip, std::move(raster)), std::move(seed0), charge, cusp));
     };
     return ComposePeriodic(p, "Kerker", basis, cell, seed, leaf);
 }
@@ -138,11 +156,11 @@ std::unique_ptr<tDensityMixer<dcmplx>> PulayMixerFactory(const PulayParams& p, c
     // N4 (pin 28) on the Pulay arm: the correction is rho_mix - rho_fit of the LATEST output (PulayMixer::ApplyJoint), the
     // D XC samples -- the extrapolation only changes which rho_mix is presented, not what the deficit is measured against.
     LeafBuilder leaf=[&p](GField seed0, double charge, double G0, const std::string& label,
-                          std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip, bool cusp)
+                          std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip, bool cusp, rproj_t raster)
     {
         Banner("Pulay", label, G0, charge, seed0);
         return std::unique_ptr<tDensityMixer<dcmplx>>(
-            std::make_unique<PulayMixer>(KerkerPreconditioner(p.relax, G0, std::move(fit), recip), p.depth, p.start,
+            std::make_unique<PulayMixer>(KerkerPreconditioner(p.relax, G0, std::move(fit), recip, std::move(raster)), p.depth, p.start,
                                          std::move(seed0), charge, cusp));
     };
     return ComposePeriodic(p, "Pulay", basis, cell, seed, leaf);

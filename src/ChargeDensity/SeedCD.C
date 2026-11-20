@@ -22,6 +22,7 @@ module;
 export module qchem.ChargeDensity.SeedCD;
 export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>, cSpinResolved_CD, Spin
 export import qchem.ChargeDensity.RasterDensity;   // RasterDensity (the interim raw-raster face)
+export import qchem.BasisSet.RasterDensityProjector; // RasterValuedField: a seed carries no raw raster values (R1.0n/o)
 export import qchem.ChargeDensity.AtomicDensity;          // RadialDensity, RecentredAtomicDensity, GetAtomicDensity
 import qchem.BasisSet.Orbital_DFT_IBS;                      // cFIT_CD_ABS (the density-fit basis it builds rho-tilde through)
 import qchem.UnitCell;                              // UnitCell (the flip-group sub-cells of a channel seed)
@@ -35,6 +36,7 @@ class SeedCD
     : public virtual tChargeDensity<dcmplx>
     , public virtual RasterDensity                //!< no raw raster (the empty default): a mixer still reads the face
     , public virtual BasisSet::AnalyticFourier   //!< my Fourier components, the field capability a G-space projector asks (V-ONE-OF-N 3b)
+    , public virtual BasisSet::RasterValuedField //!< ...and no raw raster values: the raster projector reads "none" (the ball route is the caller's)
 {
 public:
     //! Build the seed for density-fit basis \a fitBasis (from the orbital basis's CreateCDFitBasisSet) and
@@ -61,6 +63,8 @@ public:
     // tChargeDensity::Project's field default).  The seed carries no D, so its rho-tilde IS the structure-factor
     // density (fit basis ignored).  No raw raster (RasterDensity's empty default).
     virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override;
+    //! RasterValuedField: none (a seed has no density matrix, so no RAW ρ_DM; the XC sampler takes the ball route for it, pin 28).
+    virtual rvec_t RasterValues(const BasisSet::cFIT_SF_ABS&) const override {return rvec_t{};}
 
     // ScalarFunction<double> -- real-space rho(r) = Sum_atoms rho_atom(|r-R|) (not used by the PW Fock build,
     // which goes through FourierComponents, but provided so the type is whole).
@@ -114,6 +118,7 @@ class PolarizedSeedCD
     : public virtual tChargeDensity<dcmplx>
     , public virtual RasterDensity                //!< no raw raster (the empty default): a mixer still reads the face
     , public virtual BasisSet::AnalyticFourier   //!< my Fourier components, the field capability a G-space projector asks (V-ONE-OF-N 3b)
+    , public virtual BasisSet::RasterValuedField //!< ...and no raw raster values: the raster projector reads "none" (the ball route is the caller's)
     , public virtual cSpinResolved_CD
 {
 public:
@@ -126,6 +131,8 @@ public:
 
     // AnalyticFourier -- the ↑+↓ TOTAL (what Hartree consumes; spin never enters V_H).
     virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override;
+    //! RasterValuedField: none, as each channel seed.
+    virtual rvec_t RasterValues(const BasisSet::cFIT_SF_ABS&) const override {return rvec_t{};}
 
     // ScalarFunction<double> -- the total rho(r).
     virtual double  operator()(const rvec3_t&) const override;
