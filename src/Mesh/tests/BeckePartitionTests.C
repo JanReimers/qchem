@@ -3,7 +3,9 @@
 // its owner, against the HAND DERIVATION below (the ORACLE: test code only, never a production path -- the user's ruling 2026-11-08,
 // derivatives are Enzyme's), and for translation invariance.  Without Enzyme the gradient refuses with NoGradient.
 #include "gtest/gtest.h"
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <vector>
 import qchem.Mesh.BeckePartition;
 
@@ -128,4 +130,98 @@ TEST(BeckePartition, TheGradientIsTheFiniteDifferenceAndTheOracleWithThePointRid
     EXPECT_EQ(norm(one[0]), 0.0) << "one atom: the weight is 1 everywhere";
     const auto atNucleus=qcMesh::BeckePartitionGradient(kAtoms, 1, kAtoms[1], 3);
     for (size_t D=0;D<kAtoms.size();++D) EXPECT_LT(norm(atNucleus[D]-HandGradient(kAtoms, 1, kAtoms[1], 3)[D]), 1e-15) << "at the owner's nucleus: zero";
+}
+
+// THE PERIODIC PARTITION's GRADIENT (lane B 2026-11-19): PeriodicBeckeWeightGradient against the central difference of PeriodicBeckeWeight
+// itself, the point riding its owner (r = R_ia + u), on an oblique cell with two atoms -- per CELL ATOM (every image of an atom moves with
+// it: the force), and per homogeneous strain (cell, atoms and images strained, the template offset u held: the virial Σ_X g_X ⊗ X).  The
+// eps screen is set at 1e-12 so no P-set member crosses it inside ±h.
+namespace
+{
+//! A general cell: columns of A are the lattice vectors (ToCartesian(f) = A f).
+struct TestCell
+{
+    double A[3][3];
+    rvec3_t ToCartesian(const rvec3_t& f) const
+    {
+        return rvec3_t(A[0][0]*f.x+A[0][1]*f.y+A[0][2]*f.z, A[1][0]*f.x+A[1][1]*f.y+A[1][2]*f.z, A[2][0]*f.x+A[2][1]*f.y+A[2][2]*f.z);
+    }
+    rvec3_t ToFractional(const rvec3_t& r) const
+    {
+        const double (&a)[3][3]=A;
+        const double det=a[0][0]*(a[1][1]*a[2][2]-a[1][2]*a[2][1])-a[0][1]*(a[1][0]*a[2][2]-a[1][2]*a[2][0])+a[0][2]*(a[1][0]*a[2][1]-a[1][1]*a[2][0]);
+        double inv[3][3];
+        inv[0][0]=(a[1][1]*a[2][2]-a[1][2]*a[2][1])/det; inv[0][1]=(a[0][2]*a[2][1]-a[0][1]*a[2][2])/det; inv[0][2]=(a[0][1]*a[1][2]-a[0][2]*a[1][1])/det;
+        inv[1][0]=(a[1][2]*a[2][0]-a[1][0]*a[2][2])/det; inv[1][1]=(a[0][0]*a[2][2]-a[0][2]*a[2][0])/det; inv[1][2]=(a[0][2]*a[1][0]-a[0][0]*a[1][2])/det;
+        inv[2][0]=(a[1][0]*a[2][1]-a[1][1]*a[2][0])/det; inv[2][1]=(a[0][1]*a[2][0]-a[0][0]*a[2][1])/det; inv[2][2]=(a[0][0]*a[1][1]-a[0][1]*a[1][0])/det;
+        return rvec3_t(inv[0][0]*r.x+inv[0][1]*r.y+inv[0][2]*r.z, inv[1][0]*r.x+inv[1][1]*r.y+inv[1][2]*r.z, inv[2][0]*r.x+inv[2][1]*r.y+inv[2][2]*r.z);
+    }
+    //! The minimum interplanar spacing 1/max_i |b_i|, b_i the reciprocal rows (no 2π).
+    double DPlane() const
+    {
+        double m=0.0;   // the rows of A^-1, probed column by column: row i = ((A^-1 e_0)_i, (A^-1 e_1)_i, (A^-1 e_2)_i)
+        const rvec3_t c0=ToFractional(rvec3_t(1,0,0)), c1=ToFractional(rvec3_t(0,1,0)), c2=ToFractional(rvec3_t(0,0,1));
+        for (int i=0;i<3;i++)
+        {
+            const rvec3_t row(C(c0,i), C(c1,i), C(c2,i));
+            m=std::max(m, norm(row));
+        }
+        return 1.0/m;
+    }
+};
+TestCell Strained(const TestCell& c, int u, int v, double s)   // (1 + s e_uv) A
+{
+    TestCell o=c;
+    for (int j=0;j<3;j++) o.A[u][j]=c.A[u][j]+s*c.A[v][j];
+    return o;
+}
+} // namespace
+
+TEST(BeckePartition, ThePeriodicWeightsGradientIsItsFiniteDifferencePerAtomAndPerStrain)
+{
+    const TestCell cell{{{6.0,0.9,0.4},{0.3,5.5,0.7},{-0.2,0.5,6.4}}};
+    const rvec3_t f[2]={rvec3_t(0.12,0.21,0.08), rvec3_t(0.47,0.55,0.61)};
+    auto sites=[&](const TestCell& c){ std::vector<rvec3_t> R; for (const auto& fi : f) R.push_back(c.ToCartesian(fi)); return R; };
+    const int k=3; const double eps=1e-12;
+    const size_t ia=1;
+    const rvec3_t u(0.9,-0.6,1.3);   // a template offset, far enough out that the partition is not flat
+    auto weight=[&](const TestCell& c, const std::vector<rvec3_t>& R)
+    {
+        std::vector<qcMesh::BeckeImage> im; long t=-1; qcMesh::BeckePointCost pc;
+        return qcMesh::PeriodicBeckeWeight(c, R, c.DPlane(), ia, R[ia]+u, k, eps, im, t, pc, false);
+    };
+    const std::vector<rvec3_t> R0=sites(cell);
+    std::vector<qcMesh::BeckeImage> im; long t=-1; qcMesh::BeckePointCost pc;
+    const double w0=qcMesh::PeriodicBeckeWeight(cell, R0, cell.DPlane(), ia, R0[ia]+u, k, eps, im, t, pc, false);
+    ASSERT_GT(w0, 1e-3); ASSERT_LT(w0, 1.0-1e-3);
+    ASSERT_GE(t, 0);
+    const std::vector<rvec3_t> g=qcMesh::PeriodicBeckeWeightGradient(im, size_t(t), u, k);
+    ASSERT_EQ(g.size(), im.size());
+    std::vector<rvec3_t> perAtom(2, rvec3_t(0,0,0));
+    double V[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+    rvec3_t sum(0,0,0);
+    for (size_t i=0;i<im.size();i++)
+    {
+        perAtom[im[i].atom]+=g[i]; sum+=g[i];
+        for (size_t a=0;a<3;a++) for (size_t b=0;b<3;b++) V[a][b]+=C(g[i],a)*C(im[i].R,b);
+    }
+    EXPECT_LT(norm(sum), 1e-13) << "translation: the image gradients sum to zero";
+    const double h=1e-5;
+    double big=0.0, worst=0.0;
+    for (size_t A=0;A<2;A++) for (size_t x=0;x<3;x++)
+    {
+        auto at=[&](double s){ std::vector<rvec3_t> R=R0; C(R[A],x)+=s; return weight(cell, R); };
+        const double fd=(at(h)-at(-h))/(2*h), an=C(perAtom[A],x);
+        big=std::max(big,std::fabs(fd)); worst=std::max(worst,std::fabs(an-fd));
+        EXPECT_NEAR(an, fd, 1e-8) << "atom " << A << " axis " << x;
+    }
+    for (int a=0;a<3;a++) for (int b=0;b<3;b++)
+    {
+        auto at=[&](double s){ const TestCell c=Strained(cell,a,b,s); return weight(c, sites(c)); };
+        const double fd=(at(h)-at(-h))/(2*h);
+        big=std::max(big,std::fabs(fd)); worst=std::max(worst,std::fabs(V[a][b]-fd));
+        EXPECT_NEAR(V[a][b], fd, 1e-8) << "strain " << a << b;
+    }
+    std::printf("  [periodic Becke] w %.6f  %zu images  max|dw| %.3e  worst |analytic - FD| %.2e\n", w0, im.size(), big, worst);
+    EXPECT_GT(big, 1e-3) << "a flat partition cannot show the gradient is wired";
 }

@@ -19,7 +19,7 @@ one that needs machinery the general case lacks is real and belongs on the types
 Hygiene/tooling rows: `doc/CleanCode.md`.
 
 **Group index** (controller audit 2026-11-19; a row's `[Gn]` tag; the same tags in `doc/OpenWork.md`):
-- **G1** XC sampler / Φ tables / fit records: 6 rows here
+- **G1** XC sampler / Φ tables / fit records: 7 rows here
 - **G2** ε inventory / grid sizing: 2 rows here
 - **G3** symmetry ops / Group face / equivariance: 5 rows here
 - **G6** mixers: 2 rows here
@@ -40,6 +40,7 @@ Hygiene/tooling rows: `doc/CleanCode.md`.
 | **V1.19** ⏸ | Seed's flip-group sub-cell duplication needs per-SITE form-factor overload (weighed against pseudo-wall pin) | Revisit only for a second consumer · H2 V1.19 |
 | [G1] **D-GPWPAIR** | the GPW (orbital family × fit family) pairing is FROZEN in the engine (each `GPW_Evaluator` takes its PW density-fit grid from the `GpwRasterLadder`, so the grid is shared now but the pairing is not a choice; pin 2: pairings are POLICY at the factory) | becomes a defect the day a second fit family wants the same orbital engine |
 | [G1] **R1.0n/o** | basis-side nullable vendor: `GetRhoOnGrid` signals "none" by empty vector | **RULED (user 2026-11-07): the question itself is wrong.**  "ρ on the fit basis's grid" assumes every fit basis has a grid: a Gaussian fit has none.  For a δ or PW fit the basis IS a point set, which is NOT the integration mesh that non-linear integrals (Vxc projections) force on us; never conflate the two.  So the clients (`DensitySampler_Pair`, `DensityMixer`, `FieldMixer`, `PolarizedDensityMixer`) ask for ρ's coefficients in the fit basis (the V-ONE-OF-N record), and a client that needs ρ at integration points asks for that on the mesh (ρ[D], pin 28).  Closes inside V-ONE-OF-N · H2 R1.0n/o |
+| [G1] **D-POINTSET-CAST** (controller 2026-11-19, READY 4) | `DensitySampler_Singles` discovers `BasisSet::PointSetPullback<T>` by a cross-cast between abstract faces (justified at the site, refusing by name through `MeshDerivativeGap`, base order checked in `GPW_IBS`); the controller prefers injection | Inject the capability at the factory that builds the sampler; rides V-NONLINEAR-MESH, which moves the sampler's construction anyway · `src/ChargeDensity/Internal/Imp/DensitySampler_Singles.C`, `Records/OpenWork_History5.md` READY 4 |
 
 ## Durable ruling kept here (until non-collinear work starts, then a pin)
 

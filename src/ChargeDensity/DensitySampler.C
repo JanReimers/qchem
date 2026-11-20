@@ -229,6 +229,18 @@ public:
     //! CLIENT: the XC term's virial.  Defaults refuse by name; \c CanVirialMatrix is false exactly when \c MakeMatrixVirial refuses.
     //!@{
     virtual bool HasDilationVirial() const {return false;}
+    //! \name THE QUADRATURE'S OWN RESPONSE (controller approval 2026-11-19, the READY 4 design note; lane B): an atom-centred mesh's WEIGHTS
+    //! move with the atoms (the Becke partition), and the energy sees \f$\sum_g\partial w_g\,e_g\f$ -- contracted against e, not v, so it is
+    //! QUADRATURE-side, the XC term's to add (as it adds the raster's \f$\delta_{ab}(E-\int v\rho)\f$).  \c HasQuadratureResponse: my weights
+    //! move with the atoms AND I can differentiate them; \c MakeQuadraturePullback: for \a f held per point,
+    //! \f$\partial(\sum_g f_gw_g)/\partial R\f$ per site and its strain twin.  The block pullbacks above then hold the weights (the points ride
+    //! their owners).  Default: none (fixed weights, or no derivative): a named refusal.
+    //!@{
+    struct QuadraturePullback { rvec3vec_t gradient; rmat3d_t virial; };
+    virtual bool HasQuadratureResponse() const {return false;}
+    virtual Outcome<QuadraturePullback,AD::NoGradient> MakeQuadraturePullback(const rvec_t&, const Structure*) const
+    {return Outcome<QuadraturePullback,AD::NoGradient>::Fail({"this XC quadrature gives no response of its weights"});}
+    //!@}
     virtual bool CanVirialMatrix(const tobs_t<T>*) const {return false;}
     virtual Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const tobs_t<T>* bs, const rvec_t&, const hmat_t<T>&, const Structure*) const
     {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"the XC quadrature's strategy gives no virial of its matrix on the block "+bs->Name()});}

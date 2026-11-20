@@ -10,7 +10,8 @@
 //
 // THE ROUTES.  A plane-wave block on the ball-fit route: an EXACT ZERO (the fitter's overlap tensor has no centre to move).  The raw
 // raster gather of a GPW block: the gather's own pullback at the fixed field (PairProjection::applyRawAdjointPullback, lane B 2026-11-19).
-// The δ quadrature (Becke or uniform mesh): refused (the mesh moves).
+// The δ quadrature on a FREE atom-centred (Becke) mesh: per block the functions moving and the points riding their owners, plus the mesh's
+// weight response contracted against e (lane B 2026-11-19, READY 4).  An imposed-symmetry mesh refuses by name.
 module;
 #include <stdexcept>
 #include <string>
@@ -43,7 +44,7 @@ template <class T> std::string tVxc_DFT<T>::MissingGradient(const tbs_t<T>* bs, 
         if constexpr (std::is_same_v<BT,tobs_t<T>>) can=itsSampler->CanPullbackMatrix(b);
         else if (const auto* p=PeriodicOf(itsSampler.get())) can=p->CanPullbackMatrix(b);
         // The ROUTE refuses, not the block: the reason names no block, so a symmetry-blocked run lists the same entry as its unblocked twin.
-        if (!can) why="cVxc_DFT: no geometry gradient (its XC quadrature's route gives no matrix pullback)";
+        if (!can) why="cVxc_DFT: no geometry gradient (its XC quadrature gives no matrix pullback on this run: an IMPOSED-symmetry Becke mesh, whose orbit-rotated grids and star-averaged rho have no derivative yet, or a route without one)";
     });
     return why;
 }
@@ -75,6 +76,15 @@ template <class T> void tVxc_DFT<T>::AddForces(rvec3vec_t& F, const tDM_CD<T>* D
     const rvec3vec_t g=D->DM_Pullback(this, st);
     if (g.size()!=F.size()) throw std::logic_error("tVxc_DFT::AddForces: the pullback and the force array differ in atom count");
     for (size_t A=0;A<F.size();A++) F[A]-=g[A];
+    // An ATOM-CENTRED mesh's weights move with the atoms: their response, contracted against e (the blocks above held the weights; lane B
+    // 2026-11-19, the controller-approved split).  A mesh whose weights cannot respond refuses its blocks' pullbacks, so it never reaches here.
+    if (itsSampler->HasQuadratureResponse())
+    {
+        const auto q=itsSampler->MakeQuadraturePullback(EnergyDensityAt(D), st);
+        if (!q) throw std::logic_error("tVxc_DFT::AddForces: "+q.Error().why+" (MissingGradients() names it before a force is asked)");
+        if (q->gradient.size()!=F.size()) throw std::logic_error("tVxc_DFT::AddForces: the weight response and the force array differ in atom count");
+        for (size_t A=0;A<F.size();A++) F[A]-=q->gradient[A];
+    }
 }
 
 // The members this TU defines (the class itself is instantiated in Imp/PWTerms_XC.C, where its other members live).

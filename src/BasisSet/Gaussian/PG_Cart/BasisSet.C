@@ -111,6 +111,9 @@ public:
                                      mat_t<dcmplx>& Phi) const override;
     //! The same image terms, k-independent and sparse (\c LatticeCollocation::MakePointImages).
     virtual ::qchem::BasisSet::PointImages MakePointImages(const rvec3vec_t& pts, const UnitCell& A) const override;
+    //! Its derivative (LatticeCollocation's doc): the same images and reach screens, the jets from the radials' Enzyme gradient.
+    virtual PointPullback BlochPointPullback(const rvec3vec_t& pts, const rvec_t& c, const chmat_t& D, const cellphase_t& phase,
+                                             const UnitCell& A, const Structure* st) const override;
     virtual chmat_t MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
                                       const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const override;
     virtual chmat_t MakeLocalGaussian(const Structure* cl,

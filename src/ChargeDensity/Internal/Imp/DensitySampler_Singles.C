@@ -30,6 +30,7 @@ import qchem.ChargeDensity;
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
+import qchem.BasisSet.PointSetPullback;     // the block face the Becke mesh's pullback asks (READY 4)
 import qchem.BasisSet.Transition_DFT_IBS;    // the (k+q, k) pair faces the transition Sample/Matrix go through (R3)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the cVxc_DFT engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
@@ -517,6 +518,92 @@ template <class T> template <class U> hmat_t<U> tSinglesDensitySampler<T>::Matri
 }
 template <class T> hmat_t<T> tSinglesDensitySampler<T>::Matrix(const tobs_t<T>* bs, const rvec_t& v) const {return MatrixT<T>(bs,v);}
 rsmat_t SinglesDensitySampler::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}
+
+// ---- THE DERIVATIVES ON A FREE ATOM-CENTRED MESH (lane B 2026-11-19, READY 4; the controller-approved split of the design note) ------------
+// E_xc = Σ_g w_g e(ρ_g), w_g = w_q W(R_owner + u_g).  At fixed D, dE = Σ_g ∂w_g e_g + Σ_g w_g v_g ∂ρ_g: the second sum per block (the
+// functions moving, the points riding their owners, the weights HELD: MakeMatrixPullback / MakeMatrixVirial), the first the quadrature's own
+// (MakeQuadraturePullback, the mesh builder's weight response; the XC term contracts it with e).
+template <class T> std::string tSinglesDensitySampler<T>::MeshDerivativeGap() const
+{
+    const auto& m=itsQuad.GetMesh();
+    if (!m) return "the XC quadrature has no mesh injected";
+    if (itsQuad.HasFold()) return "an IMPOSED-symmetry XC mesh (orbit-rotated grids, a star-averaged rho) gives no geometry derivative yet";
+    if (m->OwnerOffsets().size()!=m->size() || m->NSites()==0) return "the XC mesh records no point owners (not an atom-centred build)";
+    if (!m->WeightResponse()) return "the XC mesh's builder installed no weight response";
+    return "";
+}
+template <class T> bool tSinglesDensitySampler<T>::HasQuadratureResponse() const {return MeshDerivativeGap().empty();}
+template <class T> Outcome<typename tDensitySampler<T>::QuadraturePullback,AD::NoGradient>
+tSinglesDensitySampler<T>::MakeQuadraturePullback(const rvec_t& f, const Structure* st) const
+{
+    using R=Outcome<typename tDensitySampler<T>::QuadraturePullback,AD::NoGradient>;
+    if (const std::string gap=MeshDerivativeGap(); !gap.empty()) return R::Fail({gap});
+    const qcMesh::Mesh& m=*itsQuad.GetMesh();
+    if (!st || st->GetNumAtoms()!=m.NSites()) return R::Fail({"the XC mesh's site blocks are not the structure's atoms"});
+    const auto r=m.WeightResponse()->Pullback(m, f);
+    return R::Ok({r.gradient, r.virial});
+}
+
+// THE BLOCK's FACE.  A cross-cast per call, abstract -> abstract, as Matrix's own DFT cross-cast: this sampler is built ONCE per run (by
+// MakeDensitySampler, from the fit basis and its quadrature) but serves every block the term hands it per call, Bloch and real TRIM alike,
+// so a capability handed at construction would have to be a per-block table keyed by the block -- the probing it would replace (the
+// controller's condition (a), 2026-11-19).  A block without the face is a named refusal (CanT false, PointSetOf's Fail), never a null deref.
+template <class T> template <class U> bool tSinglesDensitySampler<T>::CanT(const tobs_t<U>* bs) const
+{
+    return MeshDerivativeGap().empty() && dynamic_cast<const BasisSet::PointSetPullback<U>*>(bs)!=nullptr;
+}
+template <class T> template <class U> Outcome<typename BasisSet::PointSetPullback<U>::Result,AD::NoGradient>
+tSinglesDensitySampler<T>::PointSetOf(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const
+{
+    using R=Outcome<typename BasisSet::PointSetPullback<U>::Result,AD::NoGradient>;
+    if (const std::string gap=MeshDerivativeGap(); !gap.empty()) return R::Fail({gap});
+    const auto* face=dynamic_cast<const BasisSet::PointSetPullback<U>*>(bs);
+    if (!face) return R::Fail({"the orbital block "+bs->Name()+" gives no point-set pullback"});
+    const qcMesh::Mesh& m=*itsQuad.GetMesh();
+    if (v.size()!=m.size()) return R::Fail({"the XC field is not on the mesh"});
+    if (!st || st->GetNumAtoms()!=m.NSites()) return R::Fail({"the XC mesh's site blocks are not the structure's atoms"});
+    rvec_t c(m.size());
+    const rvec_t& w=m.Weights();
+    for (size_t g=0; g<c.size(); g++) c[g]=w[g]*v[g];
+    return face->MakePointSetPullback(m.Points(), c, D, st);
+}
+template <class T> template <class U> Outcome<rvec3vec_t,AD::NoGradient>
+tSinglesDensitySampler<T>::PullbackT(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const
+{
+    const auto p=PointSetOf(bs, v, D, st);
+    if (!p) return Outcome<rvec3vec_t,AD::NoGradient>::Fail(p.Error());
+    rvec3vec_t g=p->gradient;
+    const qcMesh::Mesh& m=*itsQuad.GetMesh();
+    for (size_t a=0; a<m.NSites(); a++)
+        for (size_t q=m.SiteBegin(a); q<m.SiteEnd(a); q++) g[a]+=p->perPoint[q];   // the point rides its owner
+    return Outcome<rvec3vec_t,AD::NoGradient>::Ok(std::move(g));
+}
+template <class T> template <class U> Outcome<rmat3d_t,AD::NoGradient>
+tSinglesDensitySampler<T>::VirialT(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const
+{
+    const auto p=PointSetOf(bs, v, D, st);
+    if (!p) return Outcome<rmat3d_t,AD::NoGradient>::Fail(p.Error());
+    rmat3d_t V=p->moment;
+    const rvec3vec_t& Uq=itsQuad.GetMesh()->OwnerOffsets();
+    for (size_t q=0; q<Uq.size(); q++)   // the point is X_owner + u (u not strained): moment - perPoint (x) u
+    {
+        const double pp[3]={p->perPoint[q].x, p->perPoint[q].y, p->perPoint[q].z}, uu[3]={Uq[q].x, Uq[q].y, Uq[q].z};
+        for (size_t a=0;a<3;a++) for (size_t b=0;b<3;b++) V(a+1,b+1)-=pp[a]*uu[b];
+    }
+    return Outcome<rmat3d_t,AD::NoGradient>::Ok(V);
+}
+template <class T> bool tSinglesDensitySampler<T>::CanPullbackMatrix(const tobs_t<T>* bs) const {return CanT<T>(bs);}
+template <class T> bool tSinglesDensitySampler<T>::CanVirialMatrix  (const tobs_t<T>* bs) const {return CanT<T>(bs);}
+template <class T> Outcome<rvec3vec_t,AD::NoGradient> tSinglesDensitySampler<T>::MakeMatrixPullback(const tobs_t<T>* bs, const rvec_t& v, const hmat_t<T>& D, const Structure* st) const
+{return PullbackT<T>(bs, v, D, st);}
+template <class T> Outcome<rmat3d_t,AD::NoGradient> tSinglesDensitySampler<T>::MakeMatrixVirial(const tobs_t<T>* bs, const rvec_t& v, const hmat_t<T>& D, const Structure* st) const
+{return VirialT<T>(bs, v, D, st);}
+bool SinglesDensitySampler::CanPullbackMatrix(const robs_t* bs) const {return CanT<double>(bs);}
+bool SinglesDensitySampler::CanVirialMatrix  (const robs_t* bs) const {return CanT<double>(bs);}
+Outcome<rvec3vec_t,AD::NoGradient> SinglesDensitySampler::MakeMatrixPullback(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const
+{return PullbackT<double>(bs, v, D, st);}
+Outcome<rmat3d_t,AD::NoGradient> SinglesDensitySampler::MakeMatrixVirial(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const
+{return VirialT<double>(bs, v, D, st);}
 
 template class tSinglesDensitySampler<double>;   // the molecular / atom path (V-XC-ONE-TERM)
 template class tSinglesDensitySampler<dcmplx>;   // the periodic path

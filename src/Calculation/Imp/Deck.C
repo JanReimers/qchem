@@ -475,7 +475,7 @@ json ToJson(const RunOptions& o)
             {"tolerances",ToJson(o.solid.tolerances)},{"policy",ToJson(o.solid.policy)},{"hubbard",hub},
             {"perKFermiLevels",o.solid.perKFermiLevels},{"xcMeshSymmetric",o.solid.xcMeshSymmetric},
             {"xcOrbitalTables",NameOf(o.solid.xcOrbitalTables,kOrbitalTables)},
-            {"numBands",o.solid.numBands},{"forceComplex",o.solid.forceComplex},
+            {"numBands",o.solid.numBands},
             {"spinsShareFermi",o.solid.spinsShareFermi},{"greyImposition",o.solid.greyImposition},{"momFromSeed",o.solid.momFromSeed},
             {"siteCharges",o.solid.siteCharges}};
     if (o.solid.grid.eta) solid["accuracyCalibration"]={{"vlocLong",o.solid.grid.eta->vlocLong},{"density",o.solid.grid.eta->density}};   // stated only
@@ -594,7 +594,11 @@ static void SolidBlockFromJson(const json& j, RunOptions& o)
     f.Get("perKFermiLevels",o.solid.perKFermiLevels);
     f.Get("xcMeshSymmetric",o.solid.xcMeshSymmetric);   // false = the plain atom-centred mesh: a displacement path needs it (RunOptions)
     f.GetEnum("xcOrbitalTables",o.solid.xcOrbitalTables,kOrbitalTables);   // dense | images | auto: a memory-vs-speed trade-off (RunOptions)
-    f.Get("numBands",o.solid.numBands); f.Get("forceComplex",o.solid.forceComplex);
+    if (j.contains("forceComplex"))          // RETIRED 2026-11-19 (OpenWork G4, the user: "we can prove rigorously whether it is needed or not")
+        throw std::runtime_error("deck: solid.forceComplex is RETIRED -- real vs complex is decided by the setup from k and the planned "
+                                 "responses (a postSCF hubbardLinearResponse, linear-response hubbardLoop or hubbardFiniteDifference builds "
+                                 "every block complex); delete the key");
+    f.Get("numBands",o.solid.numBands);
     f.Get("spinsShareFermi",o.solid.spinsShareFermi); f.Get("greyImposition",o.solid.greyImposition); f.Get("momFromSeed",o.solid.momFromSeed);
     f.Get("siteCharges",o.solid.siteCharges);
     f.Done();
@@ -1253,7 +1257,7 @@ Materials::Material Resolve(RunSpec& spec)
             if (a.kind==PostAction::Kind::HubbardLinearResponse && a.littleGroupK && LooserThan(spec.Stages().back().scf.MinΔρPerElectron, kResponseReferenceMinΔρ))
                 throw std::runtime_error(who+"littleGroupK measures the reference's symmetry to 1e-6, so the final SCF stage must converge to "
                                          "scf.minDeltaRhoPerElectron <= 1e-9 (it is "+GateJson(spec.Stages().back().scf.MinΔρPerElectron).dump()+")");
-            // (No forceComplex demand: the setup decides the ansatz ONCE from k and q -- PlannedResponseQMeshes, below -- and a real
+            // (No complex demand: the setup decides the ansatz ONCE from k and q -- PlannedResponseQMeshes, below -- and a real
             //  ground state hands a response its state through the two-run split, user ruling 2026-11-18.)
             if (isResponse)             // the q points loop INSIDE the response, on the k-mesh's own differences
             {
@@ -1473,33 +1477,38 @@ static Outcome<std::unique_ptr<SolidCalculation>, SetupRefusal> PrepareOf(const 
 // Run #2 of the split: the deck's RESPONSE setup, the saved ground state at \a statePath adopted on it (SolidCalculation::Adopt).
 static std::unique_ptr<SolidCalculation> AdoptOf(const RunSpec& specIn, const std::string& statePath);
 
-//! The q-meshes of the deck's planned LINEAR responses (a hubbardLinearResponse, a linear-response U loop), once each: what the
-//! setup decides the ansatz from.  (An independentResponse is not one: chi0 runs on real TRIM blocks.)
+//! The q-meshes of the deck's planned LINEAR responses (a hubbardLinearResponse, a linear-response U loop, and a hubbardFiniteDifference
+//! as q = 0: its +-alpha SCFs measure occupations through the complex-only Hubbard probe), once each: what the setup decides the ansatz
+//! from.  (An independentResponse is not one: chi0 runs on real TRIM blocks.)
 static std::vector<ivec3_t> PlannedResponseQMeshes(const RunSpec& spec)
 {
     std::vector<ivec3_t> out;
     for (const auto& a : spec.postSCF)
     {
         const bool lrLoop = a.kind==PostAction::Kind::HubbardLoop && a.estimator==SolidCalculation::HubbardLoop::Estimator::LinearResponse;
-        if (a.kind!=PostAction::Kind::HubbardLinearResponse && !lrLoop) continue;
+        const bool fd     = a.kind==PostAction::Kind::HubbardFiniteDifference;
+        if (a.kind!=PostAction::Kind::HubbardLinearResponse && !lrLoop && !fd) continue;
+        const ivec3_t q = fd ? ivec3_t(1,1,1) : a.nq;
         bool known=false;
-        for (const ivec3_t& q : out) known = known || (q.x==a.nq.x && q.y==a.nq.y && q.z==a.nq.z);
-        if (!known) out.push_back(a.nq);
+        for (const ivec3_t& p : out) known = known || (p.x==q.x && p.y==q.y && p.z==q.z);
+        if (!known) out.push_back(q);
     }
     return out;
 }
 //! \brief Does the deck run as TWO runs (user ruling 2026-11-18)?  Run #1, the SCF and every action before the first linear response,
 //! on a setup with no response planned (real TRIM blocks: the SCF ~1.3x faster and lighter, TiO₂ k222 1619 vs 2139 s); run #2, the
 //! responses, on a complex setup that ADOPTS run #1's converged state (no SCF).  Only when it can work: a linear response is planned,
-//! nothing forces complex anyway, no U loop re-runs a complex SCF (a linear-response loop), and nothing after the first response
-//! needs an SCF'd run (only responses follow it).  Otherwise the deck is one run, complex from the start when a response is planned.
+//! no U loop re-runs a complex SCF (a linear-response loop), no finite-difference chi runs its +-alpha SCFs (on a complex setup, from
+//! wherever it sits), and nothing after the first response needs an SCF'd run (only responses follow it).  Otherwise the deck is one
+//! run, complex from the start when a response is planned.
 static bool SplitsAtResponse(const RunSpec& spec)
 {
-    if (spec.opts.solid.forceComplex || PlannedResponseQMeshes(spec).empty()) return false;
+    if (PlannedResponseQMeshes(spec).empty()) return false;
     bool inResponses=false;
     for (const auto& a : spec.postSCF)
     {
         if (a.kind==PostAction::Kind::HubbardLoop && a.estimator==SolidCalculation::HubbardLoop::Estimator::LinearResponse) return false;
+        if (a.kind==PostAction::Kind::HubbardFiniteDifference) return false;
         const bool response = a.kind==PostAction::Kind::HubbardLinearResponse || a.kind==PostAction::Kind::IndependentResponse;
         if (a.kind==PostAction::Kind::HubbardLinearResponse) inResponses=true;
         if (inResponses && !response) return false;

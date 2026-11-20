@@ -499,7 +499,8 @@ TEST(SolidSetup, ThePeriodicA1FitOverPlaneWaveOrbitalsIsAdmitted)
 }
 
 // THE ANSATZ IS DECIDED ONCE, from k AND q (OpenWork "LR on REAL TRIM blocks", option 1, user ruling 2026-11-18): TRIM blocks run real
-// unless forceComplex is stated or a linear response is planned; a planned response files the `Ansatz` policy row saying why.
+// unless a linear response is planned (no knob forces complex: forceComplex retired 2026-11-19, OpenWork G4); a planned response
+// files the `Ansatz` policy row saying why.
 TEST(SolidSetup, APlannedResponseBuildsEveryBlockComplexAndSaysWhy)
 {
     UnitCell cell=TwoNa(20.0);
@@ -508,8 +509,6 @@ TEST(SolidSetup, APlannedResponseBuildsEveryBlockComplexAndSaysWhy)
     auto resolve=[&](RunOptions o, const std::string& tag) {report::Run run(tag); return SolidSetup::Resolve(lat, mol, o)->realTRIMBlocks;};
     EXPECT_TRUE(resolve(kNa2, "ansatz free")) << "no response, nothing forced: a TRIM block runs real";
     EXPECT_TRUE(PolicyRows("ansatz free", "Ansatz").empty()) << "nothing decided against the default: nothing to report";
-    RunOptions forced=kNa2; forced.solid.forceComplex=true;
-    EXPECT_FALSE(resolve(forced, "ansatz forced"));
     RunOptions lr=kNa2; lr.solid.responseQMeshes={ivec3_t(1,1,1)};
     EXPECT_FALSE(resolve(lr, "ansatz lr")) << "q = 0 alone too: the response face is complex-only";
     const auto rows=PolicyRows("ansatz lr", "Ansatz");

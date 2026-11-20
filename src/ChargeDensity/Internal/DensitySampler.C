@@ -39,7 +39,8 @@ import qchem.Symmetry.Lattice_3D.Fold;      // Fold + SymmetrizeValues (the Beck
 import qchem.Symmetry;                      // sym_t / SymMap
 import qchem.SlotMap;                       // InstanceSlotMap: the per-block adjoint views, by the block's instance
 import qchem.BasisSet.PairProjection;  // ScreenedMatrixIntegrator -- the pair route's MatrixAdjoint view
-import qchem.BasisSet.GSpaceDensityProjector;   // the BALL route's ρ̃ (V-ONE-OF-N 3c)
+import qchem.BasisSet.GSpaceDensityProjector;
+import qchem.BasisSet.PointSetPullback;   // the block face the Becke mesh's pullback asks (READY 4)   // the BALL route's ρ̃ (V-ONE-OF-N 3c)
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Types;
 
@@ -146,10 +147,19 @@ public:
     std::optional<double> GroupResidual() const override {return itsGroupResidual;}
     //! \f$\langle i|v|j\rangle=\sum_g \overline{\Phi_{gi}}\,w_g v_g\,\Phi_{gj}\f$ over the cached table.
     hmat_t<T> Matrix(const tobs_t<T>* bs, const rvec_t& v) const override;
-    //! The derivative beside \c Matrix: REFUSED by name (§13.2).  It needs the block's jets at my points, and on an atom-centred mesh
-    //! the points and weights themselves move with the atoms (V-NONLINEAR-MESH).
-    Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const tobs_t<T>* bs, const rvec_t&, const hmat_t<T>&, const Structure*) const override
-    {return Outcome<rvec3vec_t,AD::NoGradient>::Fail({NoPullbackWhy(bs->Name())});}
+    //! \brief The derivatives beside \c Matrix on a FREE atom-centred mesh (lane B 2026-11-19, READY 4; the controller-approved split): the
+    //! block's functions moving and my points riding their owners (\c qcMesh::Mesh::OwnerOffsets), my WEIGHTS HELD -- their motion is
+    //! \c MakeQuadraturePullback's.  Per block, \f$c_g=w_gv_g\f$ through the block's \c BasisSet::PointSetPullback: the owner of each point gains
+    //! its per-point term; the virial is the moment \f$-\sum_g\f$ perPoint\f$_g\otimes u_g\f$ (the point is \f$X_{owner}+u_g\f$, u not strained).
+    //! REFUSED by name on an IMPOSED mesh (a fold: ρ is star-averaged on orbit-rotated grids), on a mesh without owners or a weight response,
+    //! and on a block without the face.
+    bool CanPullbackMatrix(const tobs_t<T>* bs) const override;
+    Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const tobs_t<T>* bs, const rvec_t& v, const hmat_t<T>& D, const Structure* st) const override;
+    bool CanVirialMatrix(const tobs_t<T>* bs) const override;
+    Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const tobs_t<T>* bs, const rvec_t& v, const hmat_t<T>& D, const Structure* st) const override;
+    //! My weights' response: the mesh builder's (\c qcMesh::Mesh::WeightResponse), on a free mesh.
+    bool HasQuadratureResponse() const override;
+    Outcome<typename tDensitySampler<T>::QuadraturePullback,AD::NoGradient> MakeQuadraturePullback(const rvec_t& f, const Structure* st) const override;
     //! \f$\int w_A f\f$ per site over the INJECTED quadrature's mesh; empty when none was injected (or it
     //! has no site blocks -- a uniform grid has no atomic basins).  Ask, do not assume.  The MnO campaign's
     //! point probe (\f$m(r)\f$ 0.7 bohr off the nucleus, a spin DENSITY along one direction of an anisotropic
@@ -158,6 +168,14 @@ public:
     //! QTAIM zero-flux basin, a wanted future feature.  The consumer reports which partition produced it.
     rvec_t SiteIntegrals(const rvec_t& f) const override;
 protected:   // the periodic subclass contracts through the same fitter and tables
+    //! Empty when my mesh can give the derivatives (free, owners, a weight response); otherwise why not.
+    std::string MeshDerivativeGap() const;
+    //! The block-generic bodies of the pullback and virial (U the block scalar): \a virial picks which.
+    template <class U> Outcome<typename BasisSet::PointSetPullback<U>::Result,AD::NoGradient>
+        PointSetOf(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const;
+    template <class U> Outcome<rvec3vec_t,AD::NoGradient> PullbackT(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const;
+    template <class U> Outcome<rmat3d_t,AD::NoGradient>   VirialT  (const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const;
+    template <class U> bool CanT(const tobs_t<U>* bs) const;
     // ⛔ Symmetrize / SymmetrizeSpin ARE GONE FROM THIS CLASS (2026-09-09, user).  They were two members
     // on the FITTING interface until 2026-08-24, moved here, then became one-line forwards when
     // qcMesh::FoldedMesh grew them as members (R1.0k).  A forwarder that adds nothing is not a
@@ -266,9 +284,14 @@ public:
     //! GEMM runs in REAL arithmetic -- the first place the Step-3 quadrature win is actually realized.
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
     using tSinglesDensitySampler<dcmplx>::MakeMatrixPullback;
-    //! The real block's derivative: refused, as the Bloch block's.
-    Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const robs_t* bs, const rvec_t&, const hmat_t<double>&, const Structure*) const override
-    {return Outcome<rvec3vec_t,AD::NoGradient>::Fail({NoPullbackWhy(bs->Name())});}
+    using tSinglesDensitySampler<dcmplx>::CanPullbackMatrix;
+    using tSinglesDensitySampler<dcmplx>::MakeMatrixVirial;
+    using tSinglesDensitySampler<dcmplx>::CanVirialMatrix;
+    //! The real TRIM block's derivatives: the Bloch block's bodies on its own scalar.
+    bool CanPullbackMatrix(const robs_t* bs) const override;
+    Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const override;
+    bool CanVirialMatrix(const robs_t* bs) const override;
+    Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const override;
 };
 
 //! \brief THE PAIR STRATEGY: \f$\rho\f$ COLLOCATED from the density-matrix through the orbital-pair

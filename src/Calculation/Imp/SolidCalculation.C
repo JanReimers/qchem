@@ -443,7 +443,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     // (TRIM) ∧ every term preserves realness.  This composition root builds the LDA GPW stack --
     // kinetic, the PP trio, Hartree, XC -- every member of which PreservesReal(), so the term half is
     // TRUE here; it is asserted against the constructed Hamiltonian below, so a future term that
-    // breaks realness must also flip this forecast.  The ansatz half -- forceComplex, or a planned response (k AND q) -- is the
+    // breaks realness must also flip this forecast.  The ansatz half -- a planned response (k AND q) -- is the
     // setup's ONE decision, S.realTRIMBlocks (user ruling 2026-11-18); every GPWParams below reads it.
     // ★ THE FACADE'S SETUP IS BUCKETED (doc/ParallelAndOraclePlan.md 1.1, 2026-09-06).  Every MnO row drives
     // SolidCalculation directly, and until now only the phases INSIDE these calls were timed -- so the basis
@@ -2783,7 +2783,7 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
         if (itsImp->bs->GetRealIBS(i))
             return Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>::Fail({qchem::Response::ResponseFailure::Why::Configuration,
                 "the setup built REAL TRIM blocks (no response was planned), and the linear response is complex-only: state the "
-                "response at setup (RunOptions::Solid::responseQMeshes; a deck does it from its postSCF) or set forceComplex"});
+                "response at setup (RunOptions::Solid::responseQMeshes; a deck does it from its postSCF)"});
     if (perturbed.empty()) perturbed=DefaultPerturbed(*hub);
     const FrozenHubbard frozen(itsImp->ham->GetHubbardUTarget());
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
@@ -2924,6 +2924,12 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
     if (!hub || !target) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: this run carries no Hubbard manifold");
     const auto channels=hub->Channels();
     if (J>=channels.size()) throw std::out_of_range("SolidCalculation::HubbardFiniteDifferenceChi: no such manifold");
+    // THE ANSATZ WAS DECIDED AT SETUP (SolidSetup::realTRIMBlocks): the occupations are measured through the complex-only Hubbard probe,
+    // so a setup that planned no response (real TRIM blocks) is the caller's error -- refused before any SCF is spent.
+    if (itsImp->setup->realTRIMBlocks)
+        throw std::invalid_argument("SolidCalculation::HubbardFiniteDifferenceChi: the setup built REAL TRIM blocks (no response planned), "
+                                    "and the Hubbard probe is complex-only: state RunOptions::Solid::responseQMeshes = {{1,1,1}} at setup "
+                                    "(a deck's hubbardFiniteDifference does it)");
     // ⛔ An IMPOSED run's SCF star-averages the XC density every iteration (the Becke (ρ, m) projector, the raster
     // average) -- so a +-alpha run on one site would respond with a SYMMETRIZED XC potential and an unsymmetrized
     // Hartree one: neither the physical response nor the linear response's.  Found 2026-09-29 on NiO AFM-II.
@@ -2943,7 +2949,7 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
         for (const Irrep& ir : wf->GetQNs())
         {
             const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf->GetOrbitals(ir));
-            if (!os) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: a real TRIM block (run with forceComplex)");
+            if (!os) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: a real TRIM block slipped past the entry check");
             qchem::Response::cmat_t X(os->GetNumOrbitals(), os->GetNumOrbitals(), dcmplx(0.0));
             size_t i=0;
             for (const auto* o : os->Iterate<Orbitals::TOrbital<dcmplx>>()) {X(i,i)=o->GetOccupation(); i++;}

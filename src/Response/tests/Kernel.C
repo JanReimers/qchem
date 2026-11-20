@@ -364,7 +364,7 @@ std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, dou
         BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     const SCFParams par=SiParams();
-    RunOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .spin=g, .species={{"Si",4}}, .solid={.densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=U, .alpha=alpha, .alphaUp=alphaUp, .alphaDown=alphaDown, .alphaSlot=alphaSlot, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true}};
+    RunOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .spin=g, .species={{"Si",4}}, .solid={.densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=U, .alpha=alpha, .alphaUp=alphaUp, .alphaDown=alphaDown, .alphaSlot=alphaSlot, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .responseQMeshes={ivec3_t(1,1,1)}}};
     if (spectator) o.solid.hubbard.push_back({.site=1, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells});
     o.imposeSymmetry=impose;
     o.spins={0,0};   // Si is non-magnetic: the polarized +U arm states it (OpenWork §3, 2026-10-26)
@@ -380,7 +380,7 @@ std::vector<GroundBlock<dcmplx>> GroundDensity(const WaveFunction::cWaveFunction
     for (const Irrep& ir : wf.GetQNs())
     {
         const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf.GetOrbitals(ir));
-        if (!os) throw std::logic_error("GroundDensity: a real block -- run the ground state with forceComplex");
+        if (!os) throw std::logic_error("GroundDensity: a real block -- the ground state must plan a response (responseQMeshes)");
         const auto* bs=dynamic_cast<const Hamiltonian::cobs_t*>(os->GetBasisSet());
         const size_t n=bs->GetNumFunctions();
         chmat_t D(n);
@@ -597,7 +597,7 @@ std::unique_ptr<SolidCalculation> ConvergedSiWithD()
     Lattice_3D lat(cell, ivec3_t(2,1,1));                      // k211: at Gamma alone the E channel carries no weight (chi0 ~ 1e-12)
     std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::FactoryFromFile(path, &cell));
     mol=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(mol));
-    RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .hubbard={{.site=0, .l=2, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true}};
+    RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .hubbard={{.site=0, .l=2, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .responseQMeshes={ivec3_t(1,1,1)}}};
     o.scf=SiParams(); auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, o)).TakeValue(); (void)calc->Converge();
     EXPECT_TRUE(calc->DidConverge());
     return calc;
@@ -852,7 +852,7 @@ std::unique_ptr<SolidCalculation> SiState(ivec3_t kmesh, qcMesh::UnitCellKind xc
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     SCFParams par=SiParams();
     par.NMaxIter=12;                                         // not converged, and need not be (see above)
-    RunOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .spin=g, .species={{"Si",4}}, .solid={.densityEcut=20.0, .forceComplex=true}};
+    RunOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .spin=g, .species={{"Si",4}}, .solid={.densityEcut=20.0, .responseQMeshes={ivec3_t(1,1,1)}}};
     SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(xc);
     // The pre-2026-11-01 bare-Becke mesh (30, 1.0, Lebedev 5), stated: the Fock thread identity holds bit for bit only there -- on the
     // calibrated BeckeXCParams() mesh 21 of 1728 near-zero elements differ at 5e-30 (an order-dependent sum, doc/OpenWork.md §3).
@@ -1071,7 +1071,7 @@ std::unique_ptr<SolidCalculation> SiK211(SCFAccelerators::Type acc)
     auto mol=std::shared_ptr<const BasisSet::Real_BS>(
         BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-    RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .forceComplex=true}};
+    RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .responseQMeshes={ivec3_t(1,1,1)}}};
     o.accelerator=acc;
     o.solid.hubbard={{.site=0,.l=1,.U=0.0},{.site=1,.l=1,.U=0.0}};
     o.scf=SiParams();
@@ -1152,7 +1152,7 @@ CarryOver SiK222BeckeCarryOver(bool impose)
     auto mol=std::shared_ptr<const BasisSet::Real_BS>(
         BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-    RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .forceComplex=true}};
+    RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .responseQMeshes={ivec3_t(1,1,1)}}};
     o.imposeSymmetry=impose;
     SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);
     o.scf=SiParams(); auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, o)).TakeValue(); (void)calc->Converge();
@@ -1300,7 +1300,7 @@ void LittleGroupEqualsFull(ivec3_t Nq, qcMesh::UnitCellKind xc=qcMesh::UnitCellK
     auto mol=std::shared_ptr<const BasisSet::Real_BS>(
         BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-    RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .forceComplex=true}};
+    RunOptions o{.Nelec=8, .multiplicity=0, .species={{"Si",4}}, .solid={.densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=0.0, .projector=qchem::Hamiltonian::HubbardProjectorKind::SiteShells}}, .responseQMeshes={ivec3_t(1,1,1)}}};
     o.spins={0,0};
     SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(xc);
     o.scf=SiParams(); auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(lat, mol, o)).TakeValue(); (void)calc->Converge();

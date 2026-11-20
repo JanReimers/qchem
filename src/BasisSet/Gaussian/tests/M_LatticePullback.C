@@ -336,6 +336,83 @@ TEST(M_LatticePullback, ProjectorAndLocalGaussianPullbacksAndVirialsAreTheirFini
 TEST(M_LatticePullback, ProjectorAndLocalGaussianPullbacksAndVirialsAreTheirFiniteDifferences_Contracted)   {PPPullbacksAreTheFiniteDifference(H3());}
 TEST(M_LatticePullback, ProjectorAndLocalGaussianPullbacksAndVirialsAreTheirFiniteDifferences_Spherical)    {PPPullbacksAreTheFiniteDifference(MnO(), false);}
 
+// THE POINT-SET QUADRATURE PULLBACK (lane B 2026-11-19, READY 4: the δ XC on the Becke mesh): LatticeCollocation::BlochPointPullback against
+// the central difference of E = Σ_q c_q Re Σ_ij D_ji conj(Φ_qi) Φ_qj, Φ = BlochPointValues: the gradient (atoms moved, points held), the
+// per-point term (one point moved), and the moment (the whole cell, its atoms AND the points strained together, whose derivative is the
+// moment alone: each point's own term cancels its centres' by translation).  The three fixtures, the non-TRIM k.
+namespace {
+void PointPullbackIsTheFiniteDifference(const Fixture& x)
+{
+    const UnitCell cell=CellOf(x);
+    const Block b=Make(x, cell, 1e-14);
+    ASSERT_TRUE(b.ls);
+    const auto* lc=dynamic_cast<const LatticeCollocation*>(b.ls);
+    ASSERT_TRUE(lc) << x.what << ": the block realises no collocation face";
+    const chmat_t D=RandomHermitian(b.n, 0xC0FFEEULL+b.n);
+    std::vector<rvec3_t> fpts;   // fractional points, a deterministic scatter (strained with the cell)
+    unsigned long long r=0x9E3779B97F4A7C15ULL;
+    auto next=[&]{ r^=r<<13; r^=r>>7; r^=r<<17; return double(r%100000)/100000.0; };
+    for (int q=0;q<24;q++) fpts.push_back(rvec3_t(next(),next(),next()));
+    rvec_t c(fpts.size());
+    for (size_t q=0;q<c.size();q++) c[q]=0.3+next();
+    auto Cart=[&](const UnitCell& cc){ rvec3vec_t p(fpts.size()); for (size_t q=0;q<fpts.size();q++) p[q]=cc.ToCartesian(fpts[q]); return p; };
+    auto energy=[&](const UnitCell& cc, const rvec3vec_t& pts)
+    {
+        const Block bb=Make(x, cc, 1e-14);
+        const auto* l=dynamic_cast<const LatticeCollocation*>(bb.ls);
+        mat_t<dcmplx> Phi; l->BlochPointValues(pts, PhaseOf(kNonTRIM), cc, Phi);
+        double e=0.0;
+        for (size_t q=0;q<pts.size();q++)
+        {
+            dcmplx s(0.0);
+            for (size_t i=0;i<bb.n;i++) for (size_t j=0;j<bb.n;j++) s+=dcmplx(D(j,i))*std::conj(Phi(q,i))*Phi(q,j);
+            e+=c[q]*std::real(s);
+        }
+        return e;
+    };
+    const rvec3vec_t P0=Cart(cell);
+    const auto pb=lc->BlochPointPullback(P0, c, D, PhaseOf(kNonTRIM), cell, &cell);
+    ASSERT_EQ(pb.gradient.size(), x.atoms.size());
+    ASSERT_EQ(pb.perPoint.size(), P0.size());
+    const double h=1e-3;
+    double big=0.0, worst=0.0;
+    auto tally=[&](const char* what, double an, double fd)
+    {
+        std::printf("  [point pullback] %-22s %-14s analytic % .10e  FD % .10e  diff %.2e\n", x.what, what, an, fd, an-fd);
+        big=std::max(big,std::fabs(fd)); worst=std::max(worst,std::fabs(an-fd));
+    };
+    auto rich=[](auto E, double hh){ auto ce=[&](double s){ return (E(s)-E(-s))/(2*s); }; return (4.0*ce(0.5*hh)-ce(hh))/3.0; };
+    for (size_t a=0;a<x.atoms.size();a++)
+        for (int k=0;k<3;k++)
+        {
+            const double fd=rich([&](double s){ rvec3_t e(0,0,0); (k==0 ? e.x : k==1 ? e.y : e.z)=s; return energy(CellOf(x,a,e), P0); }, h);
+            char what[16]; std::snprintf(what, sizeof what, "atom %zu %c", a, "xyz"[k]);
+            tally(what, Comp(pb.gradient[a],k), fd);
+        }
+    for (size_t q : {size_t(0), size_t(7)})
+        for (int k=0;k<3;k++)
+        {
+            const double fd=rich([&](double s){ rvec3vec_t P=P0; (k==0 ? P[q].x : k==1 ? P[q].y : P[q].z)+=s; return energy(cell, P); }, h);
+            char what[16]; std::snprintf(what, sizeof what, "point %zu %c", q, "xyz"[k]);
+            tally(what, Comp(pb.perPoint[q],k), fd);
+        }
+    for (int u=0;u<3;u++)
+        for (int v=0;v<3;v++)
+        {
+            const double fd=rich([&](double s){ const UnitCell cc=CellOf(x,size_t(-1),rvec3_t(0,0,0),u,v,s); return energy(cc, Cart(cc)); }, h);
+            char what[16]; std::snprintf(what, sizeof what, "strain %c%c", "xyz"[u], "xyz"[v]);
+            tally(what, pb.moment(u+1,v+1), fd);
+        }
+    ASSERT_GT(big, 1e-4) << x.what << ": a vanishing pullback cannot show the walk is wired";
+    // + 2e-9: the basis's VALUE screen (PGData::Reaches, 1e-10, fixed) steps under a strain where a point sits at a function's reach -- the
+    // H3 box's scattered points do (measured 2026-11-19: 5.6e-10 on strain zz of a 9e-4 component; every other <= 9e-11).
+    EXPECT_LT(worst, 1e-7*big+2e-9) << x.what << ": the point-set pullback is not the finite difference of its quadrature";
+}
+} // namespace
+TEST(M_LatticePullback, ThePointSetPullbackIsItsFiniteDifference_Uncontracted) {PointPullbackIsTheFiniteDifference(Si());}
+TEST(M_LatticePullback, ThePointSetPullbackIsItsFiniteDifference_Contracted)   {PointPullbackIsTheFiniteDifference(H3());}
+TEST(M_LatticePullback, ThePointSetPullbackIsItsFiniteDifference_Spherical)    {PointPullbackIsTheFiniteDifference(MnO());}
+
 TEST(M_LatticePullback, RefusesAMisSizedAdjointAndAMissingStructure)
 {
     const Fixture x=Si();

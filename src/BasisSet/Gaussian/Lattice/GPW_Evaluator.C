@@ -119,6 +119,8 @@ public:
     //! \c LatticeSum1E::MakeLattice…Pullback at this block's phase and cell.  The home-only MODE refuses (its matrices are the finite
     //! molecule's, which have no cell to strain).  CLIENT: \c Lattice::Orbital_1E_IBS's overlap and kinetic pullbacks and virials.
     bool CanOneElectronPullback() const {return !itsHomeOnly;}
+    //! \c LatticeCollocation::BlochPointPullback at this block's phase and cell (the δ XC quadrature's derivative; READY 4).
+    Gaussian::LatticeCollocation::PointPullback PointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const chmat_t& D, const Structure* st) const;
     Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient> OneElectronPullback(int which, const chmat_t& Abar, const Structure* st) const;
 
     // --- isLattice_DFT_Evaluator surface: the DFT tier by COLLOCATION on the density grid (the genuinely-new GPW

@@ -100,7 +100,7 @@ def deck(d, src, basis_data, spherical):
         if k == "Uniform": top["xc"] = {"mesh": {"cellKind": "Uniform"}}
         elif (nr, L) != (40, 29): top["xc"] = {"mesh": {"cellKind": "Becke", "nRadial": nr, "angularDegree": L, **({"angular": "GaussLegendre"} if L < 29 else {})}}
     if d.get('hubbard'): sol["hubbard"] = d['hubbard']
-    if d['post']: sol["forceComplex"] = True
+    # (no forceComplex: retired 2026-11-19 -- the deck plans its responses and the setup decides complex from them)
     st = d['stages'] or [dict(G0=1.0, depth=8, start=5, alpha=0.45, acc="Null", kT=5e-3, mom=False, nmax=200)]
     stages = []
     for i, s in enumerate(st):
