@@ -820,11 +820,14 @@ TEST(HamiltonianForces, OnRealTRIMBlocksAtK222EachTermsForceAndVirialAtFixedDAre
 // term's being its blocks' (the functions moving, the points riding their owners) plus the mesh's weight response contracted against e.  Each
 // against the finite difference of its own energy with D frozen and the mesh REBUILT at the moved geometry -- the sheared, distorted Si cell
 // and 2 % allowance of the raster gates.  beckeEps 1e-10 (default 1e-6): a P-set member crossing the partition's eps screen inside ±h is an
-// eps-sized step the central difference would read as eps/h.  One atom's three axes and the six strain components.
+// eps-sized step the central difference would read as eps/h.  One atom's three axes and the six strain components.  A COARSE mesh (nR 20,
+// degree 11): the claim is analytic == FD of the energy on the SAME mesh, which holds on any mesh, and the cost is mesh builds -- MEASURED
+// 2026-11-19 on the default (40, 29) mesh, 16740 points: ~115 s per build at beckeEps 1e-10, ~25 builds (the point, the weight responses,
+// the 18 displaced points), 46 min, every term <= 5.1e-7 (XC 5.1e-8).  On (20, 11), 1944 points: 8.3 min, every term <= 5.2e-7 (XC 1.5e-7).
 TEST(HamiltonianForces, OnAFreeBeckeMeshEachTermsForceAndVirialAtFixedDAreItsEnergysFiniteDifference_Long)
 {
     RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.solid.densityEcut=20.0; o.label="gpw becke"; o.accuracy.eps=0.0;   // stated rasters
-    o.xcMesh=qcMesh::BeckeXCParams(); o.xcMesh->beckeEps=1e-10; o.solid.xcMeshSymmetric=false; o.solid.cellStrainAllowance=kPWStressAllowance;
+    o.xcMesh=qcMesh::BeckeXCParams(/*nRadial*/20, /*mhlAlpha: default*/-1.0, /*angularDegree*/11); o.xcMesh->beckeEps=1e-10; o.solid.xcMeshSymmetric=false; o.solid.cellStrainAllowance=kPWStressAllowance;
     o.solid.tolerances.screenEps=1e-12;   // the 1E screen's steps, as the raster Γ gate (the short PP's (3,3) read 1.2e-6 at the default)
     o.scf=PWStressParams(); o.scf.MinΔρPerElectron=1e-6;   // D is frozen: its convergence is not the subject
     const auto setup=SolidSetup::Resolve(Lattice_3D(PWStressCell(PWStressA()), ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
