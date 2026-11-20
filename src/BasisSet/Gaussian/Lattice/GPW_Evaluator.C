@@ -186,6 +186,22 @@ public:
     //! summing exactly to the full \f$V_{NL}\f$ (the l loop is the SAME assembly, accumulated per channel).
     //! Diagnostic face for \f$E_{NL}^{(l)}\f$ (doc/SphericalLatticePlan.md I0).
     std::map<int,chmat_t> MakeSeparablePPByL(const Structure* cl, const SpeciesProjectorSet_R& sep) const;
+    //! \brief THE DERIVATIVES of the PP matrices beside them (GeometryOptimizationPlan §13.2; doc/Records/CellHalf_Design.md §5; lane B
+    //! 2026-11-19): for the Hermitian \a D, the per-site gradient and the virial of \f$E=\mathrm{Re\,Tr}(DM)\f$ at fixed D and fractional k,
+    //! M = \c MakeLocalPPShort or \c MakeSeparablePP.  Each is a lattice Enzyme walk over the energy's own images (\c LatticeSum1E's
+    //! \c MakeLatticeLocalGaussianPullback / \c MakeLatticeOverlapPullback).  Both need the CLOSED-GAUSSIAN form of the field (the grid
+    //! fallbacks would move with their meshes) and a lattice (the home-only mode's matrices are the finite molecule's, with no cell): the
+    //! \c Can answers say so before a \c Make refuses.  The LONG range is the custom-ladder gather's pullback plus the field's own
+    //! structure-factor (and, for the virial, its explicit cell) dependence; its virial also needs the field's q-slope.
+    //! CLIENT: \c tGPW_IBS's species-field and projector pullbacks and virials.
+    bool CanPullbackLocalPP(const SpeciesRadialField& loc, FieldRange r) const;
+    bool CanPullbackSeparablePP(const SpeciesProjectorSet& sep) const;
+    //! \a virial: which half a LONG-range answer computes (its gradient and its virial are separate gathers; the short walk gives both).
+    bool CanVirialLocalPP(const SpeciesRadialField& loc, FieldRange r) const;
+    Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient> LocalPPPullback(const Structure* cl, const SpeciesRadialField& loc,
+                                                                                    FieldRange r, const chmat_t& D, bool virial=false) const;
+    Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient> SeparablePPPullback(const Structure* cl, const SpeciesProjectorSet& sep,
+                                                                                        const chmat_t& D) const;
     //! \brief The overlap of every Bloch orbital with every function of an atom-centred set (HubbardProjectorPlan
     //! D2): \f$B_{i,(M,m)}=\sum_Re^{ik\cdot R}\langle\chi_i|R_MY_{lm}(\cdot-C_M-R)\rangle\f$, \f$n\times\f$ \c NumFunctions(),
     //! analytic -- the SAME per-function seam the KB projections use (\c ProjectOntoGaussianYlm).
@@ -425,6 +441,11 @@ private:
     //! Both share \c CollocMemo with the ball closures (one collocation per (D, ladder) per iteration).
     std::function<rvec_t(const chmat_t&)> MakeRawCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     std::function<chmat_t(const rvec_t&)> MakeRawIntegrator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    //! The derivatives of \c MakeRawIntegrator's closure at fixed \a v and \a D (\c PairProjection::applyRawAdjointPullback / Virial; lane B
+    //! 2026-11-19): the SAME ladder and the SAME spectral transfer of \a v onto its levels (\c RawLevelFields), then the gather's pullback /
+    //! virial on the SAME screener and relative rule.  No memo: a force is asked once per geometry.
+    std::function<rvec3vec_t(const rvec_t&, const chmat_t&, const Structure*)> MakeRawIntegratorPullback(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    std::function<rmat3d_t  (const rvec_t&, const chmat_t&, const Structure*)> MakeRawIntegratorVirial  (std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     //! The KB-quadrature integration mesh params (uniform): the density grid's cutoff FLOORED at what the
     //! \f$\langle\chi|\beta\rangle\f$ integrand itself needs, \f$C\alpha_{\max}+\alpha_\beta\f$ (V2.5).
     qcMesh::MeshParams PPMeshParams(const Structure* cl, const SpeciesProjectorSet_R& sep) const;
@@ -433,6 +454,18 @@ private:
     //! levels following, the top completion rung LAST.  The density collocation (MakeCollocator), the integrate-back (OverlapMatrix)
     //! and the local-PP sweep (MakeLocalPP) all run per-pair on the FULL ladder; nBase only labels the top rung (diagnostics).
     const RasterLevels& Levels() const {return itsLadder->Levels();}
+
+    //! \brief THE LONG-RANGE LOCAL PP's ASSEMBLY, shared by its matrix and its derivatives (one construction, so the force differentiates the
+    //! matrix the energy uses): the custom ladder (\c GpwRasterLadder::MakeVlocLongLevels at the field's sharpness \a beta), the explicit
+    //! harmonic pair routing (\c StaticFieldPairLevels), a G-space field put on every level, and the gather on that routing.
+    struct LongPPAssembly { RasterLevels lad; std::vector<size_t> lv; };
+    LongPPAssembly MakeLongPPAssembly(double beta) const;
+    //! \a Vt on each level's {G} (dG = 0 dropped by the caller's closure); \a symmetric folds by the run's density group (only for a field
+    //! with the group's symmetry: V_long itself, never a derivative field).
+    std::vector<rvec_t> LongPPFields(const LongPPAssembly& a, const std::function<dcmplx(const ivec3_t&)>& Vt, bool symmetric) const;
+    chmat_t GatherLongPP(const LongPPAssembly& a, const std::vector<rvec_t>& V_L) const;
+    //! The derivatives of \c MakeLocalPPLong: the gradient (\a virial false) or the virial (\a virial true) of Re Tr(D M_long).
+    Gaussian::LatticeSum1E::GeometryPullback LocalPPLongPullback(const Structure* cl, const SpeciesRadialField& loc, const chmat_t& D, bool virial) const;
 };
 
 // (The spec checks -- static_assert(isLattice_{1E,DFT}_Evaluator<GPW_Evaluator>) -- sit beside GPW_IBS, where

@@ -51,9 +51,9 @@ template <class U> const BasisSet::Orbital_PP_IBS<U>& Need(const tobs_t<U>* b, c
 } // namespace
 
 std::string Ven_PP_Short::MissingGradient(const tbs_t<dcmplx>* bs, const Structure*) const
-{return Missing(bs, "Ven_PP_Short", "species-field pullback", [&](const auto& pp){return pp.CanPullbackSpeciesField(*itsLocal);});}
+{return Missing(bs, "Ven_PP_Short", "species-field pullback", [&](const auto& pp){return pp.CanPullbackSpeciesField(*itsLocal, BasisSet::FieldRange::Short);});}
 std::string Ven_PP_Long::MissingGradient(const tbs_t<dcmplx>* bs, const Structure*) const
-{return Missing(bs, "Ven_PP_Long", "species-field pullback", [&](const auto& pp){return pp.CanPullbackSpeciesField(*itsLocal);});}
+{return Missing(bs, "Ven_PP_Long", "species-field pullback", [&](const auto& pp){return pp.CanPullbackSpeciesField(*itsLocal, BasisSet::FieldRange::Long);});}
 std::string Ven_PP_NonLocal::MissingGradient(const tbs_t<dcmplx>* bs, const Structure*) const
 {return Missing(bs, "Ven_PP_NonLocal", "projector pullback", [&](const auto& pp){return pp.CanPullbackProjectors(*itsSep);});}
 

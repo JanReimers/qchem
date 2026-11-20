@@ -267,7 +267,8 @@ export namespace qchem::Hamiltonian
     //! \a hubbard: the DFT+U manifold list (empty = no Hubbard term).  \a fit carries the rho axis too (\c XCRoute; I3 and the periodic A1).
     //! \a vxcAux: the periodic A1 Vxc fit's real Gamma set -- the A1_exch set on the cell's sites as a GPW block at Gamma -- which a caller
     //! stating xc.fit Auxiliary builds (V-XC-ONE-TERM step 6: this library does not link the Gaussian factories); ignored otherwise.
-    cHamiltonian* Factory(SpinGroup, const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit,
+    //! \a numElectrons: the run's resolved electron count (SolidSetup's Nelec), the local PP's G = 0 alignment's FIXED N (Ven_PP_Short).
+    cHamiltonian* Factory(SpinGroup, const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons,
                           const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh,
                           XCRoute fit = {}, std::vector<HubbardManifold> hubbard = {}, const XCFunctional& xc = {},
                           std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux = {});

@@ -303,6 +303,14 @@ public:
     virtual chmat_t MakeLocalGaussian(const Structure* cl,
                                       const std::function<GaussianFunction(int)>& opForZ) const override
     { return CongruenceC(itsLat->MakeLocalGaussian(cl,opForZ)); }
+    //! Through T, as the S/T pullbacks: b_sph = Tᵀ b_cart, so Re Σ ū_sph* b_sph = Re Σ (T ū_sph)* b_cart (T real), and M_sph = Tᵀ M T, so
+    //! the adjoint expands; T is geometry-free.
+    virtual GeometryPullback MakeLatticeOverlapPullback(const cellphase_t& phase, const UnitCell& A, const GaussianFunction& g, size_t gSite,
+                                                        const cvec_t& ubar, const Structure* st) const override
+    { const cvec_t uc=itsTc*ubar; return itsLat->MakeLatticeOverlapPullback(phase,A,g,gSite,uc,st); }
+    virtual GeometryPullback MakeLatticeLocalGaussianPullback(const chmat_t& Abar, const cellphase_t& phase, const UnitCell& A, const Structure* cl,
+                                                              const std::function<GaussianFunction(int)>& opForZ) const override
+    { return itsLat->MakeLatticeLocalGaussianPullback(Expand(Abar),phase,A,cl,opForZ); }
     virtual double MaxExponent    () const override {return itsLat->MaxExponent();}
     virtual double MinExponent    () const override {return itsLat->MinExponent();}
     virtual const GPWTolerances& Tolerances() const override {return itsLat->Tolerances();}   // bound on the wrapped basis, before wrapping
@@ -333,14 +341,15 @@ public:
     virtual rvec3vec_t IntegratePotentialPullback(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
                                                   const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                                   const std::vector<double>& ecut_L, const LatticeScreener& screener,
-                                                  double relFieldSharp, const Structure* st) const override
-    { return itsLat->IntegratePotentialPullback(V_L,Expand(D),phase,A,N_L,ecut_L,screener,relFieldSharp,st); }
+                                                  double relFieldSharp, const Structure* st,
+                                                  const std::vector<size_t>* pairLevels=nullptr) const override
+    { return itsLat->IntegratePotentialPullback(V_L,Expand(D),phase,A,N_L,ecut_L,screener,relFieldSharp,st,pairLevels); }   // pairLevels token-passed (inner-pair-indexed)
     //! Through T as the pullback: T is geometry-free, so the strain derivative is the inner block's at the expanded density.
     virtual rmat3d_t IntegratePotentialVirial(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
                                               const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                               const std::vector<double>& ecut_L, const LatticeScreener& screener,
-                                              double relFieldSharp) const override
-    { return itsLat->IntegratePotentialVirial(V_L,Expand(D),phase,A,N_L,ecut_L,screener,relFieldSharp); }
+                                              double relFieldSharp, const std::vector<size_t>* pairLevels=nullptr) const override
+    { return itsLat->IntegratePotentialVirial(V_L,Expand(D),phase,A,N_L,ecut_L,screener,relFieldSharp,pairLevels); }
     virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                       double beta, double lnEps) const override
     { return itsLat->StaticFieldPairLevels(ecut_L,beta,lnEps); }

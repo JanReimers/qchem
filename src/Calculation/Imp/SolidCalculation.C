@@ -641,7 +641,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         if (a1) ReportPeriodicA1Cost(*a1, SizeReference("periodic A1 Vxc fit", opts.solid.tolerances, 1.0, &xc), Tag());
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, *itsImp->setup->pp, xc, {opts.vxcFit, opts.xcRho}, hubbard,
+            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, double(itsImp->setup->opts.Nelec), *itsImp->setup->pp, xc, {opts.vxcFit, opts.xcRho}, hubbard,
             qchem::Hamiltonian::ModelToXC(*opts.model), a1));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
@@ -2394,7 +2394,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition);
         }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
-        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, *S.pp, xcMesh ? *xcMesh : S.xcMesh, {opts.vxcFit, opts.xcRho}, itsImp->hubbard,
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, double(S.opts.Nelec), *S.pp, xcMesh ? *xcMesh : S.xcMesh, {opts.vxcFit, opts.xcRho}, itsImp->hubbard,
                                                  qchem::Hamiltonian::ModelToXC(*opts.model), PeriodicA1Set(opts, *stRef)));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);

@@ -689,7 +689,7 @@ TEST_F(PlaneWaveTests, ThePWStructureFactorPullbacksAreTheFiniteDifferenceOfItsO
     const auto& loc=pp.local; const auto& nl=pp.nonlocal;
     const BasisSet::Orbital_PP_IBS<dcmplx>& face=pw;
     const BasisSet::Orbital_1E_IBS<dcmplx>& one=pw;
-    ASSERT_TRUE(face.CanPullbackSpeciesField(loc) && face.CanPullbackProjectors(nl) && one.CanPullbackNuclear());
+    ASSERT_TRUE(face.CanPullbackSpeciesField(loc, BasisSet::FieldRange::Full) && face.CanPullbackProjectors(nl) && one.CanPullbackNuclear());
     std::vector<rvec3_t> R; si.ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
     auto ReTr=[&](const chmat_t& M){ double t=0.0; for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) t+=std::real(std::conj(dcmplx(D(i,j)))*dcmplx(M(i,j))); return t; };
     auto check=[&](const rvec3vec_t& F, auto value, const char* what)

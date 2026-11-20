@@ -139,6 +139,15 @@ template <class T> struct PairProjection
     //! zero-pad -- then the analytic per-pair gather), so \f$H_{xc}=\partial E_{xc}[\rho_{DM}]/\partial D\f$
     //! holds to machine precision.  Set/empty together with \ref applyRaw.
     std::function<hmat_t<T>(const rvec_t& v)> applyRawAdjoint;
+    //! THE DERIVATIVES of \ref applyRawAdjoint beside it (GeometryOptimizationPlan §13.2; the user's 2026-11-08 pre-approval; lane B
+    //! 2026-11-19): at FIXED \a v on the raster and FIXED Hermitian \a D, \f$\partial_{R_A}\mathrm{Re\,Tr}(D\,\mathrm{applyRawAdjoint}(v))\f$
+    //! per site (the orbitals' atoms moving, the raster fixed), and its strain derivative with the raster, centres and images strained
+    //! together and \a v held per raster index: the gather's moment PLUS its weight's dilation \f$\delta_{ab}\mathrm{Re\,Tr}(D\,h)\f$.  The
+    //! SAME level fields \ref applyRawAdjoint gathers (the spectral transfer of \a v), so each is the exact derivative of that gather.
+    //! CLIENT: the raw-raster XC route (PairDensitySampler).  Set/empty together with \ref applyRawAdjoint by a basis that can
+    //! differentiate its gather (GPW).
+    std::function<rvec3vec_t(const rvec_t& v, const hmat_t<T>& D, const Structure* st)> applyRawAdjointPullback;
+    std::function<rmat3d_t  (const rvec_t& v, const hmat_t<T>& D, const Structure* st)> applyRawAdjointVirial;
     //! \brief The SAME forward as \ref applyRaw, for a caller holding \f$D\f$ in FACTORED form
     //! \f$D=LL^\dagger\f$ (a thin \f$n\times r\f$ pivoted-Cholesky / natural-orbital factor):
     //! \f$\rho_g=\sum_m\left|[\Phi L]_{gm}\right|^2\f$, i.e. \f$O(n_{pts}nr)\f$ instead of

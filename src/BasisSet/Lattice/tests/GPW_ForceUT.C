@@ -6,6 +6,7 @@
 // atoms, at a NON-TRIM k (complex phases).  The kernel itself is gated at the LatticeCollocation face in M_CollocationPullback.
 #include "gtest/gtest.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <complex>
 #include <cstdio>
@@ -20,6 +21,8 @@ import qchem.BasisSet.Gaussian.Point.Factory;         // Gaussian::Factory
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;       // GPW_IBS (the block under test)
 import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator; // its tensors (tests may cheat-import internals)
 import qchem.BasisSet.GMap;                           // PairProjection<dcmplx>, ΔG_Map, Contract / ContractAdjoint(Pullback)
+import qchem.BasisSet.Orbital_PP_IBS;                 // the species-field / projector faces (the PP pullbacks and virials)
+import qchem.Pseudopotential.GTH_Potentials;          // GetGTH (the Si GTH-LDA-q4 short part and KB projectors)
 import qchem.Vector3D;
 import qchem.Types;
 import qchem.Blaze;
@@ -42,8 +45,24 @@ UnitCell CellOf(size_t moved=size_t(-1), const rvec3_t& dr=rvec3_t(0,0,0))
     const Si2 s;
     const rvec3_t f[2]={s.f0, s.f1};
     for (size_t a=0;a<2;a++) c.AddAtom(14, a==moved ? c.ToFractional(c.ToCartesian(f[a])+dr) : f[a]);
+    c.SetSizingCell(1.02*c.GetCellMatrix());   // the frozen rule (CellHalf_Design §3): every geometry here chooses its G sets on one box
     return c;
 }
+//! The cell under the homogeneous strain A -> (1 + s e_uv) A, fractional positions held (every atom and image rides it).  The FCC
+//! primitive matrix (columns the lattice vectors, M_LatticePullback's convention) is symmetric, so it is FCCUnitCell(10.26)'s whatever
+//! the orientation convention.
+UnitCell StrainedOf(int u, int v, double s)
+{
+    const Matrix3D<double> A(0.0,5.13,5.13, 5.13,0.0,5.13, 5.13,5.13,0.0);
+    Matrix3D<double> B=A;
+    for (int j=1;j<=3;j++) B(u+1,j)=A(u+1,j)+s*A(v+1,j);   // (F A)_uj = A_uj + s A_vj
+    UnitCell c(B);
+    const Si2 sf;
+    c.AddAtom(14, sf.f0); c.AddAtom(14, sf.f1);
+    c.SetSizingCell(1.02*A);   // CellOf's sizing box: the strain moves the G vectors, never the index sets (else the energy steps)
+    return c;
+}
+double Comp(const rvec3_t& v, int c) {return c==0 ? v.x : c==1 ? v.y : v.z;}
 std::shared_ptr<const Real_BS> Mol(const Structure& st)
 {
     return std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(BasisSetData::SIPP, &st, BasisSet::Gaussian::Engine::MnD,
@@ -120,4 +139,147 @@ TEST(GPW_Force, TheHartreeForceAtFixedDIsTheCoulombTensorsPullback)
         }
     ASSERT_GT(big, 1e-4) << "a vanishing force cannot show the chain is wired";
     EXPECT_LT(worst, 1e-6*big) << "the GPW Hartree force at fixed D is not its energy's finite difference";
+}
+
+// THE GPW PP PULLBACKS AND VIRIALS AT FIXED D (lane B 2026-11-19): the block's MakeSpeciesFieldPullback / Virial (the SHORT and LONG
+// local ranges) and MakeProjectorPullback / Virial (the KB projectors) against the central difference of Re Tr(D M), M the matching
+// MakeSpeciesFieldMatrix / MakeProjectorMatrix, the block rebuilt on displaced atoms and on a strained cell -- the GPW compositions (the
+// short part's −v̄ S, the long part's custom-ladder gather and its field's structure factor and cell dependence, the KB's b b† per projector
+// and m) over the primitives M_LatticePullback and M_CollocationPullback gate, at the same NON-TRIM k.
+TEST(GPW_Force, ThePPForcesAndVirialsAtFixedDAreTheirFiniteDifferences)
+{
+    using BasisSet::FieldRange;
+    const auto gth=Pseudopotential::GetGTH("Si","LDA",4);
+    const UnitCell cell=CellOf();
+    const auto gpw=Block(cell);
+    const BasisSet::Orbital_PP_IBS<dcmplx>& pp=*gpw;
+    for (FieldRange r : {FieldRange::Short, FieldRange::Long})
+    {
+        ASSERT_TRUE(pp.CanPullbackSpeciesField(gth.local, r));
+        ASSERT_TRUE(pp.CanVirialSpeciesField(gth.local, r));
+    }
+    ASSERT_TRUE(pp.CanPullbackProjectors(gth.nonlocal) && pp.CanVirialProjectors(gth.nonlocal));
+    const size_t n=static_cast<const Complex_OIBS&>(*gpw).GetNumFunctions();
+    const chmat_t D=RandomHermitian(n);
+    auto ReTr=[&](const chmat_t& M)
+    {
+        double t=0.0;
+        for (size_t i=0;i<n;i++)
+        {
+            t+=std::real(dcmplx(D(i,i)))*std::real(dcmplx(M(i,i)));
+            for (size_t j=i+1;j<n;j++) t+=2.0*std::real(std::conj(dcmplx(D(i,j)))*dcmplx(M(i,j)));
+        }
+        return t;
+    };
+    using Three=std::array<double,3>;   // short, long, KB
+    const char* kName[3]={"short", "long", "KB"};
+    auto energies=[&](const UnitCell& c)
+    {
+        const auto b=Block(c);
+        const BasisSet::Orbital_PP_IBS<dcmplx>& q=*b;
+        return Three{ReTr(q.MakeSpeciesFieldMatrix(&c, gth.local, FieldRange::Short)), ReTr(q.MakeSpeciesFieldMatrix(&c, gth.local, FieldRange::Long)),
+                     ReTr(q.MakeProjectorMatrix(&c, gth.nonlocal))};
+    };
+    {   // the strained helper at s = 0 IS the cell the analytic side is taken on
+        const Three a=energies(StrainedOf(0,0,0.0)), b=energies(cell);
+        for (int t=0;t<3;t++) ASSERT_NEAR(a[t], b[t], 1e-12) << "StrainedOf(0) is not CellOf()";
+    }
+    const auto gS=pp.MakeSpeciesFieldPullback(&cell, gth.local, FieldRange::Short, D), gL=pp.MakeSpeciesFieldPullback(&cell, gth.local, FieldRange::Long, D);
+    const auto vS=pp.MakeSpeciesFieldVirial  (&cell, gth.local, FieldRange::Short, D), vL=pp.MakeSpeciesFieldVirial  (&cell, gth.local, FieldRange::Long, D);
+    const auto gK=pp.MakeProjectorPullback(&cell, gth.nonlocal, D);
+    const auto vK=pp.MakeProjectorVirial  (&cell, gth.nonlocal, D);
+    ASSERT_TRUE(gS && gL && gK && vS && vL && vK);
+    // ONE central difference (no Richardson: the screen's steps, ~2e-7 relative, dominate its h^2 error; the gate's cost is ~40 rebuilt blocks).
+    auto rich=[](auto E, double h)
+    {
+        const Three p=E(h), m=E(-h); Three d; for (int t=0;t<3;t++) d[t]=(p[t]-m[t])/(2*h);
+        return d;
+    };
+    Three big{0,0,0}, worst{0,0,0};
+    auto tally=[&](const char* what, const Three& an, const Three& fd)
+    {
+        for (int t=0;t<3;t++)
+        {
+            std::printf("  [GPW PP] %-10s %-5s analytic % .10e  FD % .10e  diff %.2e\n", what, kName[t], an[t], fd[t], an[t]-fd[t]);
+            big[t]=std::max(big[t],std::fabs(fd[t])); worst[t]=std::max(worst[t],std::fabs(an[t]-fd[t]));
+        }
+    };
+    const double h=5e-4;
+    for (size_t a=0;a<2;a++)
+        for (int c=0;c<3;c++)
+        {
+            const Three fd=rich([&](double s){ rvec3_t e(0,0,0); (c==0 ? e.x : c==1 ? e.y : e.z)=s; return energies(CellOf(a,e)); }, h);
+            char what[16]; std::snprintf(what, sizeof what, "atom %zu %c", a, "xyz"[c]);
+            tally(what, Three{Comp((*gS)[a],c), Comp((*gL)[a],c), Comp((*gK)[a],c)}, fd);
+        }
+    for (int u=0;u<3;u++)
+        for (int v=0;v<3;v++)
+        {
+            const Three fd=rich([&](double s){ return energies(StrainedOf(u,v,s)); }, h);
+            char what[16]; std::snprintf(what, sizeof what, "strain %c%c", "xyz"[u], "xyz"[v]);
+            tally(what, Three{(*vS)(u+1,v+1), (*vL)(u+1,v+1), (*vK)(u+1,v+1)}, fd);
+        }
+    // 1e-6 of the largest: the default screen (1e-10) steps under a displacement, measured 2e-7 relative on the short part (2026-11-19).
+    for (int t=0;t<3;t++)
+    {
+        ASSERT_GT(big[t], 1e-3) << kName[t];
+        EXPECT_LT(worst[t], 1e-6*big[t]) << "the GPW " << kName[t] << " PP force / virial at fixed D is not its energy's finite difference";
+    }
+}
+
+// THE RAW RASTER GATHER's PULLBACK AND VIRIAL (lane B 2026-11-19, READY 3: the XC term's raster route): Overlap3C's applyRawAdjointPullback
+// / Virial against the central difference of Re Tr(D applyRawAdjoint(v)) at a FIXED field v per raster index, the block rebuilt on displaced
+// atoms and on a strained cell (the sizing box holds the raster), at the same NON-TRIM k.  The virial includes the raster weight's dilation.
+TEST(GPW_Force, TheRawRasterGathersPullbackAndVirialAreItsFiniteDifference)
+{
+    const UnitCell cell=CellOf();
+    const auto gpw=Block(cell);
+    const GPW_Evaluator& ev=*gpw;
+    const size_t n=static_cast<const Complex_OIBS&>(*gpw).GetNumFunctions();
+    const chmat_t D=RandomHermitian(n);
+    const PairProjection<dcmplx> g=ev.Overlap3CTensor();
+    ASSERT_TRUE(g.applyRawAdjoint && g.applyRawAdjointPullback && g.applyRawAdjointVirial) << "the GPW tensor carries the raw gather's derivatives";
+    const size_t NR=ev.DensityGrid().RasterSize();
+    rvec_t v(NR);
+    for (size_t r=0;r<NR;r++) v[r]=-0.4+0.3*std::sin(0.37*double(r))+0.1*std::cos(0.011*double(r)*double(r%17));   // a fixed, rough field per index
+    auto ReTr=[&](const chmat_t& M)
+    {
+        double t=0.0;
+        for (size_t i=0;i<n;i++)
+        {
+            t+=std::real(dcmplx(D(i,i)))*std::real(dcmplx(M(i,i)));
+            for (size_t j=i+1;j<n;j++) t+=2.0*std::real(std::conj(dcmplx(D(i,j)))*dcmplx(M(i,j)));
+        }
+        return t;
+    };
+    auto energy=[&](const UnitCell& c)
+    {
+        const auto b=Block(c);
+        const GPW_Evaluator& e=*b;
+        EXPECT_EQ(e.DensityGrid().RasterSize(), NR) << "the sizing box holds the raster";
+        return ReTr(e.Overlap3CTensor().applyRawAdjoint(v));
+    };
+    const rvec3vec_t G=g.applyRawAdjointPullback(v, D, &cell);
+    const rmat3d_t   V=g.applyRawAdjointVirial(v, D, &cell);
+    ASSERT_EQ(G.size(), 2u);
+    double big=0.0, worst=0.0;
+    const double h=1e-3;
+    for (size_t a=0;a<2;a++)
+        for (int c=0;c<3;c++)
+        {
+            auto central=[&](double s){ rvec3_t e(0,0,0); (c==0 ? e.x : c==1 ? e.y : e.z)=s; return (energy(CellOf(a,e))-energy(CellOf(a,-1.0*e)))/(2*s); };
+            const double fd=(4.0*central(0.5*h)-central(h))/3.0, an=Comp(G[a],c);   // Richardson: the rough field's h^2 term is ~1e-6 relative
+            std::printf("  [GPW raw gather] atom %zu %c  analytic % .10e  FD % .10e  diff %.2e\n", a, "xyz"[c], an, fd, an-fd);
+            big=std::max(big,std::fabs(fd)); worst=std::max(worst,std::fabs(an-fd));
+        }
+    for (int u=0;u<3;u++)
+        for (int w=0;w<3;w++)
+        {
+            auto central=[&](double s){ return (energy(StrainedOf(u,w,s))-energy(StrainedOf(u,w,-s)))/(2*s); };
+            const double fd=(4.0*central(0.5*h)-central(h))/3.0, an=V(u+1,w+1);
+            std::printf("  [GPW raw gather] strain %c%c  analytic % .10e  FD % .10e  diff %.2e\n", "xyz"[u], "xyz"[w], an, fd, an-fd);
+            big=std::max(big,std::fabs(fd)); worst=std::max(worst,std::fabs(an-fd));
+        }
+    ASSERT_GT(big, 1e-3) << "a vanishing derivative cannot show the walk is wired";
+    EXPECT_LT(worst, 1e-6*big) << "the raw gather's pullback / virial at fixed v and D is not its finite difference";
 }
