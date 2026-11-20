@@ -757,6 +757,130 @@ public:
         for (const auto& t : g.terms) { pt.push_back(Polarization(t.p)); ct.push_back(t.c); }
         return ThreeCentrePullback(GaussianRF::ThreeCentre::Overlap, gr, pt, ct, gAtom, D, st, "the local-field (short) pullback");
     }
+    //! \brief THE LATTICE OVERLAP-WITH-g PULLBACK (LatticeSum1E's doc; the GPW KB force, lane B 2026-11-19): the gradient and the image
+    //! virial of \f$E=\mathrm{Re}\sum_i\bar u_i^*b_i\f$, \f$b\f$ = \c MakeOverlap(phase,A,g), g on site \a gSite of \a st.  The SAME walk as
+    //! the energy -- per shell, its reach (\c GaussReach), the images n of g at \f$C+R_n\f$ -- and per (shell, image) one Enzyme pass over
+    //! the kernel (\c GaussianRF::KetGradient, g's radial in the ket at \f$C+R_n\f$) with \f$W_{pu}=\mathrm{Re}(\bar u_P^*\varphi(n))\,n_Pc_u\f$:
+    //! the ket's share goes to g's site, its negative to the shell's, and the virial over the two unfolded centres is
+    //! \f$w\otimes(C+R_n-R_i)\f$.  THROWS on a stray centre, a mis-sized \a ubar or a missing structure.
+    Gaussian::LatticeSum1E::GeometryPullback LatticeOverlapWithPullback(const cellphase_t& phase, const UnitCell& A,
+                                                                        const Gaussian::LatticeSum1E::GaussianFunction& g, size_t gSite,
+                                                                        const cvec_t& ubar, const Structure* st) const
+    {
+        const char* what="the lattice projector pullback";
+        CheckPullbackArgs(what, ubar.size(), st);
+        if (gSite>=st->GetNumAtoms()) throw std::invalid_argument(std::string(what)+": g's site is not in the structure");
+        const std::vector<size_t> atom=ComponentSites(st, what);
+        const int Lg=GaussDegree(g);
+        const GaussianRF gr(g.alpha, g.center, Lg);   // as GaussOverlapTerm (KetGradient places it at B)
+        std::vector<Polarization> pt; std::vector<double> ct;
+        for (const auto& t : g.terms) { pt.push_back(Polarization(t.p)); ct.push_back(t.c); }
+        Gaussian::LatticeSum1E::GeometryPullback r{rvec3vec_t(st->GetNumAtoms(), rvec3_t(0,0,0)), rmat3d_t(0,0,0, 0,0,0, 0,0,0)};
+        double V[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+        std::vector<double> W;
+        for (const Shell& si : Shells())
+        {
+            const size_t i0=si.begin, ni=si.end-si.begin;
+            const double rr=GaussReach(i0, g);                 // MakeOverlap's per-shell reach and keep test
+            const rvec3_t ci=radials[i0]->GetCenter(), dig=ci-g.center;
+            W.assign(ni*pt.size(), 0.0);
+            for (const auto& n : LatticePointsInSphere(A, rr+norm(dig)))
+            {
+                const rvec3_t Roff=A.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
+                const rvec3_t d=dig-Roff;
+                if (d.x*d.x+d.y*d.y+d.z*d.z > rr*rr) continue;
+                const dcmplx ph=phase(n);
+                for (size_t p=0;p<ni;p++)
+                {
+                    const double wp=std::real(std::conj(dcmplx(ubar[i0+p]))*ph)*ns[i0+p];
+                    for (size_t u=0;u<pt.size();u++) W[p*pt.size()+u]=wp*ct[u];
+                }
+                const rvec3_t gk=radials[i0]->KetGradient(GaussianRF::TwoCentre::Overlap, gr, g.center+Roff, &pols[i0], ni, pt.data(), pt.size(), W.data());
+                r.gradient[atom[i0]]-=gk;
+                r.gradient[gSite]   +=gk;
+                const rvec3_t x=g.center+Roff-ci;
+                const double ww[3]={gk.x,gk.y,gk.z}, xx[3]={x.x,x.y,x.z};
+                for (int a=0;a<3;a++) for (int b=0;b<3;b++) V[a][b]+=ww[a]*xx[b];
+            }
+        }
+        r.virial=rmat3d_t(V[0][0],V[0][1],V[0][2], V[1][0],V[1][1],V[1][2], V[2][0],V[2][1],V[2][2]);
+        return r;
+    }
+    //! \brief THE LATTICE LOCAL-GAUSSIAN PULLBACK (LatticeSum1E's doc; the GPW short-PP force, lane B 2026-11-19): the gradient and the image
+    //! virial of \f$E=\mathrm{Re\,Tr}(\bar A^\dagger M)\f$, M = \c MakeLocalGaussian(phase,A,cl,opForZ).  The energy's series is
+    //! \f$M_{ij}=n_in_j\sum_n\varphi(n)\sum_o c_o\langle i|g_o|j(\cdot-R_n)\rangle\f$ over j >= i, the pair images (\c ForImageOffsets), the
+    //! operator images (\c BuildOpTerms) and the 3-centre prefactor screen; this walks the SAME terms per shell pair (a shell with itself
+    //! takes its components' j >= i) and image, and per operator image ONE Enzyme pass (\c GaussianRF::ThreeCentreGradient over its
+    //! polynomial) with \f$W_{pq}=c_{ij}\mathrm{Re}(\bar A_{ij}^*\varphi(n))\,n_in_j\f$, \f$c\f$ = 1 on the diagonal and 2 off it.  The bra's,
+    //! the ket image's and the operator image's shares go to their sites; the virial is \f$\sum_X g_X\otimes X\f$ over the three unfolded
+    //! centres.  THROWS on a stray centre, a mis-sized adjoint or a missing structure.
+    Gaussian::LatticeSum1E::GeometryPullback LatticeLocalGaussianPullback(const chmat_t& Abar, const cellphase_t& phase, const UnitCell& A,
+                                                                          const Structure* cl,
+                                                                          const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const
+    {
+        const char* what="the lattice local-Gaussian pullback";
+        CheckPullbackArgs(what, Abar.rows(), cl);
+        const std::vector<size_t> atom=ComponentSites(cl, what);
+        const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,&A);   // as MakeLocalGaussian: the operator over its screened images
+        struct Group { const GaussianRF* gr; size_t site; std::vector<Polarization> pt; std::vector<double> ct; };
+        std::vector<Group> groups;                                  // one per operator image: its polynomial on its shared radial
+        for (const auto& ot : ops)
+        {
+            if (groups.empty() || groups.back().gr!=ot.gr.get()) groups.push_back({ot.gr.get(), ot.site, {}, {}});
+            groups.back().pt.push_back(ot.pol); groups.back().ct.push_back(ot.c);
+        }
+        const double lne=-std::log(kScreenEps());
+        Gaussian::LatticeSum1E::GeometryPullback r{rvec3vec_t(cl->GetNumAtoms(), rvec3_t(0,0,0)), rmat3d_t(0,0,0, 0,0,0, 0,0,0)};
+        double V[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+        auto addV=[&](const rvec3_t& g, const rvec3_t& X)
+        {
+            const double gg[3]={g.x,g.y,g.z}, xx[3]={X.x,X.y,X.z};
+            for (int a=0;a<3;a++) for (int b=0;b<3;b++) V[a][b]+=gg[a]*xx[b];
+        };
+        const std::vector<Shell>& shells=Shells();
+        std::vector<double> W;
+        for (size_t s=0;s<shells.size();s++)
+            for (size_t t=s;t<shells.size();t++)
+            {
+                const Shell& si=shells[s]; const Shell& sj=shells[t];
+                const size_t i0=si.begin, j0=sj.begin, ni=si.end-si.begin, nj=sj.end-sj.begin;
+                const rvec3_t Ri=radials[i0]->GetCenter(), Rj=radials[j0]->GetCenter();
+                const double ai=MinExponent(i0), aj=MinExponent(j0);
+                W.assign(ni*nj, 0.0);
+                ForImageOffsets(i0, j0, A, [&](const ivec3_t& n, const rvec3_t& Roff)
+                {
+                    const dcmplx ph=phase(n);
+                    bool any=false;
+                    for (size_t p=0;p<ni;p++)
+                        for (size_t q=0;q<nj;q++)
+                        {
+                            const size_t i=i0+p, j=j0+q;
+                            double w=0.0;
+                            if (j>=i) w=(i==j ? 1.0 : 2.0)*std::real(std::conj(dcmplx(Abar(i,j)))*ph)*ns[i]*ns[j];
+                            W[p*nj+q]=w; any|=(w!=0.0);
+                        }
+                    if (!any) return;
+                    const GaussianRF cj=radials[j0]->AtCenter(Rj+Roff);
+                    const rvec3_t AB=Ri-(Rj+Roff); const double AB2=AB*AB;
+                    for (const Group& gp : groups)
+                    {
+                        const rvec3_t Rc=gp.gr->GetCenter();
+                        const double c=gp.gr->GetExponents()[0];
+                        const rvec3_t AC=Ri-Rc, BC=(Rj+Roff)-Rc;
+                        if ((ai*aj*AB2 + ai*c*(AC*AC) + aj*c*(BC*BC))/(ai+aj+c) > lne) continue;   // the energy kernel's screen
+                        rvec3_t gA, gB, gC;
+                        gp.gr->ThreeCentreGradient(GaussianRF::ThreeCentre::Overlap, *radials[i0], cj, &pols[i0], ni, &pols[j0], nj,
+                                                   gp.pt.data(), gp.ct.data(), gp.pt.size(), W.data(), gA, gB, gC);
+                        r.gradient[atom[i0]]+=gA;
+                        r.gradient[atom[j0]]+=gB;
+                        r.gradient[gp.site] +=gC;
+                        addV(gA, Ri); addV(gB, Rj+Roff); addV(gC, Rc);
+                    }
+                });
+            }
+        r.virial=rmat3d_t(V[0][0],V[0][1],V[0][2], V[1][0],V[1][1],V[1][2], V[2][0],V[2][1],V[2][2]);
+        return r;
+    }
     //! \f$\sum_{ij}D_{ij}\,\partial(ij|e^{-\alpha|r-R_{gAtom}|^2})/\partial R\f$ = \c RepulsionThreeC (the local field's long part).
     rvec3vec_t GaussianRepulsionPullback(size_t gAtom, double alpha, const rmat_t& D, const Structure* st) const
     {
@@ -3258,11 +3382,14 @@ public:
     //! Returns one entry per site of \a st; each function's centre must sit on one of them.  THROWS on a mis-sized D or a stray centre.
     rvec3vec_t IntegratePotentialPullback(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                           const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
-                                          const LatticeScreener& screener, double relFieldSharp, const Structure* st) const
+                                          const LatticeScreener& screener, double relFieldSharp, const Structure* st,
+                                          const std::vector<size_t>* pairLevels=nullptr) const
     {
         const size_t K=N_L.size(), nn=size();
         if (K==0 || ecut_L.size()!=K || V_L.size()!=K)
             throw std::invalid_argument("IntegratePotentialPullback: the level fields, grids and cutoffs disagree in count");
+        if (pairLevels && pairLevels->size()!=nn*nn)
+            throw std::invalid_argument("IntegratePotentialPullback: the explicit pair levels are not n x n");
         if (D.rows()!=nn)
             throw std::invalid_argument("IntegratePotentialPullback: D is "+std::to_string(D.rows())+" square for "+std::to_string(nn)+" functions");
         if (!st) throw std::invalid_argument("IntegratePotentialPullback: the pullback needs the structure (the atoms the functions sit on)");
@@ -3277,7 +3404,8 @@ public:
         {
             const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
             const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
-            const size_t l=PairLevel(si.begin,sj.begin,ecut_L,0.0,0.0,relFieldSharp);
+            const size_t l=pairLevels ? (*pairLevels)[si.begin*nn+sj.begin] : PairLevel(si.begin,sj.begin,ecut_L,0.0,0.0,relFieldSharp);
+            if (l>=K) throw std::invalid_argument("IntegratePotentialPullback: a pair's level is past the ladder");
             const rvec_t& V=V_L[l];
             const double  w=A.GetCellVolume()/double(V.size());
             rmat_t cij(nIs,nJs,0.0);   // the unit weight IntegratePotential presents with no screenD, on the pairs it gathers (j >= i)
@@ -3364,11 +3492,14 @@ public:
     //! the derivative of the discretized gather, the screens' radii dropped as there.  THROWS on a mis-sized D.
     rmat3d_t IntegratePotentialVirial(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                       const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
-                                      const LatticeScreener& screener, double relFieldSharp) const
+                                      const LatticeScreener& screener, double relFieldSharp,
+                                      const std::vector<size_t>* pairLevels=nullptr) const
     {
         const size_t K=N_L.size(), nn=size();
         if (K==0 || ecut_L.size()!=K || V_L.size()!=K)
             throw std::invalid_argument("IntegratePotentialVirial: the level fields, grids and cutoffs disagree in count");
+        if (pairLevels && pairLevels->size()!=nn*nn)
+            throw std::invalid_argument("IntegratePotentialVirial: the explicit pair levels are not n x n");
         if (D.rows()!=nn)
             throw std::invalid_argument("IntegratePotentialVirial: D is "+std::to_string(D.rows())+" square for "+std::to_string(nn)+" functions");
         qchem::report::Timed timer("stress: gather virial (jet walk)");
@@ -3381,7 +3512,8 @@ public:
         {
             const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
             const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
-            const size_t l=PairLevel(si.begin,sj.begin,ecut_L,0.0,0.0,relFieldSharp);
+            const size_t l=pairLevels ? (*pairLevels)[si.begin*nn+sj.begin] : PairLevel(si.begin,sj.begin,ecut_L,0.0,0.0,relFieldSharp);
+            if (l>=K) throw std::invalid_argument("IntegratePotentialVirial: a pair's level is past the ladder");
             const rvec_t& V=V_L[l];
             const double  w=A.GetCellVolume()/double(V.size());
             rmat_t cij(nIs,nJs,0.0);   // the pullback's unit weight on the pairs the gather takes (j >= i)
@@ -4029,7 +4161,7 @@ public:
 private:
     // One monomial term of a per-atom local Gaussian operator: the atom's GaussianRF (SHARED across its
     // polynomial terms -- built once per atom image), the term's Cartesian-monomial Polarization, and its coeff.
-    struct OpTerm { std::shared_ptr<GaussianRF> gr; Polarization pol; double c; };
+    struct OpTerm { std::shared_ptr<GaussianRF> gr; Polarization pol; double c; size_t site=0; };   // site: the atom (Sites() order) it images
     // Flatten the structure's per-atom operators (opForZ(Z_a) at R_a) into (gr, pol, c) terms for the 3-centre
     // Overlap3C loop.  For a PERIODIC cell (\a A non-null) the local potential is the FIXED periodic field, so
     // each atom is placed at every IMAGE within (operator reach + max orbital reach) of the home atom: an
@@ -4049,14 +4181,15 @@ private:
             maxOrbReach=std::max(maxOrbReach, std::sqrt(-std::log(kScreenEps())/amin));
         }
         std::vector<OpTerm> ops;
-        for (const Site& a : cl->Sites())
+        for (size_t ia=0; ia<cl->Sites().size(); ia++)
         {
+            const Site& a=cl->Sites()[ia];
             Gaussian::LatticeSum1E::GaussianFunction g=opForZ(a.Z);
             const int Lg=GaussDegree(g);
             auto place=[&](const rvec3_t& center)
             {
                 auto gr=std::make_shared<GaussianRF>(g.alpha, center, Lg);
-                for (const auto& t : g.terms) ops.push_back({gr, Polarization(t.p), t.c});
+                for (const auto& t : g.terms) ops.push_back({gr, Polarization(t.p), t.c, ia});
             };
             if (!A) { place(a.R); continue; }           // finite: home atom only
             // The images that matter are those within (operator reach + orbital reach) of a HOME basis centre chi_i (the lattice

@@ -285,13 +285,13 @@ namespace qchem::Hamiltonian
     }
 
     // The SOLID front door (Step 4): the cHamiltonian twin of the PP factory above.
-    cHamiltonian* Factory(SpinGroup p, const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit,
+    cHamiltonian* Factory(SpinGroup p, const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons,
                           const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh, XCRoute fit,
                           std::vector<HubbardManifold> hubbard, const XCFunctional& xc,
                           std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
     {
         RequireAdmitted(*st,fit.fit,xcMesh);
-        return new Ham_PW_DFT(st, bs, coulombFit, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard), MakeXCParts(xc),
+        return new Ham_PW_DFT(st, bs, coulombFit, numElectrons, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard), MakeXCParts(xc),
                               std::move(vxcAux));
     }
 

@@ -73,7 +73,7 @@ TEST(PW_NaF, Γ_Anchor)
 
     using SS=qchem::ChargeDensity::SeedStrategy;
     auto mkHam=[&](const BasisSet::Complex_BS* bs, const qchem::Hamiltonian::CoulombFitSlot<dcmplx>& coulombFit)   // multi-species one-call; bs -> the Hartree fit basis
-        { return new Ham_PW_DFT(lat.GetStructure(), bs, coulombFit, {{"Na",1},{"F",7}}, "LDA"); };
+        { return new Ham_PW_DFT(lat.GetStructure(), bs, coulombFit, 8.0, {{"Na",1},{"F",7}}, "LDA"); };
 
     // IonicSAD seed: the electronegativity heuristic assigns Na+ / F-, and the per-species valence densities
     // are scaled to the formal-charge electron counts (0 e- on Na, 8 e- on F) -- the seed pre-bakes the

@@ -46,10 +46,11 @@ namespace qchem::Hamiltonian
 // here rather than per energy call: the structure and the model are fixed at construction, so the answer
 // cannot change during a run.  Each GetEnergy then just scales by the current electron count.
 
-Ven_PP_Short::Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc)
+Ven_PP_Short::Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc, double numElectrons)
     : cStatic_HT_Imp()
     , theStructure(st)
     , itsLocal(loc)
+    , itsNumElectrons(numElectrons)
 {
     assert(st->GetNumAtoms()>0);
     assert(loc && "Ven_PP_Short: the term owns the local pseudopotential model (must be non-null)");
@@ -76,7 +77,7 @@ void Ven_PP_Short::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     // Een is the band expectation over the (G!=0) matrix (== the prototype's electron-ion energy).
     const double e=cd->DM_Contract(this);                                  // integral rho V_loc,short (G!=0)
     te.Add("Een",      e, EnergyRole::Potential, e);                        // linear
-    te.Add("E_alphaZ", cd->GetTotalCharge()*itsAlphaZ, EnergyRole::Constant, 0.0);   // SHORT G=0 alignment (0 for a finite structure); not in any eigenvalue
+    te.Add("E_alphaZ", itsNumElectrons*itsAlphaZ, EnergyRole::Constant, 0.0);   // SHORT G=0 alignment (0 for a finite structure); not in any eigenvalue
 }
 
 std::ostream& Ven_PP_Short::Write(std::ostream& os) const
@@ -158,10 +159,11 @@ std::ostream& Ven_PP_NonLocal::Write(std::ostream& os) const
 // two are solved through the same G-space Poisson machinery; that is a COMPUTATIONAL kinship, not a
 // physical one, and it cost a nullable model, a second block cache, and a "Hartree" term that contributed
 // to E_een.  Assembled through the SAME Orbital_PP_IBS cross-cast Ven_PP_Short uses.
-Ven_PP_Long::Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* loc)
+Ven_PP_Long::Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* loc, double numElectrons)
     : cStatic_HT_Imp()
     , theStructure(st)
     , itsLocal(loc)
+    , itsNumElectrons(numElectrons)
 {
     assert(st && st->GetNumAtoms()>0);
     // REQUIRED, not optional: a run with no local PP omits this TERM rather than constructing an
@@ -186,7 +188,7 @@ void Ven_PP_Long::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     // Electron-ION, so NO 1/2: the double-counting factor belongs to the electron-electron Hartree alone.
     const double e=cd->DM_Contract(this);                                  // Tr(D V_long) = E_een,long
     te.Add("Een",      e, EnergyRole::Potential, e);                        // linear
-    te.Add("E_alphaZ", cd->GetTotalCharge()*itsAlphaZ, EnergyRole::Constant, 0.0);   // LONG G=0 alignment (0 for a finite structure)
+    te.Add("E_alphaZ", itsNumElectrons*itsAlphaZ, EnergyRole::Constant, 0.0);   // LONG G=0 alignment (0 for a finite structure)
 }
 
 std::ostream& Ven_PP_Long::Write(std::ostream& os) const

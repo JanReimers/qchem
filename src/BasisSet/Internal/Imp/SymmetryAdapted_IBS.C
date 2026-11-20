@@ -218,10 +218,10 @@ Outcome<rmat3d_t,AD::NoGradient> SymmetryAdapted_IBS::MakeKineticVirial(const hm
 Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeNuclearPullback(const hmat_t<double>& D, const Structure* st) const
 {return itsRaw->MakeNuclearPullback(FoldUp(D), st);}
 
-bool SymmetryAdapted_IBS::CanPullbackSpeciesField(const SpeciesRadialField& f) const
+bool SymmetryAdapted_IBS::CanPullbackSpeciesField(const SpeciesRadialField& f, FieldRange r) const
 {
     const auto* pp=RawPP(itsRaw);
-    return pp && pp->CanPullbackSpeciesField(f);
+    return pp && pp->CanPullbackSpeciesField(f, r);
 }
 bool SymmetryAdapted_IBS::CanPullbackProjectors(const SpeciesProjectorSet& ps) const
 {

@@ -35,7 +35,7 @@ std::string PP_Local::MissingGradient(const tbs_t<double>* bs, const Structure*)
         const auto* pp=ClosedForm(b);
         if (!pp || !pp->CanAssembleField(*itsVloc))
             return "PP_Local: the basis block "+b->Name()+" takes the mesh-quadrature route, which has no geometry gradient (the mesh moves)";
-        if (!pp->CanPullbackSpeciesField(*itsVloc)) return "PP_Local: the basis block "+b->Name()+" gives no species-field pullback";
+        if (!pp->CanPullbackSpeciesField(*itsVloc, BasisSet::FieldRange::Full)) return "PP_Local: the basis block "+b->Name()+" gives no species-field pullback";
     }
     return "";
 }
