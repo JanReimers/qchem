@@ -56,6 +56,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     s->opts.spin = ResolveSpinGroup(s->opts.spin, s->opts.multiplicity);   // THE rule, every structure (R6)
     // The pseudopotential front door builds a valence LDA Hamiltonian with the run's functional, LDA (Dirac + VWN5) or PADE (the
     // GTH-PADE PPs' own, 2026-11-12); any other model would be ignored, a SILENT substitution: refuse it, before anything is built.
+    RefuseUnroutedGradient(*opts.model, "a molecule");   // a GGA: built, but no molecular route samples the gradient yet (GGA stage 1)
     if (!opts.pp->empty() && *opts.model != Model::LDA && *opts.model != Model::PADE)
         policy::Refuse("PseudopotentialIsLDA", "a pseudopotential run with a model other than LDA or PADE",
                        "the molecular pseudopotential route builds a valence LDA Hamiltonian, so the model asked for would be "

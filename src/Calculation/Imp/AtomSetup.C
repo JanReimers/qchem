@@ -87,6 +87,9 @@ std::shared_ptr<const AtomSetup> AtomSetup::Resolve(const Structure& atom, const
         s->accelerator=t;
     }
     else s->accelerator=MolecularAcceleratorType(o.accelerator, "qchem::AtomCalculation");
+    // A GGA (stated model, or an atom.xc override): built, but the radial atom route does not sample the gradient yet (GGA stage 1).
+    RefuseUnroutedGradient(*o.model, "an atom");
+    if (o.atom.xc) RefuseUnroutedGradient(*o.atom.xc, "an atom (atom.xc)");
     const bool densityFock = o.atom.pseudopotential || o.atom.xc.has_value() || Hamiltonian::IsDFT(*o.model);
     if (densityFock) RefuseGradientConsumers(o.vxcFit, o.xcRho, NameOf(s->accelerator));   // GDM needs H = dE/dD (pin 32)
     // Atoms keep the proven Z-scaled DIIS engage gate unless the caller pins one (DFT too: \c DIISEngageGate's density-Fock rule is

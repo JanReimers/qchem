@@ -38,6 +38,7 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/SlaterExchange.C         # e_x, and Enzyme's v_x / f_x (the plugin rides this file)
     Internal/Imp/VWN_Correlation.C        # e_c, and Enzyme's v_c / f_c (the plugin rides this file)
     Internal/Imp/Libxc_LDA.C
+    Internal/Imp/Libxc_GGA.C              # one libxc GGA functional, the batch face (GGA stage 1, 2026-11-20)
     )
 target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Energy.C  
@@ -59,6 +60,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/Hubbard.C                    # DFT+U: Hubbard_U + LowdinProjector (born on MatrixForward/Adjoint)
     Internal/ACBN0.C                      # DFT+U increment 3: ACBN0 realises HubbardUEstimator over HubbardProjection
     Internal/Libxc_LDA.C
+    Internal/Libxc_GGA.C
     Internal/IonIon.C
     Internal/Kinetic.C
     Internal/Terms.C

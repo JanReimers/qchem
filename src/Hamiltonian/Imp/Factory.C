@@ -11,16 +11,20 @@ module;
 module qchem.Hamiltonian.Factory;
 import qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Libxc_LDA;             // XC::LibXC selector (one libxc LDA functional)
+import qchem.Hamiltonian.Internal.Libxc_GGA;             // XC::LibXCGGA (one libxc GGA functional per part)
 import qchem.Hamiltonian.Internal.SlaterExchange;        // the DiracVWN functional list
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 
 namespace qchem::Hamiltonian
 {
 
-    bool IsDFT(Model m) {return m==Model::Xalpha || m==Model::LDA || m==Model::PADE;}
+    bool IsDFT(Model m) {return m==Model::Xalpha || m==Model::LDA || m==Model::PADE || m==Model::PBE || m==Model::PBEsol || m==Model::BLYP;}
 
     //! libxc's id for the Goedecker-Teter-Hutter Padé LDA (LDA_XC_TETER93): CP2K's XC_FUNCTIONAL PADE, the GTH-PADE PPs' own.
     static constexpr int kLibxcPADE=20;
+    //! The GGAs' libxc ids (xc_funcs.h): PBE = GGA_X_PBE 101 + GGA_C_PBE 130; PBEsol = GGA_X_PBE_SOL 116 + GGA_C_PBE_SOL 133;
+    //! BLYP = GGA_X_B88 106 + GGA_C_LYP 131 -- the same pairs the GTH table's "fitted" names map to (LibxcIDsOfFitted).
+    static constexpr int kLibxcPBEx=101, kLibxcPBEc=130, kLibxcPBEsolx=116, kLibxcPBEsolc=133, kLibxcB88=106, kLibxcLYP=131;
 
     std::string Name(Model m)
     {
@@ -28,12 +32,14 @@ namespace qchem::Hamiltonian
         {
             case Model::E1: return "E1"; case Model::HF: return "HF"; case Model::DE1: return "DE1"; case Model::DHF: return "DHF";
             case Model::Xalpha: return "Xalpha"; case Model::LDA: return "LDA"; case Model::PADE: return "PADE";
+            case Model::PBE: return "PBE"; case Model::PBEsol: return "PBEsol"; case Model::BLYP: return "BLYP";
         }
         throw std::logic_error("Hamiltonian::Name: a Model with no name");
     }
     std::optional<Model> ModelFromName(const std::string& n)
     {
-        for (Model m : {Model::E1, Model::HF, Model::DE1, Model::DHF, Model::Xalpha, Model::LDA, Model::PADE}) if (Name(m)==n) return m;
+        for (Model m : {Model::E1, Model::HF, Model::DE1, Model::DHF, Model::Xalpha, Model::LDA, Model::PADE, Model::PBE, Model::PBEsol, Model::BLYP})
+            if (Name(m)==n) return m;
         return std::nullopt;
     }
     std::string Describe(const XCFunctional& xc)
@@ -43,12 +49,24 @@ namespace qchem::Hamiltonian
             case XC::SlaterXalpha: return "Slater Xalpha (alpha "+std::to_string(xc.alpha)+")";
             case XC::DiracVWN:     return "LDA (Dirac + VWN5)";
             case XC::LibXC:        return xc.libxcId==kLibxcPADE ? "PADE (libxc LDA_XC_TETER93)" : "libxc LDA id "+std::to_string(xc.libxcId);
+            case XC::LibXCGGA:
+                if (xc.libxcId==kLibxcPBEx    && xc.libxcCorrId==kLibxcPBEc)    return "PBE (libxc GGA_X_PBE + GGA_C_PBE)";
+                if (xc.libxcId==kLibxcPBEsolx && xc.libxcCorrId==kLibxcPBEsolc) return "PBEsol (libxc GGA_X_PBE_SOL + GGA_C_PBE_SOL)";
+                if (xc.libxcId==kLibxcB88     && xc.libxcCorrId==kLibxcLYP)     return "BLYP (libxc GGA_X_B88 + GGA_C_LYP)";
+                return "libxc GGA ids "+std::to_string(xc.libxcId)+(xc.libxcCorrId ? " + "+std::to_string(xc.libxcCorrId) : std::string());
         }
         throw std::logic_error("Hamiltonian::Describe: an XC kind with no description");
     }
     std::string GTHFittedName(const XCFunctional& xc)
     {
-        return xc.kind==XC::LibXC && xc.libxcId==kLibxcPADE ? "PADE" : "";
+        if (xc.kind==XC::LibXC && xc.libxcId==kLibxcPADE) return "PADE";
+        if (xc.kind==XC::LibXCGGA)
+        {
+            if (xc.libxcId==kLibxcPBEx    && xc.libxcCorrId==kLibxcPBEc)    return "PBE";
+            if (xc.libxcId==kLibxcPBEsolx && xc.libxcCorrId==kLibxcPBEsolc) return "PBESOL";
+            if (xc.libxcId==kLibxcB88     && xc.libxcCorrId==kLibxcLYP)     return "BLYP";
+        }
+        return "";
     }
     std::vector<int> LibxcIDs(const XCFunctional& xc)
     {
@@ -58,6 +76,7 @@ namespace qchem::Hamiltonian
             case XC::SlaterXalpha: ids = xc.alpha==2.0/3.0 ? std::vector<int>{1} : std::vector<int>{1, 6}; break;
             case XC::DiracVWN:     ids = {1, 7}; break;
             case XC::LibXC:        ids = Libxc_LDA(xc.libxcId).IsExchangeCorrelation() ? std::vector<int>{xc.libxcId} : std::vector<int>{1, xc.libxcId}; break;
+            case XC::LibXCGGA:     ids = xc.libxcCorrId ? std::vector<int>{xc.libxcId, xc.libxcCorrId} : std::vector<int>{xc.libxcId}; break;
         }
         std::sort(ids.begin(), ids.end());
         return ids;
@@ -77,7 +96,7 @@ namespace qchem::Hamiltonian
     std::optional<Model> ModelForGTHFitted(const std::string& fitted)
     {
         const std::vector<int> ids=LibxcIDsOfFitted(fitted);
-        for (Model m : {Model::LDA, Model::PADE}) if (LibxcIDs(ModelToXC(m))==ids) return m;
+        for (Model m : {Model::LDA, Model::PADE, Model::PBE, Model::PBEsol, Model::BLYP}) if (LibxcIDs(ModelToXC(m))==ids) return m;
         return std::nullopt;
     }
     std::vector<PPFunctionalCheck> PPFunctionalChecks(const std::vector<std::pair<std::string,std::string>>& elementFitted, const XCFunctional& run)
@@ -114,6 +133,14 @@ namespace qchem::Hamiltonian
                 auto f=std::make_shared<Libxc_LDA>(xc.libxcId);
                 if (f->IsExchangeCorrelation()) return {f};
                 return {std::make_shared<Libxc_LDA>(1), f};
+            }
+            case XC::LibXCGGA:
+            {
+                // Each part as libxc names it; an exchange-correlation id stands alone (libxcCorrId 0).  No Dirac exchange is added: a
+                // GGA's exchange part IS its exchange.
+                std::vector<std::shared_ptr<ExFunctional>> parts{std::make_shared<Libxc_GGA>(xc.libxcId)};
+                if (xc.libxcCorrId) parts.push_back(std::make_shared<Libxc_GGA>(xc.libxcCorrId));
+                return parts;
             }
         }
         throw std::logic_error("Hamiltonian::MakeXCParts: an XC kind with no functional");
@@ -214,6 +241,9 @@ namespace qchem::Hamiltonian
             case Model::Xalpha:
             case Model::LDA:
             case Model::PADE:
+            case Model::PBE:
+            case Model::PBEsol:
+            case Model::BLYP:
                 NeedsResolver();
         }
         assert(false); return nullptr;
@@ -227,8 +257,17 @@ namespace qchem::Hamiltonian
             case Model::Xalpha: return {XC::SlaterXalpha, xalpha};
             case Model::LDA:    return {XC::DiracVWN};
             case Model::PADE:   return {.kind=XC::LibXC, .libxcId=kLibxcPADE};
+            case Model::PBE:    return {.kind=XC::LibXCGGA, .libxcId=kLibxcPBEx,    .libxcCorrId=kLibxcPBEc};
+            case Model::PBEsol: return {.kind=XC::LibXCGGA, .libxcId=kLibxcPBEsolx, .libxcCorrId=kLibxcPBEsolc};
+            case Model::BLYP:   return {.kind=XC::LibXCGGA, .libxcId=kLibxcB88,     .libxcCorrId=kLibxcLYP};
             default: throw std::invalid_argument("Hamiltonian::ModelToXC: "+Name(m)+" is not a DFT model, so it has no functional");
         }
+    }
+
+    bool ConsumesDensityGradient(const XCFunctional& xc)
+    {
+        for (const auto& p : MakeXCParts(xc)) if (p->ConsumesDensityGradient()) return true;
+        return false;
     }
 
     // THE single DFT build site: an XCFunctional choice -> the concrete polymorphic Hamiltonian, building

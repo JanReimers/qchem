@@ -120,6 +120,7 @@ void RequireConsistentSiteCharges(const RunOptions& o, const Structure& st)
 //  before spending).  The words are the deck's (xc.fit, basis.ecut), with the C++ field beside them.
 static void RefuseUnrealizedRoutes(const RunOptions& o)
 {
+    RefuseUnroutedGradient(*o.model, "a periodic cell");   // a GGA: built, but no periodic route samples the gradient yet (GGA stage 1)
     if (*o.model!=Hamiltonian::Model::LDA && *o.model!=Hamiltonian::Model::PADE)
         policy::Refuse("SolidFunctional", "model "+Hamiltonian::Name(*o.model)+" on a periodic cell",
                        "a periodic run is Kohn-Sham LDA with a pseudopotential; its functionals are LDA (Dirac + VWN5) and PADE -- state one");

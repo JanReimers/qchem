@@ -145,7 +145,8 @@ const auto kEngine = NAMES(BasisSet::Gaussian::Engine, {"MnD",BasisSet::Gaussian
 const auto kAtomType = NAMES(AtomType, {"Slater",AtomType::Slater}, {"Gaussian",AtomType::Gaussian}, {"BSpline6",AtomType::BSpline6},
                              {"BSpliner6",AtomType::BSpliner6}, {"Gaussian_RKB",AtomType::Gaussian_RKB}, {"Slater_RKB",AtomType::Slater_RKB});
 const auto kPool   = NAMES(BasisSetAccuracy, {"Low",BasisSetAccuracy::Low}, {"Medium",BasisSetAccuracy::Medium}, {"High",BasisSetAccuracy::High});
-const auto kXC     = NAMES(Hamiltonian::XC, {"SlaterXalpha",Hamiltonian::XC::SlaterXalpha}, {"DiracVWN",Hamiltonian::XC::DiracVWN}, {"LibXC",Hamiltonian::XC::LibXC});
+const auto kXC     = NAMES(Hamiltonian::XC, {"SlaterXalpha",Hamiltonian::XC::SlaterXalpha}, {"DiracVWN",Hamiltonian::XC::DiracVWN}, {"LibXC",Hamiltonian::XC::LibXC},
+                            {"LibXCGGA",Hamiltonian::XC::LibXCGGA});
 const auto kOrtho  = NAMES(Ortho, {"Cholesky",Cholesky}, {"Eigen",Eigen}, {"SVD",SVD}, {"Auto",Auto}, {"CholeskyPivoted",CholeskyPivoted}, {"Orthonormal",Orthonormal});
 const auto kCell   = NAMES(UnitCellKind, {"Uniform",UnitCellKind::Uniform}, {"Becke",UnitCellKind::Becke}, {"Auto",UnitCellKind::Auto});
 const auto kResolution = NAMES(Response::HubbardResolution, {"manifold",Response::HubbardResolution::Manifold},
@@ -647,7 +648,7 @@ static json AtomBlockJson(const RunOptions::Atom& a)
     json j={{"type",NameOf(a.type,kAtomType)},{"basisPool",NameOf(a.basisPool,kPool)},{"N",a.N},{"emin",a.emin},{"emax",a.emax},
             {"exponents",a.exponents},{"ltrim",a.ltrim},{"exponentsByL",byL},{"pseudopotential",a.pseudopotential},{"valence",a.valence},
             {"configuration",a.configuration}};
-    if (a.xc) j["xc"]={{"kind",NameOf(a.xc->kind,kXC)},{"alpha",a.xc->alpha},{"libxcId",a.xc->libxcId}};
+    if (a.xc) j["xc"]={{"kind",NameOf(a.xc->kind,kXC)},{"alpha",a.xc->alpha},{"libxcId",a.xc->libxcId},{"libxcCorrId",a.xc->libxcCorrId}};
     if (!a.accelerator.is_null()) j["accelerator"]=a.accelerator;
     return j;
 }
@@ -671,7 +672,7 @@ static void AtomBlockFromJson(const json& j, RunOptions::Atom& a)
     if (j.contains("xc"))
     {
         Fields xf(f.At("xc"),"atom.xc"); Hamiltonian::XCFunctional x;
-        xf.GetEnum("kind",x.kind,kXC); xf.Get("alpha",x.alpha); xf.Get("libxcId",x.libxcId); xf.Done();
+        xf.GetEnum("kind",x.kind,kXC); xf.Get("alpha",x.alpha); xf.Get("libxcId",x.libxcId); xf.Get("libxcCorrId",x.libxcCorrId); xf.Done();
         a.xc=x;
     }
     else f.At("xc");
@@ -691,7 +692,7 @@ void ReadRunOptions(Fields& f, const json& j, RunOptions& o)
         if (!model.empty())   // empty: unstated, the kind's default (SolidOptions)
         {
             const auto m=Hamiltonian::ModelFromName(model);
-            if (!m) throw std::runtime_error("deck: 'model' \""+model+"\" is not a model name (a periodic run takes \"LDA\" or \"PADE\"; a molecule or an atom also \"HF\", \"Xalpha\", ...)");
+            if (!m) throw std::runtime_error("deck: 'model' \""+model+"\" is not a model name (\"LDA\", \"PADE\", the GGAs \"PBE\", \"PBEsol\", \"BLYP\"; a molecule or an atom also \"HF\", \"Xalpha\", ...)");
             o.model=*m;
         }
     }

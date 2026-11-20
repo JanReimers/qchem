@@ -3,6 +3,7 @@
 add_executable(UTHamiltonian ../../Common/tests/gtestmain.C
    Libxc.C
    LDA_XC.C
+   GGA_XC.C             # the libxc GGAs: derivatives vs FD of e, the batch face vs the point face (GGA stage 1, 2026-11-20)
    EagerRefresh.C
    EnergyBreakdown.C
    RealComplexTerms.C   # the real/complex term twins on the GPW basis (from IntegrationTests 2026-09-15, TE phase 5)

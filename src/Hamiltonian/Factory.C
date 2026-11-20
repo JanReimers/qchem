@@ -27,15 +27,16 @@ export namespace qchem::Hamiltonian
     //! The one Hamiltonian method/model enum (unified -- HF, DFT, and the relativistic/1-e cases that the
     //! GUI never uses but the unit tests rely on).  E1 = 1 electron, DE1 = Dirac 1 electron.  The DFT
     //! members name a FUNCTIONAL: Xalpha (Slater exchange, tuned alpha) and LDA (parameter-free Dirac
-    //! exchange + VWN5 correlation -- the molecular default).  Next functional milestone: PBE (a GGA --
-    //! needs density-gradient machinery on the mesh, not just an enum value; see doc/FacadeDFTPlan.md).
+    //! exchange + VWN5 correlation -- the molecular default).  The GGAs (PBE, PBEsol, BLYP; GGA stage 1, user ruling 2026-11-20)
+    //! are named here and built as functionals, but every XC route REFUSES them by policy until it samples \f$\nabla\rho\f$
+    //! (GGA design note §5, stages 2-4).
     //!
     //! This is the FRIENDLY front token.  Its DFT members are a shorthand that resolves to an XCFunctional
     //! (below); for finer control -- a specific libxc id, a non-default alpha -- pass an XCFunctional directly.
     //! PADE (2026-11-12, user ruling on the OpenWork PADE row, option a): the Goedecker-Teter-Hutter Padé LDA (libxc
     //! LDA_XC_TETER93, id 20; CP2K's XC_FUNCTIONAL PADE), the functional every GTH-PADE pseudopotential was fitted with.  A run
     //! STATES it; LDA (Dirac + VWN5) stays the default, and a PP fitted with another functional than the run's is a WARN AND RUN.
-    enum class Model {E1,HF,DE1,DHF, Xalpha,LDA,PADE};
+    enum class Model {E1,HF,DE1,DHF, Xalpha,LDA,PADE, PBE,PBEsol,BLYP};
     // (The Hamiltonian's polarization is qchem::SpinGroup -- the imposed spin subgroup, one currency for the
     //  Hamiltonian, the wave function and the density, V1.37.  The old Pol enum is gone.)
 
@@ -51,21 +52,28 @@ export namespace qchem::Hamiltonian
         SlaterXalpha,   //!< Slater-Dirac exchange only, scaled by alpha (classic Xα; alpha=2/3 is pure Dirac)
         DiracVWN,       //!< Dirac exchange (alpha=2/3) + spin-native VWN5 correlation -- parameter-free LSDA (== Model::LDA)
         LibXC,          //!< an LDA functional from libxc, selected by integer id (libxc.gitlab.io/functionals)
+        LibXCGGA,       //!< a GGA from libxc: exchange \c libxcId plus correlation \c libxcCorrId (0: none) -- PBE {101,130} (GGA stage 1)
     };
 
     //! A chosen functional plus its parameters.  Designated-initializer friendly:
     //!     XCFunctional{.kind=XC::SlaterXalpha, .alpha=0.7}
     //!     XCFunctional{.kind=XC::LibXC,        .libxcId=7}
+    //!     XCFunctional{.kind=XC::LibXCGGA,     .libxcId=101, .libxcCorrId=130}   (PBE)
     struct XCFunctional
     {
         XC     kind    = XC::DiracVWN;
         double alpha   = 2.0/3.0;   //!< exchange scaling, XC::SlaterXalpha only
-        int    libxcId = 1;         //!< libxc functional id, XC::LibXC only (1 = LDA_X / Slater)
+        int    libxcId = 1;         //!< libxc functional id, XC::LibXC / XC::LibXCGGA (1 = LDA_X / Slater; a GGA's exchange part)
+        int    libxcCorrId = 0;     //!< XC::LibXCGGA only: the correlation part's libxc id (0: none, e.g. an exchange-correlation id)
         bool operator==(const XCFunctional&) const = default;
     };
 
-    //! The DFT \a m as its functional (LDA -> DiracVWN, PADE -> libxc 20, Xalpha -> SlaterXalpha at \a xalpha).  THROWS for a non-DFT model.
+    //! The DFT \a m as its functional (LDA -> DiracVWN, PADE -> libxc 20, Xalpha -> SlaterXalpha at \a xalpha, PBE -> libxc GGA {101,130},
+    //! PBEsol -> {116,133}, BLYP -> {106,131}).  THROWS for a non-DFT model.
     XCFunctional ModelToXC(Model m, double xalpha=2.0/3.0);
+    //! Does \a xc read \f$\nabla\rho\f$ (a GGA, or a sum containing one)?  What the CLIENT does with it: a setup REFUSES every XC route
+    //! that cannot sample the density gradient (GGA design note §5), before anything is built.
+    bool ConsumesDensityGradient(const XCFunctional& xc);
     //! The model's NAME, as decks, the facades' reports, saved states and a GUI spell it ("LDA", "PADE", "Xalpha", "HF", ...).
     std::string Name(Model);
     //! The inverse of \c Name (exact spelling); empty for a name no model has -- the caller refuses it, naming the choices.

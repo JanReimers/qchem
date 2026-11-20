@@ -8,6 +8,7 @@ add_executable(UTCalculation ../../Common/tests/gtestmain.C
     SolidState.C        # saved periodic SCF states: save / exact resume / warm start / refusal (CK-1)
     MoleculeSetup.C     # the molecular run setup: spin promotion, valence count, refusals (step 7)
     AtomSetup.C         # the radial atom's run setup: the accelerator by name, the seed and its key (V-FACADE-PARITY P1)
+    GGARoute.C          # GGA stage 1: the GGA models, their libxc ids, and every route's refusal until it samples the gradient (2026-11-20)
     SetupDecisions.C    # the structure-neutral setup decisions, one rule for every structure (V-FACADE-SETUP)
     CalculationFacade.C # the front-end face: the ctor observer, levels, the spin density (lane G)
     MoleculeSession.C   # the molecular potential energy surface: reference == single point, carried step == fresh (step 8)
