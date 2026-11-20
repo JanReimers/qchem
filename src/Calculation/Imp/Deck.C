@@ -46,6 +46,7 @@ import qchem.RunPolicy;
 import qchem.Policy;                        // policy::Report: the two-run split files its row
 import qchem.PeriodicTable;                 // the material's element symbols, for an inlined basis
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94Import;   // SubsetBasis: the elements a deck inlines
+import qchem.XCRhoPolicy;                   // RefuseUnroutedGradient: Vet refuses a GGA as the setup will
 import qchem.Mesh.XCPolicy;                 // ResolveXCMesh (a recipe field under cellKind Auto is refused at resolve)
 import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.StructureData;   // KindOf
@@ -1432,6 +1433,8 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
 {
     namespace fs=std::filesystem;
     const Materials::Material mat=Resolve(spec);
+    // A GGA: Run's setup refuses it (GGARoute, no route samples the gradient yet), so Vet does too -- vet-decks must not pass it.
+    RefuseUnroutedGradient(spec.opts.model.value_or(Hamiltonian::Model::LDA), "a periodic cell (deck)");
     VetReport v;
     if (!spec.state.restartFrom.empty())
     {

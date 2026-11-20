@@ -2,8 +2,13 @@
 // GTH PPs fitted with them, and EVERY XC route refuses them by policy (GGARoute) until it samples the density gradient -- never an LDA in
 // their place.
 #include <gtest/gtest.h>
+#include <filesystem>
+#include <functional>
+#include <memory>
+#include <stdexcept>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 import qchem.MoleculeCalculation;
 import qchem.AtomCalculation;
@@ -15,6 +20,12 @@ import qchem.UnitCell;
 import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSetData::SIPP_SR
 import qchem.Structure;
 import qchem.Types;
+import qchem.Mesh;                    // UnitCellKind, BeckeXCParams: the solid route families
+import qchem.Reporting;               // the filed run's policy row
+import qchem.Deck;                    // a deck stating model PBE
+import qchem.Hamiltonian.Internal.ExFunctional;   // CompositeExFunctional: the backstop
+import qchem.Hamiltonian.Internal.Libxc_GGA;
+import qchem.Hamiltonian.Internal.SlaterExchange;
 
 using namespace qchem;
 
@@ -35,25 +46,139 @@ TEST(GGARoute, TheGGAModelsAreTheirLibxcPairsAndMatchTheirGTHFits)
     for (H m : {H::LDA, H::PADE, H::Xalpha}) EXPECT_FALSE(Hamiltonian::ConsumesDensityGradient(Hamiltonian::ModelToXC(m)));
 }
 
-TEST(GGARoute, EveryRouteRefusesAGGAUntilItSamplesTheGradient)
+namespace
+{
+//! The filed run's GGARoute policy rows (the report's \c policy arrays, any depth).
+std::vector<report::json> GGARouteRows(const std::string& runName)
+{
+    const auto& G=report::GlobalReport();
+    const report::json* last=nullptr;
+    for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind(runName+"@",0)==0) last=&it.value();
+    if (!last) throw std::logic_error("no filed run "+runName);
+    std::vector<report::json> out;
+    std::function<void(const report::json&)> walk=[&](const report::json& x)
+    {
+        if (x.is_object())
+            for (auto it=x.begin(); it!=x.end(); ++it)
+            {
+                if (it.key()=="policy" && it.value().is_array())
+                    for (const auto& r : it.value()) if (r.contains("name") && r["name"]=="GGARoute") out.push_back(r);
+                walk(it.value());
+            }
+        else if (x.is_array()) for (const auto& y : x) walk(y);
+    };
+    walk(*last);
+    return out;
+}
+
+//! One XC route family, and the setup call that would take a GGA down it.
+struct RouteCase
+{
+    std::string label;
+    std::function<std::string()> admit;   //!< the refusal's policy name ("" if it ADMITTED)
+};
+
+template <class O> std::string PolicyOf(const O& o) {return o ? std::string() : o.Error().policy;}
+
+RunOptions SiPBE()
+{
+    RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.model=Hamiltonian::Model::PBE;
+    return o;
+}
+std::string AdmitSi(const RunOptions& o)
+{
+    const auto si=Materials::Get("Si_diamond");
+    return PolicyOf(SolidSetup::Admit(Lattice_3D(*si.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o));
+}
+std::string AdmitHe(Hamiltonian::Model m, Hamiltonian::VxcFit fit)
 {
     Molecule he; he.Insert(Site{2, rvec3_t(0,0,0)});
-    const auto mol=MoleculeSetup::Admit(he, {.model=Hamiltonian::Model::PBE, .molecule={.basis="dzvp"}});
-    ASSERT_FALSE(mol) << "a molecule";
-    EXPECT_EQ(mol.Error().policy, "GGARoute");
+    RunOptions o; o.model=m; o.vxcFit=fit; o.molecule.basis="dzvp";
+    return PolicyOf(MoleculeSetup::Admit(he, o));
+}
 
-    RunOptions atom; atom.model=Hamiltonian::Model::BLYP;
-    const auto a=AtomSetup::Admit(Atom(8), atom);
-    ASSERT_FALSE(a) << "an atom";
-    EXPECT_EQ(a.Error().policy, "GGARoute");
-    RunOptions over; over.atom.xc=Hamiltonian::ModelToXC(Hamiltonian::Model::PBEsol);
-    const auto ao=AtomSetup::Admit(Atom(8), over);
-    ASSERT_FALSE(ao) << "an atom's xc override";
-    EXPECT_EQ(ao.Error().policy, "GGARoute");
+std::vector<RouteCase> RouteFamilies()
+{
+    using H=Hamiltonian::Model; using F=Hamiltonian::VxcFit;
+    std::vector<RouteCase> cs;
+    for (H m : {H::PBE, H::PBEsol, H::BLYP})
+    {
+        const std::string n=Hamiltonian::Name(m);
+        cs.push_back({"molecule Becke (" +n+")", [m]{return AdmitHe(m, F::Auto);}});
+        cs.push_back({"molecule delta ("  +n+")", [m]{return AdmitHe(m, F::Delta);}});
+        cs.push_back({"molecule auxiliary ("+n+")", [m]{return AdmitHe(m, F::Auxiliary);}});
+        cs.push_back({"atom radial ("     +n+")", [m]{RunOptions o; o.model=m; return PolicyOf(AtomSetup::Admit(Atom(8), o));}});
+        cs.push_back({"atom atom.xc ("    +n+")", [m]{RunOptions o; o.atom.xc=Hamiltonian::ModelToXC(m); return PolicyOf(AtomSetup::Admit(Atom(8), o));}});
+    }
+    cs.push_back({"GPW default mesh (Auto)", []{return AdmitSi(SiPBE());}});
+    cs.push_back({"GPW raster (Uniform, plane-wave fit)", []{RunOptions o=SiPBE(); o.xcMesh=qcMesh::XCMeshDefault(); o.xcMesh->cellKind=qcMesh::UnitCellKind::Uniform; o.vxcFit=Hamiltonian::VxcFit::PlaneWave; return AdmitSi(o);}});
+    cs.push_back({"GPW Becke solid (delta fit)", []{RunOptions o=SiPBE(); o.xcMesh=qcMesh::BeckeXCParams(); o.vxcFit=Hamiltonian::VxcFit::Delta; return AdmitSi(o);}});
+    cs.push_back({"plane-wave orbitals", []{RunOptions o=SiPBE(); o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=4.0; return AdmitSi(o);}});
+    cs.push_back({"plane-wave orbitals, polarized", []{RunOptions o=SiPBE(); o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=4.0; o.spin=SpinGroup::Polarized; return AdmitSi(o);}});
+    return cs;
+}
+} // namespace
 
-    const auto si=Materials::Get("Si_diamond");
-    RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.model=Hamiltonian::Model::PBE;
-    const auto s=SolidSetup::Admit(Lattice_3D(*si.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
-    ASSERT_FALSE(s) << "a periodic cell";
-    EXPECT_EQ(s.Error().policy, "GGARoute");
+// THE NO-SILENT-SUBSTITUTION INVARIANT (GGA stage 1): a GGA is REFUSED by name -- policy GGARoute, a "refuse" row in the run report's
+// policy scope -- on EVERY XC route family, since none samples the density gradient yet (stages 2-4).  Never an LDA in its place, never
+// a run with v_sigma dropped.
+TEST(GGARoute, EveryRouteRefusesAGGAUntilItSamplesTheGradient)
+{
+    for (const RouteCase& c : RouteFamilies())
+    {
+        const std::string run="ggaroute "+c.label;
+        std::string policy;
+        {
+            report::Run r(run);
+            policy=c.admit();
+        }
+        EXPECT_EQ(policy, "GGARoute") << c.label << ": refused by name (empty = ADMITTED, a silent substitution)";
+        const auto rows=GGARouteRows(run);
+        ASSERT_EQ(rows.size(), 1u) << c.label << ": one GGARoute row in the report's policy scope";
+        EXPECT_EQ(rows[0]["verdict"], "refuse") << c.label;
+        const std::string decided=rows[0]["decided"], reason=rows[0]["reason"];
+        EXPECT_NE(decided.find("libxc"), std::string::npos) << c.label << ": the row names the functional: " << decided;
+        EXPECT_NE(reason.find("state an LDA"), std::string::npos) << c.label << ": and says what to do: " << reason;
+    }
+}
+
+// A DECK stating model PBE is refused the same way: by deck::Vet (vet-decks, before anything is built) and by deck::Prepare (what Run
+// builds through), both naming the policy.
+TEST(GGARoute, ADeckStatingPBEIsRefusedByName)
+{
+    deck::RunSpec spec;
+    deck::FromJson(report::json{{"structure","Si_diamond"},{"model","PBE"},{"basis",{{"data","SIPP_SR"}}}}, spec);
+    for (const auto& [door, call] : std::vector<std::pair<std::string,std::function<void()>>>{
+             {"Vet",     [&]{(void)deck::Vet(spec, std::filesystem::temp_directory_path());}},
+             {"Prepare", [&]{(void)deck::Prepare(spec);}}})
+    {
+        try
+        {
+            call();
+            ADD_FAILURE() << "deck::" << door << " ADMITTED a PBE deck: no route samples the gradient yet";
+        }
+        catch (const std::exception& e)
+        {
+            EXPECT_NE(std::string(e.what()).find("density gradient"), std::string::npos) << door << ": " << e.what();
+        }
+    }
+}
+
+// THE BACKSTOP behind the policy: a route that reached a GGA anyway, through the point face every LDA term calls, THROWS -- alone or as
+// one part of a sum -- and so does the batch face handed no sigma.  An assert would be dead in Release, a silent v_sigma = 0 run.
+TEST(GGARoute, ARouteThatReachesAGGAWithoutTheGradientThrows)
+{
+    using namespace Hamiltonian;
+    const CompositeExFunctional pbe({std::make_shared<Libxc_GGA>(101), std::make_shared<Libxc_GGA>(130)});
+    const CompositeExFunctional mixed({std::make_shared<SlaterExchange>(2.0/3.0), std::make_shared<Libxc_GGA>(131)});
+    for (const CompositeExFunctional* f : {&pbe, &mixed})
+    {
+        ASSERT_TRUE(f->ConsumesDensityGradient());
+        EXPECT_THROW((void)f->GetVxc(0.1), std::logic_error);
+        EXPECT_THROW((void)f->GetExcDensity(0.1, 0.05), std::logic_error);
+        EXPECT_THROW((void)f->GetVxc(0.1, 0.05, Spin::Up), std::logic_error);
+        XCInput in; in.up=rvec_t{0.1}; in.dn=rvec_t{0.05};
+        XCOutput out; out.Reset(in);
+        EXPECT_THROW(f->Evaluate(in, out), std::logic_error) << "the batch face without sigma";
+    }
 }
