@@ -3846,7 +3846,7 @@ Original row:
 
 · **The libcint engine has no geometry pullbacks** (lane H, 2026-11-11).  `.engine=LibCint` blocks answer no kinetic or nuclear (nor overlap) pullback, so `MissingGradients` refuses a forces request on them, by name and correctly; but a geometry run cannot use the faster engine, and the ForceFacade gates already call libcint's `KineticGradient` / `NuclearGradient` directly.  Next action: give the libcint block the pullback faces from those (lane B's faces), gated by the per-term FD at fixed D · `doc/GeometryOptimizationPlan.md` §15 item 3
 
-## ✅ GPW PP and raster-XC forces (lane B, 2026-11-19; READY 1-3, landed with lane-b-xc)
+## ✅ GPW PP and raster-XC forces (lane B, 2026-11-19; READY 1-3, landed with lane-b-xc; READY 4, the free Becke mesh, with lane-b-becke)
 
 The three GPW pseudopotential terms and XC on the raster route now give their force and virial at fixed D, so the WHOLE GPW force and
 stress on the raster are the derivatives of the re-converged energy.  What was built, beside the existing faces (the user's 2026-11-08
@@ -3871,4 +3871,29 @@ non-TRIM k, a fixed sizing box), term at fixed D (ForceFacade: Γ virials and k2
 1E screen), and WHOLE: `HamiltonianForces.OnAGPWRasterTheSessionsForceAndStressAreTheDerivativesOfItsEnergy_Long` (|F − FD| ≤ 1.8e-7 of
 0.045, |V − FD| ≤ 2.3e-6 of 0.49, symmetric).  Remainder: XC on the Becke mesh (READY 4) and on an imposed-symmetry Becke mesh (the
 OpenWork forces row).
+
+READY 4, XC ON A FREE BECKE MESH (lane B, 2026-11-19, lane-b-becke; the face and term composition approved by the controller with
+conditions (a)-(d)).  E = Σ_g w_q W(R_a+u_g) e(ρ_g) splits in two, each owned where its data lives:
+- THE BLOCKS, the weights held: each point rides its owner atom (`qcMesh::Mesh::OwnerOffsets()`, u = the template offset recorded by the
+  builder), so the block's `BasisSet::PointSetPullback<T>::MakePointSetPullback(points, c, D, st)` returns the per-atom gradient, the
+  moment and the per-point term; the sampler turns moment − Σ perPoint ⊗ u into the virial.  Built on the GPW block by
+  `LatticeCollocation::BlochPointPullback` (PG_Cart Orbital_IBS, the spherical view forwarding).
+- THE MESH, the quadrature-weight response contracted against e: `DensitySampler::MakeQuadraturePullback(f, st)` → `Mesh::WeightResponse()`,
+  installed by the periodic builder (`PeriodicBeckeResponse`, `UnitCell.C`): the periodic partition is ONE function,
+  `qcMesh::PeriodicBeckeWeight` (P-set in the sum, every image in the products), used by both the build and its Enzyme gradient
+  (`PeriodicBeckeWeightGradient`, leaf `ScreenedBeckeWeightOfPositions`).  The `Vxc` term composes the two (`AddForces`, `AddVirial`) and
+  adds its own δ(E − ∫vρ) as on the raster.
+Conditions: (a) the sampler cross-casts the block to `PointSetPullback<U>` per call, abstract → abstract, justified at the cast site (one
+sampler serves every block, Bloch and real TRIM, so a construction-time capability would be a per-block table); a block without the face
+is a named refusal (`CanT` false, `PointSetOf`'s Fail), never a null deref; every base of `tGPW_IBS` is public, so the base-order trap
+cannot bite.  (b) The builder restructuring is bit-identical: 0 movers on the 62 Becke-mesh tests (short 1759/0, long 21/0 at 36d279c7 vs lane-b-cba38506); the sweep's 3 movers are the three tests this landing rewrote (the two SolidSession refusal gates now ask an imposed Becke point; `OnAGPWBlockEveryTermWithoutAPullbackNamesItself` gained its imposed-Becke arm).
+(c) Owner offsets cost 24 B/point: rutile's production mesh, 147600 points, 3.5 MB.  (d) An IMPOSED-symmetry Becke mesh (the folded,
+star-averaged mesh) is refused by name in `MissingGradients()` / `MissingVirials()` (`tSinglesDensitySampler::MeshDerivativeGap`), the
+OpenWork forces row's remainder.
+GATES: `BeckePartitionTests` (the periodic weight's gradient vs FD, 1.2e-10), `M_LatticePullback` point-set pullback (3 fixtures,
+≤ 1e-7·max + 2e-9), and per term at fixed D `HamiltonianForces.OnAFreeBeckeMeshEachTermsForceAndVirialAtFixedDAreItsEnergysFiniteDifference_Long`
+(Si, the sheared distorted cell, beckeEps 1e-10; on the default (40, 29) mesh 46 min, every term ≤ 5.1e-7, XC ≤ 5.1e-8; the gate runs on
+(20, 11), 8.3 min, every term ≤ 5.2e-7, XC ≤ 1.5e-7 at |F_xc| 0.01-0.036).  The `MissingGradients` names gate covers the uniform, free
+Becke and imposed Becke meshes.  COST: one force or virial ≈ 3 mesh builds (profile: Enzyme gradient ~43 %, the weight re-form ~24 %);
+OpenWork §4 row "A Becke-mesh XC force costs ~3 mesh builds".
 

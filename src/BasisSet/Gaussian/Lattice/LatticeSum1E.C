@@ -275,6 +275,19 @@ public:
     //! ~1e-16 of summing before transforming instead of after.
     virtual void BlochPointValues(const rvec3vec_t& pts, const cellphase_t& phase, const UnitCell& A,
                                   mat_t<dcmplx>& Phi) const = 0;
+    //! \brief THE DERIVATIVE of a point-set quadrature over \c BlochPointValues, beside it (GeometryOptimizationPlan §13.2; the user's
+    //! 2026-11-08 "derivative beside" ruling; lane B 2026-11-19): for \f$E=\sum_q c_q\,\mathrm{Re}\sum_{ij}D_{ji}\overline{\Phi_{qi}}\Phi_{qj}\f$
+    //! (= Re Tr(D M), M the point-set matrix a quadrature with weights x field \a c assembles) at FIXED \a c and Hermitian \a D:
+    //!   - \c gradient: per site of \a st, \f$\partial E/\partial R\f$ with the BASIS CENTRES moving (every image of each function) and the points
+    //!     FIXED;
+    //!   - \c moment: \f$\sum_C(\partial E/\partial C)\otimes(C-r_q)\f$ over every unfolded centre C (each image) at each point -- origin-free;
+    //!   - \c perPoint: \f$\partial E/\partial r_q\f$ with the centres fixed (= \f$c_q\nabla\rho_q\f$).
+    //! An atom-centred quadrature whose points ride their owners combines them: the owner gains \c perPoint, and the strain derivative of
+    //! the block is \c moment \f$+\sum_q\f$ perPoint\f$_q\otimes(X_{owner}-r_q)\f$.  Contracted in place (no \f$\nabla\Phi\f$ table: rutile's would
+    //! be ~1 GB), on \c BlochPointValues' own images and screens.  CLIENT: the δ XC quadrature's pullback on the Becke mesh.
+    struct PointPullback { rvec3vec_t gradient; rmat3d_t moment; rvec3vec_t perPoint; };
+    virtual PointPullback BlochPointPullback(const rvec3vec_t& pts, const rvec_t& c, const chmat_t& D, const cellphase_t& phase,
+                                             const UnitCell& A, const Structure* st) const = 0;
 
     //! \brief ANALYTIC per-pair density collocation on a MULTI-GRID ladder (CP2K GPW / Quickstep): the grid
     //! density \f$\rho(r)=\sum_{ij}\sum_{R}\,\mathrm{Re}[D_{ij}e^{-ik\cdot R}]\,\chi_i(r)\chi_j(r-R)\f$ --

@@ -25,6 +25,20 @@ export import qchem.PointSampling;   // the face a Mesh implements (MakeFourierS
 export namespace qchem::qcMesh
 {
 
+class Mesh;
+//! \brief THE GEOMETRY DERIVATIVE OF A MESH'S WEIGHTS (lane B 2026-11-19; the XC term's grid response): installed on a mesh by the builder
+//! that knows how its weights were made (the periodic Becke build: the cell, the sites, the partition's order and eps), so a consumer asks
+//! the mesh, never the structure.  For a per-point field \a f HELD per point index, \c Pullback returns \f$\partial(\sum_g f_gw_g)/\partial R_A\f$
+//! per site (the points riding their owners, \c Mesh::OwnerOffsets) and its strain twin \f$\sum_X(\partial/\partial X)\otimes X\f$ over every
+//! unfolded position the weights depend on.  A mesh without one has no weight response to give.
+class MeshWeightResponse
+{
+public:
+    virtual ~MeshWeightResponse()=default;
+    struct Result { rvec3vec_t gradient; rmat3d_t virial; };
+    virtual Result Pullback(const Mesh& m, const rvec_t& f) const=0;
+};
+
 //! \brief A quadrature mesh: points r_i and weights w_i stored as separate arrays (SoA).
 //!
 //! \f$\intop f\,d^3r\approx\sum_i w_i f(r_i)\f$.  A value type: builders \c Append points, consumers read
@@ -37,8 +51,9 @@ public:
     //! Build from ready-made SoA arrays (the efficient path when the size is known up front,
     //! e.g. ProductMesh = nRadial*nAngular).  Sizes must match.
     Mesh(rvec3vec_t r, rvec_t w);
-    //! The atom-centred sibling: \a siteStart is the first point index of each SITE BLOCK (see below).
-    Mesh(rvec3vec_t r, rvec_t w, std::vector<size_t> siteStart);
+    //! The atom-centred sibling: \a siteStart is the first point index of each SITE BLOCK (see below), and \a ownerOffset (empty, or one
+    //! per point) each point's offset from its site's own centre (see \c OwnerOffsets).
+    Mesh(rvec3vec_t r, rvec_t w, std::vector<size_t> siteStart, rvec3vec_t ownerOffset={});
 
     const rvec3vec_t& Points () const override; //!< r_i, for the phi(r) evaluators.
     //! \copydoc PointSampling::MakeFourierSampler
@@ -47,6 +62,10 @@ public:
     //! A BUILDER records a structure of its points the series can exploit.  \c Append and \c ShiftOrigin drop it (the
     //! points are then no longer the ones it described).
     void InstallFourierSampling(std::shared_ptr<const FourierSamplingStrategy> s);
+    //! The builder's WEIGHT RESPONSE (\c MeshWeightResponse), or null when none was installed.  \c Append and \c ShiftOrigin drop it, as
+    //! they drop the sampling strategy (the weights are then no longer the ones it differentiates).
+    void InstallWeightResponse(std::shared_ptr<const MeshWeightResponse> r);
+    const MeshWeightResponse* WeightResponse() const {return itsWeightResponse.get();}
     //! \copydoc PointSampling::FourierTarget
     //! Every mesh has one, SHARED by its copies (a copy is the same points, so the same consumer's tolerance and calibration).
     SamplingTarget* FourierTarget() const override;
@@ -73,6 +92,11 @@ public:
     size_t NSites  ()          const {return itsSiteStart.size();}
     size_t SiteBegin(size_t a) const {assert(a<NSites()); return itsSiteStart[a];}
     size_t SiteEnd  (size_t a) const {assert(a<NSites()); return a+1<NSites() ? itsSiteStart[a+1] : size();}
+    //! \brief Each point's offset \f$u_i\f$ from its OWNER's centre: the point was generated at \f$R_A+u_i\f$ by site \f$A\f$'s template
+    //! (before any wrap into a home cell).  What a GEOMETRY DERIVATIVE of an atom-centred quadrature needs: the point rides its owner, so
+    //! the partition is re-evaluated at \f$R_A+u_i\f$ and the virial carries \f$u_i\f$ (lane B 2026-11-19).  EMPTY when the builder did not
+    //! record it (a product or uniform grid has no owners); otherwise one per point.
+    const rvec3vec_t& OwnerOffsets() const {return itsU;}
     //!@}
 
     //! Append one (point,weight) pair.  Builders (the incremental Becke mesh) push here.
@@ -84,7 +108,9 @@ private:
     rvec3vec_t          itsR;
     rvec_t              itsW;
     std::vector<size_t> itsSiteStart;   //!< first point index of each site block ({} = no site structure)
+    rvec3vec_t          itsU;           //!< each point's offset from its owner's centre ({} = not recorded)
     std::shared_ptr<const FourierSamplingStrategy> itsSampling;   //!< null = the NUFFT default
+    std::shared_ptr<const MeshWeightResponse> itsWeightResponse;  //!< null = no weight derivative installed
     std::shared_ptr<SamplingTarget> itsTarget=std::make_shared<SamplingTarget>();   //!< the sampling slot (unset = step-1 tolerance)
 };
 
