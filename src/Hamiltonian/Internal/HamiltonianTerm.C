@@ -71,7 +71,7 @@ template <class T> class tStatic_HT_Imp
 public:
     //! Built on the first read of each block (once, whichever thread asks first), then served forever: a static term's cache is never
     //! cleared.
-    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s) const
+    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s) const override
     {
         assert(bs);
         return this->itsCache.GetOrFill(bs->GetIrrep(this->CacheSpin(s)), [&]{return MakeMatrix(bs,s);});
@@ -92,7 +92,7 @@ template <class T> class tDynamic_HT_Imp
     , protected tHT_Common<T,SlotDiscipline::Refresh>
 {
 public:
-    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,DensityID id) const
+    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,DensityID id) const override
     {
         assert(bs);
         // A PURE READ (V1.41 stage 3, user rulings 2026-11-07): BuildBlocks -- the refresh -- built every block the run asks for,
@@ -164,7 +164,7 @@ class Static_HT_RealBlock_Imp : public virtual ChargeDensity::tStatic_CC<double>
                               , public virtual HT_SpinDependence
 {
 public:
-    virtual const hmat_t<double>& GetMatrix(const tobs_t<double>* bs,const Spin& s) const
+    virtual const hmat_t<double>& GetMatrix(const tobs_t<double>* bs,const Spin& s) const override
     {
         assert(bs);
         return itsRealCache.GetOrFill(bs->GetIrrep(this->CacheSpin(s)), [&]{return MakeMatrix(bs,s);});   // see tStatic_HT_Imp
@@ -195,7 +195,7 @@ class Dynamic_HT_RealBlock_Imp : public virtual ChargeDensity::tDynamic_CC<doubl
                                , public virtual HT_SpinDependence
 {
 public:
-    virtual const hmat_t<double>& GetMatrix(const tobs_t<double>* bs,const Spin& s,DensityID id) const
+    virtual const hmat_t<double>& GetMatrix(const tobs_t<double>* bs,const Spin& s,DensityID id) const override
     {
         assert(bs);
         if (!(id==itsRealCacheID))
@@ -220,7 +220,7 @@ public:
                     refresh.Fill(b->GetIrrep(this->CacheSpin(s)), [&]{return MakeMatrix(b,s,id);});
     }
     //! E = D.V for the real block too (the periodic xc terms never take the DM_Contract route, so no eps override is needed).
-    virtual const hmat_t<double>& GetEMatrix(const tobs_t<double>* bs,const Spin& s,DensityID id) const
+    virtual const hmat_t<double>& GetEMatrix(const tobs_t<double>* bs,const Spin& s,DensityID id) const override
     { return GetMatrix(bs,s,id); }
 protected:
     virtual hmat_t<double> MakeMatrix(const tobs_t<double>*,const Spin&,DensityID) const=0;

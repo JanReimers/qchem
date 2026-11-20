@@ -27,8 +27,8 @@ public:
     //! does -- the convergence gate, the trace column and the linear mixer's adaptive step all read it (OpenWork §3, the
     //! [F,D] row: a Null run used to report 0, so the mixer's step froze at its first growth, alpha=1, and a symmetric
     //! 2-cycle could never be damped).
-    virtual void UseFD(const hmat_t<T>& F, const hmat_t<T>& DPrime);
-    virtual typename LASolver<T>::UUd_t NextOrbitals();
+    virtual void UseFD(const hmat_t<T>& F, const hmat_t<T>& DPrime) override;
+    virtual typename LASolver<T>::UUd_t NextOrbitals() override;
     virtual double GetError() const override {return itsEn;}
 private:
     const LASolver<T>*   itsLASolver; //Knows the ortho transform

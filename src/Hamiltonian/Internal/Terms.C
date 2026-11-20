@@ -65,14 +65,14 @@ class Ven : public virtual rStatic_HT, private rStatic_HT_Imp
 public:
     typedef std::shared_ptr<const Structure> st_t;
     Ven(const st_t& st);
-    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
-    virtual std::ostream& Write    (std::ostream&) const;
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const override;
+    virtual std::ostream& Write    (std::ostream&) const override;
     // The force (GeometryOptimizationPlan §13.2; lane B): Imp/Ven_Forces.C.
     virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
     virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
     virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
 private:
-    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const override;
     st_t theStructure;
 };
 
@@ -94,7 +94,7 @@ public:
     virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
-    virtual bool IsVirialValid() const {return false;}
+    virtual bool IsVirialValid() const override {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     typedef std::shared_ptr<const BasisSet::SpeciesRadialField> vloc_t;
     typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
@@ -102,10 +102,10 @@ public:
     //! geometry-only, so one mesh serves every basis block) -- never built lazily at the first matrix request.  Null when every
     //! basis block assembles the field in closed form (\c Orbital_PP_IBS).
     PP_Local(const st_t& st, vloc_t vloc, mesh_t mesh);
-    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;   // Een (PP local) = DM_Contract
-    virtual std::ostream& Write    (std::ostream&) const;
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const override;   // Een (PP local) = DM_Contract
+    virtual std::ostream& Write    (std::ostream&) const override;
 private:
-    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const override;
     st_t             theStructure;
     vloc_t           itsVloc;
     mesh_t           itsMesh;
@@ -137,17 +137,17 @@ public:
     virtual rvec3vec_t  Pullback(const robs_t* bs, const Spin& s, const hmat_t<double>& D, const Structure* st) const override;
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
-    virtual bool IsVirialValid() const {return false;}
+    virtual bool IsVirialValid() const override {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     typedef std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep_t;
     typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
     //! \a mesh: the run's shared PP quadrature (see PP_Local) for the explicit-angular route, null when no block needs it; \a mp still states the radial
     //! route's radial rule (an atomic block never touches the 3-D mesh).
     PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp, mesh_t mesh);
-    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;   // Een (PP nonlocal) = DM_Contract
-    virtual std::ostream& Write    (std::ostream&) const;
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const override;   // Een (PP nonlocal) = DM_Contract
+    virtual std::ostream& Write    (std::ostream&) const override;
 private:
-    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const override;
     //! The ATOMIC (implicit-angular / radial) assembly -- see the body: a radial block's stored functions
     //! omit the irrep's Y_lm, so the 3-D mesh route cannot form <chi|beta Y_lm> and must not be used.
     rsmat_t MakeMatrixRadial(const BasisSet::ImplicitAngular_IBS&, size_t n) const;
@@ -183,7 +183,7 @@ public:
     //! Fock build: assemble the whole-system blocks ONCE per (density, spin) from the composite \a wholeBasis
     //! using ERI4 bra-ket symmetry (canonical pairs -> ScatterBoth), cache the per-irrep blocks, return this
     //! irrep's block.  \a wholeBasis is required (HF is whole-system); a null basis throws.
-    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,DensityID,const rbs_t* wholeBasis) const;
+    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,DensityID,const rbs_t* wholeBasis) const override;
     //! The ground-state refresh: latch \a wholeBasis (null = keep the latched one) and build the blocks of every spin irrep
     //! \a cd resolves (\c SpinIrrepsOf, folded through \c CacheSpin).
     virtual void RefreshForDensity(const rbs_t* wholeBasis, const rChargeDensity* cd) const override;
@@ -253,13 +253,13 @@ public:
     // The force (GeometryOptimizationPlan §13.2; lane B): Imp/HF_Forces.C.
     virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
     virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
-    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
-    virtual std::ostream& Write    (std::ostream&) const;
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const override;
+    virtual std::ostream& Write    (std::ostream&) const override;
 protected:
-    virtual void          AccumulateAll(std::vector<rsmat_t>& X,const ChargeDensity::tHF_System_CD<double>& sweep) const;
+    virtual void          AccumulateAll(std::vector<rsmat_t>& X,const ChargeDensity::tHF_System_CD<double>& sweep) const override;
     // Coulomb sees the TOTAL density and ignores the channel: one set of blocks serves every spin.
-    virtual Spin          CacheSpin (const Spin&) const {return Spin::None;}
-    virtual double        Scale(const Spin&) const {return 1.0;}
+    virtual Spin          CacheSpin (const Spin&) const override {return Spin::None;}
+    virtual double        Scale(const Spin&) const override {return 1.0;}
 };
 
 //###############################################################################
@@ -280,12 +280,12 @@ public:
     // The force (GeometryOptimizationPlan §13.2; lane B): Imp/HF_Forces.C.
     virtual std::string MissingGradient(const tbs_t<double>* bs, const Structure* st) const override;
     virtual void        AddForces(rvec3vec_t& F, const rDM_CD* D, const Structure* st) const override;
-    virtual void           GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
-    virtual std::ostream&  Write    (std::ostream&) const;
+    virtual void           GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const override;
+    virtual std::ostream&  Write    (std::ostream&) const override;
 protected:
-    virtual void          AccumulateAll(std::vector<rsmat_t>& X,const ChargeDensity::tHF_System_CD<double>& sweep) const;
-    virtual Spin          CacheSpin (const Spin& s) const {return s;}          // same-spin: per channel
-    virtual double        Scale(const Spin& s) const {return s==Spin::None ? -0.5 : -1.0;}
+    virtual void          AccumulateAll(std::vector<rsmat_t>& X,const ChargeDensity::tHF_System_CD<double>& sweep) const override;
+    virtual Spin          CacheSpin (const Spin& s) const override {return s;}          // same-spin: per channel
+    virtual double        Scale(const Spin& s) const override {return s==Spin::None ? -0.5 : -1.0;}
 };
 
 //###############################################################################
@@ -325,8 +325,8 @@ public:
     virtual void RefreshForDensity(const rChargeDensity* cd) const override;
     //! \f$2E_{fit}-E_{fitfit}\f$, which needs \a cd's fit to be the Coulomb one.  A seed (\c NumericCD) is overlap-fitted, and the formula
     //! would be wrong for it: taking a density MATRIX here is the one thing keeping a seed out, so this argument type is load-bearing.
-    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
-    virtual std::ostream& Write    (std::ostream& os) const {return os;}
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const override;
+    virtual std::ostream& Write    (std::ostream& os) const override {return os;}
     //! Hartree depends on the TOTAL density: one block for every spin channel.
     virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
     //! The ENERGY block GetEnergy contracts: BUILT from the fit the energy pass refreshed, with no memo -- the energy refresh has
@@ -335,7 +335,7 @@ public:
     {itsEMat=MakeMatrix(bs,s,id); return itsEMat;}
 private:
     mutable rsmat_t itsEMat;   //!< GetEMatrix's returned block (one serial contraction reads it at once)
-    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,DensityID) const override;
     //! The density projects ITSELF onto the fitter, and the fit is constrained to the fixed electron count N.
     void Fit(const rChargeDensity& cd) const {itsFit->DoFit(cd.Project(*itsFit), itsNumElectrons);}
     FitPtr itsFit;   //!< owned
@@ -436,8 +436,8 @@ public:
         tDynamic_HT_Imp<T>::BuildBlocks(bs, cd);
         if constexpr (std::is_same_v<T,dcmplx>) Dynamic_HT_RealBlock_Imp::BuildBlocks(bs, cd);
     }
-    virtual void          GetEnergy(EnergyBreakdown&,const tDM_CD<T>* cd) const;
-    virtual std::ostream& Write    (std::ostream& os) const;
+    virtual void          GetEnergy(EnergyBreakdown&,const tDM_CD<T>* cd) const override;
+    virtual std::ostream& Write    (std::ostream& os) const override;
     //! Hartree depends on the TOTAL density: one block for every spin channel.
     virtual Spin CacheSpin(const Spin&) const override {return Spin::None;}
     //! The ENERGY block (read only by a fitter whose energy needs Tr(DV), and by the eh_trace A/B): BUILT from the fit the energy pass

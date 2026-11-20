@@ -27,10 +27,10 @@ public:
     IrrepBasisSetImp(const IrrepBasisSetImp& o) : itsSymmetry(o.itsSymmetry), itsCache(o.itsCache), itsCacheIndex(Enrol(o.itsCache)) {}
     IrrepBasisSetImp& operator=(const IrrepBasisSetImp&) = delete;
     //! Readonly ref to the polymorphic Symmetry object.
-    virtual const Symmetry::Symmetry& GetSymmetry() const {return *itsSymmetry;}
-    virtual const           sym_t   & GetSymt    () const {return  itsSymmetry;}
+    virtual const Symmetry::Symmetry& GetSymmetry() const override {return *itsSymmetry;}
+    virtual const           sym_t   & GetSymt    () const override {return  itsSymmetry;}
     //! Irrep basis sets are spin agnostic, so caller must specify the spin in order to a full set of QNs.
-    virtual Irrep GetIrrep(const Spin& s) const
+    virtual Irrep GetIrrep(const Spin& s) const override
     {
         return Irrep(s,itsSymmetry);
     }

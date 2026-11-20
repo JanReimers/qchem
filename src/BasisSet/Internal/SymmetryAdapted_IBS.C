@@ -65,13 +65,13 @@ public:
                         const std::string& label, const sym_t& sym,
                         std::shared_ptr<const std::vector<Symmetry::SymOp>> group={});
 
-    virtual size_t GetNumFunctions() const {return itsO.columns();}
+    virtual size_t GetNumFunctions() const override {return itsO.columns();}
     const rmat_t&  GetO() const {return itsO;}        // this irrep's SALC columns
 
     // 1-electron integrals in the irrep basis (O^T M_raw O).
-    virtual rsmat_t MakeOverlap()                 const;
-    virtual rsmat_t MakeKinetic()                 const;
-    virtual rsmat_t MakeNuclear(const Structure* cl) const;
+    virtual rsmat_t MakeOverlap()                 const override;
+    virtual rsmat_t MakeKinetic()                 const override;
+    virtual rsmat_t MakeNuclear(const Structure* cl) const override;
     // d/dR (GeometryOptimizationPlan §13.2).  M_Γ = Oᵀ M_raw O with the SALC columns O FIXED (they are symmetry-operation images, not
     // functions of R), so Tr(D ∂M_Γ/∂R) = Tr(O D Oᵀ ∂M_raw/∂R): every pullback below is the RAW basis's, handed this block's density
     // folded up to AO (AddAODensity), and a block can give one exactly when its raw basis can.  Summed over the irreps the AO densities
@@ -89,10 +89,10 @@ public:
     virtual bool CanPullbackNuclear() const override;
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<double>& D, const Structure* st) const override;
     // Species fields (O^T M_raw O), when the raw basis can assemble them.
-    virtual bool    CanAssembleField     (const SpeciesRadialField&)  const;
-    virtual bool    CanAssembleProjectors(const SpeciesProjectorSet&) const;
-    virtual rsmat_t MakeSpeciesFieldMatrix(const Structure*, const SpeciesRadialField&, FieldRange) const;
-    virtual rsmat_t MakeProjectorMatrix   (const Structure*, const SpeciesProjectorSet&) const;
+    virtual bool    CanAssembleField     (const SpeciesRadialField&)  const override;
+    virtual bool    CanAssembleProjectors(const SpeciesProjectorSet&) const override;
+    virtual rsmat_t MakeSpeciesFieldMatrix(const Structure*, const SpeciesRadialField&, FieldRange) const override;
+    virtual rsmat_t MakeProjectorMatrix   (const Structure*, const SpeciesProjectorSet&) const override;
     // d/dR (GeometryOptimizationPlan §13.2): the raw basis's, on the AO-folded D (as the 1E pullbacks above).
     virtual bool CanPullbackSpeciesField(const SpeciesRadialField&, FieldRange) const override;
     virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const override;
@@ -102,16 +102,16 @@ public:
     // 2-electron (HF): build the AO Coulomb/exchange from the cd-irrep's density block (linear
     // in D, so no 4-index ERI transform) and slice to this irrep.  Summed over the cd irreps by
     // the charge density, this yields O^T J_AO(D_total) O.
-    virtual void AccumulateDirect  (rsmat_t& Jab, const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd) const;
-    virtual void AccumulateExchange(rsmat_t& Kab, const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd) const;
+    virtual void AccumulateDirect  (rsmat_t& Jab, const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd) const override;
+    virtual void AccumulateExchange(rsmat_t& Kab, const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd) const override;
     //! The SALC path builds the AO Fock and slices it -- there are no per-irrep-pair ERI4 blocks at all
     //! (this class has no ERI4 substrate face -- R1.7), so the ERI4 bra-ket fusion does not apply.  Fall
     //! back to the two independent AO slices (the whole-AO build already banks the full 8-fold symmetry).
     //! See doc/ERI4Rework.md §5.4.
     virtual void AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const rsmat_t& Di, const rsmat_t& Dj,
-                                      const Orbital_HF_IBS<double>* cd) const;
+                                      const Orbital_HF_IBS<double>* cd) const override;
     virtual void AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const rsmat_t& Di, const rsmat_t& Dj,
-                                        const Orbital_HF_IBS<double>* cd) const;
+                                        const Orbital_HF_IBS<double>* cd) const override;
     // d/dR (GeometryOptimizationPlan §13.2): the raw basis's ERI pullback on BOTH blocks' AO-folded densities, the partner folding its own
     // block through the abstract whole-system face (as PairAOFock does).  Correct for any pair, but each call is one whole-AO pullback: the
     // composite's whole-system route (MakeAOPullback below) folds every block first and calls ONE, so a run never walks these N² times.
@@ -120,11 +120,11 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeExchangePullback(const rsmat_t& Da, const rsmat_t& Db, const Orbital_HF_IBS<double>* other, const Structure* st) const override;
 
     // --- WholeSystemFock_IBS (V1.31): the route the composite density actually takes for a SALC basis ---
-    virtual size_t  AODimension() const {return itsO.rows();}
-    virtual void    AddAODensity(rsmat_t& Dao, const rsmat_t& D) const;   // Dao += O D O^T
-    virtual rsmat_t MakeAOFock  (const rsmat_t& Dao, bool exchange) const;// the ONE whole-AO build
-    virtual void    SliceAOFock (rsmat_t& Fab, const rsmat_t& Fao) const; // Fab += O^T Fao O
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeAOPullback(const rsmat_t& Dao, bool exchange, const Structure* st) const; // ∂Tr(Dao X[Dao])/∂R
+    virtual size_t  AODimension() const override {return itsO.rows();}
+    virtual void    AddAODensity(rsmat_t& Dao, const rsmat_t& D) const override;   // Dao += O D O^T
+    virtual rsmat_t MakeAOFock  (const rsmat_t& Dao, bool exchange) const override;// the ONE whole-AO build
+    virtual void    SliceAOFock (rsmat_t& Fab, const rsmat_t& Fao) const override; // Fab += O^T Fao O
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeAOPullback(const rsmat_t& Dao, bool exchange, const Structure* st) const override; // ∂Tr(Dao X[Dao])/∂R
 
     // DFT 3-centre fitted Coulomb / Vxc.  The cached accessors Overlap3C/Repulsion3C are inherited
     // from Orbital_DFT_IBS unchanged: they key the *transformed* block under this irrep's
@@ -132,11 +132,11 @@ public:
     // *cached* 3C (now safe -- the integral cache is re-entrant), so the raw 3C is computed once
     // and shared by every irrep.  Fit bases are atom-centred (geometry, not symmetry), so creation
     // delegates to the raw DFT basis.
-    virtual rFIT_CD_ABS* CreateCDFitBasisSet (const Structure*) const;
-    virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const;
+    virtual rFIT_CD_ABS* CreateCDFitBasisSet (const Structure*) const override;
+    virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const override;
 protected:
-    virtual PairProjection<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const;
-    virtual PairProjection<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const;
+    virtual PairProjection<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const override;
+    virtual PairProjection<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const override;
 public:
     // d/dR (GeometryOptimizationPlan §13.2): the raw DFT basis's, on the AO-folded D (the fit basis is the raw one's, atom-centred).
     virtual bool CanPullbackRepulsion3C(const rFIT_CD_ABS& c) const override;
@@ -145,18 +145,18 @@ public:
     // The per-irrep cache distinction lives in BasisSetID() (raw id + "[label]"), so each irrep's
     // transformed blocks key separately.  (No RadialID/AngularID -- those are the atom identity face;
     // a SALC basis is molecular, and keys on the raw basis's own BasisSetID.)
-    virtual std::string BasisSetID() const;
-    virtual std::string Name()       const;
+    virtual std::string BasisSetID() const override;
+    virtual std::string Name()       const override;
 
     // VectorFunction: a SALC evaluated at r is O^T applied to the raw AO values.
-    virtual rvec_t     operator()(const rvec3_t&) const;
+    virtual rvec_t     operator()(const rvec3_t&) const override;
     // d/dR, forward (GeometryOptimizationPlan §13.2): the gradient source awaits the user's ruling, so every family refuses for now.
     virtual bool CanGiveJets() const override {return false;}
     virtual Outcome<size_t,AD::NoGradient> JetsOn(const rvec3vec_t&, size_t, const Structure*, BasisSet::PointJets<double>&) const override
         {return BasisSet::NoGeometryDerivativeYet<size_t>("a symmetry-adapted (SALC) block", "function jets");}
-    virtual rvec3vec_t Gradient  (const rvec3_t&) const;
+    virtual rvec3vec_t Gradient  (const rvec3_t&) const override;
 
-    virtual std::ostream& Write(std::ostream&) const;
+    virtual std::ostream& Write(std::ostream&) const override;
 
 private:
     //! The pair route's AO Fock: the PARTNER folds its own block up (through the abstract whole-system

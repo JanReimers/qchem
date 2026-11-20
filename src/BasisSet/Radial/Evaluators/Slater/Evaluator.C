@@ -51,7 +51,7 @@ public:
             ns=norms();
         }
 
-    virtual std::ostream& Write   (std::ostream&) const;
+    virtual std::ostream& Write   (std::ostream&) const override;
     double Overlap(size_t i,size_t j) const
     {
         if (!ms.empty()) return ::qchem::Slater::Integral(es[i]+es[j],2*ms[i]+2*ms[j])*ns[i]*ns[j];   // two power-m fit functions
@@ -123,14 +123,14 @@ public:
         return id+"}";
     }
 
-    virtual  rvec_t Norm     () const {return ns;}
+    virtual  rvec_t Norm     () const override {return ns;}
 
-    virtual rvec_t     operator() (const rvec3_t&) const;
-    virtual rvec3vec_t Gradient   (const rvec3_t&) const;
+    virtual rvec_t     operator() (const rvec3_t&) const override;
+    virtual rvec3vec_t Gradient   (const rvec3_t&) const override;
 
-    virtual std::string Name() const;
-    virtual std::string RadialType() const;
-    virtual Cache4*    MakeCache4() const;
+    virtual std::string Name() const override;
+    virtual std::string RadialType() const override;
+    virtual Cache4*    MakeCache4() const override;
     using rvec11_t=rvec11_t;
     static double direct(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {

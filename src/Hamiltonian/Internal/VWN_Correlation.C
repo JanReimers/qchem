@@ -38,23 +38,23 @@ public:
     VWN_Correlation() {}
 
     // --- spin-unpolarized scalar face (the zeta=0 collapse) ---
-    virtual double GetVxc  (double rho) const;
-    virtual double GetEpsXc(double rho) const;
+    virtual double GetVxc  (double rho) const override;
+    virtual double GetEpsXc(double rho) const override;
 
     // --- spin-native two-channel face (the primary formulation) ---
     //! Correlation energy density per particle \f$\varepsilon_c(\rho_\uparrow,\rho_\downarrow)\f$ -- the same
     //! for both channels (the Spin argument is the face's, not this functional's).  At EXACT \f$\zeta=0\f$
     //! it takes the scalar path.
-    virtual double GetEpsXc(double rup, double rdn, const Spin&) const;
+    virtual double GetEpsXc(double rup, double rdn, const Spin&) const override;
     //! Channel correlation potential \f$v_c^\sigma=\partial e_c/\partial\rho_\sigma\f$ (Enzyme).
     //! Note v_c^sigma COUPLES both channels (through r_s and zeta) -- it is NOT a function of rho_sigma alone.
-    virtual double GetVxc(double rup, double rdn, const Spin& s) const;
+    virtual double GetVxc(double rup, double rdn, const Spin& s) const override;
     //! The kernel \f$f_c^{\sigma\sigma'}=\partial v_c^\sigma/\partial\rho_{\sigma'}\f$ (Enzyme, forward over reverse).
     //! At full polarization it diverges (\f$f''(\zeta)\propto(1\mp\zeta)^{-2/3}\f$), so the minority channel is
     //! floored at a stated \f$\zeta\f$ threshold first (Imp/VWN_Correlation.C, \c kZetaThreshold).
     virtual double GetFxc(double rup, double rdn, const Spin& s, const Spin& t) const override;
 
-    virtual std::ostream& Write(std::ostream& os) const { return os << "VWN5"; }
+    virtual std::ostream& Write(std::ostream& os) const override { return os << "VWN5"; }
 };
 
 } //namespace

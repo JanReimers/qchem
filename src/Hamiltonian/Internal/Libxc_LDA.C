@@ -25,8 +25,8 @@ public:
     Libxc_LDA(int id);
     ~Libxc_LDA();   // xc_func_end (the matching teardown was missing before -> a libxc leak)
 
-    virtual double  GetVxc  (double rho) const;   //!< v_xc(rho)         via xc_lda_vxc
-    virtual double  GetEpsXc(double rho) const;   //!< eps_xc(rho)/part  via xc_lda_exc
+    virtual double  GetVxc  (double rho) const override;   //!< v_xc(rho)         via xc_lda_vxc
+    virtual double  GetEpsXc(double rho) const override;   //!< eps_xc(rho)/part  via xc_lda_exc
     //! The spin-native face.  An EXCHANGE id (libxc kind XC_EXCHANGE) is channel-separable: the exact
     //! spin-scaling relation \f$v^\sigma=v_x(2\rho_\sigma)\f$, \f$\varepsilon^\sigma=\varepsilon_x(2\rho_\sigma)\f$ -- the
     //! base-class face over the scalar libxc call, the SAME per-channel split SlaterExchange uses.  The split
@@ -39,7 +39,7 @@ public:
     virtual double  GetVxc  (double up, double dn, const Spin& s) const override;
     virtual double  GetEpsXc(double up, double dn, const Spin& s) const override;
 
-    virtual std::ostream& Write(std::ostream&) const;
+    virtual std::ostream& Write(std::ostream&) const override;
     //! Is this id a WHOLE exchange-correlation functional (libxc kind XC_EXCHANGE_CORRELATION: PADE / LDA_XC_TETER93), rather than an
     //! exchange or a correlation part?  The factory adds Dirac exchange to a correlation id, and must not to an XC one.
     bool IsExchangeCorrelation() const;

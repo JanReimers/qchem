@@ -399,6 +399,13 @@ else()
 endif()
 set(CMAKE_CXX_FLAGS_DEBUG   "-g -O0")
 
+# A class that marks SOME overrides `override` and leaves others unmarked is an ERROR (user ruling 2026-11-19, lane H's
+# warning cleanup).  clang raises -Winconsistent-missing-override only then, and in a module interface it is re-reported by
+# every importing TU (956 of the 957 warnings in the b414d40a landing build, from 146 lines).  An override that exists on ONE
+# template instantiation only lives in a conditional CRTP mixin (Composite_HFSystem, HamiltonianImp_RealBlock,
+# PeriodicIrrepCD_RealEnergy), never as an unmarked member that overrides nothing on the other.  C++ only.
+add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Werror=inconsistent-missing-override>)
+
 set(CXX_COMMON_COMPILE_DEFINITIONS
     $<$<CONFIG:Debug>:-DDEBUG>
 )

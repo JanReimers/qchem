@@ -190,6 +190,7 @@ void MoleculeCalculation::BuildGraph()
         itsHam.reset(ham);
         itsAccel.reset(accel);
         if (itsCarry && itsCarry->moved) itsCarry=std::make_unique<const Carry>(CarryOntoThisBasis(*itsCarry));   // a session step
+        SeededIterator(itsCarry && itsCarryExact);   // the exact-resume Pulay policy's first-stage bit
         if (!itsCarry)
             itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsSetup->xcMesh, itsSetup->seedKey);   // an HF SAD seed's sibling: the run's mesh
         else
@@ -254,7 +255,7 @@ bool MoleculeCalculation::RunStage(const SCFParams& asked)
     else             BuildGraph();
     itsLastkT=params.SmearingkT;
     AttachObserver();
-    (void)itsScf->Iterate(params);   // the outcome is the iterator's Converged(), minted below
+    (void)itsScf->Iterate(ExactResumeMixing(params, itsScf->ResolveMixing(params)));   // the outcome is the iterator's Converged(), minted below
     RebuildSampling();
     if (!itsPiloted && HasXCMesh() && !itsSetup->meshResolved && itsScf->Converged()) PilotMesh(params);
 
