@@ -9,6 +9,7 @@ add_executable(UTSymmetry ../../Common/tests/gtestmain.C
    M_SALC.C
    L_SpaceGroup.C
    L_Fold.C
+   G_Group.C            # the Group face: Contains / Intersect, the continuous-family table, T(L1) ∩ T(L2) (Group-face step 1)
    RepresentationUT.C   # Representation<T> + the spin-pair projector on hand-built reps (V-BS-SYMMETRY S3)
 )
 
