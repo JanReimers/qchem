@@ -92,7 +92,7 @@ export namespace qchem::Hamiltonian
     //! name not in the map, naming it: an unmapped fit is a gap in this table, never a silent match.
     std::vector<int> LibxcIDsOfFitted(const std::string& fitted);
     //! The model a run STATES to match a PP fitted with \a fitted (the model whose \c LibxcIDs equal the fit's): "PADE" -> PADE.  Empty when
-    //! no model this code offers matches it (a GTH-PBE PP until GGA lands): the guidance is then "use PPs fitted for the run's functional".
+    //! no model this code offers matches it (a GTH-BP PP: B88 + P86): the guidance is then "use PPs fitted for the run's functional".
     std::optional<Model> ModelForGTHFitted(const std::string& fitted);
     //! One element's PP against the run's functional (user 2026-11-12: most users do not know a PP is tuned to a functional, so the code
     //! tracks it, warns and guides; the GUI shows this record).  The CP2K name is the display LABEL; the comparison is on the libxc ids.
