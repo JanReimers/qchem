@@ -123,7 +123,7 @@ OrbitalImages MakeOrbitalImages(const Reference& ref, const WaveFunction::cWaveF
     ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)
     {
         if constexpr (!std::is_same_v<U,dcmplx>)
-            throw std::logic_error("Response::MakeOrbitalImages: a REAL TRIM block -- run the ground state with forceComplex");
+            throw std::logic_error("Response::MakeOrbitalImages: a REAL TRIM block -- plan the response at setup (RunOptions::Solid::responseQMeshes)");
         else
         {
             const auto* bs=dynamic_cast<const ChargeDensity::tobs_t<dcmplx>*>(os.GetBasisSet());
@@ -218,8 +218,8 @@ template <class T> OrbitalFrame<T> MakeOrbitalFrame(const Reference& ref, const 
     {
         if constexpr (!std::is_same_v<U,T>)
             throw std::logic_error("Response::MakeOrbitalFrame: a REAL TRIM block inside a complex run -- the response "
-                                   "faces serve complex blocks only (the real-block sibling is not built): run the ground "
-                                   "state with forceComplex");
+                                   "faces serve complex blocks only (the real-block sibling is not built): plan the response "
+                                   "at setup (RunOptions::Solid::responseQMeshes)");
         else
         {
             const auto* bs=dynamic_cast<const ChargeDensity::tobs_t<T>*>(os.GetBasisSet());

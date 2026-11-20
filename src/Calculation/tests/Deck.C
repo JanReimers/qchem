@@ -626,11 +626,11 @@ TEST(Deck, HubbardLoopEstimatorRoundTripsAndOwnsItsKeys)
     json cplx=hub; cplx["forceComplex"]=true;
     auto deckWith=[](json solid, json loop, json kmesh){ return json{{"structure","NiO_AFM2"},{"kmesh",kmesh},{"solid",solid},{"postSCF",{{{"hubbardLoop",loop}}}}}; };
     const json lr={{"estimator","linearResponse"}};
-    EXPECT_EQ(msg(deckWith(hub,lr,{1,1,1})),"NO THROW") << "an LR loop needs no forceComplex: its setup decides the ansatz from k and q";
-    EXPECT_EQ(msg(deckWith(cplx,lr,{1,1,1})),"NO THROW");
-    EXPECT_NE(msg(deckWith(cplx,{{"estimator","linearResponse"},{"nq",2}},{3,3,3})).find("incommensurate"),std::string::npos);
+    EXPECT_EQ(msg(deckWith(hub,lr,{1,1,1})),"NO THROW") << "an LR loop needs no complex demand: its setup decides the ansatz from k and q";
+    EXPECT_NE(msg(deckWith(cplx,lr,{1,1,1})).find("RETIRED"),std::string::npos) << "solid.forceComplex is refused by name (OpenWork G4)";
+    EXPECT_NE(msg(deckWith(hub,{{"estimator","linearResponse"},{"nq",2}},{3,3,3})).find("incommensurate"),std::string::npos);
     EXPECT_EQ(msg(deckWith(hub,json::object(),{1,1,1})),"NO THROW") << "an ACBN0 loop needs no complex ansatz";
-    json smeared={{"structure","NiO_AFM2"},{"kmesh",{2,2,2}},{"solid",cplx},{"scf",{{"smearingkT",0.01}}},{"postSCF",{{{"independentResponse",{{"nq",2}}}}}}};
+    json smeared={{"structure","NiO_AFM2"},{"kmesh",{2,2,2}},{"solid",hub},{"scf",{{"smearingkT",0.01}}},{"postSCF",{{{"independentResponse",{{"nq",2}}}}}}};
     EXPECT_EQ(msg(smeared),"NO THROW") << "one Fermi level across k is the default (D-FERMI-DEFAULT)";
     smeared["solid"]["perKFermiLevels"]=true;
     EXPECT_NE(msg(smeared).find("perKFermiLevels"),std::string::npos) << "a smeared q-mesh response needs one Fermi level";
@@ -649,22 +649,20 @@ TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
 
     EXPECT_NE(msg(base({{{"estimateHubbardU",json::object()}}},json::object())).find("no Hubbard manifold"),std::string::npos);
     EXPECT_EQ(msg(base({{{"estimateHubbardU",json::object()}}},hub)),"NO THROW");
-    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},hub)),"NO THROW") << "no forceComplex needed: the setup builds a response run complex";
-    json cplx=hub; cplx["forceComplex"]=true;
-    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},cplx)),"NO THROW");
-    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},cplx,json::array({1,1,1}),{{"imposeSymmetry",true}})),"NO THROW")
+    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},hub)),"NO THROW") << "no complex demand: the setup builds a response run complex";
+    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},hub,json::array({1,1,1}),{{"imposeSymmetry",true}})),"NO THROW")
         << "imposition does not always reduce the mesh (NiO AFM-II 2x2x2: 8 -> 8): the response decides at run time, Vet() notes it";
     EXPECT_NE(msg(base({{{"independentResponse",{{"nq",2}}}}},hub,json::array({3,3,3}))).find("incommensurate"),std::string::npos);
     EXPECT_EQ(msg(base({{{"independentResponse",{{"nq",2}}}}},hub,json::array({4,4,2}))),"NO THROW");
-    EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",2}}}}},cplx,json::array({2,1,1}))).find("incommensurate"),std::string::npos) << "the q loop shares the pre-flight";
-    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1,1}}}}}},cplx,json::array({2,1,1}))),"NO THROW");
+    EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",2}}}}},hub,json::array({2,1,1}))).find("incommensurate"),std::string::npos) << "the q loop shares the pre-flight";
+    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1,1}}}}}},hub,json::array({2,1,1}))),"NO THROW");
     {
-        json lg=base({{{"hubbardLinearResponse",{{"littleGroupK",true}}}}},cplx);
+        json lg=base({{{"hubbardLinearResponse",{{"littleGroupK",true}}}}},hub);
         EXPECT_NE(msg(lg).find("minDeltaRhoPerElectron <= 1e-9"),std::string::npos) << "littleGroupK on a reference converged only to the default gate";
         lg["scf"]={{"minDeltaRhoPerElectron",1e-9}};
         EXPECT_EQ(msg(lg),"NO THROW");
     }
-    EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1}}}}}},cplx)).find("must be n or [n1,n2,n3]"),std::string::npos);
+    EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1}}}}}},hub)).find("must be n or [n1,n2,n3]"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardFiniteDifference",{{"perturb",{5}},{"alpha_eV",0.1}}}}},hub)).find("past the 1 manifolds"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardFiniteDifference",json::object()}}},hub)).find("alpha_eV must be nonzero"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardLoop",{{"maxOuter",0}}}}},hub)).find("maxOuter >= 1"),std::string::npos);
