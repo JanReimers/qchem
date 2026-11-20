@@ -21,11 +21,9 @@ import qchem.BasisSet.Gaussian.Point.Factory; // BasisSetData (the registered ba
 import qchem.Hamiltonian.Factory;             // HubbardManifold, VxcFit
 import qchem.SCFAccelerator.Factory;          // Type, AcceleratorParams
 import qchem.ChargeDensity.Seed;              // SeedStrategy
-import qchem.ChargeDensity.AtomicDensity;     // SeedKey
 import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKind
 import qchem.Mesh.XCPolicy;                   // qcMesh::XCMeshDefault (the BeckeXCParams recipe under Auto)
 import qchem.RunPolicy;                       // RunPolicySpec
-import qchem.LASolver;                        // qchem::Ortho
 export import qchem.RunOptions;               // RunOptions: the one options tree (V-FACADE-PARITY P0b-2)
 export import qchem.SetupDecisions;           // AcceleratorOptions (the accelerator block, every structure), the spin rule
 export import qchem.SCFRecipe;                // SCFRecipe (the stage's material regime, beside its accelerator)

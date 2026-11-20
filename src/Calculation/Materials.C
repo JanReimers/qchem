@@ -8,7 +8,6 @@ module;
 export module qchem.Materials;
 export import qchem.UnitCell;    // UnitCell, Bravais (the lattice TYPES live in qcStructure; the materials do not)
 export import qchem.Structure;
-import qchem.Types;
 
 export namespace qchem::Materials
 {

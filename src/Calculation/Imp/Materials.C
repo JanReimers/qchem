@@ -10,7 +10,6 @@ module;
 #include <nlohmann/json.hpp>
 module qchem.Materials;
 import qchem.PeriodicTable;   // thePeriodicTable().GetZ(symbol)
-import qchem.Matrix3D;
 import qchem.Types;
 import qchem.Pseudopotential.Set;   // the pseudopotential vocabulary a material names
 import qchem.StructureData;   // GetCell/AtomInBox/DimerInBox -- the structure half of an entry
