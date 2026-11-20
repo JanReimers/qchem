@@ -182,7 +182,6 @@ namespace qchem::BasisSet {
 
 ### qchem.ChargeDensity   (src/ChargeDensity/ChargeDensity.C)
 export import qchem.Symmetry.Spin;
-export import qchem.ChargeDensity.RasterDensity;
 export import qchem.BasisSet.PairProjection;
 export import qchem.BasisSet.PairProjector;
 export import qchem.Fitting.FunctionFitter;

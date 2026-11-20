@@ -536,44 +536,8 @@ template <class T> rvec3_t tComposite_CD<T>::Gradient  (const rvec3_t& r) const
     return ret;
 }
 
-// The periodic face.  Each block's raw-raster face, or a loud failure: every block on the plane-wave path is one.
-static const RasterDensity& RasterOf(const cd_ref_t& c)
-{
-    const RasterDensity* fc=std::visit([](const auto* b){return dynamic_cast<const RasterDensity*>(b);}, c);
-    assert(fc && "composite block is not a RasterDensity (plane-wave path)");
-    return *fc;
-}
-
-// Raw rho_DM = Sum_k w_k rho_k(r) on c's ONE raster (the weights ride in each block's D).  ALL-OR-NOTHING:
-// if any block lacks the raw path (returns empty) the whole composite answers empty, so the caller's E/H
-// pair never mixes raw and ball blocks (doc/GPWPlan 0.5(f2)).
-template <class Comp> rvec_t Composite_Fourier<Comp>::GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const
-{
-    rvec_t sum;
-    for (const auto& b : self().itsBlocks)
-    {
-        rvec_t r=RasterOf(b.cd).GetRhoOnGrid(c);
-        if (r.size()==0) return rvec_t{};
-        if (sum.size()==0) sum=std::move(r);
-        else               sum+=r;
-    }
-    // IBZ: star-average the summed raster IN REAL SPACE (voxel permutation) so XC sees ρ_sym while staying
-    // on the non-negative ρ_DM grid.  MY GROUP averages (V-SYM-SEQUESTER-OPS, 2026-11-09); the RASTER says how its voxels
-    // transform under one op (a permutation plus an FFT glide), so the cross-cast asks the engine that produced this array --
-    // the same "I want more" ask GetRhoOnGrid's whole route is built on.  A fit basis without a raster cannot answer, and
-    // cannot have produced this array either.
-    if (const auto& group=self().itsGroup)
-    {
-        const std::unique_ptr<Symmetry::StarField> f=dynamic_cast<const BasisSet::G_RasterStarField&>(c).MakeStarField(sum);
-        group->StarAverage(*f);
-    }
-    return sum;
-}
-
-
 template class Composite_HFSystem<tComposite_CD<double>>;
 template class tComposite_CD<double>;
-template class Composite_Fourier<tComposite_CD<dcmplx>>;
 template class tComposite_CD<dcmplx>;
 
 } //namespace
