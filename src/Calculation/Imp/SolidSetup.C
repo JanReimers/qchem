@@ -24,7 +24,6 @@ import qchem.SetupDecisions;   // the structure-neutral decisions (spin channels
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (GaussianBasisRecipe::angular)
 import qchem.Policy;                           // policy::Refuse: each refusal files its row where it fires
 import qchem.Reporting;                         // report::Scope: the vet-stage trim files under basisTrim
-import qchem.CMath;                             // Pi (the k-point spacing: B = 2π A^-T)
 import qchem.XCRhoPolicy;                      // ReportSolidXCRho: the XC rho-axis decision
 import qchem.BasisCoverage;                    // RequireBasisCovers: a basis lacking an element is refused before the build
 

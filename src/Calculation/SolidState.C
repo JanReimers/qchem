@@ -44,7 +44,6 @@ module;
 export module qchem.SolidState;
 export import qchem.SCFState;            // the shared half: RestartRefusal, StateFingerprint, SavedState, ReadState, LowdinCarry...
 import qchem.Types;
-import qchem.Structure;
 import qchem.BasisSet;                   // Complex_BS (the Bloch blocks)
 import qchem.WaveFunction;               // cWaveFunction (the orbitals a save reads)
 import qchem.ChargeDensity;              // cDM_CD (the restored density)

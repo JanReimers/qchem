@@ -26,7 +26,6 @@ import qchem.Mesh.XCPolicy;   // BeckeXCParams
 import qchem.Reporting;   // the policy rows the setup files
 import qchem.ChargeDensity.Seed;   // SeedStrategy (the Auto seed rule)
 import qchem.SeedPolicy;           // ResolveSeed (the Auto rule's uncovered branch, on a stated coverage)
-import qchem.CMath;                // Pi (the k-point spacing)
 
 using namespace qchem;
 using BasisSet::Gaussian::BasisSetData;
