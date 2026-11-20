@@ -29,6 +29,11 @@ public:
     using qcMesh::MatrixForward<U>::Forward;   // keep the factored overload visible (qchem.Mesh.Integrator's warning)
     Projections Forward(const hmat_t<U>& D) const override {return Projections(itsG->applyRaw(D));}
     size_t NumCoefficients() const override {return itsN;}
+    //! FALSE: \c applyRaw has no thin-factor kernel, so the factored overload would only rebuild \f$LL^\dagger\f$ from a pivoted
+    //! Cholesky and feed THAT to \c applyRaw -- a different \f$\rho_{DM}\f$ from the one \f$D\f$ gives, by the factor's roundoff and
+    //! truncation.  The raw route's answer is the exact contraction of \f$D\f$ (what \c GetRhoOnGrid returned before 2026-11-19);
+    //! saying true here moved 14 SCF iteration counts in the R1.0n/o sweep (controller audit, 2026-11-20).
+    bool FactorPays() const override {return false;}
 private:
     const PairProjection<dcmplx>* itsG;   //!< borrowed: owned by the orbital basis's integral cache
     size_t itsN;                          //!< the raster's point count
