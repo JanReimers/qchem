@@ -3868,4 +3868,29 @@ The row as it stood:
 | peak RSS | 4.08 GB | 1.86 GB | 3.94 GB | 2.01 GB |
 
 The policy's prediction on the same run: dense 2.67 GB, images 0.86 GB average / 1.64 GB peak (estimated from a 1-in-36 sample).  Follow-ups are the three [G1] rows left in the tracker (the images ρ forward, the dense serial zgemm, the dense build through the record).
+## ✅ GPW PP and raster-XC forces (lane B, 2026-11-19; READY 1-3, landed with lane-b-xc)
+
+The three GPW pseudopotential terms and XC on the raster route now give their force and virial at fixed D, so the WHOLE GPW force and
+stress on the raster are the derivatives of the re-converged energy.  What was built, beside the existing faces (the user's 2026-11-08
+"derivative beside" ruling):
+- `LatticeSum1E::MakeLatticeOverlapPullback` (the lattice ⟨χ|g⟩ vector: the KB projections) and `MakeLatticeLocalGaussianPullback` (the
+  3-centre MakeLocalGaussian matrix: the short local PP), Enzyme over the MnD kernels on the energy's own image lists and screens.
+- `LatticeCollocation::IntegratePotentialPullback / Virial (…, const std::vector<size_t>* pairLevels=nullptr)`: the explicit routing of a
+  static-field gather, so the long local PP's custom-ladder gather is walked on its levels; its field side (structure factor, and the strain's
+  −δ Ṽ − (2/Ω) G_aG_b f′) one gather per derivative field.
+- `PairProjection::applyRawAdjointPullback / Virial`: the raw raster gather's derivatives on the level fields it gathers; the pair sampler
+  answers through them (bodies behind the existing faces).
+- `CanPullbackSpeciesField / CanVirialSpeciesField` take the `FieldRange`, as their Make twins do.
+
+THE PP G=0 ALIGNMENT AT A FIXED N (controller approval 2026-11-19, applying the user's 2026-11-08 Dunlap fixed-N ruling): `Ven_PP_Short /
+Long`'s E_alphaZ multiplied Tr(DS), which moves with a GPW basis; with α_Z = v̄ it cancelled the −v̄S in the GPW block's matrix (fixed-D
+energy Tr(DL), matrix L − v̄S: H ≠ dE/dD).  Both take the run's resolved Nelec (SolidSetup's rule; a stated charge lives in RunOptions,
+never on the sites, whose formal charges RequireConsistentSiteCharges holds to a zero sum), threaded through `Ham_PW_DFT` and the solid
+`Hamiltonian::Factory` as a required `double numElectrons`.
+
+GATES: primitive (M_LatticePullback, 3 fixtures, non-TRIM k: ≤ 5e-12), block (UTLattice_BS GPW_Force: the PP terms and the raw gather,
+non-TRIM k, a fixed sizing box), term at fixed D (ForceFacade: Γ virials and k222 forces and virials, every term ≤ 1.2e-6 at a stated 1e-12
+1E screen), and WHOLE: `HamiltonianForces.OnAGPWRasterTheSessionsForceAndStressAreTheDerivativesOfItsEnergy_Long` (|F − FD| ≤ 1.8e-7 of
+0.045, |V − FD| ≤ 2.3e-6 of 0.49, symmetric).  Remainder: XC on the Becke mesh (READY 4) and on an imposed-symmetry Becke mesh (the
+OpenWork forces row).
 

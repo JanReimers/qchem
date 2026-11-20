@@ -341,7 +341,7 @@ Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& sp
              g, fit, coulomb, std::move(xc))
 {}
 
-void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const Pseudopotential::LocalPotential* loc,
+void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const Pseudopotential::LocalPotential* loc,
                             const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
                             XCRoute route, std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> functional,
                             std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
@@ -373,8 +373,8 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
     // has to re-ask at run time what the model is (see the PWTerms.C header).  `loc` is required by this
     // builder anyway -- IonIon below reads loc->ZionFn() -- so both PP halves are unconditional here; a
     // future no-local-PP build would simply omit the two Ven_PP_* Adds.
-    Add(new Ven_PP_Short(st, loc));                            // electron-ion SHORT-range local (+ short G=0)
-    Add(new Ven_PP_Long (st, loc));                            // electron-ion LONG-range core charge (+ long G=0)
+    Add(new Ven_PP_Short(st, loc, numElectrons));              // electron-ion SHORT-range local (+ short G=0, N fixed)
+    Add(new Ven_PP_Long (st, loc, numElectrons));              // electron-ion LONG-range core charge (+ long G=0, N fixed)
     if (nl) Add(new Ven_PP_NonLocal(st, nl));                  // KB projectors -- omitted for a local-only PP
     // electron-electron Hartree V_H[rho]: the first-order fitted term on the plane-wave density fitter (V-ONE-OF-N 3b); the
     // fit basis also carries the response half's δV_H(G+q)
@@ -519,44 +519,44 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
 }
 
 // Explicit-models ctor: the caller owns the models (itsOwnedLocal/Sep stay null).
-Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const Pseudopotential::LocalPotential* loc,
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const Pseudopotential::LocalPotential* loc,
                        const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh)
     : cHamiltonianImp(SpinGroup::UnPolarized)
 {
-    BuildTerms(st, bs, coulombFit, loc, nl, xcMesh);
+    BuildTerms(st, bs, coulombFit, numElectrons, loc, nl, xcMesh);
 }
 
 // Single-species convenience ctor: the 1-species case of the multi-species build.
-Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const std::string& element,
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::string& element,
                        const std::string& functional, int valence, const qcMesh::MeshParams& xcMesh)
     : cHamiltonianImp(SpinGroup::UnPolarized)
 {
-    BuildFromGTH(st, bs, coulombFit, {{element, valence}}, functional, xcMesh);
+    BuildFromGTH(st, bs, coulombFit, numElectrons, {{element, valence}}, functional, xcMesh);
 }
 
 // Multi-species convenience ctor.
-Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, std::initializer_list<std::pair<std::string,int>> species,
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, std::initializer_list<std::pair<std::string,int>> species,
                        const std::string& functional, const qcMesh::MeshParams& xcMesh)
     : cHamiltonianImp(SpinGroup::UnPolarized)
 {
-    BuildFromGTH(st, bs, coulombFit, std::vector<std::pair<std::string,int>>(species), functional, xcMesh);
+    BuildFromGTH(st, bs, coulombFit, numElectrons, std::vector<std::pair<std::string,int>>(species), functional, xcMesh);
 }
 
 // Multi-species, runtime vector form (LiCoO2 / f-oxides: distinct elements collected at run time).
-Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const std::vector<std::pair<std::string,int>>& species,
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::vector<std::pair<std::string,int>>& species,
                        const std::string& functional, const qcMesh::MeshParams& xcMesh, XCRoute fit, SpinGroup g,
                        std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc,
                        std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
     : cHamiltonianImp(g)
 {
-    BuildFromGTH(st, bs, coulombFit, species, functional, xcMesh, fit, std::move(hubbard), std::move(xc), std::move(vxcAux));
+    BuildFromGTH(st, bs, coulombFit, numElectrons, species, functional, xcMesh, fit, std::move(hubbard), std::move(xc), std::move(vxcAux));
 }
 
 // Look up each (element, valence) from the GTH database and build + OWN a per-Z router model (one
 // MultiSpecies_Local + one MultiSpecies_Separable, keyed by atomic number so the assembly's per-atom
 // FormFactor(a->itsZ,...) dispatches to the right species).  The owned models outlive the terms (members,
 // destroyed after the cHamiltonian base that holds them), so each term's &loc/&nl stays valid for the run.
-void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const std::vector<std::pair<std::string,int>>& species,
+void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::vector<std::pair<std::string,int>>& species,
                               const std::string& functional, const qcMesh::MeshParams& xcMesh, XCRoute fit,
                               std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc,
                               std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
@@ -578,7 +578,7 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitS
     }
     itsOwnedLocal=loc;
     itsOwnedSep  =sep;
-    BuildTerms(st, bs, coulombFit, loc.get(), sep.get(), xcMesh, fit, std::move(hubbard), std::move(xc), std::move(vxcAux));
+    BuildTerms(st, bs, coulombFit, numElectrons, loc.get(), sep.get(), xcMesh, fit, std::move(hubbard), std::move(xc), std::move(vxcAux));
 }
 
 Ham_DHF_1E::Ham_DHF_1E(const st_t& st)

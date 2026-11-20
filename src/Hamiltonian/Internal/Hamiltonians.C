@@ -110,15 +110,17 @@ public:
     //! parameter existed; \c UnitCellKind::Becke builds the geometry's periodic Becke mesh ONCE.  The
     //! runtime-vector ctor additionally takes the ORTHOGONAL \a fit knob (\c VxcFit) choosing which fit
     //! basis represents \f$v_{xc}\f$ on that grid; the others default to \c Auto (the historical pairing).
+    //! \a numElectrons (every ctor): the run's FIXED electron count, what the local PP's G = 0 alignment multiplies (\c Ven_PP_Short's
+    //! itsNumElectrons): the facade's resolved Nelec, never re-derived here (a stated charge lives in RunOptions, not on the sites).
     //! Explicit-models ctor: the caller owns the local + optional KB nonlocal models (non-owning here).
-    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const Pseudopotential::LocalPotential* loc,
+    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const Pseudopotential::LocalPotential* loc,
                const Pseudopotential::SeparablePotential* nl=nullptr, const qcMesh::MeshParams& xcMesh={});
     //! Single-species convenience ctor: look up + own the GTH PP for \a element.
-    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const std::string& element,
+    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::string& element,
                const std::string& functional="LDA", int valence=0, const qcMesh::MeshParams& xcMesh={});
     //! Multi-species convenience ctor: name each (element, valence); the database is looked up per species
     //! and a per-Z router model (MultiSpecies_*) is built + OWNED -- e.g. Ham_PW_DFT(st, bs, {{"Na",1},{"F",7}}).
-    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, std::initializer_list<std::pair<std::string,int>> species,
+    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, std::initializer_list<std::pair<std::string,int>> species,
                const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={});
     //! Multi-species, RUNTIME species list (the vector form the initializer_list can't provide) -- e.g. a
     //! LiCoO2 / f-oxide run assembled from the cell's distinct elements at run time.
@@ -128,21 +130,21 @@ public:
     //! the Delta (singles quadrature) XC route; a polarized PLANE-WAVE fit (a per-channel pair route) is asserted out
     //! until designed.
     //! \a hubbard: the DFT+U manifolds (empty = no +U term; programme step 5, pin 23).
-    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const std::vector<std::pair<std::string,int>>& species,
+    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::vector<std::pair<std::string,int>>& species,
                const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={},
                XCRoute fit={}, SpinGroup g=SpinGroup::UnPolarized,
                std::vector<HubbardManifold> hubbard={}, std::vector<std::shared_ptr<ExFunctional>> xc={},
                std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux={});   //!< the periodic A1 Vxc fit's real Gamma set (xc.fit Auxiliary)
 private:
     //! \a xc: the functional's parts; EMPTY = Dirac + VWN5, the default LDA (every ctor but the facade's leaves it so).
-    void BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const Pseudopotential::LocalPotential* loc,
+    void BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const Pseudopotential::LocalPotential* loc,
                     const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
                     XCRoute fit={}, std::vector<HubbardManifold> hubbard={},
                     std::vector<std::shared_ptr<ExFunctional>> xc={},
                     std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux={});
     //! Look up each (element, valence) from the GTH database, build + OWN the (per-Z router) local +
     //! separable models, and assemble the terms against them.  The single-species ctor is the 1-species case.
-    void BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, const std::vector<std::pair<std::string,int>>& species,
+    void BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::vector<std::pair<std::string,int>>& species,
                       const std::string& functional, const qcMesh::MeshParams& xcMesh,
                       XCRoute fit={}, std::vector<HubbardManifold> hubbard={},
                       std::vector<std::shared_ptr<ExFunctional>> xc={},

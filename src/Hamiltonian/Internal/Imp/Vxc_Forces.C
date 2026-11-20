@@ -9,7 +9,8 @@
 // strategy refuses, so it is a MissingGradients() entry, never a silent zero.)
 //
 // THE ROUTES.  A plane-wave block on the ball-fit route: an EXACT ZERO (the fitter's overlap tensor has no centre to move).  The raw
-// raster gather of a GPW block: refused (its jets are not built).  The δ quadrature (Becke or uniform mesh): refused.
+// raster gather of a GPW block: the gather's own pullback at the fixed field (PairProjection::applyRawAdjointPullback, lane B 2026-11-19).
+// The δ quadrature (Becke or uniform mesh): refused (the mesh moves).
 module;
 #include <stdexcept>
 #include <string>

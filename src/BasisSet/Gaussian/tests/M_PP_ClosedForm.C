@@ -177,7 +177,7 @@ TEST(PP_ClosedForm, CartesianPullbacksAreTheFiniteDifferenceOfItsOwnMatricesAndT
     std::mt19937 rng(5); std::uniform_real_distribution<double> U(-1,1);
     hmat_t<double> D(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=U(rng);
     const TestField field; const TestProjectors ps;
-    ASSERT_TRUE(bs.CanPullbackSpeciesField(field)); ASSERT_TRUE(bs.CanPullbackProjectors(ps));
+    ASSERT_TRUE(bs.CanPullbackSpeciesField(field, FieldRange::Full)); ASSERT_TRUE(bs.CanPullbackProjectors(ps));
     auto TrDM=[&](const rsmat_t& M){ double t=0.0; for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) t+=D(i,j)*M(i,j); return t; };
     std::vector<rvec3_t> R; st->ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
     const double h=1e-4;
@@ -225,10 +225,10 @@ TEST(PP_ClosedForm, EachPullbackCanQueryAgreesWithWhetherItsMethodAnswers)
         const size_t n=dynamic_cast<const BasisSet::Orbital_1E_IBS<double>&>(*b).GetNumFunctions();
         const auto f=b->MakeSpeciesFieldPullback(st.get(), field, FieldRange::Full, hmat_t<double>(n));
         const auto p=b->MakeProjectorPullback(st.get(), ps, hmat_t<double>(n));
-        EXPECT_EQ(b->CanPullbackSpeciesField(field), bool(f)); EXPECT_EQ(b->CanPullbackProjectors(ps), bool(p));
+        EXPECT_EQ(b->CanPullbackSpeciesField(field, FieldRange::Full), bool(f)); EXPECT_EQ(b->CanPullbackProjectors(ps), bool(p));
         if (!f) EXPECT_FALSE(f.Error().why.empty());
         if (!p) EXPECT_FALSE(p.Error().why.empty());
     }
-    EXPECT_TRUE(cart.CanPullbackSpeciesField(field) && cart.CanPullbackProjectors(ps)) << "PG_Cart gives them";
-    EXPECT_FALSE(sph.CanPullbackSpeciesField(field) || sph.CanPullbackProjectors(ps)) << "PG_Spherical has no geometry derivative yet";
+    EXPECT_TRUE(cart.CanPullbackSpeciesField(field, FieldRange::Full) && cart.CanPullbackProjectors(ps)) << "PG_Cart gives them";
+    EXPECT_FALSE(sph.CanPullbackSpeciesField(field, FieldRange::Full) || sph.CanPullbackProjectors(ps)) << "PG_Spherical has no geometry derivative yet";
 }

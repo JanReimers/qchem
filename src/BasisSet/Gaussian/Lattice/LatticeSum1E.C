@@ -215,6 +215,16 @@ public:
     //! (no lattice), the sibling of the finite \c MakeOverlap(g) used by the home-only GPW mode.
     virtual chmat_t MakeLocalGaussian(const Structure* cl,
                                       const std::function<GaussianFunction(int Z)>& opForZ) const = 0;
+    //! \brief THE DERIVATIVES of the lattice \c MakeOverlap(phase,A,g) vector and \c MakeLocalGaussian(phase,A,cl,opForZ) matrix, beside
+    //! them (GeometryOptimizationPlan §13.2; the user's 2026-11-08 "derivative beside" ruling): the GPW PP force and virial (lane B 2026-11-19).
+    //! Same contract as \c MakeLatticeOverlapPullback: \c gradient per site of \a st, \c virial over every UNFOLDED centre, at fixed adjoint
+    //! and fractional k, the image lists and screens the energy's own.  For the vector, \f$E=\mathrm{Re}\sum_i\bar u_i^*\,b_i\f$ with \a g
+    //! sitting on site \a gSite of \a st (every image of \a g moves with it); for the matrix, \f$E=\mathrm{Re\,Tr}(\bar A^\dagger M)\f$ with
+    //! each operator image on its atom.  THROW on a mismatched adjoint, a stray centre or a missing structure.
+    virtual GeometryPullback MakeLatticeOverlapPullback(const cellphase_t& phase, const UnitCell& A, const GaussianFunction& g, size_t gSite,
+                                                        const cvec_t& ubar, const Structure* st) const = 0;
+    virtual GeometryPullback MakeLatticeLocalGaussianPullback(const chmat_t& Abar, const cellphase_t& phase, const UnitCell& A, const Structure* cl,
+                                                              const std::function<GaussianFunction(int Z)>& opForZ) const = 0;
     //! \brief Announce this basis's lattice-sum ECONOMY (console + the run report's \c grids.latticeSums):
     //! \f$\alpha_{\min/\max}\f$, the magnitude-screen \f$\varepsilon\f$ values in effect, and the
     //! worst-pair (diffuse x diffuse) reach with its \c LatticePointsInSphere count over \a A -- the numbers that
@@ -369,19 +379,22 @@ public:
     //! call (no D screen, the relative rule, \a relFieldSharp), one entry per site of \a st, both the bra's atom and the ket image's moving.
     //! So for a field V = δE/δρ held on the levels, the term's force is \f$-G\f$ summed over the blocks.  The jet twin of the reference box
     //! walk on the SAME task list and screens (never the stream fold).  CLIENT: the GPW 3-centre tensors' \c applyAdjointPullback.
+    //! \a pairLevels: the explicit per-pair level assignment of a STATIC-field gather (\c IntegratePotential's, from \c StaticFieldPairLevels),
+    //! so the pullback walks the levels that gather used (the long-range local PP's custom ladder; lane B 2026-11-19); null = the relative rule.
     virtual rvec3vec_t IntegratePotentialPullback(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
                                                   const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                                   const std::vector<double>& ecut_L, const LatticeScreener& screener,
-                                                  double relFieldSharp, const Structure* st) const = 0;
+                                                  double relFieldSharp, const Structure* st,
+                                                  const std::vector<size_t>* pairLevels=nullptr) const = 0;
     //! \brief THE STRAIN DERIVATIVE of \c IntegratePotential beside its pullback (doc/Records/CellHalf_Design.md §5; lane H 2026-11-11):
     //! \f$V_{ab}=\partial\,\mathrm{Re}\,\mathrm{Tr}(D\,h[V])/\partial\varepsilon_{ab}\f$ at FIXED level fields \a V_L (per raster index) and FIXED
     //! Hermitian \a D, the centres, images and raster strained together: the moment of the jets plus the raster weight's dilation.  The
     //! jet twin of the reference box walk on the SAME task list and screens, as the pullback.  CLIENT: the GPW 3-centre tensors'
-    //! \c applyAdjointVirial (the orbital side of a fitted term's virial).
+    //! \c applyAdjointVirial (the orbital side of a fitted term's virial).  \a pairLevels: as the pullback's.
     virtual rmat3d_t IntegratePotentialVirial(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
                                               const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                               const std::vector<double>& ecut_L, const LatticeScreener& screener,
-                                              double relFieldSharp) const = 0;
+                                              double relFieldSharp, const std::vector<size_t>* pairLevels=nullptr) const = 0;
 
     //! \brief Per-pair level assignment for integrating a STATIC EXTERNAL G-space field of effective Gaussian
     //! exponent \a beta (its spectrum decays as \f$e^{-G^2/4\beta}\f$; the erf-Coulomb local-PP long tail has

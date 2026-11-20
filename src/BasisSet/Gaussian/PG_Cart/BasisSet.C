@@ -115,6 +115,12 @@ public:
                                       const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const override;
     virtual chmat_t MakeLocalGaussian(const Structure* cl,
                                       const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const override;
+    //! The derivatives of the lattice MakeOverlap(g) vector and MakeLocalGaussian matrix (LatticeSum1E's doc): Enzyme over the MnD kernels
+    //! (NR_Evaluator::LatticeOverlapWithPullback / LatticeLocalGaussianPullback), the GPW PP force and virial.
+    virtual GeometryPullback MakeLatticeOverlapPullback(const cellphase_t& phase, const UnitCell& A, const Gaussian::LatticeSum1E::GaussianFunction& g,
+                                                        size_t gSite, const cvec_t& ubar, const Structure* st) const override;
+    virtual GeometryPullback MakeLatticeLocalGaussianPullback(const chmat_t& Abar, const cellphase_t& phase, const UnitCell& A, const Structure* cl,
+                                                              const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const override;
     virtual double  MaxExponent() const override;   // finest exponent -> the GPW density-grid cutoff floor
     virtual double  MinExponent() const override;   // coarsest exponent -> the multi-grid coarsest level
     virtual const GPWTolerances& Tolerances() const override;
@@ -135,11 +141,12 @@ public:
     virtual rvec3vec_t IntegratePotentialPullback(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
                                                   const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                                   const std::vector<double>& ecut_L, const LatticeScreener& screener,
-                                                  double relFieldSharp, const Structure* st) const override;
+                                                  double relFieldSharp, const Structure* st,
+                                                  const std::vector<size_t>* pairLevels=nullptr) const override;
     virtual rmat3d_t IntegratePotentialVirial(const std::vector<rvec_t>& V_L, const chmat_t& D, const cellphase_t& phase,
                                               const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                               const std::vector<double>& ecut_L, const LatticeScreener& screener,
-                                              double relFieldSharp) const override;
+                                              double relFieldSharp, const std::vector<size_t>* pairLevels=nullptr) const override;
     virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                       double beta, double lnEps) const override;
     virtual void EmitLatticeSumReport(const UnitCell& A) const override;             // lattice-sum economy readout

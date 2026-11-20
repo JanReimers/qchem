@@ -94,7 +94,7 @@ public:
     virtual rsmat_t MakeSpeciesFieldMatrix(const Structure*, const SpeciesRadialField&, FieldRange) const override;
     virtual rsmat_t MakeProjectorMatrix   (const Structure*, const SpeciesProjectorSet&) const override;
     // d/dR (GeometryOptimizationPlan §13.2): the raw basis's, on the AO-folded D (as the 1E pullbacks above).
-    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&)  const override;
+    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&, FieldRange) const override;
     virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const override;
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure*, const SpeciesRadialField&, FieldRange, const hmat_t<double>&) const override;
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure*, const SpeciesProjectorSet&, const hmat_t<double>&) const override;

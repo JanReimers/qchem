@@ -176,13 +176,18 @@ public:
     //! sweep over the whole field (a unit-test oracle == Long + Short).
     virtual hmat_t<T> MakeSpeciesFieldMatrix(const Structure* cl, const SpeciesRadialField& f, FieldRange) const override;
     virtual hmat_t<T> MakeProjectorMatrix   (const Structure* cl, const SpeciesProjectorSet& nl) const override;
-    // d/dR (GeometryOptimizationPlan §13.2): the periodic PP force is the structure-factor row (OpenWork §2), not these faces yet.
-    virtual bool CanPullbackSpeciesField(const SpeciesRadialField&)  const override {return false;}
-    virtual bool CanPullbackProjectors  (const SpeciesProjectorSet&) const override {return false;}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure*, const SpeciesRadialField&, FieldRange, const hmat_t<T>&) const override
-        {return ::qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a GPW block", "species-field pullback");}
-    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure*, const SpeciesProjectorSet&, const hmat_t<T>&) const override
-        {return ::qchem::BasisSet::NoGeometryDerivativeYet<rvec3vec_t>("a GPW block", "projector pullback");}
+    //! \brief d/dR and d/dε of the two assemblies (GeometryOptimizationPlan §13.2; doc/Records/CellHalf_Design.md §5; lane B 2026-11-19):
+    //! the evaluator's lattice Enzyme walks (\c GPW_Evaluator::LocalPPPullback / \c SeparablePPPullback), one walk giving both the gradient
+    //! and the virial (the LONG range's two are separate gathers).  Both local ranges and the KB projectors in closed-Gaussian form; the
+    //! home-only mode refuses by name.  A real TRIM block hands its D over widened (the Bloch sums at a TRIM k are real).
+    virtual bool CanPullbackSpeciesField(const SpeciesRadialField& f, FieldRange r) const override {return GPW_Evaluator::CanPullbackLocalPP(f, r);}
+    virtual bool CanPullbackProjectors  (const SpeciesProjectorSet& ps)            const override {return GPW_Evaluator::CanPullbackSeparablePP(ps);}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSpeciesFieldPullback(const Structure* cl, const SpeciesRadialField& f, FieldRange r, const hmat_t<T>& D) const override;
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeProjectorPullback(const Structure* cl, const SpeciesProjectorSet& ps, const hmat_t<T>& D) const override;
+    virtual bool CanVirialSpeciesField(const SpeciesRadialField& f, FieldRange r) const override {return GPW_Evaluator::CanVirialLocalPP(f, r);}
+    virtual bool CanVirialProjectors  (const SpeciesProjectorSet& ps)            const override {return GPW_Evaluator::CanPullbackSeparablePP(ps);}
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeSpeciesFieldVirial(const Structure* cl, const SpeciesRadialField& f, FieldRange r, const hmat_t<T>& D) const override;
+    virtual Outcome<rmat3d_t,AD::NoGradient> MakeProjectorVirial(const Structure* cl, const SpeciesProjectorSet& ps, const hmat_t<T>& D) const override;
     virtual std::map<int,hmat_t<T>> MakeProjectorMatrixByL(const Structure* cl, const SpeciesProjectorSet& nl) const override;
 
     virtual std::string Name      () const override {return "GPW";}

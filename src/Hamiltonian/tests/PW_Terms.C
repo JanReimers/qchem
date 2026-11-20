@@ -137,7 +137,7 @@ TEST(PW_Terms, PWPseudoTermMatchesBasis)
     // potential is THREE terms post-split (doc/GPWPlan.md 0e-PP): SHORT-range local + KB nonlocal here,
     // plus the LONG-range local in Ven_PP_Long.  Their matrices must sum to what the basis assembles --
     // the Hamiltonian adds them term by term, so check the same sum.
-    qchem::Hamiltonian::Ven_PP_Short    extS(si, &loc);
+    qchem::Hamiltonian::Ven_PP_Short    extS(si, &loc, 4.0*si->GetNumAtoms());
     qchem::Hamiltonian::Ven_PP_NonLocal extN(si, &nl);
     qchem::Hamiltonian::cStatic_HT*     termS=&extS;    // the public term interface (as the Hamiltonian holds it)
     qchem::Hamiltonian::cStatic_HT*     termN=&extN;
@@ -369,8 +369,8 @@ TEST(PW_Terms, ThePPAndIonIonForcesAtFixedDAreTheirEnergysFiniteDifference)
     auto build=[&](const std::shared_ptr<const Structure>& st)
     {
         std::vector<std::pair<std::string,Term>> t;
-        t.emplace_back("Ven_PP_Short",    Term(new qchem::Hamiltonian::Ven_PP_Short(st, &siPP.local)));
-        t.emplace_back("Ven_PP_Long",     Term(new qchem::Hamiltonian::Ven_PP_Long(st, &siPP.local)));
+        t.emplace_back("Ven_PP_Short",    Term(new qchem::Hamiltonian::Ven_PP_Short(st, &siPP.local, 4.0*st->GetNumAtoms())));
+        t.emplace_back("Ven_PP_Long",     Term(new qchem::Hamiltonian::Ven_PP_Long(st, &siPP.local, 4.0*st->GetNumAtoms())));
         t.emplace_back("Ven_PP_NonLocal", Term(new qchem::Hamiltonian::Ven_PP_NonLocal(st, &siPP.nonlocal)));
         t.emplace_back("IonIon",          Term(new qchem::Hamiltonian::IonIon<dcmplx>(st, [](int){return 4.0;})));
         return t;

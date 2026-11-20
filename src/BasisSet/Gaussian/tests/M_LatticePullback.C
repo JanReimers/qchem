@@ -64,7 +64,7 @@ UnitCell CellOf(const Fixture& x, size_t moved=size_t(-1), const rvec3_t& dr=rve
     return c;
 }
 struct Block { std::shared_ptr<const BasisSet::Real_BS> bs; const LatticeSum1E* ls=nullptr; size_t n=0; };
-Block Make(const Fixture& x, const UnitCell& cell)
+Block Make(const Fixture& x, const UnitCell& cell, double screenEps=1e-16)
 {
     Block b;
     std::shared_ptr<const BasisSet::Real_BS> cart(Factory(x.data, &cell, Engine::MnD, Angular::Cartesian));
@@ -73,7 +73,7 @@ Block Make(const Fixture& x, const UnitCell& cell)
     // that crosses the screen between the ±h geometries is a 4e-8 STEP in the screened energy, which a central difference reads as a
     // 2e-5 slope.  These gates test the derivative of the series, so they run it where no such step exists.
     {
-        GPWTolerances tight; tight.screenEps=1e-16;
+        GPWTolerances tight; tight.screenEps=screenEps;
         auto* bind=dynamic_cast<ToleranceBinding*>(const_cast<BasisSet::Real_BS*>(cart.get()));
         if (!bind) throw std::logic_error("M_LatticePullback: the MnD Cartesian set offers no ToleranceBinding door");
         bind->BindTolerances(tight);
@@ -230,6 +230,111 @@ void LibcintImagesAreTheEnergyEnginesImages(const Fixture& x)
 } // namespace
 TEST(M_LatticePullback, LibcintsImageIntegralsAreTheEnergyEnginesImageByImage_Uncontracted) {LibcintImagesAreTheEnergyEnginesImages(Si());}
 TEST(M_LatticePullback, LibcintsImageIntegralsAreTheEnergyEnginesImageByImage_Contracted)   {LibcintImagesAreTheEnergyEnginesImages(H3());}
+
+// THE PP PRIMITIVES (lane B 2026-11-19, the GPW PP force and virial): LatticeSum1E::MakeLatticeOverlapPullback(phase, A, g, site, ū) and
+// MakeLatticeLocalGaussianPullback, against the central difference of what they differentiate -- E_g = Re Σ_i ū_i* b_i with b = the lattice
+// MakeOverlap(g) and g riding its site (the KB projection), and E_L = Re Tr(Ā† M) with M = MakeLocalGaussian (the short local PP), every
+// operator image riding its atom -- on the same three fixtures, at the same non-TRIM k, every atom and axis and all nine strains.
+namespace {
+//! A polynomial Gaussian with a p, a d-like and an s part (every Cartesian kernel path), placed at \a C.
+LatticeSum1E::GaussianFunction TestG(const rvec3_t& C, double alpha)
+{
+    LatticeSum1E::GaussianFunction g;
+    g.center=C; g.alpha=alpha;
+    g.terms={{{0,0,0},1.0},{{1,0,0},0.7},{{0,1,1},-0.4},{{0,0,2},0.3}};
+    return g;
+}
+//! The short-PP-shaped operator per species: (c0 + c2 r^2) e^{-alpha r^2}, a different alpha per Z.  SHARPER than a GTH short part
+//! (alpha 1/(2 rloc^2) ~ 1): the gate tests the walk's derivative, not the operator, and each operator image costs a 3-centre series.
+LatticeSum1E::GaussianFunction TestOp(int Z)
+{
+    LatticeSum1E::GaussianFunction g;
+    g.center=rvec3_t(0,0,0); g.alpha= Z==1 ? 1.1 : Z==8 ? 5.0 : Z==14 ? 3.0 : 4.0;
+    g.terms={{{0,0,0},-1.0},{{2,0,0},0.4},{{0,2,0},0.4},{{0,0,2},0.4}};
+    return g;
+}
+cvec_t RandomVector(size_t n, unsigned long long seed)
+{
+    unsigned long long r=seed;
+    auto next=[&]{ r^=r<<13; r^=r>>7; r^=r<<17; return double(r%2000)/1000.0-1.0; };
+    cvec_t u(n);
+    for (size_t i=0;i<n;i++) u[i]=dcmplx(next(),next());
+    return u;
+}
+rvec3_t SiteOf(const UnitCell& c, size_t a) {std::vector<rvec3_t> R; c.ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); }); return R[a];}
+
+// THE SCREEN AT 1e-12 here (1e-16 above): a term crossing it between the ±h geometries is a ~1e-12 step, ~1e-9 of the slope at h = 1e-3,
+// far inside the 1e-7 gate (measured 2026-11-19: worst |analytic - FD| 5e-12), and the MnO local operator's images at 1e-16 cost 4 minutes.
+constexpr double kPPScreen=1e-14;
+//! \a full: every atom and all nine strains; otherwise atom 0's three axes and the strain xy (the spherical fixture, whose d-shell
+//! local-operator series is the costly one: what it adds over the Cartesian two is the view's forwards and the d kernels, which those reach).
+void PPPullbacksAreTheFiniteDifference(const Fixture& x, bool full=true)
+{
+    const UnitCell cell=CellOf(x);
+    const Block b=Make(x, cell, kPPScreen);
+    ASSERT_TRUE(b.ls) << x.what << ": the block realises no lattice-sum face";
+    const size_t gSite=x.atoms.size()-1;
+    const double ga=0.8;
+    const cvec_t  ubar=RandomVector(b.n, 0x2545F4914F6CDD1DULL+b.n);
+    const chmat_t Abar=RandomHermitian(b.n, 0x9E3779B97F4A7C15ULL+b.n);
+    const auto PG=b.ls->MakeLatticeOverlapPullback(PhaseOf(kNonTRIM), cell, TestG(SiteOf(cell,gSite),ga), gSite, ubar, &cell);
+    const auto PL=b.ls->MakeLatticeLocalGaussianPullback(Abar, PhaseOf(kNonTRIM), cell, &cell, TestOp);
+    ASSERT_EQ(PG.gradient.size(), x.atoms.size());
+    ASSERT_EQ(PL.gradient.size(), x.atoms.size());
+    // Both energies from ONE fresh basis per geometry (S = the projector's, T = the local operator's slot in Pair).
+    auto energies=[&](const UnitCell& c)
+    {
+        const Block bb=Make(x, c, kPPScreen);
+        const cvec_t bv=bb.ls->MakeOverlap(PhaseOf(kNonTRIM), c, TestG(SiteOf(c,gSite),ga));
+        double eg=0.0; for (size_t i=0;i<bb.n;i++) eg+=std::real(std::conj(ubar[i])*bv[i]);
+        return Pair{eg, ReTr(Abar, bb.ls->MakeLocalGaussian(PhaseOf(kNonTRIM), c, &c, TestOp))};
+    };
+    auto rich=[](auto E, double h)
+    {
+        auto central=[&](double s){ const Pair p=E(s), m=E(-s); return Pair{(p.S-m.S)/(2*s), (p.T-m.T)/(2*s)}; };
+        const Pair a=central(0.5*h), c=central(h);
+        return Pair{(4.0*a.S-c.S)/3.0, (4.0*a.T-c.T)/3.0};
+    };
+    double bigG=0.0, bigL=0.0, worstG=0.0, worstL=0.0;
+    auto tally=[&](const char* what, double anG, double anL, const Pair& fd)
+    {
+        std::printf("  [PP pullback] %-22s %-10s g: analytic % .10e FD % .10e diff %.2e   local: analytic % .10e FD % .10e diff %.2e\n",
+                    x.what, what, anG, fd.S, anG-fd.S, anL, fd.T, anL-fd.T);
+        bigG=std::max(bigG,std::fabs(fd.S)); worstG=std::max(worstG,std::fabs(anG-fd.S));
+        bigL=std::max(bigL,std::fabs(fd.T)); worstL=std::max(worstL,std::fabs(anL-fd.T));
+    };
+    const double h=1e-3;
+    for (size_t a=0;a<(full ? x.atoms.size() : 1);a++)
+        for (int c=0;c<3;c++)
+        {
+            const Pair fd=rich([&](double s){ rvec3_t e(0,0,0); (c==0 ? e.x : c==1 ? e.y : e.z)=s; return energies(CellOf(x,a,e)); }, h);
+            char what[16]; std::snprintf(what, sizeof what, "atom %zu %c", a, "xyz"[c]);
+            tally(what, Comp(PG.gradient[a],c), Comp(PL.gradient[a],c), fd);
+        }
+    for (int u=0;u<3;u++)
+        for (int v=0;v<3;v++)
+        {
+            if (!full && !(u==0 && v==1)) continue;
+            const Pair fd=rich([&](double s){ return energies(CellOf(x,size_t(-1),rvec3_t(0,0,0),u,v,s)); }, h);
+            char what[16]; std::snprintf(what, sizeof what, "strain %c%c", "xyz"[u], "xyz"[v]);
+            tally(what, PG.virial(u+1,v+1), PL.virial(u+1,v+1), fd);
+        }
+    ASSERT_GT(bigG, 1e-4) << x.what << ": a vanishing projector pullback cannot show the walk is wired";
+    ASSERT_GT(bigL, 1e-4) << x.what << ": a vanishing local-Gaussian pullback cannot show the walk is wired";
+    EXPECT_LT(worstG, 1e-7*bigG) << x.what << ": the overlap-with-g pullback / virial is not the finite difference of Re Σ ū* b";
+    EXPECT_LT(worstL, 1e-7*bigL) << x.what << ": the local-Gaussian pullback / virial is not the finite difference of Re Tr(Ā† M)";
+
+    rvec3_t sG(0,0,0), sL(0,0,0);   // every atom's analytic gradient, whatever subset the FD took
+    for (size_t a=0;a<x.atoms.size();a++) { sG=sG+PG.gradient[a]; sL=sL+PL.gradient[a]; }
+    const double tG=std::max({std::fabs(sG.x),std::fabs(sG.y),std::fabs(sG.z)}), tL=std::max({std::fabs(sL.x),std::fabs(sL.y),std::fabs(sL.z)});
+    std::printf("  [PP pullback] %-22s |Σ_A g_A|  g %.2e  local %.2e\n", x.what, tG, tL);
+    EXPECT_LT(tG, 1e-12*std::max(1.0,bigG)) << x.what << ": a rigid translation moves nothing (the projector)";
+    EXPECT_LT(tL, 1e-12*std::max(1.0,bigL)) << x.what << ": a rigid translation moves nothing (the local operator)";
+}
+} // namespace
+TEST(M_LatticePullback, ProjectorAndLocalGaussianPullbacksAndVirialsAreTheirFiniteDifferences_Uncontracted) {PPPullbacksAreTheFiniteDifference(Si());}
+TEST(M_LatticePullback, ProjectorAndLocalGaussianPullbacksAndVirialsAreTheirFiniteDifferences_Contracted)   {PPPullbacksAreTheFiniteDifference(H3());}
+TEST(M_LatticePullback, ProjectorAndLocalGaussianPullbacksAndVirialsAreTheirFiniteDifferences_Spherical)    {PPPullbacksAreTheFiniteDifference(MnO(), false);}
 
 TEST(M_LatticePullback, RefusesAMisSizedAdjointAndAMissingStructure)
 {

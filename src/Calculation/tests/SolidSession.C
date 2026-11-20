@@ -76,6 +76,18 @@ std::shared_ptr<const SolidSetup> SiSetup(const std::vector<rvec3_t>* at=nullptr
     if (at) cell.MoveSites(*at);
     return SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), kSiBasis, SiGamma(imposed, statedRasters));
 }
+//! Si IMPOSED on a stated Becke mesh: a point whose force the session must still REFUSE.  An imposed run star-averages its density on
+//! the mesh (the fold), and the Becke weight response is built for unfolded owners only, so Vxc names its missing gradient there
+//! (the uniform raster's XC force landed 2026-11-19, so the stated-raster SiSetup no longer refuses).
+std::shared_ptr<const SolidSetup> SiImposedBeckeSetup(const std::vector<rvec3_t>* at=nullptr)
+{
+    const auto mat=Materials::Get("Si_diamond");
+    UnitCell cell(*mat.cell);
+    if (at) cell.MoveSites(*at);
+    RunOptions o=SiGamma(/*imposed*/true, /*statedRasters*/true);
+    SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);   // the facade's xcMesh holds the Becke recipe
+    return SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), kSiBasis, o);
+}
 } // namespace
 
 TEST(SolidSession, ConvergeAtTheReferenceIsTheSinglePointBitForBit)
@@ -236,7 +248,7 @@ TEST(SolidSession, GeometryRunPicksAndSizesTheBeckeMesh_Long)
 
 TEST(SolidSession, RefusalsAreOutcomesAndAWrongCountThrows)
 {
-    const auto setup=SiSetup(nullptr, /*imposed*/true);
+    const auto setup=SiImposedBeckeSetup();   // a force this session must refuse (an imposed Becke mesh)
     SolidSession pes(setup, {SCFStage{Tight(), SCFAccelerators::Type::Auto}});
     const PESGeometry ref=pes.Reference();
     const std::vector<rvec3_t>& R=ref.R;
@@ -382,14 +394,20 @@ TEST(SolidSession, AGeometryRunPairsTheSessionWithAMapThatKeepsItsGroup)
 TEST(SolidSession, AForceRequestNamesTheMissingGradientsBeforeAnySCF)
 {
     size_t rows=0;
-    auto run=MakeSolidGeometryRun(SiSetup(), {SCFStage{Tight(), SCFAccelerators::Type::Auto}}, [&](const SCFIterator::IterationRow&){ ++rows; });
+    // Si stretched along [111] (D3d, one free z: the map has a step to take) and IMPOSED on a Becke mesh, a point the session cannot
+    // give a force for (SiImposedBeckeSetup says why).
+    std::vector<rvec3_t> stretched=SolidSession(SiSetup(), {SCFStage{Tight(), SCFAccelerators::Type::Auto}}).Reference().R;
+    stretched[1]+=rvec3_t(1,1,1)*(0.05/std::sqrt(3.0));
+    auto run=MakeSolidGeometryRun(SiImposedBeckeSetup(&stretched), {SCFStage{Tight(), SCFAccelerators::Type::Auto}},
+                                  [&](const SCFIterator::IterationRow&){ ++rows; });
+    ASSERT_EQ(run.map->Dimension(), 1u);
     const PESGeometry ref=run.surface->Reference();
     auto F=run.surface->ConvergeAt(ref.cell, ref.R, {.forces=true});
     ASSERT_FALSE(F);
     EXPECT_EQ(F.Error().why, PESFailure::Why::NoGradient);
     EXPECT_NE(F.Error().details.find("MissingGradients"), std::string::npos) << F.Error().details;
     EXPECT_NE(F.Error().details.find("\n    "), std::string::npos) << "at least one term named: " << F.Error().details;
-    std::cout << "[Si Γ forces] " << F.Error().details << std::endl;
+    std::cout << "[Si Γ imposed Becke forces] " << F.Error().details << std::endl;
     EXPECT_EQ(rows, 0u) << "the refusal spent no SCF iteration";
     EXPECT_EQ(run.surface->Current(), nullptr) << "the unconverged point is discarded, never held as a carry";
     // STRESS, the same way: the GPW terms without a virial (MissingVirials) are named, and no SCF is spent.
@@ -397,7 +415,7 @@ TEST(SolidSession, AForceRequestNamesTheMissingGradientsBeforeAnySCF)
     ASSERT_FALSE(S);
     EXPECT_EQ(S.Error().why, PESFailure::Why::NoGradient);
     EXPECT_NE(S.Error().details.find("MissingVirials"), std::string::npos) << S.Error().details;
-    std::cout << "[Si Γ stress] " << S.Error().details << std::endl;
+    std::cout << "[Si Γ imposed Becke stress] " << S.Error().details << std::endl;
     EXPECT_EQ(rows, 0u) << "the stress refusal spent no SCF iteration";
     EXPECT_EQ(run.surface->Current(), nullptr);
 
@@ -405,8 +423,9 @@ TEST(SolidSession, AForceRequestNamesTheMissingGradientsBeforeAnySCF)
     const SolidCalculation* held=run.surface->Current();
     ASSERT_NE(held, nullptr);
     const size_t afterEnergy=rows;
-    std::vector<rvec3_t> R=ref.R; R[1].x+=0.05;
-    auto G=run.surface->ConvergeAt(ref.cell, R, {.forces=true});
+    rvec_t v(1); v[0]=0.02;
+    const PESGeometry g=run.map->At(run.map->Start()+run.map->Project(run.map->Start(), v));   // a step the imposed session accepts
+    auto G=run.surface->ConvergeAt(g.cell, g.R, {.forces=true});
     ASSERT_FALSE(G); EXPECT_EQ(G.Error().why, PESFailure::Why::NoGradient);
     EXPECT_EQ(run.surface->Current(), held) << "a later ask reads the held point: no new point";
     EXPECT_EQ(rows, afterEnergy) << "and no SCF";
