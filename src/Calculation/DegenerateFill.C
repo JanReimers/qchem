@@ -14,7 +14,6 @@ module;
 export module qchem.DegenerateFillReport;
 export import qchem.SCFParams;
 import qchem.Policy;
-import qchem.Reporting;
 
 export namespace qchem
 {

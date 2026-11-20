@@ -23,7 +23,6 @@
 import qchem.MoleculeCalculation;
 import qchem.Hamiltonian.Factory;   // Hamiltonian::Model
 import qchem.StructureData;
-import qchem.Structure;
 import qchem.SCFParams;
 import qchem.Types;
 import qchem.Blaze;
