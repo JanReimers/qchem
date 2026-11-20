@@ -105,6 +105,46 @@ AvailableMemory QueryAvailableMemory()
     throw std::runtime_error("QueryAvailableMemory: neither a cgroup v2 limit nor /proc/meminfo's MemAvailable could be read");
 }
 
+std::optional<double> ParseMemTotal(const std::string& meminfo)
+{
+    std::istringstream is(meminfo);
+    std::string line;
+    while (std::getline(is, line))
+        if (line.rfind("MemTotal:", 0)==0)
+        {
+            std::istringstream ls(line.substr(9));
+            double kB=0.0; ls>>kB;
+            if (!ls) throw std::runtime_error("ParseMemTotal: unreadable line '"+line+"'");
+            return kB*1024.0;
+        }
+    return std::nullopt;
+}
+
+MemoryBudget QueryMemoryBudget()
+{
+    // The same walk as QueryAvailableMemory, but the LIMIT itself: the nearest memory.high / memory.max up the tree binds.
+    if (const auto cg=ReadFile("/proc/self/cgroup"))
+    {
+        std::istringstream is(*cg);
+        std::string line, path;
+        while (std::getline(is, line)) if (line.rfind("0::", 0)==0) path=line.substr(3);
+        while (!path.empty())
+        {
+            const std::string dir="/sys/fs/cgroup"+(path=="/" ? std::string() : path);
+            for (const char* file : {"memory.high", "memory.max"})
+                if (const auto t=ReadFile(dir+"/"+file))
+                    if (const auto limit=ParseCgroupLimit(*t))
+                        return {*limit, "cgroup "+std::string(file)+" ("+path+")"};
+            if (path=="/") break;
+            const auto slash=path.find_last_of('/');
+            path = slash==0 ? "/" : path.substr(0, slash);
+        }
+    }
+    if (const auto mi=ReadFile("/proc/meminfo"))
+        if (const auto t=ParseMemTotal(*mi)) return {*t, "MemTotal (/proc/meminfo)"};
+    throw std::runtime_error("QueryMemoryBudget: neither a cgroup v2 limit nor /proc/meminfo's MemTotal could be read");
+}
+
 FootprintVerdict Judge(const AuditFootprint& f, double availableBytes)
 {
     if (f.Low ()>availableBytes) return FootprintVerdict::Refuse;   // even the smallest it was ever measured at will not fit

@@ -129,6 +129,18 @@ struct AvailableMemory
     std::string source;   //!< "cgroup memory.high - memory.current (<path>)" | "cgroup memory.max - ..." | "MemAvailable (/proc/meminfo)"
 };
 AvailableMemory QueryAvailableMemory();
+//! \brief A DETERMINISTIC memory budget: the nearest cgroup v2 limit itself (memory.high, else memory.max), or with no limit anywhere up the
+//! tree /proc/meminfo's MemTotal -- never what happens to be free right now.  CLIENT: a policy whose CHOICE changes the numbers (the δ
+//! fit's orbital tables), which must give the same answer for the same input on the same machine (controller 2026-11-19: a live-headroom
+//! choice moved a GPW anchor by 2.8e-7 Ha between two sweeps).  A refusal on resources still reads \c QueryAvailableMemory.
+struct MemoryBudget
+{
+    double      bytes  = 0.0;
+    std::string source;   //!< "cgroup memory.high (<path>)" | "cgroup memory.max (<path>)" | "MemTotal (/proc/meminfo)"
+};
+MemoryBudget QueryMemoryBudget();
+//! MemTotal from /proc/meminfo text, in bytes; nothing if the line is absent.
+std::optional<double> ParseMemTotal(const std::string& meminfo);
 //! A cgroup v2 limit file's value: bytes, or nothing for "max" (no limit).  Throws on text that is neither.
 std::optional<double> ParseCgroupLimit(const std::string& text);
 //! MemAvailable from /proc/meminfo text, in bytes; nothing if the line is absent.
