@@ -310,7 +310,7 @@ public:
 //! route and the H route were two members that happened to agree -- see the \c DensitySampler header for
 //! what that permitted.
 //!
-//! \warning TWO ROUTES, LATCHED (R2.16).  A density-matrix-backed density answers \c GetRhoOnGrid with
+//! \warning TWO ROUTES, LATCHED (R2.16).  A density-matrix-backed density projects onto the raster (\c MakeRasterDensityProjector) as
 //! the RAW collocated \f$\rho_{DM}\f$; the matrix-free SEED answers EMPTY, and then \f$\rho\f$ comes from the
 //! BALL round trip (\f$\tilde\rho\f$ inverse-FFT) while \f$H\f$ stays the raw adjoint.  (A plane-wave lineage, whose
 //! ball holds every pair, no longer reaches this class: \c ProjectedDensitySampler, V-XC-ONE-TERM step 2, 2026-11-09.)  These minimise DIFFERENT functionals, so the route is latched
@@ -395,6 +395,10 @@ private:
     //! The seed's ρ̃ on this basis (iteration 0 only: a matrix-free seed has no D to collocate).  The ball ADJOINT is gone from this
     //! strategy (V-XC-ONE-TERM step 2): a plane-wave lineage runs on \c ProjectedDensitySampler.
     std::unique_ptr<BasisSet::PairProjector<dcmplx>> itsRhoProjector;
+    //! The RAW ρ_DM on the same raster (R1.0n/o): \f$\langle\delta_g|\rho\rangle\f$, asked as every density answers anything,
+    //! \c Project.  This strategy serves only the GPW lineage (a plane-wave one runs on \c ProjectedDensitySampler), so every
+    //! D-backed block has the raw route; a matrix-free density answers its own raster values, empty for the seed.
+    std::unique_ptr<BasisSet::PairProjector<dcmplx>> itsRasterProjector;
     mutable rvec_t itsRho;                        //!< ρ(r) on the raster for the current density serial
     mutable size_t itsRhoVersion=size_t(-1);      //!< density logical-clock serial itsRho was built for
     mutable bool   itsRhoIsRaw=false;             //!< is itsRho the RAW collocated ρ_DM (vs the ball round trip)?

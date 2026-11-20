@@ -22,7 +22,6 @@ module;
 #include <cmath>
 export module qchem.ChargeDensity.FourierMixCD;
 export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>
-export import qchem.ChargeDensity.RasterDensity;   // RasterDensity (the interim raw-raster face)
 export import qchem.BasisSet.RasterDensityProjector; // RasterValuedField: the mix's raw-raster shadow, as the raster projector asks it (R1.0n/o)
 export import qchem.ReciprocalLattice;             // ReciprocalLattice (|G| for f_K, the Coulomb kernel for V_H)
 import qchem.BasisSet.Orbital_DFT_IBS;                      // cFIT_CD_ABS / cFIT_SF_ABS (the FourierDensity face args)
@@ -39,7 +38,6 @@ export namespace qchem::ChargeDensity
 //! step (Internal/FieldMixer.C: KerkerStep).
 class FourierMixCD
     : public virtual tChargeDensity<dcmplx>
-    , public virtual RasterDensity              //!< the raw-raster shadow of the mix (the interim face)
     , public virtual BasisSet::AnalyticFourier   //!< my Fourier components, the field capability a G-space projector asks (V-ONE-OF-N 3b)
     , public virtual BasisSet::RasterValuedField //!< my raw-raster shadow, the field capability the raster projector asks (R1.0n/o)
     , public virtual cDM_Sourced_CD   //!< the DM-backed density this field was mixed FROM (see the face)
@@ -67,12 +65,9 @@ public:
 
     // --- AnalyticFourier: the map IS the density (metric-free), like SeedCD; a G-space projector asks for it ---
     virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS&) const override;  //!< rho-tilde, with ReScale applied
-    //! The RAW-raster shadow of the mix (doc/GPWPlan 0.5(f2)): the MIXER maintains rho_raw(r) by the same
-    //! Kerker/Pulay algebra it applies to rho-tilde (the filter is a smooth spectral multiplier -- no Gibbs)
-    //! and deposits it here, so the XC feed stays raw THROUGH the SCF dynamics, not just at the seed and the
-    //! final evaluation.  Empty (the base default) when the raw pipeline is off (SAD-seeded, PW, disabled).
-    virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const override {return RasterValues(c);}
-    //! RasterValuedField: the same shadow (empty when the raw pipeline is off), \c ReScale applied.
+    //! RasterValuedField: the RAW-raster shadow of the mix (doc/GPWPlan 0.5(f2)), \c ReScale applied.  The MIXER maintains rho_raw(r) by
+    //! the same Kerker/Pulay algebra it applies to rho-tilde (a smooth spectral multiplier -- no Gibbs) and deposits it here, so the XC
+    //! feed stays raw THROUGH the SCF dynamics.  Empty when the raw pipeline is off (SAD-seeded, PW, disabled).
     virtual rvec_t RasterValues(const BasisSet::cFIT_SF_ABS&) const override
     {
         rvec_t r=itsRhoRaw;                       // empty when the raw pipeline is off

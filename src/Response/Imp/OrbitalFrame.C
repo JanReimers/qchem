@@ -83,7 +83,7 @@ OrbitalFrame<T>::ToAO(const BlockPairs& dD, std::shared_ptr<const Symmetry::Sele
         // ⛔ THE BZ WEIGHT (found 2026-09-29, the first MULTI-k kernel run: NiO k222 chi came out 14x the
         // finite-difference chi).  R0 hands back each block's δD UNWEIGHTED (the Reference weights only its
         // Contract), but a block's AO density carries w_k -- the composite sums blocks "already BZ-weighted"
-        // (Composite_Fourier) -- so the transition density must too, or δρ is N_k times too large.  Every
+        // (tComposite_CD::Project) -- so the transition density must too, or δρ is N_k times too large.  Every
         // Γ-only gate had w = 1 and could not see it.  (A pair's two blocks share w: a full mesh, D5.)
         const cmat_t M=itsRef.Weight(b)*Complexify(bra.C)*dD.m[b]*blazem::ctrans(Complexify(ket.C));
         mat_t<T> A(M.rows(), M.columns());

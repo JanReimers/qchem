@@ -433,7 +433,8 @@ TEST(RealComplexTerms, SeedDensityTrioMatches_FccDiamond)
         ASSERT_NE(it, rc.end());
         EXPECT_EQ(v, it->second) << "rho-tilde(dm) mismatch";
     }
-    const rvec_t gr=cdr.GetRhoOnGrid(*sf), gc=cdc.GetRhoOnGrid(*sf);
+    const auto raster=BasisSet::MakeRasterDensityProjector(sf);   // the raw ρ_DM through the same face (R1.0n/o)
+    const rvec_t gr=cdr.Project(*raster).Vector(), gc=cdc.Project(*raster).Vector();
     ASSERT_EQ(gr.size(), gc.size());
     for (size_t g=0; g<gr.size(); g++) EXPECT_EQ(gr[g], gc[g]) << "raw rho_DM mismatch at g="<<g;
 
@@ -443,17 +444,16 @@ TEST(RealComplexTerms, SeedDensityTrioMatches_FccDiamond)
         new PeriodicIrrepCD<double>(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None))), rig.re->GetIrrep(Spin::None));
     tComposite_CD<dcmplx> cplx;   cplx.Insert(std::unique_ptr<tDM_CD<dcmplx>>(
         new PeriodicIrrepCD<dcmplx>(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None))), rig.cx->GetIrrep(Spin::None));
-    const auto& fm=dynamic_cast<const RasterDensity&>(mixed);
-    const auto& fx=dynamic_cast<const RasterDensity&>(cplx);
-    const rvec_t cgr=fm.GetRhoOnGrid(*sf), cgc=fx.GetRhoOnGrid(*sf);
+    const rvec_t cgr=mixed.Project(*raster).Vector(), cgc=cplx.Project(*raster).Vector();
     ASSERT_EQ(cgr.size(), cgc.size());
     for (size_t g=0; g<cgr.size(); g++) EXPECT_EQ(cgr[g], cgc[g]) << "composite raw rho mismatch at g="<<g;
 }
 
 // R1.0n/o (2026-11-19): the raw ρ_DM on the fit's raster, asked through the one projection face (MakeRasterDensityProjector), is the
-// interim face's answer BIT FOR BIT -- for the real TRIM leaf, the Bloch leaf, and the run-shaped composites over each.  The same
-// collocation (applyRaw) runs on the same D, and a composite sums its blocks in the same order.
-TEST(RealComplexTerms, TheRasterProjectorIsTheRawRasterBitForBit)
+// block's own raw collocation (applyRaw on the block's D) BIT FOR BIT -- for the real TRIM leaf, the Bloch leaf, and the run-shaped
+// composites over each (one block, no group: the sum is that block's).  It replaced the interim RasterDensity::GetRhoOnGrid, which
+// was exactly this call; a seed answers none (empty).
+TEST(RealComplexTerms, TheRasterProjectorIsTheBlocksRawCollocationBitForBit)
 {
     using namespace qchem::ChargeDensity;
     FccRig rig;
@@ -473,15 +473,17 @@ TEST(RealComplexTerms, TheRasterProjectorIsTheRawRasterBitForBit)
     };
     PeriodicIrrepCD<double> cdr(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None));
     PeriodicIrrepCD<dcmplx> cdc(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None));
-    same(cdr.Project(*raster).Vector(), cdr.GetRhoOnGrid(*sf), "real TRIM leaf");
-    same(cdc.Project(*raster).Vector(), cdc.GetRhoOnGrid(*sf), "Bloch leaf");
+    const rvec_t rawR=static_cast<const BasisSet::Orbital_DFT_IBS<double,dcmplx>&>(*rig.re).Overlap3C(*sf).applyRaw(Dr);
+    const rvec_t rawC=static_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&>(*rig.cx).Overlap3C(*sf).applyRaw(Dc);
+    same(cdr.Project(*raster).Vector(), rawR, "real TRIM leaf");
+    same(cdc.Project(*raster).Vector(), rawC, "Bloch leaf");
 
     tComposite_CD<dcmplx> mixed;  mixed.Insert(std::unique_ptr<tDM_CD<double>>(
         new PeriodicIrrepCD<double>(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None))), rig.re->GetIrrep(Spin::None));
     tComposite_CD<dcmplx> cplx;   cplx.Insert(std::unique_ptr<tDM_CD<dcmplx>>(
         new PeriodicIrrepCD<dcmplx>(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None))), rig.cx->GetIrrep(Spin::None));
-    same(mixed.Project(*raster).Vector(), dynamic_cast<const RasterDensity&>(mixed).GetRhoOnGrid(*sf), "mixed composite");
-    same(cplx .Project(*raster).Vector(), dynamic_cast<const RasterDensity&>(cplx ).GetRhoOnGrid(*sf), "complex composite");
+    same(mixed.Project(*raster).Vector(), rawR, "mixed composite");
+    same(cplx .Project(*raster).Vector(), rawC, "complex composite");
 }
 
 // The RAW-route pair-quadrature gate (Step 3c-3): the production Uniform-mesh XC.  The collocated rho_DM
@@ -552,8 +554,7 @@ TEST(RealComplexTerms, RealPeriodicLeafFourierTrioMatchesComplexBitwise)
     PeriodicIrrepCD<double> cdr(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None));
     PeriodicIrrepCD<dcmplx> cdc(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None));
 
-    // Both leaves carry the raw-raster face; NEITHER carries the finite (HF) faces -- the honest probes.
-    EXPECT_NE(dynamic_cast<const RasterDensity*>(&cdr), nullptr);
+    // NEITHER leaf carries the finite (HF) faces -- the honest probe.
     EXPECT_EQ(dynamic_cast<const tHF_Pair_CD<double>*>(&cdr), nullptr);
 
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
@@ -567,8 +568,10 @@ TEST(RealComplexTerms, RealPeriodicLeafFourierTrioMatchesComplexBitwise)
         ASSERT_NE(it, rc.end());
         EXPECT_EQ(v, it->second) << "rho-tilde(dm) mismatch";
     }
-    const rvec_t gr=cdr.GetRhoOnGrid(*sf), gc=cdc.GetRhoOnGrid(*sf);
+    const auto raster=BasisSet::MakeRasterDensityProjector(sf);   // the raw ρ_DM (R1.0n/o)
+    const rvec_t gr=cdr.Project(*raster).Vector(), gc=cdc.Project(*raster).Vector();
     ASSERT_EQ(gr.size(), gc.size());
+    ASSERT_GT(gr.size(), 0u);
     for (size_t g=0; g<gr.size(); g++) EXPECT_EQ(gr[g], gc[g]) << "raw rho_DM mismatch at g="<<g;
 }
 

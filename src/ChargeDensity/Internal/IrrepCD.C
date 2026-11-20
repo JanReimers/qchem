@@ -33,7 +33,6 @@ import qchem.Structure;   // DM_Pullback (GeometryOptimizationPlan §13.2)
 export import qchem.ChargeDensity;
 export import qchem.ChargeDensity.DensityMatrixDistance;
 export import qchem.Symmetry.Irrep;
-export import qchem.ChargeDensity.RasterDensity;    // the raw-raster face (periodic lineage)
 import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
@@ -45,17 +44,6 @@ export namespace qchem::ChargeDensity
 //  of one irreducable representation.  The full charge density will in general
 //  be a summation of these guys.
 //
-
-//! \brief The raw-raster face for a PERIODIC leaf block -- BOTH scalars (Step 3c-2b: a real TRIM block contributes like a complex
-//! one).  Its ρ̃ is \c Project's (V-ONE-OF-N 3c: D contracted into a \c GSpaceDensityProjector's overlap forward).  Same CRTP shape
-//! as \c IrrepCD_HFPair: the implementation reaches the block's own D and basis without any of it becoming public.
-template <class Leaf> class IrrepCD_Fourier : public virtual RasterDensity
-{
-public:
-    virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const;   // raw rho_DM (0.5(f2)); empty if no raw path
-private:
-    const Leaf& self() const {return static_cast<const Leaf&>(*this);}
-};
 
 //! \brief The bra-ket PAIR-PARTNER implementation for the FINITE leaf (V1.6/V1.8).  Exact exchange is
 //! finite-molecular by construction; the periodic leaf simply does not inherit this, so no denial is
@@ -184,7 +172,6 @@ template <class T, class Leaf> using PeriodicRealEnergyBase =
 //! run-typed energy contraction (\c RealBlockEnergy_CD).
 template <class T> class PeriodicIrrepCD
     : public IrrepCD_Core<T>
-    , public IrrepCD_Fourier<PeriodicIrrepCD<T>>   // the reciprocal trio (both scalars)
     , public PeriodicRealEnergyBase<T,PeriodicIrrepCD<T>>   // run-typed energy contract (double only)
 {
 public:
@@ -201,7 +188,6 @@ public:
     // The run-typed energy contraction lives in PeriodicIrrepCD_RealEnergy (a base of the <double> leaf only).
 
 private:
-    friend class IrrepCD_Fourier<PeriodicIrrepCD<T>>;  // the trio uses this block's own D/basis
     friend class PeriodicIrrepCD_RealEnergy<PeriodicIrrepCD<T>>;  // so does the real-block energy contraction
 };
 

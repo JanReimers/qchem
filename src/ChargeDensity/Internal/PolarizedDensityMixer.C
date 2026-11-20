@@ -58,7 +58,6 @@ export namespace qchem::ChargeDensity
 //! leaf mixers, which outlive every Fock build they feed; \c Seat re-points it after each mix.
 class PolarizedMixCD
     : public virtual tChargeDensity<dcmplx>
-    , public virtual RasterDensity              //!< the summed raw-raster shadow (the interim face)
     , public virtual BasisSet::AnalyticFourier   //!< my Fourier components, the field capability a G-space projector asks (V-ONE-OF-N 3b)
     , public virtual BasisSet::RasterValuedField //!< the summed raw-raster shadow, as the raster projector asks it (R1.0n/o)
     , public virtual cSpinResolved_CD
@@ -92,8 +91,6 @@ public:
     // AnalyticFourier -- the ↑+↓ TOTAL.  ρ̃ is linear, so summing the channels' components IS the total's.
     virtual ΔG_Map FourierComponents(const BasisSet::cFIT_SF_ABS& c) const override
     { return Fourier(itsUp).FourierComponents(c) + Fourier(itsDn).FourierComponents(c); }
-    //! The raw-raster shadow, summed -- empty (pipeline off) unless BOTH channels answer on the same raster.
-    virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const override {return RasterValues(c);}
     //! RasterValuedField: the channels' shadows summed -- empty (pipeline off) unless BOTH channels answer on the same raster.
     virtual rvec_t RasterValues(const BasisSet::cFIT_SF_ABS& c) const override
     {

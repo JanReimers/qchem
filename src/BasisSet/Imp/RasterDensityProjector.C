@@ -57,6 +57,7 @@ public:
     void StarAverage(Projections& p, const Symmetry::StarGroup& group) const override
     {
         rvec_t rho=std::move(p).Vector();   // moved out, averaged in place, moved back
+        if (rho.size()==0) {p=Projections(std::move(rho)); return;}   // "none" (a field with no raster values) has nothing to average
         {
             const std::unique_ptr<Symmetry::StarField> f=itsStar->MakeStarField(rho);
             group.StarAverage(*f);

@@ -67,7 +67,7 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
 {
     if (!CanMixInGSpace(basis, seed))
         throw std::runtime_error(std::string(tag)+"MixerFactory: a G-space mixer needs a periodic Orbital_DFT_IBS<dcmplx> "
-                                 "basis and a periodic seed (a RasterDensity).");
+                                 "basis and a seed.");
     // The WHOLE-SET fit factory (mixed-aware since doc/RealComplexPlan.md 3c-3): serves from the first block
     // of either scalar; a non-periodic basis still fails loudly (the factory throws when no block carries the face).
     auto fit=[&]{ qchem::report::Scope here("densityMixer");   // the mixer's own fit grid reports one level in
@@ -119,8 +119,17 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
 
 bool CanMixInGSpace(const BasisSet::tBasisSet<dcmplx>* basis, const tChargeDensity<dcmplx>* seed)
 {
-    // A periodic seed: one that can carry a raw-raster shadow (the interim face every periodic density has; V-ONE-OF-N 3c).
-    return basis && dynamic_cast<const RasterDensity*>(seed);
+    // A PERIODIC basis -- every block carries the G-space DFT face (\c Orbital_DFT_IBS<.,dcmplx>), which is what the fit factory below
+    // builds the mixer's fit raster from -- and a seed.  (Until R1.0n/o the seed's interim raw-raster face stood in for "periodic".)
+    if (!basis || !seed || basis->GetNumIBS()==0) return false;
+    for (size_t i=0;i<basis->GetNumIBS();++i)
+    {
+        const bool periodic = basis->GetRealIBS(i)
+            ? dynamic_cast<const BasisSet::Orbital_DFT_IBS<double,dcmplx>*>(basis->GetRealIBS(i))!=nullptr    // abstract -> abstract
+            : dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>*>((*basis)[i])!=nullptr;
+        if (!periodic) return false;
+    }
+    return true;
 }
 
 template <class T> std::unique_ptr<tDensityMixer<T>> LinearMixerFactory(double relax0, double relaxMax, double relaxMin)

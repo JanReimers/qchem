@@ -13,7 +13,6 @@ module;
 #include <vector>
 export module qchem.ChargeDensity.Internal.FieldMixer;
 export import qchem.ChargeDensity;                        // tChargeDensity<dcmplx>::Project, ΔG_Map + its field algebra
-export import qchem.ChargeDensity.RasterDensity;          // the raw-raster shadow's face (interim, sub-step 4)
 import qchem.BasisSet.GSpaceDensityProjector;             // the ρ̃ projector factory (V-ONE-OF-N 3c; it returns the PairProjector face)
 export import qchem.ChargeDensity.FourierMixCD;           // FourierMixCD (the field's PRESENTATION as a density)
 export import qchem.ReciprocalLattice;                    // KerkerStep's |G|
