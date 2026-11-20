@@ -27,6 +27,7 @@
 //   GPW_Si.k222_Imp_CP2K
 //   GPW_Si.k222_Becke_Imp_eqFree
 //   GPW_Si.k222s_Imp_CP2K
+//   GPW_Si.k222s_Becke_eqImages
 //   GPW_Si.k311_eqCplx
 //   GPW_Si.k311_Uni_MOM_eqCplx
 
@@ -925,6 +926,38 @@ TEST(GPW_Si, k222s_Imp_CP2K)
     // shifted fcc mesh is NOT Oh-invariant, the k-fold used only the mesh subgroup, but rho was star-averaged
     // over all 48 ops -- an Oh-orbit k-set larger than the one the bands were summed over.
     EXPECT_NEAR(R->Energy(), -7.86744, 1e-4) << "GPW 2x2x2 shifted MP (CP2K default) vs -7.86744";
+}
+
+
+// THE δ FIT'S SHARED-IMAGE ORBITAL TABLES, END TO END (controller, 2026-11-19).  `auto` takes the lower
+// peak, and since the wall calibration is claimed only on >= 8 complex blocks it picks `dense` everywhere
+// in the suite -- so this twin STATES `images` and pins it to its `dense` sibling through a full SCF.  The
+// FREE shifted 2x2x2 mesh is the run the calibration was measured in: 8 complex blocks, 0 real (no TRIM
+// k at ±¼), on an explicit coarse Becke mesh (the δ fit is the Becke route; the raster has no Φ tables).
+// Claim: the two realizations are the SAME arithmetic up to the summation order of the image phasing,
+// so E agrees to roundoff and the SCF takes the same path (same iteration count).
+TEST(GPW_Si, k222s_Becke_eqImages)
+{
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si, ivec3_t(2,2,2));
+    RunOptions o=OptionsFor(si, "Si 2x2x2 shifted Becke");
+    o.solid.densityEcut=20.0; o.imposeSymmetry=false; o.solid.kShift=rvec3_t(0.5,0.5,0.5);
+    o.xcMesh=qcMesh::BeckeXCParams(15, 2.0, 9);          // explicit coarse Becke, same on both arms
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
+    auto run=[&](qchem::policy::XCOrbitalTables t)
+    {
+        o.solid.xcOrbitalTables=t;
+        GpwReport report("Si "+o.label, false);
+        o.scf=ProductionGates();
+        auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+        auto r=calc->Result(); EXPECT_TRUE(r) << Why(r);
+        return r ? std::pair<double,size_t>{r->Energy(), r->IterationCount()} : std::pair<double,size_t>{0.0, 0};
+    };
+    const auto [Ed, nd]=run(qchem::policy::XCOrbitalTables::Dense);
+    const auto [Ei, ni]=run(qchem::policy::XCOrbitalTables::Images);
+    std::cout<<std::setprecision(12)<<"[images twin] dense="<<Ed<<" ("<<nd<<" it) images="<<Ei<<" ("<<ni<<" it) dE="<<Ei-Ed<<std::endl;
+    EXPECT_NEAR(Ei, Ed, 1e-10) << "the images record must give the dense tables' energy to roundoff";
+    EXPECT_EQ(ni, nd) << "the same arithmetic must take the same SCF path";
 }
 
 
