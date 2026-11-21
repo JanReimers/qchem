@@ -72,10 +72,6 @@ std::ostream& WriteSite(std::ostream& os, const Site& s)
 std::shared_ptr<Structure> Atom::Clone() const {return std::make_shared<Atom>(*this);}
 size_t Atom::GetNumAtoms() const {return 1;}
 Symmetry::GroupPtr Atom::MakeSymmetry(const Symmetry::GroupTolerance& tol) const {return Symmetry::PointRotationGroup(itsSite.R, tol);}
-Symmetry::Generator Atom::InMyFrame(qcMesh::ImposedSymmetry H) const
-{
-    return H==qcMesh::ImposedSymmetry::FullRotation ? Symmetry::Generator::FullRotations(itsSite.R) : Structure::InMyFrame(H);
-}
 const Site& Atom::GetSite(size_t) const {return itsSite;}
       Site& Atom::GetSite(size_t)       {return itsSite;}
 

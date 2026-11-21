@@ -45,7 +45,7 @@ export import qchem.BasisSet.Transition_DFT_IBS;   // Transition_Overlap3C: the 
 export import qchem.BasisSet.GradOverlap3C;        // Integrals_GradOverlap3C: the GGA's ∇(χ_iχ_j) at my points (GGA stage 2)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep)
-import qchem.Symmetry.Group;   // Symmetry::GroupPtr / TrivialGroup (Forces, Group face step 3a)
+import qchem.Symmetry.Group;   // Symmetry::GroupPtr / TrivialGroup (Forces, Group face step 3)
 import qchem.Types;                                      // dcmplx, rvec3_t, vec_t
 import qchem.Mesh.Quadrature;                            // qcMesh::SiteIntegrals (the atomic-partition observable)
 import qchem.SlotMap;                                    // InstanceSlotMap: the per-block caches, keyed by the block's instance (S3c)
@@ -126,9 +126,8 @@ public:
     //! thing holding up a \f$\delta\f$-only FACE, and "my metric is diagonal" is a fact about this
     //! implementation, not a type other code needs to name.
     bool isOrtho() const override {return true;}
-    //! \f$\delta\f$ functions at points impose nothing of their own: the POINTS carry any group (\c qcMesh::ImposedBy).
-    qcMesh::ImposedSymmetry Imposes() const override {return qcMesh::ImposedSymmetry::None;}
-    Symmetry::GroupPtr      Forces () const override {return Symmetry::TrivialGroup();}   //!< {e}: the points carry any group
+    //! \f$\delta\f$ functions at points force nothing of their own: {e}.  The POINTS carry any group (\c qcMesh::Mesh::Forces).
+    Symmetry::GroupPtr Forces() const override {return BasisSet::Forces(VxcFit::Delta, {}).Value();}
     //! \brief How a REAL orbital block is evaluated at this basis's points, when its OWN basis set's factory says so (R1.0 step 2,
     //! user ruling 2026-11-14).  The atom's blocks are radial: the factory (\c Radial::BasisSet_HF) hands a closure that fills
     //! \f$\Phi_{gi}=R_i(|r_g|)\f$ from each block's radial face, the m count living in the occupation, so the atom SCF never asks a

@@ -10,8 +10,7 @@ export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Orbital_DHF_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.Types;   // dcmplx (for cobs_t)
-import qchem.Structure;   // GroupOf / ImposedBy ask the structure's group (pin 30)
-export import qchem.Mesh; // qcMesh::ImposedSymmetry
+export import qchem.Mesh; // qcMesh::MeshParams
 
 
 export namespace qchem::Hamiltonian
@@ -47,37 +46,6 @@ export namespace qchem::Hamiltonian
 //! \c Hamiltonian::VxcFit::Delta exactly as it was; \c Ham_PW_DFT resolves \c Auto (the one decision that
 //! needs to know the run is polarized) and passes the answer to the factory.
 using VxcFit = BasisSet::VxcFit;
-
-//=== What a Vxc fit imposes (doc/Pins.md pin 30) ===
-using qcMesh::ImposedSymmetry;
-//! \brief G: the group the calculation imposes on rho, as far as admission needs it (pin 30) -- T on a lattice, O(3) on the atom path
-//! (it spherically averages its open shell), neither on a molecule (its point group contains no T and no O(3)).  Read off the structure's own \c Admits on each generator, for a refusal's wording
-//! and for \c ImposedBy's Auxiliary row; the admission itself asks \c Structure::Admits.
-inline ImposedSymmetry GroupOf(const Structure& st)
-{
-    return st.Admits(ImposedSymmetry::Translations) ? ImposedSymmetry::Translations
-         : st.Admits(ImposedSymmetry::FullRotation) ? ImposedSymmetry::FullRotation : ImposedSymmetry::None;
-}
-//! \brief What a Vxc fit imposes on this structure.  The family is named by the enum, but the group comes from the REALIZATION:
-//! \c Auxiliary is the lineage's own fit -- lattice-summed (T) on a solid, the spherical set (O(3)) on the atom path, atom-centred
-//! Gaussians ({e}) on a molecule.  The plane-wave ball imposes T everywhere; \c Delta and \c Multipole impose nothing beyond their
-//! points (site multipoles are centred on every site, so they carry no group of their own); \c Auto resolves to a fit the structure
-//! admits.
-//! \note pin 30 stage 2 (user ruling 2026-11-15 Q2): the Vxc builders check the BUILT realization's answer
-//! (\c ChargeDensity::DensitySamplerBase::Imposes) against this one and throw a \c logic_error on a difference, so this table cannot
-//! drift from the classes.
-inline ImposedSymmetry ImposedBy(VxcFit fit, const Structure& st)
-{
-    switch (fit)
-    {
-        case VxcFit::PlaneWave: return ImposedSymmetry::Translations;
-        case VxcFit::Auxiliary: return GroupOf(st);   // lattice-summed on a solid, spherical on the atom path, atom-centred on a molecule
-        case VxcFit::Delta:
-        case VxcFit::Multipole:
-        case VxcFit::Auto:      return ImposedSymmetry::None;
-    }
-    throw std::logic_error("Hamiltonian::ImposedBy: a Vxc fit with no imposed group");
-}
 
 //! \brief WHICH \f$\rho\f$ THE XC FUNCTIONAL SEES (user ruling 2026-11-09, V-XC-ONE-TERM; design note `lane-s-v-xc-one-term-design.md` §1).
 //! For a variational code the XC product space has ONE \f$\rho\f$ axis, and this is it; \c VxcFit names the fit BASIS, not a second axis.

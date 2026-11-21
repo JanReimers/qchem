@@ -1,6 +1,7 @@
 add_library(qcBasisSet) 
 target_sources(qcBasisSet PRIVATE 
   Imp/BasisSet.C
+  Imp/Fit_Types.C
   Imp/Conditioning.C
   Imp/BareCoulombSource.C
   Imp/AtomCentredSet.C

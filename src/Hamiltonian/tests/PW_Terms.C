@@ -16,6 +16,7 @@
 
 import qchem.Tests.PW_Fields;   // the direct-grid oracles + PWFixture
 import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
+import qchem.Symmetry.Group;   // HasLattice, kAdmissionTolerance
 import qchem.BasisSet.PlaneWave.Evaluators;   // PW_Grid_Evaluator -- a UNIT TEST may reach the internal
 import qchem.BasisSet.Lattice.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
 import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
@@ -103,7 +104,7 @@ TEST(PW_Terms, VnnPeriodicUsesEwald)
     cell->AddAtom(4,rvec3_t(0.0,0.0,0.0));             // itsZ = Zion = 4 (Si valence)
     cell->AddAtom(4,rvec3_t(0.25,0.25,0.25));
     std::shared_ptr<const Structure> st=cell;
-    EXPECT_TRUE(st->Admits(qcMesh::ImposedSymmetry::Translations));
+    EXPECT_TRUE(st->MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice());
 
     qchem::Hamiltonian::IonIon<double> vnn(st);
     EnergyBreakdown eb;

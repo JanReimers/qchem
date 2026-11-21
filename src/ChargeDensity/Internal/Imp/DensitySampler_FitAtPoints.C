@@ -154,12 +154,11 @@ static const Symmetry::GroupPtr& RequireForces(const LatticeSummedSet& a1)
 }
 GaussianFitSpace::GaussianFitSpace(const LatticeSummedSet& a1, BasisSet::FitQuadrature points)
     : GaussianFitSpace(RequireBlock(a1.set).Overlap(), [b=a1.set](const rvec3vec_t& R) {return rmat_t((*b)(R));}, std::move(points),
-                       "the periodic A1 Gaussian set", qcMesh::ImposedSymmetry::Translations,   // lattice-summed at Gamma: T
-                       RequireForces(a1))
+                       "the periodic A1 Gaussian set", RequireForces(a1))   // lattice-summed at Gamma: T of its cell
 {}
 GaussianFitSpace::GaussianFitSpace(const rsmat_t& S, Evaluator eval, BasisSet::FitQuadrature points, std::string name,
-                                   qcMesh::ImposedSymmetry imposes, Symmetry::GroupPtr forces)
-    : itsEval(std::move(eval)), itsPoints(std::move(points)), itsName(std::move(name)), itsImposes(imposes), itsForces(std::move(forces))
+                                   Symmetry::GroupPtr forces)
+    : itsEval(std::move(eval)), itsPoints(std::move(points)), itsName(std::move(name)), itsForces(std::move(forces))
 {
     if (!itsEval) throw std::logic_error("GaussianFitSpace: needs the set's evaluator at points");
     if (!itsForces) throw std::logic_error("GaussianFitSpace: needs the group its set forces (Forces)");

@@ -91,7 +91,6 @@ namespace qchem::BasisSet {
     template <class T> class FIT_SF_ABS : public virtual IrrepBasisSet<T> , public virtual Integrals_Overlap3C<T,T> {
     public:
         virtual bool isOrtho() const=0;
-        virtual qcMesh::ImposedSymmetry Imposes() const=0;
         virtual Symmetry::GroupPtr Forces() const=0;
         virtual vec_t<T> Overlap(const ScalarFunction<double>& f) const=0;
         const PairProjection<T>& Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const override;
@@ -703,7 +702,6 @@ namespace qchem {
         virtual rmat3d_t IonIonVirial (const std::function<double(int Z)>& zionOf) const;
         virtual double G0Background (const std::function<double(int Z)>& f) const;
         virtual Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const=0;
-        bool Admits(qcMesh::ImposedSymmetry H) const;
         SiteRange Sites() const;
         void ForEachSite(const std::function<void(int Z, const rvec3_t& R, bool spinFlip)>& f) const;
         virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const=0;
@@ -714,7 +712,6 @@ namespace qchem {
         friend class SiteRange;
         virtual const Site& GetSite(size_t i) const=0;
         virtual Site& GetSite(size_t i) =0;
-        virtual Symmetry::Generator InMyFrame(qcMesh::ImposedSymmetry H) const;
     };
     class Atom : public Structure {
     public:
@@ -732,7 +729,6 @@ namespace qchem {
     protected:
         virtual const Site& GetSite(size_t) const override;
         virtual Site& GetSite(size_t) override;
-        virtual Symmetry::Generator InMyFrame(qcMesh::ImposedSymmetry H) const override;
     private:
         Site itsSite;
     };

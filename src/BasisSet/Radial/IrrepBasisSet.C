@@ -27,7 +27,8 @@ import qchem.Symmetry.Factory;
 import qchem.Constants;
 import qchem.Blaze;
 import qchem.Reporting;   // a truncated Coulomb metric reports itself
-import qchem.Symmetry.Group;   // Forces: O(3) about the site, or {e} (Group face step 3a)
+import qchem.Symmetry.Group;   // Forces: O(3) about the site, or {e} (Group face step 3)
+import qchem.BasisSet.Fit_Types;   // BasisSet::Forces(VxcFit, Frame): the one source of what a fit family forces
 
 export namespace qchem::BasisSet
 {
@@ -183,14 +184,15 @@ public:
     //! The Vxc fit: its projection mesh, built from \a st and \a mp.
     EFit_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const Evaluator& e, const Structure& st, const qcMesh::MeshParams& mp)
         : Fit_IBS(st,mp), IrrepBasisSetImp<Evaluator>(cache, Symmetry::YFactory()), Evaluator(e), itsCentre(OneSite(st)) {};
-    //! A one-centre radial set of a single l: at l = 0 every function is spherical about the atom, so the set imposes O(3) (the atom
-    //! path's A1 Vxc fit, built from its s block); any other l carries no group ({e}).  doc/Pins.md pin 30.
-    virtual qcMesh::ImposedSymmetry Imposes() const override {return Evaluator::Getl()==0 ? qcMesh::ImposedSymmetry::FullRotation : qcMesh::ImposedSymmetry::None;}
-    //! The same answer in the Cartesian frame (Group face step 3a): O(3) about the atom's SITE at l = 0, {e} otherwise.  The functions are
-    //! pinned at the nucleus, so the centre is the structure's one site; the Coulomb fit (built with no structure) answers about the
-    //! origin of its own frame, where the atom path puts its atom.
+    //! \brief What this set forces (doc/Pins.md pin 30; Group face step 3): at l = 0 every function is spherical about the atom, so it is
+    //! the atom path's A1 Vxc fit and forces what that family forces about its centre (\c BasisSet::Forces: O(3) about the SITE); any other
+    //! l carries no group ({e}).  The functions are pinned at the nucleus, so the centre is the structure's one site; the Coulomb fit
+    //! (built with no structure) answers about the origin of its own frame, where the atom path puts its atom.
     virtual Symmetry::GroupPtr Forces() const override
-        {return Evaluator::Getl()==0 ? Symmetry::PointRotationGroup(itsCentre, Symmetry::kExactTolerance) : Symmetry::TrivialGroup();}
+    {
+        return Evaluator::Getl()==0 ? BasisSet::Forces(VxcFit::Auxiliary, Symmetry::Frame{.lattice={}, .centre=itsCentre}).Value()
+                                    : Symmetry::TrivialGroup();
+    }
 private:
     //! A one-centre set lives on ONE site: a structure with any other count is a wiring error no caller can act on.
     static rvec3_t OneSite(const Structure& st)

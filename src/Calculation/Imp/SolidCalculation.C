@@ -24,6 +24,7 @@ module qchem.SolidCalculation;
 
 import qchem.BasisSet.Gaussian.Point.Factory;     // FactoryFromFile: the A1_exch set on the cell's sites (the periodic A1 Vxc fit)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;   // tGPW_IBS<double>: the real Gamma block over it
+import qchem.BasisSet.Fit_Types;                  // BasisSet::Forces: what the A1 family forces in the cell's frame
 import qchem.BasisSet.AoShellSource;           // FunctionName: the audit's largest element, by atom, shell and l
 import qchem.BasisSet.Conditioning;            // ReportConditioning, MinOverlapEigenvalue
 import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS / Complex_OIBS (the per-irrep bases to iterate)
@@ -542,10 +543,11 @@ static ChargeDensity::LatticeSummedSet PeriodicA1Set(const RunOptions& o, const 
                        std::string("the A1_exch set covers Z = 1-54, and building it on this cell's species failed (")+e.what()+") -- state "
                        "xc.fit Delta or PlaneWave");
     }
-    // The block is summed over THIS cell's lattice, so a fit space over it forces T(cell) -- issued here, where the cell is concrete.
+    // The block is summed over THIS cell's lattice, so a fit space over it forces what the A1 family forces in the cell's frame (T(cell),
+    // BasisSet::Forces) -- issued here, where the cell is concrete.
     return {std::make_shared<const BasisSet::Gaussian::tGPW_IBS<double>>(std::make_shared<BasisSet::BasisCache>(), cell, ivec3_t(1,1,1),
                                                                           ivec3_t(0,0,0), a1mol, 0.0),
-            Symmetry::TranslationGroup(cell.GetCellMatrix(), Symmetry::kExactTolerance)};
+            BasisSet::Forces(Hamiltonian::VxcFit::Auxiliary, Symmetry::Frame{.lattice=cell.GetCellMatrix(), .centre={}}).Value()};
 }
 
 // THE PERIODIC A1 FIT'S COST (controller 2026-11-15: warn with an estimate, bytes as a range, beside the memory available -- the shape of the
