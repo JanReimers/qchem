@@ -3,6 +3,7 @@ module;
 #include <vector>
 #include <memory>
 #include <functional>
+#include <stdexcept>
 
 module qchem.Structure;
 
@@ -124,7 +125,32 @@ SiteRange::iterator SiteRange::end  () const {return iterator(itsS,size());}
 SiteRange::SiteRange(const Structure& s) : itsS(&s) {}
 Structure::~Structure() {}
 double Structure::G0Background(const std::function<double(int Z)>&) const {return 0.0;}
-bool Structure::Admits(qcMesh::ImposedSymmetry H) const {return H<=qcMesh::ImposedSymmetry::None;}
+namespace
+{
+//! The step-2 bridge's tolerance: DELETED with \c Structure::Admits in Group-face step 3 (controller ruling 2026-11-20).  Its three
+//! questions cannot depend on it: T ⊆ G exactly when the structure is a cell (G's lattice IS the cell's, compared with itself), O(3)
+//! about a centre ⊆ G exactly on the atom (about its own site), and a finite group contains no continuous family at any tolerance.
+//! The values are the detection default \c RunOptions::symmetryTol and \c Lattice_3D::GetSpaceGroup use.
+constexpr Symmetry::GroupTolerance theAdmitsBridgeTolerance{.length=1e-4, .angle=1e-4};
+}
+bool Structure::Admits(qcMesh::ImposedSymmetry H) const
+{
+    if (H==qcMesh::ImposedSymmetry::None) return true;   // {e} is in every group: nothing to detect
+    return MakeSymmetry(theAdmitsBridgeTolerance)->Contains(InMyFrame(H));
+}
+Symmetry::Generator Structure::InMyFrame(qcMesh::ImposedSymmetry H) const
+{
+    using IS=qcMesh::ImposedSymmetry;
+    if (H==IS::Translations) return Symmetry::Generator::Translations(Matrix3D<double>(1,0,0, 0,1,0, 0,0,1));   // any lattice: see the declaration
+    if (H==IS::FullRotation)
+    {
+        rvec3_t c(0,0,0);
+        for (const Site& s:Sites()) c+=s.R;
+        if (GetNumAtoms()>0) c/=double(GetNumAtoms());
+        return Symmetry::Generator::FullRotations(c);
+    }
+    throw std::logic_error("Structure::InMyFrame: {e} has no generator to realize (Admits answers it before asking)");
+}
 SiteRange Structure::Sites() const {return SiteRange(*this);}
 const Site& SiteRange::At(const Structure* s, size_t i) {return s->GetSite(i);}
 const Site& SiteRange::iterator::operator*() const      {return At(itsS,itsI);}

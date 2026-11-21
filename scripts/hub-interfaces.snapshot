@@ -702,7 +702,8 @@ namespace qchem {
         virtual rvec3vec_t IonIonForces (const std::function<double(int Z)>& zionOf) const;
         virtual rmat3d_t IonIonVirial (const std::function<double(int Z)>& zionOf) const;
         virtual double G0Background (const std::function<double(int Z)>& f) const;
-        virtual bool Admits(qcMesh::ImposedSymmetry H) const;
+        virtual Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const=0;
+        bool Admits(qcMesh::ImposedSymmetry H) const;
         SiteRange Sites() const;
         void ForEachSite(const std::function<void(int Z, const rvec3_t& R, bool spinFlip)>& f) const;
         virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const=0;
@@ -713,6 +714,7 @@ namespace qchem {
         friend class SiteRange;
         virtual const Site& GetSite(size_t i) const=0;
         virtual Site& GetSite(size_t i) =0;
+        virtual Symmetry::Generator InMyFrame(qcMesh::ImposedSymmetry H) const;
     };
     class Atom : public Structure {
     public:
@@ -723,13 +725,14 @@ namespace qchem {
         explicit Atom(const Site& s);
         virtual std::shared_ptr<Structure> Clone() const override;
         virtual size_t GetNumAtoms () const override;
-        virtual bool Admits(qcMesh::ImposedSymmetry H) const override;
+        virtual Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const override;
         virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
         virtual std::string ID () const override;
         virtual std::ostream& Write (std::ostream&) const override;
     protected:
         virtual const Site& GetSite(size_t) const override;
         virtual Site& GetSite(size_t) override;
+        virtual Symmetry::Generator InMyFrame(qcMesh::ImposedSymmetry H) const override;
     private:
         Site itsSite;
     };
@@ -740,6 +743,7 @@ namespace qchem {
         virtual std::shared_ptr<Structure> Clone() const override;
         virtual void Insert (const Site& s);
         virtual size_t GetNumAtoms() const override;
+        virtual Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const override;
         virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
         virtual std::ostream& Write(std::ostream&) const override;
     protected:

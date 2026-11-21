@@ -71,7 +71,11 @@ std::ostream& WriteSite(std::ostream& os, const Site& s)
 // Moved from the interface (D-BUILD-BLAST, lane B 2026-11-18): an edit here recompiles this TU, not the ~450 importers of qchem.Structure.
 std::shared_ptr<Structure> Atom::Clone() const {return std::make_shared<Atom>(*this);}
 size_t Atom::GetNumAtoms() const {return 1;}
-bool Atom::Admits(qcMesh::ImposedSymmetry H) const {return H<=qcMesh::ImposedSymmetry::FullRotation;}
+Symmetry::GroupPtr Atom::MakeSymmetry(const Symmetry::GroupTolerance& tol) const {return Symmetry::PointRotationGroup(itsSite.R, tol);}
+Symmetry::Generator Atom::InMyFrame(qcMesh::ImposedSymmetry H) const
+{
+    return H==qcMesh::ImposedSymmetry::FullRotation ? Symmetry::Generator::FullRotations(itsSite.R) : Structure::InMyFrame(H);
+}
 const Site& Atom::GetSite(size_t) const {return itsSite;}
       Site& Atom::GetSite(size_t)       {return itsSite;}
 

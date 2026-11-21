@@ -22,6 +22,7 @@ import qchem.Mesh.Builder;   // MeshBuilder (efficient incremental accumulation)
 import qchem.Mesh.BeckePartition;   // PeriodicBeckeWeight: the ONE periodic partition (the build and its derivative)
 import qchem.SymmetrizeMesh; // MakeInvariantAngularMesh + FoldPointsPeriodic (the §6a W2b site-adapted mesh)
 import qchem.Ewald;          // EwaldEnergy (IonIonEnergy: a periodic cell's ion-ion sum)
+import qchem.Symmetry.Lattice_3D.SpaceGroup;   // SpaceGroup::Detect (MakeSymmetry)
 import qchem.Reporting;      // the Becke mesh's fields, one level into the caller's report scope (inert when no run is open)
 
 namespace qchem {
@@ -879,6 +880,19 @@ rvec3_t CellGeometry::InverseInterplanarSpacings() const
 double CellGeometry::GetDistance(const rvec3_t& f) const
 {
     return sqrt(f*itsM*f); // ‖A f‖ for fractional f
+}
+
+Symmetry::GroupPtr UnitCell::MakeSymmetry(const Symmetry::GroupTolerance& tol) const
+{
+    namespace SL=Symmetry::Lattice_3D;
+    std::vector<SL::AtomSite> sites;
+    for (const Site& a:Sites()) sites.push_back({a.Z, ToFractional(a.R)});   // spin 0: the SPATIAL group (see Structure::MakeSymmetry)
+    // Detect keeps every coset {W|τ}, so a centred cell's centring translations reach the group, which joins them to the lattice.
+    return Symmetry::CrystalGroup(SL::SpaceGroup::Detect(GetCellMatrix(), sites, tol.length), tol);
+}
+Symmetry::Generator UnitCell::InMyFrame(qcMesh::ImposedSymmetry H) const
+{
+    return H==qcMesh::ImposedSymmetry::Translations ? Symmetry::Generator::Translations(GetCellMatrix()) : Structure::InMyFrame(H);
 }
 
 std::ostream& UnitCell::Write(std::ostream& os) const

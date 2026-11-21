@@ -259,7 +259,7 @@ rvec3_t ReduceIntoCell(const rvec3_t& t, const Mat& A, const Mat& Ainv, double t
 class FiniteRealization : public Group
 {
 public:
-    FiniteRealization(std::vector<SymOp> generators, const GroupTolerance& tol) : itsTol(tol)
+    FiniteRealization(std::vector<SymOp> generators, const GroupTolerance& tol, std::string name={}) : itsName(std::move(name)), itsTol(tol)
     {
         itsOps.push_back(E());
         auto add=[&](const SymOp& g) {for (const SymOp& h:itsOps) if (SameOp(g, h, itsTol)) return false; itsOps.push_back(g); return true;};
@@ -291,10 +291,15 @@ public:
         for (const SymOp& h:itsOps) if (h.sigma==SpinAction::Flip) return Space::RSpin;
         return Space::R;
     }
-    std::string Describe() const override {return "a finite group of order "+std::to_string(itsOps.size());}
+    std::string Describe() const override
+    {
+        const std::string order="order "+std::to_string(itsOps.size());
+        return itsName.empty() ? "a finite group of "+order : itsName+", "+order;
+    }
 protected:
     Form GetForm() const override {return {Form::Kind::Finite, itsOps, Mat(), rvec3_t(0,0,0), {}, itsTol};}
 private:
+    std::string        itsName;   //!< what the issuer says the group IS (e.g. "D2h (abelian subgroup of D6h)"); empty = unnamed
     std::vector<SymOp> itsOps;
     GroupTolerance     itsTol;
 };
@@ -541,11 +546,11 @@ GroupPtr FiniteGroup(const std::vector<SymOp>& cartesianOps, const GroupToleranc
 {
     return std::make_shared<FiniteRealization>(cartesianOps, tol);
 }
-GroupPtr FiniteGroup(const std::vector<Molecule::SymOp>& ops, const rvec3_t& origin, const GroupTolerance& tol)
+GroupPtr FiniteGroup(const std::vector<Molecule::SymOp>& ops, const rvec3_t& origin, const GroupTolerance& tol, const std::string& name)
 {
     std::vector<SymOp> cart;
     for (const Molecule::SymOp& op:ops) cart.push_back({op.Matrix(), origin-op.Matrix()*origin, SpinAction::None});
-    return std::make_shared<FiniteRealization>(cart, tol);
+    return std::make_shared<FiniteRealization>(cart, tol, name);
 }
 namespace
 {
