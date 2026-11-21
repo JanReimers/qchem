@@ -7,6 +7,7 @@ module;
 #include <initializer_list>
 export module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the DFT ctor's functional list)
+import qchem.Hamiltonian.Internal.GGAFunctional;  // GGAFunctional (the GGA ctor's functional, GGA stage 2)
 import qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.Hamiltonian.Types;
 import qchem.Hamiltonian.Factory;                  // HubbardManifold (the +U input vocabulary)
@@ -57,6 +58,11 @@ public:
     //! The general form: any list of functionals (owned), summed into one XC term.  \a fit: the Vxc fit basis the ONE
     //! XC term consumes through the fit face (δ on the mesh, or the Gaussian auxiliary basis for Auto).
     Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> parts,
+            const qcMesh::MeshParams&, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
+            const CoulombRoute& coulomb={});
+    //! A GGA (GGA stage 2, the molecular point route): ONE XC term, \c tVxc_DFT_GGA, on the density-gradient quadrature of the δ Vxc fit.
+    //! Only the δ fit samples \f$\nabla\rho\f$; any other \a fit THROWS \c invalid_argument (the setup refuses it first, policy GGARoute).
+    Ham_DFT(const st_t& st, std::shared_ptr<const GGAFunctional> gga,
             const qcMesh::MeshParams&, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
             const CoulombRoute& coulomb={});
 };
