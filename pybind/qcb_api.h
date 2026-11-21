@@ -88,6 +88,10 @@ typedef struct qcb_request
     const char*   seed;           //!< SeedStrategy: "Default" (the Auto rule, qchem.SeedPolicy) | "CoreGuess" | "Uniform" | "SAD" | "IonicSAD";
                                   //!< null/"" = Default
     const char*   angular;        //!< BasisSet::Gaussian::Angular: "cartesian" | "spherical"; null/"" = cartesian
+    //! Each site's NET CHARGE, `nat` values (qchem::Site::netCharge: Z minus the electrons the site carries; OH- puts -1 on the O),
+    //! null = every site neutral.  A molecule's charge is its STRUCTURE's (MoleculeSetup refuses a run-level charge); the total
+    //! sets the electron count, the split shapes only the SAD seed.
+    const double* netCharge;
 } qcb_request;
 
 //! Admit + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
