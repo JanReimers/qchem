@@ -12,7 +12,7 @@ import qchem.Structure;
 import qchem.Matrix3D;
 import qchem.Mesh;        // qcMesh::Mesh / MeshParams (the CreateIntegrationMesh override)
 import qchem.Symmetry.SymOp;              // Symmetry::SymOp {W|τ} (the site-adapted Becke mesh's imposed ops)
-import qchem.Symmetry.Group;              // GroupPtr / Generator (MakeSymmetry, the step-2 InMyFrame bridge)
+import qchem.Symmetry.Group;              // GroupPtr (MakeSymmetry)
 
 namespace qchem {
 
@@ -163,10 +163,6 @@ public:
     void AddAtom(int Z, const rvec3_t& f, bool spinFlip=false);
 
     std::ostream&  Write(std::ostream&) const override;
-
-protected:
-    //! The step-2 bridge in the cell's frame: T is this cell's lattice (DELETED with \c Structure::Admits in step 3).
-    Symmetry::Generator InMyFrame(qcMesh::ImposedSymmetry H) const override;
 };
 
 //! \brief Face-centred-cubic primitive cell of conventional cubic lattice constant \a a: the primitive

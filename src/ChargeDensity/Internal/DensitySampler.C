@@ -44,7 +44,7 @@ import qchem.BasisSet.GSpaceDensityProjector;
 import qchem.BasisSet.PointSetPullback;   // the block face the Becke mesh's pullback asks (READY 4)   // the BALL route's ρ̃ (V-ONE-OF-N 3c)
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Types;
-import qchem.Symmetry.Group;                 // Forces (Group face step 3a)
+import qchem.Symmetry.Group;                 // Forces (Group face step 3)
 
 export namespace qchem::ChargeDensity
 {
@@ -143,7 +143,6 @@ public:
     //! =v^P(\rho)\f$).  Fold star-average applies per channel (collinear: the spatial ops act channel-wise).
     const rvec_t& RhoPol(const tChargeDensity<T>* cd, const Spin& s) const override;
     XCRhoSource RhoSource() const override {return itsSource;}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsFit->Imposes();}   //!< the \f$\delta\f$ basis's ({e})
     Symmetry::GroupPtr      Forces () const override {return itsFit->Forces ();}
     //! R2.1: measured at the two projector calls (\c Rho, \c RhoPol), on the density just sampled -- the cost is one copy of the
     //! raster per refresh.  0 on a free run.
@@ -443,7 +442,6 @@ public:
     //! missing was the per-channel CACHE and the channel walk, both of which the singles route already had.
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
     XCRhoSource RhoSource() const override {return itsSource;}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsFitBasis->Imposes();}   //!< the plane-wave fit on its raster (T)
     Symmetry::GroupPtr      Forces () const override {return itsFitBasis->Forces ();}
     //! R2.1: the raster route does not star-average \f$\rho\f$ at all, so it cannot say how far from the group its input sat --
     //! and an imposed run on this route feeds XC an UNPROJECTED density (the Becke singles route is the one that projects).
@@ -563,7 +561,6 @@ public:
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
     //! \c ExactFit when \f$P\f$ is exact (the ball holds every orbital pair), \c Fitted otherwise (pin 28).
     XCRhoSource RhoSource() const override {return itsSource;}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsFitBasis->Imposes();}   //!< the ball (T)
     Symmetry::GroupPtr      Forces () const override {return itsFitBasis->Forces ();}
     //! This route does not star-average on a quadrature (the projection does it in G space), so it cannot say how far from the group
     //! its input sat.
@@ -636,9 +633,8 @@ public:
     //! space reproduces the raster's field EXACTLY at the points (the plane-wave ball over a raster that is itself Parseval-exact in it);
     //! every other case answers \c Fitted.  Default \c Fitted: a fit space that does not answer is NOT certified (fail closed).
     virtual XCRhoSource SourceAtPoints(XCRhoSource rasterSource) const {(void)rasterSource; return XCRhoSource::Fitted;}
-    //! What the fit space imposes on the potential it carries (\c DensitySamplerBase::Imposes; doc/Pins.md pin 30).  Pure: each states it.
-    virtual qcMesh::ImposedSymmetry Imposes() const=0;
-    virtual Symmetry::GroupPtr      Forces () const=0;   //!< the same, as a Group (Group face step 3a)
+    //! What the fit space forces on the potential it carries, as a Group (\c DensitySamplerBase::Forces; doc/Pins.md pin 30).  Pure: each states it.
+    virtual Symmetry::GroupPtr Forces() const=0;
 };
 
 //! \brief THE PLANE-WAVE BALL as a fit space (I3, V-XC-ONE-TERM step 4): forward = the raster's forward FFT truncated to the ball and synthesized
@@ -658,7 +654,6 @@ public:
     XCRhoSource SourceAtPoints(XCRhoSource rasterSource) const override
     {return rasterSource==XCRhoSource::ExactFit ? XCRhoSource::ExactFit : XCRhoSource::Fitted;}
     std::string Name() const override {return "the plane-wave ball";}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsFitBasis->Imposes();}   //!< the ball's (T)
     Symmetry::GroupPtr      Forces () const override {return itsFitBasis->Forces ();}
 private:
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsFitBasis;
@@ -690,15 +685,13 @@ public:
     GaussianFitSpace(const LatticeSummedSet& a1, BasisSet::FitQuadrature points);
     //! \brief The same fit space over ANY Gaussian set with an analytic metric \a S and an evaluator \a eval at points: the molecular A1
     //! fit (FittedVxc's retirement, lane S 2026-11-15) and the periodic Gamma block alike.  \a name is the report's and console's.
-    //! \a imposes: what the set imposes (pin 30) -- the fit basis's own \c Imposes for the molecular / atom A1 fit.
-    GaussianFitSpace(const rsmat_t& S, Evaluator eval, BasisSet::FitQuadrature points, std::string name, qcMesh::ImposedSymmetry imposes,
-                     Symmetry::GroupPtr forces);
+    //! \a forces: what the set forces (pin 30) -- the fit basis's own \c Forces for the molecular / atom A1 fit.
+    GaussianFitSpace(const rsmat_t& S, Evaluator eval, BasisSet::FitQuadrature points, std::string name, Symmetry::GroupPtr forces);
     //! ⛔ THROWS: a fitted rho never reaches XC (pin 28; the projected A1 cell was deleted with the ρ axis, 2026-11-15).  This fit space
     //! serves only the fitted-potential cell's v (\c OnRaster).
     rvec_t AtPoints(const rvec_t& rho) const override;
     rvec_t OnRaster(const rvec_t& v  ) const override {return Resample(v);}
     std::string Name() const override {return itsName;}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsImposes;}
     Symmetry::GroupPtr      Forces () const override {return itsForces;}
     //! \brief R x = Phi_X S^-1 Phi_X^T (w x): \a x fitted onto the set in the XC quadrature and sampled back at the points -- the
     //! fitted-potential cell's whole operation (A1 x rho[D]: v(rho[D]) fitted for H, pin 32).
@@ -718,8 +711,7 @@ private:
     Evaluator   itsEval;
     BasisSet::FitQuadrature itsPoints;
     std::string itsName;
-    qcMesh::ImposedSymmetry itsImposes;   //!< the periodic Gamma block's T, or the molecular / atom fit basis's own answer
-    Symmetry::GroupPtr      itsForces;    //!< the same as a Group: T of the block's cell, or the fit basis's own \c Forces
+    Symmetry::GroupPtr      itsForces;    //!< T of the periodic Gamma block's cell, or the molecular / atom fit basis's own \c Forces
     rsmat_t     itsSinv;
     double      itsMetricGap=0.0;
 };
@@ -736,8 +728,7 @@ public:
     rvec_t AtPoints(const rvec_t& rho) const override;
     rvec_t OnRaster(const rvec_t& v  ) const override {return Resample(v);}
     std::string Name() const override {return "the multipole channels";}
-    qcMesh::ImposedSymmetry Imposes() const override {return qcMesh::ImposedSymmetry::None;}   //!< channels on every site: no group of their own
-    Symmetry::GroupPtr      Forces () const override {return Symmetry::TrivialGroup();}
+    Symmetry::GroupPtr      Forces () const override {return BasisSet::Forces(BasisSet::VxcFit::Multipole, {}).Value();}   //!< channels on every site: {e}
     rvec_t Resample(const rvec_t& atPoints) const;
 private:
     std::shared_ptr<const qcMesh::SiteMultipoles> itsSites;
@@ -762,7 +753,6 @@ public:
     double Integrate(const rvec_t& f) const override {return itsInnerT->Integrate(f);}
     size_t NumPoints() const override {return itsInnerT->NumPoints();}
     XCRhoSource RhoSource() const override {return itsInnerT->RhoSource();}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsFit->Imposes();}   //!< v lives in the fit space: its group
     Symmetry::GroupPtr      Forces () const override {return itsFit->Forces ();}
     std::optional<double> GroupResidual() const override {return itsInnerT->GroupResidual();}
     rvec_t SiteIntegrals(const rvec_t& f) const override {return itsInnerT->SiteIntegrals(f);}
@@ -811,7 +801,6 @@ public:
     //! What XC sees is the fit space's synthesis, so the FIT SPACE certifies it (never the raster's own source: the raster's rho[D] truncated
     //! to a ball is not rho[D]).
     XCRhoSource RhoSource() const override {return itsFit->SourceAtPoints(itsRaster->RhoSource());}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsFit->Imposes();}   //!< the fit space's (the ball: T)
     Symmetry::GroupPtr      Forces () const override {return itsFit->Forces ();}
     std::optional<double> GroupResidual() const override {return std::nullopt;}
     const rvec_t& Rho(const cChargeDensity* cd) const override;

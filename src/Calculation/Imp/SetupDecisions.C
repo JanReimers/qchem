@@ -103,7 +103,7 @@ RunSeed ResolveRunSeed(ChargeDensity::SeedStrategy stated, const Structure& st, 
     }
     r.key.siteCharges=siteCharges;
     r.key.siteSpins=siteSpins;
-    r.seed=ResolveSeed(stated, st, {.densityFock = densityFock, .periodic = st.Admits(qcMesh::ImposedSymmetry::Translations),
+    r.seed=ResolveSeed(stated, st, {.densityFock = densityFock, .periodic = st.MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice(),
                                     .chargesStated = !siteCharges.empty(),
                                     .covered = [key=r.key](int Z){ return SeedLibraryCovers(key, Z); }});
     return r;
@@ -135,7 +135,12 @@ double DIISEngageGate(double stated, int Z, bool densityFock)
 
 void RequireVxcAdmitted(const Structure& st, Hamiltonian::VxcFit fit, const qcMesh::MeshParams& mesh, const std::string& where)
 {
+    // THE PIN-30 PRE-FLIGHT (Group face step 3b; controller ruling 2026-11-21: a policy, so it reports under `policy` either way).  It asks
+    // the structure's group alone, nothing built; the Vxc build then checks the built objects' Forces, and a disagreement there THROWS.
     if (const auto a=Hamiltonian::AdmitVxc(st, fit, mesh); !a)
         policy::Refuse("AdmitVxc", "the stated Vxc fit and XC mesh on this "+where, a.Error());
+    policy::Report("AdmitVxc", "the stated Vxc fit and XC mesh on this "+where+": admitted", policy::Verdict::Choose,
+                   "pin 30 pre-flight, asked of the structure's group G alone: what the fit and the XC points force lies within G; the Vxc "
+                   "build checks the same of the BUILT objects (their Forces) and throws if the two ever disagree");
 }
 } //namespace qchem

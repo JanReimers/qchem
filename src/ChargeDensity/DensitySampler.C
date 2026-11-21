@@ -167,15 +167,11 @@ public:
     //! Fock matrix's XC saw each iteration (pin 28).  Asked of the term's own build rather than logged here, because
     //! this engine also samples for the energy pass and the residual, which would bury the one sampling that matters.
     virtual XCRhoSource RhoSource() const=0;
-    //! \brief What the Vxc FIT this strategy realizes imposes on the potential (doc/Pins.md pin 30): the fit basis's own answer
-    //! (\c BasisSet::FIT_SF_ABS::Imposes) where it holds one, else the fit space's (the periodic A1 Gamma block, lattice-summed: T; the site
-    //! multipole channels: {e}).  It is the WHOLE realization's answer, not one object's: on a solid the A1 cell is a delta basis inside a
-    //! Gaussian fit space.  CLIENT: the Vxc builder, which throws a \c logic_error when it differs from the pre-flight
-    //! \c Hamiltonian::ImposedBy the admission ruled on (pin 30 admission stage 2, user ruling 2026-11-15 Q2).  The POINTS' group is
-    //! the mesh's (\c qcMesh::ImposedBy), not asked here.
-    virtual qcMesh::ImposedSymmetry Imposes() const=0;
-    //! The same answer as a Group in the Cartesian frame (Group face step 3a): the fit's \c Forces, else the fit space's.  Beside \c Imposes
-    //! until step 3b moves admission onto it.
+    //! \brief H_fit: what the Vxc FIT this strategy realizes FORCES on the potential, as a Group in the Cartesian frame (doc/Pins.md pin 30;
+    //! Group face step 3, admission on the built object): the fit basis's own \c BasisSet::FIT_SF_ABS::Forces where it holds one, else the
+    //! fit space's (the periodic A1 Gamma block, lattice-summed: T of its cell; the site multipole channels: {e}).  It is the WHOLE
+    //! realization's answer, not one object's: on a solid the A1 cell is a delta basis inside a Gaussian fit space.  CLIENT: the Vxc builder,
+    //! which asks the structure's group to contain it.  The POINTS' group is the mesh's (\c qcMesh::Mesh::Forces), asked beside it.
     virtual Symmetry::GroupPtr Forces() const=0;
     //! \brief R2.1 (doc/SCFRobustnessPlan.md P2): the density this sampler last cached, measured against the imposed group
     //! BEFORE its own projector -- \f$\max|f-Pf|/\max|\rho|\f$ over \f$\rho\f$ (and \f$m\f$ on a polarized run).  What XC reads is

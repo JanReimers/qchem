@@ -264,3 +264,37 @@ TEST(Group, TheTrivialGroupIsTheIdentityAlone)
     EXPECT_FALSE(e->Contains(*PointRotationGroup(c, tol)));
     EXPECT_TRUE (e->Contains(*e));
 }
+
+//! MakeFrame (step 3b): a crystal offers its lattice, O(3) about a point offers that point, and a finite group, a line group and {e} offer
+//! nothing -- the frame a not-yet-built representation is pinned in.
+TEST(Group, EachGroupOffersTheFrameARepresentationIsPinnedIn)
+{
+    const rvec3_t c(0.2,0.1,-0.4);
+    const auto cubic=CrystalGroup(SimpleCubic(5.0), tol)->MakeFrame();
+    ASSERT_TRUE (cubic.lattice.has_value());
+    EXPECT_FALSE(cubic.centre.has_value());
+    EXPECT_TRUE (TranslationGroup(*cubic.lattice, tol)->Contains(Generator::Translations(Diag(5,5,5))))  << "the offered lattice is the crystal's";
+    EXPECT_TRUE (TranslationGroup(Diag(5,5,5), tol)->Contains(Generator::Translations(*cubic.lattice)))  << "... all of it";
+    const auto atom=PointRotationGroup(c, tol)->MakeFrame();
+    ASSERT_TRUE (atom.centre.has_value());
+    EXPECT_DOUBLE_EQ(atom.centre->x, c.x); EXPECT_DOUBLE_EQ(atom.centre->y, c.y); EXPECT_DOUBLE_EQ(atom.centre->z, c.z);
+    EXPECT_FALSE(atom.lattice.has_value());
+    for (const GroupPtr& g : {TrivialGroup(), LineRotationGroup(c, rvec3_t(0,0,1), tol), FiniteGroup(std::vector<SymOp>{About(Inversion(), c)}, tol)})
+    {
+        const auto f=g->MakeFrame();
+        EXPECT_FALSE(f.lattice.has_value() || f.centre.has_value()) << g->Describe();
+    }
+}
+
+//! HasLattice (step 3b): a group holds a lattice sum exactly when it carries translations -- a cell's T and its space group, never a
+//! finite group or a continuous rotation group (whose ops all fix a point or a line).
+TEST(Group, OnlyAGroupWithTranslationsHasALattice)
+{
+    const rvec3_t c(0.2,0.1,-0.4);
+    EXPECT_TRUE (TranslationGroup(Diag(3,4,5), tol)->HasLattice());
+    EXPECT_TRUE (CrystalGroup(SimpleCubic(5.0), tol)->HasLattice());
+    EXPECT_FALSE(TrivialGroup()->HasLattice());
+    EXPECT_FALSE(PointRotationGroup(c, tol)->HasLattice());
+    EXPECT_FALSE(LineRotationGroup(c, rvec3_t(0,0,1), tol)->HasLattice());
+    EXPECT_FALSE(FiniteGroup(std::vector<SymOp>{About(Inversion(), c)}, tol)->HasLattice());
+}

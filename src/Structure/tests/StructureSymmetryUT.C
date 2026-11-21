@@ -7,7 +7,6 @@
 
 import qchem.Structure;
 import qchem.UnitCell;
-import qchem.Mesh;              // qcMesh::ImposedSymmetry (the Admits bridge)
 import qchem.Matrix3D;
 import qchem.Types;
 import qchem.Symmetry.Group;    // Group::Contains, Generator, CrystalGroup
@@ -98,22 +97,24 @@ TEST(StructureSymmetry, AnAtomIssuesO3AboutItsSite)
     EXPECT_FALSE(G->Contains(Generator::Translations(I3)));
 }
 
-//! The step-2 bridge answers the old table from each group: a molecule (one site included: it is not an Atom) admits {e} only, a cell T,
-//! the atom O(3).  An empty site set has no finite group to issue and says so.
-TEST(StructureSymmetry, TheAdmitsBridgeAnswersFromTheGroup)
+//! Pin 30's three answers, now asked of each group directly (Group face step 3b; the step-2 \c Admits bridge is deleted): a molecule (one
+//! site included: it is not an Atom) has no lattice and no O(3), a cell has a lattice, the atom O(3) about its own site.  An empty site set
+//! has no finite group to issue and says so.
+TEST(StructureSymmetry, EachKindsGroupAnswersPin30sQuestions)
 {
-    using IS=qcMesh::ImposedSymmetry;
-    Atom h(1, rvec3_t(0.3,0,0));
-    Molecule one; one.Insert(Site{1, {0.3,0,0}});
+    const rvec3_t R(0.3,0,0);
+    Atom h(1, R);
+    Molecule one; one.Insert(Site{1, R});
     Molecule h2;  h2.Insert(Site{1, {0,0,0}}); h2.Insert(Site{1, {0,0,1.4}});
     UnitCell cell(8.0); cell.AddAtom(14,{0.1,0.2,0.3});
-    struct Row {const Structure* st; const char* name; bool t, o3;};
-    for (const auto& [st, name, t, o3] : {Row{&h,"atom",false,true}, Row{&one,"one-site molecule",false,false},
-                                          Row{&h2,"H2",false,false}, Row{&cell,"P1 cell",true,false}})
+    struct Row {const Structure* st; const char* name; bool lattice, o3;};
+    for (const auto& [st, name, lattice, o3] : {Row{&h,"atom",false,true}, Row{&one,"one-site molecule",false,false},
+                                                Row{&h2,"H2",false,false}, Row{&cell,"P1 cell",true,false}})
     {
-        EXPECT_TRUE(st->Admits(IS::None)) << name;
-        EXPECT_EQ  (st->Admits(IS::Translations), t)  << name;
-        EXPECT_EQ  (st->Admits(IS::FullRotation), o3) << name;
+        const auto G=st->MakeSymmetry(tol);
+        EXPECT_TRUE(G->Contains(*Symmetry::TrivialGroup())) << name;
+        EXPECT_EQ  (G->HasLattice(), lattice) << name;
+        EXPECT_EQ  (G->Contains(Generator::FullRotations(st->Sites()[0].R)), o3) << name;
     }
     EXPECT_THROW(Molecule().MakeSymmetry(tol), std::invalid_argument);
 }

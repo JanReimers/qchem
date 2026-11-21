@@ -73,10 +73,16 @@ static void ReportMolecularMesh(size_t natom, const qcMesh::MeshParams& mp, size
 qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams& mp)
 {
     RefuseCellMesh(mp, "the atom-centred (molecule / atom) mesh");
-    // The radial-only set imposes O(3): a library invariant here (the callers ask Hamiltonian::AdmitVxc first), so a THROW.
-    if (!atoms.Admits(qcMesh::ImposedBy(mp)))   // past RefuseCellMesh, only the radial-only set's O(3) can fail
-        throw std::invalid_argument("the atom-centred mesh: the radial-only point set (angular none) integrates one direction, exact only for a "
-                                    "spherical integrand -- it imposes O(3), and this structure's group has no full rotation symmetry (doc/Pins.md pin 30)");
+    // WHAT THIS MESH FORCES, from the one descriptor (qcMesh::Forces; doc/Pins.md pin 30, Group face step 3b) in the structure's own frame
+    // (its group's: an atom offers its site, a molecule's finite point group offers no centre).  Only the radial-only set (angular none)
+    // forces anything, O(3) about the one centre, so it exists only on the atom: elsewhere a CONSTRUCTION REFUSAL, the descriptor's reason.
+    Symmetry::GroupPtr forced=Symmetry::TrivialGroup();
+    if (mp.angular==qcMesh::AngularKind::None)
+    {
+        const auto H=qcMesh::Forces(mp, atoms.MakeSymmetry(Symmetry::kAdmissionTolerance)->MakeFrame());
+        if (!H) throw std::invalid_argument("the atom-centred mesh: "+H.Error()+" (doc/Pins.md pin 30)");
+        forced=H.Value();
+    }
     const int beckeOrder=mp.beckeOrder;
     assert(beckeOrder>=0);
     size_t natom=atoms.GetNumAtoms();
@@ -106,6 +112,7 @@ qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams&
         }
     }
     qcMesh::Mesh mesh=out.take();
+    mesh.InstallForces(forced);
     ReportMolecularMesh(natom, mp, ang.size(), rad.size()*ang.size()*natom, mesh.size());
     return mesh;
 }

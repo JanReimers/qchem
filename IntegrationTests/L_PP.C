@@ -29,6 +29,7 @@ import qchem.Pseudopotential.SeparablePotential; // HGH_SeparablePotential
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH
 import qchem.Symmetry.Spin;                      // Spin
 import qchem.Mesh;                               // qcMesh::MeshParams
+import qchem.Symmetry.Group;                     // HasLattice, kAdmissionTolerance (is the structure periodic?)
 using namespace qchem;
 using Real_OIBS = qchem::BasisSet::Real_OIBS;
 using qchem::BasisSet::Gaussian::BasisSetData;
@@ -136,7 +137,7 @@ TEST(L_PP, NonLocalMatrixLatticeMatchesFinite)
 // PRESERVE the concrete geometry.  Before Structure::Clone the ctor did make_shared<Molecule>(st), which
 // deep-copied ANY structure to a finite Molecule -- silently stripping periodicity.  Here the SAME atom is
 // run through the facade both as a finite Molecule and centred in a periodic UnitCell: the lattice run's
-// facade-owned structure must still be periodic (Admits(T)) and its ion-ion term must be the Ewald
+// facade-owned structure must still be periodic (its group HasLattice) and its ion-ion term must be the Ewald
 // lattice sum (a Molecule-slice would give the single-atom pair-sum 0).  Those are the teeth -- a
 // sliced-to-Molecule facade fails both.
 //
@@ -149,7 +150,7 @@ TEST(L_PP, FacadePreservesUnitCell)
     // Finite reference through the facade: He at the origin (Enn = 0 for one atom -- no ion-ion pair).
     Molecule he; he.Insert(Site{2, {0,0,0}});
     auto cFin=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(he, {.molecule={.basis="dzvp"}})).TakeValue(); (void)cFin->Converge();
-    EXPECT_FALSE(cFin->GetStructure().Admits(qcMesh::ImposedSymmetry::Translations));   // a Molecule stays finite
+    EXPECT_FALSE(cFin->GetStructure().MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice());   // a Molecule stays finite
     EXPECT_NEAR(cFin->EnergyTerms()["Enn"], 0.0, 1e-12);      // single finite atom -> no ion-ion
 
     // Lattice run: the same He centred in a cubic cell.  The facade must keep the UnitCell periodic.
@@ -158,7 +159,7 @@ TEST(L_PP, FacadePreservesUnitCell)
     cell.AddAtom(2, {0.5,0.5,0.5});
     auto cCell=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(cell, {.molecule={.basis="dzvp"}})).TakeValue(); (void)cCell->Converge();
 
-    EXPECT_TRUE(cCell->GetStructure().Admits(qcMesh::ImposedSymmetry::Translations));       // periodic, not sliced to a Molecule
+    EXPECT_TRUE(cCell->GetStructure().MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice());       // periodic, not sliced to a Molecule
     EXPECT_NEAR(cCell->GetStructure().GetNumElectrons(), 2.0, 1e-12);  // He, charge preserved by Clone
 
     // The ion-ion term routed through the periodic Ewald sum (a sliced single-atom Molecule would give 0).

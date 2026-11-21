@@ -119,7 +119,7 @@ MakeFittedPotentialSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& d
     if (!dynamic_cast<const BasisSet::Evaluatable_IBS<double>*>(fit.get()))
         throw std::logic_error("MakeFittedPotentialSampler: the fit basis "+fit->Name()+" cannot evaluate its functions at points (Evaluatable_IBS)");
     auto eval=[fit](const rvec3vec_t& R) {return rmat_t((*dynamic_cast<const BasisSet::Evaluatable_IBS<double>*>(fit.get()))(R));};
-    auto space=std::make_shared<const GaussianFitSpace>(metric->Overlap(), eval, points, "the A1 Gaussian set", fit->Imposes(), fit->Forces());
+    auto space=std::make_shared<const GaussianFitSpace>(metric->Overlap(), eval, points, "the A1 Gaussian set", fit->Forces());
     return std::make_shared<const tFittedPotentialDensitySampler<double>>(space, MakeDensitySampler(delta, std::move(points)));
 }
 

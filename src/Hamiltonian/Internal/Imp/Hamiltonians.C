@@ -31,7 +31,7 @@ import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol)
 import qchem.Reporting;                           // the nonlinearMesh route announcement, the term scopes and their fitbasis rows
 import qchem.BasisSet.G_FieldEvaluator;           // G_OrbitalPairBall: does the plane-wave Vxc ball hold every orbital pair (the rho axis)
 import qchem.ChargeDensity.DensitySampler;        // MakeAuxiliaryFitSampler
-import qchem.Symmetry.Group;                      // the 3a cross-check: Forces against Imposes
+import qchem.Symmetry.Group;                      // admission on the built objects: G->Contains(*Forces()) (step 3b)
 import qchem.Hamiltonian.Internal.Vxc_DFT_GGA;     // the GGA XC term (GGA stage 2)
 
 namespace qchem::Hamiltonian
@@ -76,38 +76,29 @@ template <class Fit, class Make> static std::shared_ptr<const Fit> BuildTermFit(
 //! (doc/Records/OpenWork_History5.md, the δ-vs-A1 table).  The fit stays one stated choice away (\c VxcFit::Auxiliary).
 static VxcFit MolecularVxcFit(VxcFit fit) {return fit==VxcFit::Auto ? VxcFit::Delta : fit;}
 
-//! \brief PIN 30 ADMISSION STAGE 2 (user ruling 2026-11-15 Q2): the BUILT realization must impose exactly what the pre-flight said.
-//! \c AdmitVxc ruled on \c ImposedBy(resolved, st), a table of what each fit family imposes; the sampler answers for the classes actually
-//! built (\c DensitySamplerBase::Imposes, the whole realization: on a solid the A1 cell is a delta basis inside a Gaussian fit space).
-//! A difference means the table drifted from the classes -- a broken invariant no caller can act on, so a \c logic_error.  \a resolved
-//! is the fit after \c Auto is resolved (Auto itself imposes nothing; what it resolves to may).
-//! \brief GROUP FACE STEP 3a's CROSS-CHECK (user ruling 2026-11-21): the built realization's \c Forces (a Group in its own frame) gives the
-//! SAME admission answer as its \c Imposes (the enum, realized by the structure's step-2 bridge), and is {e} exactly when \c Imposes says
-//! so.  A difference is a broken invariant (the two faces of one class disagree), so a \c logic_error.  DELETED in step 3b, with the enum:
-//! admission then asks \c Forces alone.  \c theForcesCheckTolerance is the bridge's (1e-4, \c Structure::Admits): the answer is
-//! tolerance-free for these groups ({e}, T of the cell, O(3) about a site), and the constant goes with the check.
-constexpr Symmetry::GroupTolerance theForcesCheckTolerance{.length=1e-4, .angle=1e-4};
-template <class Sampler> static void RequireForcesAgrees(const Sampler& s, ImposedSymmetry imposes, const Structure& st)
+//! \brief PIN 30 ADMISSION ON THE BUILT OBJECTS (Group face step 3b; USER RULING 2026-11-21, "I agree with your recommendations": (A)).
+//! The built realization and its points each say what they FORCE on the field, as a Group in their own Cartesian frame -- the sampler
+//! (\c DensitySamplerBase::Forces: the fit's group, or the periodic A1 space's T) and the XC point set (\c qcMesh::Mesh::Forces, stamped
+//! by the structure that built it: a uniform raster T of its cell, the radial-only set O(3) about its site) -- and the structure's own
+//! group G must contain both: \f$H_{fit}\subseteq G\f$ and \f$H_{points}\subseteq G\f$.  Every factory asks the cheap pre-flight
+//! (\c AdmitVxc, G alone) before it builds, and refuses there; so a cell reaching here was ADMITTED by it, and a refusal here means the
+//! pre-flight and the built objects DISAGREE -- a broken invariant naming both answers, a \c logic_error, never a quiet second refusal
+//! (controller ruling 2026-11-21, condition (c)).  \a points is null when the fit is its own point set (the plane-wave ball on its
+//! raster): its group is the sampler's.
+template <class Sampler> static const Sampler& RequireForcedWithinG(const Sampler& s, const qcMesh::Mesh* points, const Structure& st)
 {
-    const Symmetry::GroupPtr H=s.Forces();
-    if (!H) throw std::logic_error("Vxc builder: the built realization forces no group (Forces returned null)");
-    const bool trivial=Symmetry::TrivialGroup()->Contains(*H);
-    if (trivial!=(imposes==ImposedSymmetry::None))
-        throw std::logic_error("Vxc builder: the built realization imposes H_R = "+std::string(qcMesh::Name(imposes))+" but forces "+H->Describe()+
-                               " (Imposes and Forces disagree on {e}; Group face step 3a)");
-    const bool viaGroup=st.MakeSymmetry(theForcesCheckTolerance)->Contains(*H), viaEnum=st.Admits(imposes);
-    if (viaGroup!=viaEnum)
-        throw std::logic_error("Vxc builder: the structure "+std::string(viaEnum ? "admits" : "refuses")+" H_R = "+qcMesh::Name(imposes)+
-                               " but "+(viaGroup ? "contains" : "does not contain")+" the forced "+H->Describe()+" (Group face step 3a)");
-}
-
-template <class Sampler> static const Sampler& RequireImposesAsAdmitted(const Sampler& s, VxcFit resolved, const Structure& st)
-{
-    const ImposedSymmetry pre=ImposedBy(resolved, st), built=s.Imposes();
-    if (!(built==pre))
-        throw std::logic_error(std::string("Vxc builder: the built realization imposes H_R = ")+qcMesh::Name(built)+", but the admission "
-                               "ruled on H_R = "+qcMesh::Name(pre)+" (Hamiltonian::ImposedBy and the fit classes disagree; doc/Pins.md pin 30)");
-    RequireForcesAgrees(s, built, st);
+    const Symmetry::GroupPtr G=st.MakeSymmetry(Symmetry::kAdmissionTolerance);
+    auto require=[&](const Symmetry::GroupPtr& H, const char* what)
+    {
+        if (!H) throw std::logic_error(std::string("Vxc builder: the built ")+what+" forces no group (Forces returned null)");
+        if (!G->Contains(*H))
+            throw std::logic_error(std::string("Vxc builder: the pin-30 pre-flight (Hamiltonian::AdmitVxc, asked of G alone) ADMITTED this "
+                                   "cell, but the built ")+what+" forces "+H->Describe()+", which this structure's G ("+G->Describe()+
+                                   ") does not contain -- the pre-flight's rows and the built objects disagree (doc/Pins.md pin 30; the drift "
+                                   "gate is UTHamiltonian VxcProductSpace)");
+    };
+    require(s.Forces(), "Vxc realization");
+    if (points) require(points->Forces(), "XC point set");
     return s;
 }
 
@@ -199,7 +190,7 @@ static rmesh_t MolecularNonlinearMesh(const st_t& st, const rbs_t* bs, XCMeshSha
             return makeDelta();
         });
         auto sampler=ChargeDensity::MakeMultipoleFittedPotentialSampler(delta, quad, MakeSiteMultipoles(st, *quad.GetMesh(), mp, lMax));
-        RequireImposesAsAdmitted(*sampler, resolved, *st);
+        RequireForcedWithinG(*sampler, quad.GetMesh().get(), *st);
         return sampler;
     }
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]() -> std::shared_ptr<const BasisSet::rFIT_SF_ABS>
@@ -207,15 +198,16 @@ static rmesh_t MolecularNonlinearMesh(const st_t& st, const rbs_t* bs, XCMeshSha
         if (resolved==VxcFit::Delta) return makeDelta();
         return std::shared_ptr<const BasisSet::rFIT_SF_ABS>(bs->CreateVxcFitBasisSet(st.get(), mp, resolved, &quad));
     });
+    const auto points=quad.GetMesh();   // held past the move: the point set answers for itself
     if (fb->isOrtho())
     {
         auto sampler=ChargeDensity::MakeDensitySampler(fb, std::move(quad));
-        RequireImposesAsAdmitted(*sampler, resolved, *st);
+        RequireForcedWithinG(*sampler, points.get(), *st);
         return sampler;
     }
     const auto delta=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc points", makeDelta);
     auto sampler=ChargeDensity::MakeFittedPotentialSampler(delta, quad, fb);
-    RequireImposesAsAdmitted(*sampler, resolved, *st);
+    RequireForcedWithinG(*sampler, points.get(), *st);
     return sampler;
 }
 
@@ -229,6 +221,7 @@ static rgmesh_t MolecularGradientMesh(const st_t& st, XCMeshShare& share, XCRout
         throw std::invalid_argument("MolecularGradientMesh: a GGA samples the density gradient on the delta Vxc fit only (GGA stage 2) -- the "
                                     "setup should have refused this fit (policy GGARoute)");
     BasisSet::FitQuadrature quad=share.Quadrature();
+    const auto points=quad.GetMesh();   // held past the move
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT_GGA", "Vxc fit", [&]
     {
         bool built=false;
@@ -237,7 +230,7 @@ static rgmesh_t MolecularGradientMesh(const st_t& st, XCMeshShare& share, XCRout
         return d;
     });
     auto sampler=ChargeDensity::MakeDensityGradientSampler(fb, std::move(quad));
-    RequireImposesAsAdmitted(*sampler, resolved, *st);
+    RequireForcedWithinG(*sampler, points.get(), *st);
     return sampler;
 }
 
@@ -553,6 +546,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
     // THE RHO AXIS ON THE PLANE-WAVE FIT (the solid door's, since step 4).  A ball that holds every orbital pair has P rho = rho[D]: both
     // values of xc.rho are one cell.  Any other ball (GPW) splits them, and a cell with no realization is REFUSED (invalid_argument: the
     // caller did not ask \c qchem.XCRhoPolicy first), never run as the other value of the axis.
+    const auto xcPoints=quadrature.GetMesh();   // the XC point set, held past the moves below (null on the ball's own raster: its group is the fit's)
     std::shared_ptr<const ChargeDensity::DensitySampler> a1Sampler;   // the periodic A1 cells' strategy, else empty (the factory decides)
     if (resolved==VxcFit::Auxiliary)
     {
@@ -588,14 +582,14 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
         // EXCLUSIVE of "setup: XC-mesh Phi tables" (built inside, own bucket) -- so this reads as the term
         // assembly around them.
         qchem::report::Timed timed("setup: XC term assembly (Phi tables are its child)");
-        // The sampler is made HERE (not inside MakeVxcTerm) so the built realization can be checked against the admission (pin 30 stage 2).
+        // The sampler is made HERE (not inside MakeVxcTerm) so the built objects answer the admission (pin 30, Group face step 3b).
         if (gga)
         {   // GGA stage 3: the δ fit's density-gradient strategy and the GGA term on it (the Hamiltonian holds it as its nonlinear mesh).
             if (resolved!=VxcFit::Delta)
                 throw std::invalid_argument("Ham_PW_DFT: a GGA samples the density gradient on the delta Vxc fit only (GGA stage 3) -- the "
                                             "setup should have refused this fit (policy GGARoute)");
             auto gsampler=ChargeDensity::MakeDensityGradientSampler(XFitBasis, std::move(quadrature));
-            RequireImposesAsAdmitted(*gsampler, resolved, *st);
+            RequireForcedWithinG(*gsampler, xcPoints.get(), *st);
             HoldNonlinearMesh(gsampler);
             ReportMeshClients(false, "Vxc_DFT_GGA");
             Add(new tVxc_DFT_GGA<dcmplx>(std::move(gga), std::move(gsampler), GetSpinGroup()));
@@ -604,7 +598,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
         {
         std::shared_ptr<const ChargeDensity::DensitySampler> sampler=a1Sampler ? a1Sampler
                                                                     : ChargeDensity::MakeDensitySampler(XFitBasis, std::move(quadrature));
-        RequireImposesAsAdmitted(*sampler, resolved, *st);
+        RequireForcedWithinG(*sampler, xcPoints.get(), *st);
         HoldNonlinearMesh(sampler);   // the Hamiltonian's nonlinear mesh (V-NONLINEAR-MESH): the XC term is one client of it
         ReportMeshClients(false);
         Add(new cVxc_DFT(std::make_shared<CompositeExFunctional>(parts), std::move(sampler), GetSpinGroup()));
