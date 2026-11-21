@@ -36,7 +36,7 @@ Molecule H2O() {return qchem::StructureData::GetMolecule("H2O");}
 //! The converged energy on the converged mesh (120 radial, Lebedev L41).
 double Converged(const Molecule& m, Model model, int mult=1, SpinGroup spin=SpinGroup::UnPolarized)
 {
-    RunOptions o{.spin=spin, .multiplicity=mult, .model=model, .scf=kTight, .molecule={.basis="dzvp"}};
+    RunOptions o{.multiplicity=mult, .spin=spin, .model=model, .scf=kTight, .molecule={.basis="dzvp"}};
     qcMesh::MeshParams mp=qcMesh::BeckeXCParams();
     mp.nRadial=120; mp.angularDegree=41;
     o.xcMesh=mp;
