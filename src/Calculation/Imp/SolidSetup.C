@@ -522,6 +522,15 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
         const bool gga=Hamiltonian::IsDFT(*opts.model) && Hamiltonian::ConsumesDensityGradient(Hamiltonian::ModelToXC(*opts.model));
         if (gga && !s->planeWave && asked.cellKind==qcMesh::UnitCellKind::Auto) {asked.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke); s->ggaChoseBecke=true;}   // the default IS the Becke recipe under Auto
         s->xcMesh = qcMesh::ResolveXCMesh(asked, GatherSharpness(lat, *s->mol, *s->pp, s->imposed), theRunPolicy().BeckeXC());
+        // ...AND SIZED FROM EPS (controller ruling 2026-11-21, pin 31): a pilot to come climbs this mesh as a geometry run's does, so it ENTERS at
+        // the calibrated rung for the per-element target, not at the energy-calibrated (40, 29), which left NaF PBE 29 uHa short (L47 vs L65).
+        if (s->ggaChoseBecke && !s->rastersResolved && opts.accuracy.eps>0.0 && s->xcMesh.cellKind==qcMesh::UnitCellKind::Becke)
+        {
+            s->xcMesh=qcMesh::BeckeEntryRung(s->xcMesh, opts.solid.grid.Target(BasisSet::Gaussian::ClientConsumes::MatrixElements, lat.GetUnitCell().GetNumAtoms()),
+                                             opts.solid.beckeLadder, s->imposed);
+            std::cout<<"[XC grid choice] a GGA on the chosen Becke mesh: it enters at nR="<<s->xcMesh.nRadial<<" L="<<s->xcMesh.angularDegree
+                     <<" (the calibrated rung for eps "<<opts.accuracy.eps<<" per matrix element); the pilot's climb sizes it from there"<<std::endl;
+        }
     }
     // The Vxc product space's admission (pin 30), asked of the Hamiltonian's rule HERE, before the Hamiltonian is built: the
     // Factory would throw the same reason later, after the basis and its fits.

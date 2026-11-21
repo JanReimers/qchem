@@ -1733,19 +1733,19 @@ TEST(GPW_Si, Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel)
 //     mesh 40/L29 (the default recipe)  LDA -7.114937640  PBE -7.068337775   (+120 / +127 uHa: the mesh, shared by both functionals)
 //     mesh 60/L23                       LDA -7.115083709  PBE -7.068462908
 //     mesh 100/L35                      LDA -7.115063557  PBE -7.068468785   (-5.9 / -4.0 uHa; PBE - LDA +1.8 uHa)
-// so the gate runs 100/L35, where the Becke quadrature is converged at the 1e-5 level for both: a GGA adds no error of its own.
-TEST(GPW_Si, Γ_Becke_PBE_CP2K)
+// so the Becke quadrature converges at the 1e-5 level for both: a GGA adds no error of its own.  The gate STATES NO MESH: the GGA route
+// chooses Becke and the pilot sizes it from eps (controller ruling 2026-11-21, pin 31); it settles at (100, L53), 0.4 uHa from CP2K.
+TEST(GPW_Si, Γ_Becke_PBE_CP2K_Long)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
     RunOptions o=OptionsFor(si, "Si Gamma Becke PBE");
     o.solid.densityEcut=20.0;
-    o.xcMesh=qcMesh::BeckeXCParams(100, -1.0, 35);
-    o.model=qchem::Hamiltonian::Model::PBE; o.pp=std::string("gth-pbe-valence");
+    o.model=qchem::Hamiltonian::Model::PBE; o.pp=std::string("gth-pbe-valence");   // the XC mesh UNSTATED: the GGA route picks Becke and sizes it from eps
     o.scf=TightGates(60);
     auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
     auto R=calc->Result();
     ASSERT_TRUE(R) << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
-    EXPECT_NEAR(R->Energy(), -7.068464765, 2e-5) << "PBE on the converged Becke mesh vs CP2K's converged raster";
+    EXPECT_NEAR(R->Energy(), -7.068464765, 2e-5) << "PBE on the mesh the run sized from eps vs CP2K's converged raster";
 }

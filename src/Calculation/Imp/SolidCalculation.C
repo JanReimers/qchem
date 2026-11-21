@@ -1863,7 +1863,9 @@ std::optional<ResourceRefusal> SolidCalculation::PilotPreflight() const
     if (S.planeWave || S.rastersResolved || itsImp->rastersSettled || !itsImp->ladder) return std::nullopt;
     // ROUND 0's two references, exactly as CalibrateRasters names and builds them (a geometry run on Becke carries the rungs).
     const qcMesh::MeshParams& xcCur=S.xcMesh;
-    const bool xcOnBecke = itsImp->consumes==BasisSet::Gaussian::ClientConsumes::MatrixElements && xcCur.cellKind==qcMesh::UnitCellKind::Becke;
+    // A geometry run climbs its Becke mesh; so does an ENERGY run whose GGA route chose Becke itself (controller ruling 2026-11-21, pin 31:
+    // the new route may not ship on the fixed (40, 29) default -- NaF PBE moved 29 uHa from L47 to L65).  An LDA energy run keeps (40, 29): OpenWork G2.
+    const bool xcOnBecke = (itsImp->consumes==BasisSet::Gaussian::ClientConsumes::MatrixElements || S.ggaChoseBecke) && xcCur.cellKind==qcMesh::UnitCellKind::Becke;
     std::optional<qcMesh::MeshParams> xcAngular, xcRadial;
     if (xcOnBecke)
     {
@@ -1932,6 +1934,15 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     const bool   onH   =c==G::ClientConsumes::MatrixElements;
     const size_t nAtoms=itsImp->lat->GetUnitCell().GetNumAtoms();
     const double target=itsImp->setup->opts.solid.grid.Target(c, nAtoms);
+    // THE BECKE CLIMB'S MEASURE FOLLOWS THE CLIENT (user ruling 2026-11-21, option A): a geometry run's climb settles on max|dH_xc| <= eps, a GGA
+    // ENERGY run's on |dE_xc| between rungs <= eps x atoms -- every other term of an energy run is judged on its energy.  max|dH_xc| is still
+    // MEASURED and REPORTED on an energy run, beside dE_xc (ruling part 1), but does not steer it.  WHY not max|dH| there: NaF Gamma PBE at eps 1e-5
+    // climbed (100, L53) -> (140, GL89) on it in 93 min and ended NOT SETTLED (L53/L65 8.7e-5, L65/GL77 2.3e-5, GL77/GL89 1.1e-4) while its
+    // energy sat within 1 uHa of CP2K from L65 on (GPW_NaF.Γ_Becke_PBE_CP2K_Long).  The max|dH_xc| floor (~3.5e-5 per element from GL53 to GL89,
+    // probed at one fixed D, side-session note lane-s-GGA-design.md §11a): GGA-ONLY (LDA on the same meshes converges to 7e-9), in the w half,
+    // on diffuse x diffuse pairs only (the empty Na p, F's most diffuse p), symmetry-forbidden elements included; not the partition (Becke
+    // orders 2/3/5, SSF, modified Becke), not the image cut, not radial (that converges, 1.8e-5 -> 1.7e-6 from nR 100 to 200).  OpenWork row.
+    const double xcTarget=target;
     qchem::report::Timed timed("postSCF: raster pilot (reference basis + audit; re-converge when a raster rises)");
     const std::streamsize prec0=std::cout.precision();
     report::FormatGuard keepFormat(std::cout);   // exact restore on every exit (prec0 alone missed the flags and the early returns)
@@ -1958,7 +1969,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         // read from the reference that moved it.  Four separate references built the run's own 259200-point mesh twice a round to compare it with itself
         // (MnO geometry, 2026-11-05: 6 of the stage's 15 mesh builds).  An admitted PlaneWave fit on Becke would break this: it would put a raster under XC.
         const qcMesh::MeshParams& xcCur=itsImp->setup->xcMesh;
-        const bool xcOnBecke=onH && xcCur.cellKind==qcMesh::UnitCellKind::Becke;
+        const bool xcOnBecke=(onH || itsImp->setup->ggaChoseBecke) && xcCur.cellKind==qcMesh::UnitCellKind::Becke;   // as PilotPreflight
         std::optional<qcMesh::MeshParams> xcAngular, xcRadial;
         if (xcOnBecke)
         {
@@ -2060,6 +2071,12 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             ΔHof[key(xcCur)]={};
             if (xcAngular) ΔHof[key(*xcAngular)]=std::move(ΔHangular);
             if (xcRadial)  ΔHof[key(*xcRadial)] =std::move(ΔHradial);
+            // ... and each mesh's E_xc - E_xc(run) at this D (the audit's Exc rows: E_run - E_reference, so the reference's own is minus it)
+            auto excOf=[](const GridAuditResult& a){double e=0.0; for (const auto& T : a.terms) if (T.entries=="Exc") e-=T.ΔE; return e;};
+            std::map<std::string, double> ΔEof;
+            ΔEof[key(xcCur)]=0.0;
+            if (xcAngular) ΔEof[key(*xcAngular)]=excOf(R);
+            if (xcRadial)  ΔEof[key(*xcRadial)] =excOf(Bl);
             int built=0;   // references the climb built beyond the round's two
             // A climb rung the audit RSS policy refuses: the distance callback has no failure channel (qcMesh::ClimbBeckeLadder asks it for a
             // number), so the refusal leaves the climb as this local type and is caught right around it.
@@ -2071,11 +2088,11 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                                           "Becke climb, pilot round "+std::to_string(round), kPilotEscape))
                     throw ClimbRefused{std::move(*r)};
                 std::vector<hmat_t<dcmplx>> d;
-                (void)CompareAtFixedD(itsImp->setup->opts.solid.tolerances, rvec3_t(0,0,0), "Becke climb: "+BeckeName(m), &m, 1.0, &d);
+                ΔEof[key(m)]=excOf(CompareAtFixedD(itsImp->setup->opts.solid.tolerances, rvec3_t(0,0,0), "Becke climb: "+BeckeName(m), &m, 1.0, &d));
                 ++built;
                 return ΔHof.emplace(key(m), std::move(d)).first->second;   // std::map: references stay valid across later inserts
             };
-            const qcMesh::BeckeRungDistance distance=[&](const qcMesh::MeshParams& a, const qcMesh::MeshParams& b)
+            const qcMesh::BeckeRungDistance distanceH=[&](const qcMesh::MeshParams& a, const qcMesh::MeshParams& b)
             {
                 const auto& da=ΔHat(a);
                 const auto& db=ΔHat(b);
@@ -2093,9 +2110,16 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                 }
                 return worst;
             };
+            const qcMesh::BeckeRungDistance distanceE=[&](const qcMesh::MeshParams& a, const qcMesh::MeshParams& b)
+            {
+                (void)ΔHat(a); (void)ΔHat(b);   // builds (and caches) both, as the H distance would
+                return std::fabs(ΔEof.at(key(b))-ΔEof.at(key(a)));
+            };
+            const qcMesh::BeckeRungDistance& distance = onH ? distanceH : distanceE;
+            const char* measure = onH ? "max|dH_xc|" : "|dE_xc|";
             const int cap = (stated || round>0) ? 1 : 0;   // a stated mesh is only measured; a confirming round raises at most once
             qcMesh::BeckeClimbResult climb;
-            try { climb=qcMesh::ClimbBeckeLadder(xcCur, target, itsImp->setup->opts.solid.beckeLadder, itsImp->setup->imposed, distance, cap); }
+            try { climb=qcMesh::ClimbBeckeLadder(xcCur, xcTarget, itsImp->setup->opts.solid.beckeLadder, itsImp->setup->imposed, distance, cap); }
             catch (ClimbRefused& c)
             {
                 std::cout<<tag<<"round "<<round<<"  REFUSED ON RESOURCES in the Becke climb: the pilot stops here, NOT SETTLED -- "<<c.r.Summary()<<std::endl;
@@ -2106,8 +2130,11 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             for (const qcMesh::BeckeClimbStep& step : climb.steps)
             {
                 std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<(std::string("XC mesh, ")+step.axis)<<std::right<<" delivered "<<std::scientific
-                         <<std::setprecision(3)<<step.delivered<<" (tail estimate "<<step.tailEstimate<<") on "<<BeckeName(step.rung)<<" against "<<BeckeName(step.reference)<<"  ";
-                if (!step.over)    std::cout<<"meets "<<target<<std::endl;
+                         <<std::setprecision(3)<<measure<<" "<<step.delivered<<" (tail estimate "<<step.tailEstimate<<")";
+                const double hStep=onH ? step.delivered : distanceH(step.rung, step.reference);   // ruling part 1: always measured
+                if (!onH) std::cout<<" [max|dH_xc| "<<hStep<<", reported]";
+                std::cout<<" on "<<BeckeName(step.rung)<<" against "<<BeckeName(step.reference)<<"  ";
+                if (!step.over)    std::cout<<"meets "<<xcTarget<<std::endl;
                 else if (stated)
                 {
                     std::cout<<"OVER, and the mesh is STATED: honoured (state xcMesh Auto to let the pilot size it)"<<std::endl;
@@ -2115,7 +2142,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                 }
                 else             std::cout<<"OVER"<<std::endl;
                 std::cout<<std::defaultfloat<<std::setprecision(prec0);
-                terms.push_back({{"term","XC Becke mesh"},{"axis",step.axis},{"delivered",step.delivered},{"tailEstimate",step.tailEstimate},{"mesh",BeckeName(step.rung)},
+                terms.push_back({{"term","XC Becke mesh"},{"axis",step.axis},{"measure",measure},{"delivered",step.delivered},{"maxAbsΔH",hStep},{"tailEstimate",step.tailEstimate},{"mesh",BeckeName(step.rung)},
                                  {"reference",BeckeName(step.reference)},{"over",step.over}});
             }
             const char* end = climb.end==qcMesh::BeckeClimbResult::End::Settled ? "settled"
@@ -2209,7 +2236,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             const bool statedOver=xcStatedOver || ballStatedOver;
             std::cout<<tag<<(statedOver ? "NOT SETTLED (a STATED grid misses the target)" : "SETTLED")<<" after "<<round<<" re-convergence(s): every raster term meets "
                      <<target<<" Ha on "<<RasterName(t);
-            if (onH && xcCur.cellKind==qcMesh::UnitCellKind::Becke) std::cout<<", the XC on "<<BeckeName(xcCur)<<(xcStatedOver ? " (STATED, OVER)" : "");
+            if (xcOnBecke) std::cout<<", the XC on "<<BeckeName(xcCur)<<(xcStatedOver ? " (STATED, OVER)" : "");
             std::cout<<", the density ball "<<(ballStatedOver ? "(STATED, OVER)" : "meets it");
             std::cout<<std::endl;
             metEveryTarget=!statedOver;
