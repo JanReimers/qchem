@@ -402,7 +402,6 @@ namespace qchem::Hamiltonian {
         virtual void RefreshForDensity(const tChargeDensity<T>*) const=0;
         virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>* bs,const Spin& s,DensityID id) const override;
         virtual void GetEnergy(EnergyBreakdown&, const tDM_CD<T>*) const=0;
-        virtual rvec_t SiteMoments(const tChargeDensity<T>*) const;
         virtual bool IsRelativistic() const;
         virtual bool IsVirialValid () const;
         virtual bool PreservesReal () const;
