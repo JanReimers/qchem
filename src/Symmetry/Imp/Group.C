@@ -542,6 +542,10 @@ GroupPtr TranslationGroup(const Matrix3D<double>& A, const GroupTolerance& tol)
 {
     return std::make_shared<CrystalRealization>(A, std::vector<SymOp>{}, tol);
 }
+GroupPtr TrivialGroup()
+{
+    return std::make_shared<FiniteRealization>(std::vector<SymOp>{}, kExactTolerance, "{e}");
+}
 GroupPtr FiniteGroup(const std::vector<SymOp>& cartesianOps, const GroupTolerance& tol)
 {
     return std::make_shared<FiniteRealization>(cartesianOps, tol);

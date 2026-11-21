@@ -12,6 +12,7 @@ import qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.Hamiltonian.Types;
 import qchem.Hamiltonian.Factory;                  // HubbardManifold (the +U input vocabulary)
 import qchem.BasisSet.Orbital_1E_IBS;              // the periodic A1 Vxc fit's real Gamma set (Ham_PW_DFT)
+import qchem.ChargeDensity.DensitySampler;   // LatticeSummedSet: the periodic A1 set + the translations it forces (Group face step 3a)
 import qchem.Mesh;
 import qchem.Pseudopotential.LocalPotential;      // the PW pseudopotential model the term owns (Ham_PW_DFT ctor)
 import qchem.Pseudopotential.SeparablePotential;
@@ -140,21 +141,21 @@ public:
                const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={},
                XCRoute fit={}, SpinGroup g=SpinGroup::UnPolarized,
                std::vector<HubbardManifold> hubbard={}, std::vector<std::shared_ptr<ExFunctional>> xc={},
-               std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux={});   //!< the periodic A1 Vxc fit's real Gamma set (xc.fit Auxiliary)
+               ChargeDensity::LatticeSummedSet vxcAux={});   //!< the periodic A1 Vxc fit's real Gamma set (xc.fit Auxiliary)
 private:
     //! \a xc: the functional's parts; EMPTY = Dirac + VWN5, the default LDA (every ctor but the facade's leaves it so).
     void BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const Pseudopotential::LocalPotential* loc,
                     const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
                     XCRoute fit={}, std::vector<HubbardManifold> hubbard={},
                     std::vector<std::shared_ptr<ExFunctional>> xc={},
-                    std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux={});
+                    ChargeDensity::LatticeSummedSet vxcAux={});
     //! Look up each (element, valence) from the GTH database, build + OWN the (per-Z router) local +
     //! separable models, and assemble the terms against them.  The single-species ctor is the 1-species case.
     void BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::vector<std::pair<std::string,int>>& species,
                       const std::string& functional, const qcMesh::MeshParams& xcMesh,
                       XCRoute fit={}, std::vector<HubbardManifold> hubbard={},
                       std::vector<std::shared_ptr<ExFunctional>> xc={},
-                      std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux={});
+                      ChargeDensity::LatticeSummedSet vxcAux={});
     std::shared_ptr<const Pseudopotential::LocalPotential>     itsOwnedLocal;  //!< owned model (convenience ctors); null for explicit
     std::shared_ptr<const Pseudopotential::SeparablePotential> itsOwnedSep;
 };

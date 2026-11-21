@@ -31,6 +31,7 @@ import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol)
 import qchem.Reporting;                           // the nonlinearMesh route announcement, the term scopes and their fitbasis rows
 import qchem.BasisSet.G_FieldEvaluator;           // G_OrbitalPairBall: does the plane-wave Vxc ball hold every orbital pair (the rho axis)
 import qchem.ChargeDensity.DensitySampler;        // MakeAuxiliaryFitSampler
+import qchem.Symmetry.Group;                      // the 3a cross-check: Forces against Imposes
 import qchem.Hamiltonian.Internal.Vxc_DFT_GGA;     // the GGA XC term (GGA stage 2)
 
 namespace qchem::Hamiltonian
@@ -80,12 +81,33 @@ static VxcFit MolecularVxcFit(VxcFit fit) {return fit==VxcFit::Auto ? VxcFit::De
 //! built (\c DensitySamplerBase::Imposes, the whole realization: on a solid the A1 cell is a delta basis inside a Gaussian fit space).
 //! A difference means the table drifted from the classes -- a broken invariant no caller can act on, so a \c logic_error.  \a resolved
 //! is the fit after \c Auto is resolved (Auto itself imposes nothing; what it resolves to may).
+//! \brief GROUP FACE STEP 3a's CROSS-CHECK (user ruling 2026-11-21): the built realization's \c Forces (a Group in its own frame) gives the
+//! SAME admission answer as its \c Imposes (the enum, realized by the structure's step-2 bridge), and is {e} exactly when \c Imposes says
+//! so.  A difference is a broken invariant (the two faces of one class disagree), so a \c logic_error.  DELETED in step 3b, with the enum:
+//! admission then asks \c Forces alone.  \c theForcesCheckTolerance is the bridge's (1e-4, \c Structure::Admits): the answer is
+//! tolerance-free for these groups ({e}, T of the cell, O(3) about a site), and the constant goes with the check.
+constexpr Symmetry::GroupTolerance theForcesCheckTolerance{.length=1e-4, .angle=1e-4};
+template <class Sampler> static void RequireForcesAgrees(const Sampler& s, ImposedSymmetry imposes, const Structure& st)
+{
+    const Symmetry::GroupPtr H=s.Forces();
+    if (!H) throw std::logic_error("Vxc builder: the built realization forces no group (Forces returned null)");
+    const bool trivial=Symmetry::TrivialGroup()->Contains(*H);
+    if (trivial!=(imposes==ImposedSymmetry::None))
+        throw std::logic_error("Vxc builder: the built realization imposes H_R = "+std::string(qcMesh::Name(imposes))+" but forces "+H->Describe()+
+                               " (Imposes and Forces disagree on {e}; Group face step 3a)");
+    const bool viaGroup=st.MakeSymmetry(theForcesCheckTolerance)->Contains(*H), viaEnum=st.Admits(imposes);
+    if (viaGroup!=viaEnum)
+        throw std::logic_error("Vxc builder: the structure "+std::string(viaEnum ? "admits" : "refuses")+" H_R = "+qcMesh::Name(imposes)+
+                               " but "+(viaGroup ? "contains" : "does not contain")+" the forced "+H->Describe()+" (Group face step 3a)");
+}
+
 template <class Sampler> static const Sampler& RequireImposesAsAdmitted(const Sampler& s, VxcFit resolved, const Structure& st)
 {
     const ImposedSymmetry pre=ImposedBy(resolved, st), built=s.Imposes();
     if (!(built==pre))
         throw std::logic_error(std::string("Vxc builder: the built realization imposes H_R = ")+qcMesh::Name(built)+", but the admission "
                                "ruled on H_R = "+qcMesh::Name(pre)+" (Hamiltonian::ImposedBy and the fit classes disagree; doc/Pins.md pin 30)");
+    RequireForcesAgrees(s, built, st);
     return s;
 }
 
@@ -409,7 +431,7 @@ Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& sp
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const Pseudopotential::LocalPotential* loc,
                             const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
                             XCRoute route, std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> functional,
-                            std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
+                            ChargeDensity::LatticeSummedSet vxcAux)
 {
     // Build the functionals FIRST: their GridCutoffFactor() sets how dense the fit grid must be (the CP2K
     // REL_CUTOFF seam).  The parts share ONE Vxc fit basis, so it takes the DENSEST of them.  Default LDA: Dirac + VWN5.
@@ -544,7 +566,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
         if (route.rho==XCρ::Fit)
             throw std::invalid_argument("Ham_PW_DFT: xc.rho fit on the periodic A1 Vxc fit -- the A1 set is incomplete, so P rho is not rho[D], and "
                                         "XC must see rho[D] (doc/Pins.md pin 28; the rho axis retired 2026-11-15)");
-        std::cout<<"[Vxc fit] the periodic A1 Gaussian set ("<<a1->GetNumFunctions()<<" functions, lattice-summed at Gamma), "
+        std::cout<<"[Vxc fit] the periodic A1 Gaussian set ("<<a1.set->GetNumFunctions()<<" functions, lattice-summed at Gamma), "
                  <<"v(rho[D]) fitted for H"<<std::endl;
         a1Sampler=ChargeDensity::MakeAuxiliaryFitSampler(XFitBasis, std::move(quadrature), a1);
     }
@@ -613,7 +635,7 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcm
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::vector<std::pair<std::string,int>>& species,
                        const std::string& functional, const qcMesh::MeshParams& xcMesh, XCRoute fit, SpinGroup g,
                        std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc,
-                       std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
+                       ChargeDensity::LatticeSummedSet vxcAux)
     : cHamiltonianImp(g)
 {
     BuildFromGTH(st, bs, coulombFit, numElectrons, species, functional, xcMesh, fit, std::move(hubbard), std::move(xc), std::move(vxcAux));
@@ -626,7 +648,7 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcm
 void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::vector<std::pair<std::string,int>>& species,
                               const std::string& functional, const qcMesh::MeshParams& xcMesh, XCRoute fit,
                               std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc,
-                              std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
+                              ChargeDensity::LatticeSummedSet vxcAux)
 {
     std::shared_ptr<const Pseudopotential::LocalPotential> loc;   // the ONE builder the GPW facade sizes its ladder from (V-BS-RASTER)
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();

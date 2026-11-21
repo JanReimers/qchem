@@ -45,6 +45,7 @@ import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quad
 import qchem.Mesh.SiteMultipoles;           // the multipole fitted-potential cell's channels
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Types;
+import qchem.Symmetry.Group;                 // Symmetry::GroupPtr: what a fit FORCES (Forces, Group face step 3a)
 import qchem.PointSampling;                  // SamplingTarget (FourierTarget's slot)
 
 export namespace qchem::ChargeDensity
@@ -173,6 +174,9 @@ public:
     //! \c Hamiltonian::ImposedBy the admission ruled on (pin 30 admission stage 2, user ruling 2026-11-15 Q2).  The POINTS' group is
     //! the mesh's (\c qcMesh::ImposedBy), not asked here.
     virtual qcMesh::ImposedSymmetry Imposes() const=0;
+    //! The same answer as a Group in the Cartesian frame (Group face step 3a): the fit's \c Forces, else the fit space's.  Beside \c Imposes
+    //! until step 3b moves admission onto it.
+    virtual Symmetry::GroupPtr Forces() const=0;
     //! \brief R2.1 (doc/SCFRobustnessPlan.md P2): the density this sampler last cached, measured against the imposed group
     //! BEFORE its own projector -- \f$\max|f-Pf|/\max|\rho|\f$ over \f$\rho\f$ (and \f$m\f$ on a polarized run).  What XC reads is
     //! \f$Pf\f$; the number says how far from invariant the density it was HANDED was.  0 on a free run (P is the identity);
@@ -355,9 +359,18 @@ MakeDensityGradientSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& f
 //! factory without changing a tier-1 hub).  The cell works on the XC points through \a delta, the delta basis on \a points: XC of rho[D], its
 //! v FITTED (R v, R = Phi_X S^-1 Phi_X^T w) for H (target W, pin 32: H is not dE/dD; the policy layer warns and refuses what needs dE/dD).
 //! (Its projected twin, XC of P rho, was deleted with the ρ axis, 2026-11-15: pin 28.)
+//! \brief A LATTICE-SUMMED real set and the translations it is summed over (Group face step 3a): the periodic A1 Gamma block, and
+//! T of the cell it was built on.  The block's face (\c Orbital_1E_IBS, tier 1) has no lattice to ask, so the FACTORY that built it on
+//! its concrete cell issues the group beside it (CLAUDE.md: factories concentrate the concrete associations).  Empty = no A1 fit.
+struct LatticeSummedSet
+{
+    std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> set;
+    Symmetry::GroupPtr                                      forces;   //!< T(cell): what a fit space over \c set forces
+    explicit operator bool() const {return bool(set);}
+};
+
 std::shared_ptr<const DensitySampler>
-MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points,
-                        std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1);
+MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points, const LatticeSummedSet& a1);
 
 //! \brief THE MOLECULAR / ATOM FITTED-POTENTIAL CELLS (target W; FittedVxc's retirement, lane S 2026-11-15): XC of rho[D] on \a points through
 //! \a delta (the delta basis on them: singles, E = sum_g w_g e(rho[D]) exactly), its v FITTED for H onto
