@@ -141,3 +141,89 @@ TEST(SinglesSampler, TheHxcFromTheForwardRhoIsThePointwiseOnesElementwise)
     ASSERT_GT(scale, 1e-3);
     EXPECT_LE(worst, 1e-12*scale);
 }
+
+// ---- THE DENSITY-GRADIENT STRATEGY (GGA stage 2, the molecular point route) -----------------------------------------------------------
+// ∇ρ at the XC points through the δ basis's gradient 3-centre overlap, and the {v, w} gather back.  Three claims: ∇ρ is the density's own
+// (a central difference of its POINTWISE ρ, an independent route through the basis's values alone), the w half of H is the exact adjoint of
+// that ∇ρ (a dot-product identity, which is H = dE/dD for the gradient part), and ρ itself is the LDA strategy's to the bit.
+
+TEST(SinglesGradientSampler, TheGradientIsTheDensitysOwnByCentralDifference)
+{
+    Rig rig;
+    const auto sampler=MakeDensityGradientSampler(rig.fb, rig.quad);
+    const rvec3vec_t& gUp=sampler->GradRhoPol(rig.cd.get(), Spin::Up);   // a spin-agnostic density: ∇ρ/2 per channel
+    const rvec3vec_t& gDn=sampler->GradRhoPol(rig.cd.get(), Spin::Down);
+    const rvec3vec_t& pts=rig.quad.GetMesh()->Points();
+    ASSERT_EQ(gUp.size(), pts.size());
+    const rvec_t rho=sampler->Rho(rig.cd.get());
+    const double h=1e-5;   // Richardson below: the O(h²) term of a central difference is ~1e-5 relative at h = 1e-4 on the O 1s core
+    size_t n=0;
+    double worst=0.0, scale=0.0;
+    for (size_t g=0; g<pts.size(); g+=53)
+    {
+        if (rho[g]<1e-4) continue;   // a point where the density matters (the difference loses digits in the tail)
+        const rvec3_t r=pts[g];
+        const rvec3_t e[3]={rvec3_t(h,0,0), rvec3_t(0,h,0), rvec3_t(0,0,h)};
+        const rvec3_t a=gUp[g]+gDn[g];
+        const double an[3]={a.x, a.y, a.z};
+        for (int k=0; k<3; k++)
+        {
+            const double d1=((*rig.cd)(r+e[k])-(*rig.cd)(r-e[k]))/(2.0*h);
+            const double d2=((*rig.cd)(r+2.0*e[k])-(*rig.cd)(r-2.0*e[k]))/(4.0*h);
+            const double fd=(4.0*d1-d2)/3.0;   // Richardson: O(h⁴)
+            worst=std::max(worst, std::fabs(an[k]-fd));
+            scale=std::max(scale, std::fabs(fd));
+        }
+        EXPECT_EQ(gUp[g].x, gDn[g].x) << "a spin-agnostic density splits its gradient evenly";
+        n++;
+    }
+    std::printf("  [singles ∇ρ] %zu points checked, max|∇ρ| %.3e, max|analytic - central difference| %.3e\n", n, scale, worst);
+    ASSERT_GT(n, 50u);
+    ASSERT_GT(scale, 1e-2) << "a vacuous gradient would pass anything";
+    EXPECT_LE(worst, 1e-8*scale) << "∇ρ through the gradient tensor is the density's own (Richardson central difference, h = 1e-5)";
+}
+
+TEST(SinglesGradientSampler, TheGradientHalfOfHIsTheAdjointOfTheGradient)
+{
+    Rig rig;
+    const auto sampler=MakeDensityGradientSampler(rig.fb, rig.quad);
+    const size_t N=sampler->NumPoints();
+    const rvec3vec_t& gUp=sampler->GradRhoPol(rig.cd.get(), Spin::Up);
+    const rvec3vec_t& gDn=sampler->GradRhoPol(rig.cd.get(), Spin::Down);
+    rvec3vec_t w(N);
+    for (size_t g=0; g<N; g++) w[g]=rvec3_t(std::sin(0.1+0.37*g), std::cos(0.2+0.11*g), std::sin(0.5+0.07*g));
+    const rvec_t zero(N, 0.0), w8=rig.fb->Charge();
+    const hmat_t<double> H=sampler->Matrix(rig.block, zero, w);
+    const hmat_t<double> D=SomePSD_D(rig.block->GetNumFunctions());
+    double trDH=0.0;
+    for (size_t i=0; i<H.rows(); i++) for (size_t j=0; j<H.columns(); j++) trDH+=D(i,j)*H(i,j);
+    double ref=0.0, mag=0.0;
+    for (size_t g=0; g<N; g++)
+    {
+        const rvec3_t gr=gUp[g]+gDn[g];
+        const double t=w8[g]*(w[g].x*gr.x+w[g].y*gr.y+w[g].z*gr.z);
+        ref+=t; mag+=std::fabs(t);
+    }
+    std::printf("  [singles {v,w}] Tr(D H_w) %.12e, sum_g w_g w.grad rho %.12e, sum|terms| %.3e\n", trDH, ref, mag);
+    ASSERT_GT(mag, 1e-2);
+    EXPECT_NEAR(trDH, ref, 1e-12*mag) << "Tr(D H_w) = sum_g w_g w_g . grad rho_g: the w gather is the exact transpose of the gradient";
+}
+
+TEST(SinglesGradientSampler, ItsRhoAndItsZeroWGatherAreTheLDAStrategys)
+{
+    Rig rig;
+    const auto lda=MakeDensitySampler(rig.fb, rig.quad);
+    const auto gga=MakeDensityGradientSampler(rig.fb, rig.quad);
+    const rvec_t r0=lda->Rho(rig.cd.get()), r1=gga->Rho(rig.cd.get());
+    ASSERT_EQ(r0.size(), r1.size());
+    double worst=0.0;
+    for (size_t g=0; g<r0.size(); g++) worst=std::max(worst, std::fabs(r0[g]-r1[g]));
+    EXPECT_LE(worst, 1e-15*MaxAbs(r0)) << "ρ = ρ↑ + ρ↓ off the spin cache is the LDA strategy's ρ (ρ/2 + ρ/2)";
+    rvec_t v(r0.size());
+    for (size_t g=0; g<v.size(); g++) v[g]=-std::cbrt(std::max(r0[g],0.0));
+    const hmat_t<double> H0=lda->Matrix(rig.block, v);
+    const hmat_t<double> H1=gga->Matrix(rig.block, v, rvec3vec_t(v.size(), rvec3_t(0,0,0)));
+    double dh=0.0, sc=0.0;
+    for (size_t i=0; i<H0.rows(); i++) for (size_t j=0; j<H0.columns(); j++) {dh=std::max(dh, std::fabs(H0(i,j)-H1(i,j))); sc=std::max(sc, std::fabs(H0(i,j)));}
+    EXPECT_LE(dh, 1e-14*sc) << "a zero w adds nothing: the {v, 0} gather is the LDA one";
+}
