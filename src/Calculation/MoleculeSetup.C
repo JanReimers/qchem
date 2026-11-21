@@ -77,8 +77,8 @@ struct MoleculeSetup : Setup
     bool meshStated   = false;   //!< the caller stated \c *opts.xcMesh (either number): audited against eps, never raised (pin 31 rule 3)
     bool meshResolved = false;   //!< a pilot settled \c xcMesh already (a session's later points): no climb, no audit
 
-    //! The structure a geometry point is built over: \a st's atoms, each carrying its VALENCE charge Z - Zion under a
-    //! pseudopotential (so the electron count is the valence count), or \a st as is when all-electron.  Deep-copied.
+    //! The structure a geometry point is built over: \a st's atoms, each ADDING its core charge Z - Zion to the net charge it states
+    //! under a pseudopotential (so the electron count is the valence count, an ion's charge kept), or \a st as is when all-electron.  Deep-copied.
     std::shared_ptr<const Structure> PointStructure(const Structure& st) const;
     //! THE PRE-RUN PP / FUNCTIONAL CHECK (user 2026-11-12: track, warn and guide, mostly in the GUI): every element's pseudopotential
     //! against this setup's model: its fit (CP2K label + libxc ids), match yes/no, and the model to state to match it.  What the run will warn about,

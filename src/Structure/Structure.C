@@ -148,9 +148,10 @@ public:
     //! \brief Move every site to \a R (Cartesian a.u., one per site, atom-index order) -- a geometry step or a
     //! rigid shift on a cloned structure.
     void MoveSites(const std::vector<rvec3_t>& R);
-    //! \brief Set each site's net charge from its species, \a netChargeOf(Z) -- a PP run's point structure carries
-    //! net charge Z - Zion (MoleculeSetup::PointStructure).
-    void SetNetCharges(const std::function<double(int Z)>& netChargeOf);
+    //! \brief ADD \a extraChargeOf(Z) to each site's net charge, keeping the charge the site already states -- a PP run's point
+    //! structure adds the core charge Z - Zion (MoleculeSetup::PointStructure), so a stated ion (OH-) stays an ion.  It once REPLACED
+    //! the stated charge, and OH- with GTH ran neutral (lane G, 2026-11-21).
+    void AddNetCharges(const std::function<double(int Z)>& extraChargeOf);
 
 protected:
     friend class SiteRange;

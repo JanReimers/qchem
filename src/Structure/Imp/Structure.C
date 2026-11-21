@@ -109,9 +109,9 @@ void Structure::MoveSites(const std::vector<rvec3_t>& R)
     for (size_t a=0; a<R.size(); a++) GetSite(a).R=R[a];
 }
 
-void Structure::SetNetCharges(const std::function<double(int)>& netChargeOf)
+void Structure::AddNetCharges(const std::function<double(int)>& extraChargeOf)
 {
-    for (size_t a=0; a<GetNumAtoms(); a++) GetSite(a).netCharge=netChargeOf(GetSite(a).Z);
+    for (size_t a=0; a<GetNumAtoms(); a++) GetSite(a).netCharge+=extraChargeOf(GetSite(a).Z);
 }
 
 // Moved from the interface (D-BUILD-BLAST, lane B 2026-11-18): an edit here recompiles this TU, not the ~450 importers of qchem.Structure.
