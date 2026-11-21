@@ -158,6 +158,13 @@ GroupPtr CrystalGroup(const Lattice_3D::SpaceGroup& sg, const GroupTolerance& to
 //! (r, spin) jointly when any op carries a flip.
 GroupPtr CrystalGroup(const std::vector<SymOp>& fractionalOps, const Matrix3D<double>& A, const GroupTolerance& tol);
 
+//! \brief The tolerance of a group whose generators are EXACT BY CONSTRUCTION, never detected: a fit's or a sampler's \c Forces() is
+//! built from its own lattice or centre (Group face step 3), so nothing is measured and roundoff is the only slack.  It matters only
+//! when that group is the one asked (\c h.Contains(g)); \c G_struct->Contains(*fit.Forces()) compares at G_struct's own tolerance.
+inline constexpr GroupTolerance kExactTolerance{.length=1e-10, .angle=1e-10};
+//! {e}: the group of a fit or point set that forces nothing beyond its own functions (atom-centred Gaussians, delta functions).
+GroupPtr TrivialGroup();
+
 //! The largest finite group \c FiniteGroup will close (O_h × a flip is 96; this leaves room and still stops a runaway closure).
 inline constexpr size_t kMaxFiniteOrder=1024;
 

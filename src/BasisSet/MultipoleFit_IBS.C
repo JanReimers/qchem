@@ -32,6 +32,7 @@ import qchem.Blaze;
 import qchem.Parallel;   // LazyLock -- the Coulomb solve's guard
 import qchem.SlotMap;    // InstanceSlotMap: the composed pairs, per orbital block (S3c)
 import qchem.Symmetry;
+import qchem.Symmetry.Group;   // Symmetry::GroupPtr / TrivialGroup (Forces, Group face step 3a)
 import qchem.Types;
 
 export namespace qchem::BasisSet
@@ -59,6 +60,7 @@ public:
     bool isOrtho() const override {return true;}   //!< no metric solve: see the file header
     //! Channels on EVERY site, so no group of their own ({e}); periodic use is refused as a correctness limit, not by symmetry.
     qcMesh::ImposedSymmetry Imposes() const override {return qcMesh::ImposedSymmetry::None;}
+    Symmetry::GroupPtr      Forces () const override {return Symmetry::TrivialGroup();}   //!< {e}, as \c Imposes
 
     //! \f$\langle f_a|f\rangle\f$: the moments of the \f$\delta\f$ projection, which is \f$w_gf(r_g)\f$.
     rvec_t Overlap(const ScalarFunction<double>& f) const override {return itsSites->Flatten(itsSites->Moments(itsDelta->Overlap(f)));}

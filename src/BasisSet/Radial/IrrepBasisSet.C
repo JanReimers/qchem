@@ -4,6 +4,8 @@ module;
 #include <memory>
 #include <cassert>
 #include <algorithm>
+#include <stdexcept>
+#include <string>
 #include <iostream>
 #include "forward.H"
 
@@ -25,6 +27,7 @@ import qchem.Symmetry.Factory;
 import qchem.Constants;
 import qchem.Blaze;
 import qchem.Reporting;   // a truncated Coulomb metric reports itself
+import qchem.Symmetry.Group;   // Forces: O(3) about the site, or {e} (Group face step 3a)
 
 export namespace qchem::BasisSet
 {
@@ -179,10 +182,24 @@ public:
         : Fit_IBS(), IrrepBasisSetImp<Evaluator>(cache, Symmetry::YFactory()), Evaluator(e) {};
     //! The Vxc fit: its projection mesh, built from \a st and \a mp.
     EFit_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const Evaluator& e, const Structure& st, const qcMesh::MeshParams& mp)
-        : Fit_IBS(st,mp), IrrepBasisSetImp<Evaluator>(cache, Symmetry::YFactory()), Evaluator(e) {};
+        : Fit_IBS(st,mp), IrrepBasisSetImp<Evaluator>(cache, Symmetry::YFactory()), Evaluator(e), itsCentre(OneSite(st)) {};
     //! A one-centre radial set of a single l: at l = 0 every function is spherical about the atom, so the set imposes O(3) (the atom
     //! path's A1 Vxc fit, built from its s block); any other l carries no group ({e}).  doc/Pins.md pin 30.
     virtual qcMesh::ImposedSymmetry Imposes() const override {return Evaluator::Getl()==0 ? qcMesh::ImposedSymmetry::FullRotation : qcMesh::ImposedSymmetry::None;}
+    //! The same answer in the Cartesian frame (Group face step 3a): O(3) about the atom's SITE at l = 0, {e} otherwise.  The functions are
+    //! pinned at the nucleus, so the centre is the structure's one site; the Coulomb fit (built with no structure) answers about the
+    //! origin of its own frame, where the atom path puts its atom.
+    virtual Symmetry::GroupPtr Forces() const override
+        {return Evaluator::Getl()==0 ? Symmetry::PointRotationGroup(itsCentre, Symmetry::kExactTolerance) : Symmetry::TrivialGroup();}
+private:
+    //! A one-centre set lives on ONE site: a structure with any other count is a wiring error no caller can act on.
+    static rvec3_t OneSite(const Structure& st)
+    {
+        if (st.GetNumAtoms()!=1) throw std::logic_error("Radial EFit_IBS: a one-centre fit on a structure of "+std::to_string(st.GetNumAtoms())+" sites");
+        return st.Sites()[0].R;
+    }
+    rvec3_t itsCentre{0,0,0};   //!< where the functions are pinned: the atom's site (Forces)
+public:
     // d/dR (GeometryOptimizationPlan §13.2): a one-centre (atom) fit has no geometry to move.
     virtual bool CanPullbackRepulsion() const override {return false;}
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const rsmat_t&, const Structure*) const override

@@ -10,6 +10,7 @@ export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
 export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
 import qchem.Structure;               // Structure (the ctor builds the quadrature mesh from it)
+import qchem.Symmetry.Group;          // Symmetry::GroupPtr -- what a fit FORCES (Forces, Group face step 3)
 export import qchem.BasisSet.Orbital_1E_IBS;  // Orbital_1E_IBS<U> -- the block Integrals_Overlap3C takes
 export import qchem.BasisSet.PairProjection;  // PairProjection<U> -- the house CONTRACTIBLE 3-centre object
 
@@ -97,6 +98,11 @@ public:
     //! the BUILT realization against the pre-flight \c Hamiltonian::ImposedBy (pin 30 admission stage 2, user ruling 2026-11-15 Q2).  Pure:
     //! every fit class must state it.
     virtual qcMesh::ImposedSymmetry Imposes() const=0;
+    //! \brief H: the group this fit FORCES on the potential it carries, in the Cartesian frame (Group face step 3a; user ruling 2026-11-21,
+    //! "I agree with your recommendations").  The same answer as \c Imposes, realized in the fit's OWN frame: plane waves T of the cell they
+    //! live on, an l = 0 set O(3) about its centre, atom-centred sets and \f$\delta\f$ functions {e}.  It sits BESIDE \c Imposes until step 3b
+    //! moves admission onto it (\c G_struct->Contains(*Forces())) and deletes \c Imposes with the enum.
+    virtual Symmetry::GroupPtr Forces() const=0;
     virtual vec_t<T> Overlap(const ScalarFunction<double>& f) const=0; //!< \brief \f$\langle f_a|f\rangle\f$ -- the projection of a scalar function onto this basis, NOT cached.
     //! \brief \f$\langle\chi_i|f_a|\chi_j\rangle\f$ -- the 3-CENTRE overlap between an orbital block's
     //! functions and this fit, used by Hamiltonian terms to form \f$H_{ij}\f$ and \f$E\f$ 

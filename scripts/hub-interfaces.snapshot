@@ -92,6 +92,7 @@ namespace qchem::BasisSet {
     public:
         virtual bool isOrtho() const=0;
         virtual qcMesh::ImposedSymmetry Imposes() const=0;
+        virtual Symmetry::GroupPtr Forces() const=0;
         virtual vec_t<T> Overlap(const ScalarFunction<double>& f) const=0;
         const PairProjection<T>& Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const override;
         virtual vec_t<T> Charge() const=0;

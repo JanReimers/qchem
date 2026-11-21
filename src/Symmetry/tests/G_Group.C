@@ -248,3 +248,19 @@ TEST(Group, AMolecularPointGroupIsClosedAndMeetsTheRest)
     ExpectEqual(Meet(C4v, LineRotationGroup(o, rvec3_t(0,0,1), tol)), C4v);
     EXPECT_THROW(FiniteGroup(std::vector<SymOp>{Translation(rvec3_t(1,0,0))}, tol), std::invalid_argument) << "not a finite group";
 }
+
+//! {e} (Group face step 3a, what a fit that forces nothing answers): it holds the identity and nothing else, every group contains it, and it
+//! contains no other group but itself.
+TEST(Group, TheTrivialGroupIsTheIdentityAlone)
+{
+    const auto e=TrivialGroup();
+    const rvec3_t c(0.2,0.1,-0.4);
+    EXPECT_TRUE (Has(e, Translation(rvec3_t(0,0,0))));
+    EXPECT_FALSE(Has(e, About(Inversion(), c)));
+    EXPECT_FALSE(e->Contains(Generator::Translations(I3())));
+    EXPECT_FALSE(e->Contains(Generator::FullRotations(c)));
+    for (const GroupPtr& g : {PointRotationGroup(c, tol), TranslationGroup(Diag(3,4,5), tol), CrystalGroup(SimpleCubic(5.0), tol), e})
+        EXPECT_TRUE(g->Contains(*e)) << g->Describe();
+    EXPECT_FALSE(e->Contains(*PointRotationGroup(c, tol)));
+    EXPECT_TRUE (e->Contains(*e));
+}
