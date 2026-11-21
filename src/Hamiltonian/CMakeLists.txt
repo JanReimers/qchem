@@ -50,7 +50,6 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Factory.C
     Types.C
     Internal/HamiltonianImp.C 
-    Internal/RealSpaceResidual.C
     Internal/GeometryGradient.C           # the term face of the analytic force (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/HamiltonianTerm.C 
     Internal/Hamiltonians.C 

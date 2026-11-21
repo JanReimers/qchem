@@ -125,7 +125,7 @@ CrystalImposition ResolveImposition(const Lattice_3D& lat, const ImpositionOptio
 //  - uniform grid (the cross cell): group-average it invariant (W1's MakeInvariant -- a no-op dedup when the grid is already
 //    commensurate).
 // Either way the geometry-fixed orbit fold feeds the engine's per-iteration rho star-average.  The CALLER opens the report
-// scope ("xcQuadrature"), so every mesh built below reports one level into it.
+// scope ("nonlinearMesh"), so every mesh built below reports one level into it.
 qcMesh::FoldedMesh CrystalImposition::MakeXCMesh(const qcMesh::MeshParams& mp) const
 {
     assert(cell && "CrystalImposition::MakeXCMesh: an imposition not made by ResolveImposition has no cell");

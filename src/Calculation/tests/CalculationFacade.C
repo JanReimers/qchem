@@ -6,6 +6,7 @@
 #include <functional>
 #include <type_traits>
 #include <vector>
+#include <set>
 #include <memory>
 #include <string>
 #include <stdexcept>
@@ -37,8 +38,8 @@ TEST(CalculationFacade, ThePreparedObserverSeesTheSCFFromTheFirstIteration)
     EXPECT_NEAR(steps.back().ValueOf("Etotal"), calc->Energy(), 1e-10);
 }
 
-//! A molecular DFT run's report holds its XC mesh BEFORE the SCF iterates, at hamiltonian.xcQuadrature -- the path a solid files:
-//! the facade builds the Hamiltonian in its "hamiltonian" context, the XC quadrature opens "xcQuadrature", the mesh builder writes
+//! A molecular DFT run's report holds its XC mesh BEFORE the SCF iterates, at hamiltonian.nonlinearMesh -- the path a solid files:
+//! the facade builds the Hamiltonian in its "hamiltonian" context, the nonlinear mesh opens "nonlinearMesh", the mesh builder writes
 //! one level in (OpenWork §3 "A molecule's mesh never reports itself", user rulings 2026-11-02, 2026-11-04).
 TEST(CalculationFacade, AMoleculesXCMeshIsInTheRunReportByIterationOne)
 {
@@ -49,13 +50,13 @@ TEST(CalculationFacade, AMoleculesXCMeshIsInTheRunReportByIterationOne)
                          if (p.iteration!=1) return;
                          checked=true;
                          const auto& doc=qchem::report::CurrentRunReport();
-                         if (!doc.contains("hamiltonian") || !doc["hamiltonian"].contains("xcQuadrature")) return;
-                         const auto& xc=doc["hamiltonian"]["xcQuadrature"];
+                         if (!doc.contains("hamiltonian") || !doc["hamiltonian"].contains("nonlinearMesh")) return;
+                         const auto& xc=doc["hamiltonian"]["nonlinearMesh"];
                          seen = xc.contains("points") && xc["points"].get<long>()>0 && xc["natom"].get<long>()==3;
                      }).TakeValue(); (void)calc->Converge();
     ASSERT_TRUE(calc->IsConverged());
     ASSERT_TRUE(checked) << "the observer saw no iteration 1";
-    EXPECT_TRUE(seen) << "at iteration 1 the run report must already hold hamiltonian.xcQuadrature (the molecule's XC mesh)";
+    EXPECT_TRUE(seen) << "at iteration 1 the run report must already hold hamiltonian.nonlinearMesh (the molecule's XC mesh)";
 }
 
 //! A PSEUDOPOTENTIAL run's PP quadrature is built in the Hamiltonian's own build phase, so it files at hamiltonian.ppQuadrature -- not
@@ -188,7 +189,16 @@ TEST(CalculationFacade, PrepareFilesTheWholeSetupInItsCallersBuildRunBeforeAnySC
     EXPECT_FALSE((*build)["basis"]["perIrrep"].empty());
     ASSERT_TRUE(build->contains("hamiltonian")) << build->dump(1);
     const auto& ham=(*build)["hamiltonian"];
-    EXPECT_TRUE(ham.contains("xcQuadrature") && ham["xcQuadrature"]["points"].get<long>()>0) << "hamiltonian.xcQuadrature missing from the build run";
+    EXPECT_TRUE(ham.contains("nonlinearMesh") && ham["nonlinearMesh"]["points"].get<long>()>0) << "hamiltonian.nonlinearMesh missing from the build run";
+    // V-NONLINEAR-MESH (user ruling 2026-11-20 1(a)): the HAMILTONIAN holds the mesh and lists what uses it; the XC term is one client.
+    if (ham.contains("nonlinearMesh"))
+    {
+        const auto& nm=ham["nonlinearMesh"];
+        ASSERT_TRUE(nm.contains("clients")) << nm.dump(1);
+        std::set<std::string> clients;
+        for (const auto& c : nm["clients"]) clients.insert(c.get<std::string>());
+        for (const char* c : {"Vxc_DFT", "DeltaRho", "SiteMoments"}) EXPECT_TRUE(clients.count(c)) << "nonlinearMesh does not list " << c;
+    }
     ASSERT_TRUE(ham.contains("Hartree")) << build->dump(1);
     // A Coulomb fit has no integration grid (doc/Pins.md, user 2026-11-11): the Hartree term files its fit basis and NO mesh; the SAD seed
     // owns the points it projects itself on, and files them under its own section, never under a term.
@@ -335,7 +345,7 @@ TEST(CalculationFacade, AnAtomsPrepareFilesItsSetupBeforeAnySCF)
     const auto* build=FiledRun(Atom(8, 0.0, rvec3_t(0,0,0)).ID()+" build@");
     ASSERT_NE(build, nullptr) << "no filed '<ID> build' run";
     EXPECT_TRUE(build->contains("basis") && (*build)["basis"].contains("perIrrep")) << build->dump(1);
-    EXPECT_TRUE(build->contains("hamiltonian") && (*build)["hamiltonian"].contains("xcQuadrature")) << build->dump(1);
+    EXPECT_TRUE(build->contains("hamiltonian") && (*build)["hamiltonian"].contains("nonlinearMesh")) << build->dump(1);
     EXPECT_FALSE(build->contains("scf") && (*build)["scf"].contains("standard")) << "the build run holds an SCF";
     ASSERT_TRUE(calc->Converge());
     auto once=AtomCalculation::Prepare(AtomSetup::Resolve(8, 0, opts)).TakeValue(); (void)once->Converge();

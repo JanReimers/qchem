@@ -97,7 +97,7 @@ template <> FIT_CD_ABS<dcmplx>* tBasisSet<dcmplx>::CreateCDFitBasisSet (const St
 }
 FitQuadrature MakeXCQuadrature(const Structure& cl, const qcMesh::MeshParams& mp, const Symmetry::SymmetryImposition* imp)
 {
-    qchem::report::Scope here("xcQuadrature");   // the mesh builder reports one level in
+    qchem::report::Scope here("nonlinearMesh");   // the mesh builder reports one level in (V-NONLINEAR-MESH 3(a): was "xcQuadrature")
     const auto* src=dynamic_cast<const XCMeshSource*>(imp);   // abstract face to abstract face
     FitQuadrature q = src ? src->MakeXCMesh(mp) : FitQuadrature{std::make_shared<const qcMesh::Mesh>(cl.CreateIntegrationMesh(mp)), {}};
     // The accuracy a Fourier series sampled on THIS quadrature must meet (the rho-tilde sampler, step 2): stated by the run in the

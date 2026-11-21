@@ -452,7 +452,7 @@ typedef tBasisSet<dcmplx> Complex_BS;
 //! the δ XC term integrates on.  A free builder, because neither job of a basis set is to build it: the IMPOSITION builds the
 //! mesh under its own ops when it can (\c XCMeshSource -- the invariant, orbit-folded mesh of an imposed crystal run, the
 //! invariant unfolded one of a free run), and otherwise (no imposition, or one that builds no mesh) it is \a cl's own plain
-//! integration mesh, no fold.  \a imp is the basis's \c GetImposition().  Reports one level into an "xcQuadrature" scope.
+//! integration mesh, no fold.  \a imp is the basis's \c GetImposition().  Reports one level into a "nonlinearMesh" scope.
 FitQuadrature MakeXCQuadrature(const Structure& cl, const qcMesh::MeshParams& mp, const Symmetry::SymmetryImposition* imp);
 
 }//namespace

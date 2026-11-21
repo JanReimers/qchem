@@ -28,7 +28,7 @@ import qchem.Mesh.Radial;                         // MakeRadial: the radial rule
 import qchem.Structure;
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
 import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
-import qchem.Reporting;                           // the xcQuadrature route announcement, the term scopes and their fitbasis rows
+import qchem.Reporting;                           // the nonlinearMesh route announcement, the term scopes and their fitbasis rows
 import qchem.BasisSet.G_FieldEvaluator;           // G_OrbitalPairBall: does the plane-wave Vxc ball hold every orbital pair (the rho axis)
 import qchem.ChargeDensity.DensitySampler;        // MakeAuxiliaryFitSampler
 
@@ -96,6 +96,19 @@ static std::shared_ptr<const qcMesh::SiteMultipoles> MakeSiteMultipoles(const st
     return std::make_shared<const qcMesh::SiteMultipoles>(mesh, centres, mp, lMax);
 }
 
+//! \brief THE NONLINEAR MESH'S CLIENTS, listed under its report scope (V-NONLINEAR-MESH, user rulings 2026-11-20 1(a), 2(a)): the XC
+//! term, and the Hamiltonian's own two questions on it -- the SCF's Δρ and the integrated site moments.  \a ppQuadrature: the PP terms
+//! built their own quadrature on a radial-numeric block (same \c MeshParams, D-independent, no ρ, no fold): ruling 2(a) keeps it OUT of
+//! this change and lists it as the NEXT client here, so the overlap is visible in every run that has it.  Writes one level into the
+//! caller's context (the facade's "hamiltonian").
+static void ReportMeshClients(bool ppQuadrature)
+{
+    qchem::report::Scope here("nonlinearMesh");
+    qchem::report::Set("clients", qchem::report::json::array({"Vxc_DFT", "DeltaRho", "SiteMoments"}));
+    if (ppQuadrature) qchem::report::Set("nextClient", "ppQuadrature (PP_Local / PP_NonLocal on a radial-numeric block: its own mesh, same "
+                                         "MeshParams; ruling 2(a): not in this change)");
+}
+
 //! \brief THE XC QUADRATURE AND THE δ FIT BASIS ON IT, ONE PER HAMILTONIAN (lane H 2026-11-15, the basis-on-grid survey P2,
 //! controller ruling).  A molecular run whose Hartree term is a grid route (\c CoulombFit::Delta / \c Multipole) on the XC mesh's own
 //! parameters used to build a SECOND quadrature and a second δ fit beside the Vxc term's, identical, so every orbital block's
@@ -127,16 +140,17 @@ private:
     std::shared_ptr<const BasisSet::rFIT_SF_ABS> itsDelta;
 };
 
-//! THE MOLECULAR / ATOM XC TERM (V-XC-ONE-TERM, 2026-10-31): every cell runs the ONE XC term the periodic path runs
-//! (\c tVxc_DFT<double>: E_xc by a quadrature on the run's XC mesh, H by its sampler's Matrix), the cell chosen by the sampler.
+//! THE MOLECULAR / ATOM NONLINEAR INTEGRATION MESH (V-NONLINEAR-MESH, user ruling 2026-11-20 1(a)): the sampler the Hamiltonian holds and
+//! the ONE XC term (\c tVxc_DFT<double>, V-XC-ONE-TERM 2026-10-31) runs on as a client -- E_xc by a quadrature on the run's XC mesh, H by
+//! the sampler's Matrix; the cell is chosen by the sampler.
 //! THE \f$\rho\f$ AXIS (\c XCρ, user ruling 2026-11-09):
 //!   - a δ basis on the XC points has an exact \f$P\f$, so both values are the one singles term;
 //!   - an incomplete fit (A1, multipole) at \c XCρ::Fit is REFUSED (pin 28; the ρ axis retired 2026-11-15: its projected cell is deleted);
 //!   - the A1 fit at \c XCρ::Exact, and the multipole fit, are the FITTED-POTENTIAL cell (target W): \f$E=\sum_g w_g e(\rho[D])\f$ by the δ
 //!     quadrature, \f$v\f$ fitted for H (not variational, pin 32; the policy layer warns).  Until 2026-11-15 this was \c FittedVxc, which
 //!     fitted \f$\varepsilon\f$ for E as well, on the fit's own mesh (lane S: retired, the cell is the periodic one's decorator now).
-static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, XCMeshShare& share, XCRoute xc,
-                                     std::vector<std::shared_ptr<ExFunctional>> parts, SpinGroup g, int lMax)
+using rmesh_t=std::shared_ptr<const ChargeDensity::tDensitySampler<double>>;
+static rmesh_t MolecularNonlinearMesh(const st_t& st, const rbs_t* bs, XCMeshShare& share, XCRoute xc, int lMax)
 {
     const qcMesh::MeshParams& mp=share.Params();
     const VxcFit resolved=MolecularVxcFit(xc.fit);
@@ -145,7 +159,6 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, XCMeshShar
                                     +" Vxc fit -- the fit is incomplete, so P rho is not rho[D], and XC must see rho[D] (doc/Pins.md pin 28; "
                                      "the rho axis retired 2026-11-15)");
     BasisSet::FitQuadrature quad=share.Quadrature();   // shared with a grid Hartree term on the same mesh (P2)
-    auto sum=std::make_shared<CompositeExFunctional>(std::move(parts));
     // The δ basis on the XC points: the whole term on the δ cell, the inner strategy of a fitted-potential one.  It is the share's:
     // one Φ table per block for the whole Hamiltonian (P2).
     auto makeDelta=[&]
@@ -164,7 +177,7 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, XCMeshShar
         });
         auto sampler=ChargeDensity::MakeMultipoleFittedPotentialSampler(delta, quad, MakeSiteMultipoles(st, *quad.GetMesh(), mp, lMax));
         RequireImposesAsAdmitted(*sampler, resolved, *st);
-        return new tVxc_DFT<double>(sum, std::move(sampler), g);
+        return sampler;
     }
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]() -> std::shared_ptr<const BasisSet::rFIT_SF_ABS>
     {
@@ -175,12 +188,12 @@ static rDynamic_HT* MolecularVxcTerm(const st_t& st, const rbs_t* bs, XCMeshShar
     {
         auto sampler=ChargeDensity::MakeDensitySampler(fb, std::move(quad));
         RequireImposesAsAdmitted(*sampler, resolved, *st);
-        return new tVxc_DFT<double>(sum, std::move(sampler), g);
+        return sampler;
     }
     const auto delta=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc points", makeDelta);
     auto sampler=ChargeDensity::MakeFittedPotentialSampler(delta, quad, fb);
     RequireImposesAsAdmitted(*sampler, resolved, *st);
-    return new tVxc_DFT<double>(sum, std::move(sampler), g);
+    return sampler;
 }
 
 //! The run's Coulomb fit from its slot (built by \a make on the first ask).
@@ -256,11 +269,15 @@ Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> part
     Add(new Ven(st));
 
     XCMeshShare xcMesh(st, bs, mp);   // the XC quadrature and its δ fit: ONE for both terms below (P2)
+    xcMesh.Quadrature();              // the nonlinear mesh's points, built BEFORE its first client term (its report scope first)
     Add(MolecularHartreeTerm(st, bs, xcMesh, coulomb, coulombFit));
 
-    // ONE XC term over the SUM of functionals (the gather is linear, so gather(a+b) is gather(a)+gather(b) for half the
-    // work); its energy is the functionals' own eps -- correlation's is NOT the exchange virial.
-    Add(MolecularVxcTerm(st, bs, xcMesh, fit, std::move(parts), g, ResolvedLMax(coulomb, true, qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree))));
+    // The Hamiltonian's nonlinear mesh, then ONE XC term on it over the SUM of functionals (the gather is linear, so gather(a+b) is
+    // gather(a)+gather(b) for half the work); its energy is the functionals' own eps -- correlation's is NOT the exchange virial.
+    rmesh_t mesh=MolecularNonlinearMesh(st, bs, xcMesh, fit, ResolvedLMax(coulomb, true, qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree)));
+    HoldNonlinearMesh(mesh);
+    ReportMeshClients(false);
+    Add(new tVxc_DFT<double>(std::make_shared<CompositeExFunctional>(std::move(parts)), std::move(mesh), g));
 }
 
 // Does any block of \a bs fall back to the PP terms' quadrature?  The same questions PP_Local and PP_NonLocal ask.
@@ -307,10 +324,15 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     if (sep) Add(new PP_NonLocal(st, std::move(sep), mp, ppMesh));   // KB separable projectors (null => local-only)
 
     XCMeshShare xcMesh(st, bs, mp);   // the XC quadrature and its δ fit: ONE for both terms below (P2)
+    xcMesh.Quadrature();              // the nonlinear mesh's points, built BEFORE its first client term (see Ham_DFT)
     Add(MolecularHartreeTerm(st, bs, xcMesh, coulomb, coulombFit));
 
-    // The run's functional (default LDA: Dirac exchange + VWN5 correlation), ONE XC term over the sum of its parts (see Ham_DFT).
-    Add(MolecularVxcTerm(st, bs, xcMesh, fit, OrDefaultLDA(std::move(xc)), g, ResolvedLMax(coulomb, true, qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree))));
+    // The run's functional (default LDA: Dirac exchange + VWN5 correlation), ONE XC term over the sum of its parts, a client of the
+    // Hamiltonian's nonlinear mesh (see Ham_DFT).
+    rmesh_t mesh=MolecularNonlinearMesh(st, bs, xcMesh, fit, ResolvedLMax(coulomb, true, qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree)));
+    HoldNonlinearMesh(mesh);
+    ReportMeshClients(ppMesh!=nullptr);
+    Add(new tVxc_DFT<double>(std::make_shared<CompositeExFunctional>(OrDefaultLDA(std::move(xc))), std::move(mesh), g));
 }
 
 Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,
@@ -427,7 +449,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
     // this builder's business: it states the MODEL (which functionals, polarized or not) and nothing else.
     // TWO CONCEPTS, TWO LINES (user, 2026-10-05): the INTEGRATION GRID and the Vxc FIT BASIS are different things even where they
     // coincide numerically (a delta fit on the quadrature's own points), so the quadrature line never says "fit".
-    std::cout<<"[XC quadrature] "
+    std::cout<<"[nonlinear mesh] "
              <<(becke ? "periodic BECKE atom-centred mesh (details on the [Becke grid] line)"
                       : delta ? "uniform cell mesh" : "uniform real-space raster of the density's {G} ball (details on the [uniform grid] line)")
              <<std::endl;
@@ -435,11 +457,11 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
              <<(delta ? "delta functions on the XC quadrature's points (the trivial fit: v_xc sampled at each point)"
                       : "plane waves on the {G} ball")
              <<std::endl;
-    // The ROUTE states the XC quadrature's kind one level into the caller's context (the facade's "hamiltonian"); the quadrature
-    // factory reopens the same "xcQuadrature" scope and its mesh builder adds the mesh's own fields beside it (a fit basis
+    // The ROUTE states the nonlinear mesh's kind one level into the caller's context (the facade's "hamiltonian"); the quadrature
+    // factory reopens the same "nonlinearMesh" scope and its mesh builder adds the mesh's own fields beside it (a fit basis
     // announces its own grid separately, in its term, as vxcFitGrid).  Relative, never a root-anchored key (user ruling 2026-11-02).
     {
-        qchem::report::Scope here("xcQuadrature");
+        qchem::report::Scope here("nonlinearMesh");   // V-NONLINEAR-MESH ruling 3(a): was "xcQuadrature", a clean cut
         qchem::report::Set("kind", becke ? "Becke" : delta ? "DeltaUniform" : "PlaneWave");
     }
     // ONE factory call still makes every representation decision.  On the δ route the run's XC QUADRATURE (mesh + atomic
@@ -505,6 +527,8 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
         std::shared_ptr<const ChargeDensity::DensitySampler> sampler=a1Sampler ? a1Sampler
                                                                     : ChargeDensity::MakeDensitySampler(XFitBasis, std::move(quadrature));
         RequireImposesAsAdmitted(*sampler, resolved, *st);
+        HoldNonlinearMesh(sampler);   // the Hamiltonian's nonlinear mesh (V-NONLINEAR-MESH): the XC term is one client of it
+        ReportMeshClients(false);
         Add(new cVxc_DFT(std::make_shared<CompositeExFunctional>(parts), std::move(sampler), GetSpinGroup()));
     }
     // DFT+U (programme step 5): one term carrying the whole manifold list, born on the forward/adjoint pair.

@@ -183,14 +183,8 @@ public:
     {return this->GetMatrix(bs,s,id);}
     //! Add this term's energy contribution (density matrix \a cd) into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
-    //! \brief The INTEGRATED per-site spin moments \f$\mu_A=\int w_A(\rho_\uparrow-\rho_\downarrow)\f$ of
-    //! \a cd, from a term that owns an ATOM-CENTRED partition.  EMPTY by default: most terms have no
-    //! basins to integrate over, and a caller must ask rather than assume (doc/OpenWork.md N1/T2).
-    //! \note THE PER-ITERATION VALUE DOES NOT COME THROUGH HERE (R1.0h, 2026-09-14): the owning term
-    //! writes it into \c ChargeBreakdown::siteMoments in its ENERGY pass, so the trace and the observer
-    //! read it off the \c EnergyBreakdown they already hold.  This face is the in-process QUESTION for a
-    //! density that has no energy pass -- the raw seed, measured before iteration 0 consumes it.
-    virtual rvec_t           SiteMoments(const tChargeDensity<T>*) const {return rvec_t();}
+    // No SiteMoments here since V-NONLINEAR-MESH (user ruling 2026-11-20 1(a)): the partition is the Hamiltonian's nonlinear mesh's,
+    // so tHamiltonian::SiteMoments asks the mesh; no term owns or answers it.
     virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
     //! \brief Does the VIRIAL THEOREM still hold with this term in the Hamiltonian?  (default yes)
     //!
@@ -416,22 +410,22 @@ public:
     //! through a DFT sibling to manufacture a D0).  tHamiltonianImp DERIVES this from the term lists (holds an
     //! HF term, or is relativistic) -- no concrete Hamiltonian declares it.  See project_numericcd_refactor.
     virtual bool            RequiresDensityMatrix() const {return false;}
-    //! \brief The INTEGRATED per-site spin moments of \a cd -- an AGGREGATE question, folded over the
-    //! terms exactly as \c IsVirialValid is, rather than exposing the term list.  EMPTY when no term owns
-    //! an atom-centred partition (a uniform-raster run has no basins).
+    //! \brief The INTEGRATED per-site spin moments of \a cd, \f$\mu_A=\int w_A(\rho_\uparrow-\rho_\downarrow)\f$, on the Hamiltonian's
+    //! NONLINEAR INTEGRATION MESH (V-NONLINEAR-MESH).  EMPTY when it holds no mesh, its mesh has no atom-centred partition (a
+    //! uniform raster has no basins), or the run resolves no spin.
     //!
-    //! WHY THE HAMILTONIAN ANSWERS IT.  The partition belongs to the XC quadrature, which lives behind an
+    //! WHY THE HAMILTONIAN ANSWERS IT.  The partition belongs to the mesh the Hamiltonian holds, which lives behind an
     //! \c .Internal. module a facade may not import (CLAUDE.md).  Folding it here keeps the capability
     //! reachable from above the SCF without opening the term list, and it is what lets
     //! \c SolidCalculation enforce the POSTCONDITION ON AN IMPOSITION: a run that imposes a magnetic
     //! (Shubnikov) group and then converges to zero moment has contradicted its own constraint.
     //! \note ONE caller since R1.0h: the facade's RAW-SEED probe.  Every SCF iterate's moments ride
-    //! \c EnergyBreakdown::charge instead (see \c tDynamic_HT::SiteMoments).
+    //! \c EnergyBreakdown::charge instead (the Hamiltonian's energy pass writes them there).
     virtual rvec_t          SiteMoments(const tChargeDensity<T>*) const {return rvec_t();}
     //! \brief The SCF's density convergence measure: how far \a out is from \a in, PER ELECTRON, 0 exactly at the fixed point.
     //!
-    //! The Hamiltonian answers because only it knows how: with a real-space quadrature in its term stack this is the L1 distance
-    //! on that quadrature; without one (HF, 1-electron, an auxiliary Vxc fit) it is the S-metric size of \f$\Delta D\f$,
+    //! The Hamiltonian answers because only it knows how: holding a nonlinear integration mesh, this is the L1 distance
+    //! on that mesh; without one (HF, 1-electron, an auxiliary Vxc fit) it is the S-metric size of \f$\Delta D\f$,
     //! \f$\sqrt{\mathrm{Tr}(\Delta D\,S\,\Delta D\,S)}/N\f$, and no mesh exists for the sake of this number (user 2026-11-04).
     //! The two are not comparable, so a client that prints one prints \c DeltaRhoLabel beside it.
     virtual double          DeltaRho(const tChargeDensity<T>* in, const tChargeDensity<T>* out) const=0;
