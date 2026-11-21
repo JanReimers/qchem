@@ -50,6 +50,7 @@ import qchem.Reporting;                          // report::GlobalReport (the ru
 import qchem.CrystalFiles;                       // CIF / POSCAR / extended xyz <-> one materials.json entry
 import qchem.StructureData;                      // the materials layers (shipped, user, workspace) and CellFromEntry
 import qchem.Pseudopotential.Set;                // PseudopotentialSet: the q each element resolves to (the one reader of the choice)
+import qchem.BasisMenu;                           // OrbitalBasisOffers: which orbital bases a structure admits (the Basis menu)
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94Import;   // a downloaded basis -> the BasisSetData layout
 
 //! \brief WHAT THE qcb_calc CALLS ASK OF A FINITE SYSTEM'S FACADE, a molecule's or a radial atom's, so one handle drives either.
@@ -1059,6 +1060,43 @@ extern "C" int qcb_materials(const char* req, char* out, int outlen)
     if (!out)
     {
         try { answer=MaterialsAnswer(req ? req : "").dump(); }
+        catch (const std::exception& e) { answer=nlohmann::ordered_json{{"error", e.what()}}.dump(); }
+        return int(answer.size());
+    }
+    write_error(answer.c_str(), out, outlen);
+    return int(answer.size());
+}
+
+extern "C" int qcb_basis_offers(const char* req, char* out, int outlen)
+{
+    static thread_local std::string answer;
+    if (!out)
+    {
+        try
+        {
+            const auto r=nlohmann::json::parse(req ? req : "");
+            std::vector<qchem::BasisOffer> offers;
+            if (r.contains("cell"))   // a materials.json entry (by value): the one parser every crystal goes through
+                offers=qchem::OrbitalBasisOffers(qchem::StructureData::CellFromEntry(r.at("cell").dump(), "the basis menu"));
+            else
+            {
+                const auto Z=r.at("numbers").get<std::vector<int>>();
+                const auto R=r.at("positions").get<std::vector<double>>();
+                if (R.size()!=3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
+                qchem::Molecule m;
+                for (size_t a=0;a<Z.size();a++) m.Insert(qchem::Site{Z[a], rvec3_t(R[3*a], R[3*a+1], R[3*a+2])});
+                const double tol=r.contains("symmetryTol") ? r["symmetryTol"].get<double>() : qchem::RunOptions{}.symmetryTol;
+                const std::string route=r.value("route", std::string());
+                if (!route.empty() && route!="molecule")
+                    throw std::invalid_argument("basis offers: 'route' may only name \"molecule\" (the one-atom molecule's menu)");
+                offers=route=="molecule" ? qchem::MoleculeBasisOffers(m, tol) : qchem::OrbitalBasisOffers(m, tol);
+            }
+            nlohmann::ordered_json a=nlohmann::ordered_json::array();
+            for (const auto& o : offers)
+                a.push_back({{"route",o.route},{"key",o.key},{"name",o.name},{"admitted",o.admitted},{"reason",o.reason},
+                             {"blockGroup",o.blockGroup},{"note",o.note},{"optIn",o.optIn}});
+            answer=nlohmann::ordered_json{{"offers",a}}.dump();
+        }
         catch (const std::exception& e) { answer=nlohmann::ordered_json{{"error", e.what()}}.dump(); }
         return int(answer.size());
     }
