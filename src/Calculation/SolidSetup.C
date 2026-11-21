@@ -84,6 +84,11 @@ void RequireConsistentSiteCharges(const RunOptions& o, const Structure& st);
 //! (the EXPLICIT two-channel singlet, nUp = nDown) on an odd \a nel, unless \c o.solid.spinsShareFermi lets one Fermi level set the channels
 //! (a metal: the counts are only the split the occupations start from).  Called by the resolve phase and by \c deck::Resolve.
 std::pair<int,int> SpinChannelCounts(const RunOptions& o, int nel);
+//! \brief THE PERIODIC GGA ROUTE (GGA stage 3), asked once the XC mesh and the imposition are resolved (\a xcMesh, \a imposed): a GGA runs
+//! on the FREE Becke δ point route, and every other periodic route REFUSES it by name (policy GGARoute).  A non-GGA passes silently.
+//! \a choseBecke: the setup itself picked the Becke mesh for an unstated one (the row says so).  CLIENTS: the setup (\c Resolve, on what it
+//! resolved) and \c deck::Vet (on the deck's stated mesh; an unstated one is what the setup will choose, Becke).
+void RouteSolidGradient(const RunOptions& o, const qcMesh::MeshParams& xcMesh, bool imposed, bool choseBecke=false);
 
 //! \brief HOW the molecular orbital basis of a GPW run is made at a geometry: the frozen RECIPE a geometry step rebuilds
 //! (doc/CalcNetworkReview.md §3.2 item 2, §7).
@@ -174,6 +179,7 @@ struct SolidSetup : Setup
     //! How \c mol was made, the trim FROZEN; empty when the caller handed a pre-built basis (that setup cannot follow moved atoms).
     std::optional<GaussianBasisRecipe>       recipe;
     bool planeWave = false;   //!< \c opts.solid.orbitalBasis is PlaneWave
+    bool ggaChoseBecke = false;   //!< a GGA with the XC mesh unstated: the setup chose the Becke delta route (policy GGARoute, GGA stage 3)
     //! \brief THE ANSATZ, decided ONCE from k and q (user ruling 2026-11-18): a TRIM block may run REAL (\c GPWParams::hamPreservesReal;
     //! a non-TRIM block is complex regardless).  False exactly when \c opts.solid.responseQMeshes plans a response.  The run's ONE source
     //! of the decision; there is no user knob (\c forceComplex retired 2026-11-19).  A test comparing real against complex on purpose sets

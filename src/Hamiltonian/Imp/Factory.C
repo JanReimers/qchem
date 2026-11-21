@@ -339,6 +339,9 @@ namespace qchem::Hamiltonian
                           std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
     {
         RequireAdmitted(*st,fit.fit,xcMesh);
+        if (xc.kind==XC::LibXCGGA)   // GGA stage 3: the periodic point route (the setup admitted it: policy GGARoute)
+            return new Ham_PW_DFT(st, bs, coulombFit, numElectrons, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard), {},
+                                  std::move(vxcAux), MakeGGAFunctional(xc));
         return new Ham_PW_DFT(st, bs, coulombFit, numElectrons, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard), MakeXCParts(xc),
                               std::move(vxcAux));
     }

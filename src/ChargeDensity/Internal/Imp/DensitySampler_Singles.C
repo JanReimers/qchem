@@ -608,14 +608,13 @@ Outcome<rmat3d_t,AD::NoGradient> SinglesDensitySampler::MakeMatrixVirial(const r
 template class tSinglesDensitySampler<double>;   // the molecular / atom path (V-XC-ONE-TERM)
 template class tSinglesDensitySampler<dcmplx>;   // the periodic path
 
-// ---- THE DENSITY-GRADIENT STRATEGY (GGA stage 2, the molecular point route) -----------------------------------------------------------
+// ---- THE DENSITY-GRADIENT STRATEGY (GGA stages 2-3, the point route) ------------------------------------------------------------------
 
-DeltaGradientProjector::DeltaGradientProjector(std::shared_ptr<const BasisSet::rFIT_SF_ABS> fb, const qcMesh::Mesh& mesh)
+template <class T> DeltaGradientProjector<T>::DeltaGradientProjector(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>> fb, const qcMesh::Mesh& mesh)
     : itsFit(std::move(fb))
-    , itsFace(dynamic_cast<const BasisSet::Integrals_GradOverlap3C<double,double>*>(itsFit.get()))   // abstract -> abstract
     , itsPoints(mesh.Points())
 {
-    if (!itsFace)
+    if (!dynamic_cast<const BasisSet::Integrals_GradOverlap3C<T,T>*>(itsFit.get()))   // abstract -> abstract
         throw std::invalid_argument("DeltaGradientProjector: the fit basis "+itsFit->Name()+" has no gradient 3-centre overlap "
                                     "(BasisSet::Integrals_GradOverlap3C), so this route cannot sample the density gradient");
     if (itsPoints.size()!=itsFit->GetNumFunctions())
@@ -627,16 +626,19 @@ DeltaGradientProjector::DeltaGradientProjector(std::shared_ptr<const BasisSet::r
     itsW3=std::make_shared<const rvec_t>(std::move(w3));
 }
 
-const ScreenedMatrixIntegrator<double>& DeltaGradientProjector::Integrator(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const
+template <class T> template <class U>
+const ScreenedMatrixIntegrator<U>& DeltaGradientProjector<T>::Integrator(const BasisSet::Orbital_DFT_IBS<U,T>& orb) const
 {
     std::lock_guard<std::mutex> lock(itsIntLock.m);   // filled from the parallel Fock pass
-    return itsInt.GetOrFill(orb.Instance(), [&]
+    return Cache<U>().GetOrFill(orb.Instance(), [&]
     {
-        return ScreenedMatrixIntegrator<double>(itsFace->GradOverlap3C(orb), itsW3);
+        const auto* face=dynamic_cast<const BasisSet::Integrals_GradOverlap3C<U,T>*>(itsFit.get());   // abstract -> abstract
+        if (!face) throw std::logic_error("DeltaGradientProjector: the fit basis has no gradient 3-centre overlap for this block scalar");
+        return ScreenedMatrixIntegrator<U>(face->GradOverlap3C(orb), itsW3);
     });
 }
 
-Projections DeltaGradientProjector::ProjectField(const ScalarFunction<double>& f) const
+template <class T> Projections DeltaGradientProjector<T>::ProjectField(const ScalarFunction<double>& f) const
 {
     const size_t n=itsPoints.size();
     rvec_t c(3*n);
@@ -648,8 +650,9 @@ Projections DeltaGradientProjector::ProjectField(const ScalarFunction<double>& f
     return Projections(std::move(c));
 }
 
-template <class T> tSinglesGradientSampler<T>::tSinglesGradientSampler(typename tSinglesDensitySampler<T>::fit_t fit, BasisSet::FitQuadrature quad)
-    : tSinglesDensitySampler<T>(fit, quad)
+template <class T, class Base> tSinglesGradientSampler<T,Base>::tSinglesGradientSampler(typename tSinglesDensitySampler<T>::fit_t fit,
+                                                                                         BasisSet::FitQuadrature quad)
+    : Base(fit, quad)
     , itsGrad(fit, *quad.GetMesh())
 {
     if (this->itsQuad.HasFold())
@@ -657,7 +660,7 @@ template <class T> tSinglesGradientSampler<T>::tSinglesGradientSampler(typename 
                                     "is a vector field the fold would have to rotate -- no fold does that yet, so a GGA runs free");
 }
 
-template <class T> rvec3vec_t tSinglesGradientSampler<T>::Unpack(const rvec_t& c) const
+template <class T, class Base> rvec3vec_t tSinglesGradientSampler<T,Base>::Unpack(const rvec_t& c) const
 {
     const size_t n=this->NumPoints();
     if (c.size()!=3*n) throw std::logic_error("tSinglesGradientSampler: a gradient projection is not three components per point");
@@ -665,16 +668,16 @@ template <class T> rvec3vec_t tSinglesGradientSampler<T>::Unpack(const rvec_t& c
     for (size_t g=0; g<n; g++) out[g]=rvec3_t(c[g], c[n+g], c[2*n+g]);
     return out;
 }
-template <class T> rvec3vec_t tSinglesGradientSampler<T>::ProjectGradDM(const tDM_CD<T>& dm) const
+template <class T, class Base> rvec3vec_t tSinglesGradientSampler<T,Base>::ProjectGradDM(const tDM_CD<T>& dm) const
 {
     return Unpack(dm.Project(itsGrad).Vector());   // the density contracts its D into the gradient tensor
 }
-template <class T> rvec3vec_t tSinglesGradientSampler<T>::ProjectGradField(const tChargeDensity<T>& cd) const
+template <class T, class Base> rvec3vec_t tSinglesGradientSampler<T,Base>::ProjectGradField(const tChargeDensity<T>& cd) const
 {
     return Unpack(itsGrad.ProjectField(cd).Vector());
 }
 
-template <class T> const rvec3vec_t& tSinglesGradientSampler<T>::GradRhoPol(const tChargeDensity<T>* cd, const Spin& s) const
+template <class T, class Base> const rvec3vec_t& tSinglesGradientSampler<T,Base>::GradRhoPol(const tChargeDensity<T>* cd, const Spin& s) const
 {
     assert(cd);
     if (s==Spin::None) throw std::logic_error("tSinglesGradientSampler::GradRhoPol: ask for a channel, not the total");
@@ -686,8 +689,9 @@ template <class T> const rvec3vec_t& tSinglesGradientSampler<T>::GradRhoPol(cons
         auto refuseMixed=[](const tChargeDensity<T>* c)
         {
             if (ExactSourceOf(c))
-                throw std::logic_error("tSinglesGradientSampler: a density mixed as a field with its exact source retained -- the point "
-                                       "route cannot sample its gradient exactly (that is the raster route's, GGA stage 4)");
+                throw std::logic_error("tSinglesGradientSampler: a density mixed as a field with its exact source retained (the cusp-deficit "
+                                       "route) -- its correction is a G-series whose gradient no field gives yet, so a GGA on the point "
+                                       "route needs rho[D] at the points (D-mixing); the policy layer should have chosen it");
         };
         if (auto* dmUp=dynamic_cast<const tDM_CD<T>*>(up))
         {
@@ -714,7 +718,7 @@ template <class T> const rvec3vec_t& tSinglesGradientSampler<T>::GradRhoPol(cons
     return s==Spin::Up ? itsGradUp : itsGradDn;
 }
 
-template <class T> const rvec_t& tSinglesGradientSampler<T>::Rho(const tChargeDensity<T>* cd) const
+template <class T, class Base> const rvec_t& tSinglesGradientSampler<T,Base>::Rho(const tChargeDensity<T>* cd) const
 {
     assert(cd);
     if (cd->Version()!=itsRhoSumVersion)
@@ -725,24 +729,37 @@ template <class T> const rvec_t& tSinglesGradientSampler<T>::Rho(const tChargeDe
     return itsRhoSum;
 }
 
-template <class T> void tSinglesGradientSampler<T>::WarmForDensity(const tChargeDensity<T>* cd, bool) const
+template <class T, class Base> void tSinglesGradientSampler<T,Base>::WarmForDensity(const tChargeDensity<T>* cd, bool) const
 {
     this->RhoPol(cd, Spin::Up); this->RhoPol(cd, Spin::Down);
     GradRhoPol(cd, Spin::Up);   GradRhoPol(cd, Spin::Down);
 }
 
-template <class T> hmat_t<T> tSinglesGradientSampler<T>::Matrix(const tobs_t<T>* bs, const rvec_t& v, const rvec3vec_t& w) const
+template <class T, class Base> template <class U>
+hmat_t<U> tSinglesGradientSampler<T,Base>::MatrixVW(const tobs_t<U>* bs, const rvec_t& v, const rvec3vec_t& w) const
 {
     const size_t n=this->NumPoints();
     if (v.size()!=n || w.size()!=n) throw std::invalid_argument("tSinglesGradientSampler::Matrix: v and w must be one entry per point");
     rvec_t c(3*n);
     for (size_t g=0; g<n; g++) {c[g]=w[g].x; c[n+g]=w[g].y; c[2*n+g]=w[g].z;}
-    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,T>&>(*bs);   // the DFT tier, as the LDA Matrix asks it
-    hmat_t<T> H=this->tSinglesDensitySampler<T>::Matrix(bs, v);                  // v chi_i chi_j, through the LDA path
-    H+=itsGrad.Integrator(orb).Adjoint(c);                                       // + w . grad(chi_i chi_j), through the gradient tensor
+    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,T>&>(*bs);   // the DFT tier, as the LDA Matrix asks it
+    hmat_t<U> H=this->template MatrixT<U>(bs, v);                                // v chi_i chi_j, through the LDA path
+    H+=itsGrad.template Integrator<U>(orb).Adjoint(c);                           // + w . grad(chi_i chi_j), through the gradient tensor
     return H;
 }
+template <class T, class Base> hmat_t<T> tSinglesGradientSampler<T,Base>::Matrix(const tobs_t<T>* bs, const rvec_t& v, const rvec3vec_t& w) const
+{
+    return MatrixVW<T>(bs, v, w);
+}
 
-template class tSinglesGradientSampler<double>;   // stage 2: the molecular point route (the Bloch axis is stage 3)
+template class DeltaGradientProjector<double>;
+template class DeltaGradientProjector<dcmplx>;
+template class tSinglesGradientSampler<double>;                          // stage 2: the molecular point route
+template class tSinglesGradientSampler<dcmplx, SinglesDensitySampler>;   // stage 3: the periodic point route
+// The member templates the interface's inline faces call (a class instantiation does not reach them): each lineage's block scalars.
+template const ScreenedMatrixIntegrator<double>& DeltaGradientProjector<double>::Integrator<double>(const BasisSet::Orbital_DFT_IBS<double,double>&) const;
+template const ScreenedMatrixIntegrator<double>& DeltaGradientProjector<dcmplx>::Integrator<double>(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const;
+template const ScreenedMatrixIntegrator<dcmplx>& DeltaGradientProjector<dcmplx>::Integrator<dcmplx>(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const;
+template hmat_t<double> tSinglesGradientSampler<dcmplx, SinglesDensitySampler>::MatrixVW<double>(const tobs_t<double>*, const rvec_t&, const rvec3vec_t&) const;
 
 } //namespace

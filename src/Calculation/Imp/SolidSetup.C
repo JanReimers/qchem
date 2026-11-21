@@ -119,14 +119,54 @@ void RequireConsistentSiteCharges(const RunOptions& o, const Structure& st)
 //  before spending).  The words are the deck's (xc.fit, basis.ecut), with the C++ field beside them.
 static void RefuseUnrealizedRoutes(const RunOptions& o)
 {
-    RefuseUnroutedGradient(*o.model, "a periodic cell");   // a GGA: built, but no periodic route samples the gradient yet (GGA stage 1)
-    if (*o.model!=Hamiltonian::Model::LDA && *o.model!=Hamiltonian::Model::PADE)
+    // (A GGA's route -- the periodic point route of GGA stage 3 -- is decided by RouteSolidGradient, once the XC mesh is resolved.)
+    const bool gga=Hamiltonian::IsDFT(*o.model) && Hamiltonian::ConsumesDensityGradient(Hamiltonian::ModelToXC(*o.model));
+    if (*o.model!=Hamiltonian::Model::LDA && *o.model!=Hamiltonian::Model::PADE && !gga)
         policy::Refuse("SolidFunctional", "model "+Hamiltonian::Name(*o.model)+" on a periodic cell",
-                       "a periodic run is Kohn-Sham LDA with a pseudopotential; its functionals are LDA (Dirac + VWN5) and PADE -- state one");
+                       "a periodic run is Kohn-Sham DFT with a pseudopotential; its functionals are LDA (Dirac + VWN5), PADE and the GGAs "
+                       "(PBE, PBEsol, BLYP) -- state one");
     // (xc.fit Auxiliary on a periodic cell was refused here until V-XC-ONE-TERM step 6 realized the periodic A1 fit, 2026-11-15.)
     if (o.solid.orbitalBasis==RunOptions::Solid::OrbitalBasis::PlaneWave && !(o.solid.planeWaveEcut>0.0))
         policy::Refuse("PlaneWaveEcut", "basis.family planeWave (RunOptions::orbitalBasis) with no cutoff",
                        "a plane-wave basis is its cutoff -- state basis.ecut (planeWaveEcut) > 0 Ha");
+}
+
+// THE PERIODIC GGA ROUTE (declared in the interface): the density gradient sampled through the δ basis's gradient 3-centre overlap over its
+// dense Φ tables; every other periodic route refuses with what to state instead.  An admitted GGA files a "choose" row.
+void RouteSolidGradient(const RunOptions& o, const qcMesh::MeshParams& xcMesh, bool imposed, bool choseBecke)
+{
+    using Hamiltonian::VxcFit; using M=SCFParams::Mixing;
+    if (!Hamiltonian::IsDFT(*o.model) || !Hamiltonian::ConsumesDensityGradient(Hamiltonian::ModelToXC(*o.model))) return;
+    const std::string what=Hamiltonian::Describe(Hamiltonian::ModelToXC(*o.model))+" on a periodic cell";
+    auto refuse=[&](const std::string& with, const std::string& why){policy::Refuse("GGARoute", what+" "+with, why);};
+    if (o.solid.orbitalBasis==RunOptions::Solid::OrbitalBasis::PlaneWave)
+        refuse("with plane-wave orbitals", "a GGA reads the density gradient, and the plane-wave route does not sample it yet (GGA stage 4) "
+               "-- state the Gaussian (GPW) orbital basis");
+    if (xcMesh.cellKind!=qcMesh::UnitCellKind::Becke)
+        refuse("on a uniform XC mesh", "the raster route does not sample the density gradient yet (GGA stage 4) -- state the Becke XC mesh "
+               "or leave xc.mesh unstated (a GGA then takes the Becke delta route)");
+    const VxcFit fit= o.vxcFit==VxcFit::Auto ? VxcFit::Delta : o.vxcFit;
+    if (fit!=VxcFit::Delta)
+        refuse("with a non-delta Vxc fit", "only the delta Vxc fit samples the density gradient on a Becke mesh (GGA stage 3) -- state the delta "
+               "fit (the default)");
+    if (imposed)
+        refuse("with imposed symmetry", "the imposed fold star-averages rho over orbits, and the density gradient is a vector field the fold "
+               "would have to rotate -- no fold does that yet, so a GGA runs free: state imposeSymmetry false (the default)");
+    if (o.solid.xcOrbitalTables==policy::XCOrbitalTables::Images)
+        refuse("with the shared-image orbital tables", "the image realization has no gradient tables yet -- state xcOrbitalTables dense or "
+               "auto (a GGA takes the dense tables)");
+    if (o.scf.Mixer==M::Kerker || o.scf.KerkerG0>0.0)
+        refuse("with Kerker mixing", "a Kerker-mixed density reaches XC as rho_mix + a cusp-deficit G-series, whose gradient no field gives "
+               "yet -- state Pulay on D (the default: mixer Auto, KerkerG0 0)");
+    if (!o.solid.responseQMeshes.empty())
+        refuse("with a linear response", "the GGA response kernel (v2sigma, delta grad rho) is GGA stage 6 -- state an LDA for a response run");
+    if (choseBecke)
+        policy::Report("GGARoute", what+": chose the Becke delta point route (the XC mesh was not stated)", policy::Verdict::Choose,
+            "a GGA needs grad rho at the XC points and the raster route samples none yet (GGA stage 4), so the run takes the free Becke delta "
+            "route: grad rho through the delta basis's gradient 3-centre overlap, H = dE/dD by the {v, w} gather");
+    else
+        policy::Report("GGARoute", what+": the free Becke delta point route samples grad rho (GGA stage 3)", policy::Verdict::Choose,
+            "grad rho through the delta basis's gradient 3-centre overlap over its dense Phi tables, H = dE/dD by the {v, w} gather");
 }
 
 std::pair<int,int> SpinChannelCounts(const RunOptions& o, int nel)
@@ -475,11 +515,18 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     if (s->planeWave && opts.xcMesh->cellKind==qcMesh::UnitCellKind::Auto)
         s->xcMesh = qcMesh::MeshParams{.cellKind=qcMesh::UnitCellKind::Uniform};
     else
-        s->xcMesh = qcMesh::ResolveXCMesh(*opts.xcMesh, GatherSharpness(lat, *s->mol, *s->pp, s->imposed),
-                                          theRunPolicy().BeckeXC());
+    {
+        // A GGA with the XC mesh UNSTATED: the code picks the route that samples grad rho, the Becke delta point route (GGA stage 3),
+        // rather than make the user state it (CLAUDE.md priority 3, controller 2026-11-21); RouteSolidGradient reports the choice.
+        qcMesh::MeshParams asked=*opts.xcMesh;
+        const bool gga=Hamiltonian::IsDFT(*opts.model) && Hamiltonian::ConsumesDensityGradient(Hamiltonian::ModelToXC(*opts.model));
+        if (gga && !s->planeWave && asked.cellKind==qcMesh::UnitCellKind::Auto) {asked.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke); s->ggaChoseBecke=true;}   // the default IS the Becke recipe under Auto
+        s->xcMesh = qcMesh::ResolveXCMesh(asked, GatherSharpness(lat, *s->mol, *s->pp, s->imposed), theRunPolicy().BeckeXC());
+    }
     // The Vxc product space's admission (pin 30), asked of the Hamiltonian's rule HERE, before the Hamiltonian is built: the
     // Factory would throw the same reason later, after the basis and its fits.
     RequireVxcAdmitted(*st, opts.vxcFit, s->xcMesh, "cell");
+    RouteSolidGradient(opts, s->xcMesh, s->imposed, s->ggaChoseBecke);   // a GGA: the free Becke delta point route, or a named refusal (GGA stage 3)
     {   // the rho axis, on the fit the Hamiltonian RESOLVES (Ham_PW_DFT: Auto -> Delta on a Becke mesh, else the plane-wave fit)
         using Hamiltonian::VxcFit;
         const bool becke=s->xcMesh.cellKind==qcMesh::UnitCellKind::Becke;

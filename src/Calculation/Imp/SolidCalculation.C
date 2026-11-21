@@ -643,7 +643,9 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         // The XC route carries the δ fit's orbital-table door: the user's stated xcOrbitalTables, judged at the fit factory on both
         // realizations' footprints (qchem.PhiTablesPolicy; user ruling 2026-11-19, option (a)).
         qchem::Hamiltonian::XCRoute route(opts.vxcFit, opts.xcRho);
-        route.phiTables=qchem::policy::MakeXCOrbitalTablesChooser(opts.solid.xcOrbitalTables);
+        const bool gga=qchem::Hamiltonian::IsDFT(*opts.model) && qchem::Hamiltonian::ConsumesDensityGradient(qchem::Hamiltonian::ModelToXC(*opts.model));
+        route.phiTables= gga ? qchem::policy::MakeGGAOrbitalTablesChooser()   // the image tables have no gradient yet (GGA stage 3)
+                             : qchem::policy::MakeXCOrbitalTablesChooser(opts.solid.xcOrbitalTables);
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
             itsImp->st, itsImp->bs.get(), itsImp->coulombFit, double(itsImp->setup->opts.Nelec), *itsImp->setup->pp, xc, route, hubbard,

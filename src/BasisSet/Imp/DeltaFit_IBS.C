@@ -738,18 +738,18 @@ template <class T> template <class U> rvec_t DeltaFit_IBS<T>::ForwardFactoredT(c
 // ∂_aΦ_gi = ∂_aχ_i(r_g) from the block's own analytic gradient, built once per block at the first GGA refresh (geometry-fixed, so the
 // lazy-caching rule allows it) and threaded over point chunks exactly as the Φ table is: each chunk writes its own rows, bit-identical at
 // any thread count.
-static std::array<mat_t<double>,3> MakeGradPhiAt(const Orbital_1E_IBS<double>& bs, const rvec3vec_t& R)
+template <class U> static std::array<mat_t<U>,3> MakeGradPhiAt(const Orbital_1E_IBS<U>& bs, const rvec3vec_t& R)
 {
     qchem::report::Timed timed("setup: XC-mesh grad-Phi tables");
     const size_t n=bs.GetVectorSize(), npts=R.size();
-    std::array<mat_t<double>,3> G{mat_t<double>(npts,n), mat_t<double>(npts,n), mat_t<double>(npts,n)};
+    std::array<mat_t<U>,3> G{mat_t<U>(npts,n), mat_t<U>(npts,n), mat_t<U>(npts,n)};
     const size_t nchunk=std::max<size_t>(1, npts/256), nblk=(npts+nchunk-1)/nchunk;
     auto fill=[&](size_t b)
     {
         const size_t lo=b*nchunk, hi=std::min(npts, lo+nchunk);
         for (size_t g=lo; g<hi; g++)
         {
-            const vec3vec_t<double> d=bs.Gradient(R[g]);
+            const vec3vec_t<U> d=bs.Gradient(R[g]);
             if (d.size()!=n) throw std::logic_error("DeltaFit_IBS: a block's gradient at a point is not one 3-vector per function");
             for (size_t i=0; i<n; i++) {G[0](g,i)=d[i].x; G[1](g,i)=d[i].y; G[2](g,i)=d[i].z;}
         }
@@ -776,73 +776,84 @@ static std::array<mat_t<double>,3> MakeGradPhiAt(const Orbital_1E_IBS<double>& b
     return G;
 }
 
-template <class T> auto DeltaFit_IBS<T>::GradTable(const Orbital_1E_IBS<double>& orb) const -> const GradRows&
+template <class T> template <class U> auto DeltaFit_IBS<T>::GradTable(const Orbital_1E_IBS<U>& orb) const -> const GradRows<U>&
 {
-    return itsGradPhiR.GetOrFill(orb.Instance(), [this,&orb]
+    return GradCache<U>().GetOrFill(orb.Instance(), [this,&orb]
     {
-        if (itsRealValues)
+        if (std::is_same_v<U,double> && itsRealValues)
             throw std::logic_error("DeltaFit_IBS: this basis's factory evaluates its blocks itself (the atom's radial route), and that route "
                                    "has no density gradient yet -- a GGA on it should have been refused (policy GGARoute)");
-        GradRows G=MakeGradPhiAt(orb, itsQuad.GetMesh()->Points());
-        report::Accumulate("cache", "deltaGradPhiBytes", 3.0*double(G[0].rows())*double(G[0].columns())*sizeof(double));
+        GradRows<U> G=MakeGradPhiAt<U>(orb, itsQuad.GetMesh()->Points());
+        report::Accumulate("cache", "deltaGradPhiBytes", 3.0*double(G[0].rows())*double(G[0].columns())*sizeof(U));
         return G;
     });
 }
 
-template <class T> const PairProjection<double>& DeltaFit_IBS<T>::GradTensor(const Orbital_DFT_IBS<double,double>& orb) const
+template <class T> template <class U> const PairProjection<U>& DeltaFit_IBS<T>::GradTensor(const Orbital_DFT_IBS<U,T>& orb) const
 {
-    return itsGO3R.GetOrFill(orb.Instance(), [this,&orb]
+    return GradTensorCache<U>().GetOrFill(orb.Instance(), [this,&orb]
     {
-        const PhiRows<double>& P=Table(itsPhiR, orb);
-        if (!P.IsDense())
-            throw std::logic_error("DeltaFit_IBS: the gradient tensor is built on the DENSE Phi table; the images realization gains it in "
-                                   "GGA stage 3");
-        const GradRows& G=GradTable(orb);
-        const mat_t<double>& Pd=P.dense;   // address-stable: the slot and this record share the block's key
-        PairProjection<double> g;
-        g.applyRaw       =[this,&Pd,&G](const hmat_t<double>& D){return GradForward(Pd, G, D);};
-        g.applyRawAdjoint=[this,&Pd,&G](const rvec_t& c)        {return GradAdjoint(Pd, G, c);};
+        const PhiRows<U>* P=nullptr;
+        if constexpr (std::is_same_v<U,double>) P=&Table(itsPhiR, orb);
+        else                                    P=&Table(itsPhi , orb);
+        if (!P->IsDense())
+            throw std::logic_error("DeltaFit_IBS: the gradient tensor is built on the DENSE Phi table; the shared-image realization has no "
+                                   "gradient yet (the policy layer chooses the dense tables for a GGA)");
+        const GradRows<U>& G=GradTable<U>(orb);
+        const mat_t<U>& Pd=P->dense;   // address-stable: the slot and this record share the block's key
+        PairProjection<U> g;
+        g.applyRaw       =[this,&Pd,&G](const hmat_t<U>& D){return GradForward<U>(Pd, G, D);};
+        g.applyRawAdjoint=[this,&Pd,&G](const rvec_t& c)   {return GradAdjoint<U>(Pd, G, c);};
         return g;
     });
 }
 
-template <class T> rvec_t DeltaFit_IBS<T>::GradForward(const mat_t<double>& P, const GradRows& G, const hmat_t<double>& D) const
+template <class T> template <class U> rvec_t DeltaFit_IBS<T>::GradForward(const mat_t<U>& P, const GradRows<U>& G, const hmat_t<U>& D) const
 {
     const size_t npts=P.rows(), n=P.columns();
     if (D.rows()!=n) throw std::invalid_argument("DeltaFit_IBS::GradForward: D is not over the block's functions");
     qchem::report::Timed timed("scf: XC-mesh grad-rho sampling (all iterations)");
-    const mat_t<double> PD=P*mat_t<double>(D);   // (Phi D)_gi; a plain D keeps the GEMM BLAS-dispatchable (see ForwardDenseT)
+    const mat_t<U> PD=P*mat_t<U>(D);   // (Phi D)_gi; a plain D keeps the GEMM BLAS-dispatchable (see ForwardDenseT)
     rvec_t out(3*npts, 0.0);
     for (int a=0; a<3; a++)
         for (size_t g=0; g<npts; g++)
         {
-            double acc=0.0;
-            for (size_t i=0; i<n; i++) acc+=G[a](g,i)*PD(g,i);
-            out[a*npts+g]=2.0*acc;   // d_a(chi_i chi_j) gives two equal halves for a symmetric D
+            U acc{};
+            for (size_t i=0; i<n; i++)
+                if constexpr (std::is_same_v<U,dcmplx>) acc+=G[a](g,i)*std::conj(PD(g,i));
+                else                                    acc+=G[a](g,i)*PD(g,i);
+            out[a*npts+g]=2.0*std::real(acc);   // grad(chi_i conj chi_j): two conjugate halves for a Hermitian D
         }
     return out;
 }
 
-template <class T> hmat_t<double> DeltaFit_IBS<T>::GradAdjoint(const mat_t<double>& P, const GradRows& G, const rvec_t& c) const
+template <class T> template <class U> hmat_t<U> DeltaFit_IBS<T>::GradAdjoint(const mat_t<U>& P, const GradRows<U>& G, const rvec_t& c) const
 {
     const size_t npts=P.rows(), n=P.columns();
     if (c.size()!=3*npts) throw std::invalid_argument("DeltaFit_IBS::GradAdjoint: the field is not three components on my points");
     const rvec_t& w=itsQuad.GetMesh()->Weights();
     qchem::report::Timed timed("scf: XC-mesh quadrature H_xc gradient part (all iterations)");
-    mat_t<double> C(npts, n);
+    mat_t<U> C(npts, n);
     for (size_t g=0; g<npts; g++)
     {
         const double cx=w[g]*c[g], cy=w[g]*c[npts+g], cz=w[g]*c[2*npts+g];
         for (size_t i=0; i<n; i++) C(g,i)=cx*G[0](g,i)+cy*G[1](g,i)+cz*G[2](g,i);
     }
-    const mat_t<double> M=blazem::trans(P)*C;   // M_ij = sum_g Phi_gi C_gj; H = M + M^T
-    hmat_t<double> H(n);
-    for (size_t i=0; i<n; i++) for (size_t j=i; j<n; j++) H(i,j)=M(i,j)+M(j,i);
+    const mat_t<U> M=blazem::trans(blazem::conj(P))*C;   // M_ij = sum_g conj(Phi_gi) C_gj; H = M + M^dagger
+    hmat_t<U> H(n);
+    for (size_t i=0; i<n; i++)
+        for (size_t j=i; j<n; j++)
+            if constexpr (std::is_same_v<U,dcmplx>) H(i,j)=M(i,j)+std::conj(M(j,i));
+            else                                    H(i,j)=M(i,j)+M(j,i);
     return H;
 }
 
 template class DeltaFit_IBS<dcmplx>;
 template class DeltaFit_IBS<double>;
+// The gradient tensor's member templates, one per (fit axis, block scalar) the faces serve (a class instantiation does not reach them).
+template const PairProjection<double>& DeltaFit_IBS<double>::GradTensor<double>(const Orbital_DFT_IBS<double,double>&) const;
+template const PairProjection<dcmplx>& DeltaFit_IBS<dcmplx>::GradTensor<dcmplx>(const Orbital_DFT_IBS<dcmplx,dcmplx>&) const;
+template const PairProjection<double>& DeltaFit_IBS<dcmplx>::GradTensor<double>(const Orbital_DFT_IBS<double,dcmplx>&) const;
 // The real-TRIM record of the Bloch fit (RealTensor, inline in the interface, reaches it from other TUs): named here so it is emitted.
 template const PairProjection<double>& DeltaFit_IBS<dcmplx>::Tensor<double>(const InstanceSlotMap<PairProjection<double>>&,
                                                                            const InstanceSlotMap<PhiRows<double>>&, const Orbital_1E_IBS<double>&) const;

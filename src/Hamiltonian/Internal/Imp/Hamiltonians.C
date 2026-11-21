@@ -409,7 +409,7 @@ Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& sp
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const Pseudopotential::LocalPotential* loc,
                             const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
                             XCRoute route, std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> functional,
-                            std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
+                            std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux, std::shared_ptr<const GGAFunctional> gga)
 {
     // Build the functionals FIRST: their GridCutoffFactor() sets how dense the fit grid must be (the CP2K
     // REL_CUTOFF seam).  The parts share ONE Vxc fit basis, so it takes the DENSEST of them.  Default LDA: Dirac + VWN5.
@@ -567,12 +567,26 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
         // assembly around them.
         qchem::report::Timed timed("setup: XC term assembly (Phi tables are its child)");
         // The sampler is made HERE (not inside MakeVxcTerm) so the built realization can be checked against the admission (pin 30 stage 2).
+        if (gga)
+        {   // GGA stage 3: the δ fit's density-gradient strategy and the GGA term on it (the Hamiltonian holds it as its nonlinear mesh).
+            if (resolved!=VxcFit::Delta)
+                throw std::invalid_argument("Ham_PW_DFT: a GGA samples the density gradient on the delta Vxc fit only (GGA stage 3) -- the "
+                                            "setup should have refused this fit (policy GGARoute)");
+            auto gsampler=ChargeDensity::MakeDensityGradientSampler(XFitBasis, std::move(quadrature));
+            RequireImposesAsAdmitted(*gsampler, resolved, *st);
+            HoldNonlinearMesh(gsampler);
+            ReportMeshClients(false, "Vxc_DFT_GGA");
+            Add(new tVxc_DFT_GGA<dcmplx>(std::move(gga), std::move(gsampler), GetSpinGroup()));
+        }
+        else
+        {
         std::shared_ptr<const ChargeDensity::DensitySampler> sampler=a1Sampler ? a1Sampler
                                                                     : ChargeDensity::MakeDensitySampler(XFitBasis, std::move(quadrature));
         RequireImposesAsAdmitted(*sampler, resolved, *st);
         HoldNonlinearMesh(sampler);   // the Hamiltonian's nonlinear mesh (V-NONLINEAR-MESH): the XC term is one client of it
         ReportMeshClients(false);
         Add(new cVxc_DFT(std::make_shared<CompositeExFunctional>(parts), std::move(sampler), GetSpinGroup()));
+        }
     }
     // DFT+U (programme step 5): one term carrying the whole manifold list, born on the forward/adjoint pair.
     if (!hubbard.empty()) Add(new Hubbard_U(st, std::move(hubbard), GetSpinGroup()));
@@ -613,10 +627,11 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcm
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::vector<std::pair<std::string,int>>& species,
                        const std::string& functional, const qcMesh::MeshParams& xcMesh, XCRoute fit, SpinGroup g,
                        std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc,
-                       std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
+                       std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux, std::shared_ptr<const GGAFunctional> gga)
     : cHamiltonianImp(g)
 {
-    BuildFromGTH(st, bs, coulombFit, numElectrons, species, functional, xcMesh, fit, std::move(hubbard), std::move(xc), std::move(vxcAux));
+    BuildFromGTH(st, bs, coulombFit, numElectrons, species, functional, xcMesh, fit, std::move(hubbard), std::move(xc), std::move(vxcAux),
+                 std::move(gga));
 }
 
 // Look up each (element, valence) from the GTH database and build + OWN a per-Z router model (one
@@ -626,7 +641,7 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcm
 void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::vector<std::pair<std::string,int>>& species,
                               const std::string& functional, const qcMesh::MeshParams& xcMesh, XCRoute fit,
                               std::vector<HubbardManifold> hubbard, std::vector<std::shared_ptr<ExFunctional>> xc,
-                              std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
+                              std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux, std::shared_ptr<const GGAFunctional> gga)
 {
     std::shared_ptr<const Pseudopotential::LocalPotential> loc;   // the ONE builder the GPW facade sizes its ladder from (V-BS-RASTER)
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
@@ -645,7 +660,8 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitS
     }
     itsOwnedLocal=loc;
     itsOwnedSep  =sep;
-    BuildTerms(st, bs, coulombFit, numElectrons, loc.get(), sep.get(), xcMesh, fit, std::move(hubbard), std::move(xc), std::move(vxcAux));
+    BuildTerms(st, bs, coulombFit, numElectrons, loc.get(), sep.get(), xcMesh, fit, std::move(hubbard), std::move(xc), std::move(vxcAux),
+               std::move(gga));
 }
 
 Ham_DHF_1E::Ham_DHF_1E(const st_t& st)

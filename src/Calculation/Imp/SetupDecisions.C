@@ -6,6 +6,7 @@ module;
 #include <nlohmann/json.hpp>
 module qchem.SetupDecisions;
 import qchem.Policy;                         // policy::Refuse / RefuseAs: each refusal files its row
+import qchem.PeriodicTable;                  // GetZ: the seed library is keyed by Z
 
 namespace qchem
 {
@@ -79,6 +80,27 @@ RunSeed ResolveRunSeed(ChargeDensity::SeedStrategy stated, const Structure& st, 
 {
     RunSeed r;
     if (pp) r.key=SeedKeyOf(*pp, st);
+    // A SEED IS A GUESS (GGA stage 3): a run whose functional the seed library does not hold (a GGA: the atom route that generates entries
+    // has no GGA yet) but whose LDA entries it does, for the same pseudopotential variants, starts from the LDA atoms' densities -- a far
+    // better guess than the core Hamiltonian, and no part of the answer.  Reported, so the run says which densities it started from.
+    if (pp && r.key.functional!="LDA")
+    {
+        bool own=true, lda=true;
+        ChargeDensity::SeedKey ldaKey=r.key; ldaKey.functional="LDA";
+        for (const auto& [element, q] : pp->Species(st))
+        {
+            const int Z=(int)thePeriodicTable().GetZ(element);
+            own = own && SeedLibraryCovers(r.key, Z);
+            lda = lda && SeedLibraryCovers(ldaKey, Z);
+        }
+        if (!own && lda)
+        {
+            policy::Report("SeedFunctional", "the seed starts from the LDA atoms' densities (the library holds no "+r.key.functional+" entries)",
+                policy::Verdict::Choose, "a seed is a guess, not part of the answer: the seed library lacks the run's functional for these species "
+                "but holds their LDA atoms at the same pseudopotential variants, a far better start than the core-Hamiltonian guess");
+            r.key.functional="LDA";
+        }
+    }
     r.key.siteCharges=siteCharges;
     r.key.siteSpins=siteSpins;
     r.seed=ResolveSeed(stated, st, {.densityFock = densityFock, .periodic = st.Admits(qcMesh::ImposedSymmetry::Translations),
