@@ -260,6 +260,32 @@ public:
     }
 };
 
+//! \brief THE DENSITY-GRADIENT QUADRATURE (GGA stage 2; GGA design note §3b): a \c tDensitySampler that ALSO samples \f$\nabla\rho_\sigma\f$
+//! at its points and gathers a GGA's \f$\{v,\mathbf{w}\}\f$ field back.
+//!
+//! THE GRADIENT IS A TYPE, NOT A RUN-TIME PROPERTY (user, 2026-11-20: "if GGA/PBE needs a gradient of object X, grad op is either 1) In the
+//! X interface or b) not in the X interface.  If b the compile fails").  So it is its OWN face: only a strategy that really produces
+//! \f$\nabla\rho\f$ derives it (Singles on a real δ basis in stage 2), a GGA term's constructor DEMANDS one, and a strategy without it simply
+//! has no \c GradRhoPol -- never a pure virtual answered by a throw on the common face.
+//!
+//! \f$\rho\f$ and \f$\nabla\rho\f$ come off ONE cache keyed by the density's serial, and the scalar \c Rho is the sum of the channels: an
+//! engine of this kind always samples spin-resolved (an unpolarized density collapses to \f$\rho/2\f$, \f$\nabla\rho/2\f$ per channel, pin 5),
+//! so the scalar and spin caches cannot disagree (the cross-invalidation warning on the LDA strategies does not apply here).
+template <class T> class tDensityGradientSampler
+    : public virtual tDensitySampler<T>
+{
+public:
+    using tDensitySampler<T>::Matrix;
+    //! \f$\nabla\rho_\sigma(r_g)\f$ for \a cd's current serial, cached beside \c RhoPol.  A spin-agnostic density answers \f$\nabla\rho/2\f$ per
+    //! channel.  THROWS for a density whose gradient this strategy cannot give exactly (a mixed field: GGA stage 4).
+    virtual const rvec3vec_t& GradRhoPol(const tChargeDensity<T>* cd, const Spin& s) const=0;
+    //! \f$H_{ij}=\sum_g w_g\left[v_g\,\chi_i\chi_j+\mathbf{w}_g\cdot\nabla(\chi_i\chi_j)\right](r_g)\f$ -- the exact adjoint of (\c RhoPol, \c GradRhoPol)
+    //! on this block, so \f$H=\partial E/\partial D\f$ for \f$E=\sum_g w_g\,e(\rho,\sigma)\f$ with \f$v=\partial e/\partial\rho\f$ and
+    //! \f$\mathbf{w}_\sigma=2v_{\sigma\sigma\sigma}\nabla\rho_\sigma+v_{\sigma\uparrow\downarrow}\nabla\rho_{\bar\sigma}\f$.  \a w is REQUIRED (the LDA call is
+    //! \c Matrix(bs, v)): there is no "empty w means LDA".
+    virtual hmat_t<T> Matrix(const tobs_t<T>* bs, const rvec_t& v, const rvec3vec_t& w) const=0;
+};
+
 //! \brief The PERIODIC quadrature: \c tDensitySampler<dcmplx> plus the faces only a Bloch run has -- the linear-response
 //! transition pair (R2/R3) and the real TRIM block (Step 3c).  Its name is the one every periodic client already spells.
 class DensitySampler
@@ -317,6 +343,12 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad={});
 //! reaches XC (pin 28; the projected strategy was deleted with the ρ axis, 2026-11-15) -- its cell is \c MakeFittedPotentialSampler.
 std::shared_ptr<const tDensitySampler<double>>
 MakeDensitySampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, BasisSet::FitQuadrature quad={});
+
+//! \brief THE MOLECULAR DENSITY-GRADIENT STRATEGY (GGA stage 2): Singles on a real δ basis that has the gradient 3-centre overlap
+//! (\c BasisSet::Integrals_GradOverlap3C).  THROWS \c invalid_argument for a fit basis that is not δ or has no gradient face, and for a FOLDED
+//! quadrature (the star-average of a vector field rotates it, which no fold does yet): both are refused above, by policy, first.
+std::shared_ptr<const tDensityGradientSampler<double>>
+MakeDensityGradientSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, BasisSet::FitQuadrature quad={});
 
 //! \brief THE PERIODIC A1 VXC FIT's strategies (V-XC-ONE-TERM step 6, lane S 2026-11-15), over \a a1: the REAL Gamma block of the A1 set on
 //! the cell's sites, built by the Hamiltonian's caller and held by the strategy (a real fit cannot pass the complex lineage's fit-basis

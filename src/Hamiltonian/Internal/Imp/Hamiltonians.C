@@ -31,6 +31,7 @@ import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol)
 import qchem.Reporting;                           // the nonlinearMesh route announcement, the term scopes and their fitbasis rows
 import qchem.BasisSet.G_FieldEvaluator;           // G_OrbitalPairBall: does the plane-wave Vxc ball hold every orbital pair (the rho axis)
 import qchem.ChargeDensity.DensitySampler;        // MakeAuxiliaryFitSampler
+import qchem.Hamiltonian.Internal.Vxc_DFT_GGA;     // the GGA XC term (GGA stage 2)
 
 namespace qchem::Hamiltonian
 {
@@ -101,10 +102,10 @@ static std::shared_ptr<const qcMesh::SiteMultipoles> MakeSiteMultipoles(const st
 //! built their own quadrature on a radial-numeric block (same \c MeshParams, D-independent, no ρ, no fold): ruling 2(a) keeps it OUT of
 //! this change and lists it as the NEXT client here, so the overlap is visible in every run that has it.  Writes one level into the
 //! caller's context (the facade's "hamiltonian").
-static void ReportMeshClients(bool ppQuadrature)
+static void ReportMeshClients(bool ppQuadrature, const char* xcClient="Vxc_DFT")
 {
     qchem::report::Scope here("nonlinearMesh");
-    qchem::report::Set("clients", qchem::report::json::array({"Vxc_DFT", "DeltaRho", "SiteMoments"}));
+    qchem::report::Set("clients", qchem::report::json::array({xcClient, "DeltaRho", "SiteMoments"}));
     if (ppQuadrature) qchem::report::Set("nextClient", "ppQuadrature (PP_Local / PP_NonLocal on a radial-numeric block: its own mesh, same "
                                          "MeshParams; ruling 2(a): not in this change)");
 }
@@ -196,6 +197,28 @@ static rmesh_t MolecularNonlinearMesh(const st_t& st, const rbs_t* bs, XCMeshSha
     return sampler;
 }
 
+//! THE MOLECULAR DENSITY-GRADIENT MESH (GGA stage 2): the same nonlinear integration mesh, realized by the density-gradient strategy on
+//! the δ Vxc fit -- the only fit whose route samples \f$\nabla\rho\f$.  Any other fit THROWS (the setup refuses it first, policy GGARoute).
+using rgmesh_t=std::shared_ptr<const ChargeDensity::tDensityGradientSampler<double>>;
+static rgmesh_t MolecularGradientMesh(const st_t& st, XCMeshShare& share, XCRoute xc)
+{
+    const VxcFit resolved=MolecularVxcFit(xc.fit);
+    if (resolved!=VxcFit::Delta)
+        throw std::invalid_argument("MolecularGradientMesh: a GGA samples the density gradient on the delta Vxc fit only (GGA stage 2) -- the "
+                                    "setup should have refused this fit (policy GGARoute)");
+    BasisSet::FitQuadrature quad=share.Quadrature();
+    const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT_GGA", "Vxc fit", [&]
+    {
+        bool built=false;
+        auto d=share.Delta(built);
+        if (!built) qchem::report::Set("sharedWith", "Hartree");
+        return d;
+    });
+    auto sampler=ChargeDensity::MakeDensityGradientSampler(fb, std::move(quad));
+    RequireImposesAsAdmitted(*sampler, resolved, *st);
+    return sampler;
+}
+
 //! The run's Coulomb fit from its slot (built by \a make on the first ask).
 template <class T, class Make> static std::shared_ptr<const BasisSet::FIT_CD_ABS<T>> OneCoulombFit(const CoulombFitSlot<T>& slot, Make make)
 {
@@ -278,6 +301,26 @@ Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> part
     HoldNonlinearMesh(mesh);
     ReportMeshClients(false);
     Add(new tVxc_DFT<double>(std::make_shared<CompositeExFunctional>(std::move(parts)), std::move(mesh), g));
+}
+
+Ham_DFT::Ham_DFT(const st_t& st, std::shared_ptr<const GGAFunctional> gga,
+                 const qcMesh::MeshParams& mp, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit,
+                 const CoulombRoute& coulomb)
+    : rHamiltonianImp(g)
+{
+    Add(new Kinetic<double>);
+    Add(new IonIon<double>(st));
+    Add(new Ven(st));
+
+    XCMeshShare xcMesh(st, bs, mp);
+    xcMesh.Quadrature();
+    Add(MolecularHartreeTerm(st, bs, xcMesh, coulomb, coulombFit));
+
+    // The nonlinear mesh, realized by the density-gradient strategy, and the GGA term on it (V-NONLINEAR-MESH: the Hamiltonian holds it).
+    rgmesh_t mesh=MolecularGradientMesh(st, xcMesh, fit);
+    HoldNonlinearMesh(mesh);
+    ReportMeshClients(false, "Vxc_DFT_GGA");
+    Add(new tVxc_DFT_GGA<double>(std::move(gga), std::move(mesh), g));
 }
 
 // Does any block of \a bs fall back to the PP terms' quadrature?  The same questions PP_Local and PP_NonLocal ask.

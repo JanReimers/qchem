@@ -29,7 +29,7 @@ target_link_libraries(qcPW_Harness PUBLIC qcPW_TestFields qcUmbrella qchem qcMat
 add_executable(ITMain gtestmain.C
     # THE PW SCF GRID (its unit-level tests left for src/ in phase 5)
     PW/Model.C PW/Si.C PW/NaF.C PW/CsI.C PW/Boxes.C
-    A_HF_U.C A_HF_P.C A_HF_dfPin.C A_DHF.C A_DFT.C A_DFT_U.C A_PP.C L_PP.C M_HF_U.C M_DFT.C M_Sym.C
+    A_HF_U.C A_HF_P.C A_HF_dfPin.C A_DHF.C A_DFT.C A_DFT_U.C A_PP.C L_PP.C M_HF_U.C M_DFT.C M_GGA.C M_Sym.C
     # THE GPW SCF GRID (doc/TestSuitePlan.md §4): directory per basis family, file per material, ONE exe.
     GPW/Si.C GPW/Al.C GPW/Na.C GPW/NaF.C GPW/LiF.C GPW/Li.C GPW/MnO.C GPW/MnO2.C GPW/NiO.C GPW/TiO2.C GPW/Boxes.C
     M_Calculation.C
