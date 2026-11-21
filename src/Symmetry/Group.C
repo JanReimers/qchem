@@ -89,6 +89,16 @@ private:
 class Group;
 using GroupPtr=std::shared_ptr<const Group>;
 
+//! \brief THE FRAME a representation is realized in (Group face step 3b; user 2026-11-21: "We know any radial forces O(3) without creating
+//! lists of r,w pairs"): the KIND of a point set or fit fixes the TYPE of group it forces, and the frame supplies only where -- a lattice
+//! for a translation family, a centre for a rotation family.  The (r, w) points add nothing.  Either part may be absent: a representation
+//! that needs an absent part cannot exist in this frame (a uniform mesh with no lattice, the radial-only set with no centre).
+struct Frame
+{
+    std::optional<Matrix3D<double>> lattice;   //!< columns = the lattice vectors (a.u.)
+    std::optional<rvec3_t>          centre;    //!< the one point a rotation family is about
+};
+
 //! \brief The FACE every group is asked through (note §2.2).  Data-free; realized by each kind behind the factories below.
 //!
 //! - \c Contains(Generator) is native and exact: T(L') ⊆ G iff G's translations contain L'; a finite group never contains a
@@ -113,6 +123,16 @@ public:
     Outcome<GroupPtr,std::string> Intersect(const Group& o) const;  //!< G ∩ O; fails only for incommensurate lattices
     virtual Space ActsOn() const=0;
     virtual std::string Describe() const=0;                      //!< one line for a report or a refusal message
+    //! \brief Is a LATTICE SUM defined here: does this group hold a full-rank lattice of translations?  What its clients consume:
+    //! a periodic seed, the periodic-multipole correctness limit (a lattice sum of site multipoles is conditionally convergent), and a
+    //! representation that needs a lattice to exist at all (a uniform cell mesh, the plane-wave ball).  Group face step 3b: replaces
+    //! \c Structure::Admits(Translations).
+            bool  HasLattice() const;
+    //! \brief The frame this group offers a representation (\c Frame): its full translation lattice when it has one (a crystal), and the point
+    //! it fixes when it is the rotation group about one point (an atom's O(3)).  A finite group offers neither: its point group fixes no
+    //! single site a representation could be pinned at, and it has no lattice.  CLIENT: the pin-30 descriptors (\c qcMesh::Forces,
+    //! \c BasisSet::Forces), so a representation that has not been built can say what it would force on this structure.
+            Frame MakeFrame() const;
 
     //! \brief The canonical form the intersection table reads (an implementation detail of this module; see the class note).
     //! One-of-N: a FINITE op list (closed), a CRYSTAL (lattice + one Cartesian coset rep per element mod the lattice), or the
@@ -162,6 +182,10 @@ GroupPtr CrystalGroup(const std::vector<SymOp>& fractionalOps, const Matrix3D<do
 //! built from its own lattice or centre (Group face step 3), so nothing is measured and roundoff is the only slack.  It matters only
 //! when that group is the one asked (\c h.Contains(g)); \c G_struct->Contains(*fit.Forces()) compares at G_struct's own tolerance.
 inline constexpr GroupTolerance kExactTolerance{.length=1e-10, .angle=1e-10};
+//! \brief The tolerance an ADMISSION question hands a structure's \c MakeSymmetry (Group face step 3b; it was the step-2 bridge's
+//! \c theAdmitsBridgeTolerance): pin 30 asks whether G holds T or O(3) about a site, which no realistic geometry decides at the margin, so
+//! the structure's usual detection slack (1e-4 bohr, 1e-4 in R) serves every asker.  One constant, so the askers cannot disagree.
+inline constexpr GroupTolerance kAdmissionTolerance{.length=1e-4, .angle=1e-4};
 //! {e}: the group of a fit or point set that forces nothing beyond its own functions (atom-centred Gaussians, delta functions).
 GroupPtr TrivialGroup();
 

@@ -21,7 +21,8 @@ import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.Fit_IBS;   // the shared Gaussian-family implementation base we DERIVE
 import qchem.Structure;
-import qchem.Symmetry.Group;   // Symmetry::GroupPtr / TrivialGroup (Forces, Group face step 3a)
+import qchem.Symmetry.Group;   // Symmetry::GroupPtr / TrivialGroup (Forces, Group face step 3)
+import qchem.BasisSet.Fit_Types;   // BasisSet::Forces(VxcFit, Frame): the one source of what a fit family forces
 import qchem.Types;
 
 export namespace qchem::BasisSet::Gaussian::PG_Spherical
@@ -97,8 +98,7 @@ public:
     //! The run report's name for this fit.  Not the cache identity: \c BasisSetID stays the shells' own.
     virtual std::string Name() const override {return itsName;}
     //! Atom-centred Gaussians of every l on the structure's sites: no group of their own ({e}, doc/Pins.md pin 30).
-    virtual qcMesh::ImposedSymmetry Imposes() const override {return qcMesh::ImposedSymmetry::None;}
-    virtual Symmetry::GroupPtr      Forces () const override {return Symmetry::TrivialGroup();}   //!< {e}, as \c Imposes
+    virtual Symmetry::GroupPtr      Forces () const override {return BasisSet::Forces(VxcFit::Auxiliary, {}).Value();}   //!< the molecular A1 set: {e}
     virtual rsmat_t MakeOverlap  () const override {return MakeOverlap2C(this);}
     // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative for this fit block yet (the Dunlap increment adds the fit faces').
     virtual bool CanPullbackOverlap() const override {return false;}

@@ -47,6 +47,8 @@ import qchem.Policy;                        // policy::Report: the two-run split
 import qchem.PeriodicTable;                 // the material's element symbols, for an inlined basis
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94Import;   // SubsetBasis: the elements a deck inlines
 import qchem.XCRhoPolicy;                   // RefuseUnroutedGradient: Vet refuses a GGA as the setup will
+import qchem.SetupDecisions;                // RequireVxcAdmitted: Vet refuses a pin-30 cell as the setup will
+import qchem.SolidSetup;                    // SolidXCMesh: the cell's XC mesh, defaulted as the setup does
 import qchem.Mesh.XCPolicy;                 // ResolveXCMesh (a recipe field under cellKind Auto is refused at resolve)
 import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.StructureData;   // KindOf
@@ -1429,12 +1431,37 @@ json LoadDeck(const std::filesystem::path& path, const std::string& currentCodeV
 }
 
 
+static std::string Refusal(const SetupRefusal& r);   // the one wording of a setup's refusal (defined beside Prepare)
+
 VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
 {
     namespace fs=std::filesystem;
+    // A MOLECULE or an ATOM deck (Group face step 3b; controller 2026-11-21: the early pin-30 refusal end to end): its own setup's Admit --
+    // every policy decision, the Vxc pre-flight among them, and nothing built (no basis, no mesh) -- refused with the setup's own reason.
+    if (const RunKind kind=KindOf(spec); kind!=RunKind::Solid)
+    {
+        const auto& st=StructureData::GetMolecule(spec.structure);
+        if (kind==RunKind::Molecule)
+        {
+            if (auto s=MoleculeSetup::Admit(st, spec.opts, spec.accel); !s) throw std::runtime_error(Refusal(s.Error()));
+        }
+        else if (auto s=AtomSetup::Admit(st, spec.opts, spec.accel); !s) throw std::runtime_error(Refusal(s.Error()));
+        VetReport v;
+        v.summary=spec.StructureName()+": "+(kind==RunKind::Molecule ? "molecule" : "atom")+", its setup admitted (no basis or mesh built)";
+        return v;
+    }
     const Materials::Material mat=Resolve(spec);
     // A GGA: Run's setup refuses it (GGARoute, no route samples the gradient yet), so Vet does too -- vet-decks must not pass it.
     RefuseUnroutedGradient(spec.opts.model.value_or(Hamiltonian::Model::LDA), "a periodic cell (deck)");
+    // Pin 30, the stated Vxc fit and XC mesh on this cell (Group face step 3b, the user's condition on ruling 2026-11-21: Vet keeps refusing
+    // a bad deck before Run).  The setup's own cheap pre-flight, asked of the cell's group alone: nothing is built.  The STATED mesh is
+    // asked: on a cell its Auto resolves to Becke or uniform, and the rule gives both the same answer.
+    try
+    {
+        RunOptions o=spec.opts;
+        RequireVxcAdmitted(*mat.cell, o.vxcFit, SolidXCMesh(o), "cell (deck)");
+    }
+    catch (const policy::Refused& r) {throw std::runtime_error(Refusal(SetupRefusal{r.Name(), r.what()}));}   // the setups' one wording
     VetReport v;
     if (!spec.state.restartFrom.empty())
     {

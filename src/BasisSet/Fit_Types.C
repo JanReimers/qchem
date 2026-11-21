@@ -13,10 +13,12 @@
 module;
 #include <memory>
 #include <vector>   // FitQuadrature::sigmas/flipFixed (Shubnikov S3)
+#include <string>
 export module qchem.BasisSet.Fit_Types;
 export import qchem.Mesh;                       // qcMesh::Mesh / MeshParams
 export import qchem.Mesh.Folded;                // qcMesh::FoldedMesh -- WHAT FitQuadrature now IS
 export import qchem.Symmetry.Lattice_3D.Fold;   // Fold -- re-exported: callers still build one to hand over
+import qchem.Symmetry.Group;                    // Frame / GroupPtr: what a fit family FORCES (Forces, Group face step 3b)
 
 export namespace qchem::BasisSet
 {
@@ -62,5 +64,17 @@ using FitQuadrature = qcMesh::FoldedMesh;
 //! was busy unwelding them.  It does not live in qcHamiltonian either, because the factory that reads it is
 //! here.  \c qchem::Hamiltonian::VxcFit is an alias, so the user-facing spelling is unchanged.
 enum class VxcFit {Auto, PlaneWave, Delta, Auxiliary, Multipole};
+
+//! \brief WHAT A Vxc FIT FAMILY FORCES on the potential it carries, as a Group in \a frame (doc/Pins.md pin 30; Group face step 3b).  The
+//! family fixes the group's TYPE and the frame supplies where -- nothing is built:
+//!  - the plane-wave ball forces T of the frame's lattice (and cannot exist without one);
+//!  - the lineage's A1 set forces the frame's own family: lattice-summed on a cell (T of its lattice), the l = 0 set about the atom's site
+//!    (O(3) there), atom-centred Gaussians of every l on a molecule ({e}).  The lineage follows the structure's kind, so the frame its group
+//!    offers (\c Symmetry::Group::MakeFrame) names it;
+//!  - \f$\delta\f$ functions, site multipoles and an unresolved \c Auto force nothing ({e}).
+//! It FAILS, with the reason, when the frame lacks what the family needs.  ONE source of truth: every fit class answers its own
+//! \c FIT_SF_ABS::Forces from this, in its own frame, and the pin-30 pre-flight (\c Hamiltonian::AdmitVxc) asks it of the structure's
+//! group's frame.
+Outcome<Symmetry::GroupPtr,std::string> Forces(VxcFit fit, const Symmetry::Frame& frame);
 
 }//namespace

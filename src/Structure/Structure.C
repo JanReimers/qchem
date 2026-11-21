@@ -117,16 +117,6 @@ public:
     //! The group is SPATIAL (Space::R): a site's spinFlip does not enter (the magnetic factor is migration step 8).
     virtual Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const=0;
 
-    //! \brief Does this structure's group G ADMIT a representation that imposes \a H, i.e. \f$H\subseteq G\f$ (doc/Pins.md pin 30)?
-    //! ⚠ A BRIDGE WITH AN END DATE (controller ruling 2026-11-20): it lives for Group-face step 2 only and is DELETED in step 3 together
-    //! with \c qcMesh::ImposedSymmetry (the user ruled to retire the enum), when every fit and point set answers with its own Group and the
-    //! callers ask \c MakeSymmetry(tol)->Contains(thatGroup).  Until then the enum carries no frame (T needs a lattice, O(3) a centre), so
-    //! each kind realizes \a H in its OWN frame (\c InMyFrame: a cell's T is its lattice, an atom's O(3) is about its site) and asks its
-    //! own group.  The structure's lattice and centre stay private: no caller receives them.
-    //! CLIENT: the Vxc admission rule (\c Hamiltonian::AdmitVxc) asks it of every fit and point set before anything is built, and a reader
-    //! that wants "is this a lattice" asks it of the translations alone.
-            bool   Admits(qcMesh::ImposedSymmetry H) const;
-
     //! \brief The sites, read-only, in atom-index order (user ruling Q2: a by-value Site range).
     SiteRange Sites() const;
 
@@ -157,10 +147,6 @@ protected:
     //! The storage primitives every concrete site set provides (a Molecule's vector, an Atom's one site).
     virtual const Site& GetSite(size_t i) const=0;
     virtual       Site& GetSite(size_t i)      =0;    //!< the mutators' door; never public
-    //! \brief The step-2 bridge's frame (DELETED with \c Admits in step 3): \a H, never \c None, as a generator in this structure's
-    //! frame.  The default serves a FINITE site set, whose group (finite) contains no family in ANY frame, so the frame chosen (the
-    //! unit lattice, the centroid) cannot change an answer; a kind whose group holds a family overrides it.
-    virtual Symmetry::Generator InMyFrame(qcMesh::ImposedSymmetry H) const;
 };
 
 //! \brief The ONE-SITE site set: an isolated atom (AtomCalculation's structure).  It holds one Site; a Molecule
@@ -190,8 +176,6 @@ public:
 protected:
     virtual const Site& GetSite(size_t) const override;
     virtual       Site& GetSite(size_t)       override;
-    //! The step-2 bridge in the atom's frame: O(3) is about its site.
-    virtual Symmetry::Generator InMyFrame(qcMesh::ImposedSymmetry H) const override;
 private:
     Site itsSite;
 };

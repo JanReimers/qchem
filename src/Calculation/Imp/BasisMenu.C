@@ -7,7 +7,7 @@ module qchem.BasisMenu;
 import qchem.BasisCoverage;                              // BasisCovers, ElementsOf: the reader's own coverage test
 import qchem.BasisSet.Gaussian.Point.BasisFiles;         // BasisNames
 import qchem.BasisSet.Gaussian.Point.Factory;            // RegisteredBasis, CartesianOnlyElements
-import qchem.Mesh;                                       // qcMesh::ImposedSymmetry: is the structure periodic (the route rule)
+import qchem.Symmetry.Group;                             // HasLattice, kAdmissionTolerance: is the structure periodic (the route rule)
 import qchem.PeriodicTable;
 import qchem.Symmetry.Molecule.PointGroup;               // DetectPointGroup: the molecule's SALC blocking group
 
@@ -73,8 +73,8 @@ std::vector<BasisOffer> OrbitalBasisOffers(const Structure& st, double symmetryT
     std::vector<BasisOffer> out;
     const std::set<int> elements = ElementsOf(st);
     // THE ROUTE (deck::KindOf's rule): periodic -> the crystal; one site -> the radial atom; else the molecule.  Periodicity is
-    // asked of the structure (Admits(T)); Group step 3 retires the enum, and this becomes its Group's Contains(Translations).
-    if (st.Admits(qcMesh::ImposedSymmetry::Translations))
+    // asked of the structure's Group: does it have a lattice?
+    if (st.MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice())
     {
         for (const std::string& name : RegisteredGaussianNames())
             out.push_back(GaussianOffer("crystal", name, elements, "T (by k)"));

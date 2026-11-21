@@ -463,9 +463,22 @@ void ReportMeshPlaneWaveOrtho(const UnitCell& cell, const qcMesh::Mesh& mesh)
     std::cout<<std::endl;
 }
 
+// WHAT A CELL'S MESH FORCES, from the one descriptor (qcMesh::Forces; doc/Pins.md pin 30, Group face step 3b) in the cell's frame: its
+// lattice, and no centre -- a cell has a lattice of sites, and no field periodic on a lattice is spherical about one point (only a
+// constant is both).  So the radial-only set (angular none) cannot exist here: a CONSTRUCTION REFUSAL, the descriptor's own reason.
+// \a mp is the mesh AS BUILT: an Auto kind reaching the uniform branch is stamped as the uniform raster it became.
+static Symmetry::GroupPtr CellMeshForces(const UnitCell& cell, const qcMesh::MeshParams& mp)
+{
+    const auto H=qcMesh::Forces(mp, Symmetry::Frame{.lattice=cell.GetCellMatrix(), .centre={}});
+    if (!H) throw std::invalid_argument("the periodic cell mesh: "+H.Error()+" (doc/Pins.md pin 30)");
+    return H.Value();
+}
+static qcMesh::MeshParams AsUniform(qcMesh::MeshParams mp) {mp.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Uniform); return mp;}
+
 qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
                                              const std::vector<Symmetry::SymOp>& ops) const
 {
+    (void)CellMeshForces(*this, mp);   // refuse what cannot exist on a cell, before any point is built
     namespace SL = Symmetry::Lattice_3D;
     assert(!ops.empty());
 
@@ -476,6 +489,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
     if (mp.cellKind!=qcMesh::UnitCellKind::Becke)
     {
         qcMesh::Mesh m=MakeInvariant(CreateIntegrationMesh(mp), GetCellMatrix(), ops, kMeshMatchTol);
+        m.InstallForces(CellMeshForces(*this, AsUniform(mp)));   // the orbit-averaged raster is still this cell's lattice of points
         ReportMeshPlaneWaveOrtho(*this, m);
         return m;
     }
@@ -596,6 +610,7 @@ static qchem::report::json UniformGridFields(const CellGeometry& c, const vec3_t
 // cheap diffuse tails): the XC quadrature for pointwise-nonlinear, sharp-at-the-core fields.
 qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
 {
+    (void)CellMeshForces(*this, mp);   // refuse what cannot exist on a cell, before any point is built
     if (mp.cellKind==qcMesh::UnitCellKind::Becke)
     {
         qcMesh::Mesh mB=MakePeriodicBeckeMesh(*this,mp);
@@ -632,6 +647,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
     // here by the exact inverse FFT, not the NUFFT default (the rho-tilde sampler, OpenWork §4; user ruling 2026-11-04).
     m.InstallFourierSampling(std::make_shared<const MidpointRasterSampling>(ivec3_t(n,n,n),
         ToCartesian(rvec3_t(1,0,0)), ToCartesian(rvec3_t(0,1,0)), ToCartesian(rvec3_t(0,0,1))));
+    m.InstallForces(CellMeshForces(*this, AsUniform(mp)));   // a field on the raster is periodic on this lattice by construction (pin 30)
     ReportMeshPlaneWaveOrtho(*this, m);   // the UNIFORM control: exact orthogonality up to Nyquist
     return m;
 }
@@ -889,10 +905,6 @@ Symmetry::GroupPtr UnitCell::MakeSymmetry(const Symmetry::GroupTolerance& tol) c
     for (const Site& a:Sites()) sites.push_back({a.Z, ToFractional(a.R)});   // spin 0: the SPATIAL group (see Structure::MakeSymmetry)
     // Detect keeps every coset {W|τ}, so a centred cell's centring translations reach the group, which joins them to the lattice.
     return Symmetry::CrystalGroup(SL::SpaceGroup::Detect(GetCellMatrix(), sites, tol.length), tol);
-}
-Symmetry::Generator UnitCell::InMyFrame(qcMesh::ImposedSymmetry H) const
-{
-    return H==qcMesh::ImposedSymmetry::Translations ? Symmetry::Generator::Translations(GetCellMatrix()) : Structure::InMyFrame(H);
 }
 
 std::ostream& UnitCell::Write(std::ostream& os) const

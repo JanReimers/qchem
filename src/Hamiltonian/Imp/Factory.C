@@ -14,6 +14,7 @@ import qchem.Hamiltonian.Internal.Libxc_LDA;             // XC::LibXC selector (
 import qchem.Hamiltonian.Internal.Libxc_GGA;             // XC::LibXCGGA: the GGA functional the factory asks
 import qchem.Hamiltonian.Internal.SlaterExchange;        // the DiracVWN functional list
 import qchem.Hamiltonian.Internal.VWN_Correlation;
+import qchem.Symmetry.Group;                             // the pre-flight asks the structure's group (HasLattice, Contains O(3))
 
 namespace qchem::Hamiltonian
 {
@@ -148,14 +149,13 @@ namespace qchem::Hamiltonian
         "conditionally convergent, so an answer would depend on the order of summation -- state Delta on a periodic structure";
 
 
-    //! The one wording of a pin-30 refusal: what imposes H_R, the structure's G, and what to state instead.
-    static std::string SymmetryRefusal(const std::string& what, ImposedSymmetry H, ImposedSymmetry G, const std::string& instead)
-    {
-        return what+" imposes H_R = "+qcMesh::Name(H)+", and this structure's G (its "+
-               (G==ImposedSymmetry::Translations ? "space group" : G==ImposedSymmetry::FullRotation ? "atom path's O(3)" : "point group")+") does not contain it -- "+
-               instead+" (doc/Pins.md pin 30)";
-    }
-
+    //! \brief THE CHEAP PRE-FLIGHT (Group face step 3b; controller rulings 2026-11-21).  Admission AUTHORITY is on the built objects (USER
+    //! RULING 2026-11-21, (A)): the Vxc builder asks G to contain the realization's and the point set's \c Forces.  Those answer from the same
+    //! two descriptors this asks -- \c BasisSet::Forces(VxcFit, Frame) for the fit family, \c qcMesh::Forces(MeshParams, Frame) for the
+    //! point set -- because the KIND of a representation fixes its group's type and the frame only says where (user 2026-11-21).  So this
+    //! asks them of the structure's group's frame (\c Group::MakeFrame: a cell's lattice, the atom's site, nothing for a molecule) before
+    //! anything is built, and a setup or deck::Vet refuses a bad deck without paying for a basis or a mesh.  A descriptor that fails (the
+    //! frame lacks what the kind needs) is the refusal; one that answers is admitted iff G contains its group.
     Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure& st, VxcFit fit, const qcMesh::MeshParams& mp)
     {
         using R=Outcome<AdmittedVxc,std::string>;
@@ -165,21 +165,16 @@ namespace qchem::Hamiltonian
             return R::Fail("the XC mesh: angular none (the radial-only point set) on a uniform cell mesh -- a uniform cell mesh reads no "
                            "angular rule, so the stated angular would be ignored.  State cellKind Becke or Auto for the radial-only set, "
                            "or drop angular none for the uniform mesh");
-        if (st.Admits(ImposedSymmetry::Translations) && fit==VxcFit::Multipole) return R::Fail("the multipole Vxc fit: "+thePeriodicMultipole);
-        const ImposedSymmetry G=GroupOf(st);   // for the wording only: the rule itself is the structure's own answer
-        // THE RULE: H_fit within G and H_points within G.  Below each failure, the wording names the generator G lacks.
-        if (const ImposedSymmetry H=ImposedBy(fit,st); !st.Admits(H))
+        const Symmetry::GroupPtr G=st.MakeSymmetry(Symmetry::kAdmissionTolerance);
+        if (G->HasLattice() && fit==VxcFit::Multipole) return R::Fail("the multipole Vxc fit: "+thePeriodicMultipole);
+        const Symmetry::Frame frame=G->MakeFrame();
+        // THE RULE: H_fit within G and H_points within G.
+        for (const auto& H : {BasisSet::Forces(fit, frame), qcMesh::Forces(mp, frame)})
         {
-            if (fit!=VxcFit::PlaneWave) throw std::logic_error("Hamiltonian::AdmitVxc: a refused Vxc fit with no wording");
-            return R::Fail(SymmetryRefusal("the plane-wave Vxc fit", H, G, "state the Vxc fit Delta or Auxiliary"));
-        }
-        if (const ImposedSymmetry H=qcMesh::ImposedBy(mp); !st.Admits(H))
-        {
-            if (H==ImposedSymmetry::Translations)
-                return R::Fail(SymmetryRefusal("a uniform cell mesh", H, G,
-                                               "state the XC mesh cellKind Becke or Auto, the atom-centred mesh"));
-            return R::Fail(SymmetryRefusal("the radial-only point set (angular none: one direction at 4 pi, exact only for a spherical "
-                                           "integrand)", H, G, "state an angular rule (Lebedev or GaussLegendre)"));
+            if (!H) return R::Fail(H.Error()+"; this structure's G is "+G->Describe()+" (doc/Pins.md pin 30)");
+            if (!G->Contains(*H.Value()))
+                return R::Fail("a representation imposes H_R = "+H.Value()->Describe()+", and this structure's G ("+G->Describe()+
+                               ") does not contain it (doc/Pins.md pin 30)");
         }
         return R::Ok({fit, mp.cellKind});
     }
@@ -189,7 +184,7 @@ namespace qchem::Hamiltonian
         const bool multipole=coulomb.fit==CoulombFit::Multipole;
         if (multipole)
         {
-            if (st.Admits(ImposedSymmetry::Translations)) return R::Fail("the multipole Coulomb fit: "+thePeriodicMultipole);
+            if (st.MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice()) return R::Fail("the multipole Coulomb fit: "+thePeriodicMultipole);
             if (coulomb.solver==CoulombSolver::DirectSum)
                 return R::Fail("a multipole fit's potential is the radial Poisson solve of its channels; a direct sum runs over points -- "
                                "state the solver RadialPoisson or Auto, or the fit Delta");

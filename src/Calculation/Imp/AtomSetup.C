@@ -92,6 +92,9 @@ std::shared_ptr<const AtomSetup> AtomSetup::Resolve(const Structure& atom, const
     if (o.atom.xc) RefuseUnroutedGradient(*o.atom.xc, "an atom (atom.xc)");
     const bool densityFock = o.atom.pseudopotential || o.atom.xc.has_value() || Hamiltonian::IsDFT(*o.model);
     if (densityFock) RefuseGradientConsumers(o.vxcFit, o.xcRho, NameOf(s->accelerator));   // GDM needs H = dE/dD (pin 32)
+    // The Vxc product space's admission (pin 30), asked HERE, before the basis and the Hamiltonian are built, as the molecule and the cell
+    // ask it (Group face step 3b): until then the atom met it only as the Hamiltonian factory's throw, after the work was done.
+    if (densityFock) RequireVxcAdmitted(*s->structure, o.vxcFit, s->xcMesh, "atom");
     // Atoms keep the proven Z-scaled DIIS engage gate unless the caller pins one (DFT too: \c DIISEngageGate's density-Fock rule is
     // the molecule's), over the molecular defaults.  The json escape hatch merges over these when the graph is built.
     const double eMax=DIISEngageGate(acc.diis.engageBelowFD.value_or(0.0), s->Z, /*the atom keeps the Z-scaled gate, DFT too*/false);

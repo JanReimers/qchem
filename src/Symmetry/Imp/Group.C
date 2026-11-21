@@ -484,6 +484,16 @@ std::vector<Generator> Group::Generators() const
     return gens;
 }
 
+bool Group::HasLattice() const {return GetForm().kind==Form::Kind::Crystal;}
+Frame Group::MakeFrame() const
+{
+    const Form f=GetForm();
+    Frame out;
+    if (f.kind==Form::Kind::Crystal) out.lattice=f.lattice;
+    if (f.kind==Form::Kind::Stabiliser && f.directions.empty()) out.centre=f.centre;   // a point (O(3)_c), not a line
+    return out;
+}
+
 bool Group::Contains(const Group& h) const
 {
     for (const Generator& g:h.Generators()) if (!Contains(g)) return false;

@@ -30,6 +30,31 @@ std::unique_ptr<FourierSampler> Mesh::MakeFourierSampler(const FourierBox& b) co
 
 void Mesh::InstallFourierSampling(std::shared_ptr<const FourierSamplingStrategy> s) {itsSampling=std::move(s);}
 void Mesh::InstallWeightResponse(std::shared_ptr<const MeshWeightResponse> r) {itsWeightResponse=std::move(r);}
+void Mesh::InstallForces(Symmetry::GroupPtr g)
+{
+    if (!g) throw std::logic_error("qcMesh::Mesh::InstallForces: a null group (a plain point cloud installs nothing: it forces {e})");
+    itsForces=std::move(g);
+}
+Symmetry::GroupPtr Mesh::Forces() const {return itsForces ? itsForces : Symmetry::TrivialGroup();}
+
+Outcome<Symmetry::GroupPtr,std::string> Forces(const MeshParams& mp, const Symmetry::Frame& frame)
+{
+    using R=Outcome<Symmetry::GroupPtr,std::string>;
+    if (mp.cellKind==UnitCellKind::Uniform)
+    {
+        if (!frame.lattice) return R::Fail("a uniform cell mesh imposes H_R = T, and there is no lattice here to build it on -- state the XC "
+                                           "mesh cellKind Becke or Auto, the atom-centred mesh");
+        return R::Ok(Symmetry::TranslationGroup(*frame.lattice, Symmetry::kExactTolerance));
+    }
+    if (mp.angular==AngularKind::None)
+    {
+        if (!frame.centre) return R::Fail("the radial-only point set (angular none: one direction at 4 pi, exact only for a spherical integrand) "
+                                          "imposes H_R = O(3) about one centre, and there is no such centre here -- state an angular rule "
+                                          "(Lebedev or GaussLegendre)");
+        return R::Ok(Symmetry::PointRotationGroup(*frame.centre, Symmetry::kExactTolerance));
+    }
+    return R::Ok(Symmetry::TrivialGroup());
+}
 
 SamplingTarget* Mesh::FourierTarget() const {return itsTarget.get();}
 
@@ -57,23 +82,6 @@ double Integrate(const Mesh& m, const rvec_t& f)
     return s;
 }
 
-const char* Name(ImposedSymmetry h)
-{
-    switch (h)
-    {
-        case ImposedSymmetry::None:         return "{e}";
-        case ImposedSymmetry::Translations: return "T";
-        case ImposedSymmetry::FullRotation: return "O(3)";
-    }
-    return "?";
-}
-
-ImposedSymmetry ImposedBy(const MeshParams& mp)
-{
-    if (mp.cellKind==UnitCellKind::Uniform) return ImposedSymmetry::Translations;
-    return mp.angular==AngularKind::None ? ImposedSymmetry::FullRotation : ImposedSymmetry::None;
-}
-
 // Append grows the SoA arrays by one.  blaze resize copies, so this is a setup-path convenience
 // (the incremental Becke builder), NOT for hot loops -- when the size is known, use the
 // from-arrays constructor instead.
@@ -81,6 +89,7 @@ void Mesh::Append(const rvec3_t& r, double w)
 {
     itsSampling.reset();   // a point added: no longer the structure a builder recorded
     itsWeightResponse.reset();
+    itsForces.reset();     // ... nor the symmetry it stamped
     itsU.resize(0);        // ... nor the owners it recorded
     size_t n=itsW.size();
     assert(itsR.size()==n);
@@ -94,6 +103,7 @@ void Mesh::ShiftOrigin(const rvec3_t& o)
 {
     itsSampling.reset();   // the raster it described has moved
     itsWeightResponse.reset();
+    itsForces.reset();     // a centre or lattice that moved
     for (size_t i=0; i<itsR.size(); i++) itsR[i]+=o;
 }
 

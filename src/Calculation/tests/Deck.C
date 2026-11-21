@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <map>
 #include <set>
 #include <nlohmann/json.hpp>
@@ -464,6 +465,45 @@ TEST(Deck, BasisFileOverridesTheRegisteredDataFileAndABadPathFails)
     EXPECT_NE(nfun(reg), nfun(over)) << "the override built a different basis (SR vs VA files)";
     deck::RunSpec bad; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"file","/nonexistent/x.bsd"}}}}, bad);
     EXPECT_ANY_THROW(deck::Vet(bad,std::filesystem::temp_directory_path()));
+}
+
+// PIN 30 AT --check (Group face step 3b; the user's condition on ruling 2026-11-21: Vet keeps refusing a bad deck before Run): Vet asks the
+// setup's cheap pre-flight of the cell's group -- nothing built -- so a multipole Vxc fit (no periodic form) and the radial-only XC point
+// set (O(3) about one centre: a cell has none) is refused at vet, as is angular none on a uniform cell mesh (a mesh option the uniform
+// mesh would ignore), by the same reasons the setup gives, and the default deck passes.  (A deck cannot state the multipole fit.)  The
+// cell's refusal row is the same policy AdmitVxc the molecule and atom setups file (below).
+TEST(Deck, VetRefusesAPin30CellBeforeRun)
+{
+    const auto tmp=std::filesystem::temp_directory_path();
+    const json si={{"data","SIPP_SR"}};
+    deck::RunSpec ok;  deck::FromJson(json{{"structure","Si_diamond"},{"basis",si}}, ok);
+    EXPECT_NO_THROW(deck::Vet(ok, tmp));
+    deck::RunSpec uni; deck::FromJson(json{{"structure","Si_diamond"},{"basis",si},{"xc",{{"mesh",{{"cellKind","Uniform"},{"angular","none"}}}}}}, uni);
+    try { deck::Vet(uni, tmp); ADD_FAILURE() << "angular none on a uniform cell mesh passed vet"; }
+    catch (const std::exception& e) {std::cout << "[vet refusal] " << e.what() << "\n"; EXPECT_NE(std::string(e.what()).find("reads no angular rule"), std::string::npos) << e.what();}
+    // A molecule and an atom deck run their own setup's Admit at vet (nothing built): the radial-only set on H2O (no one centre: O(3)), and
+    // the plane-wave fit on the radial atom B (no lattice: T).  The printed refusal is the setup's policy row.
+    auto refusedAtVet=[&](const json& j, const char* imposed)
+    {
+        deck::RunSpec r; deck::FromJson(j, r);
+        try { deck::Vet(r, tmp); ADD_FAILURE() << j.dump() << " passed vet"; }
+        catch (const std::exception& e)
+        {
+            std::cout << "[vet refusal] " << e.what() << "\n";
+            EXPECT_NE(std::string(e.what()).find("policy AdmitVxc"), std::string::npos) << e.what();
+            EXPECT_NE(std::string(e.what()).find(imposed),          std::string::npos) << e.what();
+            EXPECT_NE(std::string(e.what()).find("pin 30"),          std::string::npos) << e.what();
+        }
+    };
+    refusedAtVet(json{{"structure","Si_diamond"},{"basis",si},{"xc",{{"mesh",{{"cellKind","Becke"},{"angular","none"}}}}}}, "H_R = O(3)");
+    refusedAtVet(json{{"structure","H2O"},{"model","LDA"},{"basis",{{"data","dzvp"}}},{"xc",{{"mesh",{{"angular","none"}}}}}}, "H_R = O(3)");
+    refusedAtVet(json{{"structure","B"},  {"model","LDA"},{"xc",{{"fit","PlaneWave"}}}},           "H_R = T");
+    {
+        deck::RunSpec h2o; deck::FromJson(json{{"structure","H2O"},{"model","LDA"},{"basis",{{"data","dzvp"}}}}, h2o);
+        EXPECT_NO_THROW(deck::Vet(h2o, tmp)) << "the default molecule deck passes vet";
+        deck::RunSpec b; deck::FromJson(json{{"structure","B"},{"model","LDA"}}, b);
+        EXPECT_NO_THROW(deck::Vet(b, tmp)) << "the default atom deck passes vet";
+    }
 }
 
 // A NON-SHIPPED BASIS IS INLINED (user ruling 2026-11-10: "the more self contained the decks are the better"): Resolve turns a
