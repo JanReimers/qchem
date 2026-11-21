@@ -439,3 +439,21 @@ void IonicSADReachesTheSADState(const Molecule& mol, const char* what)
 TEST(M_DFT, WaterLDA_IonicSADReachesTheSADState)     { IonicSADReachesTheSADState(qchem::StructureData::GetMolecule("H2O"), "H2O"); }
 TEST(M_DFT, LiF_LDA_IonicSADReachesTheSADState)      { IonicSADReachesTheSADState(MakeLiF(), "LiF"); }
 TEST(M_DFT, HydroxideLDA_IonicSADReachesTheSADState) { IonicSADReachesTheSADState(MakeHydroxide(), "OH-"); }
+
+// A CHARGED molecule under a PSEUDOPOTENTIAL keeps its charge (lane G, 2026-11-21): MoleculeSetup's point structure REPLACED each site's
+// stated net charge with Z - Zion, so OH- with GTH ran as NEUTRAL OH (7 valence electrons), silently.  The oracle is PySCF 2.14 on the same
+// model: CP2K's DZVP-MOLOPT-GTH read from BASIS_MOLOPT (spherical), GTH-PADE, LDA "lda,vwn" (Dirac + VWN5), grids level 7, conv 1e-11:
+// OH- (8 e) -16.5335495587; the uncharged run (7 e) landed at -16.4651900 on today's code before the fix.  The Hartree term runs the
+// DELTA route (rho on the mesh, 150/47) because the default A1 Coulomb fit is too small for this basis, 1.9 mHa LOW (4.4 on H2O; OpenWork
+// row "The Coulomb-fit default is a hidden policy"); on the delta route ours is 0.4 uHa from PySCF (H2O at the same settings: 1.3 uHa).
+TEST(M_DFT, Hydroxide_PP_KeepsItsChargeVsPySCF)
+{
+    RunOptions o{.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp_molopt_gth"}};
+    o.molecule.angular=Angular::Spherical;
+    o.coulomb.fit=Hamiltonian::CoulombFit::Delta;
+    MoleculeXCMesh(o).nRadial=150; MoleculeXCMesh(o).angularDegree=47;
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeHydroxide(), o)).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result()) << "OH- with GTH must converge";
+    std::cout << "[charged PP] OH- E = " << std::setprecision(12) << calc->Energy() << std::endl;
+    EXPECT_NEAR(calc->Energy(), -16.5335495587, 1e-5) << "PySCF, same basis / PP / functional";
+}

@@ -159,8 +159,9 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
 }
 
 // Re-express a structure as its VALENCE ions for a pseudopotential run: each atom keeps its true species Z (so the PP lookup and
-// the true geometry are intact) but carries net charge Z-Zion(its own element, from the run's chosen set), so GetNumElectrons()
-// reports the total Zion valence count the EC + FittedVee charge constraint consume.  Clone-and-mutate (not rebuild-as-Molecule)
+// the true geometry are intact) but ADDS the core charge Z-Zion (its own element, from the run's chosen set) to the net charge the
+// site states, so GetNumElectrons() reports the Zion valence count minus the stated charge (OH- with GTH: 6 + 1 + 1), the count the
+// EC + FittedVee charge constraint consume.  Clone-and-mutate (not rebuild-as-Molecule)
 // so the concrete geometry is preserved: a PP run on a periodic UnitCell stays a UnitCell (Ewald ion-ion, uniform mesh).
 std::vector<Hamiltonian::PPFunctionalCheck> MoleculeSetup::PPFunctionalChecks() const
 {
@@ -171,7 +172,7 @@ std::vector<Hamiltonian::PPFunctionalCheck> MoleculeSetup::PPFunctionalChecks() 
 std::shared_ptr<const Structure> MoleculeSetup::PointStructure(const Structure& st) const
 {
     auto point = st.Clone();
-    if (pp) point->SetNetCharges([this](int Z){return double(Z - pp->Valence(thePeriodicTable().GetSymbol(Z)));});   // net charge = Z - Zion
+    if (pp) point->AddNetCharges([this](int Z){return double(Z - pp->Valence(thePeriodicTable().GetSymbol(Z)));});   // + the core Z - Zion: a stated ion stays one
     return point;
 }
 
