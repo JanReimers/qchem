@@ -258,6 +258,13 @@ int qcb_materials(const char* req, char* out, int outlen);
 //! The same two calls as qcb_materials.
 int qcb_basis_import(const char* req, char* out, int outlen);
 
+//! THE BASIS MENU (qchem::OrbitalBasisOffers, the user's 2026-11-21 ruling): every orbital-basis choice a structure admits, unsorted.
+//! {"numbers": [Z], "positions": [3N bohr], "symmetryTol"?: t, "route"?: "molecule"} (a molecule; one site is the radial atom, unless
+//! route "molecule" asks for the one-atom molecule's Gaussian menu) or {"cell": <materials.json
+//! entry>} -> {"offers": [{route, key, name, admitted, reason, blockGroup, note, optIn}]}, or {"error"}.  The same two calls as
+//! qcb_materials.
+int qcb_basis_offers(const char* req, char* out, int outlen);
+
 //! A named pseudopotential set's choice (Pseudopotential::PseudopotentialSet, the ONE reader of pseudopotentials.json and its rule):
 //! {"set": S, "elements": [El, ...], "model"?: M} -> {set, functional, valence: {El: q}, fitted: {El: label}, checks?} -- q per element, the set's exception if it lists one, else
 //! the smallest q the GTH database holds at the set's functional; `fitted` the functional each resolved potential was FITTED with
