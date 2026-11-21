@@ -444,8 +444,8 @@ TEST(M_DFT, HydroxideLDA_IonicSADReachesTheSADState) { IonicSADReachesTheSADStat
 // stated net charge with Z - Zion, so OH- with GTH ran as NEUTRAL OH (7 valence electrons), silently.  The oracle is PySCF 2.14 on the same
 // model: CP2K's DZVP-MOLOPT-GTH read from BASIS_MOLOPT (spherical), GTH-PADE, LDA "lda,vwn" (Dirac + VWN5), grids level 7, conv 1e-11:
 // OH- (8 e) -16.5335495587; the uncharged run (7 e) landed at -16.4651900 on today's code before the fix.  The Hartree term runs the
-// DELTA route (rho on the mesh, 150/47) because the default Gaussian Coulomb fit is 1.9 mHa LOW on this basis (4.4 on H2O; OpenWork row
-// "the default Coulomb fit on the GTH MOLOPT bases"); on the delta route ours is 0.4 uHa from PySCF (H2O at the same settings: 1.3 uHa).
+// DELTA route (rho on the mesh, 150/47) because the default A1 Coulomb fit is too small for this basis, 1.9 mHa LOW (4.4 on H2O; OpenWork
+// row "The Coulomb-fit default is a hidden policy"); on the delta route ours is 0.4 uHa from PySCF (H2O at the same settings: 1.3 uHa).
 TEST(M_DFT, Hydroxide_PP_KeepsItsChargeVsPySCF)
 {
     RunOptions o{.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp_molopt_gth"}};
