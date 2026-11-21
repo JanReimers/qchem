@@ -3,7 +3,7 @@
 # aggregate library (it leans on the basis/Hamiltonian/accelerator/iterator pieces already linked
 # there).  The Imp #includes nlohmann/json for the two json factories, so the json include lands here.
 target_sources(qchem PRIVATE Imp/MoleculeCalculation.C Imp/Calculation.C
-    Imp/AtomCalculation.C Imp/SolidCalculation.C Imp/SolidSetup.C Imp/MoleculeSetup.C Imp/AtomSetup.C Imp/ValenceBasisGen.C Imp/Materials.C Imp/SolidState.C Imp/SCFState.C Imp/StateView.C Imp/Deck.C Imp/PseudoAtomOrbital.C Imp/AuditFootprint.C Imp/SetupDecisions.C)
+    Imp/AtomCalculation.C Imp/SolidCalculation.C Imp/SolidSetup.C Imp/MoleculeSetup.C Imp/AtomSetup.C Imp/ValenceBasisGen.C Imp/Materials.C Imp/SolidState.C Imp/SCFState.C Imp/StateView.C Imp/Deck.C Imp/PseudoAtomOrbital.C Imp/AuditFootprint.C Imp/SetupDecisions.C Imp/BasisMenu.C)
 # qchem.Materials reads the `pp` (pseudopotential set name) field of src/Structure/Data/materials.json at run time; the set is qchem.Pseudopotential.Set's.
 # The structure fields are qcStructure's (qchem.StructureData).
 target_compile_definitions(qchem PRIVATE ${StructureDataPath})
@@ -38,6 +38,7 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     Policy.C
     GridAudit.C
     BasisCoverage.C
+    BasisMenu.C                           # which orbital bases a structure admits: the front ends' menu (lane G 2026-11-21)
     XCRhoPolicy.C
     SeedPolicy.C
     RunOptions.C                          # THE one options tree (V-FACADE-PARITY P0b-2)

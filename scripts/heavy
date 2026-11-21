@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# heavy -- run a command while holding ONE of N heavy-job slots, shared by every lane.  THE ONLY WAY TO LAUNCH A HEAVY JOB.
+#
+#   ~/Code/qchem6-runs/heavy scripts/memsafe -H 6G ctest -j4 -LE long
+#   QCHEM_OPENMP_THREADS=4 ~/Code/qchem6-runs/heavy scripts/memsafe -H 6G build/Release/CLIapps/rundeck deck.json
+#
+# ⛔ NEVER `flock ~/Code/qchem6-runs/.heavy.lock <cmd>`.  That is the old single-slot route (retired 2026-10-31).  .heavy.lock is
+#    SLOT 0 of this launcher, so a bare flock still works, but it competes for slot 0 ONLY: it queues behind whoever holds slot 0
+#    while slots 1..N-1 sit free, and every heavy job that lands on slot 0 queues behind it.  (2026-11-21: every heavy job queued
+#    for hours on slot 0 behind one serial run, with slots 1-3 free.)  While it waits, this launcher names any bare-flock holder of
+#    slot 0 on stderr.
+#
+# HOME: this file lives in the repo as scripts/heavy (controller 2026-11-21, the user: "your call"); ~/Code/qchem6-runs/heavy is a
+# SYMLINK to ~/Code/qchem-main/scripts/heavy, so every lane keeps calling the same absolute path.  Change it by a landing, not in place.
+#
+# The slot count N is read EVERY pass from .heavy.slots (user, 2026-11-02), so raising it frees jobs that are already queued.
+# HEAVY_SLOTS=N overrides it for ONE job, and it only RESTRICTS that job to slots 0..N-1.  It does NOT reserve the box: the other
+# slots keep running other jobs, so HEAVY_SLOTS=1 just means "wait for slot 0".  (Until 2026-11-21 this header said "demand the
+# box to yourself", which it never did.)  A job restricted this way that has waited more than 10 min while a slot it may not use is
+# FREE says so on stderr, and repeats every 10 min.
+#
+# Memory: with two slots running, give each memsafe -H 6G, not the 9G default (two 9G scopes over-commit a 14 GB box; memsafe then
+# throttles rather than kills, but the crawl is real).  With three or more, -H 4G for a routine job; a job known to need more (a
+# >3 GB raster) says so and may keep -H 6G.  Threads: set QCHEM_OPENMP_THREADS (4 is the lane default), or the run is SERIAL.
+#
+# The lock lives on fd 9, which the exec'd command inherits: the slot is held for the command's whole life and released by the
+# kernel when it exits (crash or kill included), the same as flock(1).
+
+D="${HEAVY_DIR:-$HOME/Code/qchem6-runs}"   # HEAVY_DIR: a test hook only (a scratch slot directory); jobs never set it
+WARN_AFTER=${HEAVY_WARN_AFTER:-600}       # s: how long a restricted job waits beside a free slot before it says so (test hook)
+POLL=${HEAVY_POLL:-20}                    # s (test hook)
+
+fileslots() { cat "$D/.heavy.slots" 2>/dev/null || echo 2; }
+nslots()    { echo "${HEAVY_SLOTS:-$(fileslots)}"; }
+[ $# -gt 0 ] || { echo "usage: heavy command [args...]   (see the header of $0)" >&2; exit 2; }
+
+slot() { [ "$1" -eq 0 ] && echo "$D/.heavy.lock" || echo "$D/.heavy.$1.lock"; }
+
+# Is slot $1 free?  Read-only: asks lslocks who holds the file, takes no lock.  Without lslocks, probe with a non-blocking flock on
+# fd 8 in a subshell, released at once (a racing launcher that misses the slot in that instant simply retries on its next pass).
+slotfree() {
+    local f; f=$(slot "$1")
+    if command -v lslocks >/dev/null 2>&1; then
+        ! lslocks -n -o PATH 2>/dev/null | grep -qxF "$f"
+    else
+        ( exec 8>>"$f"; flock -n 8 ) 2>/dev/null
+    fi
+}
+
+# Bare-flock holders of slot 0: an lslocks row on .heavy.lock whose COMMAND is flock(1) itself (this launcher's holders show the
+# exec'd command instead).  Prints "pid: command line" per holder.
+bareflock() {
+    command -v lslocks >/dev/null 2>&1 || return 0
+    lslocks -n -o COMMAND,PID,PATH 2>/dev/null | awk -v f="$D/.heavy.lock" '$1=="flock" && $3==f {print $2}' | sort -u |
+        while read -r p; do echo "$p: $(tr '\0' ' ' < /proc/"$p"/cmdline 2>/dev/null | cut -c1-200)"; done
+}
+
+waited=0; nextwarn=$WARN_AFTER
+while :; do
+    N=$(nslots)
+    for ((i = 0; i < N; i++)); do
+        exec 9>>"$(slot $i)"
+        if flock -n 9; then
+            echo "[heavy] slot $i/$N acquired after ${waited}s: $*" >&2
+            exec "$@"
+        fi
+        exec 9>&-
+    done
+    if [ "$waited" -ge "$nextwarn" ]; then
+        F=$(fileslots); free=()
+        for ((i = N; i < F; i++)); do slotfree "$i" && free+=("$i"); done
+        if [ -n "$HEAVY_SLOTS" ] && [ ${#free[@]} -gt 0 ]; then
+            echo "[heavy] WAITING $((waited / 60)) min for slots 0..$((N - 1)) while slot(s) ${free[*]} of $F are FREE: HEAVY_SLOTS=$HEAVY_SLOTS" \
+                 "keeps this job off them (it restricts the job, it never reserves the box).  Unset HEAVY_SLOTS to run now." >&2
+        fi
+        bf=$(bareflock)
+        if [ -n "$bf" ]; then
+            echo "[heavy] slot 0 is held by a BARE \`flock .heavy.lock\` (the retired single-slot route; relaunch with $D/heavy):" >&2
+            echo "$bf" | sed 's/^/[heavy]   /' >&2
+        fi
+        nextwarn=$((nextwarn + WARN_AFTER))
+    fi
+    sleep "$POLL"; waited=$((waited + POLL))
+done
