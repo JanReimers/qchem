@@ -12,6 +12,7 @@ import qchem.Structure;
 import qchem.Matrix3D;
 import qchem.Mesh;        // qcMesh::Mesh / MeshParams (the CreateIntegrationMesh override)
 import qchem.Symmetry.SymOp;              // Symmetry::SymOp {W|τ} (the site-adapted Becke mesh's imposed ops)
+import qchem.Symmetry.Group;              // GroupPtr / Generator (MakeSymmetry, the step-2 InMyFrame bridge)
 
 namespace qchem {
 
@@ -117,8 +118,8 @@ public:
     //! The periodic G = 0 background PER CELL VOLUME: \f$\frac1\Omega\sum_a f(Z_a)\f$.
     double G0Background(const std::function<double(int Z)>& f) const override;
 
-    //! A periodic cell's group contains T (and no O(3)).
-    bool Admits(qcMesh::ImposedSymmetry H) const override {return H<=qcMesh::ImposedSymmetry::Translations;}
+    //! The space group \c SpaceGroup::Detect finds, every coset translation included (a centred cell's centring joins the lattice).
+    Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const override;
 
     //! A periodic cell's real-space integration mesh; \c mp.cellKind selects the quadrature.
     //! \c UnitCellKind::Uniform -- a UNIFORM grid of \c mp.nUniform points per axis at cell-fractional
@@ -162,6 +163,10 @@ public:
     void AddAtom(int Z, const rvec3_t& f, bool spinFlip=false);
 
     std::ostream&  Write(std::ostream&) const override;
+
+protected:
+    //! The step-2 bridge in the cell's frame: T is this cell's lattice (DELETED with \c Structure::Admits in step 3).
+    Symmetry::Generator InMyFrame(qcMesh::ImposedSymmetry H) const override;
 };
 
 //! \brief Face-centred-cubic primitive cell of conventional cubic lattice constant \a a: the primitive

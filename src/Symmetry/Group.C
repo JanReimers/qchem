@@ -147,14 +147,23 @@ GroupPtr TranslationGroup(const Matrix3D<double>& A, const GroupTolerance& tol);
 //! A finite group from Cartesian ops, CLOSED under composition here (a generating set is enough).  THROWS if the closure does not
 //! stay finite (more than \c kMaxFiniteOrder elements: the ops are not a finite group at this tolerance).
 GroupPtr FiniteGroup(const std::vector<SymOp>& cartesianOps, const GroupTolerance& tol);
-//! A molecular point group from the detected ops about \a origin (each op acts as r -> R (r - origin) + origin).
-GroupPtr FiniteGroup(const std::vector<Molecule::SymOp>& ops, const rvec3_t& origin, const GroupTolerance& tol);
+//! A molecular point group from the detected ops about \a origin (each op acts as r -> R (r - origin) + origin).  \a name is what the
+//! issuer says the group IS, and \c Describe leads with it: a molecule issuing its abelian subgroup names it so, e.g. "D2h (abelian
+//! subgroup of D6h)", so nobody reads it as the full point group (user, 2026-11-20).
+GroupPtr FiniteGroup(const std::vector<Molecule::SymOp>& ops, const rvec3_t& origin, const GroupTolerance& tol, const std::string& name={});
 //! The space group of a crystal: \a sg's {W|tau} on the cell \a A (columns, a.u.).  A centring translation among the ops (a
 //! non-primitive cell) joins the lattice, so the group's translations are its FULL translation subgroup.
 GroupPtr CrystalGroup(const Lattice_3D::SpaceGroup& sg, const GroupTolerance& tol);
 //! A magnetic (Shubnikov) crystal group: the DIRECT-frame {W|tau, σ} from \c SpaceGroup::ShubnikovOps on the cell \a A.  It acts on
 //! (r, spin) jointly when any op carries a flip.
 GroupPtr CrystalGroup(const std::vector<SymOp>& fractionalOps, const Matrix3D<double>& A, const GroupTolerance& tol);
+
+//! \brief The tolerance of a group whose generators are EXACT BY CONSTRUCTION, never detected: a fit's or a sampler's \c Forces() is
+//! built from its own lattice or centre (Group face step 3), so nothing is measured and roundoff is the only slack.  It matters only
+//! when that group is the one asked (\c h.Contains(g)); \c G_struct->Contains(*fit.Forces()) compares at G_struct's own tolerance.
+inline constexpr GroupTolerance kExactTolerance{.length=1e-10, .angle=1e-10};
+//! {e}: the group of a fit or point set that forces nothing beyond its own functions (atom-centred Gaussians, delta functions).
+GroupPtr TrivialGroup();
 
 //! The largest finite group \c FiniteGroup will close (O_h × a flip is 96; this leaves room and still stops a runaway closure).
 inline constexpr size_t kMaxFiniteOrder=1024;

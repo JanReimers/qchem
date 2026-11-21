@@ -65,12 +65,11 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
 }
 
 std::shared_ptr<const DensitySampler>
-MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points,
-                        std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1)
+MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points, const LatticeSummedSet& a1)
 {
     if (!points.GetMesh()) throw std::logic_error("MakeAuxiliaryFitSampler: the periodic A1 fit needs the XC point set");
     if (!delta) throw std::logic_error("MakeAuxiliaryFitSampler: the periodic A1 fit samples rho[D] through the delta basis on the XC points");
-    auto fit=std::make_shared<const GaussianFitSpace>(std::move(a1), points);
+    auto fit=std::make_shared<const GaussianFitSpace>(a1, points);
     auto inner=MakeDensitySampler(delta, points);
     return std::make_shared<const FittedPotentialDensitySampler>(fit, inner);
 }
@@ -120,7 +119,7 @@ MakeFittedPotentialSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& d
     if (!dynamic_cast<const BasisSet::Evaluatable_IBS<double>*>(fit.get()))
         throw std::logic_error("MakeFittedPotentialSampler: the fit basis "+fit->Name()+" cannot evaluate its functions at points (Evaluatable_IBS)");
     auto eval=[fit](const rvec3vec_t& R) {return rmat_t((*dynamic_cast<const BasisSet::Evaluatable_IBS<double>*>(fit.get()))(R));};
-    auto space=std::make_shared<const GaussianFitSpace>(metric->Overlap(), eval, points, "the A1 Gaussian set", fit->Imposes());
+    auto space=std::make_shared<const GaussianFitSpace>(metric->Overlap(), eval, points, "the A1 Gaussian set", fit->Imposes(), fit->Forces());
     return std::make_shared<const tFittedPotentialDensitySampler<double>>(space, MakeDensitySampler(delta, std::move(points)));
 }
 

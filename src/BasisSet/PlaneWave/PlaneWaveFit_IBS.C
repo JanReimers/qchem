@@ -30,6 +30,9 @@ import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep, shared with the orbital basis)
 import qchem.BasisSet.G_RasterStarField;                 // G_RasterStarField: my raster as a field the run's group averages
 import qchem.Types;                                      // dcmplx
+import qchem.Symmetry.Group;   // Forces: T of my cell (Group face step 3a)
+import qchem.Matrix3D;         // Invert / Transpose: A = 2 pi B^-T
+import qchem.Constants;        // Pi
 
 export namespace qchem::BasisSet::PlaneWave
 {
@@ -115,6 +118,12 @@ public:
     bool isOrtho() const override {return true;}
     //! Plane waves on the lattice's reciprocal vectors are invariant under every lattice translation: T.
     qcMesh::ImposedSymmetry Imposes() const override {return qcMesh::ImposedSymmetry::Translations;}
+    //! T of MY cell: the direct lattice dual to the reciprocal one the waves live on, \f$A=2\pi B^{-\top}\f$ (Group face step 3a).
+    Symmetry::GroupPtr Forces() const override
+    {
+        const Matrix3D<double> B=PW_Evaluator::Recip().GetCell().GetCellMatrix();
+        return Symmetry::TranslationGroup(2.0*Pi*Transpose(Invert(B)), Symmetry::kExactTolerance);
+    }
 
     //! \copydoc BasisSet::G_RasterStarField::MakeStarField
     //! The IBZ real-space raster star-average (doc/GPWPlan1.md items 3 + 5) is then

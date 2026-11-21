@@ -145,8 +145,8 @@ public:
     //!
     //! Enumerates the holohedry (lattice point group: integer ops preserving the metric
     //! \f$M = A^\top A\f$), then keeps those linear parts \a W that admit a fractional
-    //! translation \f$\tau\f$ making \f${W|\tau}\f$ a symmetry of the basis.  Assumes a
-    //! primitive cell (one \f$\tau\f$ coset per \a W).
+    //! translation \f$\tau\f$ making \f${W|\tau}\f$ a symmetry of the basis.  EVERY \f$\tau\f$ coset per
+    //! \a W is kept (since 4d4c3d515, 2026-09-07), so a non-primitive cell's internal translations are ops.
     static SpaceGroup Detect(const Matrix3D<double>& A,
                              const std::vector<AtomSite>& basis, double tol=1e-4);
 
@@ -238,8 +238,8 @@ public:
     //! neither is DROPPED (it is not a symmetry of the magnetic crystal).  \f$M = H + \sigma\cdot
     //! (G\setminus H)\f$ -- always a group; closure is gated in the unit tests.
     //!
-    //! COSET COMPLETENESS -- why this does NOT just tag \c Ops(): \c Detect keeps ONE \f$\tau\f$
-    //! coset per \f$W\f$ (primitive-cell assumption), but a magnetically DOUBLED cell (MnO AFM-II
+    //! COSET COMPLETENESS -- why this re-enumerates rather than tagging \c Ops() (written when \c Detect
+    //! kept ONE \f$\tau\f$ coset per \f$W\f$; it keeps every coset since 4d4c3d515): a magnetically DOUBLED cell (MnO AFM-II
     //! = the chemical cell doubled along [111]) has TWO chemical-lattice cosets per \f$W\f$, and
     //! the extra one matters most: the pure ANTI-TRANSLATION \f$\{E|\tfrac12\tfrac12\tfrac12\}
     //! \cdot\f$\c Flip IS the sublattice mirror \f$m_1=-m_2\f$ the imposition exists to enforce.

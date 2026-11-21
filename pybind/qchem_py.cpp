@@ -587,6 +587,17 @@ NB_MODULE(qchem_py, mod)
        "A Gaussian94 basis (the Basis Set Exchange's text) translated into the BasisSetData layout: JSON {text, title, provenance} "
        "in, JSON {bsd, elements, maxL, notes} or {error} out.");
 
+    mod.def("basis_offers", [](const std::string& req)
+    {
+        int n;
+        { nb::gil_scoped_release nogil; n = qcb_basis_offers(req.c_str(), nullptr, 0); }
+        std::string out(size_t(n) + 1, '\0');
+        out.resize(size_t(qcb_basis_offers(nullptr, out.data(), int(out.size()))));
+        return out;
+    }, nb::arg("request"),
+       "Which orbital bases a structure admits (qchem::OrbitalBasisOffers), as JSON text: request {'numbers','positions'[,'symmetryTol']} "
+       "(one site = the radial atom) or {'cell': <materials entry>} -> {'offers': [{route, key, name, admitted, reason, blockGroup, note, "
+       "optIn}]} or {'error'}.  Unsorted: the front end sorts.");
     mod.def("pseudopotentials", [](const std::string& req)
     {
         int n;

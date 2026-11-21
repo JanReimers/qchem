@@ -18,6 +18,7 @@ import qchem.UnitCell;                                 // UnitCell (CollocateDen
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.Structure;
+import qchem.Symmetry.Group;   // Symmetry::GroupPtr / TrivialGroup (Forces, Group face step 3a)
 import qchem.Types;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.Fit_IBS;   // the shared Gaussian-family implementation base we DERIVE
@@ -181,6 +182,7 @@ public:
     virtual std::string Name() const override {return itsName;}
     //! Atom-centred Gaussians of every l on the structure's sites: no group of their own ({e}, doc/Pins.md pin 30).
     virtual qcMesh::ImposedSymmetry Imposes() const override {return qcMesh::ImposedSymmetry::None;}
+    virtual Symmetry::GroupPtr      Forces () const override {return Symmetry::TrivialGroup();}   //!< {e}, as \c Imposes
     virtual rsmat_t MakeOverlap() const override {return MakeOverlap2C(this);}
     // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative for this fit block yet (the Dunlap increment adds the fit faces').
     virtual bool CanPullbackOverlap() const override {return false;}

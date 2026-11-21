@@ -32,6 +32,8 @@ import qchem.Pseudopotential.GTH_Potentials;  // MakeMultiSpeciesLocal -- the lo
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (element symbol -> Z)
 import qchem.ElectronConfiguration.Crystal;    // Crystal_EC
 import qchem.Symmetry.Irrep;                   // Irrep, Spin
+import qchem.Symmetry.Group;                   // TranslationGroup: what the periodic A1 set forces (Group face step 3a)
+import qchem.ChargeDensity.DensitySampler;     // LatticeSummedSet: the periodic A1 set + its translations
 import qchem.Blaze;                            // blazem::conjs (the u_bands weights)
 import qchem.PseudoAtomOrbital;                // the pseudo-atom l orbital: the +U projector (HubbardProjectorPlan D5)
 import qchem.Orbitals;                         // TOrbitals/TOrbital -- the ACBN0 feed (EstimateHubbardU)
@@ -528,7 +530,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
 // GPW block at Gamma -- its analytic lattice-summed overlap and image-summed point values are the fit space's (ChargeDensity's
 // GaussianFitSpace).  Built HERE, the run's concrete wiring: the Hamiltonian library does not link the Gaussian factories, and the complex
 // lineage's fit-basis factory cannot return a real fit without changing a tier-1 hub (controller 2026-11-15).  Empty unless xc.fit Auxiliary.
-static std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> PeriodicA1Set(const RunOptions& o, const Structure& st)
+static ChargeDensity::LatticeSummedSet PeriodicA1Set(const RunOptions& o, const Structure& st)
 {
     if (o.vxcFit!=Hamiltonian::VxcFit::Auxiliary) return {};
     const auto& cell=dynamic_cast<const UnitCell&>(st);   // the facade's concrete wiring: a solid's structure IS its cell
@@ -540,8 +542,10 @@ static std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> PeriodicA1Set(con
                        std::string("the A1_exch set covers Z = 1-54, and building it on this cell's species failed (")+e.what()+") -- state "
                        "xc.fit Delta or PlaneWave");
     }
-    return std::make_shared<const BasisSet::Gaussian::tGPW_IBS<double>>(std::make_shared<BasisSet::BasisCache>(), cell, ivec3_t(1,1,1),
-                                                                          ivec3_t(0,0,0), a1mol, 0.0);
+    // The block is summed over THIS cell's lattice, so a fit space over it forces T(cell) -- issued here, where the cell is concrete.
+    return {std::make_shared<const BasisSet::Gaussian::tGPW_IBS<double>>(std::make_shared<BasisSet::BasisCache>(), cell, ivec3_t(1,1,1),
+                                                                          ivec3_t(0,0,0), a1mol, 0.0),
+            Symmetry::TranslationGroup(cell.GetCellMatrix(), Symmetry::kExactTolerance)};
 }
 
 // THE PERIODIC A1 FIT'S COST (controller 2026-11-15: warn with an estimate, bytes as a range, beside the memory available -- the shape of the
@@ -639,7 +643,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
             xc.sampling.eta           =opts.solid.grid.samplerEta;
         }
         const auto a1=PeriodicA1Set(opts, *itsImp->st);
-        if (a1) ReportPeriodicA1Cost(*a1, SizeReference("periodic A1 Vxc fit", opts.solid.tolerances, 1.0, &xc), Tag());
+        if (a1) ReportPeriodicA1Cost(*a1.set, SizeReference("periodic A1 Vxc fit", opts.solid.tolerances, 1.0, &xc), Tag());
         // The XC route carries the δ fit's orbital-table door: the user's stated xcOrbitalTables, judged at the fit factory on both
         // realizations' footprints (qchem.PhiTablesPolicy; user ruling 2026-11-19, option (a)).
         qchem::Hamiltonian::XCRoute route(opts.vxcFit, opts.xcRho);

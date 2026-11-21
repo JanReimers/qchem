@@ -50,6 +50,7 @@ import qchem.BasisSet.DeltaFit_IBS;               // the δ basis the singles sa
 import qchem.BasisSet.G_FieldEvaluator;           // G_RasterTransform: the pair sampler's raster length
 import qchem.Symmetry.Factory;                    // BlochFactory (the Γ irrep of the δ basis)
 import qchem.ChargeDensity.DensitySampler;        // MakeDensitySampler: the strategy chosen by capability
+import qchem.Symmetry.Group;                       // Forces / TranslationGroup (Group face step 3a)
 import qchem.ChargeDensity.Imp.IrrepCD;           // PeriodicIrrepCD
 import qchem.CompositeCD;                         // tComposite_CD<dcmplx>
 import qchem.Streamable;
@@ -290,6 +291,46 @@ TEST(VxcProductSpace, EveryFitClassStatesWhatItImposesAndItIsThePreflightAnswer)
     }
 }
 
+//! GROUP FACE STEP 3a: every fit class also answers \c Forces, the SAME group in its own Cartesian frame -- {e} for atom-centred sets, O(3)
+//! about the ATOM'S SITE for the radial l = 0 set (an atom off the origin, so a set answering about the origin is caught), T of ITS cell for
+//! plane waves (contained in the cell's own group; a cell half as long is not its lattice).
+TEST(VxcProductSpace, EveryFitClassForcesTheGroupItImposesInItsOwnFrame)
+{
+    using Symmetry::Generator;
+    const qcMesh::MeshParams becke=PointsFor(Points::Becke);
+    const auto trivial=Symmetry::TrivialGroup();
+    {
+        const auto st=TheMolecule();
+        std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(),
+                                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+        std::unique_ptr<const BasisSet::rFIT_SF_ABS> a1(bs->CreateVxcFitBasisSet(st.get(), becke, VxcFit::Auxiliary));
+        EXPECT_TRUE(trivial->Contains(*a1->Forces())) << a1->Forces()->Describe();
+    }
+    {
+        const rvec3_t R(0.3,-0.2,0.7);
+        const auto st=std::make_shared<Atom>(7, 0.0, R);
+        std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Radial::Factory(BasisSet::Radial::BasisSetAccuracy::Low,
+                                                                              BasisSet::Radial::Type::Gaussian, 7));
+        std::unique_ptr<const BasisSet::rFIT_SF_ABS> a1(bs->CreateVxcFitBasisSet(st.get(), becke, VxcFit::Auxiliary));
+        const auto H=a1->Forces();
+        EXPECT_TRUE (H->Contains(Generator::FullRotations(R)))               << "O(3) about the atom's site";
+        EXPECT_FALSE(H->Contains(Generator::FullRotations(rvec3_t(0,0,0)))) << "not about the origin: the set is pinned at the nucleus";
+        EXPECT_TRUE (st->MakeSymmetry(Symmetry::kExactTolerance)->Contains(*H));
+    }
+    {
+        const double a=8.0;
+        UnitCell cell(a); cell.AddAtom(14, {0.5,0.5,0.5});
+        Lattice_3D lat(cell, ivec3_t(1,1,1));
+        std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, 4.0));
+        std::unique_ptr<const BasisSet::cFIT_SF_ABS> pw(bs->CreateVxcFitBasisSet(&cell, PointsFor(Points::Uniform), VxcFit::PlaneWave));
+        const auto H=pw->Forces();
+        EXPECT_TRUE (H->Contains(Generator::Translations(cell.GetCellMatrix())));
+        EXPECT_FALSE(H->Contains(Generator::Translations(0.5*cell.GetCellMatrix()))) << "half the cell is not my lattice";
+        EXPECT_FALSE(trivial->Contains(*H));
+        EXPECT_TRUE (cell.MakeSymmetry(Symmetry::GroupTolerance{.length=1e-6, .angle=1e-8})->Contains(*H));
+    }
+}
+
 //! A REFUSAL is an Outcome that names the imposed group H_R and the structure's G (pin 30), and the factory, handed a refused
 //! cell anyway, throws \c invalid_argument carrying the same reason -- never a substitution, never a logic_error (that one
 //! marks an ADMITTED cell no code realizes yet).
@@ -512,7 +553,7 @@ TEST(VxcProductSpace, EverySamplersPin28CertificateMatchesItsMeasuredDistanceFro
         add("GPW: delta singles at Becke",        *MakeDensitySampler(delta, quad), cd.get(), ref);
         std::shared_ptr<const BasisSet::cFIT_SF_ABS> pwBecke(cx.CreateVxcFitBasisSet(st.get(), becke));
         EXPECT_THROW((void)MakeDensitySampler(pwBecke, quad), std::invalid_argument) << "the GPW ball at Becke points is not built (pin 28)";
-        add("GPW: periodic A1 fitted potential",  *MakeAuxiliaryFitSampler(delta, quad, a1), cd.get(), ref);
+        add("GPW: periodic A1 fitted potential",  *MakeAuxiliaryFitSampler(delta, quad, {a1, Symmetry::TranslationGroup(cell.GetCellMatrix(), Symmetry::kExactTolerance)}), cd.get(), ref);
     }
     {   // PERIODIC, plane-wave orbitals: the ball (>= 4 Ecut) holds every orbital pair
         UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5});

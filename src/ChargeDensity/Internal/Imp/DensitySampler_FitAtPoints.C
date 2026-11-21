@@ -147,15 +147,22 @@ static const BasisSet::Orbital_1E_IBS<double>& RequireBlock(const std::shared_pt
     if (!a1) throw std::logic_error("GaussianFitSpace: needs the periodic A1 block");
     return *a1;
 }
-GaussianFitSpace::GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, BasisSet::FitQuadrature points)
-    : GaussianFitSpace(RequireBlock(a1).Overlap(), [a1](const rvec3vec_t& R) {return rmat_t((*a1)(R));}, std::move(points),
-                       "the periodic A1 Gaussian set", qcMesh::ImposedSymmetry::Translations)   // lattice-summed at Gamma: T
+static const Symmetry::GroupPtr& RequireForces(const LatticeSummedSet& a1)
+{
+    if (!a1.forces) throw std::logic_error("GaussianFitSpace: the periodic A1 block came without the translations it is summed over");
+    return a1.forces;
+}
+GaussianFitSpace::GaussianFitSpace(const LatticeSummedSet& a1, BasisSet::FitQuadrature points)
+    : GaussianFitSpace(RequireBlock(a1.set).Overlap(), [b=a1.set](const rvec3vec_t& R) {return rmat_t((*b)(R));}, std::move(points),
+                       "the periodic A1 Gaussian set", qcMesh::ImposedSymmetry::Translations,   // lattice-summed at Gamma: T
+                       RequireForces(a1))
 {}
 GaussianFitSpace::GaussianFitSpace(const rsmat_t& S, Evaluator eval, BasisSet::FitQuadrature points, std::string name,
-                                   qcMesh::ImposedSymmetry imposes)
-    : itsEval(std::move(eval)), itsPoints(std::move(points)), itsName(std::move(name)), itsImposes(imposes)
+                                   qcMesh::ImposedSymmetry imposes, Symmetry::GroupPtr forces)
+    : itsEval(std::move(eval)), itsPoints(std::move(points)), itsName(std::move(name)), itsImposes(imposes), itsForces(std::move(forces))
 {
     if (!itsEval) throw std::logic_error("GaussianFitSpace: needs the set's evaluator at points");
+    if (!itsForces) throw std::logic_error("GaussianFitSpace: needs the group its set forces (Forces)");
     if (!itsPoints.GetMesh() || itsPoints.GetMesh()->size()==0) throw std::logic_error("GaussianFitSpace: a point set with no points");
     // S^-1, robust to a near-dependent set: S = V diag(w) V^T, the modes below kMetricRelTol x w_max dropped and REPORTED.
     const size_t n=S.rows();

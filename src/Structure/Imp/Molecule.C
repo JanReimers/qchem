@@ -9,6 +9,7 @@ module;
 
 module qchem.Structure;
 import qchem.Streamable;
+import qchem.Symmetry.Molecule.AbelianGroup;   // BuildAbelianGroup, Centroid (MakeSymmetry)
 import qchem.Mesh.Product;         // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
 import qchem.Mesh.Builder;         // MeshBuilder (efficient incremental accumulation)
 import qchem.Mesh.BeckePartition;  // BeckePartitionWeight (the partition, one home with its geometry gradient)
@@ -144,6 +145,20 @@ std::ostream& Molecule::Write(std::ostream& os) const
 Molecule::Molecule() {}
 std::shared_ptr<Structure> Molecule::Clone() const {return std::make_shared<Molecule>(*this);}
 size_t Molecule::GetNumAtoms() const {return itsSites.size();}
+Symmetry::GroupPtr Molecule::MakeSymmetry(const Symmetry::GroupTolerance& tol) const
+{
+    namespace SM=Symmetry::Molecule;
+    if (itsSites.empty()) throw std::invalid_argument("Molecule::MakeSymmetry: an empty site set -- its group would be every isometry, "
+                                                      "and there is no finite group to issue");
+    std::vector<SM::SymPoint> pts;
+    for (const Site& s:itsSites) pts.push_back({s.Z, s.R});
+    // The ABELIAN subgroup (see the declaration): BuildAbelianGroup's ops act about the centroid of the points it was given.  The group
+    // NAMES itself as that subgroup of the detected full group (user, 2026-11-20), so a report never passes it off as the point group.
+    const SM::PointGroup pg=SM::DetectPointGroup(pts, tol.length);
+    const std::string name=pg.abelian==pg.symbol ? pg.symbol+" (the detected point group; abelian)"
+                                                 : pg.abelian+" (abelian subgroup of "+pg.symbol+")";
+    return Symmetry::FiniteGroup(SM::BuildAbelianGroup(pts, tol.length).ops, SM::Centroid(pts), tol, name);
+}
 const Site& Molecule::GetSite(size_t i) const {return itsSites[i];}
       Site& Molecule::GetSite(size_t i)       {return itsSites[i];}
 
