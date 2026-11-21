@@ -100,8 +100,7 @@ std::vector<RouteCase> RouteFamilies()
     for (H m : {H::PBE, H::PBEsol, H::BLYP})
     {
         const std::string n=Hamiltonian::Name(m);
-        cs.push_back({"molecule Becke (" +n+")", [m]{return AdmitHe(m, F::Auto);}});
-        cs.push_back({"molecule delta ("  +n+")", [m]{return AdmitHe(m, F::Delta);}});
+        // (the molecular delta route, Auto or Delta, samples the gradient since stage 2: TheMolecularDeltaRouteRunsAGGAAndSaysSo)
         cs.push_back({"molecule auxiliary ("+n+")", [m]{return AdmitHe(m, F::Auxiliary);}});
         cs.push_back({"atom radial ("     +n+")", [m]{RunOptions o; o.model=m; return PolicyOf(AtomSetup::Admit(Atom(8), o));}});
         cs.push_back({"atom atom.xc ("    +n+")", [m]{RunOptions o; o.atom.xc=Hamiltonian::ModelToXC(m); return PolicyOf(AtomSetup::Admit(Atom(8), o));}});
@@ -116,11 +115,12 @@ std::vector<RouteCase> RouteFamilies()
 } // namespace
 
 // THE NO-SILENT-SUBSTITUTION INVARIANT (GGA stage 1): a GGA is REFUSED by name -- policy GGARoute, a "refuse" row in the run report's
-// policy scope -- on EVERY XC route family, since none has a density-gradient sampler yet (stages 2-4).  This is the factory side's ONE
+// policy scope -- on EVERY XC route family that has no density-gradient sampler (since stage 2 that is all but the molecular delta route;
+// stages 3-4 take the periodic ones).  This is the factory side's ONE
 // run-time check (user 2026-11-20: the gradient is a TYPE): past it, a GGA term cannot be constructed without a GGA functional and a
 // gradient sampler, and a GGA functional has no rho-only face to be misused through (GGA_XC.C's static_asserts) -- so there is no
 // "ran with v_sigma dropped" state left to guard at run time.
-TEST(GGARoute, EveryRouteRefusesAGGAUntilItSamplesTheGradient)
+TEST(GGARoute, EveryRouteWithoutAGradientSamplerRefusesAGGA)
 {
     for (const RouteCase& c : RouteFamilies())
     {
@@ -136,8 +136,31 @@ TEST(GGARoute, EveryRouteRefusesAGGAUntilItSamplesTheGradient)
         EXPECT_EQ(rows[0]["verdict"], "refuse") << c.label;
         const std::string decided=rows[0]["decided"], reason=rows[0]["reason"];
         EXPECT_NE(decided.find("libxc"), std::string::npos) << c.label << ": the row names the functional: " << decided;
-        EXPECT_NE(reason.find("state an LDA"), std::string::npos) << c.label << ": and says what to do: " << reason;
+        EXPECT_NE(reason.find("state "), std::string::npos) << c.label << ": and says what to do: " << reason;
     }
+}
+
+// GGA STAGE 2: the molecular delta route (the default Vxc fit, Auto, and Delta stated) samples grad rho, so a GGA there is ADMITTED, and
+// the policy says which route it took -- a "choose" row, never silence.
+TEST(GGARoute, TheMolecularDeltaRouteRunsAGGAAndSaysSo)
+{
+    using H=Hamiltonian::Model; using F=Hamiltonian::VxcFit;
+    for (H m : {H::PBE, H::PBEsol, H::BLYP})
+        for (F f : {F::Auto, F::Delta})
+        {
+            const std::string run="ggaroute molecule "+Hamiltonian::Name(m)+(f==F::Auto ? " auto" : " delta");
+            std::string policy;
+            {
+                report::Run r(run);
+                policy=AdmitHe(m, f);
+            }
+            EXPECT_EQ(policy, "") << run << ": the delta route samples the gradient, so it admits";
+            const auto rows=GGARouteRows(run);
+            ASSERT_EQ(rows.size(), 1u) << run << ": one GGARoute row";
+            EXPECT_EQ(rows[0]["verdict"], "choose") << run;
+            const std::string decided=rows[0]["decided"];
+            EXPECT_NE(decided.find("delta"), std::string::npos) << run << ": the row names the route: " << decided;
+        }
 }
 
 // A DECK stating model PBE is refused the same way: by deck::Vet (vet-decks, before anything is built) and by deck::Prepare (what Run

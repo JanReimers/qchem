@@ -49,6 +49,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Fit_IBS.C
   Internal/Fit_IBS.C
   DeltaFit_IBS.C
+  GradOverlap3C.C                       # a point fit basis's gradient 3-centre overlap (GGA stage 2; 2026-11-21)
   MultipoleFit_IBS.C
   CoulombDeltaFit_IBS.C
   GSpaceDensityProjector.C              # the ρ̃ projector FACTORY (returns the PairProjector<dcmplx> face)

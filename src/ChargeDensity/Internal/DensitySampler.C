@@ -38,6 +38,7 @@ import qchem.Mesh.SiteMultipoles;           // MultipoleFitSpace: the site multi
 import qchem.Symmetry.Lattice_3D.Fold;      // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
 import qchem.Symmetry;                      // sym_t / SymMap
 import qchem.SlotMap;                       // InstanceSlotMap: the per-block adjoint views, by the block's instance
+import qchem.BasisSet.GradOverlap3C;   // the δ basis's gradient 3-centre overlap (GGA stage 2)
 import qchem.BasisSet.PairProjection;  // ScreenedMatrixIntegrator -- the pair route's MatrixAdjoint view
 import qchem.BasisSet.GSpaceDensityProjector;
 import qchem.BasisSet.PointSetPullback;   // the block face the Becke mesh's pullback asks (READY 4)   // the BALL route's ρ̃ (V-ONE-OF-N 3c)
@@ -292,6 +293,62 @@ public:
     Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const override;
     bool CanVirialMatrix(const robs_t* bs) const override;
     Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const override;
+};
+
+//! \brief THE GRADIENT PROJECTOR (GGA stage 2): the density's ONE operation (\c tChargeDensity::Project) onto the δ basis's GRADIENT
+//! 3-centre overlap, so \f$\nabla\rho\f$ at the points comes off the density exactly as \f$\rho\f$ does -- the density contracts its own D, and
+//! no density face changes.  Its coefficient axis is 3N long, component-major (\c BasisSet::Integrals_GradOverlap3C).  Per block it vends the
+//! forward + adjoint PAIR (\c ScreenedMatrixIntegrator over the tensor), so the gradient half of H is the exact transpose of what sampled it.
+//! A density with no D (the seed) projects its FIELD: the field's own analytic gradient at the points.
+class DeltaGradientProjector
+    : public virtual BasisSet::PairProjector<double>
+{
+public:
+    //! \a fb must have the gradient face (THROWS \c invalid_argument otherwise); \a mesh is its quadrature (one point per function).
+    DeltaGradientProjector(std::shared_ptr<const BasisSet::rFIT_SF_ABS> fb, const qcMesh::Mesh& mesh);
+    const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const override {return Integrator(orb);}
+    //! The block's forward + adjoint pair over its gradient tensor, cached for the run (geometry-fixed).
+    const ScreenedMatrixIntegrator<double>& Integrator(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const;
+    //! \f$\nabla f(r_g)\f$, component-major: the field's own gradient (\c ScalarFunction::Gradient) at each point.
+    Projections ProjectField(const ScalarFunction<double>& f) const override;
+    size_t NumCoefficients() const override {return 3*itsPoints.size();}
+private:
+    std::shared_ptr<const BasisSet::rFIT_SF_ABS>           itsFit;    //!< co-owned: the tensors' closures capture its tables
+    const BasisSet::Integrals_GradOverlap3C<double,double>* itsFace;
+    rvec3vec_t                                             itsPoints;
+    std::shared_ptr<const rvec_t>                          itsW3;     //!< the mesh weights, tiled once per component (\c Integrate only)
+    mutable InstanceSlotMap<ScreenedMatrixIntegrator<double>> itsInt;
+    qchem::LazyLock                                        itsIntLock;
+};
+
+//! \brief THE SINGLES DENSITY-GRADIENT STRATEGY (GGA stage 2, the molecular point route): \c tSinglesDensitySampler plus
+//! \f$\nabla\rho_\sigma\f$ through \c DeltaGradientProjector and the \f$\{v,\mathbf{w}\}\f$ gather.  Always spin-resolved: \c Rho is the sum of the
+//! channels, so one serial-keyed cache answers every face (\c tDensityGradientSampler).  Real δ basis only in stage 2.
+//! REFUSES (throws) what it cannot sample exactly: a folded quadrature (constructor), and a density mixed as a field whose exact source is
+//! retained (\c GradRhoPol: that is the raster route's business, GGA stage 4).
+template <class T> class tSinglesGradientSampler
+    : public         tSinglesDensitySampler<T>
+    , public virtual tDensityGradientSampler<T>
+{
+public:
+    tSinglesGradientSampler(typename tSinglesDensitySampler<T>::fit_t fit, BasisSet::FitQuadrature quad);
+    using tSinglesDensitySampler<T>::Matrix;
+    //! \f$\rho=\rho_\uparrow+\rho_\downarrow\f$ off the spin cache (never the base's scalar cache: see the class note).
+    const rvec_t& Rho(const tChargeDensity<T>* cd) const override;
+    const rvec3vec_t& GradRhoPol(const tChargeDensity<T>* cd, const Spin& s) const override;
+    hmat_t<T> Matrix(const tobs_t<T>* bs, const rvec_t& v, const rvec3vec_t& w) const override;
+    //! Warms ρ AND ∇ρ, spin-resolved, whatever \a polarized says (the run's shape is the term's collapse, not this cache's).
+    void WarmForDensity(const tChargeDensity<T>* cd, bool polarized) const override;
+private:
+    rvec3vec_t ProjectGradDM(const tDM_CD<T>& dm) const;
+    rvec3vec_t ProjectGradField(const tChargeDensity<T>& cd) const;
+    rvec3vec_t Unpack(const rvec_t& c) const;   //!< component-major 3N -> one 3-vector per point
+
+    DeltaGradientProjector itsGrad;
+    mutable rvec3vec_t itsGradUp, itsGradDn;
+    mutable size_t     itsGradVersion=size_t(-1);
+    mutable rvec_t     itsRhoSum;
+    mutable size_t     itsRhoSumVersion=size_t(-1);
 };
 
 //! \brief THE PAIR STRATEGY: \f$\rho\f$ COLLOCATED from the density-matrix through the orbital-pair

@@ -163,7 +163,7 @@ std::string SetupFiled(const rjson* build, const std::string& prefix, size_t row
         if (!b["basis"]["conditioning"].contains(k)) return std::string("basis.conditioning has no ")+k;
     if (!b.contains("hamiltonian") || b["hamiltonian"].empty()) return "no hamiltonian in the build run";
     const rjson& ham=b["hamiltonian"];
-    if (!ham.contains("xcQuadrature")) return "no hamiltonian.xcQuadrature in the build run (a DFT run)";
+    if (!ham.contains("nonlinearMesh")) return "no hamiltonian.nonlinearMesh in the build run (a DFT run)";
     // A member of the Hamiltonian's context is a mesh, filed as built, or a term, filing its fit basis -- or `cache`, the bytes the tables
     // filled while it was built reported themselves under (doc/IntegralCacheOwnershipPlan.md S6: each store writes its own bytes as it fills).
     std::set<std::string> terms;

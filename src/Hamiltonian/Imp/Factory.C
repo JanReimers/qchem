@@ -291,6 +291,7 @@ namespace qchem::Hamiltonian
         // one XC term (each contributes its OWN eps, so E_c is the correct integral eps_c rho, not the 3/4 exchange virial); libxc is
         // spin-native through its XC_POLARIZED contract (2026-10-21).
         if (xc.kind==XC::SlaterXalpha) return new Ham_DFT(st, xc.alpha, mp, bs, coulombFit, p, fit, coulomb);
+        if (xc.kind==XC::LibXCGGA)     return new Ham_DFT(st, MakeGGAFunctional(xc), mp, bs, coulombFit, p, fit, coulomb);   // GGA stage 2
         return new Ham_DFT(st, MakeXCParts(xc), mp, bs, coulombFit, p, fit, coulomb);
     }
 

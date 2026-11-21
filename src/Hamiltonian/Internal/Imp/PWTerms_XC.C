@@ -195,10 +195,9 @@ template <class T> void tVxc_DFT<T>::GetEnergy(EnergyBreakdown& te, const tDM_CD
              itsFockSource ? ChargeDensity::CertificateLabel(*itsFockSource, itsFockDensityIsRhoD) : "",
              itsFockSource && ChargeDensity::CertifiesRhoD(*itsFockSource, itsFockDensityIsRhoD));
     // The charge accounting of the same density: the mesh-charge leak (the quadrature's health metric --
-    // CP2K's grid-charge-lost readout) is the quadrature integral of rho vs the analytic Tr(DS); the
-    // integrated site moments are the observable, where both rasters are in hand (R1.0h).
+    // CP2K's grid-charge-lost readout) is the quadrature integral of rho vs the analytic Tr(DS).  The integrated site moments are the
+    // Hamiltonian's, on the same mesh (V-NONLINEAR-MESH): it writes them beside this energy.
     te.charge.lost        = itsSampler->Integrate(rho) - cd->GetTotalCharge();
-    te.charge.siteMoments = SiteMoments(cd);
     te.charge.xcGroupResidual = itsFockGroupResidual;
     ReportFourierSampling();
     // THE samp/τ COLUMN: the worst audited delivered/tau of the sized samplings since the last energy that saw new ones (one iteration's:
@@ -209,38 +208,6 @@ template <class T> void tVxc_DFT<T>::GetEnergy(EnergyBreakdown& te, const tDM_CD
         if (tgt->loads!=itsSamplingLastLoads) {itsSamplingShown=tgt->TakeWindow(); itsSamplingLastLoads=tgt->loads;}
         te.charge.samplingOverTau=itsSamplingShown;
     }
-}
-
-// THE OBSERVABLE (doc/OpenWork.md N1/T2; R1.0h): mu_A = Integral w_A (rho_up - rho_dn), in electrons, over the
-// sampler's atom-centred partition.  FREE -- both channel rasters are cached for this density serial -- and
-// the term's, not the sampler's, because the term is what knows the field is a spin difference; the
-// sampler only knows how to partition-integrate a field at its points.  Empty when the run resolves no
-// spin (m == 0 identically) or the quadrature has no site blocks -- the caller treats empty as "this run
-// cannot answer", never as "zero".
-template <class T> rvec_t tVxc_DFT<T>::SiteMoments(const tChargeDensity<T>* cd) const
-{
-    if (itsGroup!=SpinGroup::Polarized) return rvec_t();
-    return itsSampler->SiteIntegrals(rvec_t(itsSampler->RhoPol(cd,Spin::Up)-itsSampler->RhoPol(cd,Spin::Down)));
-}
-
-// D-MINDRHO: the sampler caches ONE density serial (both channels of it), so BOTH of a's channels are copied before b's
-// replace them -- two rasters per call, not four (the a-up, b-up, a-dn, b-dn order re-rastered each density).
-template <class T> double tVxc_DFT<T>::L1Distance(const tChargeDensity<T>* a, const tChargeDensity<T>* b) const
-{
-    auto l1=[&](const rvec_t& fa, const rvec_t& fb)
-    {
-        rvec_t d(fa.size());
-        for (size_t g=0; g<d.size(); g++) d[g]=std::fabs(fa[g]-fb[g]);
-        return itsSampler->Integrate(d);
-    };
-    if (itsGroup!=SpinGroup::Polarized)
-    {
-        const rvec_t fa=itsSampler->Rho(a);
-        return l1(fa, itsSampler->Rho(b));
-    }
-    const rvec_t au=itsSampler->RhoPol(a,Spin::Up), ad=itsSampler->RhoPol(a,Spin::Down);
-    const rvec_t bu=itsSampler->RhoPol(b,Spin::Up), bd=itsSampler->RhoPol(b,Spin::Down);
-    return l1(au,bu)+l1(ad,bd);
 }
 
 // THE RESPONSE (R2): the ALDA kernel at the linearisation density, times δρ_σ, gathered by the same adjoint.

@@ -18,7 +18,6 @@ module;
 #include <optional>
 #include <string>
 export module qchem.Hamiltonian.Internal.PWTerms;
-import qchem.Hamiltonian.Internal.RealSpaceResidual;   // the quadrature owner's capability
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
 import qchem.Hamiltonian.Internal.GeometryGradient;   // the PP terms' force face (GeometryOptimizationPlan §13.2; lane B)
 import qchem.Parallel;                          // LazyLock (per-block writes from concurrent Fock blocks)
@@ -302,7 +301,6 @@ template <class T, class D> using Vxc_DFT_BlochBase =
 template <class T> class tVxc_DFT
     : public virtual tDynamic_HT<T>
     , protected      tDynamic_HT_Imp<T>
-    , public virtual tRealSpaceResidual<T>   //!< AFTER the protected base: declared before it, libstdc++'s cross-cast from tDynamic_HT returns null
     , public virtual tGeometryGradient_HT<T>           // its force at fixed D (§13.2; lane B 2026-11-09): Imp/Vxc_Forces.C
     , public virtual tStatic_PC<T>                     // the per-block pullback client DM_Pullback walks
     , public         RealPullbackBase<T,tVxc_DFT<T>>   // ... and on <dcmplx> the real TRIM block's
@@ -352,15 +350,6 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&, const tDM_CD<T>*) const override;
     //! The spins the Fock loop asks for: the imposed subgroup's (V1.41 stage 3: BuildBlocks builds exactly these).
     virtual std::vector<Spin> BlockSpins() const override {return SpinIrreps(itsGroup);}
-    //! \copydoc tDynamic_HT::SiteMoments
-    //! The atom-centred partition lives on my quadrature and both channel rasters are my working data, so
-    //! I am the term that computes the observable (doc/OpenWork.md N1/T2).  Empty when the quadrature has
-    //! no site blocks (a uniform raster) or the run resolves no spin.  My ENERGY pass writes the same number
-    //! into \c ChargeBreakdown::siteMoments, which is how it reaches the trace and the observer.
-    virtual rvec_t        SiteMoments(const tChargeDensity<T>* cd) const override;
-    //! \copydoc tRealSpaceResidual::L1Distance
-    //! Per spin channel for a polarized run (a moment still moving keeps the SCF unconverged).
-    virtual double        L1Distance(const tChargeDensity<T>* a, const tChargeDensity<T>* b) const override;
     virtual std::ostream& Write(std::ostream&) const override;
 protected:
     virtual hmat_t<T> MakeMatrix(const tobs_t<T>*, const Spin&, DensityID) const override;
@@ -410,7 +399,7 @@ protected:
 
 
     xc_t      itsXc;
-    sampler_t itsSampler;   //!< the shared mesh + Phi tables + per-serial rho (one per Hamiltonian)
+    sampler_t itsSampler;   //!< the Hamiltonian's nonlinear integration mesh (V-NONLINEAR-MESH): I am one client of it, the Hamiltonian holds it
     SpinGroup itsGroup;     //!< the imposed subgroup this term was built for
     //! The pin-28 audit: the source of the rho my most recent V_xc BUILD sampled (MakeMatrixT), which my energy pass
     //! reports in \c ChargeBreakdown::xcRho.  The latest build, not a drained log: GDM's line search calls the energy
@@ -446,28 +435,5 @@ protected:
 using cVxc_DFT = tVxc_DFT<dcmplx>;
 //! The molecular / atom XC term.
 using rVxc_DFT = tVxc_DFT<double>;
-
-//! \brief THE XC term for a run whose \f$v_{xc}\f$ fit basis is \a fb -- ready to \c Add (ownership
-//! passes with release()).
-//!
-//! A Hamiltonian builder asks for the XC term and gets the XC term.  WHICH quadrature it runs on and which
-//! assembly strategy that quadrature uses are decided here -- they are implementation, and a builder that
-//! has to name them is a builder that can pair them wrong.  \a g is the imposed spin subgroup the term is
-//! built for.
-//!
-//! ★ ONE TERM, NOT A PAIR (2026-09-04).  Each term does its OWN real-space gather of its potential, and
-//! the gather is LINEAR: <i|v_x|j> + <i|v_c|j> == <i|(v_x+v_c)|j>.  Two terms therefore bought two
-//! gathers for one operator -- and the gather is 71% of the MnO parity run (doc/OpenWork.md bin 1).
-//! Summing the FUNCTIONALS instead of the MATRICES is the same physics for half the work.
-//! ⚠ NOT bit-identical (gather(a)+gather(b) vs gather(a+b) differ at roundoff); the operator is the same.
-inline std::unique_ptr<cDynamic_HT>
-MakeVxcTerm(std::vector<std::shared_ptr<ExFunctional>> parts,
-            const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb, SpinGroup g,
-            BasisSet::FitQuadrature quad={})
-{
-    std::shared_ptr<const ChargeDensity::DensitySampler> q=ChargeDensity::MakeDensitySampler(fb, std::move(quad));
-    auto sum=std::make_shared<CompositeExFunctional>(std::move(parts));
-    return std::make_unique<cVxc_DFT>(sum, q, g);
-}
 
 } //namespace
