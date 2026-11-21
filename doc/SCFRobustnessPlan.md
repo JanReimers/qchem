@@ -325,7 +325,7 @@ degenerate frontier), R4.2 (a direct minimiser gates on its gradient).
 ### How it runs
 
 - A test whose name ends in **`_Panel`** gets the ctest label `panel` (a third discovery pass in `qchem_discover_tests`, exactly
-  like `_Long`, with `FAIL_REGULAR_EXPRESSION "no tests were run"`).  Run: `flock ~/Code/qchem6-runs/.heavy.lock scripts/memsafe ctest -L panel`
+  like `_Long`, with `FAIL_REGULAR_EXPRESSION "no tests were run"`).  Run: `~/Code/qchem6-runs/heavy scripts/memsafe -H 9G ctest -L panel` (the slot launcher; never a bare `flock .heavy.lock`, which competes for slot 0 only)
   from `build/Release`, keep `LastTest.log` as `~/Code/qchem6-runs/anchors/panel-<sha>.log`, and `scripts/anchordiff` it against
   the previous panel log (per test: final Etot and summed SCF iterations — the instrument already exists).
 - **Two tiers**: the FAST cases (≲ 10 min total at 4 threads; run on every C1 commit that touches the SCF path) and the FULL
