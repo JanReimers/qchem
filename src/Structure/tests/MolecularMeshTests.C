@@ -7,12 +7,15 @@
 #include <cstdio>
 #include <algorithm>
 #include <vector>
+#include <memory>
+#include <stdexcept>
 
 import qchem.Structure;                 // Molecule, Atom, Structure
 import qchem.UnitCell;                   // UnitCell (uniform periodic mesh)
 import qchem.Mesh.Quadrature;          // qcMesh::Integrate (over qcMath ScalarFunction)
 import qchem.Reporting;                 // report::Scope: the mesh files its fields one level into the caller's scope
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
+import qchem.Structure.MeshFactory;   // MakeMesh, StructureMeshMaker<S> (V-MESH-FACTORY)
 using namespace qchem;
 
 // Note: this TU sees BOTH the old global `Mesh`/`MeshParams` (via qchem.Structure) and the new
@@ -425,4 +428,48 @@ TEST(MolecularMesh, TheWeightResponseIsTheFiniteDifferenceOfTheRebuiltMesh)
     EXPECT_GT(big, 1e-3) << "a vanishing response cannot show it is wired";
     EXPECT_LT(worst, 1e-8*std::max(1.0,big)) << "the weight response is not the finite difference of the rebuilt mesh";
     EXPECT_LT(norm(sum), 1e-10) << "translation invariance";
+}
+
+// THE STRUCTURE MESH FACTORY (V-MESH-FACTORY §8 step 2).  A StructureMeshMaker<S> handed to a library must build EXACTLY what the
+// factory overload builds for the same structure and recipe -- same points, same order, same weights, same per-site blocks -- or a
+// library that receives a maker instead of building through the structure would move every number it integrates.
+namespace
+{
+void ExpectSameMesh(const qcMesh::Mesh& a, const qcMesh::Mesh& b)
+{
+    ASSERT_EQ(a.size(), b.size());
+    ASSERT_EQ(a.NSites(), b.NSites());
+    for (size_t s=0; s<a.NSites(); s++) EXPECT_EQ(a.SiteBegin(s), b.SiteBegin(s));
+    for (size_t q=0; q<a.size(); q++)
+    {
+        EXPECT_EQ(a.Weights()[q], b.Weights()[q]);
+        EXPECT_EQ(norm(a.Points()[q]-b.Points()[q]), 0.0);
+    }
+}
+} //anon
+
+TEST(MeshFactory, AMakerBuildsWhatTheFactoryBuildsForEveryStructureKind)
+{
+    const qcMesh::MeshParams mp=Params();
+    auto atom=std::make_shared<const Atom>(8, rvec3_t(0.1,0.2,0.3));
+    auto mol=std::make_shared<Molecule>();
+    mol->Insert(Site{8, rvec3_t(0,0,0)}); mol->Insert(Site{1, rvec3_t(0,1.4,1.1)}); mol->Insert(Site{1, rvec3_t(0,-1.4,1.1)});
+    auto cell=std::make_shared<UnitCell>(6.0);
+    cell->AddAtom(1, rvec3_t(0,0,0));
+    cell->AddAtom(1, rvec3_t(0.5,0.5,0.5));
+    qcMesh::MeshParams uni; uni.nUniform=6;
+
+    ExpectSameMesh(StructureMeshMaker<Atom>(atom).Make(mp), MakeMesh(*atom, mp));
+    ExpectSameMesh(StructureMeshMaker<Molecule>(mol).Make(mp), MakeMesh(*mol, mp));
+    ExpectSameMesh(StructureMeshMaker<UnitCell>(cell).Make(uni), MakeMesh(*cell, uni));
+    ExpectSameMesh(StructureMeshMaker<UnitCell>(cell).Make(BeckeParams()), MakeMesh(*cell, BeckeParams()));
+    // Every ATOM-CENTRED mesh carries one site block per centre (the factory checks it on every overload, NDEBUG-proof).
+    EXPECT_EQ(MakeMesh(*atom, mp).NSites(), size_t(1));
+    EXPECT_EQ(MakeMesh(*mol, mp).NSites(), size_t(3));
+    EXPECT_EQ(MakeMesh(*cell, BeckeParams()).NSites(), size_t(2));
+}
+
+TEST(MeshFactory, AMakerDemandsItsStructure)
+{
+    EXPECT_THROW(StructureMeshMaker<Molecule>(nullptr), std::invalid_argument);
 }

@@ -1671,7 +1671,8 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         out.summary="CONVERGED  "+calc->Diagnostics().Summary();
     }
     else out.summary=(R.Error().why==SCFFailure::Why::ResourceRefused ? "REFUSED ON RESOURCES: "
-                    : R.Error().why==SCFFailure::Why::StageRefused    ? "REFUSED: " : "NOT converged: ")+R.Error().details;
+                    : R.Error().why==SCFFailure::Why::StageRefused    ? "REFUSED: "
+                    : R.Error().why==SCFFailure::Why::StateNotSaved   ? "converged, STATE NOT SAVED: " : "NOT converged: ")+R.Error().details;
     // A run REFUSED ON RESOURCES (the audit RSS policy) did not reach the state its postSCF actions read: before the first SCF there is no D
     // at all, and mid-pilot the rasters are not settled.  Each action is recorded as skipped, and the record carries the refusal's numbers.
     std::optional<ResourceRefusal> refused;

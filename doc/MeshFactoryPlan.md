@@ -2,7 +2,7 @@
 
 **APPROVED as a whole: USER RULING 2026-11-21, "Please proceed with the plan"** (§8's steps, §4.4 (ii), §5's hub diffs as written;
 a hub diff that departs from §5 goes back to the user first).  Born as lane H's design note in the session notes; moved here when its
-execution began, per the doc/ rule that a plan lives at the top of doc/ only while it is executed.  Progress: §8 step 1 in flight.
+execution began, per the doc/ rule that a plan lives at the top of doc/ only while it is executed.  Progress: §8 step 1 landed; step 2 in flight.
 
 This note is design only: no code. It surveys main at 8952f826c (lane-h-group3b, which contains main 41581b896; landed as main 360fee3ff, so the line numbers hold there).
 The row is the controller's, carrying the user's framing ("big compile time when we extend (OCP), as a hint there is a design flaw hiding
@@ -97,9 +97,11 @@ setup that knows its kind should DEMAND the concrete structure. Today `Setup::st
   - `MeshParams`, `RadialKind`, `AngularKind`, `UnitCellKind` / `CellKind`, kept as ENUMS, with every switch exhaustive and no
     `default:` (-Wswitch is the compile-time check, as the user prefers for a segregated factory interface);
   - the pin-30 descriptor `qcMesh::Forces(const MeshParams&, const Frame&)`, moved from `Mesh.C` (3b put it there; it reads a recipe);
-  - the ABSTRACT seam `class MeshMaker { virtual qcMesh::Mesh Make(const MeshParams&) const=0; }`. It names only a recipe and a built
-    mesh, so it lives here, and a library that holds one (the GPW basis, §4.4) imports `qchem.Mesh.Recipe` but not the structure factory.
-    This is dependency inversion: the library depends on the abstraction, and the concrete `StructureMeshMaker<S>` stays at the edge.
+  - ~~the ABSTRACT seam `MeshMaker`~~ **AS BUILT (step 2): `MeshMaker` has its own module, `qchem.Mesh.Maker`** (above both
+    `qchem.Mesh` and `qchem.Mesh.Recipe`): `Make` returns a `qcMesh::Mesh`, and `qchem.Mesh` imports the recipe, so the seam cannot sit
+    in the recipe module without a cycle.  It still names only a recipe and a built mesh: a library that holds one (the GPW basis, §4.4)
+    imports `qchem.Mesh.Maker` but not the structure factory.  Dependency inversion: the library depends on the abstraction, and the
+    concrete `StructureMeshMaker<S>` stays at the edge.
 
   `qchem.Mesh.XCPolicy` and `BeckeClimb` already sit above it.
 - **`qchem.Structure.MeshFactory`** (new, qcStructure, the policy-facing wiring) holds:
@@ -113,8 +115,18 @@ setup that knows its kind should DEMAND the concrete structure. Today `Setup::st
   ```
   - The bodies of `CellMeshForces` and `AsUniform` (3b) move with the UnitCell overloads, so the pin-30 refusal before any point is built
     stays at the build.
-  - Each setup (Atom, Molecule, Solid) builds its `StructureMeshMaker<S>` where `deck::KindOf` / the kind's factory already knows `S`,
-    and holds it next to the structure.
+  - ~~Each setup builds its `StructureMeshMaker<S>` and holds it next to the structure.~~ **AS BUILT (step 2; controller ruling
+    2026-11-22, option (A)): A MAKER BELONGS TO A GEOMETRY POINT, NOT TO THE SETUP.**  A maker over the setup's REFERENCE structure would
+    build at the reference geometry, and a geometry step moves the atoms.  Where `S` is known:
+    - **Molecule.** `MoleculeSetup::Resolve` / `Admit` took `const Structure&`, and every point was a polymorphic `Clone()` + `MoveSites`,
+      so `S` was lost at each point.  The doors are now TYPED (`const Molecule&`), and `Resolve` stores a typed POINT BUILDER that copies the
+      reference as an `S`, moves its sites, adds the PP core charges, and pairs it with `StructureMeshMaker<S>` over that point.
+      `MoleculeSetup::MakePoint()` / `MakePoint(R)` hand out a `Point {structure, meshMaker}`; `MoleculeCalculation` is constructed from
+      one and holds `itsMeshMaker` beside `itsStructure`.  No cast, no hub change.  A caller holding only a `Structure&` spells out its
+      concrete type (no forwarder); a door on `const UnitCell&` is added only if a real (non-test) path sends a cell here.
+    - **Solid.** Every solid point is already a concrete `UnitCell` (`Lattice_3D::GetUnitCell`, `FollowCell`'s `FollowedCell::cell`), so the
+      step-3 consumer builds `StructureMeshMaker<UnitCell>` from the point's own cell; the setup holds none.
+    - **Atom.** `AtomSetup` builds its `Atom` itself: the same, at its step-3 consumers.
   - A one-atom MOLECULE (lane G's Q1 route) is a `Molecule`, so it gets the Becke build, as today.
 
 ## 4. The library self-builders, one by one
@@ -322,7 +334,7 @@ src/, IntegrationTests/ and CLIapps/.
 2. **`qchem.Structure.MeshFactory`** with the overloads and `MeshMaker` / `StructureMeshMaker<S>`.
    - The `Structure` virtuals temporarily DELEGATE to it. An Imp unit may import a module that imports its own interface: the graph is
      still acyclic.
-   - The setups build and hold their maker.
+   - The setups build and hold their maker. **As built:** the molecule setup's typed point builder hands each point its maker (§3).
    - The factory gets the every-atom-centred `RequireSiteBlocks` check.
 3. **The self-builders in §4, one commit each.**
    - Order: Seed and ppQuadrature, then the fit factories (they get the duplicate-mesh saving), then `MakeXCQuadrature` into the factory

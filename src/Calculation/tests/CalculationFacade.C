@@ -381,6 +381,30 @@ TEST(CalculationFacade, EachAuxiliaryFitFilesInItsOwnTerm)
     EXPECT_FALSE(ham["Hartree"].contains("auxiliaryFit")) << ham["Hartree"].dump(1);
 }
 
+//! A run that ASKED for a state and could not write it must not read green (doc/OpenWork.md "state.save into a missing directory",
+//! 2026-11-22): the base's Checkpoint used to catch the writer's throw and only warn, so the facade answered CONVERGED with no file.
+//! The SCF itself converges here; only the save fails, and the answer says which.
+TEST(CalculationFacade, ARunWhoseStateCannotBeSavedIsNotGreen)
+{
+    const std::string dir=(std::filesystem::temp_directory_path()/"qchem_no_such_dir_StateNotSaved").string();
+    std::filesystem::remove_all(dir);
+    const std::string path=dir+"/o_atom.h5";
+    RunOptions opts{.model=Model::LDA, .atom={.type=AtomType::Gaussian}};
+    opts.saveStateTo=path;
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(8, 0, opts)).TakeValue();
+    const auto r=calc->Converge();
+    ASSERT_FALSE(r) << "a run whose state was not saved read CONVERGED";
+    EXPECT_EQ(r.Error().why, SCFFailure::Why::StateNotSaved) << r.Error().details;
+    EXPECT_NE(r.Error().details.find(path), std::string::npos) << r.Error().details;
+    EXPECT_GT(r.Error().iterations, 0u);
+    EXPECT_FALSE(std::filesystem::exists(path));
+    // The same run, its directory now there: the next Converge saves, and the answer is green again.
+    std::filesystem::create_directories(dir);
+    EXPECT_TRUE(calc->Converge());
+    EXPECT_TRUE(std::filesystem::exists(path));
+    std::filesystem::remove_all(dir);
+}
+
 //! The atom's Build -> Run twin.
 TEST(CalculationFacade, AnAtomsPrepareFilesItsSetupBeforeAnySCF)
 {

@@ -1,0 +1,807 @@
+// File: Structure/Imp/MeshFactory.C  The structure mesh factory's bodies (V-MESH-FACTORY §8 step 2): the geometry builders MOVED VERBATIM
+// from Imp/UnitCell.C (the periodic Becke grid, the uniform raster, the site-adapted imposed build) and Imp/Molecule.C (the atom-centred
+// Becke grid), with the two UnitCell members rewritten as free MakeMesh overloads over `cell`.  Same points, same order, same weights.
+module;
+#include <cstdio>
+#include <iomanip>
+#include <cassert>
+#include <cstdlib>
+#include <stdexcept> // RequireSiteBlocks -- an atom-centred-mesh invariant that must survive NDEBUG
+#include <iostream>
+#include <ostream>
+#include <string>
+#include <vector>
+#include <functional>
+#include <exception> // std::exception_ptr (the threaded weight response)
+#include <memory>    // the scoped-but-early-stopped Timed on the site-adapted angular build (1.1(b))
+module qchem.Structure.MeshFactory;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
+import qchem.Parallel;       // WorkerThreads (QCHEM_OPENMP_THREADS: the Becke mesh build)
+import qchem.Vector3D;       // norm(rvec3_t)
+import qchem.Mesh.Product;   // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
+import qchem.Mesh.Builder;   // MeshBuilder (efficient incremental accumulation)
+import qchem.Mesh.BeckePartition;   // BeckePartitionWeight / PeriodicBeckeWeight: the ONE partition (the build and its derivative)
+import qchem.SymmetrizeMesh; // MakeInvariantAngularMesh + FoldPointsPeriodic + MakeInvariant (the §6a imposed builds)
+import qchem.Symmetry.Group; // Symmetry::Frame, TrivialGroup, kAdmissionTolerance (what each mesh forces, pin 30)
+import qchem.Reporting;      // the meshes' fields, one level into the caller's report scope (inert when no run is open)
+
+namespace qchem {
+
+// ---- The periodic Becke integration mesh (mp.cellKind==UnitCellKind::Becke) -------------------------------
+// The atom-centred fuzzy-Voronoi quadrature of MakeMolecularMesh (Becke 1988), extended to a periodic cell.
+// Each cell atom a carries the single-centre radial x angular product grid; a point r on atom a's grid gets
+// the Becke cell weight
+//     w_a(r) = P_a0(r) / sum_{b,L} P_bL(r),    P_bL(r) = prod_{(c,M)!=(b,L)} s(mu),
+// where the competitor set runs over ALL periodic images R_b + L of the cell atoms (L = lattice vectors).
+// The lattice translates of the per-atom weighted grids form a partition of unity over the whole crystal
+// (sum over ALL images of w == 1 pointwise), so for a cell-periodic integrand f
+//     sum_{a in cell} integral w_a f d^3r  =  integral_cell f d^3r
+// exactly -- the per-cell weighted grids ARE the cell quadrature.  Points are wrapped into the home cell
+// on emission (the weight is lattice-invariant, so wrapping is free).
+//
+// The image series is an epsilon-CONVERGED series, never radius-truncated (GPWPlan durable pin: magnitude
+// screening is the only truncation mechanism).  Competitors are gathered in expanding Chebyshev cell shells
+// around the point's own cell until BOTH tails are provably below eps:
+//   (i)  any unseen image's own cell function:  P  <=  s((D-dn)/(D+dn))            (opposite-side collinear
+//        bound; dn = distance to the nearest seen competitor, D = shell distance floor), and
+//   (ii) any unseen image's FACTOR on a retained P_b:  P_b-bound * (1 - s((d_b-D)/(d_b+D)))  <  eps
+// -- both evaluated with the same s(mu) polynomial, so the screen is a magnitude bound with no radius
+// anywhere.  Far radial-tail points whose own cell function is below eps are dropped up front (some image
+// atom is far closer, so the partition assigns them ~0 weight): a diffuse tail costs almost nothing, which
+// is the point of the Becke XC grid (doc/GPWPlan1.md).
+namespace {
+
+
+//! GPW_BECKE_COUNT=1: the per-point COST CENSUS of the partition (doc/OpenWork.md Step 3).  The
+//! partition is the single largest CPU consumer in the code (~50% of cycles), and it is threaded by
+//! default -- so it reads as a small WALL bucket and the ledger cannot say where inside it the time
+//! goes.  Two call sites compete for the blame: the shell-convergence RETEST (O(|im|) per shell, and
+//! |im| grows as s^3) and the final P-set DOUBLE LOOP (|P-set| x |im|).  This census separates them
+//! by counting, which is exact and thread-independent, instead of by profiling a threaded loop.
+//! Slot-indexed per point and reduced after the loop -- the same discipline as keep/kpt/kwt above --
+//! so it needs no atomics and cannot perturb what it measures.
+//! Only the INNER-loop counter is gated on \a census: it fires ~2.3e5 times per point (97% of the work),
+//! where an ungated increment would be a real production cost.  The shell-retest and P-set counters fire
+//! ~6.4e3 and ~1e2 times per point, measured at ~0.03% of the build, and stay ungated for legibility.
+using qcMesh::BeckePointCost;   // the census (qcMesh::PeriodicBeckeWeight fills it)
+
+//! \brief THE PERIODIC BECKE MESH's WEIGHT RESPONSE (qcMesh::MeshWeightResponse; lane B 2026-11-19, the XC term's grid response on the
+//! Becke mesh).  Installed by MakePeriodicBeckeMesh, which alone knows how the weights were made: each kept point g of site a carries
+//! w_g = w_q W_a(R_a + u_g), w_q its template weight, W_a the periodic partition (qcMesh::PeriodicBeckeWeight).  So for f held per point,
+//! ∂(Σ_g f_g w_g)/∂X = Σ_g f_g w_q ∂W_a/∂X over every competitor image X (the point riding its owner: qcMesh::PeriodicBeckeWeightGradient),
+//! folded onto the cell atoms for the gradient and contracted with X for the virial (the template offsets u held: they do not strain).
+//! The partition is RE-FORMED at R_a + u_g, the same arithmetic the build ran, so the competitor and P-sets are the build's.
+class PeriodicBeckeResponse : public qcMesh::MeshWeightResponse
+{
+public:
+    PeriodicBeckeResponse(const CellGeometry& cell, std::vector<rvec3_t> R, double dPlane, int k, double eps)
+        : itsCell(cell), itsR(std::move(R)), itsDPlane(dPlane), itsK(k), itsEps(eps) {}
+    Result Pullback(const qcMesh::Mesh& m, const rvec_t& f) const override
+    {
+        const size_t natom=itsR.size();
+        if (f.size()!=m.size()) throw std::invalid_argument("PeriodicBeckeResponse: the field is "+std::to_string(f.size())+" for "+std::to_string(m.size())+" points");
+        if (m.OwnerOffsets().size()!=m.size() || m.NSites()!=natom)
+            throw std::logic_error("PeriodicBeckeResponse: the mesh carries no owner offsets or not one site block per atom");
+        qchem::report::Timed timed("force: becke weight response");
+        const rvec3vec_t& U=m.OwnerOffsets();
+        const rvec_t& W=m.Weights();
+        Result out{rvec3vec_t(natom, rvec3_t(0,0,0)), rmat3d_t(0,0,0, 0,0,0, 0,0,0)};
+        double V[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+        auto point=[&](size_t a, size_t g, rvec3vec_t& G, double (&Vt)[3][3])
+        {
+            if (f[g]==0.0) return;
+            std::vector<qcMesh::BeckeImage> im; long target=-1; BeckePointCost pc;
+            const rvec3_t r=itsR[a]+U[g];
+            const double wP=qcMesh::PeriodicBeckeWeight(itsCell, itsR, itsDPlane, a, r, itsK, itsEps, im, target, pc, false);
+            if (!(wP>0.0) || target<0) return;   // the build kept it, so this is unreachable short of a changed geometry
+            // THE PLATEAUS (cost; measured 2026-11-19, the AD was the whole Becke force): where W is 1 or 0 to 1e-14 the partition's other
+            // cell functions are below 1e-14 of the point's own (or its own below theirs), and W's derivative is of that order -- a point
+            // deep in its own basin, the bulk of a radial grid, contributes nothing to its weight response.
+            if (wP>1.0-1e-14 || wP<1e-14) return;
+            const double s=f[g]*W[g]/wP;          // f_g w_q
+            const std::vector<rvec3_t> dW=qcMesh::PeriodicBeckeWeightGradient(im, size_t(target), U[g], itsK);
+            for (size_t i=0;i<im.size();i++)
+            {
+                const rvec3_t gi=s*dW[i];
+                G[im[i].atom]+=gi;
+                const double gg[3]={gi.x,gi.y,gi.z}, xx[3]={im[i].R.x,im[i].R.y,im[i].R.z};
+                for (int x=0;x<3;x++) for (int y=0;y<3;y++) Vt[x][y]+=gg[x]*xx[y];
+            }
+        };
+        std::vector<std::pair<size_t,size_t>> work;   // (site, point)
+        for (size_t a=0;a<natom;a++) for (size_t g=m.SiteBegin(a); g<m.SiteEnd(a); g++) work.push_back({a,g});
+#ifdef QCHEM_OPENMP
+        const int nthreads=qchem::InnerThreads();
+        if (nthreads>1)
+        {
+            std::exception_ptr firstEx;
+            #pragma omp parallel num_threads(nthreads)
+            {
+                rvec3vec_t Gt(natom, rvec3_t(0,0,0));
+                double Vt[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+                #pragma omp for schedule(dynamic, 16)
+                for (size_t w=0; w<work.size(); w++)
+                {
+                    try { point(work[w].first, work[w].second, Gt, Vt); }
+                    catch (...)
+                    {
+                        #pragma omp critical (becke_response_throw)
+                        if (!firstEx) firstEx=std::current_exception();
+                    }
+                }
+                #pragma omp critical (becke_response_reduce)
+                {
+                    for (size_t a=0;a<natom;a++) out.gradient[a]+=Gt[a];
+                    for (int x=0;x<3;x++) for (int y=0;y<3;y++) V[x][y]+=Vt[x][y];
+                }
+            }
+            if (firstEx) std::rethrow_exception(firstEx);
+        }
+        else
+#endif
+        for (const auto& [a,g] : work) point(a, g, out.gradient, V);
+        out.virial=rmat3d_t(V[0][0],V[0][1],V[0][2], V[1][0],V[1][1],V[1][2], V[2][0],V[2][1],V[2][2]);
+        return out;
+    }
+private:
+    CellGeometry         itsCell;
+    std::vector<rvec3_t> itsR;
+    double               itsDPlane;
+    int                  itsK;
+    double               itsEps;
+};
+
+//! \brief An ATOM-CENTRED mesh must carry one site block per centre -- checked LIVE, not by \c assert.
+//!
+//! The Becke build's whole point is that each point belongs to a named centre and its weight already
+//! carries that centre's partition \f$w_A\f$, which is what makes \f$\int w_A f\f$ a real atomic
+//! integral (doc/OpenWork.md Step 0a).  A path that rebuilds the mesh and forgets to reopen the blocks
+//! does not FAIL -- \c qcMesh::SiteIntegrals is simply never reached and the site-moment instrument
+//! prints nothing.  That happened, in Release, on every imposed run, for as long as the invariant-mesh
+//! filter walked orbits instead of sites; the \c assert that should have caught it is compiled out under
+//! NDEBUG.  So this throws: a silently missing instrument is worse than a stopped run.
+void RequireSiteBlocks(const qcMesh::Mesh& m, const char* who)
+{
+    if (m.NSites()>0) return;
+    throw std::runtime_error(std::string(who)+": the atom-centred (Becke) mesh came out with NO site "
+        "blocks.  Its per-centre partition is what makes an integrated site moment/charge possible, so a "
+        "mesh without them silently disables that instrument -- some rebuild of the point list dropped "
+        "MeshBuilder::BeginSite.");
+}
+
+//! \a angPerAtom (optional) = per-atom angular sets -- the §6a W2b SITE-ADAPTED path (rep atoms carry
+//! site-group-invariant sets, partners the op-rotated copies; the ops-taking MakeMesh(UnitCell)
+//! overload builds them).
+//! Null = the historical shared single-orientation angular grid.
+//! \a repOf (optional, with \a angPerAtom): per atom, its ORBIT REPRESENTATIVE (an atom index <= its own).  A member's angular
+//! set is its representative's rotated by the op that maps one onto the other, point for point, and the Becke partition is
+//! invariant under that space-group op -- so member point q carries EXACTLY the representative's weight and keep decision
+//! (V1.22, anchor batch 2026-10-21).  Partitioned once per orbit: the mesh is orbit-consistent BY CONSTRUCTION (the eps-tail
+//! drops used to be bit-different per member, so the caller post-filtered orbit-incomplete points) and ~|orbit| x cheaper.
+qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParams& mp,
+                                   const std::vector<qcMesh::AngularMesh>* angPerAtom = nullptr,
+                                   const std::vector<size_t>* repOf = nullptr)
+{
+    qchem::report::Timed timed("setup: becke mesh build");
+    using qcMesh::BeckeCutoff;
+    const int    k  =mp.beckeOrder;
+    // Magnitude screen: the weights are eps-converged.  The tail bounds are worst-case-COLLINEAR (attained
+    // only on the exact line through two images), so the TRUE neglected mass is far below eps -- while the
+    // quadrature error itself sits at ~1e-4.  eps therefore has two decades of headroom, and it is the one
+    // parameter that scales the dominant loop rather than shaving it: eps fixes |im|, the competitor count,
+    // and the partition costs O(|P-set| x |im|) per point.
+    //
+    // 1e-6, MEASURED 2026-08-20 (doc/OpenWork.md Step 3).  This had only ever been probed TIGHTER -- 1e-10
+    // was known to inflate the sets several-fold for no accuracy gain -- and the sweep in the other
+    // direction is where the cost was:
+    //     eps     images/pt (FCC)    BeckeCutoff calls    becke build (MnO, threaded)
+    //     1e-8         1939               4.14e9                 36.95 s
+    //     1e-7         1056               2.04e9                  ~18 s   (2.03x)
+    //     1e-6          623               9.95e8                  8.33 s  (4.44x)
+    //     1e-5          351               3.85e8                  --      (gate FAILS)
+    // On MnO AFM-II VA the flip is invisible: Etot -52.48387019 -> -52.48387023 (9 s.f.), site moments
+    // identical to 6 digits.  The BINDING gate is BeckeEquivalentSitesOwnEqualShares (site shares equal to
+    // 1e-8 RELATIVE, a partition property and far sharper than any integration test); it holds at 1e-6 and
+    // breaks at 1e-5, so the default keeps a full decade of margin against the gate that actually bites.
+    // Unlike the Phi-table 4.6x this is a TOLERANCE trade, not a bit-identical restructuring -- the weights
+    // do move, at ~1e-6 relative.  The value is MeshParams::beckeEps (default 1e-6); the environment override QCHEM_BECKE_EPS
+    // (old name GPW_BECKE_EPS, deprecated) is applied where the facade builds the parameters (BeckeXCParams), not here.
+    const double eps=mp.beckeEps;
+    assert(k>=0);
+
+    std::vector<rvec3_t> R;
+    for (const Site& a : cell.Sites()) R.push_back(a.R);
+    const size_t natom=R.size();
+    assert(natom>0);
+
+    // Minimum interplanar spacing d_i = 1/sqrt((M^-1)_ii): a point in cell n0 is at least s*dPlane from
+    // anything at Chebyshev cell distance > s (s whole cell layers in between) -- the shell-tail floor.
+    const Matrix3D<double>& A=cell.GetCellMatrix();
+    Matrix3D<double> Minv=Invert(Transpose(A)*A);
+    const double dPlane=1.0/sqrt(max(Minv(1,1),max(Minv(2,2),Minv(3,3))));
+
+    qcMesh::RadialMesh  rad=qcMesh::MakeRadial(mp);   // one single-centre template reused (ShiftOrigin per atom)
+    qcMesh::AngularMesh ang=qcMesh::MakeAngular(mp);
+
+    static const bool census=qchem::Diagnostics::Enabled("becke_count");
+    qcMesh::MeshBuilder out;
+    // GPW_BECKE_COUNT totals over the whole mesh; each atom's slot-indexed census folds in below.
+    struct { size_t pts=0, live=0, im=0, pset=0, retest=0, final_=0, bound=0,
+                    dead=0, deadWork=0, imMax=0, psetMax=0, shellMax=0; } tot;
+    assert(!repOf || (angPerAtom && repOf->size()==natom));
+    std::vector<std::vector<char>> keepOf(natom);     // per REPRESENTATIVE: its keep decisions and kept weights (V1.22)
+    std::vector<rvec_t>            kwtOf (natom);
+    for (size_t ia=0; ia<natom; ia++)
+    {
+        // SITE BLOCK: this atom's surviving points, whose weights already carry ITS partition function
+        // w_A(r) (kwt=wts*w below).  Recording the block is what lets a consumer ask the mesh for a real
+        // ATOMIC integral -- Integral w_A(r) f(r) d3r = the block sum -- instead of sampling a field at a
+        // guessed point and calling it a moment (doc/OpenWork.md Step 0a).  Costs one index per atom.
+        out.BeginSite();
+        qcMesh::Mesh am=qcMesh::ProductMesh(rad, angPerAtom ? (*angPerAtom)[ia] : ang);
+        const rvec3vec_t u=am.Points();   // the TEMPLATE offsets, recorded per kept point (Mesh::OwnerOffsets: a pullback re-forms R_a + u exactly)
+        am.ShiftOrigin(R[ia]);
+        const rvec3vec_t& pts=am.Points();
+        const rvec_t&     wts=am.Weights();
+        // The per-point Becke partitions are INDEPENDENT (~1 ms each -- the eps-converged competitor
+        // image series is the whole build cost, measured linear at any angular count), and each result
+        // lands in its own indexed slot consumed in index order below -- so the threaded build is
+        // BIT-IDENTICAL to the serial one at any thread count (no cross-point reductions, unlike the
+        // GPW pair loops).  Hence threading it costs no anchor; QCHEM_OPENMP_THREADS (one knob
+        // for every region, serial by default) sets the count -- purely resource control, never a numerics knob.
+        const size_t nq=am.size();
+        std::vector<char> keep(nq, 0);
+        rvec3vec_t        kpt(nq);
+        rvec_t            kwt(nq);
+        std::vector<BeckePointCost> cost(census ? nq : 0);
+        // A MEMBER of an orbit: the representative's decisions and weights, point for point; only the position is its own
+        // (wrapped into the home cell exactly as the partition below wraps a kept point).
+        if (repOf && (*repOf)[ia]!=ia)
+        {
+            const size_t r0=(*repOf)[ia];
+            if (r0>ia || keepOf[r0].size()!=nq)
+                throw std::logic_error("MakePeriodicBeckeMesh: an orbit member before its representative, or a member whose point "
+                                       "count differs from its representative's");
+            for (size_t q=0; q<nq; q++)
+            {
+                if (!keepOf[r0][q]) continue;
+                const rvec3_t f=cell.ToFractional(pts[q]);
+                out.Append(pts[q]-cell.ToCartesian(rvec3_t(floor(f.x),floor(f.y),floor(f.z))), kwtOf[r0][q], u[q]);
+            }
+            continue;
+        }
+        auto partition=[&](size_t q)
+        {
+            BeckePointCost pc;                       // recorded on every exit path when the census is on
+            std::vector<qcMesh::BeckeImage> im;      // competitor images for this point (thread-local)
+            long target=-1;
+            const rvec3_t& r=pts[q];
+            // THE ONE PARTITION (qcMesh::PeriodicBeckeWeight, lane B 2026-11-19): the build and its geometry derivative are one computation.
+            const double w=qcMesh::PeriodicBeckeWeight(cell, R, dPlane, ia, r, k, eps, im, target, pc, census);
+            if (census) { pc.im=unsigned(im.size()); cost[q]=pc; }
+            if (w>0)   // wrapped into the home cell; slot-indexed so the threaded build stays ordered
+            {
+                const rvec3_t f=cell.ToFractional(r);
+                keep[q]=1;
+                kpt[q]=r-cell.ToCartesian(rvec3_t(int(floor(f.x)),int(floor(f.y)),int(floor(f.z))));
+                kwt[q]=wts[q]*w;
+            }
+        };
+#ifdef QCHEM_OPENMP
+        const int nthreads=qchem::InnerThreads();     // THE one thread count (qchem.Parallel; 1 inside an outer-loop item)
+        if (nthreads>1)
+        {
+            #pragma omp parallel for schedule(dynamic, 8) num_threads(nthreads)
+            for (size_t q=0; q<nq; q++) partition(q);
+        }
+        else
+            for (size_t q=0; q<nq; q++) partition(q);
+#else
+        for (size_t q=0; q<nq; q++) partition(q);
+#endif
+        for (size_t q=0; q<nq; q++) if (keep[q]) out.Append(kpt[q], kwt[q], u[q]);
+        if (repOf) { keepOf[ia]=keep; kwtOf[ia]=kwt; }
+        for (size_t q=0; q<cost.size(); q++)
+        {
+            const BeckePointCost& c=cost[q];
+            tot.pts++;
+            if (c.pset>0) tot.live++;             // reached the P-set double loop (not an early tail drop)
+            tot.im+=c.im; tot.pset+=c.pset;
+            tot.retest+=c.retest; tot.final_+=c.final_; tot.bound+=c.bound;
+            tot.dead+=c.dead; tot.deadWork+=c.deadWork;
+            tot.imMax=max(tot.imMax,size_t(c.im)); tot.psetMax=max(tot.psetMax,size_t(c.pset));
+            tot.shellMax=max(tot.shellMax,size_t(c.shells));
+        }
+        // GPW_BECKE_ATOMS: the PER-ATOM breakdown.  Sum(w) is the partition's share of unity assigned to
+        // this atom -- for two crystallographically EQUIVALENT atoms it must be identical, and so must the
+        // kept/dropped counts.  The aggregate "[Becke grid] ... dropped N tail pts" line cannot show that,
+        // which is why a site-dependent mesh defect could hide behind it (MnO 2026-08-11: the moment dies
+        // on the atom at the cell CORNER and survives on the one at the cell CENTRE, and a rigid
+        // translation of the whole crystal -- an exact symmetry -- moves the answer by 56 Ha).
+        if (qchem::Diagnostics::Enabled("becke_atoms"))
+        {
+            report::FormatGuard keep_(std::cout);
+            size_t nk=0; double wsum=0.0;
+            for (size_t q=0; q<nq; q++) if (keep[q]) { ++nk; wsum+=kwt[q]; }
+            std::cout<<"[Becke atom] ia="<<ia<<" R=("<<R[ia].x<<","<<R[ia].y<<","<<R[ia].z<<")"
+                     <<" pts="<<nq<<" kept="<<nk<<" dropped="<<(nq-nk)
+                     <<" Sum(w)="<<std::setprecision(10)<<wsum<<std::endl;
+        }
+    }
+    qcMesh::Mesh mesh=out.take();
+    mesh.InstallWeightResponse(std::make_shared<PeriodicBeckeResponse>(cell, R, dPlane, k, eps));   // its weights' derivative (the XC grid response)
+
+    // Announce the grid -- the console line (the [GPW grid] family: one line, run start) is HOW a user
+    // tells the Becke XC quadrature is in play at all; the report addendum lands in the `grids` section
+    // next to the uniform ladder whenever a report run is open (inert otherwise, e.g. bare mesh tests).
+    auto AngularName=[](qcMesh::AngularKind a)
+    { switch (a) {
+        case qcMesh::AngularKind::Lebedev:         return "Lebedev";
+        case qcMesh::AngularKind::GaussLegendre: return "GaussLegendre";
+        case qcMesh::AngularKind::None:          return "none (radial-only)"; }
+      return "?"; };
+    auto RadialName=[](qcMesh::RadialKind r)
+    { switch (r) {
+        case qcMesh::RadialKind::MHL:    return "MHL";
+        case qcMesh::RadialKind::Log:    return "Log";
+        case qcMesh::RadialKind::Linear: return "Linear";
+        case qcMesh::RadialKind::DE2:    return "DE2"; }
+      return "?"; };
+    size_t nDirs=0;
+    if (angPerAtom) for (const auto& a : *angPerAtom) nDirs=max(nDirs, a.size());
+    else            nDirs=ang.size();
+    size_t total=0;
+    if (angPerAtom) for (const auto& a : *angPerAtom) total+=size_t(rad.size())*a.size();
+    else            total=natom*size_t(rad.size())*ang.size();
+    const size_t kept=mesh.size();
+    const double angRot=angPerAtom ? 0.0 : mp.angRot;   // a site-adapted rule is the site's own: the rotation applies to the plain factory grid only
+    std::cout<<"[Becke grid] natom="<<natom<<" radial="<<RadialName(mp.radial)<<" nR="<<mp.nRadial
+             <<" alpha="<<(mp.radial==qcMesh::RadialKind::DE2 ? mp.de2_alpha : mp.mhl_alpha)<<" angular="<<(angPerAtom?"SITE-ADAPTED":AngularName(mp.angular))
+             <<" L="<<mp.angularDegree<<" ("<<nDirs<<" dirs"<<(angPerAtom?" max/atom":"")<<")";
+    if (angRot!=0.0) std::cout<<" angRot="<<angRot;
+    std::cout<<" beckeOrder="<<k
+             <<" points="<<kept<<" (dropped "<<total-kept<<" tail pts)"<<std::endl;
+    if (census)
+    {
+        const double perPt=tot.live>0 ? double(tot.live) : 1.0;   // per LIVE point: the tail drops do no work
+        const size_t calls=tot.retest+tot.final_+tot.bound;
+        report::FormatGuard keep_(std::cout);
+        std::cout<<std::setprecision(4)
+                 <<"[Becke count] pts="<<tot.pts<<" live="<<tot.live
+                 <<" images/pt="<<tot.im/perPt<<" (max "<<tot.imMax<<", shells<="<<tot.shellMax<<")"
+                 <<" Pset/pt="<<tot.pset/perPt<<" (max "<<tot.psetMax<<")"
+                 <<"\n[Becke count] BeckeCutoff/live-pt: final="<<tot.final_/perPt
+                 <<" retest="<<tot.retest/perPt<<" bound="<<tot.bound/perPt
+                 <<"  TOTAL="<<double(calls)
+                 <<"  shares: final="<<100.0*tot.final_/double(max(calls,size_t(1)))<<"%"
+                 <<" retest="<<100.0*tot.retest/double(max(calls,size_t(1)))<<"%"
+
+                 <<"\n[Becke count] P-set members ending at P=0: "
+                 <<100.0*tot.dead/double(max(tot.pset,size_t(1)))<<"% of members, "
+                 <<100.0*tot.deadWork/double(max(tot.final_,size_t(1)))<<"% OF THE FINAL-LOOP WORK => "
+                 <<1.0/(1.0-double(tot.deadWork)/double(max(tot.final_,size_t(1))))<<"x if avoided"<<std::endl;
+    }
+    // ONE LEVEL IN (user ruling 2026-11-02): the CALLER opened a report::Scope naming itself; the builder writes its fields
+    // there and picks no key.  Was a root-anchored EmitAt("grids","becke") -- one key, so a second Becke mesh overwrote it.
+    namespace rpt=qchem::report;
+    rpt::Set("kind", "Becke"); rpt::Set("natom", (long)natom); rpt::Set("radial", RadialName(mp.radial));
+    rpt::Set("nRadial", mp.nRadial); if (mp.radial==qcMesh::RadialKind::DE2) { rpt::Set("de2_alpha", mp.de2_alpha); rpt::Set("de2_rMax", mp.de2_rMax); } else rpt::Set("mhl_alpha", mp.mhl_alpha);
+    rpt::Set("angular", angPerAtom ? "SiteAdapted" : AngularName(mp.angular)); rpt::Set("L", mp.angularDegree); rpt::Set("angRot", angRot);
+    rpt::Set("nDirs", (long)nDirs); rpt::Set("beckeOrder", k); rpt::Set("points", (long)kept);
+    rpt::Set("dropped", (long)(total-kept)); rpt::Set("eps", eps);
+    return mesh;
+}
+
+} //anon
+
+// §6a W2b: the SITE-ADAPTED periodic Becke mesh.  Per atom ORBIT of the imposed ops, the representative
+// atom carries a site-group-INVARIANT angular set (MakeInvariantAngularMesh under its CARTESIAN stabilizer
+// A·W·A⁻¹) and every symmetry partner carries the op-rotated copy (the atom-fold's edge op) -- so the whole
+// mesh maps onto itself under every op BY CONSTRUCTION (the T2 precondition), with the fuzzy-Voronoi
+// partition computed on the final point set (a geometric function of the atom distances, so the weights
+// inherit the invariance).
+//! \brief GPW_MESH_ORTHO=M: HOW ORTHOGONAL ARE PLANE WAVES UNDER THIS MESH'S QUADRATURE?
+//!
+//! WHY IT IS ONE FUNCTION AND NOT A MATRIX.  The discrete overlap of two plane waves on a mesh,
+//! \f$S_{GG'}=\sum_g w_g e^{i(G'-G)\cdot r_g}\f$, depends only on the DIFFERENCE, so the whole
+//! non-orthogonality is one scalar function \f$T(\Delta G)\f$ over the difference set -- O(npts) per
+//! \f$\Delta G\f$, with no \f$N_G^2\f$ object anywhere.  \f$T(\Delta G)/\Omega\f$ IS the mesh's
+//! quadrature error for a plane wave of wavevector \f$\Delta G\f$, and \f$T(0)/\Omega=1\f$ exactly by
+//! construction -- a free correctness check on the census itself.
+//!
+//! WHAT IT IS FOR.  A plane-wave \c VxcFit on a Becke grid is asserted out (item I3 in Hamiltonians.C) and
+//! the projection \f$\langle c_G|v_{xc}\rangle=\sum_g w_g v_{xc}(r_g)e^{-iG\cdot r_g}\f$ is a perfectly
+//! ordinary real-space quadrature that takes any mesh (user, 2026-08-22) -- but on a UNIFORM raster the
+//! plane waves are DISCRETELY ORTHOGONAL, so the fit is a projection with no metric, while on any other
+//! mesh it becomes a genuine fit with an overlap to invert.  This measures how far from orthogonal.
+//!
+//! THE EXPECTATION, so the measurement can refute it: a Becke mesh is built for the OPPOSITE integrand --
+//! dense radial shells at the nuclei, sparse in the interstitial, tuned for sharp atom-centred cusps.  A
+//! plane wave has uniform amplitude everywhere and oscillates fastest exactly where the mesh is thinnest,
+//! and through a radial shell it is an ANGULAR oscillation -- so the error should be ~0 at small
+//! \f$|\Delta G|\f$ (a near-constant integrand) and degrade once \f$|\Delta G|\f$ outruns the Lebedev
+//! order.  Reported binned in \f$|\Delta G|\f$ so the onset is visible rather than averaged away.
+void ReportMeshPlaneWaveOrtho(const UnitCell& cell, const qcMesh::Mesh& mesh)
+{
+    const auto e=qchem::Diagnostics::Value("mesh_ortho");
+    if (!e) return;
+    const int M=std::max(1, std::atoi(e->c_str()));            // half-width of the integer Delta-G box (default 1 -> set 4)
+    const rvec3vec_t& R=mesh.Points();
+    const rvec_t&     W=mesh.Weights();
+    if (R.size()==0) return;
+    double Omega=0.0; for (size_t g=0; g<W.size(); ++g) Omega+=W[g];
+    const CellGeometry B=cell.MakeReciprocal();
+
+    // Bin in |Delta G| (a.u.^-1).  Geometric-ish edges: the interesting behaviour is an ONSET, not a slope.
+    constexpr size_t kNBin=8;
+    const double edge[kNBin]={0.5,1.0,1.5,2.0,3.0,4.0,6.0,1e300};
+    double binMax[kNBin]={0,0,0,0,0,0,0,0}, binSum[kNBin]={0,0,0,0,0,0,0,0};
+    size_t binN[kNBin]={0,0,0,0,0,0,0,0};
+    double t0=0.0;
+    for (int mx=-M; mx<=M; ++mx) for (int my=-M; my<=M; ++my) for (int mz=-M; mz<=M; ++mz)
+    {
+        const rvec3_t G=B.ToCartesian(rvec3_t(double(mx),double(my),double(mz)));
+        const double  g2=G*G;
+        double re=0.0, im=0.0;
+        for (size_t q=0; q<R.size(); ++q)
+        {
+            const double ph=G*R[q];
+            re+=W[q]*cos(ph); im+=W[q]*sin(ph);
+        }
+        const double t=sqrt(re*re+im*im)/Omega;
+        if (g2<1e-20) { t0=t; continue; }             // Delta G = 0: the T(0)/Omega == 1 self-check
+        const double gg=sqrt(g2);
+        size_t b=0; while (b+1<kNBin && gg>=edge[b]) b++;
+        binMax[b]=max(binMax[b],t); binSum[b]+=t; binN[b]++;
+    }
+    std::cout<<"[mesh ortho] npts="<<R.size()<<"  T(0)/Omega="<<t0
+             <<" (must be 1)  |Delta G| box M="<<M<<std::endl;
+    const char* lbl[kNBin]={"<0.5","0.5-1","1-1.5","1.5-2","2-3","3-4","4-6",">6"};
+    std::cout<<"[mesh ortho] |T(dG)|/Omega  (0 = orthogonal):";
+    for (size_t b=0;b<kNBin;b++)
+        if (binN[b]) std::cout<<"  "<<lbl[b]<<": max="<<binMax[b]<<" mean="<<binSum[b]/double(binN[b])
+                              <<" (n="<<binN[b]<<")";
+    std::cout<<std::endl;
+}
+
+// WHAT A CELL'S MESH FORCES, from the one descriptor (qcMesh::Forces; doc/Pins.md pin 30, Group face step 3b) in the cell's frame: its
+// lattice, and no centre -- a cell has a lattice of sites, and no field periodic on a lattice is spherical about one point (only a
+// constant is both).  So the radial-only set (angular none) cannot exist here: a CONSTRUCTION REFUSAL, the descriptor's own reason.
+// \a mp is the mesh AS BUILT: an Auto kind reaching the uniform branch is stamped as the uniform raster it became.
+static Symmetry::GroupPtr CellMeshForces(const UnitCell& cell, const qcMesh::MeshParams& mp)
+{
+    const auto H=qcMesh::Forces(mp, Symmetry::Frame{.lattice=cell.GetCellMatrix(), .centre={}});
+    if (!H) throw std::invalid_argument("the periodic cell mesh: "+H.Error()+" (doc/Pins.md pin 30)");
+    return H.Value();
+}
+static qcMesh::MeshParams AsUniform(qcMesh::MeshParams mp) {mp.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Uniform); return mp;}
+
+qcMesh::Mesh MakeMesh(const UnitCell& cell, const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops)
+{
+    (void)CellMeshForces(cell, mp);   // refuse what cannot exist on a cell, before any point is built
+    namespace SL = Symmetry::Lattice_3D;
+    assert(!ops.empty());
+
+    // UNIFORM kind: there is no site-adapted construction to do -- build the generic mesh and group-average
+    // it onto the op orbits (W1; a no-op dedup when the grid is already commensurate).  This branch used to
+    // sit in the CALLER (GPW_IBS's XC-quadrature factory), which meant a BASIS was switching on cellKind to
+    // decide how a STRUCTURE builds its own mesh.  The structure owns the mesh; it owns the strategy.
+    if (mp.cellKind!=qcMesh::UnitCellKind::Becke)
+    {
+        qcMesh::Mesh m=MakeInvariant(MakeMesh(cell, mp), cell.GetCellMatrix(), ops, kMeshMatchTol);
+        m.InstallForces(CellMeshForces(cell, AsUniform(mp)));   // the orbit-averaged raster is still this cell's lattice of points
+        ReportMeshPlaneWaveOrtho(cell, m);
+        return m;
+    }
+
+    // BECKE kind: site-adapted, invariant by construction (W2b) -- the rest of this function.
+    // D5 (anchor batch, 2026-10-21): the ANGULAR request, resolved and said.  The site-adapted builder consumes only the
+    // DEGREE: a stated scheme (Lebedev / GaussLegendre) cannot be honoured under an imposed group and is REPLACED by the
+    // invariant rule of the same degree -- say so once, as a warning (it used to be silent).  An UNSET degree (<= 0) takes the
+    // calibrated Becke default.
+    const int L = mp.angularDegree>0 ? mp.angularDegree : 29;   // 29 = qcMesh::BeckeXCParams' calibrated default (qcMesh XCPolicy, not imported here)
+    {
+        static bool warned=false;
+        if (!warned)
+        {
+            warned=true;
+            std::cout<<"[Becke grid] ⚠ imposed symmetry: the requested "
+                     <<(mp.angular==qcMesh::AngularKind::Lebedev ? "Lebedev" : "GaussLegendre")<<" angular rule"
+                     <<(mp.angularDegree>0 ? "" : " (degree unset -> the Becke default)")
+                     <<" is REPLACED by the site-adapted invariant rule of degree "<<L<<std::endl;
+        }
+    }
+
+    std::vector<rvec3_t> F;                         // fractional atom sites
+    for (const Site& a : cell.Sites()) F.push_back(cell.ToFractional(a.R));
+    SL::Fold af = SL::FoldPointsPeriodic(F, ops, 1e-6);   // atom orbits + the rep->partner edge ops
+
+    const Matrix3D<double>& A = cell.GetCellMatrix();
+    const Matrix3D<double> Ainv = Invert(A);
+    auto cart  = [&](const Matrix3D<double>& W) {return A*W*Ainv;};   // fractional op -> Cartesian rotation
+    auto fixes = [&](const SL::SymOp& op, const rvec3_t& f)           // torus site-stabilizer test
+    {
+        rvec3_t im = op.W*f + op.tau;
+        double dx = im.x-f.x, dy = im.y-f.y, dz = im.z-f.z;
+        dx -= floor(dx+0.5); dy -= floor(dy+0.5); dz -= floor(dz+0.5);
+        return dx*dx+dy*dy+dz*dz < 1e-12;
+    };
+
+    // The mixed rule's ATOM-SPECIFIC bad-direction list (§6a W2): the atom's actual bond directions
+    // -- unit vectors to its nearest-neighbour images (first shell, 5% width; the +-1 cell range
+    // covers the nearest neighbour of any reasonable primitive cell).  Only these are poison for a
+    // quadrature direction; special orbits pointing BETWEEN bonds stay admissible.
+    auto bondDirs = [&](const rvec3_t& fr)
+    {
+        const rvec3_t r0 = cell.ToCartesian(fr);
+        std::vector<std::pair<double,rvec3_t>> nb;
+        double dmin = 1e300;
+        for (const Site& a : cell.Sites())
+            for (int i = -1; i <= 1; ++i)
+                for (int j = -1; j <= 1; ++j)
+                    for (int k = -1; k <= 1; ++k)
+                    {
+                        rvec3_t dR = a.R + cell.ToCartesian(rvec3_t(i,j,k)) - r0;
+                        double  d  = norm(dR);
+                        if (d < 1e-6) continue;          // the atom itself
+                        nb.push_back({d, dR/d});
+                        if (d < dmin) dmin = d;
+                    }
+        std::vector<rvec3_t> dirs;
+        for (const auto& [d, u] : nb) if (d < dmin*1.05) dirs.push_back(u);
+        return dirs;
+    };
+
+    std::vector<qcMesh::AngularMesh> ang(F.size());
+    // Priced with the rest of the imposed build (1.1(b)); stopped explicitly just before the Becke build,
+    // which has its own bucket.
+    auto angTimer = std::make_unique<qchem::report::Timed>("setup: site-adapted angular sets (W2b)");
+    for (size_t o = 0; o < af.Reps(); ++o)
+    {
+        const rvec3_t& fr = F[af.repRaw[o]];
+        std::vector<Matrix3D<double>> siteOps;
+        for (const auto& op : ops) if (fixes(op, fr)) siteOps.push_back(cart(op.W));
+        qcMesh::Mesh aq = MakeInvariantAngularMesh(siteOps, L, bondDirs(fr));
+        for (auto [mi, oi] : af.members[o])
+        {
+            assert(oi>=0 && "site-adapted Becke mesh: the imposed op set must be a group (edge op per partner)");
+            const Matrix3D<double> Rrot = cart(ops[oi].W);
+            rvec3vec_t d(aq.size());
+            rvec_t     w(aq.size());
+            for (size_t i = 0; i < aq.size(); ++i) {d[i] = Rrot*aq.Points()[i]; w[i] = aq.Weights()[i];}
+            ang[mi] = qcMesh::AngularMesh(std::move(d), std::move(w));
+        }
+    }
+    angTimer.reset();                       // the site-adapted angular sets are built; stop that bucket
+    // V1.22: one partition per ATOM ORBIT, copied to its members point for point (see MakePeriodicBeckeMesh) -- the mesh is
+    // orbit-consistent by construction.  This replaced the post-filter that dropped orbit-INCOMPLETE eps-borderline points
+    // (the builder's per-point tail drops were bit-different across an orbit) with a SECOND full orbit fold over ~97k points.
+    std::vector<size_t> repOf(F.size());
+    for (size_t o = 0; o < af.Reps(); ++o)
+        for (auto [mi, oi] : af.members[o]) repOf[mi] = size_t(af.repRaw[o]);
+    qcMesh::Mesh mb = MakePeriodicBeckeMesh(cell, mp, &ang, &repOf);
+    RequireSiteBlocks(mb, "MakeMesh(UnitCell, imposed, Becke)");
+    ReportMeshPlaneWaveOrtho(cell, mb);   // the BECKE arm: built for cusps, asked about plane waves
+    return mb;
+}
+
+// A periodic cell's real-space integration mesh.  Two kinds (mp.cellKind):
+// Uniform -- a UNIFORM grid over the cell: n=mp.nUniform points per axis at cell-fractional midpoints
+// f = ((i+1/2)/n, (j+1/2)/n, (k+1/2)/n), mapped to Cartesian by r = A f (ToCartesian), each carrying equal
+// weight Omega/n^3.  For a cell-periodic integrand the midpoint rule is the natural (and, for smooth
+// periodic fields, exponentially convergent) quadrature.  This is the working lattice mesh that lets the
+// geometry-neutral PP terms (PP_Local/PP_NonLocal) run on a real-space lattice basis.  (Plane-wave DFT
+// integrates in G-space on the basis's own grid, so it never asks for this.)
+// Becke -- the atom-centred periodic fuzzy-Voronoi quadrature above (dense radial near each nucleus,
+// cheap diffuse tails): the XC quadrature for pointwise-nonlinear, sharp-at-the-core fields.
+qcMesh::Mesh MakeMesh(const UnitCell& cell, const qcMesh::MeshParams& mp)
+{
+    (void)CellMeshForces(cell, mp);   // refuse what cannot exist on a cell, before any point is built
+    if (mp.cellKind==qcMesh::UnitCellKind::Becke)
+    {
+        qcMesh::Mesh mB=MakePeriodicBeckeMesh(cell,mp);
+        RequireSiteBlocks(mB, "MakeMesh(UnitCell, free, Becke)");
+        ReportMeshPlaneWaveOrtho(cell, mB);   // the FREE (non-imposed) Becke arm
+        return mB;
+    }
+
+    // Points per axis: DERIVE from a physical grid cutoff when mp.eCut>0 (the GPW / Nyquist path), else the
+    // manual mp.nUniform.  The Nyquist relation itself is qcMesh::UniformDivisions -- named once beside the
+    // two MeshParams fields it relates, because the resolution CHECKS (is this mesh fine enough for the
+    // basis? which grid is cheaper?) need the same mapping and must not re-derive it.
+    const int n = mp.eCut>0.0 ? qcMesh::UniformDivisions(cell.SizingGeometry().GetMaximumCellEdge(), mp.eCut) : mp.nUniform;   // the frozen rule
+    assert(n>0);
+    const double w=cell.GetCellVolume()/(double(n)*n*n);   // equal weight Omega/n^3
+    rvec3vec_t R(size_t(n)*n*n);
+    rvec_t     W(size_t(n)*n*n);
+    size_t q=0;
+    for (int i=0; i<n; i++)
+        for (int j=0; j<n; j++)
+            for (int k=0; k<n; k++,q++)
+            {
+                R[q]=cell.ToCartesian(rvec3_t((i+0.5)/n, (j+0.5)/n, (k+0.5)/n));   // r = A f, fractional midpoints
+                W[q]=w;
+            }
+
+    // Announce, like the Becke branch -- so a run's report always says WHICH cell quadrature is in play -- and LIKE it,
+    // ONE LEVEL IN (user ruling 2026-11-02): the caller (PP_Local, PP_NonLocal, the GPW PP quadrature, the XC quadrature)
+    // opened a report::Scope naming itself, and these fields land there.  Was a root-anchored grids.unitCellUniform.
+    cell.SetUniformGridFields(vec3_t<int>(n,n,n), mp.eCut);
+    qcMesh::Mesh m(std::move(R), std::move(W));
+    // The points ARE the cell's midpoint raster in (i,j,k) row-major order, so a Fourier series on this cell is sampled
+    // here by the exact inverse FFT, not the NUFFT default (the rho-tilde sampler, OpenWork §4; user ruling 2026-11-04).
+    m.InstallFourierSampling(std::make_shared<const MidpointRasterSampling>(ivec3_t(n,n,n),
+        cell.ToCartesian(rvec3_t(1,0,0)), cell.ToCartesian(rvec3_t(0,1,0)), cell.ToCartesian(rvec3_t(0,0,1))));
+    m.InstallForces(CellMeshForces(cell, AsUniform(mp)));   // a field on the raster is periodic on this lattice by construction (pin 30)
+    ReportMeshPlaneWaveOrtho(cell, m);   // the UNIFORM control: exact orthogonality up to Nyquist
+    return m;
+}
+
+// ---- The Becke molecular integration mesh (module-internal; MakeMesh(Atom) and MakeMesh(Molecule)) --------
+// A. D. Becke, J. Chem. Phys. 88(4), 2547 (1988).  Cell function for atom i at point r:
+//   p_i(r) = prod_{j != i} s(mu_ij),   mu_ij = (|r-R_i| - |r-R_j|) / |R_i - R_j|,   s(mu) = 1/2(1 - f_k(mu)).
+// mu is bounded in [-1,1] for ANY nonzero separation (reverse triangle inequality); the only singularity is
+// exactly coincident atoms (R_ij = 0), where we set mu = 0 (so s = 1/2 -> a coincident dimer integrates to
+// the single-atom result).  Serves both Atom (natom==1: just the shifted product grid) and Molecule.
+// The smoothing polynomial s(mu) is the shared qcMesh::BeckeCutoff (also used by the periodic
+// UnitCell Becke partition).
+using qcMesh::BeckeCutoff;
+
+// A STATED uniform cell mesh is refused: it would impose a translation group this structure lacks (a representation may not
+// impose a symmetry the structure lacks -- UTHamiltonian VxcProductSpace).  \c Auto and \c Becke both mean the atom-centred mesh.
+// Until 2026-10-31 \c cellKind was ignored here, so a uniform request ran Becke silently.
+static void RefuseCellMesh(const qcMesh::MeshParams& mp, const char* what)
+{
+    if (mp.cellKind==qcMesh::UnitCellKind::Uniform)
+        throw std::invalid_argument(std::string(what)+": a uniform CELL mesh imposes a translation group; this structure has none "
+                                    "(point-group symmetry only) -- To fix this, please state cellKind Becke or Auto -- the atom-centred mesh.");
+}
+
+// THE MESH REPORTS ITSELF as it is built (OpenWork §3 "A molecule's mesh never reports itself", 2026-11-02), ONE LEVEL IN:
+// the CALLER opens a report::Scope naming itself (the XC quadrature, a PP term, the auxiliary fit, the residual measure ...)
+// and this builder writes cursor-relative fields there -- the periodic builder's field names (UnitCell.C), never a key or a
+// path of its own (user ruling: the caller sets the context, the callee reports one level in).  Inert outside a run.
+static const char* RadialName(qcMesh::RadialKind r)
+{
+    switch (r)
+    {
+        case qcMesh::RadialKind::MHL:    return "MHL";
+        case qcMesh::RadialKind::Log:    return "Log";
+        case qcMesh::RadialKind::Linear: return "Linear";
+        case qcMesh::RadialKind::DE2:    return "DE2";
+    }
+    return "?";
+}
+static const char* AngularName(qcMesh::AngularKind a)
+{
+    switch (a)
+    {
+        case qcMesh::AngularKind::Lebedev:       return "Lebedev";
+        case qcMesh::AngularKind::GaussLegendre: return "GaussLegendre";
+        case qcMesh::AngularKind::None:          return "none (radial-only)";
+    }
+    return "?";
+}
+static void ReportMolecularMesh(size_t natom, const qcMesh::MeshParams& mp, size_t nDirs, size_t total, size_t kept)
+{
+    namespace rpt=qchem::report;
+    rpt::Set("kind", "Becke"); rpt::Set("natom", (long)natom); rpt::Set("radial", RadialName(mp.radial));
+    rpt::Set("nRadial", mp.nRadial); if (mp.radial==qcMesh::RadialKind::DE2) { rpt::Set("de2_alpha", mp.de2_alpha); rpt::Set("de2_rMax", mp.de2_rMax); } else rpt::Set("mhl_alpha", mp.mhl_alpha); rpt::Set("angular", AngularName(mp.angular));
+    rpt::Set("L", mp.angularDegree); rpt::Set("nDirs", (long)nDirs); rpt::Set("beckeOrder", mp.beckeOrder);
+    rpt::Set("points", (long)kept); rpt::Set("dropped", (long)(total-kept));
+}
+
+//! \brief THE MOLECULAR BECKE MESH's WEIGHT RESPONSE (qcMesh::MeshWeightResponse; lane B 2026-11-22, the molecular twin of the periodic
+//! one in UnitCell.C).  Installed by AtomCentredMesh (MakeMesh for an Atom or a Molecule), which alone knows how the weights were made: each kept point g of site a carries
+//! w_g = w_q W_a(R_a + u_g), w_q its template weight, W_a the Becke partition (qcMesh::BeckePartitionWeight, order k).  For f held per point,
+//! d(Σ_g f_g w_g)/dR_D = Σ_g f_g w_q dW_a/dR_D, the point riding its owner (qcMesh::BeckePartitionGradient, which sums to zero over D), and
+//! the virial Σ_D (d/dR_D) ⊗ R_D.  ONE home for the partition: the build and this derivative call the same leaf.  A consumer is any term
+//! whose energy is Σ_g w_g f_g on this mesh at fixed f: the δ XC energy (f = e_xc), and the outer quadrature of a δ Hartree.
+class MolecularBeckeResponse : public qcMesh::MeshWeightResponse
+{
+public:
+    MolecularBeckeResponse(std::vector<rvec3_t> R, int k) : itsR(std::move(R)), itsK(k) {}
+    Result Pullback(const qcMesh::Mesh& m, const rvec_t& f) const override;
+private:
+    std::vector<rvec3_t> itsR;
+    int itsK;
+};
+
+MolecularBeckeResponse::Result MolecularBeckeResponse::Pullback(const qcMesh::Mesh& m, const rvec_t& f) const
+{
+    const size_t natom=itsR.size();
+    if (f.size()!=m.size()) throw std::invalid_argument("MolecularBeckeResponse: the field is "+std::to_string(f.size())+" for "+std::to_string(m.size())+" points");
+    if (m.OwnerOffsets().size()!=m.size() || m.NSites()!=natom)
+        throw std::logic_error("MolecularBeckeResponse: the mesh carries no owner offsets or not one site block per atom");
+    qchem::report::Timed timed("force: becke weight response");
+    Result out{rvec3vec_t(natom, rvec3_t(0,0,0)), rmat3d_t(0,0,0, 0,0,0, 0,0,0)};
+    if (natom==1) return out;   // one atom: W = 1 everywhere, no response
+    const rvec3vec_t& U=m.OwnerOffsets();
+    const rvec_t& W=m.Weights();
+    for (size_t a=0; a<natom; a++)
+        for (size_t g=m.SiteBegin(a); g<m.SiteEnd(a); g++)
+        {
+            if (f[g]==0.0) continue;
+            const rvec3_t r=itsR[a]+U[g];
+            const double wP=qcMesh::BeckePartitionWeight(itsR, a, r, itsK);
+            // THE PLATEAUS (as the periodic response; measured there 2026-11-19): where W is 1 or 0 to 1e-14 its derivative is of that order.
+            if (wP>1.0-1e-14 || wP<1e-14) continue;
+            const double s=f[g]*W[g]/wP;   // f_g w_q
+            const std::vector<rvec3_t> dW=qcMesh::BeckePartitionGradient(itsR, a, r, itsK);
+            for (size_t D=0; D<natom; D++) out.gradient[D]+=s*dW[D];
+        }
+    for (size_t D=0; D<natom; D++)
+    {
+        const double gg[3]={out.gradient[D].x, out.gradient[D].y, out.gradient[D].z}, xx[3]={itsR[D].x, itsR[D].y, itsR[D].z};
+        for (int x=0;x<3;x++) for (int y=0;y<3;y++) out.virial(x+1,y+1)+=gg[x]*xx[y];
+    }
+    return out;
+}
+
+static qcMesh::Mesh AtomCentredMesh(const Structure& atoms, const qcMesh::MeshParams& mp)
+{
+    RefuseCellMesh(mp, "the atom-centred (molecule / atom) mesh");
+    // WHAT THIS MESH FORCES, from the one descriptor (qcMesh::Forces; doc/Pins.md pin 30, Group face step 3b) in the structure's own frame
+    // (its group's: an atom offers its site, a molecule's finite point group offers no centre).  Only the radial-only set (angular none)
+    // forces anything, O(3) about the one centre, so it exists only on the atom: elsewhere a CONSTRUCTION REFUSAL, the descriptor's reason.
+    Symmetry::GroupPtr forced=Symmetry::TrivialGroup();
+    if (mp.angular==qcMesh::AngularKind::None)
+    {
+        const auto H=qcMesh::Forces(mp, atoms.MakeSymmetry(Symmetry::kAdmissionTolerance)->MakeFrame());
+        if (!H) throw std::invalid_argument("the atom-centred mesh: "+H.Error()+" (doc/Pins.md pin 30)");
+        forced=H.Value();
+    }
+    const int beckeOrder=mp.beckeOrder;
+    assert(beckeOrder>=0);
+    size_t natom=atoms.GetNumAtoms();
+
+    std::vector<rvec3_t> R(natom);
+    for (size_t i=0; i<natom; i++) R[i]=atoms.Sites()[i].R;
+
+    qcMesh::RadialMesh  rad=qcMesh::MakeRadial(mp);   // one single-center template reused (ShiftOrigin per atom)
+    qcMesh::AngularMesh ang=qcMesh::MakeAngular(mp);
+
+    qcMesh::MeshBuilder out;
+    for (size_t ia=0; ia<natom; ia++)
+    {
+        out.BeginSite();   // one block per atom, in atom order (SiteIntegrals, the radial Poisson operator)
+        qcMesh::Mesh am=qcMesh::ProductMesh(rad,ang);
+        am.ShiftOrigin(R[ia]);
+        const rvec3vec_t& pts=am.Points();
+        const rvec_t&     wts=am.Weights();
+        for (size_t q=0; q<am.size(); q++)
+        {
+            const rvec3_t& r=pts[q];
+            if (natom==1) { out.Append(r, wts[q], r-R[ia]); continue; }
+
+            // ONE home for the partition weight: the force's grid response differentiates exactly this (qchem.Mesh.BeckePartition)
+            const double w=qcMesh::BeckePartitionWeight(R, ia, r, beckeOrder);
+            if (w>0.0) out.Append(r, wts[q]*w, r-R[ia]);   // the owner offset: the point rides its atom (the weight response)
+        }
+    }
+    qcMesh::Mesh mesh=out.take();
+    mesh.InstallWeightResponse(std::make_shared<MolecularBeckeResponse>(R, beckeOrder));   // its weights' derivative (the XC grid response)
+    mesh.InstallForces(forced);
+    ReportMolecularMesh(natom, mp, ang.size(), rad.size()*ang.size()*natom, mesh.size());
+    return mesh;
+}
+
+// ---- The atom-centred overloads -----------------------------------------------------------------------------------------------------
+// Every atom-centred mesh passes through the factory, so the per-site block contract is checked on EVERY one of them (the plan's §7
+// gain): until step 2 RequireSiteBlocks ran on the two periodic Becke paths only, and a molecule or atom mesh that lost
+// MeshBuilder::BeginSite would have silently disabled the site-moment instrument.  O(sites); a throw that survives NDEBUG.
+qcMesh::Mesh MakeMesh(const Atom& atom, const qcMesh::MeshParams& mp)
+{
+    qcMesh::Mesh m=AtomCentredMesh(atom, mp);
+    RequireSiteBlocks(m, "MakeMesh(Atom)");
+    return m;
+}
+
+qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp)
+{
+    qcMesh::Mesh m=AtomCentredMesh(mol, mp);
+    RequireSiteBlocks(m, "MakeMesh(Molecule)");
+    return m;
+}
+
+} // namespace qchem

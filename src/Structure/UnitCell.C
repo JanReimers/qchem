@@ -72,12 +72,15 @@ public:
     //! \brief Announce a UNIFORM \f$N_1\times N_2\times N_3\f$ grid over THIS box: one console line
     //! (\c [uniform grid] <key>: N, points, \f$\Delta r_i=|a_i|/N_i\f$ a.u.) plus a \c <key> run-report entry, one
     //! level into the caller's context, with the same fields (+ \c kind=Uniform, and \c eCut when \a eCut >= 0).
-    //! THE single owner of uniform-cell-grid reporting: UnitCell::CreateIntegrationMesh's uniform branch AND the
+    //! THE single owner of uniform-cell-grid reporting: the mesh factory's uniform raster (via SetUniformGridFields) AND the
     //! FFT raster engines (whose grids never pass through the mesh factory -- they recover the direct box via
     //! MakeReciprocal) both delegate here, so every uniform grid announces in one format.  (The
     //! Reporting dependency stays in the implementation -- json in this interface leaks nlohmann
     //! reachability into every importer and collides with <ranges> in test TUs.)
     void EmitUniformGridReport(const std::string& key, const vec3_t<int>& N, double eCut=-1.0) const;
+    //! \brief The same fields as \c EmitUniformGridReport, written ONE LEVEL IN to the caller's open scope (no key of its own): the
+    //! mesh factory's uniform raster files them where the caller (the XC quadrature, a PP term ...) opened its scope.
+    void SetUniformGridFields(const vec3_t<int>& N, double eCut=-1.0) const;
 
     //! \brief The box as "(a,b,c)=(...), (α,β,γ)=(...)°  " (the head of UnitCell::Write).
     std::ostream& WriteCell(std::ostream&) const;

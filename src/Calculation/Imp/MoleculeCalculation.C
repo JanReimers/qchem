@@ -94,11 +94,11 @@ static Molecule_EC* MakeMoleculeEC(const MoleculeSetup& setup)
 
 Outcome<std::unique_ptr<MoleculeCalculation>, BuildRefusal> MoleculeCalculation::Prepare(std::shared_ptr<const MoleculeSetup> setup, Observer onIteration)
 {
-    const Structure& ref=*setup->structure;
     std::unique_ptr<MoleculeCalculation> c;
     try   // the configuration (the constructor) and the graph, into the CALLER'S run (user ruling D, 2026-11-02: drivers own the runs)
     {
-        c.reset(new MoleculeCalculation(BuildOnly{}, std::move(setup), ref, nullptr, std::move(onIteration)));
+        MoleculeSetup::Point point=setup->MakePoint();
+        c.reset(new MoleculeCalculation(BuildOnly{}, std::move(setup), std::move(point), nullptr, std::move(onIteration)));
         c->BuildGraph();
     }
     catch (const policy::Refused& r) { return Outcome<std::unique_ptr<MoleculeCalculation>, BuildRefusal>::Fail(BuildRefusal{r.Name(), r.what()}); }   // its policy row is filed
@@ -106,13 +106,14 @@ Outcome<std::unique_ptr<MoleculeCalculation>, BuildRefusal> MoleculeCalculation:
     return Outcome<std::unique_ptr<MoleculeCalculation>, BuildRefusal>::Ok(std::move(c));
 }
 
-MoleculeCalculation::MoleculeCalculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, const Structure& at,
+MoleculeCalculation::MoleculeCalculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, MoleculeSetup::Point point,
                          std::unique_ptr<const Carry> carry, Observer onIteration, bool geometryPoint)
     : itsGeometryPoint(geometryPoint)
     , itsSetup(std::move(setup))
     // A pseudopotential run works on the VALENCE ions (Z-Zion charge) so the electron count is the valence count -- the
     // structure the basis and the EC both read.
-    , itsStructure(itsSetup->PointStructure(at))
+    , itsStructure(std::move(point.structure))
+    , itsMeshMaker(std::move(point.meshMaker))
     , itsCarry(std::move(carry))
     , itsObserver(std::move(onIteration))
 {
@@ -274,14 +275,19 @@ bool MoleculeCalculation::RunStage(const SCFParams& asked)
     itsLastkT=params.SmearingkT;
     AttachObserver();
     (void)itsScf->Iterate(ExactResumeMixing(params, itsScf->ResolveMixing(params)));   // the outcome is the iterator's Converged(), minted below
+    itsIterations=itsScf->GetIterationCount();
     RebuildSampling();
+    // The pilot builds a fresh iterator per raised mesh, so its re-convergences are counted here (OpenWork row, the atom's twin 00dcde5b0).
+    const size_t pilotBefore=itsPilotCost.reconvergeIterations;
     if (!itsPiloted && HasXCMesh() && !itsSetup->meshResolved && itsScf->Converged()) PilotMesh(params);
+    const size_t pilotIterations=itsPilotCost.reconvergeIterations-pilotBefore;
+    itsIterations+=pilotIterations;
     if (!itsFitConfirmed && itsScf->Converged()) { itsFitConfirmed=true; CheckCoulombFit(itsDensity.get(), "converged"); }   // the seed's estimate, confirmed
 
     // (No end-of-run cache snapshot since S6: each owner-held table reported its own bytes under `cache` where it was filled.)
 
-    ReportResult(Tag(), itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
-                 itsSetup->opts.accuracy.Target(Consumes(), itsStructure->GetNumAtoms()));
+    ReportResult(Tag(), itsScf->Converged(), itsIterations, itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
+                 itsSetup->opts.accuracy.Target(Consumes(), itsStructure->GetNumAtoms()), pilotIterations);
     return true;
 }
 
@@ -291,7 +297,7 @@ std::optional<SCFFailure> MoleculeCalculation::MakeFailure() const
     SCFFailure f;   // the molecular facade's detectors: the iterator's own refusal, else a run out of iterations
     const bool refused=!itsScf->UnphysicalStop().empty();
     f.why        = refused ? SCFFailure::Why::UnphysicalEnergy : SCFFailure::Why::NotConverged;
-    f.iterations = itsScf->GetIterationCount();
+    f.iterations = itsIterations;
     f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
     f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
     if (!refused && itsLastRow) f.details += "; the last iterate: "+itsLastRow->GatesText();
@@ -300,7 +306,7 @@ std::optional<SCFFailure> MoleculeCalculation::MakeFailure() const
 
 EnergyBreakdown MoleculeCalculation::ProofEnergyTerms() const {return itsScf->GetEnergy();}
 double          MoleculeCalculation::ProofCharge()      const {assert(itsDensity); return itsDensity->GetTotalCharge();}
-size_t          MoleculeCalculation::ProofIterations()  const {return itsScf->GetIterationCount();}
+size_t          MoleculeCalculation::ProofIterations()  const {return itsIterations;}
 const ChargeDensity::tDM_CD<double>& MoleculeCalculation::ProofDensity() const {assert(itsDensity); return *itsDensity;}
 const ScalarFunction<double>&        MoleculeCalculation::ProofSpinDensity() const {return GetSpinDensity();}
 
@@ -319,7 +325,7 @@ Outcome<rmat_t,Response::ResponseFailure> MoleculeCalculation::StaticPolarizabil
     const Response::OrbitalFrame<double> frame=Response::MakeOrbitalFrame(ref, *wf);
     const auto kernel=itsHam->MakeResponseKernel(itsBasis, itsDensity.get());
     const qcMesh::Mesh probeMesh=[&]{ qchem::report::Scope here("dipoleProbe");   // the mesh builder reports one level in
-                                      return itsStructure->CreateIntegrationMesh(dipoleMesh); }();
+                                      return itsMeshMaker->Make(dipoleMesh); }();
     const Response::OperatorProbe probe=Response::MakeDipoleProbe(ref, frame, *wf, probeMesh);
     auto r=Response::LinearResponse(ref, frame, *kernel, probe, std::make_shared<Symmetry::Invariant>(), krylov);
     using O=Outcome<rmat_t,Response::ResponseFailure>;
@@ -838,7 +844,7 @@ std::vector<StateBlock> MoleculeCalculation::StateBlocks(bool withOrbitals) cons
 StateSummary MoleculeCalculation::MakeStateSummary() const
 {
     if (!itsScf || !itsScf->GetWaveFunction()) throw std::logic_error("qchem::MoleculeCalculation: no wave function yet");
-    StateSummary s{.label=Tag(), .converged=itsScf->Converged(), .iterations=itsScf->GetIterationCount(),
+    StateSummary s{.label=Tag(), .converged=itsScf->Converged(), .iterations=itsIterations,
                    .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0};
     s.recipe="model "+MoleculeModelName(*itsSetup)+", basis "+itsSetup->opts.molecule.basis+", accelerator "+std::string(NameOf(itsSetup->accelerator));
     if (itsLastRow)
@@ -955,8 +961,7 @@ MoleculeCalculation::PrepareRestart(const std::string& path, std::shared_ptr<con
             setup=std::move(adopted);
         }
     }
-    const Structure& ref=*setup->structure;
-    std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, setup, ref, nullptr, std::move(onIteration)));
+    std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, setup, setup->MakePoint(), nullptr, std::move(onIteration)));
     {
         rpt::Scope basis("basis");
         c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsSetup->imposed, c->itsStructure, c->itsAoBasis);   // BuildGraph reuses it
@@ -1000,8 +1005,7 @@ MoleculeCalculation::ViewState(const std::string& path, std::shared_ptr<const Mo
         std::string why;
         if (auto adopted=SizedBySavedState(setup, *saved, why)) { rpt::Set("adopted", why); setup=std::move(adopted); }   // the mesh is warm: an exact view
     }
-    const Structure& ref=*setup->structure;
-    std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, setup, ref, nullptr, nullptr));
+    std::unique_ptr<MoleculeCalculation> c(new MoleculeCalculation(BuildOnly{}, setup, setup->MakePoint(), nullptr, nullptr));
     {
         rpt::Scope basis("basis");
         c->itsBasis=BuildBasis(c->itsSetup->opts, c->itsSetup->imposed, c->itsStructure, c->itsAoBasis);
@@ -1052,8 +1056,7 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
         throw std::invalid_argument("MoleculeSession::ConvergeAt: "+std::to_string(R.size())+" positions for "+std::to_string(nAtoms)+" atoms");
     if (want.stress) return O::Fail({Why::NoGradient, "stress: a molecule has no cell to strain"});
 
-    std::shared_ptr<Structure> at=ref.Clone();
-    at->MoveSites(R);
+    const MoleculeSetup::Point at=itsSetup->MakePoint(R);   // the setup's TYPED point builder: the moved structure and the mesh maker over it
 
     // THE IMPOSED GROUP must survive (Q4): the SALC blocks are built on the abelian point group, so a step that changes it changes
     // the blocks the carry and the energy surface are written in -- a NEW setup, the user's choice.  A THROW: every driver that moves
@@ -1066,7 +1069,7 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
             st.ForEachSite([&](int Z, const rvec3_t& r, bool){ pts.push_back({Z, r}); });
             return qchem::Symmetry::Molecule::DetectPointGroup(pts, itsSetup->opts.symmetryTol).abelian;
         };
-        if (const std::string now=abelian(*at), was=abelian(ref); now!=was)
+        if (const std::string now=abelian(*at.structure), was=abelian(ref); now!=was)
             throw std::invalid_argument("MoleculeSession::ConvergeAt: these positions lower the imposed abelian group "+was+" to "+now
                                         +" -- step through a map given the group's operations (CartesianMap), or resolve a new setup without the symmetry");
     }
@@ -1081,7 +1084,7 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
         else
         {
             struct Fence { Fence() {report::Begin("forces probe");} ~Fence() {report::End();} } fence;
-            MoleculeCalculation probe(MoleculeCalculation::BuildOnly{}, itsSetup, *at, nullptr, nullptr, /*geometryPoint*/true);
+            MoleculeCalculation probe(MoleculeCalculation::BuildOnly{}, itsSetup, at, nullptr, nullptr, /*geometryPoint*/true);
             probe.BuildGraph();
             missing=probe.MissingGradients();
         }
@@ -1105,7 +1108,7 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
         carry=std::make_unique<const MoleculeCalculation::Carry>(itsPoint->MakeMovedCarry(dmax));
     }
     itsPoint.reset();   // one point's memory at a time
-    itsPoint.reset(new MoleculeCalculation(MoleculeCalculation::BuildOnly{}, itsSetup, *at, std::move(carry), itsObserver, /*geometryPoint*/true));
+    itsPoint.reset(new MoleculeCalculation(MoleculeCalculation::BuildOnly{}, itsSetup, at, std::move(carry), itsObserver, /*geometryPoint*/true));
     (void)itsPoint->ConvergeStage(itsSCF);   // the point's SCF on the session's settings; Result() below is its outcome
     auto out=itsPoint->Result();
     if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
@@ -1174,7 +1177,7 @@ const MoleculeCalculation::orbitals_t* MoleculeCalculation::Orbitals(const Irrep
     return itsScf->GetWaveFunction()->GetOrbitals(qns);
 }
 
-size_t MoleculeCalculation::IterationCount() const {return itsScf->GetIterationCount();}
+size_t MoleculeCalculation::IterationCount() const {return itsIterations;}
 bool   MoleculeCalculation::IsConverged()    const {return itsScf->Converged();}
 
 } // namespace qchem

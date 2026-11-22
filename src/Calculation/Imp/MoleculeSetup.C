@@ -7,6 +7,7 @@ module;
 #include <stdexcept>
 #include <string>
 #include <filesystem>
+#include <vector>
 module qchem.MoleculeSetup;
 
 import qchem.PeriodicTable;   // thePeriodicTable (Z -> element symbol, for the PP lookup)
@@ -17,6 +18,7 @@ import qchem.SetupDecisions;  // the structure-neutral decisions (spin channels,
 import qchem.BasisSet.Gaussian.Point.Factory; // RegisteredBasis, BasisSetData: which registered files are all-electron
 import qchem.BasisSet.Gaussian.Point.BasisFiles; // BasisFileOfName: the basis name's file, for the coverage pre-flight
 import qchem.BasisCoverage;   // RequireBasisCovers, BasisCovers, ElementsOf: a basis lacking an element is refused before anything is built
+import qchem.Structure.MeshFactory;   // StructureMeshMaker<S>: each geometry point's mesh maker, typed where S is known (V-MESH-FACTORY)
 
 namespace qchem
 {
@@ -97,14 +99,42 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
 }
 
 // THE DOORS (as SolidSetup's): Admit for user input, Resolve its throwing twin for code that states its own options.
-Outcome<std::shared_ptr<const MoleculeSetup>, SetupRefusal> MoleculeSetup::Admit(const Structure& st, const RunOptions& opts, const AcceleratorOptions& acc)
+Outcome<std::shared_ptr<const MoleculeSetup>, SetupRefusal> MoleculeSetup::Admit(const Molecule& st, const RunOptions& opts, const AcceleratorOptions& acc)
 {
     return AdmitBy([&]{ return Resolve(st, opts, acc); });
 }
 
-std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st, const RunOptions& asked, const AcceleratorOptions& acc)
+// THE TYPED POINT BUILDER (V-MESH-FACTORY §8 step 2): made here, where the reference's concrete type S is known, so every geometry point
+// is a copy of an S (never a Clone through the abstract face) and its mesh maker is StructureMeshMaker<S> over THAT point -- no cast.
+// A pseudopotential run re-expresses the point as its VALENCE ions: each atom keeps its true species Z (so the PP lookup and the true
+// geometry are intact) but ADDS the core charge Z-Zion (its own element, from the run's chosen set) to the net charge the site states,
+// so GetNumElectrons() reports the Zion valence count minus the stated charge (OH- with GTH: 6 + 1 + 1), the count the EC + FittedVee
+// charge constraint consume.
+template <class S> static auto TypedPointBuilder(std::shared_ptr<const S> ref)
+{
+    return [ref](const std::vector<rvec3_t>* R, const Pseudopotential::PseudopotentialSet* pp)
+    {
+        auto point=std::make_shared<S>(*ref);
+        if (R) point->MoveSites(*R);
+        if (pp) point->AddNetCharges([pp](int Z){return double(Z - pp->Valence(thePeriodicTable().GetSymbol(Z)));});   // + the core Z - Zion: a stated ion stays one
+        return MoleculeSetup::Point{point, std::make_shared<const StructureMeshMaker<S>>(point)};
+    };
+}
+
+MoleculeSetup::Point MoleculeSetup::MakePoint() const {return itsPointBuilder(nullptr, pp ? &*pp : nullptr);}
+MoleculeSetup::Point MoleculeSetup::MakePoint(const std::vector<rvec3_t>& R) const {return itsPointBuilder(&R, pp ? &*pp : nullptr);}
+
+std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Molecule& st, const RunOptions& asked, const AcceleratorOptions& acc)
 {
     auto s=std::make_shared<MoleculeSetup>();
+    auto ref=std::make_shared<const Molecule>(st);   // deep copy, TRUE charges
+    s->structure=ref;
+    s->itsPointBuilder=TypedPointBuilder(ref);
+    return Decide(std::move(s), asked, acc);
+}
+
+std::shared_ptr<const MoleculeSetup> MoleculeSetup::Decide(std::shared_ptr<MoleculeSetup> s, const RunOptions& asked, const AcceleratorOptions& acc)
+{
     s->opts=MoleculeOptions(asked);   // the kind's defaults filled, what a molecule does not consume refused (V-FACADE-PARITY P0b-2)
     s->acc =acc;
     const RunOptions& opts=s->opts;   // from here on, the RESOLVED options
@@ -132,9 +162,8 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
                            "its core shells describe electrons the pseudopotential removed -- the run goes on; a valence basis "
                            "(sipp*, valence_lowq*) is the matched choice");
     }
-    s->structure=st.Clone();
-    s->imposed=opts.imposeSymmetry;   // a molecule's imposition has no policy veto: as asked   // polymorphic deep copy: a UnitCell stays periodic, not sliced to a Molecule
-    const std::shared_ptr<const Structure> point=s->PointStructure(*s->structure);
+    s->imposed=opts.imposeSymmetry;   // a molecule's imposition has no policy veto: as asked
+    const std::shared_ptr<const Structure> point=s->MakePoint().structure;
     s->Ne=int(point->GetNumElectrons());
     RequireBasisStated(opts.molecule.basis, *point);   // no default basis: an unstated one is refused, naming the bases that cover this structure
     // Coverage, when the name is a basis file (an unknown name is the build's refusal, which lists every name there).
@@ -215,22 +244,10 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     return s;
 }
 
-// Re-express a structure as its VALENCE ions for a pseudopotential run: each atom keeps its true species Z (so the PP lookup and
-// the true geometry are intact) but ADDS the core charge Z-Zion (its own element, from the run's chosen set) to the net charge the
-// site states, so GetNumElectrons() reports the Zion valence count minus the stated charge (OH- with GTH: 6 + 1 + 1), the count the
-// EC + FittedVee charge constraint consume.  Clone-and-mutate (not rebuild-as-Molecule)
-// so the concrete geometry is preserved: a PP run on a periodic UnitCell stays a UnitCell (Ewald ion-ion, uniform mesh).
 std::vector<Hamiltonian::PPFunctionalCheck> MoleculeSetup::PPFunctionalChecks() const
 {
     if (!pp || !Hamiltonian::IsDFT(*opts.model)) return {};
     return Hamiltonian::PPFunctionalChecks(*pp, *structure, Hamiltonian::ModelToXC(*opts.model, opts.xalpha));
-}
-
-std::shared_ptr<const Structure> MoleculeSetup::PointStructure(const Structure& st) const
-{
-    auto point = st.Clone();
-    if (pp) point->AddNetCharges([this](int Z){return double(Z - pp->Valence(thePeriodicTable().GetSymbol(Z)));});   // + the core Z - Zion: a stated ion stays one
-    return point;
 }
 
 
