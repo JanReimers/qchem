@@ -1,4 +1,5 @@
 TZVP (DFT Orbital)
+KIND all-electron
 
 !
 BASIS="TZVP (DFT Orbital)"

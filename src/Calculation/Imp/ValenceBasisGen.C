@@ -286,10 +286,11 @@ SplicedLibrary SpliceSeedEntry(const std::string& library, const std::string& en
 }
 
 std::string AssembleBasisFile(const std::string& name, const std::vector<std::string>& blocks,
-                              const std::vector<std::pair<std::string,int>>& ppValence)
+                              const std::vector<std::pair<std::string,int>>& ppValence, const std::string& ppSet)
 {
     std::ostringstream os;
     os << name << "\n";
+    if (!ppSet.empty()) os << "KIND pp-valence " << ppSet << "\n";
     if (!ppValence.empty())
     {
         os << "PP-PROVENANCE";

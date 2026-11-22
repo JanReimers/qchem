@@ -37,6 +37,9 @@ struct BasisOffer
     std::string blockGroup; //!< G_blk described: the group whose irreps label the solve's blocks ("O(3) (by l, m analytic)", "T (by k)", ...)
     std::string note;       //!< a fact the user should see beside it ("four-component (RKB): relativistic", "Cartesian d only for MN")
     bool        optIn;      //!< offered only when the user asks (user ruling Q1, 2026-11-21): shown greyed-out-unless-asked
+    std::string kind;       //!< a Gaussian FILE's stated kind (its `KIND` line, \c BasisSet::Gaussian::KindOfBasisFile): "all-electron" |
+                            //!< "pp-valence"; "" for an entry that is not a file (a radial family, plane waves, the one-atom route)
+    std::string ppSet;      //!< the pseudopotential set a "pp-valence" file pairs with ("gth-lda-valence"); "" otherwise
 };
 
 //! Every orbital-basis choice for a run on \a st, in the library's order (unsorted).  The ROUTE is the deck's rule (`deck::KindOf`):
@@ -45,7 +48,8 @@ struct BasisOffer
 //!   opt-in route entry, "3-D Gaussians (one-atom molecule)" (Q1): selecting it is the molecule route, whose menu is the Gaussian files.
 //! - a MOLECULE: every registered Gaussian basis file, admitted when it holds a block for every element (the reader's own test, as
 //!   the BasisCoverage refusal), G_blk the detected point group's abelian subgroup when imposed.
-//! - a CRYSTAL: the same Gaussian files on the GPW route (G_blk T, by k), then the plane-wave family.
+//! - a CRYSTAL: the same Gaussian files on the GPW route (G_blk T, by k), then the plane-wave family.  A crystal runs on a
+//!   pseudopotential, so only a "pp-valence" file is admitted; an all-electron one is listed greyed with that reason.
 //! \a symmetryTol: the molecule's point-group detection tolerance (its setup's).
 std::vector<BasisOffer> OrbitalBasisOffers(const Structure& st, double symmetryTol = RunOptions{}.symmetryTol);
 

@@ -6,9 +6,10 @@ set's full exponent list (zero coefficients kept: the span is CP2K's exactly).  
 contract NORMALIZED primitives, which is also what bsd2cp2k assumes.
 
 The PP valence of each element is read from the entry's `-qN` alias (CP2K's naming) and written as the PP-PROVENANCE line the reader
-checks against the run's pseudopotential; an entry with no `-qN` alias is refused (the file would claim nothing).
+checks against the run's pseudopotential; an entry with no `-qN` alias is refused (the file would claim nothing).  The file's KIND
+line (BasisFiles' KindOfBasisFile) names the pseudopotential SET it pairs with: gth-lda-valence (CP2K's GTH-PADE), or --pp-set NAME.
 
-Usage:  cp2k2bsd CP2K_BASIS_FILE NAME ELEMENT [ELEMENT ...]  > out.bsd
+Usage:  cp2k2bsd [--pp-set NAME] CP2K_BASIS_FILE NAME ELEMENT [ELEMENT ...]  > out.bsd
 e.g.    cp2k2bsd ~/Code/cp2k/data/BASIS_MOLOPT DZVP-MOLOPT-GTH H C N O > BasisSetData/dzvp_molopt_gth.bsd
 """
 import re, sys
@@ -37,8 +38,12 @@ def entry(path, el, name):
     return None
 
 def main():
-    if len(sys.argv) < 4: sys.exit(__doc__)
-    path, name, want = sys.argv[1], sys.argv[2], [e.capitalize() for e in sys.argv[3:]]
+    args, ppset = sys.argv[1:], "gth-lda-valence"
+    if args[:1] == ["--pp-set"]:
+        if len(args) < 2: sys.exit(__doc__)
+        ppset, args = args[1], args[2:]
+    if len(args) < 3: sys.exit(__doc__)
+    path, name, want = args[0], args[1], [e.capitalize() for e in args[2:]]
     blocks, prov = [], []
     for el in want:
         e = entry(path, el, name)
@@ -60,6 +65,7 @@ def main():
         b.append("****")
         blocks.append("\n".join(b))
     print(f"{name}: transcribed from CP2K's {path.split('/')[-1]} by scripts/cp2k2bsd ({' '.join(want)})")
+    print("KIND pp-valence " + ppset)
     print("PP-PROVENANCE " + " ".join(prov))
     print("Coefficients as CP2K states them (normalized primitives); one shell per CP2K contraction, the set's exponents shared.")
     print("CP2K runs every basis SPHERICAL: compare against it with basis.spherical true.")

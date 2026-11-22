@@ -609,7 +609,7 @@ NB_MODULE(qchem_py, mod)
     }, nb::arg("request"),
        "Which orbital bases a structure admits (qchem::OrbitalBasisOffers), as JSON text: request {'numbers','positions'[,'symmetryTol']} "
        "(one site = the radial atom) or {'cell': <materials entry>} -> {'offers': [{route, key, name, admitted, reason, blockGroup, note, "
-       "optIn}]} or {'error'}.  Unsorted: the front end sorts.");
+       "optIn, kind, ppSet}]} or {'error'}.  Unsorted: the front end sorts.");
     mod.def("pseudopotentials", [](const std::string& req)
     {
         int n;

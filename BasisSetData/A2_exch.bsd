@@ -1,4 +1,5 @@
 DGauss A2 DFT Exchange Fitting
+KIND fit-exchange
 
 !
 BASIS="DGauss A2 DFT Exchange Fitting"

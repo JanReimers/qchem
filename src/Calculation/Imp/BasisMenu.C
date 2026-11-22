@@ -5,7 +5,7 @@ module;
 #include <vector>
 module qchem.BasisMenu;
 import qchem.BasisCoverage;                              // BasisCovers, ElementsOf: the reader's own coverage test
-import qchem.BasisSet.Gaussian.Point.BasisFiles;         // BasisNames
+import qchem.BasisSet.Gaussian.Point.BasisFiles;         // BasisNames, KindOfBasisFile: the file's stated KIND
 import qchem.BasisSet.Gaussian.Point.Factory;            // RegisteredBasis, CartesianOnlyElements
 import qchem.Symmetry.Group;                             // HasLattice, kAdmissionTolerance: is the structure periodic (the route rule)
 import qchem.PeriodicTable;
@@ -46,18 +46,27 @@ std::string Symbols(const std::vector<int>& Zs)
     return out;
 }
 
-//! One Gaussian file on route \a route: admitted when it holds a block for every element (the reader's own test), with the file's
-//! Cartesian-only elements as its note (their s span lives in the d contaminants: the spherical view would lose it).
+//! One Gaussian file on route \a route: admitted when it holds a block for every element (the reader's own test) and, on the
+//! crystal route, when the file states it is a pseudopotential-valence basis (its KIND line: a crystal runs on a pseudopotential).
+//! The file's Cartesian-only elements are its note (their s span lives in the d contaminants: the spherical view would lose it).
 BasisOffer GaussianOffer(const std::string& route, const std::string& name, const std::set<int>& elements, const std::string& blocks)
 {
+    using BasisSet::Gaussian::BasisKind;
+    const BasisSet::Gaussian::BasisFileKind kind = BasisSet::Gaussian::KindOfBasisFile(name+".bsd");
     std::vector<int> missing;
     for (int Z : elements) if (!BasisCovers(name+".bsd", Z)) missing.push_back(Z);
+    std::string reason = missing.empty() ? std::string() : name+" has no block for "+Symbols(missing);
+    if (reason.empty() && route=="crystal" && kind.kind!=BasisKind::PPValence)
+        reason = kind.kind==BasisKind::Unstated
+            ? name+" does not state its KIND: a crystal runs on a pseudopotential and needs a pseudopotential-valence basis"
+            : name+" is an "+BasisSet::Gaussian::KindName(kind.kind)+" basis: a crystal runs on a pseudopotential and needs a "
+              "pseudopotential-valence basis";
     std::string note;
     for (const std::string& el : BasisSet::Gaussian::CartesianOnlyElements(name+".bsd"))
         note += (note.empty() ? "Cartesian d only for " : ", ") + el;
-    return BasisOffer{.route=route, .key="basis.data="+name, .name=name, .admitted=missing.empty(),
-                      .reason=missing.empty() ? std::string() : name+" has no block for "+Symbols(missing),
-                      .blockGroup=blocks, .note=note, .optIn=false};
+    return BasisOffer{.route=route, .key="basis.data="+name, .name=name, .admitted=reason.empty(), .reason=reason,
+                      .blockGroup=blocks, .note=note, .optIn=false,
+                      .kind=BasisSet::Gaussian::KindName(kind.kind), .ppSet=kind.ppSet};
 }
 } // anonymous namespace
 
@@ -79,18 +88,18 @@ std::vector<BasisOffer> OrbitalBasisOffers(const Structure& st, double symmetryT
         for (const std::string& name : RegisteredGaussianNames())
             out.push_back(GaussianOffer("crystal", name, elements, "T (by k)"));
         out.push_back(BasisOffer{.route="crystal", .key="basis.family=planeWave", .name="plane waves", .admitted=true, .reason="",
-                                 .blockGroup="T (by k)", .note="", .optIn=false});
+                                 .blockGroup="T (by k)", .note="", .optIn=false, .kind="", .ppSet=""});
         return out;
     }
     if (st.GetNumAtoms()==1)
     {
         for (const RadialFamily& f : theRadialFamilies)
             out.push_back(BasisOffer{.route="atom", .key=std::string("atom.type=")+f.name, .name=f.name, .admitted=true, .reason="",
-                                     .blockGroup=theRadialBlocks, .note=f.note, .optIn=false});
+                                     .blockGroup=theRadialBlocks, .note=f.note, .optIn=false, .kind="", .ppSet=""});
         // Q1 (user, 2026-11-21): the one-atom MOLECULE, a route entry offered only when asked; its menu is the molecule's
         out.push_back(BasisOffer{.route="molecule", .key="", .name="3-D Gaussians (one-atom molecule)", .admitted=true, .reason="",
                                  .blockGroup="D2h when imposed, else {e}",
-                                 .note="3-D Gaussians: shows broken-symmetry shapes; slower", .optIn=true});
+                                 .note="3-D Gaussians: shows broken-symmetry shapes; slower", .optIn=true, .kind="", .ppSet=""});
         return out;
     }
     return MoleculeBasisOffers(st, symmetryTol);

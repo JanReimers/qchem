@@ -3936,3 +3936,26 @@ Done as the controller's option (a), 2026-11-21.
 - The GUI's `Structure` carries the total `charge` and an optional per-site `site_charges`, one per site and summing to the charge. THE DEFAULT RULE puts the whole charge on the most electronegative site (Pauling, the first on a tie); the split shapes only the SAD seed.  The sites table's q column edits the split, and the total and label follow (H2O -> H2O+).  A crystal's charge is still refused, and CP2K refuses a charged structure by name (it writes no `&DFT CHARGE` yet).
 - Gate: `tests.test_molecule_charge`.  The H2O+ HF doublet gives -75.6191133 (9 e) through Build -> Run, against neutral -76.0229032, and its state reopens through `StateView` with the same charges.
 - Found on the way: the charged-PP neutral defect (closed in 05990e136), and the hard-wired A1 Coulomb fit, 1.9 mHa low on the GTH MOLOPT bases (open §3 row "The Coulomb-fit default is a hidden policy").
+
+## ✅ A basis file states its KIND (closed 2026-11-21, lane G)
+
+The row as filed:
+
+| **A basis file states its KIND (pseudopotential-valence vs all-electron, and the PP set it pairs with)** (lane G, 2026-11-21, from `qchem.BasisMenu`) | `OrbitalBasisOffers` lists a crystal's Gaussian files by coverage only, so the GUI's crystal Basis menu still keeps its OWN periodic list (`qchem-GUI qviz/backends/solid2_deck.py _BASES`).  The library cannot say which files are PP-valence: `PP-PROVENANCE` (valgen's preamble line, `CheckPPProvenance`) is on the generated `valence_lowq*` files only, while `sipp.bsd` / `sipp_sr.bsd` (hand-made GTH valence sets) carry none and read as legacy all-electron.  Record: `side-session-notes laneG-READY-basis-menu.md` | state the kind in every shipped `.bsd` preamble (a `KIND` line, or `PP-PROVENANCE` on sipp / sipp_sr too), expose it through `BasisFiles`, have `BasisOffer` carry it (a crystal on GTH greys an all-electron file with the reason), then delete the GUI's `_BASES` list · `src/BasisSet/Gaussian/Point/`, `src/Calculation/BasisMenu.C` |
+
+Done, 2026-11-21 (controller's assignment: reader / BasisFiles only, no hub).
+- Every shipped `.bsd` (28) states ONE preamble line: `KIND fit-coulomb` (A1_coul, A2_coul, cd), `KIND fit-exchange` (A1_exch, A2_exch,
+  x), `KIND all-electron` (dzvp, dzvp2, tzvp, orb, orb1, dzvp_test), `KIND pp-valence gth-lda-valence` (sipp, sipp_sr, the MOLOPT
+  transcriptions, every valence_lowq*).  sipp / sipp_sr also gained `PP-PROVENANCE Si=4 O=6`.  The writers emit it: valgen's
+  `AssembleBasisFile(..., ppSet)` and `scripts/cp2k2bsd [--pp-set NAME]`.
+- `qchem.BasisSet.Gaussian.Point.BasisFiles`: `KindOfBasisFile(file) -> {BasisKind, ppSet}`, `KindName`; a malformed line THROWS
+  ("-- To fix this, please state ONE preamble line ...").
+- `BasisOffer` gains `kind` and `ppSet`; on the crystal route a file is admitted only when it is pp-valence ("dzvp is an all-electron
+  basis: a crystal runs on a pseudopotential and needs a pseudopotential-valence basis").  The bridge's offers carry both.
+- GUI (qchem-GUI): the crystal Basis box is the library's menu (all-electron files greyed with the reason; plane waves greyed: the
+  GUI's crystal deck writes `basis.data` only); `solid2_deck.why_not(spec, qc)` judges the basis by the library's offer.  `_BASES`
+  and `periodic_bases` are deleted.
+- Gates: `UTGaussian_BS BasisKind.TheKindLineIsReadAndAMalformedOneThrows`, `BasisKind.EveryShippedFileStatesItsKind`;
+  `UTCalculation BasisMenu.ACrystalAddsThePlaneWaves` (dzvp greyed, admitted = pp-valence AND covers), `BasisMenu.EveryPPValenceFilesSetShipsAndCoversItsElements`.
+- Residual: a RUN does not judge the KIND yet, and the menu lists by enum handle -- open row "The basis KIND is read by the menu only".
+
