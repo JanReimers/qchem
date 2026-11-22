@@ -550,7 +550,9 @@ tSinglesDensitySampler<T>::MakeQuadraturePullback(const rvec_t& f, const Structu
 // controller's condition (a), 2026-11-19).  A block without the face is a named refusal (CanT false, PointSetOf's Fail), never a null deref.
 template <class T> template <class U> bool tSinglesDensitySampler<T>::CanT(const tobs_t<U>* bs) const
 {
-    return MeshDerivativeGap().empty() && dynamic_cast<const BasisSet::PointSetPullback<U>*>(bs)!=nullptr;
+    if (!MeshDerivativeGap().empty()) return false;
+    const auto* face=dynamic_cast<const BasisSet::PointSetPullback<U>*>(bs);
+    return face && face->CanPointSetPullback();
 }
 template <class T> template <class U> Outcome<typename BasisSet::PointSetPullback<U>::Result,AD::NoGradient>
 tSinglesDensitySampler<T>::PointSetOf(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const
@@ -558,7 +560,7 @@ tSinglesDensitySampler<T>::PointSetOf(const tobs_t<U>* bs, const rvec_t& v, cons
     using R=Outcome<typename BasisSet::PointSetPullback<U>::Result,AD::NoGradient>;
     if (const std::string gap=MeshDerivativeGap(); !gap.empty()) return R::Fail({gap});
     const auto* face=dynamic_cast<const BasisSet::PointSetPullback<U>*>(bs);
-    if (!face) return R::Fail({"the orbital block "+bs->Name()+" gives no point-set pullback"});
+    if (!face || !face->CanPointSetPullback()) return R::Fail({"the orbital block "+bs->Name()+" gives no point-set pullback"});
     const qcMesh::Mesh& m=*itsQuad.GetMesh();
     if (v.size()!=m.size()) return R::Fail({"the XC field is not on the mesh"});
     if (!st || st->GetNumAtoms()!=m.NSites()) return R::Fail({"the XC mesh's site blocks are not the structure's atoms"});

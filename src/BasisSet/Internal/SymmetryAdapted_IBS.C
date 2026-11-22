@@ -31,6 +31,7 @@ export import qchem.BasisSet.Orbital_HF_IBS;         // HF 2-electron CONTRACTIO
 export import qchem.BasisSet.Orbital_PP_IBS;         // species fields, forwarded to the raw basis
 export import qchem.BasisSet.Orbital_DFT_IBS;        // DFT 3-centre mixin (fitted Coulomb / Vxc)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
+export import qchem.BasisSet.PointSetPullback;   // the δ quadrature derivative face the decorator forwards
 import qchem.BasisSet.Internal.CachedIntegrals;   // the Cached* mixins the family lists beside its Make* (D-BASISCACHE-FANIN)
 import qchem.Structure;
 import qchem.Types;
@@ -56,6 +57,7 @@ class SymmetryAdapted_IBS
     , public IrrepBasisSetImp<double>        // provides GetSymmetry / GetSymt / GetIrrep
     , public Symmetry::IdentityRepresentation<double>   // a 1-D irrep block: M_g = χ(g)·1, |χ|² = 1, so its bilinear images are
                                                          // identities -- for the ops of the group it was adapted under (S3)
+    , public virtual PointSetPullback<double>   // the δ quadrature's derivative: the raw basis's, on the AO-folded D (lane B 2026-11-22)
 {
 public:
     // raw: the whole-molecule AO basis (not owned).  Oblock: this irrep's SALC columns
@@ -88,6 +90,11 @@ public:
     virtual Outcome<rmat3d_t,AD::NoGradient> MakeKineticVirial(const hmat_t<double>& D, const Structure* st) const override;
     virtual bool CanPullbackNuclear() const override;
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeNuclearPullback(const hmat_t<double>& D, const Structure* st) const override;
+    //! The point-set quadrature derivative (PointSetPullback), the raw basis's on the AO-folded D as the 1E pullbacks above: φ_Γ = Oᵀφ_raw
+    //! at every point, so Σ_q c_q φ_Γᵀ D φ_Γ = Σ_q c_q φ_rawᵀ (O D Oᵀ) φ_raw.  Answers exactly when the raw basis has the face.
+    virtual bool CanPointSetPullback() const override;
+    virtual Outcome<PointSetPullback<double>::Result,AD::NoGradient>
+            MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const hmat_t<double>& D, const Structure* st) const override;
     // Species fields (O^T M_raw O), when the raw basis can assemble them.
     virtual bool    CanAssembleField     (const SpeciesRadialField&)  const override;
     virtual bool    CanAssembleProjectors(const SpeciesProjectorSet&) const override;

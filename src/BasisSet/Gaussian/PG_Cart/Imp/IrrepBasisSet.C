@@ -10,6 +10,7 @@ module;
 #include <memory>
 #include <vector>
 #include <functional>
+#include <exception>
 
 module qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
@@ -25,6 +26,7 @@ import qchem.Streamable;
 import qchem.Blaze;
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 import qchem.Reporting;       // report::Timed (the point-set pullback's bucket)
+import qchem.Parallel;        // InnerThreads (QCHEM_OPENMP_THREADS): the molecular point-set pullback is per-point-chunk parallel
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 
 namespace qchem::BasisSet::Gaussian::PG_Cart
@@ -404,6 +406,83 @@ Gaussian::LatticeCollocation::PointPullback Orbital_IBS::BlochPointPullback(cons
     }
     out.moment=rmat3d_t(M[0][0],M[0][1],M[0][2], M[1][0],M[1][1],M[1][2], M[2][0],M[2][1],M[2][2]);
     return out;
+}
+
+// THE MOLECULAR point-set quadrature derivative (BasisSet::PointSetPullback; lane B 2026-11-22): BlochPointPullback at the one image with
+// phase 1.  Per point q, E_q = c_q Σ_ij D_ij φ_i φ_j, so dE_q = 2 c_q Σ_i z_qi dφ_qi with z_qi = Σ_j D_ij φ_qj, and dφ_qi/d(centre) = -∇χ_i(r_q):
+//   gradient[atom(i)] -= w ∇χ_i,   perPoint[q] += w ∇χ_i,   moment += w ∇χ_i ⊗ (r_q - X_i),   w = 2 c_q z_qi.
+// The per-function reach screen is operator()'s (the value is 0 there, so is its gradient).  Points are chunked over threads, each chunk
+// writing its own perPoint rows and a private gradient/moment, reduced in chunk order: bit-identical at any thread count.
+Outcome<::qchem::BasisSet::PointSetPullback<double>::Result,AD::NoGradient>
+Orbital_IBS::MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const hmat_t<double>& D, const Structure* st) const
+{
+    using Res=::qchem::BasisSet::PointSetPullback<double>::Result;
+    using R=Outcome<Res,AD::NoGradient>;
+    const size_t n=GetNumFunctions(), npts=pts.size();
+    if (c.size()!=npts) throw std::invalid_argument("MakePointSetPullback: the weights are "+std::to_string(c.size())+" for "+std::to_string(npts)+" points");
+    if (D.rows()!=n) throw std::invalid_argument("MakePointSetPullback: D is "+std::to_string(D.rows())+" square for "+std::to_string(n)+" functions");
+    if (!st) throw std::invalid_argument("MakePointSetPullback: the pullback needs the structure (the sites the functions sit on)");
+    const std::vector<size_t> atom=NR_Evaluator::ComponentSites(st, "MakePointSetPullback");
+    const size_t natom=st->GetNumAtoms();
+    Res out{rvec3vec_t(natom, rvec3_t(0,0,0)), rmat3d_t(0,0,0, 0,0,0, 0,0,0), rvec3vec_t(npts, rvec3_t(0,0,0))};
+    if (npts==0) return R::Ok(std::move(out));
+    qchem::report::Timed timer("force: point-set quadrature pullback (molecular jets)");
+    const rvec_t& reach=Reaches();
+    const mat_t<double> Dm(D);
+    const size_t chunk=256, nchunk=(npts+chunk-1)/chunk;
+    struct Part { rvec3vec_t g; double M[3][3]; };
+    std::vector<Part> parts(nchunk, Part{rvec3vec_t(natom, rvec3_t(0,0,0)), {{0,0,0},{0,0,0},{0,0,0}}});
+    auto run=[&](size_t b)
+    {
+        Part& P=parts[b];
+        rvec_t z(n);
+        for (size_t q=b*chunk; q<std::min(npts,(b+1)*chunk); q++)
+        {
+            if (c[q]==0.0) continue;
+            const rvec_t phi=(*this)(pts[q]);
+            for (size_t i=0;i<n;i++) { double s=0.0; for (size_t j=0;j<n;j++) s+=Dm(i,j)*phi[j]; z[i]=s; }
+            for (size_t i=0;i<n;i++)
+            {
+                const double w=2.0*c[q]*z[i];
+                if (w==0.0) continue;
+                const GaussianRF& rf=*radials[i];
+                const rvec3_t dr=pts[q]-rf.GetCenter();
+                if (dr.x*dr.x+dr.y*dr.y+dr.z*dr.z > reach[i]*reach[i]) continue;   // operator()'s screen
+                const rvec3_t wg=w*(ns[i]*rf.Gradient(pols[i], pts[q]));            // ∇_r χ_i (Enzyme's, as Gradient(r))
+                P.g[atom[i]]-=wg;
+                out.perPoint[q]+=wg;
+                const double gg[3]={wg.x,wg.y,wg.z}, dd[3]={dr.x,dr.y,dr.z};
+                for (int a=0;a<3;a++) for (int bb=0;bb<3;bb++) P.M[a][bb]+=gg[a]*dd[bb];
+            }
+        }
+    };
+#ifdef QCHEM_OPENMP
+    if (const int nthreads=qchem::InnerThreads(); nthreads>1)
+    {
+        std::exception_ptr firstEx;
+        #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
+        for (size_t b=0; b<nchunk; b++)
+        {
+            try { run(b); }
+            catch (...)
+            {
+                #pragma omp critical (pg_pointset_throw)
+                if (!firstEx) firstEx=std::current_exception();
+            }
+        }
+        if (firstEx) std::rethrow_exception(firstEx);
+    }
+    else
+#endif
+    for (size_t b=0; b<nchunk; b++) run(b);
+    double M[3][3]={{0,0,0},{0,0,0},{0,0,0}};
+    for (const Part& P : parts)
+    {
+        for (size_t a=0;a<natom;a++) out.gradient[a]+=P.g[a];
+        for (int a=0;a<3;a++) for (int bb=0;bb<3;bb++) M[a][bb]+=P.M[a][bb];
+    }
+    out.moment=rmat3d_t(M[0][0],M[0][1],M[0][2], M[1][0],M[1][1],M[1][2], M[2][0],M[2][1],M[2][2]);
+    return R::Ok(std::move(out));
 }
 
 chmat_t Orbital_IBS::MakeOverlap(const cellphase_t& phase, const UnitCell& A) const {return NR_Evaluator::MakeOverlap(phase,A);}

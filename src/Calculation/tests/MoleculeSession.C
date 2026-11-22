@@ -90,8 +90,9 @@ TEST(MoleculeSession, EveryStepsFirstIterateStartsNearItsAnswer)
 
 TEST(MoleculeSession, RefusalsAreOutcomesAndAWrongCountThrows)
 {
-    // LDA: the XC term has no analytic force yet, so a forces request is refused BY NAME before any point is built or converged.
-    MoleculeSession pes(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .imposeSymmetry=true, .molecule={.basis="dzvp"}}), Tight());
+    // PBE: the GGA XC term has no analytic force yet, so a forces request is refused BY NAME before any point is built or converged.
+    // (LDA was the refused model until its δ XC on the Becke mesh gained its force, lane B 2026-11-22.)
+    MoleculeSession pes(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::PBE, .imposeSymmetry=true, .molecule={.basis="dzvp"}}), Tight());
     const std::vector<rvec3_t> R=pes.Reference().R;
     auto F=pes.ConvergeAt(std::nullopt, R, {.forces=true});
     ASSERT_FALSE(F); EXPECT_EQ(F.Error().why, PESFailure::Why::NoGradient);

@@ -71,6 +71,53 @@ static void ReportMolecularMesh(size_t natom, const qcMesh::MeshParams& mp, size
     rpt::Set("points", (long)kept); rpt::Set("dropped", (long)(total-kept));
 }
 
+//! \brief THE MOLECULAR BECKE MESH's WEIGHT RESPONSE (qcMesh::MeshWeightResponse; lane B 2026-11-22, the molecular twin of the periodic
+//! one in UnitCell.C).  Installed by MakeMolecularMesh, which alone knows how the weights were made: each kept point g of site a carries
+//! w_g = w_q W_a(R_a + u_g), w_q its template weight, W_a the Becke partition (qcMesh::BeckePartitionWeight, order k).  For f held per point,
+//! d(Σ_g f_g w_g)/dR_D = Σ_g f_g w_q dW_a/dR_D, the point riding its owner (qcMesh::BeckePartitionGradient, which sums to zero over D), and
+//! the virial Σ_D (d/dR_D) ⊗ R_D.  ONE home for the partition: the build and this derivative call the same leaf.  A consumer is any term
+//! whose energy is Σ_g w_g f_g on this mesh at fixed f: the δ XC energy (f = e_xc), and the outer quadrature of a δ Hartree.
+class MolecularBeckeResponse : public qcMesh::MeshWeightResponse
+{
+public:
+    MolecularBeckeResponse(std::vector<rvec3_t> R, int k) : itsR(std::move(R)), itsK(k) {}
+    Result Pullback(const qcMesh::Mesh& m, const rvec_t& f) const override;
+private:
+    std::vector<rvec3_t> itsR;
+    int itsK;
+};
+
+MolecularBeckeResponse::Result MolecularBeckeResponse::Pullback(const qcMesh::Mesh& m, const rvec_t& f) const
+{
+    const size_t natom=itsR.size();
+    if (f.size()!=m.size()) throw std::invalid_argument("MolecularBeckeResponse: the field is "+std::to_string(f.size())+" for "+std::to_string(m.size())+" points");
+    if (m.OwnerOffsets().size()!=m.size() || m.NSites()!=natom)
+        throw std::logic_error("MolecularBeckeResponse: the mesh carries no owner offsets or not one site block per atom");
+    qchem::report::Timed timed("force: becke weight response");
+    Result out{rvec3vec_t(natom, rvec3_t(0,0,0)), rmat3d_t(0,0,0, 0,0,0, 0,0,0)};
+    if (natom==1) return out;   // one atom: W = 1 everywhere, no response
+    const rvec3vec_t& U=m.OwnerOffsets();
+    const rvec_t& W=m.Weights();
+    for (size_t a=0; a<natom; a++)
+        for (size_t g=m.SiteBegin(a); g<m.SiteEnd(a); g++)
+        {
+            if (f[g]==0.0) continue;
+            const rvec3_t r=itsR[a]+U[g];
+            const double wP=qcMesh::BeckePartitionWeight(itsR, a, r, itsK);
+            // THE PLATEAUS (as the periodic response; measured there 2026-11-19): where W is 1 or 0 to 1e-14 its derivative is of that order.
+            if (wP>1.0-1e-14 || wP<1e-14) continue;
+            const double s=f[g]*W[g]/wP;   // f_g w_q
+            const std::vector<rvec3_t> dW=qcMesh::BeckePartitionGradient(itsR, a, r, itsK);
+            for (size_t D=0; D<natom; D++) out.gradient[D]+=s*dW[D];
+        }
+    for (size_t D=0; D<natom; D++)
+    {
+        const double gg[3]={out.gradient[D].x, out.gradient[D].y, out.gradient[D].z}, xx[3]={itsR[D].x, itsR[D].y, itsR[D].z};
+        for (int x=0;x<3;x++) for (int y=0;y<3;y++) out.virial(x+1,y+1)+=gg[x]*xx[y];
+    }
+    return out;
+}
+
 qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams& mp)
 {
     RefuseCellMesh(mp, "the atom-centred (molecule / atom) mesh");
@@ -105,14 +152,15 @@ qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams&
         for (size_t q=0; q<am.size(); q++)
         {
             const rvec3_t& r=pts[q];
-            if (natom==1) { out.Append(r,wts[q]); continue; }
+            if (natom==1) { out.Append(r, wts[q], r-R[ia]); continue; }
 
             // ONE home for the partition weight: the force's grid response differentiates exactly this (qchem.Mesh.BeckePartition)
             const double w=qcMesh::BeckePartitionWeight(R, ia, r, beckeOrder);
-            if (w>0.0) out.Append(r, wts[q]*w);
+            if (w>0.0) out.Append(r, wts[q]*w, r-R[ia]);   // the owner offset: the point rides its atom (the weight response)
         }
     }
     qcMesh::Mesh mesh=out.take();
+    mesh.InstallWeightResponse(std::make_shared<MolecularBeckeResponse>(R, beckeOrder));   // its weights' derivative (the XC grid response)
     mesh.InstallForces(forced);
     ReportMolecularMesh(natom, mp, ang.size(), rad.size()*ang.size()*natom, mesh.size());
     return mesh;

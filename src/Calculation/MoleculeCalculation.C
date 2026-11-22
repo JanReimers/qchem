@@ -329,7 +329,7 @@ private:
 //!
 //! WHAT A POINT REFUSES (a \c PESFailure, never a crash): positions that change the abelian point group the SALC blocks are
 //! built on, when the setup imposes one (\c RunOptions::symmetry; ruling Q4); forces while the point's Hamiltonian names a term
-//! without its geometry gradient (\c Hamiltonian::MissingGradients: LDA's XC term today), refused BEFORE any SCF; stress (a molecule has
+//! without its geometry gradient (\c Hamiltonian::MissingGradients: a GGA's XC term, or the δ-mesh Hartree until its operator pullback lands), refused BEFORE any SCF; stress (a molecule has
 //! no cell).  A forces request otherwise carries −dE/dR (the terms' forces and the Pulay sum at the converged D and W) at every point.
 //! The molecular basis is neither trimmed nor given an ortho tolerance by this facade, so it has no conditioning window to leave (Q3 is
 //! solid-only today).

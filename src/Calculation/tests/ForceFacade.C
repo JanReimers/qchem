@@ -475,13 +475,14 @@ TEST(HamiltonianForces, WithThePulayTermItIsTheFiniteDifferenceOfTheReconvergedE
 
 TEST(HamiltonianForces, MissingGradientsNamesTheTermsWithoutAForce)
 {
-    // LDA: the XC term has no force yet.  (HF has every term's force since the HF Coulomb and exchange landed: see its gates below.)
-    for (auto model : {Model::LDA})
+    // PBE: the GGA XC term has no force yet (the ∇ρ term's ∂∇χ).  LDA's δ XC on the Becke mesh has its force since lane B 2026-11-22
+    // (TheBeckeXCForceAtFixedDIsItsEnergysFiniteDifference); HF has every term's since the HF Coulomb and exchange landed.
+    for (auto model : {Model::PBE})
     {
         auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=model, .scf=Tight(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
         ASSERT_TRUE(c->IsConverged());
         const auto missing=ForceFacadeTests::MissingGradients(*c);
-        EXPECT_FALSE(missing.empty()) << "the XC term has no force yet";
+        EXPECT_FALSE(missing.empty()) << "the GGA XC term has no force yet";
         for (const auto& m : missing) { EXPECT_NE(m.find("no geometry gradient"), std::string::npos) << m; std::cout<<"[forces] missing: "<<m<<std::endl; }
         const auto D=ForceFacadeTests::Carry(*c);
         EXPECT_THROW((void)ForceFacadeTests::Forces(*c, D, D), std::logic_error) << "Forces refuses what MissingGradients names";
@@ -1126,7 +1127,7 @@ TEST(HamiltonianForces, WithTheDunlapHartreeTheForceIsTheFiniteDifferenceOfTheRe
         if (Et[t].entries=="Eee") dunlap=true;
         for (size_t A=0;A<F.size();A++) F[A]+=Ft[t].F[A];
     }
-    EXPECT_EQ(missing, 1u) << "the XC term";
+    EXPECT_EQ(missing, 0u) << "every term has its force (the α = 0 XC term's is the δ route's, exactly zero here; lane B 2026-11-22)";
     EXPECT_TRUE(dunlap) << "the Dunlap Hartree has its force";
     const double h=1e-4;
     rvec3_t sum(0,0,0);
@@ -1151,8 +1152,8 @@ TEST(HamiltonianForces, UnderAPseudopotentialEachTermsForceAtFixedDIsItsEnergysF
 {
     // GTH-LDA water, DZVP, closed-form PP (GeometryOptimizationPlan §13.2): the local PP, the KB projectors, the kinetic term, the ion-ion
     // term (valence charges) and the Dunlap Hartree each against the central difference of its own energy at R ± h with the converged D
-    // frozen (the Dunlap fit re-solved at each point under the FIXED N, so no λ piece: 2026-11-09).  The XC term has no force yet, and is
-    // the only term missing one.  Each is smooth in R: at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6.
+    // frozen (the Dunlap fit re-solved at each point under the FIXED N, so no λ piece: 2026-11-09), and since lane B 2026-11-22 the δ XC
+    // term on the Becke mesh (its mesh rebuilt at R ± h).  Every term has its force.  Each is smooth in R: at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6.
     const Molecule h2o=GetMolecule("H2O");
     auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .pp="gth-lda-valence", .scf=AnyD(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
     ASSERT_TRUE(c->IsConverged());
@@ -1168,7 +1169,7 @@ TEST(HamiltonianForces, UnderAPseudopotentialEachTermsForceAtFixedDIsItsEnergysF
         kb    |= Et[t].label.rfind("Separable (KB)",0)==0;
         gated.push_back(t);
     }
-    EXPECT_EQ(missing, 1u) << "only the XC term";
+    EXPECT_EQ(missing, 0u) << "every term has its force (the δ XC term since lane B 2026-11-22)";
     EXPECT_TRUE(local && kb) << "both PP terms have their force";
     const double h=1e-4;
     for (size_t t : gated)
@@ -1217,6 +1218,77 @@ TEST(HamiltonianForces, TheDunlapHartreesForceAtFixedDIsItsEnergysFiniteDifferen
             auto E=[&](double s){ return ForceFacadeTests::TermEnergiesAt(c->SizedSetup(), *MovedH2O(h2o,A,x,s), D)[t].E; };
             const double fd=(E(h)-E(-h))/(2*h);
             EXPECT_NEAR(C(Ft[t].F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << Et[t].label << ", atom " << A << " axis " << x;
+            largest=std::max(largest, std::fabs(fd));
+        }
+    }
+    EXPECT_GT(largest, 1e-2) << "the force is not trivially small (a sign would show)";
+    EXPECT_LT(norm(sum), 1e-8) << "translation invariance";
+}
+
+// THE δ XC FORCE ON THE MOLECULAR BECKE MESH (lane B 2026-11-22; the molecular twin of the GPW free-Becke force, READY 4).  E_xc = Σ_g w_g
+// e(ρ_D(r_g)) on the atom-centred mesh; at fixed D the functions move, the points ride their owners and the weights respond (the mesh's
+// MolecularBeckeResponse, installed by MakeMolecularMesh).  All-electron LDA water, DZVP, the default mesh: the term's force against the
+// central difference of its own energy entry ("Exc") with the converged D frozen and the MESH REBUILT at R ± h.  Smooth in R (the Becke
+// partition is): at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6 (relative above 1).
+TEST(HamiltonianForces, TheBeckeXCForceAtFixedDIsItsEnergysFiniteDifference)
+{
+    const Molecule h2o=GetMolecule("H2O");
+    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .scf=AnyD(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
+    ASSERT_TRUE(c->IsConverged());
+    EXPECT_TRUE(ForceFacadeTests::MissingGradients(*c).empty()) << "LDA water: every term has its force";
+    const auto D=ForceFacadeTests::Carry(*c);
+    const auto Ft=ForceFacadeTests::TermForcesAt(c->SizedSetup(), ForceFacadeTests::Structure_(*c), D);
+    const auto Et=ForceFacadeTests::TermEnergiesAt(c->SizedSetup(), ForceFacadeTests::Structure_(*c), D);
+    ASSERT_EQ(Ft.size(), Et.size());
+    size_t t=Ft.size();
+    for (size_t i=0;i<Ft.size();i++) if (Et[i].entries=="Exc") t=i;
+    ASSERT_LT(t, Ft.size()) << "no XC (Exc) term";
+    ASSERT_TRUE(Ft[t].missing.empty()) << Ft[t].missing;
+    const double h=1e-4;
+    rvec3_t sum(0,0,0);
+    double largest=0.0;
+    for (size_t A=0;A<Ft[t].F.size();A++)
+    {
+        sum+=Ft[t].F[A];
+        for (int x=0;x<3;x++)
+        {
+            auto E=[&](double s){ return ForceFacadeTests::TermEnergiesAt(c->SizedSetup(), *MovedH2O(h2o,A,x,s), D)[t].E; };
+            const double fd=(E(h)-E(-h))/(2*h);
+            std::printf("  [Becke XC force] atom %zu %c  analytic % .10e  FD % .10e  diff %.2e\n", A, "xyz"[x], C(Ft[t].F[A],x), -fd, C(Ft[t].F[A],x)+fd);
+            EXPECT_NEAR(C(Ft[t].F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << Et[t].label << ", atom " << A << " axis " << x;
+            largest=std::max(largest, std::fabs(fd));
+        }
+    }
+    EXPECT_GT(largest, 1e-2) << "the force is not trivially small (a sign would show)";
+    EXPECT_LT(norm(sum), 1e-8) << "translation invariance";
+}
+
+// THE WHOLE LDA FORCE (lane B 2026-11-22): every term's force (the δ XC on the Becke mesh with its weight response, the Dunlap Hartree, the
+// 1E terms, the ion-ion sum) plus the Pulay sum against the central difference of the RE-CONVERGED energy, all-electron LDA water, DZVP.
+// The Coulomb route is STATED (the Dunlap fit), so the claim holds across lane S's δ-default Hartree flip.  Each displaced point is a
+// full SCF (MinΔρ/N 1e-9); h = 1e-4, so 2e-6 (relative above 1), as the Dunlap whole-force gate.  _Long: 18 displaced SCFs.
+TEST(HamiltonianForces, WithTheBeckeXCTheLDAForceIsTheFiniteDifferenceOfTheReconvergedEnergy_Long)
+{
+    const Molecule h2o=GetMolecule("H2O");
+    RunOptions opts{.model=Model::LDA, .molecule={.basis="dzvp"}};
+    opts.coulomb.fit=Hamiltonian::CoulombFit::Auxiliary;   // STATED: the Gaussian (Dunlap) fit, not the route's default
+    opts.scf=Tight(); auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, opts)).TakeValue(); (void)c->Converge();
+    ASSERT_TRUE(c->IsConverged());
+    ASSERT_TRUE(ForceFacadeTests::MissingGradients(*c).empty());
+    const rvec3vec_t F=ForceFacadeTests::Forces(*c, ForceFacadeTests::Carry(*c), ForceFacadeTests::EnergyWeighted(*c));
+    const double h=1e-4;
+    rvec3_t sum(0,0,0);
+    double largest=0.0;
+    for (size_t A=0;A<F.size();A++)
+    {
+        sum+=F[A];
+        for (int x=0;x<3;x++)
+        {
+            auto E=[&](double s){ opts.scf=Tight(); auto m=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(dynamic_cast<const Molecule&>(*MovedH2O(h2o,A,x,s)), opts)).TakeValue(); (void)m->Converge();
+                                  EXPECT_TRUE(m->IsConverged()); return m->Energy(); };
+            const double fd=(E(h)-E(-h))/(2*h);
+            std::printf("  [LDA force] atom %zu %c  analytic % .10e  FD % .10e  diff %.2e\n", A, "xyz"[x], C(F[A],x), -fd, C(F[A],x)+fd);
+            EXPECT_NEAR(C(F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << "atom " << A << " axis " << x;
             largest=std::max(largest, std::fabs(fd));
         }
     }
@@ -1317,8 +1389,8 @@ TEST(HamiltonianForces, ASymmetryBlockedRunsForceIsTheUnblockedRunsForce)
     // the unblocked run's -- whose own gates above check it against the finite difference.  Water stretched 8% about its centroid (C2v kept,
     // forces ~1e-1, checked non-trivial).  Every term's force at fixed D is compared, and the whole force (the Pulay sum included) where the
     // model has every term's.  Both SCFs reach MinΔρ/N 1e-9 and a force is first order in the density's error, so 1e-6.  The cases cover
-    // the 1E faces (E1), the HF whole-system sweep (RHF, UHF), and under LDA the Dunlap 3-centre and the PP faces; LDA's XC term has no
-    // force in either run.
+    // the 1E faces (E1), the HF whole-system sweep (RHF, UHF), and under LDA the Dunlap 3-centre, the PP faces and the δ XC on the Becke
+    // mesh (the SALC block forwards the point-set pullback to its raw AO basis on the folded D; lane B 2026-11-22).
     const Molecule h2o=StretchedH2O(GetMolecule("H2O"), 1.08);
     const std::vector<RunOptions> cases{{.model=Model::E1, .molecule={.basis="dzvp"}}, {.model=Model::HF, .molecule={.basis="dzvp"}},
                                          {.spin=SpinGroup::Polarized, .model=Model::HF, .molecule={.basis="dzvp"}}, {.model=Model::LDA, .molecule={.basis="dzvp"}},
