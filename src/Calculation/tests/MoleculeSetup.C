@@ -160,8 +160,12 @@ TEST(MoleculeSetup, AnUnstatedCoulombFitIsNamedByTheSetup)
 {
     using CF=Hamiltonian::CoulombFit;
     const auto s=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .molecule={.basis="dzvp"}});
-    EXPECT_EQ(s->opts.coulomb.fit, CF::Auxiliary);
-    EXPECT_EQ(s->opts.coulomb.auxBasis, "A1_coul") << "today's default, named in the policy layer";
+    EXPECT_EQ(s->opts.coulomb.fit, CF::Delta) << "the molecular default (user ruling 2026-11-22): the route that meets eps";
+    EXPECT_TRUE(s->opts.coulomb.auxBasis.empty());
+    const auto aux=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .coulomb={.fit=CF::Auxiliary}, .molecule={.basis="dzvp"}});
+    EXPECT_EQ(aux->opts.coulomb.auxBasis, "A2_coul") << "Auxiliary stated without a file: A2, the best Gaussian fit measured";
+    const auto te=MoleculeSetup::Resolve(OneAtom(52), {.model=Model::LDA, .coulomb={.fit=CF::Auxiliary}, .molecule={.basis="dzvp"}});
+    EXPECT_EQ(te->opts.coulomb.auxBasis, "A1_coul") << "A2 stops at Zn: the unnamed Auxiliary fit falls back to A1 (H-Te), said so";
     const auto a2=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .coulomb={.auxBasis="A2_coul"}, .molecule={.basis="dzvp"}});
     EXPECT_EQ(a2->opts.coulomb.fit, CF::Auxiliary) << "a stated fit file implies its route";
     EXPECT_EQ(a2->opts.coulomb.auxBasis, "A2_coul");
