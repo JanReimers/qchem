@@ -17,7 +17,7 @@ Outcome<Symmetry::GroupPtr,std::string> Forces(VxcFit fit, const Symmetry::Frame
     switch (fit)
     {
         case VxcFit::PlaneWave:
-            if (!frame.lattice) return R::Fail("the plane-wave Vxc fit imposes H_R = T, and there is no lattice here for its ball -- state the Vxc "
+            if (!frame.lattice) return R::Fail("the plane-wave Vxc fit imposes H_R = T, and there is no lattice here for its ball -- To fix this, please state the Vxc "
                                                "fit Delta or Auxiliary");
             return R::Ok(TranslationGroup(*frame.lattice, kExactTolerance));
         case VxcFit::Auxiliary:

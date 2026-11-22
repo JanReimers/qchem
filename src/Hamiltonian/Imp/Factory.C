@@ -146,7 +146,7 @@ namespace qchem::Hamiltonian
 
     //! A CORRECTNESS LIMIT, NOT A POLICY (user ruling 2026-11-06; the one exception to "every combination").
     static const std::string thePeriodicMultipole="site multipoles have no periodic form.  The lattice sum of their potentials is "
-        "conditionally convergent, so an answer would depend on the order of summation -- state Delta on a periodic structure";
+        "conditionally convergent, so an answer would depend on the order of summation -- To fix this, please state Delta on a periodic structure";
 
 
     //! \brief THE CHEAP PRE-FLIGHT (Group face step 3b; controller rulings 2026-11-21).  Admission AUTHORITY is on the built objects (USER
@@ -163,7 +163,7 @@ namespace qchem::Hamiltonian
         // (the radial-only set) would be silently ignored -- refused, never substituted (CLAUDE.md, user-reachable choices).
         if (mp.cellKind==qcMesh::UnitCellKind::Uniform && mp.angular==qcMesh::AngularKind::None)
             return R::Fail("the XC mesh: angular none (the radial-only point set) on a uniform cell mesh -- a uniform cell mesh reads no "
-                           "angular rule, so the stated angular would be ignored.  State cellKind Becke or Auto for the radial-only set, "
+                           "angular rule, so the stated angular would be ignored -- To fix this, please state cellKind Becke or Auto for the radial-only set, "
                            "or drop angular none for the uniform mesh");
         const Symmetry::GroupPtr G=st.MakeSymmetry(Symmetry::kAdmissionTolerance);
         if (G->HasLattice() && fit==VxcFit::Multipole) return R::Fail("the multipole Vxc fit: "+thePeriodicMultipole);

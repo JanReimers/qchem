@@ -34,7 +34,7 @@ static void RefuseCellMesh(const qcMesh::MeshParams& mp, const char* what)
 {
     if (mp.cellKind==qcMesh::UnitCellKind::Uniform)
         throw std::invalid_argument(std::string(what)+": a uniform CELL mesh imposes a translation group; this structure has none "
-                                    "(point-group symmetry only).  State cellKind Becke or Auto -- the atom-centred mesh.");
+                                    "(point-group symmetry only) -- To fix this, please state cellKind Becke or Auto -- the atom-centred mesh.");
 }
 
 // THE MESH REPORTS ITSELF as it is built (OpenWork §3 "A molecule's mesh never reports itself", 2026-11-02), ONE LEVEL IN:
