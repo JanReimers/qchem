@@ -474,3 +474,42 @@ TEST(Reporting, AScopeDescendsOneLevelAndRendersOnlyWhatItChanged)
     for (size_t p=out.find("\ngrids"); p!=std::string::npos; p=out.find("\ngrids", p+1)) n++;
     EXPECT_EQ(n, 2u) << "the section once, its xcQuadrature block once; the outer scope changed nothing:\n" << out;
 }
+
+// -- a TimingWindow reports ITS share of the process-global ledger (user 2026-11-22: the breakdown at the end of every run) ------------
+TEST(Reporting, ATimingWindowReportsItsOwnShareOfTheLedger)
+{
+    ClearGlobal();
+    AddTime("setup: before", 1.0);                        // charged before either window: in neither share
+    TimingWindow outer("outer");
+    EXPECT_TRUE(TimingWindow::DriverOpen());
+    AddTime("setup: a", 2.0);
+    {
+        TimingWindow inner("inner", /*driver*/false);
+        AddTime("scf: b", 0.5); AddTime("scf: b", 0.25);
+        const json j=inner.Breakdown(3);
+        EXPECT_FALSE(j.contains("setup: a"))              << "charged before the inner window opened";
+        ASSERT_TRUE(j.contains("scf: b  [x2, 0.375 s/call]")) << j.dump();
+        EXPECT_DOUBLE_EQ(j.at("SCF TOTAL (s)").get<double>(), 0.75);
+        EXPECT_DOUBLE_EQ(j.at("SCF s/ITERATION").get<double>(), 0.25);
+        EXPECT_TRUE(j.contains("WALL (s)"));
+        inner.Restart();
+        EXPECT_FALSE(inner.Breakdown().contains("SCF s/ITERATION"));
+        EXPECT_DOUBLE_EQ(inner.Breakdown().at("SCF TOTAL (s)").get<double>(), 0.0) << "a restarted window starts empty";
+    }
+    // The outer window holds both, and nothing was cleared under it.
+    {
+        const json j=outer.Breakdown();
+        EXPECT_FALSE(j.contains("setup: before"));
+        EXPECT_DOUBLE_EQ(j.at("SETUP TOTAL (pre-SCF, s)").get<double>(), 2.0);
+        EXPECT_DOUBLE_EQ(j.at("SCF TOTAL (s)").get<double>(), 0.75);
+    }
+    // Report writes one level in, where the caller stands (a point's row), and restarts the window.
+    Begin("timed run", "t0");
+    { const Row r("points"); outer.Report(3); }
+    const json run=CurrentRunReport();
+    End();
+    ASSERT_TRUE(run.at("points")[0].contains("timing"));
+    EXPECT_DOUBLE_EQ(run.at("points")[0].at("timing").at("SETUP TOTAL (pre-SCF, s)").get<double>(), 2.0);
+    EXPECT_DOUBLE_EQ(outer.Breakdown().at("SETUP TOTAL (pre-SCF, s)").get<double>(), 0.0);
+    ClearGlobal();
+}

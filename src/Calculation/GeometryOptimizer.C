@@ -312,6 +312,9 @@ PESCost::PESCost(PotentialEnergySurface& surface, const CoordinateMap& map, doub
 Outcome<Optimize::CostValue, PESFailure> PESCost::EvaluateTyped(const rvec_t& q, const Optimize::Want&)
 {
     using O=Outcome<Optimize::CostValue, PESFailure>;
+    // ONE ROW PER EVALUATION (the caller sets the context): the point writes its own rows one level in (its timing breakdown), and this
+    // row keeps its SCF iterations -- at the run's root every evaluation overwrote the previous one.
+    const report::Row row("geometryPoints");
     const PESGeometry geo=itsMap.At(q);
     const PESRequest want=itsMap.PointRequest();
     auto p=itsSurface.ConvergeAt(geo.cell, geo.R, want);
@@ -367,6 +370,9 @@ Outcome<OptimizedGeometry, OptimizeFailure> GeometryOptimizer::Run()
     const rvec_t start=itsMap.Start();
     if (start.size()!=itsMap.Dimension())
         throw std::logic_error("GeometryOptimizer: the map's start has "+std::to_string(start.size())+" coordinates for its dimension "+std::to_string(itsMap.Dimension()));
+    // THE RUN'S TOTAL beside each point's own breakdown (user 2026-11-22): every evaluation's point reports itself into its row; this is
+    // the sum over them and the optimizer's own work, written at the run's level and printed, however the run ends.
+    struct RunTiming { report::TimingWindow w{"geometry run total"}; ~RunTiming() { w.Report(); } } timing;
     auto r=Optimize::Minimize(itsCost, *itsStepper, itsOpts.Rule(), start);
     if (!r) return O::Fail(r.Error());
     OptimizedGeometry g;

@@ -350,6 +350,7 @@ private:
     SCFParams                            itsSCF;
     MoleculeCalculation::Observer                itsObserver;
     std::unique_ptr<MoleculeCalculation>         itsPoint;
+    size_t                                       itsPointsRun=0;   //!< points this session converged: the timing breakdown's point index
 };
 
 } // namespace qchem

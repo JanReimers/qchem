@@ -18,6 +18,8 @@ module;
 #include <chrono>
 #include <ctime>
 #include <cassert>
+#include <atomic>     // TimingWindow: the count of open driver windows
+#include <optional>
 #include <mutex>      // the ledger is written from OUTER-loop worker threads (doc/KAxisPlan.md P1)
 #include <nlohmann/json.hpp>
 #include "tabulate/table.hpp"
@@ -624,29 +626,33 @@ Timed::~Timed()
     if (!g_tchildren.empty()) g_tchildren.back()+=elapsed; // I am my parent's child, whole
 }
 
-void EmitTimings(const std::string& name, size_t nIterations)
+namespace
 {
-    std::lock_guard<std::mutex> lock(g_timesMutex);   // a ledger dump never races a late worker's AddTime
-    if (g_times.empty()) return;
-    // The two PERFORMANCE numbers, computed before the ledger is cleared (see the declaration).  The split
-    // is by bucket PREFIX, which is why every bucket in the tree is named "setup: …" or "scf: …" -- that
-    // convention is load-bearing here, not cosmetic.
-    double setupTotal=0.0, scfTotal=0.0;
-    for (const auto& [k,v] : g_times)
+long long NowNs()
+{
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+//! THE TABLE from a share of the ledger (\a times, \a calls: what was charged in a window), sorted by cost.  The split into SETUP and SCF is
+//! by bucket PREFIX, which is why every bucket in the tree is named "setup: ..." or "scf: ..." -- that convention is load-bearing here.
+json LedgerTable(const std::map<std::string,double>& times, const std::map<std::string,size_t>& calls, size_t nIterations,
+                 std::optional<double> wall)
+{
+    double setupTotal=0.0, scfTotal=0.0, all=0.0;
+    for (const auto& [k,v] : times)
     {
         if      (k.rfind("setup:",0)==0) setupTotal+=v;
         else if (k.rfind("scf:"  ,0)==0) scfTotal  +=v;
+        all+=v;
     }
-    std::vector<std::pair<std::string,double>> rows(g_times.begin(), g_times.end());
+    std::vector<std::pair<std::string,double>> rows(times.begin(), times.end());
     std::sort(rows.begin(), rows.end(), [](const auto& a, const auto& b){return a.second>b.second;});
-    json j;
-    // The per-call price rides in the LABEL, not as a nested object: a sub-object per bucket would turn
-    // the flat sorted-by-cost table into a tree (renderNode heads any container member), and the flat
-    // table is the whole readability of this report.  Suffix only when the bucket fired more than once --
-    // a one-shot setup bucket has no cadence to report and the noise would cost more than it tells.
+    json j=json::object();
+    // The per-call price rides in the LABEL, not as a nested object: a sub-object per bucket would turn the flat sorted-by-cost table
+    // into a tree (renderNode heads any container member), and the flat table is the whole readability of this report.  Suffix only
+    // when the bucket fired more than once -- a one-shot setup bucket has no cadence to report.
     for (const auto& [k,s] : rows)
     {
-        const size_t n=g_calls.count(k) ? g_calls.at(k) : 0;
+        const size_t n=calls.count(k) ? calls.at(k) : 0;
         if (n>1)
         {
             std::ostringstream lbl;
@@ -655,19 +661,80 @@ void EmitTimings(const std::string& name, size_t nIterations)
         }
         else j[k]=s;                            // ordered_json keeps the sorted-by-cost order
     }
-    g_times.clear();
-    g_calls.clear();
-    // PEAK RAM beside the time buckets: the two halves of "what did this run cost" belong in one place,
-    // and until now the report answered only one of them (doc/OpenWork.md Step 1).  VmHWM is the
-    // process-wide high-water mark, so on a multi-run process it is monotone -- it reports the
-    // WATERMARK SO FAR, which is the honest reading for a benchmark row run one config per process.
+    // PEAK RAM beside the time buckets.  VmHWM is the process-wide high-water mark, so on a multi-run process it is the WATERMARK SO FAR.
     if (const double mb=PeakRSS_MB(); mb>0.0) j["PEAK RSS (MB, process high-water)"]=mb;
-    // Emitted LAST so they sit at the foot of the sorted-by-cost table, where a reader looking for the
-    // comparison numbers finds them without hunting through the buckets.
+    // LAST, so they sit at the foot of the table where a reader looking for the comparison numbers finds them.
     j["SETUP TOTAL (pre-SCF, s)"]=setupTotal;
     j["SCF TOTAL (s)"]=scfTotal;
     if (nIterations>0) j["SCF s/ITERATION"]=scfTotal/double(nIterations);
-    EmitSection(name, std::move(j));
+    if (wall)
+    {
+        j["WALL (s)"]=*wall;
+        j["UNBUCKETED (wall - buckets, s)"]=*wall-all;   // what no bucket names: where to add one next
+    }
+    return j;
+}
+//! The ledger as it stands, and the difference from a snapshot (a bucket that did not move is left out).
+void Snapshot(std::map<std::string,double>& times, std::map<std::string,size_t>& calls)
+{
+    std::lock_guard<std::mutex> lock(g_timesMutex);
+    times=g_times; calls=g_calls;
+}
+void Since(const std::map<std::string,double>& t0, const std::map<std::string,size_t>& c0,
+           std::map<std::string,double>& dt, std::map<std::string,size_t>& dc)
+{
+    std::lock_guard<std::mutex> lock(g_timesMutex);
+    for (const auto& [k,v] : g_times)
+    {
+        const auto it=t0.find(k);
+        const double d=v-(it==t0.end() ? 0.0 : it->second);
+        const auto ic=c0.find(k);
+        const size_t n=g_calls.count(k) ? g_calls.at(k) : 0;
+        const size_t dn=n-(ic==c0.end() ? 0 : ic->second);
+        if (d>1e-9 || dn>0) { dt[k]=d; dc[k]=dn; }
+    }
+}
+std::map<std::string,double> g_emittedTimes;   //!< EmitTimings' baseline: what the previous EmitTimings already reported
+std::map<std::string,size_t> g_emittedCalls;
+std::atomic<int>             g_driversOpen{0};
+}
+
+// The ledger is never cleared (a TimingWindow may be open across this call): EmitTimings reports what was charged since the previous one.
+void EmitTimings(const std::string& name, size_t nIterations)
+{
+    std::map<std::string,double> dt; std::map<std::string,size_t> dc;
+    Since(g_emittedTimes, g_emittedCalls, dt, dc);
+    Snapshot(g_emittedTimes, g_emittedCalls);
+    if (dt.empty()) return;
+    EmitSection(name, LedgerTable(dt, dc, nIterations, std::nullopt));
+}
+
+TimingWindow::TimingWindow(std::string label, bool driver) : itsLabel(std::move(label)), itsDriver(driver), itsT0(NowNs())
+{
+    Snapshot(itsTimes, itsCalls);
+    if (itsDriver) ++g_driversOpen;
+}
+TimingWindow::~TimingWindow() { if (itsDriver) --g_driversOpen; }
+
+bool TimingWindow::DriverOpen() { return g_driversOpen.load()>0; }
+
+void TimingWindow::Restart() { Snapshot(itsTimes, itsCalls); itsT0=NowNs(); }
+
+json TimingWindow::Breakdown(size_t nIterations) const
+{
+    std::map<std::string,double> dt; std::map<std::string,size_t> dc;
+    Since(itsTimes, itsCalls, dt, dc);
+    return LedgerTable(dt, dc, nIterations, double(NowNs()-itsT0)*1e-9);
+}
+
+void TimingWindow::Report(size_t nIterations, const std::string& key, const std::string& label)
+{
+    const json j=Breakdown(nIterations);
+    Restart();
+    if (!g_stack.empty()) Set(key, j);                   // one level in, where the caller stands
+    std::cout << "\n[timing] " << (label.empty() ? itsLabel : label) << "\n";      // ALWAYS: a facade run driven from a test or a session has no console attached
+    RenderConsole(j, std::cout, Detail::Normal);
+    std::cout << std::flush;
 }
 
 } // namespace qchem::report

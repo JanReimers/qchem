@@ -30,6 +30,7 @@ export import qchem.SCFFailure; // SCFFailure: why an attempt has no answer (Res
 export import qchem.Outcome;    // Outcome<Converged, SCFFailure>
 import qchem.ScalarFunction;    // ScalarFunction<double> (the spin density's face)
 import qchem.ChargeDensity;     // tDM_CD<T> (the converged density)
+import qchem.Reporting;         // report::TimingWindow: the run's own timing breakdown at the end of each Converge
 export import qchem.SCFParams;  // SCFParams (Converge's edit argument)
 export import qchem.Setup;      // Setup (a stage's optional setup) + RunOptions (Converge's settings, the checkpoint path) + SCFRecipe
 
@@ -332,6 +333,12 @@ protected:
     //!@}
 private:
     bool itsExactResumePending=false;   //!< see \c SeededIterator
+    //! \brief THE RUN'S TIMING BREAKDOWN (user 2026-11-22: "we used to have exactly this breakdown at end of every run"): opened when the
+    //! calculation is constructed, reported at the end of each \c Converge (its share of the ledger since construction or the previous
+    //! \c Converge, and its SCF iterations), unless a driver window (a geometry point, a geometry run, a deck) is open around it.
+    void ReportTiming();
+    report::TimingWindow itsTiming{"calculation", /*driver*/false};
+    size_t               itsTimedIterations=0;   //!< ProofIterations() at the previous report
 protected:
 
     //! \name WHAT EACH KIND ANSWERS (read only through a \c Converged, so only after a converged attempt)

@@ -1051,6 +1051,13 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
     if (R.size()!=nAtoms)
         throw std::invalid_argument("MoleculeSession::ConvergeAt: "+std::to_string(R.size())+" positions for "+std::to_string(nAtoms)+" atoms");
     if (want.stress) return O::Fail({Why::NoGradient, "stress: a molecule has no cell to strain"});
+    // THE POINT'S TIMING BREAKDOWN (the solid's rule): build + SCF + forces of THIS point, one level into the caller's row, and printed.
+    size_t pointIterations=0;
+    struct PointTiming
+    {
+        report::TimingWindow w; const size_t& it;
+        ~PointTiming() { w.Report(it); }
+    } timing{report::TimingWindow((itsSetup->opts.label.empty() ? std::string("molecule") : itsSetup->opts.label)+" point "+std::to_string(++itsPointsRun)), pointIterations};
 
     std::shared_ptr<Structure> at=ref.Clone();
     at->MoveSites(R);
@@ -1111,6 +1118,7 @@ Outcome<PESPoint, PESFailure> MoleculeSession::ConvergeAt(const std::optional<rm
     if (!out) return O::Fail({Why::SCF, out.Error().details, out.Error()});
     itsSetup=itsPoint->SizedSetup();   // the first point's pilot froze the mesh: every later point steps on it (§2 rule 4)
     PESPoint p{.energy=out->Energy(), .forces={}, .iterations=out->IterationCount()};
+    pointIterations=p.iterations;
     if (want.forces)
     {
         const rvec3vec_t F=itsPoint->MakeForces();
