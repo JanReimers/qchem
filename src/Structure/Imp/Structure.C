@@ -65,8 +65,8 @@ void Structure::ForEachSite(const std::function<void(int, const rvec3_t&, bool)>
 
 std::string Structure::ID() const
 {
-    std::string id;
-    for(const Site& b:Sites()) id+=SiteID(b)+" ";
+    std::string id;   // one space BETWEEN sites, none trailing (a trailing byte doubled the space in "<ID> build" and rode every cache key)
+    for(const Site& b:Sites()) id+=(id.empty() ? "" : " ")+SiteID(b);
     return id;
 }
 
