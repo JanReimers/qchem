@@ -42,14 +42,14 @@ Outcome<Symmetry::GroupPtr,std::string> Forces(const MeshParams& mp, const Symme
     using R=Outcome<Symmetry::GroupPtr,std::string>;
     if (mp.cellKind==UnitCellKind::Uniform)
     {
-        if (!frame.lattice) return R::Fail("a uniform cell mesh imposes H_R = T, and there is no lattice here to build it on -- state the XC "
+        if (!frame.lattice) return R::Fail("a uniform cell mesh imposes H_R = T, and there is no lattice here to build it on -- To fix this, please state the XC "
                                            "mesh cellKind Becke or Auto, the atom-centred mesh");
         return R::Ok(Symmetry::TranslationGroup(*frame.lattice, Symmetry::kExactTolerance));
     }
     if (mp.angular==AngularKind::None)
     {
         if (!frame.centre) return R::Fail("the radial-only point set (angular none: one direction at 4 pi, exact only for a spherical integrand) "
-                                          "imposes H_R = O(3) about one centre, and there is no such centre here -- state an angular rule "
+                                          "imposes H_R = O(3) about one centre, and there is no such centre here -- To fix this, please state an angular rule "
                                           "(Lebedev or GaussLegendre)");
         return R::Ok(Symmetry::PointRotationGroup(*frame.centre, Symmetry::kExactTolerance));
     }
