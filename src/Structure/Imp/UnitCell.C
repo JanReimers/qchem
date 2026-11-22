@@ -344,7 +344,8 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     { switch (r) {
         case qcMesh::RadialKind::MHL:    return "MHL";
         case qcMesh::RadialKind::Log:    return "Log";
-        case qcMesh::RadialKind::Linear: return "Linear"; }
+        case qcMesh::RadialKind::Linear: return "Linear";
+        case qcMesh::RadialKind::DE2:    return "DE2"; }
       return "?"; };
     size_t nDirs=0;
     if (angPerAtom) for (const auto& a : *angPerAtom) nDirs=max(nDirs, a.size());
@@ -355,7 +356,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     const size_t kept=mesh.size();
     const double angRot=angPerAtom ? 0.0 : mp.angRot;   // a site-adapted rule is the site's own: the rotation applies to the plain factory grid only
     std::cout<<"[Becke grid] natom="<<natom<<" radial="<<RadialName(mp.radial)<<" nR="<<mp.nRadial
-             <<" alpha="<<mp.mhl_alpha<<" angular="<<(angPerAtom?"SITE-ADAPTED":AngularName(mp.angular))
+             <<" alpha="<<(mp.radial==qcMesh::RadialKind::DE2 ? mp.de2_alpha : mp.mhl_alpha)<<" angular="<<(angPerAtom?"SITE-ADAPTED":AngularName(mp.angular))
              <<" L="<<mp.angularDegree<<" ("<<nDirs<<" dirs"<<(angPerAtom?" max/atom":"")<<")";
     if (angRot!=0.0) std::cout<<" angRot="<<angRot;
     std::cout<<" beckeOrder="<<k
@@ -384,7 +385,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     // there and picks no key.  Was a root-anchored EmitAt("grids","becke") -- one key, so a second Becke mesh overwrote it.
     namespace rpt=qchem::report;
     rpt::Set("kind", "Becke"); rpt::Set("natom", (long)natom); rpt::Set("radial", RadialName(mp.radial));
-    rpt::Set("nRadial", mp.nRadial); rpt::Set("mhl_alpha", mp.mhl_alpha);
+    rpt::Set("nRadial", mp.nRadial); if (mp.radial==qcMesh::RadialKind::DE2) { rpt::Set("de2_alpha", mp.de2_alpha); rpt::Set("de2_rMax", mp.de2_rMax); } else rpt::Set("mhl_alpha", mp.mhl_alpha);
     rpt::Set("angular", angPerAtom ? "SiteAdapted" : AngularName(mp.angular)); rpt::Set("L", mp.angularDegree); rpt::Set("angRot", angRot);
     rpt::Set("nDirs", (long)nDirs); rpt::Set("beckeOrder", k); rpt::Set("points", (long)kept);
     rpt::Set("dropped", (long)(total-kept)); rpt::Set("eps", eps);

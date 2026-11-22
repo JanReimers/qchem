@@ -7,6 +7,10 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 import qchem.BasisMenu;
+import qchem.BasisCoverage;                       // BasisCovers: the elements a file holds
+import qchem.BasisSet.Gaussian.Point.BasisFiles;  // BasisNames, KindOfBasisFile
+import qchem.Pseudopotential.Set;                 // a pp-valence file's set must be one that ships
+import qchem.PeriodicTable;
 import qchem.Deck;
 import qchem.SolidCalculation;   // RunOptions
 import qchem.Structure;
@@ -98,6 +102,35 @@ TEST(BasisMenu, ACrystalAddsThePlaneWaves)
     const BasisOffer* sr=Find(m,"sipp_sr");
     ASSERT_NE(sr, nullptr);
     EXPECT_TRUE(sr->admitted);
+    EXPECT_EQ(sr->kind, "pp-valence");
+    EXPECT_EQ(sr->ppSet, "gth-lda-valence");
+    // A crystal runs on a pseudopotential: an all-electron file that covers Si is listed GREYED with the reason, never dropped
+    const BasisOffer* dzvp=Find(m,"dzvp");
+    ASSERT_NE(dzvp, nullptr);
+    EXPECT_FALSE(dzvp->admitted);
+    EXPECT_EQ(dzvp->kind, "all-electron");
+    EXPECT_EQ(dzvp->reason, "dzvp is an all-electron basis: a crystal runs on a pseudopotential and needs a pseudopotential-valence basis");
+    for (const BasisOffer& o : m)   // admitted Gaussian files = exactly the pp-valence files that hold Si
+        if (o.key.starts_with("basis.data="))
+            EXPECT_EQ(o.admitted, o.kind=="pp-valence" && BasisCovers(o.name+".bsd", 14)) << o.name << ": " << o.reason;
     EXPECT_EQ(m.back().key, "basis.family=planeWave");
     EXPECT_TRUE(std::all_of(m.begin(), m.end(), [](const BasisOffer& o){ return o.route=="crystal" && o.blockGroup=="T (by k)"; }));
+}
+
+// A pp-valence file names the pseudopotential set it pairs with; that set must be one that SHIPS (pseudopotentials.json), and it must
+// hold a pseudopotential for every element the file has a block for -- else the menu would offer a pairing no run can make.
+TEST(BasisMenu, EveryPPValenceFilesSetShipsAndCoversItsElements)
+{
+    int nPP=0;
+    for (const std::string& n : BasisSet::Gaussian::BasisNames())
+    {
+        const auto k=BasisSet::Gaussian::KindOfBasisFile(n+".bsd");
+        if (k.kind!=BasisSet::Gaussian::BasisKind::PPValence) continue;
+        nPP++;
+        Pseudopotential::PseudopotentialSet set=Pseudopotential::PseudopotentialSet::Get(k.ppSet);   // throws on an unknown set
+        for (int Z=1;Z<=86;Z++)
+            if (BasisCovers(n+".bsd", Z))
+                EXPECT_NO_THROW((void)set.Valence(thePeriodicTable().GetSymbol(Z))) << n << ": " << k.ppSet << " has no pseudopotential for Z=" << Z;
+    }
+    EXPECT_GE(nPP, 15);
 }

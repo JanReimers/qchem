@@ -1095,7 +1095,8 @@ extern "C" int qcb_basis_offers(const char* req, char* out, int outlen)
             nlohmann::ordered_json a=nlohmann::ordered_json::array();
             for (const auto& o : offers)
                 a.push_back({{"route",o.route},{"key",o.key},{"name",o.name},{"admitted",o.admitted},{"reason",o.reason},
-                             {"blockGroup",o.blockGroup},{"note",o.note},{"optIn",o.optIn}});
+                             {"blockGroup",o.blockGroup},{"note",o.note},{"optIn",o.optIn},
+                             {"kind",o.kind},{"ppSet",o.ppSet}});
             answer=nlohmann::ordered_json{{"offers",a}}.dump();
         }
         catch (const std::exception& e) { answer=nlohmann::ordered_json{{"error", e.what()}}.dump(); }

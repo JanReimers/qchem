@@ -158,7 +158,7 @@ const auto kLoopEstimator = NAMES(SolidCalculation::HubbardLoop::Estimator, {"AC
                                   {"linearResponse",SolidCalculation::HubbardLoop::Estimator::LinearResponse});
 const auto kProjector = NAMES(Hamiltonian::HubbardProjectorKind, {"siteShells",Hamiltonian::HubbardProjectorKind::SiteShells},
                               {"pseudoAtomic",Hamiltonian::HubbardProjectorKind::PseudoAtomic});
-const auto kRadial = NAMES(RadialKind, {"MHL",RadialKind::MHL}, {"Log",RadialKind::Log}, {"Linear",RadialKind::Linear});
+const auto kRadial = NAMES(RadialKind, {"MHL",RadialKind::MHL}, {"Log",RadialKind::Log}, {"Linear",RadialKind::Linear}, {"DE2",RadialKind::DE2});
 const auto kAngular= NAMES(AngularKind, {"Lebedev",AngularKind::Lebedev}, {"GaussLegendre",AngularKind::GaussLegendre}, {"none",AngularKind::None});
 using Measure = SCFParams::Measure;
 using BasisSet::Gaussian::BasisSetData;
@@ -377,7 +377,7 @@ void FromJson(const json& j, AcceleratorOptions& o)
 json ToJson(const qcMesh::MeshParams& m)
 {
     return {{"radial",NameOf(m.radial,kRadial)},{"nRadial",m.nRadial},{"mhlM",m.mhl_m},{"mhlAlpha",m.mhl_alpha},{"logStart",m.logStart},
-            {"logStop",m.logStop},{"angular",NameOf(m.angular,kAngular)},{"angularDegree",m.angularDegree},{"angRot",m.angRot},
+            {"logStop",m.logStop},{"de2Alpha",m.de2_alpha},{"de2RMin",m.de2_rMin},{"de2RMax",m.de2_rMax},{"angular",NameOf(m.angular,kAngular)},{"angularDegree",m.angularDegree},{"angRot",m.angRot},
             {"beckeOrder",m.beckeOrder},{"nUniform",m.nUniform},{"eCut",m.eCut},{"relCutoff",m.relCutoff},
             {"cellKind",NameOf(qcMesh::UnitCellKind(m.cellKind),kCell)},{"beckeEps",m.beckeEps}};
 }
@@ -385,7 +385,8 @@ void FromJson(const json& j, qcMesh::MeshParams& m)
 {
     Fields f(j,"xcMesh");
     f.GetEnum("radial",m.radial,kRadial); f.Get("nRadial",m.nRadial); f.Get("mhlM",m.mhl_m); f.Get("mhlAlpha",m.mhl_alpha);
-    f.Get("logStart",m.logStart); f.Get("logStop",m.logStop); f.GetEnum("angular",m.angular,kAngular);
+    f.Get("logStart",m.logStart); f.Get("logStop",m.logStop);
+    f.Get("de2Alpha",m.de2_alpha); f.Get("de2RMin",m.de2_rMin); f.Get("de2RMax",m.de2_rMax); f.GetEnum("angular",m.angular,kAngular);
     f.Get("angularDegree",m.angularDegree); f.Get("angRot",m.angRot); f.Get("beckeOrder",m.beckeOrder); f.Get("nUniform",m.nUniform);
     f.Get("eCut",m.eCut); f.Get("relCutoff",m.relCutoff); { qcMesh::UnitCellKind k=m.cellKind; f.GetEnum("cellKind",k,kCell); m.cellKind=qcMesh::CellKind::RecipeStated(k); } f.Get("beckeEps",m.beckeEps);
     f.Done();
@@ -1451,8 +1452,14 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
         return v;
     }
     const Materials::Material mat=Resolve(spec);
-    // A GGA: Run's setup refuses it (GGARoute, no route samples the gradient yet), so Vet does too -- vet-decks must not pass it.
-    RefuseUnroutedGradient(spec.opts.model.value_or(Hamiltonian::Model::LDA), "a periodic cell (deck)");
+    // A GGA: Run's setup admits it on the free Becke delta route only (GGARoute, GGA stage 3), so Vet asks the same rule of what the deck
+    // STATES.  An unstated (Auto) mesh is what the setup then CHOOSES for a GGA, Becke.  (OpenWork G4: Vet should run the setup itself.)
+    if (spec.opts.model)
+    {
+        qcMesh::MeshParams mesh=spec.opts.xcMesh.value_or(qcMesh::XCMeshDefault());
+        if (mesh.cellKind==qcMesh::UnitCellKind::Auto) mesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);   // what the setup chooses (above)
+        RouteSolidGradient(spec.opts, mesh, spec.opts.imposeSymmetry);
+    }
     // Pin 30, the stated Vxc fit and XC mesh on this cell (Group face step 3b, the user's condition on ruling 2026-11-21: Vet keeps refusing
     // a bad deck before Run).  The setup's own cheap pre-flight, asked of the cell's group alone: nothing is built.  The STATED mesh is
     // asked: on a cell its Auto resolves to Becke or uniform, and the rule gives both the same answer.

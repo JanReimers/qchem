@@ -78,17 +78,28 @@ private:
     const Self& Self_() const {return static_cast<const Self&>(*this);}
 };
 
-//! \brief THE REAL (MOLECULAR) FIT AXIS'S EXTRA FACE (GGA stage 2, the molecular point route): the gradient 3-centre overlap
-//! \f$\nabla(\chi_i\chi_j)(r_g)\f$ (\c Integrals_GradOverlap3C), which a GGA's \f$\nabla\rho\f$ and its gradient term of H go through.  A base
-//! that EXISTS only for \c double in stage 2: the Bloch axis gains it in stage 3, on the shared-Φ images, so until then a complex δ basis
-//! does not carry a capability it cannot serve (the gradient is a type: no face, no call).  CRTP: the bodies are the δ basis's own.
-template <class Self, class T> class DeltaRealFaces {};
-template <class Self> class DeltaRealFaces<Self,double>
+//! \brief THE GRADIENT 3-CENTRE OVERLAP FACES (GGA stages 2-3): \f$\nabla(\overline{\chi_i}\chi_j)(r_g)\f$ (\c Integrals_GradOverlap3C), which a
+//! GGA's \f$\nabla\rho\f$ and its gradient term of H go through, for every block scalar a fit axis serves: the real (molecular) axis its real
+//! blocks; the complex (Bloch) axis its Bloch blocks AND its real TRIM blocks (3c-3).  Built on the DENSE Φ table only: the shared-Φ images
+//! realization has no gradient yet, and the policy layer chooses the dense tables for a GGA.  CRTP: the bodies are the δ basis's own.
+template <class Self, class T> class DeltaGradFaces;
+template <class Self> class DeltaGradFaces<Self,double>
     : public virtual Integrals_GradOverlap3C<double,double>
 {
 public:
     //! \copydoc BasisSet::Integrals_GradOverlap3C::GradOverlap3C
-    const PairProjection<double>& GradOverlap3C(const Orbital_DFT_IBS<double,double>& orb) const override {return Self_().GradTensor(orb);}
+    const PairProjection<double>& GradOverlap3C(const Orbital_DFT_IBS<double,double>& orb) const override {return Self_().template GradTensor<double>(orb);}
+private:
+    const Self& Self_() const {return static_cast<const Self&>(*this);}
+};
+template <class Self> class DeltaGradFaces<Self,dcmplx>
+    : public virtual Integrals_GradOverlap3C<dcmplx,dcmplx>
+    , public virtual Integrals_GradOverlap3C<double,dcmplx>   // a REAL TRIM block, in real arithmetic (3c-3)
+{
+public:
+    //! \copydoc BasisSet::Integrals_GradOverlap3C::GradOverlap3C
+    const PairProjection<dcmplx>& GradOverlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override {return Self_().template GradTensor<dcmplx>(orb);}
+    const PairProjection<double>& GradOverlap3C(const Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Self_().template GradTensor<double>(orb);}
 private:
     const Self& Self_() const {return static_cast<const Self&>(*this);}
 };
@@ -112,13 +123,13 @@ private:
 template <class T> class DeltaFit_IBS
     : public virtual FIT_SF_ABS<T>                   // the neutral scalar-fit face (+ Integrals_Overlap3C<T,T>)
     , public         DeltaPeriodicFaces<DeltaFit_IBS<T>,T>   // dcmplx only: the real TRIM block + the transition pair
-    , public         DeltaRealFaces<DeltaFit_IBS<T>,T>       // double only (stage 2): the GGA's gradient 3-centre overlap
+    , public         DeltaGradFaces<DeltaFit_IBS<T>,T>       // the GGA's gradient 3-centre overlap, every block scalar the axis serves
     , public         IrrepBasisSetImp<T>             // GetSymmetry/GetSymt/GetIrrep
     , public         Symmetry::IdentityRepresentation<T>   // identity at E only: the points PERMUTE under an op, which is the
                                                             // orbit fold's business (a vector op), not a matrix image (S3)
 {
     friend class DeltaPeriodicFaces<DeltaFit_IBS<T>,T>;
-    friend class DeltaRealFaces<DeltaFit_IBS<T>,T>;
+    friend class DeltaGradFaces<DeltaFit_IBS<T>,T>;
 public:
     //! ORTHOGONAL, with \f$\langle\delta_g|\delta_g\rangle=w_g\f$ -- diagonal, so no metric SOLVE, which
     //! is what \c isOrtho asks.  (Not orthoNORMAL: a fit through this basis divides by that diagonal,
@@ -269,18 +280,31 @@ private:
     template <class U> mat_t<U> Rows(const PhiRows<U>& P, size_t lo, size_t hi) const;
     //! The shared image record of \a src on my points, built once (threaded over point chunks) and cached per source.
     std::shared_ptr<const PointImages> Images(const BlochImageSource& src) const;
-    //! \name THE GRADIENT TENSOR (GGA stage 2; \c DeltaRealFaces, real blocks only).
+    //! \name THE GRADIENT TENSOR (GGA stages 2-3; \c DeltaGradFaces), one body per block scalar \a U.
     //! \f$\partial_a\Phi_{gi}=\partial_a\chi_i(r_g)\f$, three dense (npts x n) tables per block, from the block's own \c VectorFunction::Gradient.
-    //! THROWS on the images realization (stage 3) and on a block my factory evaluates itself (the atom's radial closure: it has no gradient
-    //! yet, and the policy layer refuses a GGA on an atom).  The tensor's two closures are \c GradForward / \c GradAdjoint.
+    //! THROWS on the images realization (no gradient yet) and on a block my factory evaluates itself (the atom's radial closure: it has no
+    //! gradient yet, and the policy layer refuses a GGA on an atom).  The tensor's two closures are \c GradForward / \c GradAdjoint.
     //!@{
-    using GradRows=std::array<mat_t<double>,3>;
-    const PairProjection<double>& GradTensor(const Orbital_DFT_IBS<double,double>& orb) const;
-    const GradRows& GradTable(const Orbital_1E_IBS<double>& orb) const;
-    //! \f$[\nabla\rho]_{aN+g}=2\sum_i\partial_a\Phi_{gi}[\Phi D]_{gi}\f$ (D symmetric): one GEMM \f$\Phi D\f$ for all three components.
-    rvec_t       GradForward(const mat_t<double>& P, const GradRows& G, const hmat_t<double>& D) const;
-    //! \f$H=\Phi^TC+C^T\Phi\f$ with \f$C_{gi}=w_g\sum_a c_{aN+g}\partial_a\Phi_{gi}\f$: one GEMM.
-    hmat_t<double> GradAdjoint(const mat_t<double>& P, const GradRows& G, const rvec_t& c) const;
+    template <class U> using GradRows=std::array<mat_t<U>,3>;
+    template <class U> const PairProjection<U>& GradTensor(const Orbital_DFT_IBS<U,T>& orb) const;
+    template <class U> const GradRows<U>& GradTable(const Orbital_1E_IBS<U>& orb) const;
+    //! \f$[\nabla\rho]_{aN+g}=2\,\mathrm{Re}\sum_i\partial_a\Phi_{gi}\overline{[\Phi D]_{gi}}\f$ (D Hermitian, \f$\rho_g=\sum_{ij}\Phi_{gi}D_{ij}\overline{\Phi_{gj}}\f$
+    //! as \c ForwardT has it): one GEMM \f$\Phi D\f$ for all three components.
+    template <class U> rvec_t GradForward(const mat_t<U>& P, const GradRows<U>& G, const hmat_t<U>& D) const;
+    //! \f$H=M+M^\dagger\f$, \f$M=\Phi^\dagger C\f$, \f$C_{gi}=w_g\sum_a c_{aN+g}\partial_a\Phi_{gi}\f$ -- the exact adjoint of \c GradForward in the
+    //! pairing \c AdjointT uses (\f$\delta E=\mathrm{Tr}(\delta D\,H)\f$): one GEMM.
+    template <class U> hmat_t<U> GradAdjoint(const mat_t<U>& P, const GradRows<U>& G, const rvec_t& c) const;
+    //! Which typed caches a block scalar uses.
+    template <class U> const InstanceSlotMap<GradRows<U>>& GradCache() const
+    {
+        if constexpr (std::is_same_v<U,double>) return itsGradPhiR;
+        else                                    return itsGradPhi;
+    }
+    template <class U> const InstanceSlotMap<PairProjection<U>>& GradTensorCache() const
+    {
+        if constexpr (std::is_same_v<U,double>) return itsGO3R;
+        else                                    return itsGO3;
+    }
     //!@}
     //! \f$\langle\chi_i|\sum_g c_g\delta_g|\chi_j\rangle=\Phi^\dagger\mathrm{diag}(w\,c)\Phi\f$
     template <class U> hmat_t<U> AdjointT(const PhiRows<U>& P, const rvec_t& c) const;
@@ -301,8 +325,10 @@ private:
     InstanceSlotMap<std::shared_ptr<const PointImages>> itsImages;
     InstanceSlotMap<PairProjection<dcmplx>> itsO3;   //!< the Bloch blocks' 3-centre tensors, built on itsPhi
     InstanceSlotMap<PairProjection<double>> itsO3R;  //!< ...and the real TRIM blocks', on itsPhiR
-    InstanceSlotMap<GradRows>               itsGradPhiR; //!< real blocks' ∂_aΦ (GGA stage 2), beside itsPhiR and keyed the same
-    InstanceSlotMap<PairProjection<double>> itsGO3R;     //!< ...and their gradient tensors (\c GradTensor), on itsPhiR + itsGradPhiR
+    InstanceSlotMap<GradRows<dcmplx>>       itsGradPhi;   //!< Bloch blocks' ∂_aΦ (GGA stage 3), beside itsPhi and keyed the same
+    InstanceSlotMap<GradRows<double>>       itsGradPhiR; //!< real blocks' ∂_aΦ (GGA stage 2; and the real TRIM blocks)
+    InstanceSlotMap<PairProjection<dcmplx>> itsGO3;       //!< their gradient tensors (\c GradTensor), on the Φ and ∂Φ tables
+    InstanceSlotMap<PairProjection<double>> itsGO3R;
     FitQuadrature itsQuad;   //!< the mesh + its orbit fold + the Shubnikov spin tags
     RealPointValues itsRealValues;   //!< the factory's evaluation of a real block at my points, or empty (\c RealPointValues)
     ImageSourceOf   itsImageSourceOf;   //!< the factory's image source of a block, or empty (\c ImageSourceOf)

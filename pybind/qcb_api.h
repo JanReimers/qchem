@@ -265,7 +265,7 @@ int qcb_basis_import(const char* req, char* out, int outlen);
 //! THE BASIS MENU (qchem::OrbitalBasisOffers, the user's 2026-11-21 ruling): every orbital-basis choice a structure admits, unsorted.
 //! {"numbers": [Z], "positions": [3N bohr], "symmetryTol"?: t, "route"?: "molecule"} (a molecule; one site is the radial atom, unless
 //! route "molecule" asks for the one-atom molecule's Gaussian menu) or {"cell": <materials.json
-//! entry>} -> {"offers": [{route, key, name, admitted, reason, blockGroup, note, optIn}]}, or {"error"}.  The same two calls as
+//! entry>} -> {"offers": [{route, key, name, admitted, reason, blockGroup, note, optIn, kind, ppSet}]}, or {"error"}.  The same two calls as
 //! qcb_materials.
 int qcb_basis_offers(const char* req, char* out, int outlen);
 

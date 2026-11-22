@@ -1,4 +1,5 @@
 Low-q GTH valence basis for MnO with SEMICORE Mn (q15) -- the O block of valence_lowq_sr (O q6, unchanged) and a valgen Mn q15 block
+KIND pp-valence gth-lda-valence
 PP-PROVENANCE Mn=15 O=6
 (2026-11-01, lane B, OpenWork "A light-PP ion has NO restoring force on its site"): the Mn q7 vs q15 audit in MnO AFM-II.  q15 keeps
 the 3s3p semicore.  Mn window s 10 x [0.2, 60], p 9 x [0.25, 50], d 8 x [0.3, 40], validated POLARIZED on the Mn2+ cation the solid

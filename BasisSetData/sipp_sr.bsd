@@ -1,4 +1,6 @@
 PP valence test basis, SHORT-RANGE (Si, O) -- sipp with the most diffuse valence functions dropped, so the
+KIND pp-valence gth-lda-valence
+PP-PROVENANCE Si=4 O=6
 Bloch sums are not near-linearly-dependent in a solid (the periodic overlap stays well-conditioned).  Si: the
 0.09 s and 0.06 p primitives (RMS radius ~5 a.u., comparable to the cell) are removed -> 3s3p valence.
 
