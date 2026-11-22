@@ -16,6 +16,7 @@
 // (the nested pseudo-atom SCF -- an AtomCalculation, which now opens its own run -- stays console-quiet
 // below depth 1, so the CLI shows the generator's summary, not the raw SCF internals).
 //
+#include <cctype>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -436,7 +437,12 @@ int main(int argc, char** argv)
         const string title = name.empty()
             ? ("Low-q GTH-pseudopotential valence basis for " + element + " (valgen, doc/GPWPlan1 sec 1)")
             : name;
-        const string file = AssembleBasisFile(title, { g.block }, {{element, q}});
+        // The file's KIND line names the pseudopotential set its block pairs with: the LDA GTH parameters are the shipped
+        // gth-lda-valence set (pseudopotentials.json); another functional's GTH parameters have no set there yet, so the line
+        // names the GTH family (gth-<functional>), a name no shipped set carries yet.
+        std::string fn = functional; for (char& c : fn) c = (char)std::tolower((unsigned char)c);
+        const string ppSet = fn=="lda" ? "gth-lda-valence" : "gth-"+fn;
+        const string file = AssembleBasisFile(title, { g.block }, {{element, q}}, ppSet);
         std::ofstream(out) << file;
         cout << "valgen: wrote " << out << " (" << element << " single-element .bsd)" << endl;
     }

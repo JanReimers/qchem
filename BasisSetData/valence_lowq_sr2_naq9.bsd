@@ -1,4 +1,5 @@
 Low-q GTH valence basis for NaF with SEMICORE Na (q9) -- the F block of valence_lowq_sr2 (F q7, unchanged) and a valgen Na q9 block
+KIND pp-valence gth-lda-valence
 PP-PROVENANCE F=7 Na=9
 (2026-10-31, lane B, OpenWork "NaF with the q1 Na pseudopotential has NO restoring force"): the q1 Na has no restoring force on the F site
 in CP2K either; q9 keeps the 2s2p semicore.  Na window s 9 x [0.12, 80], p 7 x [0.1, 40], validated on the Na+ cation the solid holds

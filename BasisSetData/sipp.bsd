@@ -1,4 +1,6 @@
 PP valence test basis (Si, O) -- uncontracted even-tempered, valence-only for GTH pseudopotentials
+KIND pp-valence gth-lda-valence
+PP-PROVENANCE Si=4 O=6
 
 !
 BASIS="PP valence test basis (Si, O)"

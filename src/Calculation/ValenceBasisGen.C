@@ -103,8 +103,10 @@ export namespace qchem
     //! Wrap element \a blocks into a complete Gaussian94 .bsd file (the shared comment/`!`/`BASIS=` header,
     //! then every block).  \a name is the file's descriptive title + BASIS= tag.  \a ppValence = {element, q} of each
     //! block: written as the `PP-PROVENANCE` preamble line that \c BasisSet::Gaussian::CheckPPProvenance reads (D-BASIS-PP).
+    //! \a ppSet = the pseudopotential set the blocks were generated under: written as the file's `KIND pp-valence <set>` line
+    //! (\c BasisSet::Gaussian::KindOfBasisFile); "" writes no KIND line (a scratch file, not one to ship).
     std::string AssembleBasisFile(const std::string& name, const std::vector<std::string>& blocks,
-                                  const std::vector<std::pair<std::string,int>>& ppValence={});
+                                  const std::vector<std::pair<std::string,int>>& ppValence={}, const std::string& ppSet="");
 
     //! \brief valgen --seed-into: INSERT or REPLACE one entry of a seed-density library (\c atomic_valence_densities.json) AS
     //! TEXT.  \a library is the file's text, \a entry one library object (\c GeneratedSeedDensity::jsonEntry).  The entry's

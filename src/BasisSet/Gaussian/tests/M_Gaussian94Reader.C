@@ -219,6 +219,59 @@ TEST(CartesianOnly, ThePreambleNamesTheBlocksAndTheSRFileDeclaresItsMn)
     EXPECT_TRUE(CartesianOnlyElements(std::string("valence_lowq_va.bsd")).empty()) << "the exact-span file is spherical-safe";
 }
 
+// A basis file states its KIND (OpenWork row, lane G 2026-11-21): one preamble line, read by KindOfBasisFile; a malformed line
+// THROWS with the four spellings; a line after the lone `!` is not preamble; no line reads Unstated.
+TEST(BasisKind, TheKindLineIsReadAndAMalformedOneThrows)
+{
+    const auto file=[](const std::string& tag, const std::string& text)
+    {
+        const std::string path=(std::filesystem::path(testing::TempDir())/(std::to_string(::getpid())+"_kind_"+tag+".bsd")).string();
+        std::ofstream(path) << text;
+        return path;
+    };
+    const BasisFileKind pp=KindOfBasisFile(file("pp", "title\nKIND pp-valence gth-lda-valence\nPP-PROVENANCE O=6\n\n!\nBASIS=\"t\"\n"));
+    EXPECT_EQ(pp.kind, BasisKind::PPValence);
+    EXPECT_EQ(pp.ppSet, "gth-lda-valence");
+    EXPECT_EQ(KindOfBasisFile(file("ae", "title\nKIND all-electron\n!\n")).kind, BasisKind::AllElectron);
+    EXPECT_EQ(KindOfBasisFile(file("fc", "title\nKIND fit-coulomb\n!\n")).kind, BasisKind::CoulombFit);
+    EXPECT_EQ(KindOfBasisFile(file("fx", "title\nKIND fit-exchange\n!\n")).kind, BasisKind::ExchangeFit);
+    const BasisFileKind none=KindOfBasisFile(file("none", "title\n\n!\nKIND all-electron\n"));
+    EXPECT_EQ(none.kind, BasisKind::Unstated) << "a KIND after the lone ! is not preamble";
+    EXPECT_TRUE(none.ppSet.empty());
+    for (const auto& [tag,text] : std::vector<std::pair<std::string,std::string>>{
+             {"unknown", "t\nKIND valence\n!\n"}, {"noset", "t\nKIND pp-valence\n!\n"}, {"aeset", "t\nKIND all-electron gth-lda-valence\n!\n"},
+             {"twice", "t\nKIND all-electron\nKIND all-electron\n!\n"}, {"extra", "t\nKIND pp-valence gth-lda-valence x\n!\n"}})
+    {
+        try { (void)KindOfBasisFile(file(tag, text)); ADD_FAILURE() << tag << ": a malformed KIND line must throw"; }
+        catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("To fix this"), std::string::npos) << e.what(); }
+    }
+    EXPECT_EQ(KindName(BasisKind::PPValence), "pp-valence");
+    EXPECT_EQ(KindName(BasisKind::Unstated), "");
+}
+
+// EVERY SHIPPED .bsd STATES ITS KIND (the controller's gate, 2026-11-21): the menu and a run judge the file, so a file that says
+// nothing would be judged by nobody.  The kinds are the ones each file is (the fit sets, the DGauss orbital sets, the GTH valence
+// sets), and a file that declares PP-PROVENANCE is a pp-valence file.
+TEST(BasisKind, EveryShippedFileStatesItsKind)
+{
+    const std::vector<std::string> names=BasisNames();
+    ASSERT_GT(names.size(), 20u);
+    for (const std::string& n : names)
+    {
+        const BasisFileKind k=KindOfBasisFile(n+".bsd");
+        EXPECT_NE(k.kind, BasisKind::Unstated) << n << ".bsd states no KIND line";
+        bool declaresQ=false;   // a PP-PROVENANCE line: CheckPPProvenance refuses an impossible q for some element it declares
+        for (const char* el : {"H","Li","C","N","O","F","Na","Al","Si","Mn","Te"})
+            try { CheckPPProvenance(n+".bsd", {{el, 999}}); } catch (const std::runtime_error&) { declaresQ=true; }
+        if (declaresQ) EXPECT_EQ(k.kind, BasisKind::PPValence) << n << ".bsd declares PP-PROVENANCE but is " << KindName(k.kind);
+    }
+    EXPECT_EQ(KindOfBasisFile("dzvp.bsd").kind,    BasisKind::AllElectron);
+    EXPECT_EQ(KindOfBasisFile("A1_coul.bsd").kind, BasisKind::CoulombFit);
+    EXPECT_EQ(KindOfBasisFile("A1_exch.bsd").kind, BasisKind::ExchangeFit);
+    for (const char* n : {"sipp.bsd", "sipp_sr.bsd", "dzvp_molopt_gth.bsd", "valence_lowq_va.bsd"})
+        EXPECT_EQ(KindOfBasisFile(n).kind, BasisKind::PPValence) << n;
+}
+
 // D-BASIS-REGISTRY (CleanCode, 2026-10-30): a basis is NAMED by its file stem in the data directory -- every .bsd there is
 // usable by name with no registration; the enum is only the C++ handle of the files code names directly, and each handle's
 // name is a stem that is there.  A name that is not there throws, listing the names that are.
