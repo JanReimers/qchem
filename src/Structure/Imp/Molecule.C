@@ -48,6 +48,7 @@ static const char* RadialName(qcMesh::RadialKind r)
         case qcMesh::RadialKind::MHL:    return "MHL";
         case qcMesh::RadialKind::Log:    return "Log";
         case qcMesh::RadialKind::Linear: return "Linear";
+        case qcMesh::RadialKind::DE2:    return "DE2";
     }
     return "?";
 }
@@ -65,7 +66,7 @@ static void ReportMolecularMesh(size_t natom, const qcMesh::MeshParams& mp, size
 {
     namespace rpt=qchem::report;
     rpt::Set("kind", "Becke"); rpt::Set("natom", (long)natom); rpt::Set("radial", RadialName(mp.radial));
-    rpt::Set("nRadial", mp.nRadial); rpt::Set("mhl_alpha", mp.mhl_alpha); rpt::Set("angular", AngularName(mp.angular));
+    rpt::Set("nRadial", mp.nRadial); if (mp.radial==qcMesh::RadialKind::DE2) { rpt::Set("de2_alpha", mp.de2_alpha); rpt::Set("de2_rMax", mp.de2_rMax); } else rpt::Set("mhl_alpha", mp.mhl_alpha); rpt::Set("angular", AngularName(mp.angular));
     rpt::Set("L", mp.angularDegree); rpt::Set("nDirs", (long)nDirs); rpt::Set("beckeOrder", mp.beckeOrder);
     rpt::Set("points", (long)kept); rpt::Set("dropped", (long)(total-kept));
 }

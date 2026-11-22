@@ -158,7 +158,7 @@ const auto kLoopEstimator = NAMES(SolidCalculation::HubbardLoop::Estimator, {"AC
                                   {"linearResponse",SolidCalculation::HubbardLoop::Estimator::LinearResponse});
 const auto kProjector = NAMES(Hamiltonian::HubbardProjectorKind, {"siteShells",Hamiltonian::HubbardProjectorKind::SiteShells},
                               {"pseudoAtomic",Hamiltonian::HubbardProjectorKind::PseudoAtomic});
-const auto kRadial = NAMES(RadialKind, {"MHL",RadialKind::MHL}, {"Log",RadialKind::Log}, {"Linear",RadialKind::Linear});
+const auto kRadial = NAMES(RadialKind, {"MHL",RadialKind::MHL}, {"Log",RadialKind::Log}, {"Linear",RadialKind::Linear}, {"DE2",RadialKind::DE2});
 const auto kAngular= NAMES(AngularKind, {"Lebedev",AngularKind::Lebedev}, {"GaussLegendre",AngularKind::GaussLegendre}, {"none",AngularKind::None});
 using Measure = SCFParams::Measure;
 using BasisSet::Gaussian::BasisSetData;
@@ -377,7 +377,7 @@ void FromJson(const json& j, AcceleratorOptions& o)
 json ToJson(const qcMesh::MeshParams& m)
 {
     return {{"radial",NameOf(m.radial,kRadial)},{"nRadial",m.nRadial},{"mhlM",m.mhl_m},{"mhlAlpha",m.mhl_alpha},{"logStart",m.logStart},
-            {"logStop",m.logStop},{"angular",NameOf(m.angular,kAngular)},{"angularDegree",m.angularDegree},{"angRot",m.angRot},
+            {"logStop",m.logStop},{"de2Alpha",m.de2_alpha},{"de2RMin",m.de2_rMin},{"de2RMax",m.de2_rMax},{"angular",NameOf(m.angular,kAngular)},{"angularDegree",m.angularDegree},{"angRot",m.angRot},
             {"beckeOrder",m.beckeOrder},{"nUniform",m.nUniform},{"eCut",m.eCut},{"relCutoff",m.relCutoff},
             {"cellKind",NameOf(qcMesh::UnitCellKind(m.cellKind),kCell)},{"beckeEps",m.beckeEps}};
 }
@@ -385,7 +385,8 @@ void FromJson(const json& j, qcMesh::MeshParams& m)
 {
     Fields f(j,"xcMesh");
     f.GetEnum("radial",m.radial,kRadial); f.Get("nRadial",m.nRadial); f.Get("mhlM",m.mhl_m); f.Get("mhlAlpha",m.mhl_alpha);
-    f.Get("logStart",m.logStart); f.Get("logStop",m.logStop); f.GetEnum("angular",m.angular,kAngular);
+    f.Get("logStart",m.logStart); f.Get("logStop",m.logStop);
+    f.Get("de2Alpha",m.de2_alpha); f.Get("de2RMin",m.de2_rMin); f.Get("de2RMax",m.de2_rMax); f.GetEnum("angular",m.angular,kAngular);
     f.Get("angularDegree",m.angularDegree); f.Get("angRot",m.angRot); f.Get("beckeOrder",m.beckeOrder); f.Get("nUniform",m.nUniform);
     f.Get("eCut",m.eCut); f.Get("relCutoff",m.relCutoff); { qcMesh::UnitCellKind k=m.cellKind; f.GetEnum("cellKind",k,kCell); m.cellKind=qcMesh::CellKind::RecipeStated(k); } f.Get("beckeEps",m.beckeEps);
     f.Done();

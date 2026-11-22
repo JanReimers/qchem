@@ -1,7 +1,7 @@
 // File: RadialMesh.C  Radial quadrature mesh (concrete value type) + typed factory.
 //
 // A 1D radial mesh: nodes r_i and weights w_i with the r^2 jacobian ALREADY folded into w_i, so
-// that  sum_i w_i f(r_i) ~ integral_0^inf r^2 f(r) dr.  The schemes (MHL/Log/Linear) are plain
+// that  sum_i w_i f(r_i) ~ integral_0^inf r^2 f(r) dr.  The schemes (MHL/Log/Linear/DE2) are plain
 // builder FUNCTIONS that return a RadialMesh -- no class hierarchy (the old per-scheme classes did
 // nothing but fill these two arrays).
 module;
@@ -37,4 +37,5 @@ namespace qchem::qcMesh
     RadialMesh MHLRadial   (int NumPoints, int m, double alpha);
     RadialMesh LogRadial   (double start, double stop, int NumPoints);
     RadialMesh LinearRadial(double start, double stop, int NumPoints);
+    RadialMesh DE2Radial   (int NumPoints, double alpha, double rMin, double rMax);
 }
