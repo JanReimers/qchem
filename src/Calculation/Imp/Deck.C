@@ -1654,7 +1654,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     const Close close;
     // A DRIVER timing window for the whole deck run: its calculations stay quiet (the deck emits ONE `timing` section at its end, below,
     // what scripts/bench greps); a displaced point or a geometry step still reports its own.
-    const qchem::report::TimingWindow deckTiming(stem);
+    qchem::report::TimingWindow deckTiming(stem);
     // THE TWO-RUN SPLIT (SplitsAtResponse): run #1 is the ground state on a setup with no response planned (real TRIM blocks); the
     // responses run on run #2, which adopts run #1's state (below, at the first linear response).
     const bool split=SplitsAtResponse(spec);
@@ -1894,7 +1894,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         rj["ok"]=pr.ok; rj["summary"]=pr.summary; results.push_back(rj);
         out.postSCF.push_back(pr);
     }
-    qchem::report::EmitTimings();   // sorted by cost + PEAK RSS, inside the report bracket (what scripts/bench greps)
+    deckTiming.Report();   // the run's `timing`, at its root: sorted by cost + PEAK RSS + SETUP / SCF TOTAL (what scripts/retake5a greps)
     if (!results.empty() || refused)
     {   // fold the results into the record (the revision written before the run keeps the deck; `results` is what the run produced)
         std::ifstream in(out.revision); json rec=json::parse(in); in.close();

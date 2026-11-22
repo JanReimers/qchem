@@ -574,12 +574,16 @@ FormatHint HintFor(const std::string& field)
 // Timing ledger (see the interface doc).  Until 2026-10-27 every Timed ran on the master thread (OMP lived INSIDE
 // timed regions).  An OUTER loop over k-blocks (doc/KAxisPlan.md P1, qchem::OuterFor) runs timed per-block work on
 // worker threads, so the ledger is MUTEX-guarded and the nesting stack is per THREAD.  Consequence, stated where
-// it is read (EmitTimings' footer): a bucket filled by outer-loop workers is THREAD-seconds, summed over workers,
+// it is read (TimingWindow's table): a bucket filled by outer-loop workers is THREAD-seconds, summed over workers,
 // and the master's enclosing bucket charges the loop's wall as its own exclusive time.  Insertion order is
-// irrelevant; EmitTimings sorts by cost.
+// irrelevant; the table sorts by cost.
 //============================================================================
 namespace
 {
+//! THE LEDGER (a mutable static, justified per CLAUDE.md 2026-11-22).  It holds accumulated wall seconds per bucket name, for the whole
+//! process.  Per-process is the DESIGN: any layer charges a bucket (report::Timed) with no plumbing, as the report cursor is reached.
+//! It never leaks a run's numbers into another's report: nothing reads the totals, only a TimingWindow's DIFFERENCE over its own scope
+//! (since 2026-11-22; before, deck::Run cleared it and every other run read nothing).  Thread-safe: every access holds g_timesMutex.
 std::map<std::string,double> g_times;
 // CALL COUNTS beside the seconds.  A bucket's TOTAL is only comparable against another bucket's total
 // when the two fire at the same CADENCE, and the ledger gave no way to know: "rho sampling 3.3 s" vs
@@ -694,19 +698,12 @@ void Since(const std::map<std::string,double>& t0, const std::map<std::string,si
         if (d>1e-9 || dn>0) { dt[k]=d; dc[k]=dn; }
     }
 }
-std::map<std::string,double> g_emittedTimes;   //!< EmitTimings' baseline: what the previous EmitTimings already reported
-std::map<std::string,size_t> g_emittedCalls;
+//! THE OPEN DRIVER WINDOWS (a mutable static, justified per CLAUDE.md 2026-11-22): how many \c TimingWindow(driver=true) scopes are open
+//! right now.  It is one more piece of the report SINK's scope state, beside the run stack and the cursor above, and process-wide for the
+//! same reason they are: the ledger it qualifies is process-global by design (any layer charges a bucket with no plumbing), so "is a
+//! point or a run total measuring around me?" is a process-wide question.  It is not previous-run state: every window decrements it on
+//! close (RAII), so it is 0 between runs and cannot leak across a test binary or a geometry series.  Thread-safe: atomic.
 std::atomic<int>             g_driversOpen{0};
-}
-
-// The ledger is never cleared (a TimingWindow may be open across this call): EmitTimings reports what was charged since the previous one.
-void EmitTimings(const std::string& name, size_t nIterations)
-{
-    std::map<std::string,double> dt; std::map<std::string,size_t> dc;
-    Since(g_emittedTimes, g_emittedCalls, dt, dc);
-    Snapshot(g_emittedTimes, g_emittedCalls);
-    if (dt.empty()) return;
-    EmitSection(name, LedgerTable(dt, dc, nIterations, std::nullopt));
 }
 
 TimingWindow::TimingWindow(std::string label, bool driver) : itsLabel(std::move(label)), itsDriver(driver), itsT0(NowNs())
