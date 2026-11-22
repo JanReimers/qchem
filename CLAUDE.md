@@ -247,6 +247,9 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     ruling in the snapshot commit.  ctest `HubInterfaceAudit` (`scripts/audit-hub-interfaces`) fails on any
     change to their exported declarations or re-exports until `scripts/hub-interfaces.snapshot` is regenerated (`--update`) in a commit citing the
     ruling.  Every `Get` on such a face is scrutinised: why does A hold B, what will the client do with it, why can't A do it?
+    **Never route around a hub** (user, 2026-11-21: *"A brief discussion is always preferred over finding \"workarounds\" for hub changes."*): a global, a
+    namespace or function-local mutable static, a `getenv`, a singleton or a cast to a concrete class that carries what a hub face should is a DEFECT
+    hiding a hub change.  Bring the diff instead; the ask is cheap.  The controller scans every landing's diff for these side channels.
 - **Lazy caching only for what never changes; density-dependent state is built at the refresh** (user, 2026-11-07).  A pure function of
     fixed inputs (basis integrals, overlap, a mesh) may build on first use and cache forever (the `Get` rule above).  Anything that depends
     on the density may NOT: a block query that builds on the first block it sees is a hidden write, depends on block order and on "the

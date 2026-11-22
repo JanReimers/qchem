@@ -336,7 +336,8 @@ MoleculeRequest molecule_request(const qcb_request* req)
 {
     MoleculeRequest r;
     for (int a = 0; a < req->nat; ++a)
-        r.mol.Insert(qchem::Site{req->Z[a], rvec3_t(req->pos3[3*a], req->pos3[3*a+1], req->pos3[3*a+2])});
+        r.mol.Insert(qchem::Site{req->Z[a], rvec3_t(req->pos3[3*a], req->pos3[3*a+1], req->pos3[3*a+2]),
+                                 req->netCharge ? req->netCharge[a] : 0.0});
     r.opts.molecule.basis     = req->basis;
     r.opts.model        = parse_model(req->model);
     r.opts.pp           = req->pp ? req->pp : "";

@@ -120,6 +120,13 @@ private:
     std::shared_ptr<qcb_threads> h;   //!< open while held; the deleter closes the scope (user 2026-11-12: "When in doubt use shared_ptr")
 };
 
+//! A molecule's per-site net charges: none (every site neutral) or one per site.
+static void CheckNetCharges(const std::vector<double>& q, size_t nat)
+{
+    if (!q.empty() && q.size()!=nat)
+        throw std::invalid_argument("net_charges: one value per site ("+std::to_string(nat)+"), or none; got "+std::to_string(q.size()));
+}
+
 class Calculator
 {
 public:
@@ -129,15 +136,17 @@ public:
                int diisDepth, double diisSVTol, double diisEngageFD, bool mom, int momStart, double relaxMin,
                double ladderSwitchAt, double gateFD, double gateDrho, double gateDE, double gateDFD,
                const std::string& mixer, double smearingkT, const std::string& restartFrom, bool buildOnly,
-               const std::string& basisFile, const std::string& seed, const std::string& angular, nb::object onIteration)
+               const std::string& basisFile, const std::string& seed, const std::string& angular,
+               const std::vector<double>& netCharges, nb::object onIteration)
     {
         if (pos.size() != 3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
+        CheckNetCharges(netCharges, Z.size());
         const qcb_request req{Z.data(), int(Z.size()), pos.data(), basis.c_str(), model.c_str(), pp.c_str(),
                               accelerator.c_str(), symmetry ? 1 : 0, polarized ? 1 : 0, multiplicity, maxIter,
                               meshRadial, meshAngular, relaxStart, relaxMax, diisDepth, diisSVTol, diisEngageFD,
                               mom ? 1 : 0, momStart, relaxMin, ladderSwitchAt,
                               gateFD, gateDrho, gateDE, gateDFD, mixer.c_str(), smearingkT, basisFile.c_str(),
-                              seed.c_str(), angular.c_str()};
+                              seed.c_str(), angular.c_str(), netCharges.empty() ? nullptr : netCharges.data()};
         qcb_sink sink{onIteration, std::nullopt};
         const bool stream = !onIteration.is_none();
         char err[errlen] = {0};
@@ -384,12 +393,14 @@ public:
     //! A molecule's: the structure and the options that identify its basis (the SCF knobs play no part).
     static StateView* Molecule(const std::vector<int>& Z, const std::vector<double>& pos, const std::string& basis, const std::string& model,
                                bool symmetry, bool polarized, int multiplicity, const std::string& pp, const std::string& basisFile,
-                               const std::string& angular, const std::string& path)
+                               const std::string& angular, const std::string& path, const std::vector<double>& netCharges)
     {
         if (pos.size() != 3*Z.size()) throw std::invalid_argument("positions must be flat 3N (bohr)");
+        CheckNetCharges(netCharges, Z.size());
         const qcb_request req{Z.data(), int(Z.size()), pos.data(), basis.c_str(), model.c_str(), pp.c_str(), "DIIS",
                               symmetry ? 1 : 0, polarized ? 1 : 0, multiplicity, 1, 0, 0, 0.0, 0.0, 0, 0.0, 0.0, 0, 0, 0.0, -1.0,
-                              0.0, 0.0, 0.0, 0.0, "", 0.0, basisFile.c_str(), "Default", angular.c_str()};
+                              0.0, 0.0, 0.0, 0.0, "", 0.0, basisFile.c_str(), "Default", angular.c_str(),
+                              netCharges.empty() ? nullptr : netCharges.data()};
         return Open([&](int* refused, char* err){ return qcb_view_molecule(&req, path.c_str(), refused, err, errlen); });
     }
     //! A radial atom's: Z, net charge and its options (deck spelling), as Calculator.atom.
@@ -463,7 +474,7 @@ NB_MODULE(qchem_py, mod)
                       bool, bool, int, int, const std::string&, const std::string&, int, int, double, double,
                       int, double, double, bool, int, double, double, double, double, double, double,
                       const std::string&, double, const std::string&, bool, const std::string&, const std::string&,
-                      const std::string&, nb::object>(),
+                      const std::string&, const std::vector<double>&, nb::object>(),
              nb::arg("numbers"), nb::arg("positions"), nb::arg("basis") = "dzvp", nb::arg("model") = "HF",
              nb::arg("symmetry") = false, nb::arg("polarized") = false, nb::arg("multiplicity") = 0, nb::arg("max_iter") = 100,
              nb::arg("pp") = "", nb::arg("accelerator") = "DIIS", nb::arg("mesh_radial") = 0, nb::arg("mesh_angular") = 0,
@@ -472,7 +483,7 @@ NB_MODULE(qchem_py, mod)
              nb::arg("relax_min") = 0.0, nb::arg("ladder_switch_at") = -1.0,
              nb::arg("gate_fd") = -1.0, nb::arg("gate_drho") = -1.0, nb::arg("gate_de") = -1.0, nb::arg("gate_dfd") = -1.0,
              nb::arg("mixer") = "Auto", nb::arg("smearing_kT") = 0.0, nb::arg("restart_from") = "", nb::arg("build_only") = false, nb::arg("basis_file") = "",
-             nb::arg("seed") = "", nb::arg("angular") = "",
+             nb::arg("seed") = "", nb::arg("angular") = "", nb::arg("net_charges") = std::vector<double>{},
              nb::arg("on_iteration") = nb::none(),
              "MoleculeSetup::Resolve + converge.  Atomic numbers + flat 3N bohr positions.  on_iteration(iter, E, cells), "
              "if given, streams the SCF live (the GIL is released during the solve); cells = [(title, value, text, "
@@ -489,7 +500,8 @@ NB_MODULE(qchem_py, mod)
              "iterator) and stop before iteration 1, filed as the report run '<ID> build'; run_scf then converges on that graph.  basis_file: a .bsd path used instead of the "
              "shipped file `basis` names (RunOptions::molecule.basisFile; `basis` is then its label).  seed / angular: the STRUCTURE-NEUTRAL "
              "options by the deck's names (a crystal's deck: solid.seed, basis.angular): seed Default (the Auto rule) | CoreGuess | Uniform | "
-             "SAD | IonicSAD, angular cartesian | spherical ('' = Default / cartesian); the facade refuses a combination it cannot build.")
+             "SAD | IonicSAD, angular cartesian | spherical ('' = Default / cartesian); the facade refuses a combination it cannot build.  "
+             "net_charges: each site's net charge (Site::netCharge; OH- = [-1, 0]), [] = neutral -- a molecule's charge is its structure's.")
         .def_static("atom", &Calculator::Atom, nb::arg("Z"), nb::arg("charge") = 0, nb::arg("options") = "", nb::arg("restart_from") = "",
                     nb::arg("build_only") = false, nb::arg("on_iteration") = nb::none(), nb::rv_policy::take_ownership,
                     "THE RADIAL ATOM (AtomSetup::Admit + AtomCalculation): the lone atom Z with net charge `charge`, its options as JSON in the "
@@ -630,7 +642,8 @@ NB_MODULE(qchem_py, mod)
                           "a state that is not the spec's (another kind / basis / electrons, ANY moved atom, a missing file) raises RestartRefused; options the setup refuses raise SetupRefused.")
         .def_static("molecule", &StateView::Molecule, nb::arg("numbers"), nb::arg("positions"), nb::arg("basis"), nb::arg("model") = "HF",
                     nb::arg("symmetry") = false, nb::arg("polarized") = false, nb::arg("multiplicity") = 0, nb::arg("pp") = "",
-                    nb::arg("basis_file") = "", nb::arg("angular") = "cartesian", nb::arg("path"), nb::rv_policy::take_ownership)
+                    nb::arg("basis_file") = "", nb::arg("angular") = "cartesian", nb::arg("path"),
+                    nb::arg("net_charges") = std::vector<double>{}, nb::rv_policy::take_ownership)
         .def_static("atom", &StateView::Atom, nb::arg("Z"), nb::arg("charge"), nb::arg("options"), nb::arg("path"), nb::rv_policy::take_ownership)
         .def_static("crystal", &StateView::Crystal, nb::arg("deck"), nb::arg("path"), nb::rv_policy::take_ownership)
         .def("levels",  &StateView::Levels,  "As Calculator.levels: the saved state's every level, in the live run's order.")

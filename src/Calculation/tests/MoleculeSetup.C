@@ -45,6 +45,25 @@ TEST(MoleculeSetup, APseudopotentialSetGivesTheValenceCountAndTheValenceStructur
     EXPECT_EQ(int(s->structure->GetNumElectrons()), 11) << "the reference keeps the TRUE charges; only a point is valence-charged";
 }
 
+// A CHARGED molecule keeps its charge under a pseudopotential (lane G, 2026-11-21): the point structure REPLACED each site's stated
+// net charge with Z - Zion, so OH- with GTH ran NEUTRAL, 7 valence electrons instead of 8 -- a silent wrong answer.  A point now ADDS
+// the core charge Z - Zion to the stated one: the valence count is sum(Zion) minus the stated charge, O q6 + H q1 + 1 = 8.
+TEST(MoleculeSetup, AChargedMoleculeKeepsItsChargeUnderAPseudopotential)
+{
+    Molecule oh;
+    oh.Insert(Site{8, rvec3_t(0,0,0), -1.0});        // OH-: the anion's extra electron on the O site
+    oh.Insert(Site{1, rvec3_t(0,0,1.8330)});
+    const auto s=MoleculeSetup::Resolve(oh, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp_molopt_gth"}});
+    ASSERT_TRUE(s->pp);
+    const int valence=s->pp->Valence("O")+s->pp->Valence("H");
+    EXPECT_EQ(s->Ne, valence+1) << "OH- carries one electron past its valence count";
+    const auto point=s->PointStructure(oh);
+    EXPECT_EQ(int(point->GetNumElectrons()), s->Ne);
+    EXPECT_DOUBLE_EQ(point->GetNetCharge()-s->structure->GetNetCharge(), double(9-valence))
+        << "a point adds the core charges Z - Zion to the stated ones";
+    EXPECT_EQ(int(s->structure->GetNumElectrons()), 10) << "the reference keeps the TRUE charges: 9 + 1";
+}
+
 // A pseudopotential run seeds its OWN pseudo-atoms (OpenWork §3 "A pseudopotential run seeds from the VALENCE library for its q, on every
 // structure", lane B 2026-11-12): the setup keys the seed library by each element's PP q, so a PP molecule reads the VALENCE densities at
 // that q, as a solid does, and an all-electron one stays unkeyed (the all-electron library).  The tell: Si has no ALL-ELECTRON LDA entry,
