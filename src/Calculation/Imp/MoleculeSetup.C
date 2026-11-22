@@ -6,6 +6,7 @@ module;
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
+#include <filesystem>
 module qchem.MoleculeSetup;
 
 import qchem.PeriodicTable;   // thePeriodicTable (Z -> element symbol, for the PP lookup)
@@ -15,7 +16,7 @@ import qchem.ChargeDensity.AtomicDensity;   // HasAtomicDensity: the SAD seed's 
 import qchem.SetupDecisions;  // the structure-neutral decisions (spin channels, seed, accelerator, Vxc admission), shared with SolidSetup
 import qchem.BasisSet.Gaussian.Point.Factory; // RegisteredBasis, BasisSetData: which registered files are all-electron
 import qchem.BasisSet.Gaussian.Point.BasisFiles; // BasisFileOfName: the basis name's file, for the coverage pre-flight
-import qchem.BasisCoverage;   // RequireBasisCovers: a basis lacking an element is refused before anything is built
+import qchem.BasisCoverage;   // RequireBasisCovers, BasisCovers, ElementsOf: a basis lacking an element is refused before anything is built
 
 namespace qchem
 {
@@ -38,6 +39,61 @@ RunOptions MoleculeOptions(const RunOptions& asked)
     if (!o.pp)     o.pp=std::string();                      // all-electron
     if (!o.xcMesh) o.xcMesh=kMolecularMeshDefault;          // climbed to eps from its entry rung
     return o;
+}
+
+// THE COULOMB FIT (policy CoulombFit; OpenWork "The Coulomb-fit default is a hidden policy", lane S 2026-11-21).  A density model's
+// Hartree term on the Auxiliary route is a Dunlap fit on a Gaussian fit basis, and WHICH basis is a policy: before this row it was
+// hard-wired in the orbital families (PG_Cart / PG_Spherical CreateCDFitBasisSet read A1_coul.bsd), against "policies live only in the
+// policy layer".  Here the route's Auto resolves to Auxiliary, the fit file is named (kMolecularCoulombFitDefault when unstated), checked
+// for existence and coverage, and MoleculeCalculation builds it into the run's CoulombFitSlot before the first Hamiltonian asks.
+// The default is DGauss A1 (H-Te), today's numbers: it was built for DGauss's all-electron bases, and on a diffuse valence basis it is
+// mHa low (DZVP-MOLOPT-GTH, LDA: OH- 1.9 mHa, H2O 4.4 mHa vs the delta route and PySCF's exact J).  The default per orbital-basis kind
+// is the user's to rule on (step 3 of the row).
+constexpr const char* kMolecularCoulombFitDefault="A1_coul";
+
+static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& point, bool densityModel)
+{
+    using CF=Hamiltonian::CoulombFit;
+    const std::string stated=c.auxBasis;
+    if (!densityModel)
+    {
+        if (!stated.empty())
+            policy::Refuse("CoulombAuxBasisUnused", "coulomb.auxBasis \""+stated+"\" on a Hartree-Fock run",
+                           "HF builds J from the exact 4-centre integrals and reads no Coulomb fit basis -- drop coulomb.auxBasis");
+        return;
+    }
+    if (c.fit==CF::Delta || c.fit==CF::Multipole)
+    {
+        if (!stated.empty())
+            policy::Refuse("CoulombAuxBasisUnused", "coulomb.auxBasis \""+stated+"\" on the "+(c.fit==CF::Delta ? "Delta" : "Multipole")+" Hartree route",
+                           "that route puts rho on the XC mesh and has no fit basis -- drop coulomb.auxBasis, or state coulomb.fit Auxiliary");
+        return;
+    }
+    const bool fitStated=c.fit==CF::Auxiliary;
+    c.fit=CF::Auxiliary;
+    if (stated.empty()) c.auxBasis=kMolecularCoulombFitDefault;
+    const std::string file=c.auxBasis+".bsd";
+    if (!std::filesystem::is_regular_file(BasisSet::Gaussian::BasisFile(file)))
+    {
+        std::string fits;
+        for (const std::string& n : BasisSet::Gaussian::BasisNames())
+            if (n.size()>5 && n.substr(n.size()-5)=="_coul") fits+=(fits.empty() ? "" : ", ")+n;
+        policy::Refuse("CoulombAuxBasisUnknown", "coulomb.auxBasis \""+c.auxBasis+"\": no "+file+" in the basis data directory",
+                       "state a Coulomb fit file by its stem: "+fits);
+    }
+    std::string missing;
+    for (int Z : ElementsOf(point)) if (!BasisCovers(file, Z)) missing+=(missing.empty() ? "" : ", ")+thePeriodicTable().GetSymbol(Z);
+    if (!missing.empty())
+        policy::Refuse("CoulombAuxBasisCoverage", "Coulomb fit basis "+c.auxBasis+" has no block for "+missing,
+                       std::string(stated.empty() ? "the default fit (A1, H-Te) does not cover this structure" : "the stated fit does not cover this structure")
+                       +" -- state coulomb.fit Delta (rho on the XC mesh, every element), or a fit file that covers it");
+    if (!stated.empty() && fitStated) return;   // fully stated: as asked, nothing decided
+    policy::Report("CoulombFit", "the Hartree term: a Dunlap fit on "+c.auxBasis, policy::Verdict::Choose,
+                   stated.empty()
+                     ? std::string(fitStated ? "coulomb.fit Auxiliary stated without coulomb.auxBasis" : "no Hartree route stated")
+                       +": the molecular default fit, DGauss A1 (H-Te, built for all-electron bases; mHa low on a diffuse valence basis such "
+                       "as DZVP-MOLOPT-GTH) -- state coulomb.auxBasis (A1_coul, A2_coul) or coulomb.fit Delta to choose"
+                     : "coulomb.auxBasis stated: its route is the Auxiliary (Dunlap) fit");
 }
 
 // THE DOORS (as SolidSetup's): Admit for user input, Resolve its throwing twin for code that states its own options.
@@ -149,6 +205,7 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
             policy::Refuse("AdmitCoulomb", "the stated Hartree route on this molecule", a.Error());
         ReportXCRho(opts.vxcFit, opts.xcRho);   // the ρ axis (user ruling 2026-11-09): warns on the Gaussian x δ cell
     }
+    ResolveCoulombFit(s->opts.coulomb, *point, dft || !opts.pp->empty());   // policy CoulombFit: the Hartree fit named here, never in a library
 
     AdmitRecipe(opts.recipe, /*kT: not read for a molecule*/0.0, /*molecule*/true);   // Auto | Insulator only (R4.1 ruling (c))
     s->accelerator = MolecularAcceleratorType(opts.accelerator, "qchem::MoleculeCalculation");   // Auto = DIIS; Null refused

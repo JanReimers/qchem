@@ -149,3 +149,41 @@ TEST(MoleculeSetup, TheRetiredEMaxKeyIsRefusedNamingEngageBelowFD)
     std::unique_ptr<SCFAccelerators::SCFAccelerator> ok(SCFAccelerators::Factory(Type::DIIS, j));
     EXPECT_TRUE(ok);
 }
+
+// THE COULOMB FIT IS A SETUP POLICY (policy CoulombFit; OpenWork "The Coulomb-fit default is a hidden policy", lane S 2026-11-21): a density
+// model's unstated Hartree route resolves HERE to the Auxiliary (Dunlap) fit on a NAMED file, and every use the name cannot have is refused
+// by name -- before the row, the orbital families read A1_coul.bsd themselves and nothing above them could see or change it.
+TEST(MoleculeSetup, AnUnstatedCoulombFitIsNamedByTheSetup)
+{
+    using CF=Hamiltonian::CoulombFit;
+    const auto s=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .molecule={.basis="dzvp"}});
+    EXPECT_EQ(s->opts.coulomb.fit, CF::Auxiliary);
+    EXPECT_EQ(s->opts.coulomb.auxBasis, "A1_coul") << "today's default, named in the policy layer";
+    const auto a2=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .coulomb={.auxBasis="A2_coul"}, .molecule={.basis="dzvp"}});
+    EXPECT_EQ(a2->opts.coulomb.fit, CF::Auxiliary) << "a stated fit file implies its route";
+    EXPECT_EQ(a2->opts.coulomb.auxBasis, "A2_coul");
+    const auto hf=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::HF, .molecule={.basis="dzvp"}});
+    EXPECT_TRUE(hf->opts.coulomb.auxBasis.empty()) << "HF reads no fit: nothing is named";
+    const auto delta=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .coulomb={.fit=CF::Delta}, .molecule={.basis="dzvp"}});
+    EXPECT_EQ(delta->opts.coulomb.fit, CF::Delta);
+    EXPECT_TRUE(delta->opts.coulomb.auxBasis.empty());
+}
+
+TEST(MoleculeSetup, ACoulombFitFileTheRunCannotUseIsRefusedByName)
+{
+    using CF=Hamiltonian::CoulombFit;
+    struct Case { RunOptions o; std::string policy; int Z; };
+    const std::vector<Case> cases={
+        {{.model=Model::LDA, .coulomb={.fit=CF::Delta, .auxBasis="A1_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnused", 8},
+        {{.model=Model::LDA, .coulomb={.fit=CF::Multipole, .auxBasis="A1_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnused", 8},
+        {{.model=Model::HF, .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnused", 8},
+        {{.model=Model::LDA, .coulomb={.auxBasis="no_such_fit"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnknown", 8},
+        {{.model=Model::LDA, .coulomb={.auxBasis="A2_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisCoverage", 52},   // A2 stops at Zn
+    };
+    for (const Case& c : cases)
+    {
+        const auto r=MoleculeSetup::Admit(OneAtom(c.Z), c.o);
+        ASSERT_FALSE(r) << c.policy;
+        EXPECT_EQ(r.Error().policy, c.policy);
+    }
+}

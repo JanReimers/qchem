@@ -32,6 +32,8 @@ RunOptions AtomOptions(const RunOptions& asked)
         refuse("imposeSymmetry / symmetryTol / spins", "an atom's symmetry is spherical by construction");
     if (asked.orthoTol!=def.orthoTol) refuse("orthoTol", "the atom's solver takes no truncation floor");
     if (asked.label!=def.label) refuse("label", "an atom names itself by its element in its own output");
+    if (!asked.coulomb.auxBasis.empty())
+        refuse("coulomb.auxBasis", "the radial atom's Coulomb fit is its own exponent pool's (the fit-rung ladder), not a Gaussian fit file");
     if (!o.model)  o.model=Hamiltonian::Model::HF;
     if (!o.xcMesh) o.xcMesh=kAtomMeshDefault;
     if (!o.ortho)  o.ortho=qchem::Auto;

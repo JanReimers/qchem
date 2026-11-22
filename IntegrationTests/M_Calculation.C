@@ -192,7 +192,10 @@ TEST(M_Calculation, OneDeltaFitPerHamiltonianHoldsEachBlocksPhiOnce)
                     else walk(it.value());
             else if (j.is_array()) for (const auto& e : j) walk(e);
         };
-        walk(report::GlobalReport());
+        // The run's OWN document only: the CoulombFitResidual check (Gaussian Hartree) builds a δ reference in a nested run of its own,
+        // filed beside this one, and its Φ is the audit's, not the run's.
+        for (auto it=report::GlobalReport().begin(); it!=report::GlobalReport().end(); ++it)
+            if (it.key().starts_with("H2O@")) walk(it.value());
         return total;
     };
     double eVxc=0.0, eBoth=0.0, eOwn=0.0;

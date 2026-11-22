@@ -134,6 +134,7 @@ const auto kOrbitalTables = NAMES(policy::XCOrbitalTables, {"auto",policy::XCOrb
                                 {"images",policy::XCOrbitalTables::Images});
 const auto kAngularForm = NAMES(BasisSet::Gaussian::Angular, {"cartesian",BasisSet::Gaussian::Angular::Cartesian}, {"spherical",BasisSet::Gaussian::Angular::Spherical});
 const auto kFamily = NAMES(RunOptions::Solid::OrbitalBasis, {"gaussian",RunOptions::Solid::OrbitalBasis::GPW}, {"planeWave",RunOptions::Solid::OrbitalBasis::PlaneWave});
+const auto kCoulFit= NAMES(Hamiltonian::CoulombFit, {"Auto",Hamiltonian::CoulombFit::Auto}, {"Auxiliary",Hamiltonian::CoulombFit::Auxiliary}, {"Delta",Hamiltonian::CoulombFit::Delta}, {"Multipole",Hamiltonian::CoulombFit::Multipole});
 const auto kVxc    = NAMES(Hamiltonian::VxcFit, {"Auto",Hamiltonian::VxcFit::Auto}, {"PlaneWave",Hamiltonian::VxcFit::PlaneWave}, {"Delta",Hamiltonian::VxcFit::Delta}, {"Auxiliary",Hamiltonian::VxcFit::Auxiliary});
 const auto kRho    = NAMES(Hamiltonian::XCρ, {"exact",Hamiltonian::XCρ::Exact}, {"fit",Hamiltonian::XCρ::Fit});
 const auto kAcc    = NAMES(AccType, {"DIIS",AccType::DIIS}, {"GDM",AccType::GDM}, {"Ladder",AccType::Ladder}, {"Null",AccType::Null},
@@ -714,6 +715,11 @@ void ReadRunOptions(Fields& f, const json& j, RunOptions& o)
     f.Get("imposeSymmetry",o.imposeSymmetry); f.Get("spins",o.spins); f.GetEnum("accelerator",o.accelerator,kAcc);
     f.Get("label",o.label); f.Get("saveStateTo",o.saveStateTo);
     f.Get("xalpha",o.xalpha); f.Get("symmetryTol",o.symmetryTol);   // a molecule's (and the atom's xalpha); a solid refuses them (ForeignOption)
+    if (j.contains("coulomb"))   // the Hartree route (a molecule's; an atom refuses auxBasis, a solid any of it -- ForeignOption)
+    {
+        Fields cf(f.At("coulomb"),"coulomb"); cf.GetEnum("fit",o.coulomb.fit,kCoulFit); cf.Get("auxBasis",o.coulomb.auxBasis); cf.Done();
+    }
+    else f.At("coulomb");
     if (j.contains("atom")) AtomBlockFromJson(f.At("atom"),o.atom); else f.At("atom");
     if (j.contains("solid")) SolidBlockFromJson(f.At("solid"),o); else f.At("solid");
     const bool solidStates = j.contains("solid") && j.at("solid").is_object() && j.at("solid").contains("accuracy");
@@ -969,6 +975,7 @@ static json NonPeriodicJson(const RunOptions& o, RunKind kind)
     {
         json species=json::array();
         for (const auto& s : o.species) species.push_back({s.first,s.second});
+        j["coulomb"]={{"fit",NameOf(o.coulomb.fit,kCoulFit)},{"auxBasis",o.coulomb.auxBasis}};
         j.update({{"multiplicity",o.multiplicity},{"pp",o.pp.value_or(std::string())},{"species",species},
                   {"imposeSymmetry",o.imposeSymmetry},{"symmetryTol",o.symmetryTol},{"label",o.label},{"saveStateTo",o.saveStateTo}});
     }
