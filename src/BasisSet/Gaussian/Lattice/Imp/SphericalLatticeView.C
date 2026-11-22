@@ -332,6 +332,18 @@ public:
                                                  const LatticeScreener& screener,
                                                  double relFieldSharp=-1.0) const override
     { return itsLat->CollocateDensity(Expand(D),phase,A,N_L,ecut_L,screener,relFieldSharp); }
+    virtual std::vector<rvec_t> CollocateDensityFolded(const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms, const UnitCell& A,
+                                                       const std::vector<ivec3_t>& N_L,
+                                                       const std::vector<double>& ecut_L,
+                                                       const LatticeScreener& screener,
+                                                       double relFieldSharp=-1.0) const override
+    {
+        std::vector<chmat_t> expanded; expanded.reserve(terms.size());   // reserved: the pointers below stay valid
+        for (const auto& t : terms) expanded.push_back(Expand(*t.first));
+        std::vector<std::pair<const chmat_t*, const cellphase_t*>> cart;
+        for (size_t b=0;b<terms.size();b++) cart.push_back({&expanded[b], terms[b].second});
+        return itsLat->CollocateDensityFolded(cart,A,N_L,ecut_L,screener,relFieldSharp);
+    }
     virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                        const std::vector<ivec3_t>& N_L,
                                        const std::vector<double>& ecut_L,

@@ -13,6 +13,7 @@ module;
 export module qchem.BasisSet.Internal.GSpaceDensityProjector;
 export import qchem.BasisSet.PairProjector;     // PairProjector<dcmplx>, AnalyticFourier
 import qchem.BasisSet.PairProjection;           // GSpacePairProjectionIntegrator
+import qchem.BasisSet.Internal.FoldedForward;   // the k-fold (Route::Ball)
 import qchem.BasisSet.Orbital_DFT_IBS;          // cFIT_SF_ABS, Orbital_DFT_IBS<U,dcmplx>
 import qchem.BasisSet.G_FieldEvaluator;         // G_RasterTransform (the raster a field is sampled on)
 import qchem.BasisSet.GMap;                     // GMapStarField (ρ̃ as a field the group averages)
@@ -51,6 +52,10 @@ public:
     size_t NumCoefficients() const override {return itsSF->GetNumFunctions();}
     //! A zero density's ρ̃: the empty map (an absent G reads as 0).
     Projections Zero() const override {return Projections(ΔG_Map{});}
+    //! \brief THE k-FOLD (user ruling 2026-11-22 "I agree A"): the blocks whose overlap tensors share a fold domain (GPW: one lattice basis
+    //! on one ladder, at several k) collocate TOGETHER, through the first one's \c applyFolded -- one box walk for all of them; a block in
+    //! no domain, or alone in its domain, contracts through its own forward as before (bit for bit).
+    std::unique_ptr<MultiBlockForward> ForwardBlocks(std::vector<FoldBlockRef> blocks) const override;
     //! The IBZ star-average of ρ̃: my functions are plane waves, so a point op permutes their G's.
     void StarAverage(Projections& p, const Symmetry::StarGroup& group) const override
     {
@@ -80,5 +85,10 @@ private:
     mutable InstanceSlotMap<GSpacePairProjectionIntegrator<dcmplx>> itsIntC;   //!< Bloch blocks
     qchem::LazyLock itsCacheLock;
 };
+
+inline std::unique_ptr<MultiBlockForward> GSpaceDensityProjector::ForwardBlocks(std::vector<FoldBlockRef> blocks) const
+{
+    return Internal_Fold::MakeFoldedForward(*this, *itsSF, Internal_Fold::Route::Ball, std::move(blocks));
+}
 
 } //namespace

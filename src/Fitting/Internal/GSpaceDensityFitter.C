@@ -55,6 +55,9 @@ public:
     const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override {return itsProjector->Forward(orb);}
     const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override {return itsProjector->Forward(orb);}
     Projections ProjectField(const ScalarFunction<double>& f) const override {return itsProjector->ProjectField(f);}
+    //! The k-fold: the shared projector's own multi-block forward (one collocation for the blocks of one lattice basis).
+    std::unique_ptr<BasisSet::MultiBlockForward> ForwardBlocks(std::vector<BasisSet::FoldBlockRef> blocks) const override
+        {return itsProjector->ForwardBlocks(std::move(blocks));}
     size_t NumCoefficients() const override {return itsProjector->NumCoefficients();}
     Projections Zero() const override {return itsProjector->Zero();}
     void StarAverage(Projections& p, const Symmetry::StarGroup& group) const override

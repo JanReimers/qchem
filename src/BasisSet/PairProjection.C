@@ -34,6 +34,8 @@ module;
 #include <vector>
 #include <memory>
 #include <utility>
+#include <array>      // PairProjection::foldDomain
+#include <cstdint>    // uint64_t (foldDomain: two instance serials)
 // ★ IT IS DELIBERATELY NOT `.Internal.` (promoted 2026-09-10) -- and the label was not merely unhelpful,
 // it was ILLEGAL.  CLAUDE.md: *"Only re-export modules that don't have `.Internal.` in the module name; the
 // goal is to avoid importing internals across library boundaries."*  Two PUBLIC modules were re-exporting
@@ -104,6 +106,20 @@ template <class T> struct PairProjection
     //! leaf names no GPW/grid type.  The PairProjection stays a static-data "spec of required transfers" with an
     //! optional realization.
     std::function<ΔG_Map(const hmat_t<T>& D)> apply;
+    //! \name THE k-FOLD (lane A 2026-11-22; user ruling "I agree A": the whole density collocates itself)
+    //! Several Bloch blocks of ONE lattice basis on ONE raster ladder collocate the SAME pair products; only each block's coefficient
+    //! \f$\mathrm{Re}[D^k_{ij}e^{-ik\cdot R}]\f$ differs.  \ref applyFolded is \ref apply for the SUM of such blocks' densities in one box
+    //! walk; \ref foldDomain says which blocks may join one (equal and non-zero: the same lattice basis and ladder), and \ref foldPhase
+    //! is this block's own offset phase, which the fold reads per term.  Set together by a basis that can fold (GPW); zero / empty
+    //! otherwise, and a projector then contracts block by block through \ref apply.
+    //!@{
+    std::array<uint64_t,2> foldDomain{0,0};
+    std::function<dcmplx(const ivec3_t& n)> foldPhase;
+    //! The forward of \f$\sum_b\rho[D_b]\f$ for terms (D_b, block b's projection), every block in MY \ref foldDomain: one collocation.
+    std::function<ΔG_Map(const std::vector<std::pair<const hmat_t<T>*, const PairProjection*>>& terms)> applyFolded;
+    //! The RAW-raster twin of \ref applyFolded (\ref applyRaw for the summed blocks).
+    std::function<rvec_t(const std::vector<std::pair<const hmat_t<T>*, const PairProjection*>>& terms)> applyRawFolded;
+    //!@}
     //! MATRIX-FREE BACKWARD -- the ADJOINT of \ref apply: assemble the KS matrix \f$\langle i|f|j\rangle=\sum_k
     //! f(G_k)\,W_k(i,j)\f$ from a fitted G-space field \a f (\f$v_{xc}\f$ or \f$V_H\f$).  For a plane-wave basis
     //! this is the Fourier lookup \f$f(m_i-m_j)\f$; for GPW the analytic integrate-back on the fit grid's

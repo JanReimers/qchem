@@ -38,6 +38,7 @@ target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES F
     Types.C
     DensitySampler.C                      # abstract face + factory: the whole client surface
     Internal/DensitySampler.C             # the three concrete strategies
+    Internal/FoldableBlock.C              # the k-fold face a periodic block answers (the composite gathers them)
     Internal/IrrepCD.C
     Internal/TransitionDensity.C          # the AO transition density concrete (friend: the FD oracle)
 )

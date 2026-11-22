@@ -15,6 +15,9 @@
 // density hub no longer names a Fitting type.
 module;
 #include <vector>
+#include <memory>
+#include <stdexcept>
+#include <string>
 export module qchem.BasisSet.PairProjector;
 export import qchem.BasisSet.Orbital_DFT_IBS;   // Orbital_DFT_IBS<U,TFit> (the block faces)
 export import qchem.Mesh.Integrator;            // MatrixForward<U>
@@ -43,6 +46,28 @@ public:
     virtual Projections Zero() const {return Projections(rvec_t(NumCoefficients(), 0.0));}
 };
 
+//! \brief ONE BLOCK of a periodic density in a k-FOLD (lane A 2026-11-22): exactly one of the two faces is set, a real TRIM block or a
+//! Bloch block (the lineage's two block types).
+struct FoldBlockRef
+{
+    const Orbital_DFT_IBS<double,dcmplx>* real =nullptr;
+    const Orbital_DFT_IBS<dcmplx,dcmplx>* bloch=nullptr;
+};
+//! The density matrix of one \c FoldBlockRef, on the SAME face (the density keeps its D; it hands a reference for one call).
+struct FoldBlockD
+{
+    const hmat_t<double>* real =nullptr;
+    const hmat_t<dcmplx>* bloch=nullptr;
+};
+//! \brief The forward for SEVERAL blocks of one density, vended by \c PairProjector<dcmplx>::ForwardBlocks: the density applies it to
+//! its blocks' D, in the order it named the blocks, and gets the SUM of their projections.
+class MultiBlockForward
+{
+public:
+    virtual ~MultiBlockForward() = default;
+    virtual Projections Forward(const std::vector<FoldBlockD>& Ds) const=0;
+};
+
 //! \brief The PERIODIC lineage: complex Bloch blocks and real TRIM blocks, both on the complex fit axis.
 template <> class PairProjector<dcmplx>
 {
@@ -61,6 +86,12 @@ public:
     //! (\c GMapStarField); a \f$\delta\f$ basis on a site-adapted invariant mesh, or an occupation axis, is already
     //! symmetric there, so the default does nothing -- which is today's behaviour for both.
     virtual void StarAverage(Projections& /*p*/, const Symmetry::StarGroup& /*group*/) const {}
+    //! \brief THE WHOLE DENSITY'S FORWARD (the k-FOLD, user ruling 2026-11-22 "I agree A"): one forward for SEVERAL blocks of one density.
+    //! A k-composite asks it once per projection instead of contracting block by block; the density then applies it to its D's (it
+    //! VENDS, as \c Forward does: D stays in the density).  A basis whose blocks collocate the same pair products (GPW: one lattice
+    //! basis at several k) overrides it to sum the blocks' coefficients BEFORE the grid -- one collocation whatever the k mesh.  The
+    //! DEFAULT is the block-by-block sum through \c Forward, today's behaviour, so every other projector is unchanged.
+    virtual std::unique_ptr<MultiBlockForward> ForwardBlocks(std::vector<FoldBlockRef> blocks) const;
 };
 
 //! \brief A field that knows its own FOURIER COMPONENTS on a plane-wave basis -- a generic \c ScalarFunction capability (user

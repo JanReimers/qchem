@@ -19,6 +19,8 @@ target_sources(qcBasisSet PRIVATE
   Imp/PairProjection.C
   Imp/GSpaceDensityProjector.C
   Imp/RasterDensityProjector.C
+  Imp/PairProjector.C
+  Internal/Imp/FoldedForward.C
   Internal/Imp/ERI4.C
   Internal/Imp/ERI4T.C
 
@@ -70,6 +72,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/PrimitiveStore.C             # one owner's Ω / RNLM / H3 caches (IntegralCacheOwnershipPlan S5)
   PairProjection.C
   PairProjector.C
+  Internal/FoldedForward.C              # the k-fold multi-block forward the folding projectors share (lane A 2026-11-22)
   GMap.C
   Internal/ERI4.C
   Internal/ERI4T.C

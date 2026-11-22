@@ -12,6 +12,7 @@ module qchem.CompositeCD;
 import qchem.BasisSet.G_RasterStarField; // the raster as a field my group star-averages
 import qchem.Blaze;
 import qchem.ChargeDensity.Types;
+import qchem.ChargeDensity.Internal.FoldableBlock;   // the k-fold: which blocks join one forward
 
 namespace qchem::ChargeDensity
 {
@@ -245,8 +246,18 @@ template <class T> Projections tComposite_CD<T>::Project(const BasisSet::PairPro
 }
 template <class T> Projections tComposite_CD<T>::Project(const BasisSet::PairProjector<dcmplx>& p) const
 {
+    // THE WHOLE DENSITY PROJECTS ITSELF (the k-FOLD, user ruling 2026-11-22 "I agree A"): the blocks that can join hand the projector
+    // their orbital blocks, it vends ONE forward for them, and I apply it to their D's -- so a basis whose k-blocks collocate the same
+    // pair products (GPW) sums them before the grid, once.  A block that declines (zero, factored, not a D block) projects itself.
     Projections ro;
-    for (const Block& b:itsBlocks) std::visit([&](const auto* c){ ro+=c->Project(p); }, b.cd);
+    std::vector<BasisSet::FoldBlockRef> fold;
+    std::vector<BasisSet::FoldBlockD>   foldD;
+    for (const Block& b:itsBlocks) std::visit([&](const auto* c)
+    {
+        const auto* f=dynamic_cast<const FoldableBlock*>(c);   // a cross-cast between abstract faces of one library's family
+        if (!f || !f->JoinFold(p, fold, foldD)) ro+=c->Project(p);
+    }, b.cd);
+    if (!fold.empty()) ro+=p.ForwardBlocks(std::move(fold))->Forward(foldD);
     // THE IBZ STAR-AVERAGE, ONCE, ON THE SUM (as GetFourierDensity always did).  I hold the group; the BASIS owns how its
     // functions transform under one op, so the projector wraps ro as a field the group averages (a no-op on a delta /
     // occupation axis: today's behaviour).

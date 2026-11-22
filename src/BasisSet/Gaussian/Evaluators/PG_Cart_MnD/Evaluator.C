@@ -2768,6 +2768,21 @@ public:
                                          const LatticeScreener& screener,
                                          double relFieldSharp=-1.0) const
     {
+        return CollocateDensityFolded({{&D,&phase}}, A, N_L, ecut_L, screener, relFieldSharp);
+    }
+    //! \brief THE k-FOLDED COLLOCATION (lane A 2026-11-22; user ruling "I agree A"): the SUM of several Bloch blocks' densities of
+    //! THIS lattice basis, \f$\rho=\sum_b\sum_{ij}\sum_R\mathrm{Re}[D^b_{ij}e^{-ik_b\cdot R}]\chi_i\chi_j(\cdot-R)\f$, in ONE box walk.
+    //! The product \f$\chi_i\chi_j(\cdot-R)\f$ on a box is k-independent; only its coefficient depends on the block, so the blocks are
+    //! summed into the real-space density matrix \f$P_{ij}(R)=\sum_b\mathrm{Re}[D^b_{ij}e^{-ik_b\cdot R}]\f$ PER TASK and scattered once
+    //! (CP2K's route: one collocation per SCF step whatever the k mesh).  The screener rules on \f$|P_{ij}(R)|\f$, so the terms it drops
+    //! differ from the per-block route's at the screening tolerance.  ONE term is the single-block collocation, bit for bit.
+    //! \a terms: each block's D (its BZ weight already in it) and its offset phase; every D on this basis's functions.
+    std::vector<rvec_t> CollocateDensityFolded(const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms, const UnitCell& A,
+                                               const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
+                                               const LatticeScreener& screener,
+                                               double relFieldSharp=-1.0) const
+    {
+        if (terms.empty()) throw std::logic_error("CollocateDensityFolded: no density to collocate");
         const size_t K=N_L.size();
         assert(K>0 && ecut_L.size()==K);
         // THE SUPERSET INVARIANT (see BoxTasks): the task list is screened once at kDensityEps, and a
@@ -2790,7 +2805,9 @@ public:
         // T3.5: the reduced scatter reads the ORBIT-PROJECTED D at each representative, never the
         // representative's own element -- see FoldProjectedD.  O(n^2) per call beside an O(pairs x points)
         // scatter, and it is what makes the folded density equal the unfolded imposed one for ANY iterate.
-        const std::vector<dcmplx> Dsym=FoldProjectedD(D);
+        std::vector<std::vector<dcmplx>> Dsym;                  // per term
+        for (const auto& t : terms) Dsym.push_back(FoldProjectedD(*t.first));
+        const size_t nT=terms.size();
         const std::vector<ShellPairTasks>& tl=BoxTasks(A);
         // THE SHELL-BLOCKED SCATTER -- now the ONLY route.  Every component pair of ONE shell pair shares
         // its box walk: offsets, level, geometry, ellipsoid pre-screen and wrap are all shell properties.
@@ -2816,7 +2833,9 @@ public:
                 {
                     if (sf) { const PairEdge& pe=sf->pairs[i*nn+j];
                               if (pe.dead || pe.rep!=int(i*nn+j)) continue; }
-                    if ((sf ? Dsym[i*nn+j] : dcmplx(D(i,j)))==dcmplx(0.0)) continue;
+                    bool live=false;                                    // a pair any term carries
+                    for (size_t t=0;t<nT && !live;t++) live=(sf ? Dsym[t][i*nn+j] : dcmplx((*terms[t].first)(i,j)))!=dcmplx(0.0);
+                    if (!live) continue;
                     want.push_back(i*nn+j);
                 }
             if (want.empty()) return;
@@ -2841,6 +2860,7 @@ public:
             // accumulates \c cw = c*wm.  Allocated ONCE per shell pair and reset per offset, so a task costs
             // no allocation; the ScreenPlan's mask likewise reuses its buffer (see ScreenPlan).
             rmat_t cij(nIs,nJs,0.0), cw(nIs,nJs,0.0);
+            std::vector<dcmplx> phs(nT);                                // each term's offset phase at the task, filled per task
             ScreenPlan plan;
             for (const BoxTask& task : tl[sp].tasks)                     // the hoisted geometry (see BoxTasks)
             {
@@ -2850,7 +2870,7 @@ public:
                 // ONE phase query per TASK, not per component pair: the offset phase is a property of n and
                 // every component of this shell pair asked for the same one.  Bit-identical (same value, same
                 // multiplication order), and it pays for the block fill below.
-                const dcmplx ph=std::conj(phase(n));
+                for (size_t t=0;t<nT;t++) phs[t]=std::conj((*terms[t].second)(n));
                 for (size_t key : want)
                 {
                     const size_t i=key/nn, j=key%nn;
@@ -2863,8 +2883,12 @@ public:
                         if (it==mm.end() || it->second==0) continue;    // member offset: its rep carries it
                         wm=double(sf->pairs[key].pairMult)*double(it->second);
                     }
-                    const dcmplx Dij = sf ? Dsym[key] : dcmplx(D(i,j));        // T3.5: the orbit-projected D
-                    const double c=((i==j)?1.0:2.0)*std::real(Dij*ph);
+                    double c=0.0;                                       // P_ij(R): the blocks' coefficients summed
+                    for (size_t t=0;t<nT;t++)
+                    {
+                        const dcmplx Dij = sf ? Dsym[t][key] : dcmplx((*terms[t].first)(i,j));   // T3.5: the orbit-projected D
+                        c+=((i==j)?1.0:2.0)*std::real(Dij*phs[t]);
+                    }
                     // MEMBER rule: the SCREEN sees |c|, never |c*wm|, so the reduced box matches every orbit
                     // member's.  The scatter still gets c*wm.  (c==0 leaves the slot at 0 = "absent", which
                     // is what every screener reads it as.)

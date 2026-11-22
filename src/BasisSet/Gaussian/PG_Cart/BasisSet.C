@@ -136,6 +136,11 @@ public:
                                                  const std::vector<double>& ecut_L,
                                                  const LatticeScreener& screener,
                                                  double relFieldSharp=-1.0) const override;
+    virtual std::vector<rvec_t> CollocateDensityFolded(const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms, const UnitCell& A,
+                                                       const std::vector<ivec3_t>& N_L,
+                                                       const std::vector<double>& ecut_L,
+                                                       const LatticeScreener& screener,
+                                                       double relFieldSharp=-1.0) const override;
     virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                        const std::vector<ivec3_t>& N_L,
                                        const std::vector<double>& ecut_L,

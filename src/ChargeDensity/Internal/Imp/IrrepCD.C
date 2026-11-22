@@ -462,6 +462,18 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
     return true;
 }
 
+template <class T> bool IrrepCD_Core<T>::JoinFold(const BasisSet::PairProjector<dcmplx>&, std::vector<BasisSet::FoldBlockRef>& blocks,
+                                                    std::vector<BasisSet::FoldBlockD>& Ds) const
+{
+    if (IsZero()) return false;   // my Project answers the projector's own zero; nothing to collocate
+    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,dcmplx>&>(*itsBasisSet);   // as Project: an abstract face of my block
+    BasisSet::FoldBlockRef o; BasisSet::FoldBlockD d;
+    if constexpr (std::is_same_v<T,double>) { o.real =&orb; d.real =&itsDensityMatrix; }
+    else                                    { o.bloch=&orb; d.bloch=&itsDensityMatrix; }
+    blocks.push_back(o); Ds.push_back(d);
+    return true;
+}
+
 template <class T> Projections IrrepCD_Core<T>::Project(const BasisSet::PairProjector<dcmplx>& p) const
 {
     // A zero block answers in the PROJECTOR's own realization (a G-space projector's empty map, a δ projector's zero
@@ -657,6 +669,15 @@ template class PeriodicIrrepCD_RealEnergy<PeriodicIrrepCD<double>>;
 // ProjectOnto, i.e. an O(n^3) pstrf on EVERY call -- and DensitySampler::RhoPol calls it twice per
 // iteration (one per spin channel).  Keyed on the density serial, the factor is now built once per D.
 //
+template <class Leaf> bool FactoredRho<Leaf>::JoinFold(const BasisSet::PairProjector<dcmplx>& p, std::vector<BasisSet::FoldBlockRef>& blocks,
+                                                         std::vector<BasisSet::FoldBlockD>& Ds) const
+{
+    if (this->IsZero()) return false;
+    const auto& o=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,dcmplx>&>(*this->itsBasisSet);
+    if (p.Forward(o).FactorPays()) return false;   // my Project may take the factored path: it stays my own call
+    return Leaf::JoinFold(p, blocks, Ds);
+}
+
 template <class Leaf> Projections FactoredRho<Leaf>::Project(const BasisSet::PairProjector<dcmplx>& p) const
 {
     if (this->IsZero()) return p.Zero();   // as IrrepCD_Core::Project

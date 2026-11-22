@@ -449,6 +449,10 @@ std::vector<rvec_t> Orbital_IBS::CollocateDensity(const chmat_t& D, const cellph
                                                   const std::vector<double>& ecut_L,
                                                   const LatticeScreener& screener, double relFieldSharp) const
 {   return NR_Evaluator::CollocateDensity(D,phase,A,N_L,ecut_L,screener,relFieldSharp); }
+std::vector<rvec_t> Orbital_IBS::CollocateDensityFolded(const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms, const UnitCell& A,
+                                                        const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
+                                                        const LatticeScreener& screener, double relFieldSharp) const
+{   return NR_Evaluator::CollocateDensityFolded(terms,A,N_L,ecut_L,screener,relFieldSharp); }
 chmat_t Orbital_IBS::IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                         const std::vector<ivec3_t>& N_L,
                                         const std::vector<double>& ecut_L,

@@ -326,6 +326,15 @@ public:
                                                  const std::vector<double>& ecut_L,
                                                  const LatticeScreener& screener,
                                                  double relFieldSharp=-1.0) const = 0;
+    //! \brief The SAME collocation for the SUM of several Bloch blocks of this basis, in ONE box walk (the k-FOLD, lane A 2026-11-22):
+    //! \f$\sum_b\rho[D^b,k_b]\f$, with the blocks' coefficients summed per (pair, offset) into the real-space density matrix
+    //! \f$P_{ij}(R)=\sum_b\mathrm{Re}[D^b_{ij}e^{-ik_b\cdot R}]\f$ before the walk, so its cost is one block's whatever the k mesh.
+    //! \a terms: each block's D (BZ weight included) and its offset phase.  One term IS \c CollocateDensity, bit for bit.
+    virtual std::vector<rvec_t> CollocateDensityFolded(const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms, const UnitCell& A,
+                                                       const std::vector<ivec3_t>& N_L,
+                                                       const std::vector<double>& ecut_L,
+                                                       const LatticeScreener& screener,
+                                                       double relFieldSharp=-1.0) const = 0;
 
     //! \brief The collocation ADJOINT (integrate-back): the KS block \f$h_{ij}=\langle\chi_i^k|V|\chi_j^k\rangle
     //! =\sum_R e^{ik\cdot R}\,w_L\sum_{\text{box}}\chi_i(r)\chi_j(r-R)V(r)\f$, per (pair, offset) on the SAME

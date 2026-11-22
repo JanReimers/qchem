@@ -27,6 +27,7 @@ import qchem.BasisSet.Orbital_PP_IBS;                            // SpeciesRadia
 import qchem.Symmetry.StarGroup;                                 // StarGroup: the imposed group the grids report's {G}-star column asks
 import qchem.Structure;
 import qchem.UnitCell;
+export import qchem.InstanceToken;   // Instance(): which ladder a block collocates through (the k-fold's domain)
 import qchem.ReciprocalLattice;
 import qchem.Types;
 
@@ -116,6 +117,8 @@ public:
     void PrintGrids(std::ostream& os, size_t nFunctions, const Symmetry::StarGroup* group) const;
 
     const RasterLadderInputs& Inputs() const {return itsInputs;}   //!< what the ladder was built from (a handed-in ladder is checked)
+    //! This ladder's identity: blocks that collocate through ONE ladder (and one lattice basis) may fold their densities before the grid.
+    const InstanceToken& Instance() const {return itsInstance;}
     double CutoffFactor() const {return itsInputs.cutoffFactor;}   //!< C in the auto density floor C*alpha_max
     double LadderFactor() const {return itsInputs.ladderFactor;}   //!< the coarse-level progression factor
 
@@ -134,6 +137,7 @@ private:
     GPWTolerances itsTol;
     std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> itsGrid;
     RasterLevels  itsLevels;
+    InstanceToken itsInstance;
 };
 
 //! \brief Build a ladder over \a cell from \a mol's one Gaussian orbital block (its \c MakeResolution).  The one place a ladder is made

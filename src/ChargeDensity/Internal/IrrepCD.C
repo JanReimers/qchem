@@ -27,12 +27,14 @@ module;
 #include <string>
 #include <type_traits>
 #include <memory>
+#include <vector>   // JoinFold (the k-fold)
 export module qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.Structure;   // DM_Pullback (GeometryOptimizationPlan §13.2)
 
 export import qchem.ChargeDensity;
 export import qchem.ChargeDensity.DensityMatrixDistance;
 export import qchem.Symmetry.Irrep;
+export import qchem.ChargeDensity.Internal.FoldableBlock;   // the k-fold face a periodic block answers
 import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
@@ -73,6 +75,7 @@ private:
 template <class T> class IrrepCD_Core
     : public virtual tDM_CD<T>
     , public virtual tDensityMatrixDistance<T>
+    , public virtual FoldableBlock
 {
 public:
     typedef  mat_t<T>  DenMat;
@@ -90,6 +93,9 @@ public:
     //! \copydoc tChargeDensity::Project -- the PERIODIC lineage: contract my D into the block's forward.
     virtual Projections Project(const BasisSet::PairProjector<dcmplx>&) const override;
     using tChargeDensity<T>::Project;   // the molecular overload (FiniteIrrepCD overrides it)
+    //! \copydoc FoldableBlock::JoinFold -- a non-zero block joins with its orbital block and its D (its \c Project contracts exactly that).
+    virtual bool JoinFold(const BasisSet::PairProjector<dcmplx>& p, std::vector<BasisSet::FoldBlockRef>& blocks,
+                          std::vector<BasisSet::FoldBlockD>& Ds) const override;
     //! The old face, kept one commit (V-ONE-OF-N 3a): forwards to \c Project.
     virtual double GetTotalCharge(                      ) const override;
 
@@ -213,6 +219,9 @@ template <class Leaf> class FactoredRho : public Leaf
 public:
     using Leaf::Leaf;                       // as the leaves already do from the core
 
+    //! A block that would take its FACTORED path declines the fold (its projection is its own call); otherwise the leaf's rule.
+    virtual bool JoinFold(const BasisSet::PairProjector<dcmplx>& p, std::vector<BasisSet::FoldBlockRef>& blocks,
+                          std::vector<BasisSet::FoldBlockD>& Ds) const override;
     //! \copydoc IrrepCD_Core::Project
     //! Factored route; falls back to \c Leaf::Project (the full quadratic form) whenever the factor
     //! does not apply -- D not PSD, or a rank too fat to pay for itself.  Same values either way.
