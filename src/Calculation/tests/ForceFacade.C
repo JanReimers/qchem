@@ -61,11 +61,18 @@ public:
         return t;
     }
     static MoleculeCalculation::Carry Carry(const MoleculeCalculation& c) {return c.MakeCarry();}
+    //! The setup's point at the POSITIONS of \a at (V-MESH-FACTORY: a point comes out of the setup's typed builder, with its mesh maker).
+    static MoleculeSetup::Point PointAt(const MoleculeSetup& setup, const Structure& at)
+    {
+        std::vector<rvec3_t> R;
+        at.ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(r); });
+        return setup.MakePoint(R);
+    }
     //! THE FIXED-D HELPER: every term's energy at structure \a at, with the carried AO density \a D frozen on that point's basis.
     static std::vector<Hamiltonian::TermEnergy> TermEnergiesAt(std::shared_ptr<const MoleculeSetup> setup, const Structure& at,
                                                                const MoleculeCalculation::Carry& D)
     {
-        MoleculeCalculation c(MoleculeCalculation::BuildOnly{}, setup, at, nullptr, nullptr);
+        MoleculeCalculation c(MoleculeCalculation::BuildOnly{}, setup, PointAt(*setup, at), nullptr, nullptr);
         c.BuildGraph();
         const auto cd=c.MakeCarriedDensity(D);
         c.itsHam->RefreshForDensity(c.itsBasis, cd.get());
@@ -118,7 +125,7 @@ public:
     static std::vector<Hamiltonian::TermForce> TermForcesAt(std::shared_ptr<const MoleculeSetup> setup, const Structure& at,
                                                             const MoleculeCalculation::Carry& D)
     {
-        MoleculeCalculation c(MoleculeCalculation::BuildOnly{}, setup, at, nullptr, nullptr);
+        MoleculeCalculation c(MoleculeCalculation::BuildOnly{}, setup, PointAt(*setup, at), nullptr, nullptr);
         c.BuildGraph();
         const auto cd=c.MakeCarriedDensity(D);
         c.itsHam->RefreshForDensity(c.itsBasis, cd.get());
@@ -129,7 +136,7 @@ public:
     //! The whole energy breakdown at structure \a at with \a D frozen: for terms MakeTermEnergies leaves out (the whole-system HF ones).
     static EnergyBreakdown TotalEnergyAt(std::shared_ptr<const MoleculeSetup> setup, const Structure& at, const MoleculeCalculation::Carry& D)
     {
-        MoleculeCalculation c(MoleculeCalculation::BuildOnly{}, setup, at, nullptr, nullptr);
+        MoleculeCalculation c(MoleculeCalculation::BuildOnly{}, setup, PointAt(*setup, at), nullptr, nullptr);
         c.BuildGraph();
         const auto cd=c.MakeCarriedDensity(D);
         c.itsHam->RefreshForDensity(c.itsBasis, cd.get());
@@ -161,7 +168,7 @@ public:
     //! unblocked molecular basis).
     static hmat_t<double> TermMatrix(const MoleculeCalculation& c, const MoleculeCalculation::Carry& D, const std::string& entries)
     {
-        MoleculeCalculation b(MoleculeCalculation::BuildOnly{}, c.itsSetup, *c.itsStructure, nullptr, nullptr);
+        MoleculeCalculation b(MoleculeCalculation::BuildOnly{}, c.itsSetup, PointAt(*c.itsSetup, *c.itsStructure), nullptr, nullptr);
         b.BuildGraph();
         const auto cd=b.MakeCarriedDensity(D);
         b.itsHam->RefreshForDensity(b.itsBasis, cd.get());

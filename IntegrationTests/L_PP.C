@@ -133,35 +133,7 @@ TEST(L_PP, NonLocalMatrixLatticeMatchesFinite)
     EXPECT_LT(RelDiff(Mcell, Mfin), 1.0e-2);
 }
 
-// GPW step 1 (doc/MolecularPP_HarmonizationRound2.md section 1.D.2): the qchem::MoleculeCalculation FACADE must
-// PRESERVE the concrete geometry.  Before Structure::Clone the ctor did make_shared<Molecule>(st), which
-// deep-copied ANY structure to a finite Molecule -- silently stripping periodicity.  Here the SAME atom is
-// run through the facade both as a finite Molecule and centred in a periodic UnitCell: the lattice run's
-// facade-owned structure must still be periodic (its group HasLattice) and its ion-ion term must be the Ewald
-// lattice sum (a Molecule-slice would give the single-atom pair-sum 0).  Those are the teeth -- a
-// sliced-to-Molecule facade fails both.
-//
-// This guards the FACADE routing, so it deliberately uses the cheap grid-free HF path (not the uniform-mesh
-// PP-DFT SCF): the same Clone() seam serves the PP path, and the two L_PP matrix tests above already prove
-// the PP terms are bit-identical on a UnitCell's uniform mesh.  A correct periodic-DFT total energy (the G=0
-// Hartree background) is GPW step 4, not this step.
-TEST(L_PP, FacadePreservesUnitCell)
-{
-    // Finite reference through the facade: He at the origin (Enn = 0 for one atom -- no ion-ion pair).
-    Molecule he; he.Insert(Site{2, {0,0,0}});
-    auto cFin=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(he, {.molecule={.basis="dzvp"}})).TakeValue(); (void)cFin->Converge();
-    EXPECT_FALSE(cFin->GetStructure().MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice());   // a Molecule stays finite
-    EXPECT_NEAR(cFin->EnergyTerms()["Enn"], 0.0, 1e-12);      // single finite atom -> no ion-ion
-
-    // Lattice run: the same He centred in a cubic cell.  The facade must keep the UnitCell periodic.
-    const double a = 10.0;
-    UnitCell cell(a);
-    cell.AddAtom(2, {0.5,0.5,0.5});
-    auto cCell=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(cell, {.molecule={.basis="dzvp"}})).TakeValue(); (void)cCell->Converge();
-
-    EXPECT_TRUE(cCell->GetStructure().MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice());       // periodic, not sliced to a Molecule
-    EXPECT_NEAR(cCell->GetStructure().GetNumElectrons(), 2.0, 1e-12);  // He, charge preserved by Clone
-
-    // The ion-ion term routed through the periodic Ewald sum (a sliced single-atom Molecule would give 0).
-    EXPECT_GT(std::fabs(cCell->EnergyTerms()["Enn"]), 1e-3);
-}
+// L_PP.FacadePreservesUnitCell (GPW step 1) RETIRED by V-MESH-FACTORY step 2 (2026-11-22): it ran a UnitCell through the MOLECULAR
+// facade to prove the facade's structure copy did not slice it to a finite Molecule.  MoleculeSetup's doors now take a concrete
+// `const Molecule&` (UnitCell's Molecule base is private), so a cell cannot reach the molecular facade at all: the slicing the test
+// guarded against is refused at COMPILE time.  Periodic runs go through SolidSetup / SolidCalculation.

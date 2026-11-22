@@ -10,118 +10,14 @@ module;
 module qchem.Structure;
 import qchem.Streamable;
 import qchem.Symmetry.Molecule.AbelianGroup;   // BuildAbelianGroup, Centroid (MakeSymmetry)
-import qchem.Mesh.Product;         // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
-import qchem.Mesh.Builder;         // MeshBuilder (efficient incremental accumulation)
-import qchem.Mesh.BeckePartition;  // BeckePartitionWeight (the partition, one home with its geometry gradient)
-import qchem.Reporting;            // the mesh files its fields one level into the caller's report scope (Set; inert outside a run)
+import qchem.Structure.MeshFactory;   // MakeMesh (TRANSITIONAL: CreateIntegrationMesh delegates until V-MESH-FACTORY §8 step 4 deletes it)
 
 namespace qchem {
 
-// ---- The Becke molecular integration mesh (module-internal; the impl behind CreateIntegrationMesh) --------
-// A. D. Becke, J. Chem. Phys. 88(4), 2547 (1988).  Cell function for atom i at point r:
-//   p_i(r) = prod_{j != i} s(mu_ij),   mu_ij = (|r-R_i| - |r-R_j|) / |R_i - R_j|,   s(mu) = 1/2(1 - f_k(mu)).
-// mu is bounded in [-1,1] for ANY nonzero separation (reverse triangle inequality); the only singularity is
-// exactly coincident atoms (R_ij = 0), where we set mu = 0 (so s = 1/2 -> a coincident dimer integrates to
-// the single-atom result).  Serves both Atom (natom==1: just the shifted product grid) and Molecule.
-// The smoothing polynomial s(mu) is the shared qcMesh::BeckeCutoff (also used by the periodic
-// UnitCell Becke partition).
-using qcMesh::BeckeCutoff;
-
-// A STATED uniform cell mesh is refused: it would impose a translation group this structure lacks (a representation may not
-// impose a symmetry the structure lacks -- UTHamiltonian VxcProductSpace).  \c Auto and \c Becke both mean the atom-centred mesh.
-// Until 2026-10-31 \c cellKind was ignored here, so a uniform request ran Becke silently.
-static void RefuseCellMesh(const qcMesh::MeshParams& mp, const char* what)
-{
-    if (mp.cellKind==qcMesh::UnitCellKind::Uniform)
-        throw std::invalid_argument(std::string(what)+": a uniform CELL mesh imposes a translation group; this structure has none "
-                                    "(point-group symmetry only) -- To fix this, please state cellKind Becke or Auto -- the atom-centred mesh.");
-}
-
-// THE MESH REPORTS ITSELF as it is built (OpenWork §3 "A molecule's mesh never reports itself", 2026-11-02), ONE LEVEL IN:
-// the CALLER opens a report::Scope naming itself (the XC quadrature, a PP term, the auxiliary fit, the residual measure ...)
-// and this builder writes cursor-relative fields there -- the periodic builder's field names (UnitCell.C), never a key or a
-// path of its own (user ruling: the caller sets the context, the callee reports one level in).  Inert outside a run.
-static const char* RadialName(qcMesh::RadialKind r)
-{
-    switch (r)
-    {
-        case qcMesh::RadialKind::MHL:    return "MHL";
-        case qcMesh::RadialKind::Log:    return "Log";
-        case qcMesh::RadialKind::Linear: return "Linear";
-        case qcMesh::RadialKind::DE2:    return "DE2";
-    }
-    return "?";
-}
-static const char* AngularName(qcMesh::AngularKind a)
-{
-    switch (a)
-    {
-        case qcMesh::AngularKind::Lebedev:       return "Lebedev";
-        case qcMesh::AngularKind::GaussLegendre: return "GaussLegendre";
-        case qcMesh::AngularKind::None:          return "none (radial-only)";
-    }
-    return "?";
-}
-static void ReportMolecularMesh(size_t natom, const qcMesh::MeshParams& mp, size_t nDirs, size_t total, size_t kept)
-{
-    namespace rpt=qchem::report;
-    rpt::Set("kind", "Becke"); rpt::Set("natom", (long)natom); rpt::Set("radial", RadialName(mp.radial));
-    rpt::Set("nRadial", mp.nRadial); if (mp.radial==qcMesh::RadialKind::DE2) { rpt::Set("de2_alpha", mp.de2_alpha); rpt::Set("de2_rMax", mp.de2_rMax); } else rpt::Set("mhl_alpha", mp.mhl_alpha); rpt::Set("angular", AngularName(mp.angular));
-    rpt::Set("L", mp.angularDegree); rpt::Set("nDirs", (long)nDirs); rpt::Set("beckeOrder", mp.beckeOrder);
-    rpt::Set("points", (long)kept); rpt::Set("dropped", (long)(total-kept));
-}
-
-qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams& mp)
-{
-    RefuseCellMesh(mp, "the atom-centred (molecule / atom) mesh");
-    // WHAT THIS MESH FORCES, from the one descriptor (qcMesh::Forces; doc/Pins.md pin 30, Group face step 3b) in the structure's own frame
-    // (its group's: an atom offers its site, a molecule's finite point group offers no centre).  Only the radial-only set (angular none)
-    // forces anything, O(3) about the one centre, so it exists only on the atom: elsewhere a CONSTRUCTION REFUSAL, the descriptor's reason.
-    Symmetry::GroupPtr forced=Symmetry::TrivialGroup();
-    if (mp.angular==qcMesh::AngularKind::None)
-    {
-        const auto H=qcMesh::Forces(mp, atoms.MakeSymmetry(Symmetry::kAdmissionTolerance)->MakeFrame());
-        if (!H) throw std::invalid_argument("the atom-centred mesh: "+H.Error()+" (doc/Pins.md pin 30)");
-        forced=H.Value();
-    }
-    const int beckeOrder=mp.beckeOrder;
-    assert(beckeOrder>=0);
-    size_t natom=atoms.GetNumAtoms();
-
-    std::vector<rvec3_t> R(natom);
-    for (size_t i=0; i<natom; i++) R[i]=atoms.Sites()[i].R;
-
-    qcMesh::RadialMesh  rad=qcMesh::MakeRadial(mp);   // one single-center template reused (ShiftOrigin per atom)
-    qcMesh::AngularMesh ang=qcMesh::MakeAngular(mp);
-
-    qcMesh::MeshBuilder out;
-    for (size_t ia=0; ia<natom; ia++)
-    {
-        out.BeginSite();   // one block per atom, in atom order (SiteIntegrals, the radial Poisson operator)
-        qcMesh::Mesh am=qcMesh::ProductMesh(rad,ang);
-        am.ShiftOrigin(R[ia]);
-        const rvec3vec_t& pts=am.Points();
-        const rvec_t&     wts=am.Weights();
-        for (size_t q=0; q<am.size(); q++)
-        {
-            const rvec3_t& r=pts[q];
-            if (natom==1) { out.Append(r,wts[q]); continue; }
-
-            // ONE home for the partition weight: the force's grid response differentiates exactly this (qchem.Mesh.BeckePartition)
-            const double w=qcMesh::BeckePartitionWeight(R, ia, r, beckeOrder);
-            if (w>0.0) out.Append(r, wts[q]*w);
-        }
-    }
-    qcMesh::Mesh mesh=out.take();
-    mesh.InstallForces(forced);
-    ReportMolecularMesh(natom, mp, ang.size(), rad.size()*ang.size()*natom, mesh.size());
-    return mesh;
-}
-
-// A molecule's integration mesh is the multi-centre Becke-partitioned grid.
+// A molecule's integration mesh is the multi-centre Becke-partitioned grid, built by the structure mesh factory (Imp/MeshFactory.C).
 qcMesh::Mesh Molecule::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
 {
-    return MakeMolecularMesh(*this, mp);
+    return MakeMesh(*this, mp);
 }
 
 Molecule::Molecule(const Structure& atoms)
