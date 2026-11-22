@@ -23,6 +23,11 @@ import qchem.SCFCap;   // BoundedSCF: the failure arm runs a deliberately bounde
 import qchem.BasisSet.Gaussian.Point.BasisFiles;   // BasisFile / BasisFileChecksum (a stated basis file)
 import qchem.Reporting;   // the run report the molecular mesh files itself into
 import qchem.Mesh;        // qcMesh::AngularKind (the atom's radial-only XC set)
+import qchem.SolidCalculation;   // the GPW twin of the no-PP-quadrature gate
+import qchem.Materials;
+import qchem.Lattice_3D;
+import qchem.UnitCell;
+import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSetData::SIPP_SR
 
 using namespace qchem;
 using StructureData::GetMolecule;
@@ -78,6 +83,46 @@ TEST(CalculationFacade, APseudopotentialOnAGaussianBasisBuildsNoPPQuadrature)
     ASSERT_TRUE(calc->IsConverged());
     EXPECT_FALSE(built) << "a PP quadrature was built for a basis that assembles the PP terms in closed form";
     EXPECT_FALSE(stray) << "a PP mesh filed under basis";
+}
+
+namespace
+{
+//! Is \a key a member of any object at any depth of \a j?  (A report scope nests where the run sequence calls in, so a gate that a scope
+//! is ABSENT searches the whole report rather than one path, which would rot with the sequence.)
+template <class J> bool HasKeyAnywhere(const J& j, const std::string& key)
+{
+    if (j.is_object())
+    {
+        if (j.contains(key)) return true;
+        for (auto it=j.begin(); it!=j.end(); ++it) if (HasKeyAnywhere(it.value(), key)) return true;
+    }
+    else if (j.is_array())
+        for (const auto& e : j) if (HasKeyAnywhere(e, key)) return true;
+    return false;
+}
+}
+
+//! The GPW twin (V-MESH-FACTORY step 1, controller 2026-11-21): a GTH projector set has a closed-Gaussian face, so the GPW basis assembles
+//! the nonlocal PP analytically (GPW_Evaluator's SpeciesProjectorSet_Gaussian branch) and builds NO `ppNonLocal` mesh.  The mesh is the
+//! fallback for a projector model without that face; this gate keeps the analytic path from silently falling back when the PP mesh's
+//! construction moves (its fallback arm is gated by GPW.AnalyticSeparablePPMatchesMesh).
+TEST(CalculationFacade, AGTHPseudopotentialOnGPWBuildsNoPPNonLocalMesh)
+{
+    bool reached=false, built=true;
+    qchem::report::Run run("Si gpw gth");
+    RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.label="gpw gth no pp mesh"; o.accuracy.eps=0.0;   // stated raster: no pilot
+    auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(Lattice_3D(UnitCell(*Materials::Get("Si_diamond").cell), ivec3_t(1,1,1)),
+                                                            {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o),
+                                        [&](const SCFIterator::IterationRow& p)
+                                        {
+                                            if (p.iteration!=1) return;
+                                            const auto& doc=qchem::report::CurrentRunReport();
+                                            reached=doc.contains("hamiltonian");
+                                            built  =HasKeyAnywhere(doc, "ppNonLocal");
+                                        }).TakeValue();
+    ASSERT_TRUE(calc->Converge());
+    ASSERT_TRUE(reached) << "the report never got to the Hamiltonian, so the absence below would prove nothing";
+    EXPECT_FALSE(built) << "a GTH run built the ppNonLocal mesh: the analytic KB path fell back to the mesh quadrature";
 }
 
 TEST(CalculationFacade, LevelsListEveryMOAscendingAndTheOccupiedOnesAreTheOrbitals)
