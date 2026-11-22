@@ -240,6 +240,7 @@ private:
     bool          itsPiloted       = false;   //!< the pilot ran (once per calculation: a later Converge keeps its mesh)
     bool          itsFitConfirmed  = false;   //!< the Coulomb-fit check ran on a converged density (once per calculation)
     MeshPilotCost itsPilotCost;
+    size_t itsIterations=0;   //!< the last Converge's SCF iterations, the pilot's re-convergences included (the iterator counts only its own)
     Carry MakeCarry() const;
     //! The carry a session hands the NEXT point: this point's blocks (\c SnapshotState), carried there by \c CarryOntoThisBasis.
     Carry MakeMovedCarry(double displacement) const;
