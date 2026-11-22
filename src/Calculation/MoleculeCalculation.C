@@ -211,11 +211,12 @@ private:
         std::optional<SavedState>   moved;              //!< a session step: D and S of the previous point (\c MakeMovedCarry)
         double                      displacement = 0.0; //!< the step's largest atom move (bohr), for \c RestartedFrom
     };
-    //! The point at \a at (\c setup->reference's atoms, moved), seeded from \a carry when given (a WorkingDensity), else from the
-    //! setup's seed strategy.  \c Prepare is this at the reference with no carry; a \c MoleculeSession point, this at its atoms.
+    //! The point \a point (\c MoleculeSetup::MakePoint: the setup's reference atoms, moved, with the mesh maker over them), seeded from
+    //! \a carry when given (a WorkingDensity), else from the setup's seed strategy.  \c Prepare is this at the reference with no carry; a
+    //! \c MoleculeSession point, this at its atoms.
     struct BuildOnly {};
     //! Everything but the SCF: the members and the electron configuration (the graph is \c BuildGraph's).
-    MoleculeCalculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
+    MoleculeCalculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, MoleculeSetup::Point point, std::unique_ptr<const Carry> carry,
                 Observer onIteration, bool geometryPoint=false);
     //! The accelerator, the basis (first time), the Hamiltonian and the SCF iterator -- inside the caller's open report run.
     void BuildGraph();
@@ -298,6 +299,7 @@ private:
     //! (its structure, EC, basis, Hamiltonian) or its SCF state.
     std::shared_ptr<const MoleculeSetup> itsSetup;
     std::shared_ptr<const Structure>     itsStructure;  //!< the point's structure (valence-charged under a PP); the Hamiltonian shares it
+    std::shared_ptr<const qcMesh::MeshMaker> itsMeshMaker;  //!< builds meshes over \c itsStructure (StructureMeshMaker of its concrete type)
     ElectronConfiguration*               itsEC    = nullptr;  //!< owned
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
     //! The run's ONE Coulomb (Dunlap) fit on \c itsBasis (doc/IntegralCacheOwnershipPlan.md S2b): the Hartree term of the first Hamiltonian

@@ -18,6 +18,7 @@ target_sources(qcMesh PRIVATE
 target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Mesh.C
     Recipe.C   # qchem.Mesh.Recipe: MeshParams and its kinds (V-MESH-FACTORY step 1)
+    Maker.C    # qchem.Mesh.Maker: the abstract MeshMaker seam (V-MESH-FACTORY step 2)
     GaussLegendre.C
     RadialMesh.C
     AngularMesh.C
