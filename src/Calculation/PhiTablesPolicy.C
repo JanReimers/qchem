@@ -217,4 +217,35 @@ inline BasisSet::PhiChooser MakeXCOrbitalTablesChooser(XCOrbitalTables stated)
     return [stated](const BasisSet::PhiFootprint& f){return XCOrbitalTablesPolicy(stated, f, QueryMemoryBudget(), QueryAvailableMemory());};
 }
 
+//! \brief THE GGA RULE (GGA stage 3, the periodic point route): the shared-Φ IMAGES realization has no gradient yet, so a GGA's δ tables are
+//! DENSE -- the Φ tables and the three ∂Φ tables beside them, 4x the dense count.  A stated \c images is refused before this, by the setup
+//! (\c RouteSolidGradient); here the dense tables are taken with a WARN AND RUN row carrying the predicted RAM (4x the dense count), and
+//! refused on resources when they cannot be held, exactly as \c XCOrbitalTablesPolicy refuses its own pick.
+inline BasisSet::PhiRealization GGAOrbitalTablesPolicy(const BasisSet::PhiFootprint& f, const MemoryBudget& budget, const AvailableMemory& available)
+{
+    constexpr double GB=1024.0*1024.0*1024.0;
+    const double bytes=4.0*f.denseBytes;   // Phi + dPhi/dx, dPhi/dy, dPhi/dz
+    const report::json detail={{"denseBytes", f.denseBytes}, {"gradientTablesBytes", bytes}, {"complexBlocks", f.complexBlocks},
+                               {"realBlocks", f.realBlocks}, {"points", f.points}, {"budgetBytes", budget.bytes},
+                               {"availableBytes", available.bytes}, {"availableSource", available.source}};
+    if (available.bytes>0.0 && bytes>available.bytes)
+    {
+        const std::string what=std::format("a GGA's dense XC orbital tables (Phi and its gradient) need {:.2f} GB and {:.2f} GB is available [{}]",
+                                           bytes/GB, available.bytes/GB, available.source);
+        Report("XCOrbitalTables", "refused: a GGA's XC orbital tables cannot be held in RAM", Verdict::Resource,
+               what+" -- use fewer k-points or a coarser XC mesh", Cost{.memoryBytes=bytes}, detail);
+        throw std::runtime_error("REFUSED ON RESOURCES: "+what);
+    }
+    std::cout << "[policy] XC orbital tables WARNING (GGA): dense -- the shared-image realization has no gradient yet; Phi + grad Phi "
+              << std::format("{:.2f}", bytes/GB) << " GB predicted (4x the dense tables)" << std::endl;
+    Report("XCOrbitalTables", "the XC orbital tables are held as dense (a GGA: Phi and its gradient)", Verdict::Warn,
+           "the shared-image realization has no gradient tables yet (GGA stage 3), so a GGA takes the dense Phi with its three gradient "
+           "tables beside it: 4x the dense count", Cost{.memoryBytes=bytes}, detail);
+    return BasisSet::PhiRealization::Dense;
+}
+inline BasisSet::PhiChooser MakeGGAOrbitalTablesChooser()
+{
+    return [](const BasisSet::PhiFootprint& f){return GGAOrbitalTablesPolicy(f, QueryMemoryBudget(), QueryAvailableMemory());};
+}
+
 } // namespace qchem::policy

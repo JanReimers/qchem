@@ -1,6 +1,8 @@
 // File: Hamiltonian/Internal/Imp/Vxc_DFT_GGA.C  The GGA XC term's bodies (GGA stage 2; the declarations and the physics are in the interface).
 module;
 #include <cassert>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <ostream>
 #include <stdexcept>
@@ -15,6 +17,17 @@ namespace qchem::Hamiltonian
 template <class T> tVxc_DFT_GGA<T>::tVxc_DFT_GGA(gga_t xc, sampler_t sampler, SpinGroup g) requires std::is_same_v<T,double>
     : itsXc(std::move(xc))
     , itsSampler(std::move(sampler))
+    , itsGroup(g)
+{
+    if (!itsXc)      throw std::invalid_argument("tVxc_DFT_GGA: no GGA functional");
+    if (!itsSampler) throw std::invalid_argument("tVxc_DFT_GGA: no density-gradient sampler");
+}
+
+template <class T> tVxc_DFT_GGA<T>::tVxc_DFT_GGA(gga_t xc, std::shared_ptr<const ChargeDensity::DensityGradientSampler> sampler, SpinGroup g)
+    requires std::is_same_v<T,dcmplx>
+    : itsXc(std::move(xc))
+    , itsSampler(sampler)
+    , itsPeriodic(std::move(sampler))
     , itsGroup(g)
 {
     if (!itsXc)      throw std::invalid_argument("tVxc_DFT_GGA: no GGA functional");
@@ -71,19 +84,38 @@ template <class T> void tVxc_DFT_GGA<T>::BuildBlocks(const tbs_t<T>* bs, const t
         R.id=DensityID(cd);
     }
     tDynamic_HT_Imp<T>::BuildBlocks(bs, cd);
+    this->BuildRealBlocks(bs, cd);   // <dcmplx>: the real TRIM blocks too (a no-op on <double>)
+}
+
+// A block READS the refreshed field: Up for a folded (unpolarized) block, as the LDA term reads it -- the zeta = 0 collapse gives both
+// channels the same field, and H = dE/dD for the total D is either channel's.
+// The block path's read of the refreshed field: throws if the refresh never saw the density, and records the pin-28 source of the potential
+// the Fock is built from (every block writes the same value; concurrent blocks take turns, as the LDA term's do).
+template <class T> auto tVxc_DFT_GGA<T>::RefreshedFor(DensityID id) const -> const Refreshed&
+{
+    const Refreshed& R=itsRefreshed;
+    if (id.IsNone() || !(id==R.id))
+        throw std::logic_error("tVxc_DFT_GGA: block asked for a density the refresh did not see (RefreshForDensity first)");
+    std::lock_guard<std::mutex> lock(itsFockSourceLock.m);
+    itsFockSource=R.source;
+    itsFockDensityIsRhoD=R.densityIsRhoD;
+    return R;
 }
 
 // A block READS the refreshed field: Up for a folded (unpolarized) block, as the LDA term reads it -- the zeta = 0 collapse gives both
 // channels the same field, and H = dE/dD for the total D is either channel's.
 template <class T> hmat_t<T> tVxc_DFT_GGA<T>::MakeMatrix(const tobs_t<T>* bs, const Spin& s, DensityID id) const
 {
-    const Refreshed& R=itsRefreshed;
-    if (id.IsNone() || !(id==R.id))
-        throw std::logic_error("tVxc_DFT_GGA: block asked for a density the refresh did not see (RefreshForDensity first)");
-    itsFockSource=R.source;
-    itsFockDensityIsRhoD=R.densityIsRhoD;
+    const Refreshed& R=RefreshedFor(id);
     const int c = s==Spin::Down ? 1 : 0;
     return itsSampler->Matrix(bs, R.v[c], R.w[c]);
+}
+
+template <class T> rsmat_t tVxc_DFT_GGA<T>::RealBlock(const robs_t* bs, const Spin& s, DensityID id) const requires std::is_same_v<T,dcmplx>
+{
+    const Refreshed& R=RefreshedFor(id);   // the real TRIM blocks are the Fock pass too: they record the pin-28 source
+    const int c = s==Spin::Down ? 1 : 0;
+    return itsPeriodic->Matrix(bs, R.v[c], R.w[c]);
 }
 
 template <class T> void tVxc_DFT_GGA<T>::GetEnergy(EnergyBreakdown& te, const tDM_CD<T>* cd) const
@@ -109,5 +141,6 @@ template <class T> std::ostream& tVxc_DFT_GGA<T>::Write(std::ostream& os) const
 }
 
 template class tVxc_DFT_GGA<double>;   // stage 2: the molecular point route
+template class tVxc_DFT_GGA<dcmplx>;   // stage 3: the periodic point route
 
 } //namespace

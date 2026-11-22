@@ -97,6 +97,17 @@ MakeDensityGradientSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& f
     return std::make_shared<const tSinglesGradientSampler<double>>(fb, std::move(quad));
 }
 
+std::shared_ptr<const DensityGradientSampler>
+MakeDensityGradientSampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
+{
+    if (!fb) throw std::logic_error("MakeDensityGradientSampler: no fit basis");
+    if (!fb->isOrtho())
+        throw std::invalid_argument("MakeDensityGradientSampler: the fit "+fb->Name()+" is not a point (delta) basis, and only the delta "
+                                    "route samples the density gradient (GGA stage 3)");
+    if (!quad.GetMesh()) throw std::invalid_argument("MakeDensityGradientSampler: the delta basis needs its quadrature (the XC points)");
+    return std::make_shared<const SinglesGradientSampler>(fb, std::move(quad));
+}
+
 std::shared_ptr<const tDensitySampler<double>>
 MakeFittedPotentialSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& delta, BasisSet::FitQuadrature points,
                            const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fit)

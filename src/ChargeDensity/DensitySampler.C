@@ -324,6 +324,19 @@ public:
     {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"the XC quadrature's strategy gives no virial of its matrix on the real block "+bs->Name()});}
 };
 
+//! \brief THE PERIODIC DENSITY-GRADIENT QUADRATURE (GGA stage 3): \c tDensityGradientSampler<dcmplx> plus the periodic sampler's faces, and
+//! the real TRIM block's {v, w} gather (Step 3c: a real block's tables are real, so its quadrature runs in real arithmetic).
+class DensityGradientSampler
+    : public virtual tDensityGradientSampler<dcmplx>
+    , public virtual DensitySampler
+{
+public:
+    using tDensityGradientSampler<dcmplx>::Matrix;
+    using DensitySampler::Matrix;
+    //! \copydoc tDensityGradientSampler::Matrix -- on a real TRIM block.
+    virtual rsmat_t Matrix(const robs_t* bs, const rvec_t& v, const rvec3vec_t& w) const=0;
+};
+
 //! \brief Pick the assembly strategy for \a fb -- CAPABILITY decides, and the answer is fixed for the run.
 //!
 //! A δ fit basis carries points and nothing else, so it can only be contracted
@@ -349,6 +362,11 @@ MakeDensitySampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, Basis
 //! quadrature (the star-average of a vector field rotates it, which no fold does yet): both are refused above, by policy, first.
 std::shared_ptr<const tDensityGradientSampler<double>>
 MakeDensityGradientSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, BasisSet::FitQuadrature quad={});
+
+//! \brief THE PERIODIC DENSITY-GRADIENT STRATEGY (GGA stage 3): Singles on the periodic δ basis, over its dense Φ tables.  THROWS
+//! \c invalid_argument as the molecular one does (not δ, no gradient face, a FOLDED quadrature).
+std::shared_ptr<const DensityGradientSampler>
+MakeDensityGradientSampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad={});
 
 //! \brief THE PERIODIC A1 VXC FIT's strategies (V-XC-ONE-TERM step 6, lane S 2026-11-15), over \a a1: the REAL Gamma block of the A1 set on
 //! the cell's sites, built by the Hamiltonian's caller and held by the strategy (a real fit cannot pass the complex lineage's fit-basis

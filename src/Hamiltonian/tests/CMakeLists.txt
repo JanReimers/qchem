@@ -3,6 +3,7 @@
 add_executable(UTHamiltonian ../../Common/tests/gtestmain.C
    Libxc.C
    LDA_XC.C
+   GGA_Periodic.C       # the periodic point route: grad rho and the w gather on Bloch + real TRIM blocks (GGA stage 3, 2026-11-21)
    GGA_Term.C           # the GGA XC term on the molecular point route: H = dE/dD (GGA stage 2, 2026-11-21)
    GGA_XC.C             # the libxc GGAs: derivatives vs FD of e, the batch face vs the point face (GGA stage 1, 2026-11-20)
    EagerRefresh.C

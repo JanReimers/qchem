@@ -105,9 +105,13 @@ std::vector<RouteCase> RouteFamilies()
         cs.push_back({"atom radial ("     +n+")", [m]{RunOptions o; o.model=m; return PolicyOf(AtomSetup::Admit(Atom(8), o));}});
         cs.push_back({"atom atom.xc ("    +n+")", [m]{RunOptions o; o.atom.xc=Hamiltonian::ModelToXC(m); return PolicyOf(AtomSetup::Admit(Atom(8), o));}});
     }
-    cs.push_back({"GPW default mesh (Auto)", []{return AdmitSi(SiPBE());}});
+    // (the free Becke delta route -- chosen for an unstated mesh, or stated -- samples the gradient since stage 3:
+    //  TheFreeBeckeDeltaRouteRunsAGGAAndSaysSo)
     cs.push_back({"GPW raster (Uniform, plane-wave fit)", []{RunOptions o=SiPBE(); o.xcMesh=qcMesh::XCMeshDefault(); o.xcMesh->cellKind=qcMesh::UnitCellKind::Uniform; o.vxcFit=Hamiltonian::VxcFit::PlaneWave; return AdmitSi(o);}});
-    cs.push_back({"GPW Becke solid (delta fit)", []{RunOptions o=SiPBE(); o.xcMesh=qcMesh::BeckeXCParams(); o.vxcFit=Hamiltonian::VxcFit::Delta; return AdmitSi(o);}});
+    cs.push_back({"GPW Becke, imposed symmetry", []{RunOptions o=SiPBE(); o.imposeSymmetry=true; return AdmitSi(o);}});
+    cs.push_back({"GPW Becke, Kerker mixing stated", []{RunOptions o=SiPBE(); o.scf.Mixer=SCFParams::Mixing::Kerker; o.scf.KerkerG0=1.0; return AdmitSi(o);}});
+    cs.push_back({"GPW Becke, image orbital tables stated", []{RunOptions o=SiPBE(); o.solid.xcOrbitalTables=policy::XCOrbitalTables::Images; return AdmitSi(o);}});
+    cs.push_back({"GPW Becke, a linear response planned", []{RunOptions o=SiPBE(); o.solid.responseQMeshes={ivec3_t(1,1,1)}; return AdmitSi(o);}});
     cs.push_back({"plane-wave orbitals", []{RunOptions o=SiPBE(); o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=4.0; return AdmitSi(o);}});
     cs.push_back({"plane-wave orbitals, polarized", []{RunOptions o=SiPBE(); o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=4.0; o.spin=SpinGroup::Polarized; return AdmitSi(o);}});
     return cs;
@@ -163,12 +167,43 @@ TEST(GGARoute, TheMolecularDeltaRouteRunsAGGAAndSaysSo)
         }
 }
 
-// A DECK stating model PBE is refused the same way: by deck::Vet (vet-decks, before anything is built) and by deck::Prepare (what Run
-// builds through), both naming the policy.
-TEST(GGARoute, ADeckStatingPBEIsRefusedByName)
+// GGA STAGE 3: the FREE Becke delta route samples grad rho, so a GGA on a cell is ADMITTED there with a "choose" row -- and when the XC mesh
+// is UNSTATED the setup picks that route itself (CLAUDE.md priority 3: the code carries the burden), saying so, rather than refusing.
+TEST(GGARoute, TheFreeBeckeDeltaRouteRunsAGGAAndSaysSo)
 {
+    using H=Hamiltonian::Model;
+    for (H m : {H::PBE, H::PBEsol, H::BLYP})
+        for (int stated : {0, 1})
+        {
+            const std::string run="ggaroute solid "+Hamiltonian::Name(m)+(stated ? " becke delta stated" : " mesh unstated");
+            RunOptions o=SiPBE(); o.model=m;
+            if (stated) {o.xcMesh=qcMesh::BeckeXCParams(); o.vxcFit=Hamiltonian::VxcFit::Delta;}
+            std::string policy;
+            {
+                report::Run r(run);
+                policy=AdmitSi(o);
+            }
+            EXPECT_EQ(policy, "") << run << ": the free Becke delta route samples the gradient, so it admits";
+            const auto rows=GGARouteRows(run);
+            ASSERT_EQ(rows.size(), 1u) << run << ": one GGARoute row";
+            EXPECT_EQ(rows[0]["verdict"], "choose") << run;
+            const std::string decided=rows[0]["decided"];
+            EXPECT_EQ(decided.find("chose the Becke")!=std::string::npos, !stated)
+                << run << ": an unstated mesh is CHOSEN by the setup (soft Si's Auto would be the raster), and the row says so: " << decided;
+        }
+}
+
+// A DECK stating model PBE on a route with no gradient sampler is refused the same way: by deck::Vet (vet-decks, before anything is built)
+// and by deck::Prepare (what Run builds through), both naming the policy.  (On the stated Becke delta route a PBE deck vets clean.)
+TEST(GGARoute, ADeckStatingPBEOnTheRasterIsRefusedByName)
+{
+    deck::RunSpec ok;
+    deck::FromJson(report::json{{"structure","Si_diamond"},{"model","PBE"},{"basis",{{"data","SIPP_SR"}}},
+                                {"xc",{{"fit","Delta"},{"mesh",{{"cellKind","Becke"}}}}}}, ok);
+    EXPECT_NO_THROW((void)deck::Vet(ok, std::filesystem::temp_directory_path())) << "a PBE deck on the Becke delta route vets clean";
     deck::RunSpec spec;
-    deck::FromJson(report::json{{"structure","Si_diamond"},{"model","PBE"},{"basis",{{"data","SIPP_SR"}}}}, spec);
+    deck::FromJson(report::json{{"structure","Si_diamond"},{"model","PBE"},{"basis",{{"data","SIPP_SR"}}},
+                                {"xc",{{"fit","PlaneWave"},{"mesh",{{"cellKind","Uniform"}}}}}}, spec);
     for (const auto& [door, call] : std::vector<std::pair<std::string,std::function<void()>>>{
              {"Vet",     [&]{(void)deck::Vet(spec, std::filesystem::temp_directory_path());}},
              {"Prepare", [&]{(void)deck::Prepare(spec);}}})
@@ -176,7 +211,7 @@ TEST(GGARoute, ADeckStatingPBEIsRefusedByName)
         try
         {
             call();
-            ADD_FAILURE() << "deck::" << door << " ADMITTED a PBE deck: no route samples the gradient yet";
+            ADD_FAILURE() << "deck::" << door << " ADMITTED a PBE deck on the raster: that route does not sample the gradient yet";
         }
         catch (const std::exception& e)
         {

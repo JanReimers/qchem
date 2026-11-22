@@ -1451,8 +1451,14 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
         return v;
     }
     const Materials::Material mat=Resolve(spec);
-    // A GGA: Run's setup refuses it (GGARoute, no route samples the gradient yet), so Vet does too -- vet-decks must not pass it.
-    RefuseUnroutedGradient(spec.opts.model.value_or(Hamiltonian::Model::LDA), "a periodic cell (deck)");
+    // A GGA: Run's setup admits it on the free Becke delta route only (GGARoute, GGA stage 3), so Vet asks the same rule of what the deck
+    // STATES.  An unstated (Auto) mesh is what the setup then CHOOSES for a GGA, Becke.  (OpenWork G4: Vet should run the setup itself.)
+    if (spec.opts.model)
+    {
+        qcMesh::MeshParams mesh=spec.opts.xcMesh.value_or(qcMesh::XCMeshDefault());
+        if (mesh.cellKind==qcMesh::UnitCellKind::Auto) mesh.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);   // what the setup chooses (above)
+        RouteSolidGradient(spec.opts, mesh, spec.opts.imposeSymmetry);
+    }
     // Pin 30, the stated Vxc fit and XC mesh on this cell (Group face step 3b, the user's condition on ruling 2026-11-21: Vet keeps refusing
     // a bad deck before Run).  The setup's own cheap pre-flight, asked of the cell's group alone: nothing is built.  The STATED mesh is
     // asked: on a cell its Auto resolves to Becke or uniform, and the rule gives both the same answer.

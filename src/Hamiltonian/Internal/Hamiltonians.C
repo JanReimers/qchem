@@ -141,21 +141,24 @@ public:
                const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={},
                XCRoute fit={}, SpinGroup g=SpinGroup::UnPolarized,
                std::vector<HubbardManifold> hubbard={}, std::vector<std::shared_ptr<ExFunctional>> xc={},
-               ChargeDensity::LatticeSummedSet vxcAux={});   //!< the periodic A1 Vxc fit's real Gamma set (xc.fit Auxiliary)
+               ChargeDensity::LatticeSummedSet vxcAux={},   //!< the periodic A1 Vxc fit's real Gamma set (xc.fit Auxiliary)
+               std::shared_ptr<const GGAFunctional> gga={});   //!< a GGA (GGA stage 3): \a xc is then empty, the δ fit's gradient route is taken
 private:
     //! \a xc: the functional's parts; EMPTY = Dirac + VWN5, the default LDA (every ctor but the facade's leaves it so).
     void BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const Pseudopotential::LocalPotential* loc,
                     const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
                     XCRoute fit={}, std::vector<HubbardManifold> hubbard={},
                     std::vector<std::shared_ptr<ExFunctional>> xc={},
-                    ChargeDensity::LatticeSummedSet vxcAux={});
+                    ChargeDensity::LatticeSummedSet vxcAux={},
+                    std::shared_ptr<const GGAFunctional> gga={});
     //! Look up each (element, valence) from the GTH database, build + OWN the (per-Z router) local +
     //! separable models, and assemble the terms against them.  The single-species ctor is the 1-species case.
     void BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::vector<std::pair<std::string,int>>& species,
                       const std::string& functional, const qcMesh::MeshParams& xcMesh,
                       XCRoute fit={}, std::vector<HubbardManifold> hubbard={},
                       std::vector<std::shared_ptr<ExFunctional>> xc={},
-                      ChargeDensity::LatticeSummedSet vxcAux={});
+                      ChargeDensity::LatticeSummedSet vxcAux={},
+                      std::shared_ptr<const GGAFunctional> gga={});
     std::shared_ptr<const Pseudopotential::LocalPotential>     itsOwnedLocal;  //!< owned model (convenience ctors); null for explicit
     std::shared_ptr<const Pseudopotential::SeparablePotential> itsOwnedSep;
 };
