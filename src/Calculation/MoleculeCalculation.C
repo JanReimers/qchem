@@ -229,6 +229,7 @@ private:
     //! SCF (\a when "seed"), the converged one after (\a when "converged").  WARNs over the accuracy target; skipped, saying so, when the
     //! δ reference would not fit in memory.
     void CheckCoulombFit(const qchem::ChargeDensity::rDM_CD* d, const std::string& when);
+    std::string FitCaveat(double target) const;   //!< the mesh pilot's "meets" line on a Gaussian-fit Hartree: the fit's error is not the mesh's
     //! Does this run integrate on a mesh at all (a DFT model or a pseudopotential)?  HF has none: nothing to audit or climb.
     bool HasXCMesh() const;
     //! THE MESH PILOT (§14.2): climb at the converged D, rebuild + re-converge once per raise, freeze into \c itsSetup.  From \c Converge.
@@ -238,6 +239,7 @@ private:
     bool          itsGeometryPoint = false;   //!< built by a MoleculeSession: answers MatrixElements (\c Consumes)
     bool          itsPiloted       = false;   //!< the pilot ran (once per calculation: a later Converge keeps its mesh)
     bool          itsFitConfirmed  = false;   //!< the Coulomb-fit check ran on a converged density (once per calculation)
+    double        itsFitResidual   = -1.0;    //!< the latest Coulomb-fit check's J error (Ha); < 0 = not measured.  The mesh pilot's line cites it
     MeshPilotCost itsPilotCost;
     Carry MakeCarry() const;
     //! The carry a session hands the NEXT point: this point's blocks (\c SnapshotState), carried there by \c CarryOntoThisBasis.

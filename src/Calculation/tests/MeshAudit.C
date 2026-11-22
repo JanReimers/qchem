@@ -57,7 +57,9 @@ TEST(MeshAudit, AgainstItsOwnMeshEveryTermReadsZero)
 
 TEST(MeshAudit, AFinerMeshMovesOnlyTheMeshBorneTerms)
 {
-    for (auto fit : {Hamiltonian::CoulombFit::Auto, Hamiltonian::CoulombFit::Delta})
+    // Both Hartree routes, STATED: the Dunlap fit (the unnamed Auxiliary file, A2_coul) is mesh-free, the δ fit (the default since the user
+    // ruling 2026-11-22) is mesh-borne.
+    for (auto fit : {Hamiltonian::CoulombFit::Auxiliary, Hamiltonian::CoulombFit::Delta})
     {
         const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit=fit}, .scf=Tight(), .molecule={.basis="dzvp"}});
         auto c=MoleculeCalculation::Prepare(setup).TakeValue(); (void)c->Converge();
@@ -104,7 +106,7 @@ TEST(MeshAudit, TheDunlapHartreeIsMeshFreeAtAFixedD)
     const double a=1.186;   // C-H 2.054 bohr
     ch4.Insert(Site{6, Vector3D<double>(0,0,0)});
     for (const rvec3_t& h : {rvec3_t(a,a,a), rvec3_t(-a,-a,a), rvec3_t(-a,a,-a), rvec3_t(a,-a,-a)}) ch4.Insert(Site{1, Vector3D<double>(h.x,h.y,h.z)});
-    const auto setup=MoleculeSetup::Resolve(ch4, {.model=Model::LDA, .scf=Tight(), .molecule={.basis="dzvp"}});
+    const auto setup=MoleculeSetup::Resolve(ch4, {.model=Model::LDA, .coulomb={.fit=Hamiltonian::CoulombFit::Auxiliary}, .scf=Tight(), .molecule={.basis="dzvp"}});   // the Dunlap route STATED
     auto c=MoleculeCalculation::Prepare(setup).TakeValue(); (void)c->Converge();
     ASSERT_TRUE(c->Result());
     const GridAuditResult R=c->MeshAudit(Finer(c->SizedSetup()->xcMesh));
@@ -157,9 +159,12 @@ TEST(MeshPilot, AnEnergyRunSettlesWhereItsAuditMeetsEps)
     }
 }
 
+// The Hartree is STATED as the Dunlap fit, so the climb is the XC term's.  On the δ default (user ruling 2026-11-22) the δ Hartree's matrix
+// elements still miss max|ΔH| <= eps at (140, 53), the ladder's top, so the pilot never settles (lane S 2026-11-22: OpenWork row).
 TEST(MeshPilot, AGeometryRunRaisesAMeshThatMissesEpsOnMatrixElements)
 {
-    const auto setup=MoleculeSetup::Resolve(MakeF2(), F2Options());
+    RunOptions o=F2Options(); o.coulomb.fit=Hamiltonian::CoulombFit::Auxiliary;
+    const auto setup=MoleculeSetup::Resolve(MakeF2(), o);
     MoleculeSession pes(setup, Tight());
     ASSERT_TRUE(pes.ConvergeAt(std::nullopt, pes.Reference().R));
     const MoleculeCalculation& c=*pes.Current();

@@ -52,10 +52,11 @@ static Molecule MakeO2()         // O2 at the experimental bond length ~1.208 An
 TEST(M_DFT, N2)
 {
     auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeN2(), {.model=Model::Xalpha, .xalpha=0.75197, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
-    // δ default, D shells kept: -109.228113.  Was -109.225960 (A1 Vxc fit, d-less Coulomb fit) and -109.21679 at 2e-3 RELATIVE
-    // (0.2 Ha!) on the 30/5 mesh.
-    EXPECT_NEAR(calc->Energy(), -109.2281129068, 1e-5);
-    EXPECT_NEAR(calc->Energy(), -109.22810738, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC";
+    // RE-JUDGED 2026-11-22 (pin 10, lane S; user ruling "Yes, δ default"): the Hartree is the δ fit now, not A1_coul.  From -109.2281129068
+    // (the A1_coul Coulomb fit, 0.92 mHa low); PySCF EXACT J and XC -109.22719891, 6.1 μHa away.  Earlier: -109.225960 (A1 Vxc fit, d-less
+    // Coulomb fit) and -109.21679 at 2e-3 RELATIVE (0.2 Ha!) on the 30/5 mesh.
+    EXPECT_NEAR(calc->Energy(), -109.2271928297, 1e-5);
+    EXPECT_NEAR(calc->Energy(), -109.22719891, 2e-5) << "ORACLE: PySCF, exact J and XC";
 }
 
 TEST(M_DFT, Water)
@@ -65,8 +66,10 @@ TEST(M_DFT, Water)
     // ~iter 14, virial V/K = -2.006 (the correct ~-2, vs the buggy -2.11).  A true converged regression
     // sentinel.  (Was -76.123348 interim limit-cycle, -79.414120 stale-cache, -76.149301 on the 30/5 mesh -- 48 mHa low, inside
     // the old 2e-3 relative -- and -76.100897 on the A1 Vxc fit with a d-less Coulomb fit.)
-    EXPECT_NEAR(calc->Energy(), -76.1069880486, 1e-5);
-    EXPECT_NEAR(calc->Energy(), -76.10697987, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC";
+    // RE-JUDGED 2026-11-22 (pin 10, lane S; user ruling "Yes, δ default"): from -76.1069880486 (the A1_coul Coulomb fit, 2.2 mHa low);
+    // PySCF EXACT J and XC -76.10476847, 9.6 μHa away.
+    EXPECT_NEAR(calc->Energy(), -76.1047780883, 1e-5);
+    EXPECT_NEAR(calc->Energy(), -76.10476847, 3e-5) << "ORACLE: PySCF, exact J and XC";
 }
 
 // --- The spherical-Gaussian (PG_Spherical) basis through the DFT path -----------------------------
@@ -80,9 +83,11 @@ TEST(M_DFT, WaterSpherical)
 {
     auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::Xalpha, .xalpha=0.74000, .molecule={.basis="dzvp", .angular=Angular::Spherical}})).TakeValue(); (void)calc->Converge();
     EXPECT_NEAR(calc->Energy(), -76.1069880486, 0.05);                 // sanity: same ballpark as Cartesian
-    // CONVERGED anchor (δ default, D shells kept).  PySCF spherical dzvp with the Cartesian A1_coul J-fit: -76.10758175 (16 μHa;
-    // our spherical fit basis is the spherical view, so not the identical aux set).  0.6 mHa BELOW the Cartesian.
-    EXPECT_NEAR(calc->Energy(), -76.1075980849, 1e-5);
+    // RE-JUDGED 2026-11-22 (pin 10, lane S; user ruling "Yes, δ default"): the Hartree is the δ fit, so no spherical view of a Cartesian fit
+    // file is involved any more.  From -76.1075980849 (the spherical A1_coul view, 3.5 mHa low); PySCF spherical dzvp, EXACT J and XC
+    // -76.10410443, 9.8 μHa away.  0.66 mHa ABOVE the Cartesian (the spherical orbital space is the smaller one).
+    EXPECT_NEAR(calc->Energy(), -76.1041141992, 1e-5);
+    EXPECT_NEAR(calc->Energy(), -76.10410443, 3e-5) << "ORACLE: PySCF spherical, exact J and XC";
 }
 
 // THE TIGHT RE-CONVERGE these tests run after the constructor's default one.  It lives in the SETUP (\c RunOptions::scf, R10) and
@@ -104,7 +109,7 @@ TEST(M_DFT, WaterPolarizedSAD)
     // iterations + damping than the facade's quick default, so re-Converge with tight params (DIIS already
     // drives from the start for DFT).
     ASSERT_TRUE(calc->Converge());
-    EXPECT_NEAR(calc->Energy(), -76.1069880486, 1e-5);   // == the unpolarized Xalpha anchor
+    EXPECT_NEAR(calc->Energy(), -76.1047780883, 1e-5);   // == the unpolarized Xalpha anchor (re-judged 2026-11-22, δ default)
 }
 
 // Spin-native (polarized) parameter-free LDA water (Dirac exchange + spin-native VWN5 correlation) through
@@ -116,7 +121,7 @@ TEST(M_DFT, WaterPolarizedLDA)
 {
     auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.spin=SpinGroup::Polarized, .model=Model::LDA, .scf=kTight60, .molecule={.basis="dzvp"}})).TakeValue();
     ASSERT_TRUE(calc->Converge());
-    EXPECT_NEAR(calc->Energy(), -75.8794551388, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
+    EXPECT_NEAR(calc->Energy(), -75.8773086479, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell; re-judged 2026-11-22, δ default)
 }
 
 // OPEN-SHELL through the facade multiplicity knob (OpenWork B4): triplet O2 (16 e-, multiplicity 3 =>
@@ -128,10 +133,11 @@ TEST(M_DFT, OxygenTripletLDA)
 {
     auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeO2(), {.multiplicity=3, .model=Model::LDA, .scf=kTight80, .molecule={.basis="dzvp"}})).TakeValue();
     ASSERT_TRUE(calc->Converge());
-    // Converged spin-native LDA triplet (δ default, D shells kept).  Was -149.263716 on the A1 per-spin Vxc fit with a d-less
-    // Coulomb fit -- 35.5 mHa above PySCF exact, which a row once blamed on the polarized machinery; it was the fit.
-    EXPECT_NEAR(calc->Energy(), -149.3006843396, 1e-4);
-    EXPECT_NEAR(calc->Energy(), -149.30067460, 1e-4) << "ORACLE: PySCF UKS, the same A1_coul Coulomb fit, exact XC";
+    // RE-JUDGED 2026-11-22 (pin 10, lane S; user ruling "Yes, δ default"): from -149.3006843396 (the A1_coul Coulomb fit, 1.5 mHa low);
+    // PySCF UKS EXACT J and XC -149.29917753, 20 μHa away (eps x N_atoms = 2e-5).  Earlier -149.263716 on the A1 per-spin Vxc fit with a
+    // d-less Coulomb fit -- 35.5 mHa above PySCF exact, which a row once blamed on the polarized machinery; it was the fit.
+    EXPECT_NEAR(calc->Energy(), -149.2991575707, 1e-4);
+    EXPECT_NEAR(calc->Energy(), -149.29917753, 3e-5) << "ORACLE: PySCF UKS, exact J and XC";
 }
 
 // THE SPIN-RESOLVED MOLECULAR SAD SEED on the O2 triplet (OpenWork §2 "Molecular spin-resolved SAD seed", lane B 2026-11-16).  The O entry of
@@ -249,6 +255,7 @@ TEST(M_DFT, TeF6_PP_Spherical_Converges_Long)
     o.molecule.angular    = Angular::Spherical;
     o.seed       = ChargeDensity::SeedStrategy::CoreGuess;
     MoleculeXCMesh(o).nRadial = 50; MoleculeXCMesh(o).angularDegree = 17;                // the first rung that died
+    o.coulomb.auxBasis = "A1_coul";   // the recipe's Hartree, STATED: the δ default (user ruling 2026-11-22) on this coarse mesh is 35 mHa off
     auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeTeF6(), o)).TakeValue(); (void)calc->Converge();
     ASSERT_TRUE(calc->Result()) << "the 2026-11-05 crash recipe must converge";
     EXPECT_NEAR(calc->Energy(), -153.4149661057, 1e-5);             // anchor at the stated (50,17)
@@ -283,8 +290,10 @@ TEST(M_DFT, TeF6_AllElectron_SADSeed_eqCoreGuess_Long) { ExpectSADMatchesCoreGue
 
 TEST(M_DFT, WaterLDA_AuxiliaryFit)
 {
-    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
     ASSERT_TRUE(calc->Result());
+    // The Hartree is STATED as A1_coul so the oracle (PySCF's A1_coul J-fit route) stays like-for-like: the δ default (user ruling 2026-11-22)
+    // would move this cell by the A1 Coulomb fit's own 2.1 mHa.
     // RE-JUDGED 2026-11-15 (pin 10, lane S): FittedVxc retired.  The cell's E is now the exact XC of rho[D] on the run's mesh (FittedVxc fitted eps
     // for E too, the -1.4 mHa it sat off PySCF); only H still sees the A1 fit of v, a second-order error in E.  From -75.8808368818.  Independent
     // route: PySCF's exact XC, 2.1 μHa away (was 1.39 mHa).
@@ -294,7 +303,7 @@ TEST(M_DFT, WaterLDA_AuxiliaryFit)
 
 TEST(M_DFT, OxygenTripletLDA_AuxiliaryFit)
 {
-    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeO2(), {.multiplicity=3, .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .scf=kTight80, .molecule={.basis="dzvp"}})).TakeValue();
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeO2(), {.multiplicity=3, .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .coulomb={.auxBasis="A1_coul"}, .scf=kTight80, .molecule={.basis="dzvp"}})).TakeValue();
     ASSERT_TRUE(calc->Converge());
     // RE-JUDGED 2026-11-15 (pin 10, lane S): FittedVxc retired (see WaterLDA_AuxiliaryFit).  From -149.3018824495.  Independent routes: our δ cell
     // (OxygenTripletLDA) -149.3006843397, 7.5 μHa BELOW (the variational minimum: the fitted v only perturbs D), and PySCF 2.2 μHa away.
@@ -308,13 +317,15 @@ TEST(M_DFT, F2_PP)
 {
     auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeF2(), {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="valence_lowq_vb"}})).TakeValue(); (void)calc->Converge();
     ASSERT_TRUE(calc->Result());
-    // Re-judged 2026-11-05 (pin 10): the closed-form PP integrals moved this +4.2e-5, from 5.7e-5 to 1.5e-5 off PySCF.
-    EXPECT_NEAR(calc->Energy(), -48.2018945557, 1e-5);   // anchor (δ default)
-    EXPECT_NEAR(calc->Energy(), -48.20187971, 1e-4) << "ORACLE: PySCF, the same A1_coul Coulomb fit, exact XC (CP2K -48.20058)";
+    // RE-JUDGED 2026-11-22 (pin 10, lane S; user ruling "Yes, δ default"): the Hartree is the δ fit.  From -48.2018945557 (the A1_coul Coulomb
+    // fit, 1.35 mHa low); PySCF EXACT J and XC -48.20054460, 1.6 μHa away; CP2K -48.20058, 37 μHa.  (2026-11-05: the closed-form PP
+    // integrals moved it +4.2e-5.)
+    EXPECT_NEAR(calc->Energy(), -48.2005429519, 1e-5);   // anchor (δ default)
+    EXPECT_NEAR(calc->Energy(), -48.20054460, 2e-5) << "ORACLE: PySCF, exact J and XC (CP2K -48.20058)";
 }
 TEST(M_DFT, F2_PP_AuxiliaryFit)
 {
-    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeF2(), {.model=Model::LDA, .pp="gth-lda-valence", .vxcFit=Hamiltonian::VxcFit::Auxiliary, .molecule={.basis="valence_lowq_vb"}})).TakeValue(); (void)calc->Converge();
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeF2(), {.model=Model::LDA, .pp="gth-lda-valence", .vxcFit=Hamiltonian::VxcFit::Auxiliary, .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="valence_lowq_vb"}})).TakeValue(); (void)calc->Converge();
     ASSERT_TRUE(calc->Result());
     // RE-JUDGED 2026-11-15 (pin 10, lane S): FittedVxc retired (see WaterLDA_AuxiliaryFit).  From -48.1970563871 (+4.8 mHa off PySCF: the eps fit
     // of a PP valence density).  Independent route: our δ cell (F2_PP) -48.2018945557, 93 μHa BELOW (variational); PySCF 78 μHa away.  The
@@ -389,13 +400,15 @@ TEST(M_DFT, WaterLDA_MultipoleCoulomb_eqLCut_Long)
 }
 
 // Multipole for Vxc, through the fitter as the A1 route is.  The Hartree stays on the default route, so only the XC term changed.
+// RE-JUDGED 2026-11-22 (pin 10, lane S; user ruling "Yes, δ default"): the default Hartree is the δ fit now, so the oracle is PySCF's EXACT J
+// (-75.87729931); this run sits -9.3 μHa off it (it sat -2.14 mHa off it, i.e. on the A1_coul J-fit value, before the flip).
 // RE-JUDGED 2026-11-08 (pin 10, lane B): the gap was the MESH's, not the multipole Vxc's.  At (80, 29) this run sat -140 μHa off the
 // A1-Hartree value; the mesh pilot (GeometryOptimizationPlan §14) climbs it to (100, 41 GL), and it sits -5.1 μHa off, inside eps x N.
 TEST(M_DFT, WaterLDA_MultipoleVxc)
 {
     auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Multipole, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
     ASSERT_TRUE(calc->Result());
-    EXPECT_NEAR(calc->Energy(), -75.87944736, 3e-5) << "the A1 Hartree value (PySCF, exact XC); eps x N_atoms, the run's own target";
+    EXPECT_NEAR(calc->Energy(), -75.87729931, 3e-5) << "ORACLE: PySCF, exact J and XC; eps x N_atoms, the run's own target";
 }
 
 // --- Ionic SAD on a molecule (user, 2026-11-12: "we should strive to make seeding ... structure neutral") -------------------------

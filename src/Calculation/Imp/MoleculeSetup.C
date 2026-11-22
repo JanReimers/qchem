@@ -41,15 +41,20 @@ RunOptions MoleculeOptions(const RunOptions& asked)
     return o;
 }
 
-// THE COULOMB FIT (policy CoulombFit; OpenWork "The Coulomb-fit default is a hidden policy", lane S 2026-11-21).  A density model's
-// Hartree term on the Auxiliary route is a Dunlap fit on a Gaussian fit basis, and WHICH basis is a policy: before this row it was
-// hard-wired in the orbital families (PG_Cart / PG_Spherical CreateCDFitBasisSet read A1_coul.bsd), against "policies live only in the
-// policy layer".  Here the route's Auto resolves to Auxiliary, the fit file is named (kMolecularCoulombFitDefault when unstated), checked
-// for existence and coverage, and MoleculeCalculation builds it into the run's CoulombFitSlot before the first Hamiltonian asks.
-// The default is DGauss A1 (H-Te), today's numbers: it was built for DGauss's all-electron bases, and on a diffuse valence basis it is
-// mHa low (DZVP-MOLOPT-GTH, LDA: OH- 1.9 mHa, H2O 4.4 mHa vs the delta route and PySCF's exact J).  The default per orbital-basis kind
-// is the user's to rule on (step 3 of the row).
-constexpr const char* kMolecularCoulombFitDefault="A1_coul";
+// THE COULOMB FIT (policy CoulombFit; OpenWork "The Coulomb-fit default is a hidden policy", lane S 2026-11-21/22).  A density model's
+// Hartree route and, on the Auxiliary route, WHICH Gaussian fit basis are policies: before this row A1 was hard-wired in the orbital
+// families (PG_Cart / PG_Spherical CreateCDFitBasisSet read A1_coul.bsd), against "policies live only in the policy layer".
+// USER RULING 2026-11-22 ("Yes, δ default"):
+//  - an unstated route is DELTA (rho on the XC mesh, radial Poisson) for every Gaussian orbital basis: the one route that meets eps.
+//    Measured (lane-s-CoulombFit-step3.md): the DGauss fits miss eps on every molecule tried, DGauss's own all-electron dzvp included --
+//    A1 0.4-5 mHa, A2 0.08-1.2 mHa on Cartesian orbitals, up to 0.1 Ha on spherical ones (H2S) -- while delta is 0.4 uHa from PySCF's
+//    exact J (OH-).  Its price is the mesh climb its mesh-borne Hartree needs: 2.2x (TeF6) to 8.6x (SF6) an A fit's wall.
+//  - Auxiliary stated without a file takes A2 (kMolecularCoulombFitDefault), the best Gaussian fit measured; where A2 does not cover the
+//    structure (it stops at Zn and has no K, Ca) A1 (H-Te) instead, said so.
+//  - any stated file runs, on Cartesian or spherical orbitals; MoleculeCalculation's CoulombFitResidual check WARNs when it misses eps.
+// MoleculeCalculation builds a named fit into the run's CoulombFitSlot before the first Hamiltonian asks.
+constexpr const char* kMolecularCoulombFitDefault ="A2_coul";
+constexpr const char* kMolecularCoulombFitFallback="A1_coul";
 
 static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& point, bool densityModel)
 {
@@ -69,9 +74,32 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
                            "that route puts rho on the XC mesh and has no fit basis -- drop coulomb.auxBasis, or state coulomb.fit Auxiliary");
         return;
     }
+    if (c.fit==CF::Auto && stated.empty())
+    {
+        c.fit=CF::Delta;
+        policy::Report("CoulombFit", "the Hartree term: delta (rho on the XC mesh, radial Poisson)", policy::Verdict::Choose,
+                       "no Hartree route stated: the molecular default (user ruling 2026-11-22), the one route that meets eps -- the DGauss "
+                       "fits are mHa low on every molecule measured; state coulomb.fit Auxiliary (A2) or coulomb.auxBasis for the faster fit");
+        return;
+    }
     const bool fitStated=c.fit==CF::Auxiliary;
     c.fit=CF::Auxiliary;
-    if (stated.empty()) c.auxBasis=kMolecularCoulombFitDefault;
+    auto uncovered=[&](const std::string& file)
+    {
+        std::string missing;
+        for (int Z : ElementsOf(point)) if (!BasisCovers(file, Z)) missing+=(missing.empty() ? "" : ", ")+thePeriodicTable().GetSymbol(Z);
+        return missing;
+    };
+    std::string fallbackWhy;
+    if (stated.empty())
+    {
+        c.auxBasis=kMolecularCoulombFitDefault;
+        if (const std::string m=uncovered(c.auxBasis+".bsd"); !m.empty())
+        {
+            fallbackWhy="A2 has no block for "+m+", so A1 (H-Te) instead";
+            c.auxBasis=kMolecularCoulombFitFallback;
+        }
+    }
     const std::string file=c.auxBasis+".bsd";
     if (!std::filesystem::is_regular_file(BasisSet::Gaussian::BasisFile(file)))
     {
@@ -81,18 +109,15 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
         policy::Refuse("CoulombAuxBasisUnknown", "coulomb.auxBasis \""+c.auxBasis+"\": no "+file+" in the basis data directory",
                        "state a Coulomb fit file by its stem: "+fits);
     }
-    std::string missing;
-    for (int Z : ElementsOf(point)) if (!BasisCovers(file, Z)) missing+=(missing.empty() ? "" : ", ")+thePeriodicTable().GetSymbol(Z);
-    if (!missing.empty())
+    if (const std::string missing=uncovered(file); !missing.empty())
         policy::Refuse("CoulombAuxBasisCoverage", "Coulomb fit basis "+c.auxBasis+" has no block for "+missing,
-                       std::string(stated.empty() ? "the default fit (A1, H-Te) does not cover this structure" : "the stated fit does not cover this structure")
+                       std::string(stated.empty() ? "neither A2 nor A1 (H-Te) covers this structure" : "the stated fit does not cover this structure")
                        +" -- state coulomb.fit Delta (rho on the XC mesh, every element), or a fit file that covers it");
     if (!stated.empty() && fitStated) return;   // fully stated: as asked, nothing decided
     policy::Report("CoulombFit", "the Hartree term: a Dunlap fit on "+c.auxBasis, policy::Verdict::Choose,
                    stated.empty()
-                     ? std::string(fitStated ? "coulomb.fit Auxiliary stated without coulomb.auxBasis" : "no Hartree route stated")
-                       +": the molecular default fit, DGauss A1 (H-Te, built for all-electron bases; mHa low on a diffuse valence basis such "
-                       "as DZVP-MOLOPT-GTH) -- state coulomb.auxBasis (A1_coul, A2_coul) or coulomb.fit Delta to choose"
+                     ? "coulomb.fit Auxiliary stated without coulomb.auxBasis: the fastest-good fit, DGauss A2 (user ruling 2026-11-22)"
+                       +(fallbackWhy.empty() ? std::string() : " -- "+fallbackWhy)+"; its residual is checked against eps (CoulombFitResidual)"
                      : "coulomb.auxBasis stated: its route is the Auxiliary (Dunlap) fit");
 }
 

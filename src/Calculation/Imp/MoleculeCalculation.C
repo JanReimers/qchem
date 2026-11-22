@@ -550,6 +550,21 @@ qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const q
 // COST: one reference Hamiltonian on the run's mesh (its delta basis tabulates every function at every point) and one refresh -- about
 // one SCF iteration of the default (delta) XC route.  The table is the one silly cost: skipped, saying so, when it would not fit in
 // a quarter of the memory available.
+// The mesh pilot sizes the MESH: a Gaussian fit's Hartree does not move with the mesh, so "both axes meet the target" says nothing about it
+// (controller 2026-11-22: TeF6 / SF6 settled at (80, 29) while the energy was 4-11 mHa low).  On a fit route the pilot's line says so,
+// with the CoulombFitResidual check's latest number when there is one.
+std::string MoleculeCalculation::FitCaveat(double target) const
+{
+    const auto& c=itsSetup->opts.coulomb;
+    if (!HasXCMesh() || !qchem::Hamiltonian::UsesCoulombFitBasis(c)) return "";
+    std::ostringstream os;
+    os<<" on the MESH's error; the "<<c.auxBasis<<" Coulomb fit's own J error is not on the mesh";
+    if (itsFitResidual>=0.0)
+        os<<std::scientific<<std::setprecision(3)<<" ("<<itsFitResidual<<" Ha"<<(itsFitResidual>target ? ", OVER the target: the energy does NOT meet it" : ", within the target")<<")";
+    else os<<" (unmeasured: see CoulombFitResidual)";
+    return os.str();
+}
+
 void MoleculeCalculation::CheckCoulombFit(const qchem::ChargeDensity::rDM_CD* d, const std::string& when)
 {
     namespace rpt=qchem::report;
@@ -596,6 +611,7 @@ void MoleculeCalculation::CheckCoulombFit(const qchem::ChargeDensity::rDM_CD* d,
     }
     const double wall=std::chrono::duration<double>(std::chrono::steady_clock::now()-t0).count();
     const double residual=Jdelta-Jfit;
+    itsFitResidual=std::fabs(residual);
     const bool over=std::fabs(residual)>target;
     report::FormatGuard keep(std::cout);
     std::cout<<tag<<when<<" density: J("<<opts.coulomb.auxBasis<<" fit) "<<std::setprecision(10)<<Jfit<<"  J(delta) "<<Jdelta
@@ -757,7 +773,7 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
         }
         std::cout<<tag<<"round "<<round<<"  "<<(round==0 ? "climb" : "confirming audit")<<" at this D: "<<MeshName(itsSetup->xcMesh);
         if (climb.raises>0) std::cout<<" -> "<<MeshName(climb.mesh)<<" in "<<climb.raises<<" raise(s)";
-        std::cout<<"; "<<(climb.end==qcMesh::BeckeClimbResult::End::Settled ? std::string("both axes meet the target")
+        std::cout<<"; "<<(climb.end==qcMesh::BeckeClimbResult::End::Settled ? std::string("both axes meet the target")+FitCaveat(target)
                        : climb.end==qcMesh::BeckeClimbResult::End::AxisEnd ? climb.why : std::string("one raise, audited at the next round's D"))<<std::endl;
         if (climb.raises==0) { itsPilotCost.settled = climb.end==qcMesh::BeckeClimbResult::End::Settled; break; }
         if (round+1>=kPilotRounds) { itsPilotCost.settled=false; endWhy="the pilot's round cap ("+std::to_string(kPilotRounds)+")"; break; }
@@ -794,7 +810,8 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
     }
     else if (!stated && itsPilotCost.settled)
         policy::Report("MolecularXCMeshSettled", "the Becke XC mesh "+MeshName(itsSetup->xcMesh)+" (entered at "+MeshName(entry)+")", policy::Verdict::Choose,
-                       "climbed at the converged density until both axes meet the target "+std::to_string(target)+" on "+(onE ? "|ΔE|" : "max|ΔH_ij|")+"; "+cost);
+                       "climbed at the converged density until both axes meet the target "+std::to_string(target)+" on "+(onE ? "|ΔE|" : "max|ΔH_ij|")
+                       +FitCaveat(target)+"; "+cost);
     else if (!stated)
     {
         std::cout<<tag<<"WARNING: the XC mesh is NOT SETTLED at "<<MeshName(itsSetup->xcMesh)<<": "<<endWhy<<std::endl;

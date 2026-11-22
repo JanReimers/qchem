@@ -364,13 +364,13 @@ TEST(CalculationFacade, AStatedBasisFileIsItsContentsAndASavedStateRefusesAnEdit
 
 TEST(CalculationFacade, EachAuxiliaryFitFilesInItsOwnTerm)
 {
-    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .molecule={.basis="dzvp"}});
+    const auto setup=MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .coulomb={.fit=Hamiltonian::CoulombFit::Auxiliary}, .molecule={.basis="dzvp"}});
     { qchem::report::Run run("H2O fits build"); ASSERT_TRUE(MoleculeCalculation::Prepare(setup)); }
     const auto* build=FiledRun("H2O fits build@");
     ASSERT_NE(build, nullptr) << "no filed build run";
     ASSERT_TRUE(build->contains("hamiltonian")) << build->dump(1);
     const auto& ham=(*build)["hamiltonian"];
-    for (const auto& [term,name] : {std::pair{"Hartree","A1_coul"}, std::pair{"Vxc_DFT","A1_exch"}})
+    for (const auto& [term,name] : {std::pair{"Hartree","A2_coul"}, std::pair{"Vxc_DFT","A1_exch"}})
     {
         ASSERT_TRUE(ham.contains(term)) << term;
         EXPECT_EQ(ham[term]["fitbasis"].front()["name"].get<std::string>(), name) << term;
