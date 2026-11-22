@@ -541,9 +541,9 @@ qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const q
 {
     const RunOptions& opts=itsSetup->opts;
     return itsSetup->pp
-        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, *itsMeshMaker, itsBasis, fit, {opts.vxcFit, opts.xcRho},
+        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, *itsMeshMaker, *itsSetup->meshSymmetry, itsBasis, fit, {opts.vxcFit, opts.xcRho},
                                       coulomb, qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha))
-        : qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, itsBasis, fit, opts.xalpha,
+        : qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, *itsMeshMaker, *itsSetup->meshSymmetry, itsBasis, fit, opts.xalpha,
                                       {opts.vxcFit, opts.xcRho}, coulomb);
 }
 

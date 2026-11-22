@@ -54,17 +54,19 @@ class Ham_DFT : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     //! Slater-Dirac exchange alone, scaled by \a alpha_ex (X\f$\alpha\f$).
-    Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams&, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit,
+    //! \a meshMaker + \a symmetry (every ctor): build the XC quadrature (and the Hartree grid's own) at a recipe, when a route asks: the mesh
+    //! over the run's point, made what the source asks (V-MESH-FACTORY §4.1 as built).
+    Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit,
             SpinGroup g, XCRoute fit={}, const CoulombRoute& coulomb={});
     //! The general form: any list of functionals (owned), summed into one XC term.  \a fit: the Vxc fit basis the ONE
     //! XC term consumes through the fit face (δ on the mesh, or the Gaussian auxiliary basis for Auto).
     Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> parts,
-            const qcMesh::MeshParams&, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
+            const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
             const CoulombRoute& coulomb={});
     //! A GGA (GGA stage 2, the molecular point route): ONE XC term, \c tVxc_DFT_GGA, on the density-gradient quadrature of the δ Vxc fit.
     //! Only the δ fit samples \f$\nabla\rho\f$; any other \a fit THROWS \c invalid_argument (the setup refuses it first, policy GGARoute).
     Ham_DFT(const st_t& st, std::shared_ptr<const GGAFunctional> gga,
-            const qcMesh::MeshParams&, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
+            const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
             const CoulombRoute& coulomb={});
 };
 
@@ -80,16 +82,17 @@ class Ham_PP : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     //! \a xc: the functional's parts (\c Hamiltonian::Factory's MakeXCParts); EMPTY = Dirac + VWN5, the default LDA.
-    //! \a meshMaker: builds the PP terms' quadrature (at the recipe) over \a st's geometry point, when a block needs one (V-MESH-FACTORY §4.3).
+    //! \a meshMaker: builds the PP terms' quadrature (at the recipe) over \a st's geometry point, when a block needs one (V-MESH-FACTORY §4.3);
+    //! \a symmetry: the XC quadrature's source, as Ham_DFT's (the same maker builds both).
     Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
            std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-           const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
+           const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
            const CoulombRoute& coulomb={}, std::vector<std::shared_ptr<ExFunctional>> xc={});
-    Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const rbs_t* bs,
+    Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs,
            const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={}, const CoulombRoute& coulomb={},
            std::vector<std::shared_ptr<ExFunctional>> xc={});
     Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
-           const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
+           const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
            const CoulombRoute& coulomb={}, std::vector<std::shared_ptr<ExFunctional>> xc={});
 };
 
@@ -120,15 +123,17 @@ public:
     //! basis represents \f$v_{xc}\f$ on that grid; the others default to \c Auto (the historical pairing).
     //! \a numElectrons (every ctor): the run's FIXED electron count, what the local PP's G = 0 alignment multiplies (\c Ven_PP_Short's
     //! itsNumElectrons): the facade's resolved Nelec, never re-derived here (a stated charge lives in RunOptions, not on the sites).
+    //! \a meshMaker + \a symmetry (every ctor): build the XC quadrature at \a xcMesh when the route asks for one (δ, the Becke ball, the
+    //! periodic A1); the raster route asks nothing.  The solid facade hands the point's cell maker and its \c CrystalImposition (V-MESH-FACTORY §4.1).
     //! Explicit-models ctor: the caller owns the local + optional KB nonlocal models (non-owning here).
-    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const Pseudopotential::LocalPotential* loc,
+    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const Pseudopotential::LocalPotential* loc,
                const Pseudopotential::SeparablePotential* nl=nullptr, const qcMesh::MeshParams& xcMesh={});
     //! Single-species convenience ctor: look up + own the GTH PP for \a element.
-    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::string& element,
+    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const std::string& element,
                const std::string& functional="LDA", int valence=0, const qcMesh::MeshParams& xcMesh={});
     //! Multi-species convenience ctor: name each (element, valence); the database is looked up per species
     //! and a per-Z router model (MultiSpecies_*) is built + OWNED -- e.g. Ham_PW_DFT(st, bs, {{"Na",1},{"F",7}}).
-    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, std::initializer_list<std::pair<std::string,int>> species,
+    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, std::initializer_list<std::pair<std::string,int>> species,
                const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={});
     //! Multi-species, RUNTIME species list (the vector form the initializer_list can't provide) -- e.g. a
     //! LiCoO2 / f-oxide run assembled from the cell's distinct elements at run time.
@@ -138,7 +143,7 @@ public:
     //! the Delta (singles quadrature) XC route; a polarized PLANE-WAVE fit (a per-channel pair route) is asserted out
     //! until designed.
     //! \a hubbard: the DFT+U manifolds (empty = no +U term; programme step 5, pin 23).
-    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::vector<std::pair<std::string,int>>& species,
+    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const std::vector<std::pair<std::string,int>>& species,
                const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={},
                XCRoute fit={}, SpinGroup g=SpinGroup::UnPolarized,
                std::vector<HubbardManifold> hubbard={}, std::vector<std::shared_ptr<ExFunctional>> xc={},
@@ -146,7 +151,7 @@ public:
                std::shared_ptr<const GGAFunctional> gga={});   //!< a GGA (GGA stage 3): \a xc is then empty, the δ fit's gradient route is taken
 private:
     //! \a xc: the functional's parts; EMPTY = Dirac + VWN5, the default LDA (every ctor but the facade's leaves it so).
-    void BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const Pseudopotential::LocalPotential* loc,
+    void BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const Pseudopotential::LocalPotential* loc,
                     const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
                     XCRoute fit={}, std::vector<HubbardManifold> hubbard={},
                     std::vector<std::shared_ptr<ExFunctional>> xc={},
@@ -154,7 +159,7 @@ private:
                     std::shared_ptr<const GGAFunctional> gga={});
     //! Look up each (element, valence) from the GTH database, build + OWN the (per-Z router) local +
     //! separable models, and assemble the terms against them.  The single-species ctor is the 1-species case.
-    void BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const std::vector<std::pair<std::string,int>>& species,
+    void BuildFromGTH(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const std::vector<std::pair<std::string,int>>& species,
                       const std::string& functional, const qcMesh::MeshParams& xcMesh,
                       XCRoute fit={}, std::vector<HubbardManifold> hubbard={},
                       std::vector<std::shared_ptr<ExFunctional>> xc={},

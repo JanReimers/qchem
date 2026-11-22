@@ -19,6 +19,7 @@ import qchem.BasisSet.Gaussian.Point.Factory; // RegisteredBasis, BasisSetData: 
 import qchem.BasisSet.Gaussian.Point.BasisFiles; // BasisFileOfName: the basis name's file, for the coverage pre-flight
 import qchem.BasisCoverage;   // RequireBasisCovers, BasisCovers, ElementsOf: a basis lacking an element is refused before anything is built
 import qchem.Structure.MeshFactory;   // StructureMeshMaker<S>: each geometry point's mesh maker, typed where S is known (V-MESH-FACTORY)
+import qchem.Symmetry.Molecule.PointGroup;   // DetectPointGroup: the group the unfolded mesh leaves on the table (policy MeshFoldNotBuilt)
 
 namespace qchem
 {
@@ -260,6 +261,22 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Decide(std::shared_ptr<Molec
         ReportXCRho(opts.vxcFit, opts.xcRho);   // the ρ axis (user ruling 2026-11-09): warns on the Gaussian x δ cell
     }
     ResolveCoulombFit(s->opts.coulomb, *point, dft || !opts.pp->empty());   // policy CoulombFit: the Hartree fit named here, never in a library
+
+    // THE MESHES' SYMMETRY SOURCE (policy MeshFoldNotBuilt; user 2026-11-22: "molecules have a point group").  The point group is the
+    // molecule's, but its orbit fold is not built yet (OOD-SOLID V-FOLD-NEUTRAL): the library refuses a molecule non-trivial ops by name,
+    // so the POLICY chooses the unfolded mesh -- the same points, every orbit kept whole -- and reports what that leaves on the table.
+    s->meshSymmetry=std::make_shared<const qcMesh::NoSymmetry>();
+    if (dft || !opts.pp->empty())
+    {
+        std::vector<Symmetry::Molecule::SymPoint> pts;
+        point->ForEachSite([&pts](int Z, const rvec3_t& r, bool){ pts.push_back({Z, r}); });
+        const Symmetry::Molecule::PointGroup pg=Symmetry::Molecule::DetectPointGroup(pts, opts.symmetryTol);
+        if (pg.symbol!="C1")
+            policy::Report("MeshFoldNotBuilt", "point group "+pg.symbol+" ("+(pg.order>0 ? std::to_string(pg.order)+" ops" : std::string("infinite"))
+                           +") detected; the XC mesh is not folded", policy::Verdict::Choose,
+                           "a molecular point-group mesh is not built yet (OOD-SOLID V-FOLD-NEUTRAL): the run builds the unfolded mesh, the same "
+                           "answer at the cost of every orbit's repeated points");
+    }
 
     AdmitRecipe(opts.recipe, /*kT: not read for a molecule*/0.0, /*molecule*/true);   // Auto | Insulator only (R4.1 ruling (c))
     s->accelerator = MolecularAcceleratorType(opts.accelerator, "qchem::MoleculeCalculation");   // Auto = DIIS; Null refused

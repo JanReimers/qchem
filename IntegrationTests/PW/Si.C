@@ -61,6 +61,7 @@ import qchem.WaveFunction;                          // cWaveFunction (read view 
 import qchem.ElectronConfiguration;                 // ElectronConfiguration base
 import qchem.ElectronConfiguration.Crystal;         // Crystal_EC (single-k Bloch configuration)
 import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;      // SCFAcceleratorDIIS (scalar-agnostic manager)
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the factory doors take the point's mesh maker and a symmetry source)
 
 using namespace qchem;
 using namespace qchem::tests::pw;
@@ -262,7 +263,7 @@ TEST(PW_Si, Γ_Anchor)
         // Plane-wave LDA Kohn-Sham Hamiltonian: kinetic + external(pseudo) + Hartree + Dirac X + VWN5
         // (heap; the SCFIterator takes ownership).  Atoms from the lattice; the PP model lives on the term.
         qchem::Hamiltonian::CoulombFitSlot<dcmplx> coulombFit;   // the run's Coulomb-fit slot, beside its basis (S2b)
-        cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), coulombFit, 8.0, "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
+        cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), coulombFit, 8.0, *MakeMeshMaker(lat.GetUnitCell()), qcMesh::NoSymmetry(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
         std::unique_ptr<cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
         // Complex DIIS (Pulay): extrapolate the Fock matrix from the [F,D] history; damps the marginal drift
         // within Si's degenerate Gamma_25' manifold so it converges to a tight |Delta rho|.
@@ -392,7 +393,7 @@ TEST(PW_Si, k222_Anchor)
     Crystal_EC ec(irreps, Nelec);                          // Nval per k-block; weights handle the BZ sum
 
     qchem::Hamiltonian::CoulombFitSlot<dcmplx> coulombFit;   // the run's Coulomb-fit slot, beside its basis (S2b)
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), coulombFit, 8.0, "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), coulombFit, 8.0, *MakeMeshMaker(lat.GetUnitCell()), qcMesh::NoSymmetry(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
     std::unique_ptr<cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
     using qchem::SCFAccelerators::DIISParams;
     auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{.Nproj=8, .EngageBelowFD=0.5, .SVTol=1e-9});

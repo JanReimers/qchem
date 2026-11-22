@@ -229,18 +229,20 @@ export namespace qchem::Hamiltonian
     //! \a fit: the Vxc fit basis (\c Delta = the δ basis on \a mesh's points, which \c Auto resolves to -- the default;
     //! \c Auxiliary = the lineage's own fitted auxiliary basis, A1 on a molecule).
     //! \a coulomb: the Hartree fit (\c CoulombRoute), on the molecular / atom path.
-    rHamiltonian* Factory(SpinGroup, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const rbs_t*,
+    //! \a meshMaker + \a symmetry (every DFT door): build the XC quadrature at a recipe when a route asks for one -- the run point's maker,
+    //! with \c qcMesh::NoSymmetry on a molecule or an atom and the point's \c CrystalImposition on a solid (V-MESH-FACTORY §4.1 as built).
+    rHamiltonian* Factory(SpinGroup, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t*,
                           const CoulombFitSlot<double>& coulombFit, XCRoute fit={}, const CoulombRoute& coulomb={});
 
     //! Unified one-call resolver: turn a Model token into the concrete polymorphic Hamiltonian.  HF/1-e/
     //! Dirac ignore mesh/basis/xalpha; the DFT members map to an XCFunctional and delegate to the resolver
     //! above.  The compact "default Hamiltonian" entry the unit tests want -- no manual functional assembly.
-    rHamiltonian* Factory(Model,SpinGroup,const st_t& st, const qcMesh::MeshParams&, const rbs_t*,
+    rHamiltonian* Factory(Model,SpinGroup,const st_t& st, const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t*,
                           const CoulombFitSlot<double>& coulombFit, double xalpha, XCRoute fit={}, const CoulombRoute& coulomb={});
 
     //! Convenience for the most common DFT functional: Slater-Dirac exchange scaled by \a alpha (alpha=2/3
     //! is pure Dirac).  Equivalent to the XCFunctional resolver with XC::SlaterXalpha.
-    rHamiltonian* Factory(SpinGroup,const st_t& st,double alpha, const qcMesh::MeshParams&, const rbs_t*, const CoulombFitSlot<double>& coulombFit);
+    rHamiltonian* Factory(SpinGroup,const st_t& st,double alpha, const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t*, const CoulombFitSlot<double>& coulombFit);
 
     //=== Pseudopotential ============================================================================
     //! Build a pseudopotential Hamiltonian for `element` (e.g. "Si") with `valence` (zion) valence
@@ -249,7 +251,7 @@ export namespace qchem::Hamiltonian
     //! unpolarized collapse.  The public front door to Ham_PP.  \a meshMaker builds the PP quadrature over \a st's geometry point
     //! (the run point's \c StructureMeshMaker, V-MESH-FACTORY §4.3), only when a basis block cannot assemble the PP in closed form.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const std::string& element, int valence,
-                         const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const rbs_t*, const CoulombFitSlot<double>& coulombFit, XCRoute fit={},
+                         const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t*, const CoulombFitSlot<double>& coulombFit, XCRoute fit={},
                          const CoulombRoute& coulomb={}, const XCFunctional& xc={});
 
     //! Pseudopotential Hamiltonian from the run's CHOSEN \a pp set (doc/CalcNetworkReview.md §4): a per-Z router PP is built over the
@@ -258,7 +260,7 @@ export namespace qchem::Hamiltonian
     //! \a xc: the run's STATED functional (default LDA = Dirac + VWN5); the set's PP is fitted with its own (\c FittedFunctional), and a
     //! mismatch is the facade's warn-and-run policy, never a substitution here.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const Pseudopotential::PseudopotentialSet& pp,
-                         const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const rbs_t*, const CoulombFitSlot<double>& coulombFit, XCRoute fit={},
+                         const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t*, const CoulombFitSlot<double>& coulombFit, XCRoute fit={},
                          const CoulombRoute& coulomb={}, const XCFunctional& xc={});
 
     //=== The SOLID (periodic, dcmplx) front door ======================================================
@@ -282,7 +284,7 @@ export namespace qchem::Hamiltonian
     //! summed over (\c LatticeSummedSet::forces, Group face step 3a); ignored otherwise.
     //! \a numElectrons: the run's resolved electron count (SolidSetup's Nelec), the local PP's G = 0 alignment's FIXED N (Ven_PP_Short).
     cHamiltonian* Factory(SpinGroup, const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons,
-                          const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh,
+                          const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry,
                           XCRoute fit = {}, std::vector<HubbardManifold> hubbard = {}, const XCFunctional& xc = {},
                           ChargeDensity::LatticeSummedSet vxcAux = {});
 

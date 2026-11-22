@@ -44,6 +44,7 @@ import qchem.SCFIterator;                           // cSCFIterator (the real fr
 import qchem.WaveFunction;                          // cWaveFunction (read view of the converged state)
 import qchem.ElectronConfiguration;                 // ElectronConfiguration base
 import qchem.ElectronConfiguration.Crystal;         // Crystal_EC (single-k Bloch configuration)
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the factory doors take the point's mesh maker and a symmetry source)
 
 using namespace qchem;
 using namespace qchem::tests::pw;
@@ -73,7 +74,7 @@ TEST(PW_CsI, Γ_Anchor)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     auto mkHam=[&](const BasisSet::Complex_BS* bs, const qchem::Hamiltonian::CoulombFitSlot<dcmplx>& coulombFit)   // bs -> the Hartree fit basis (created once in BuildTerms)
-        { return new Ham_PW_DFT(lat.GetStructure(), bs, coulombFit, 8.0, {{"Cs",1},{"I",7}}, "LDA"); };
+        { return new Ham_PW_DFT(lat.GetStructure(), bs, coulombFit, 8.0, *MakeMeshMaker(lat.GetUnitCell()), qcMesh::NoSymmetry(), {{"Cs",1},{"I",7}}, "LDA"); };
 
     FwResult R=RunFrameworkGamma(lat, /*Ecut*/4.0, /*Nelec*/8, mkHam, "CsI SCFIterator-Gamma");
 

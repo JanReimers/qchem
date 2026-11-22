@@ -103,6 +103,12 @@ std::shared_ptr<const Structure> TheAtom()     {return std::make_shared<Atom>(7,
 //! about the structure's first site.  \a G is what the structure's kind carries: T on the solid, O(3) on the atom, neither on a molecule.
 enum class Kind {Solid, Molecule, Atom};
 const char* Name(Kind k) {return k==Kind::Solid ? "solid" : k==Kind::Molecule ? "molecule" : "atom";}
+//! The mesh maker a molecule or atom facade hands the factory, over the point (a test may name the concrete type).
+std::shared_ptr<const qcMesh::MeshMaker> MeshMakerFor(const Structure& st)
+{
+    if (const auto* a=dynamic_cast<const Atom*>(&st)) return MakeMeshMaker(*a);
+    return MakeMeshMaker(dynamic_cast<const Molecule&>(st));
+}
 std::shared_ptr<const Structure> StructureOf(Kind k) {return k==Kind::Solid ? TheSolid() : k==Kind::Molecule ? TheMolecule() : TheAtom();}
 enum class H3 {E, T, O3};
 const char* Name(H3 h) {return h==H3::E ? "{e}" : h==H3::T ? "T" : "O(3)";}
@@ -321,7 +327,7 @@ TEST(VxcProductSpace, TheProductionsBuildTheOneTerm)
             : BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(), BasisSet::Gaussian::Engine::MnD,
                                           BasisSet::Gaussian::Angular::Cartesian));
         Hamiltonian::CoulombFitSlot<double> coulombFit;
-        std::unique_ptr<Hamiltonian::rHamiltonian> ham(Hamiltonian::Factory(Hamiltonian::Model::LDA, SpinGroup::UnPolarized, st, mesh, bs.get(),
+        std::unique_ptr<Hamiltonian::rHamiltonian> ham(Hamiltonian::Factory(Hamiltonian::Model::LDA, SpinGroup::UnPolarized, st, mesh, *MeshMakerFor(*st), qcMesh::NoSymmetry(), bs.get(),
                                                                               coulombFit, 0.0, Hamiltonian::XCRoute(fit)));
         EXPECT_TRUE(HoldsTheOneTerm(*ham)) << name;
     }
@@ -342,8 +348,11 @@ TEST(VxcProductSpace, TheProductionsBuildTheOneTerm)
             ? BasisSet::Lattice::GPWFactory(lat, mol, MakeMeshMaker(lat.GetUnitCell()), {.densityEcut=8.0})
             : BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, 4.0));
         Hamiltonian::CoulombFitSlot<dcmplx> coulombFit;
+        // What the solid facade hands: the cell's maker, and the GPW basis's imposition as the source (none on plane waves).
+        const qcMesh::NoSymmetry none;
+        const auto* imposed=dynamic_cast<const qcMesh::SymmetrySource*>(bs->GetImposition());
         std::unique_ptr<Hamiltonian::cHamiltonian> ham(Hamiltonian::Factory(SpinGroup::UnPolarized, lat.GetStructure(), bs.get(), coulombFit, 4.0,
-            Pseudopotential::PseudopotentialSet::Get("gth-lda-valence"), mesh, Hamiltonian::XCRoute(fit), {}, {}, {}));
+            Pseudopotential::PseudopotentialSet::Get("gth-lda-valence"), mesh, *MakeMeshMaker(lat.GetUnitCell()), imposed ? *imposed : static_cast<const qcMesh::SymmetrySource&>(none), Hamiltonian::XCRoute(fit), {}, {}, {}));
         EXPECT_TRUE(HoldsTheOneTerm(*ham)) << name;
     }
 }
@@ -411,7 +420,7 @@ TEST(VxcProductSpace, ARefusalNamesBothGroupsAndTheFactoryRefusesTheSame)
         {
             Hamiltonian::CoulombFitSlot<double> coulombFit;
             std::unique_ptr<Hamiltonian::rHamiltonian> ham(Hamiltonian::Factory(Hamiltonian::Model::LDA, SpinGroup::UnPolarized,
-                                                                                  st, PointsFor(points), bs.get(), coulombFit, 0.0, fit));
+                                                                                  st, PointsFor(points), *MeshMakerFor(*st), qcMesh::NoSymmetry(), bs.get(), coulombFit, 0.0, fit));
             ADD_FAILURE() << Name(fit) << " x " << Name(points) << ": the factory built a refused cell";
         }
         catch (const std::invalid_argument& e)

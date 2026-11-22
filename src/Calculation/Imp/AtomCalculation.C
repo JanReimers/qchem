@@ -676,11 +676,11 @@ qchem::Hamiltonian::rHamiltonian* AtomCalculation::MakeHamiltonianOn(const Grids
         slot.GetOrFill([&]{return fit_t(ladder->MakeCoulombFitRung(g.fitRung));});
     }
     return itsSetup->opts.atom.pseudopotential
-        ? H::Factory(itsSetup->opts.spin, itsSetup->structure, thePeriodicTable().GetSymbol(itsSetup->Z), itsSetup->PseudoValence(), mesh, *itsSetup->meshMaker, itsBasis,
+        ? H::Factory(itsSetup->opts.spin, itsSetup->structure, thePeriodicTable().GetSymbol(itsSetup->Z), itsSetup->PseudoValence(), mesh, *itsSetup->meshMaker, qcMesh::NoSymmetry(), itsBasis,
                      slot, H::XCRoute(itsSetup->opts.vxcFit, itsSetup->opts.xcRho), g.coulomb, PseudoAtomXC(itsSetup->opts))
         : itsSetup->opts.atom.xc.has_value()
-            ? H::Factory(itsSetup->opts.spin, itsSetup->structure, *itsSetup->opts.atom.xc, mesh, itsBasis, slot, H::XCRoute(itsSetup->opts.vxcFit, itsSetup->opts.xcRho), g.coulomb)
-            : H::Factory(*itsSetup->opts.model, itsSetup->opts.spin, itsSetup->structure, mesh, itsBasis, slot, itsSetup->opts.xalpha,
+            ? H::Factory(itsSetup->opts.spin, itsSetup->structure, *itsSetup->opts.atom.xc, mesh, *itsSetup->meshMaker, qcMesh::NoSymmetry(), itsBasis, slot, H::XCRoute(itsSetup->opts.vxcFit, itsSetup->opts.xcRho), g.coulomb)
+            : H::Factory(*itsSetup->opts.model, itsSetup->opts.spin, itsSetup->structure, mesh, *itsSetup->meshMaker, qcMesh::NoSymmetry(), itsBasis, slot, itsSetup->opts.xalpha,
                          H::XCRoute(itsSetup->opts.vxcFit, itsSetup->opts.xcRho), g.coulomb);
 }
 

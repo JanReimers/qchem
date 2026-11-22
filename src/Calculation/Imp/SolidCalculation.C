@@ -153,6 +153,11 @@ struct SolidCalculation::Imp
     //! them, so the grid report and the raster pilot ASK them (never a basis block).  Null on a plane-wave run.
     std::shared_ptr<const CrystalImposition>                  imposition;
     std::shared_ptr<const BasisSet::Gaussian::GpwRasterLadder> ladder;
+    //! THIS point's mesh maker, over the point's own cell (strained or not: built per point, so a mesh can never be built over another
+    //! cell), and the symmetry source its XC quadrature respects (V-MESH-FACTORY §4.1 as built): the GPW point's \c imposition, the one the
+    //! basis was built under; on a plane-wave run none (the plane-wave family folds no quadrature, \c PW_BasisSet).
+    std::shared_ptr<const qcMesh::MeshMaker>                  meshMaker;
+    std::shared_ptr<const qcMesh::SymmetrySource>             symmetry;
     //! What the run's client consumes (\c SolidCalculation::Consumes): an energy, unless a SolidSession built this point.
     BasisSet::Gaussian::ClientConsumes consumes = BasisSet::Gaussian::ClientConsumes::Energy;
     //! The pilot audit has SETTLED this run's rasters (\c CalibrateRasters): \c setup->opts.solid.tolerances are the final demands.
@@ -458,6 +463,8 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     {
         qchem::report::Timed timed("setup: PW basis build");
         itsImp->bs.reset(L3::Factory(L3::Type::PW, lat, opts.solid.planeWaveEcut, S.spins));   // {} unless a magnetic imposition
+        itsImp->meshMaker=MakeMeshMaker(lat.GetUnitCell());
+        itsImp->symmetry =std::make_shared<const qcMesh::NoSymmetry>();
         std::cout<<"["<<Tag()<<" run] plane-wave orbital basis: Ecut "<<opts.solid.planeWaveEcut<<" Ha, "
                  <<itsImp->bs->GetNumFunctions()<<" PWs at Γ"<<std::endl;
     }
@@ -478,7 +485,9 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         ResolveGpwPoint(lat, mol, *S.pp, p);
         itsImp->imposition=p.imposition;
         itsImp->ladder    =p.ladder;
-        itsImp->bs.reset(L3::GPWFactory(lat, mol, MakeMeshMaker(lat.GetUnitCell()), p));
+        itsImp->meshMaker =MakeMeshMaker(lat.GetUnitCell());
+        itsImp->symmetry  =p.imposition;
+        itsImp->bs.reset(L3::GPWFactory(lat, mol, itsImp->meshMaker, p));
     }
     itsImp->coulombFit={};   // a new basis: its Coulomb fit is built afresh by the first Hamiltonian on it
     // THE RUN REPORTS ITS OWN BASIS AND GRIDS (TE phase 2, 2026-09-15; the reporting rule: each class emits
@@ -655,7 +664,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
                              : qchem::policy::MakeXCOrbitalTablesChooser(opts.solid.xcOrbitalTables);
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, double(itsImp->setup->opts.Nelec), *itsImp->setup->pp, xc, route, hubbard,
+            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, double(itsImp->setup->opts.Nelec), *itsImp->setup->pp, xc, *itsImp->meshMaker, *itsImp->symmetry, route, hubbard,
             qchem::Hamiltonian::ModelToXC(*opts.model), a1));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
@@ -2428,14 +2437,15 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             .hamPreservesReal = S.realTRIMBlocks};
         ResolveGpwPoint(latRef, molRef, *S.pp, p);   // the reference's own ladder (its rasters / ball differ), sized for the same PP
         ladderRef=p.ladder;
-        bsRef.reset(L3::GPWFactory(latRef, molRef, MakeMeshMaker(latRef.GetUnitCell()), p));
+        const auto makerRef=MakeMeshMaker(latRef.GetUnitCell());
+        bsRef.reset(L3::GPWFactory(latRef, molRef, makerRef, p));
         if (rpt::Depth()>0)   // the reference's grids + verdicts, as setup files the run's
         {
             rpt::Section grids("grids");
             L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition);
         }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
-        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, double(S.opts.Nelec), *S.pp, xcMesh ? *xcMesh : S.xcMesh, {opts.vxcFit, opts.xcRho}, itsImp->hubbard,
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, double(S.opts.Nelec), *S.pp, xcMesh ? *xcMesh : S.xcMesh, *makerRef, *p.imposition, {opts.vxcFit, opts.xcRho}, itsImp->hubbard,
                                                  qchem::Hamiltonian::ModelToXC(*opts.model), PeriodicA1Set(opts, *stRef)));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);

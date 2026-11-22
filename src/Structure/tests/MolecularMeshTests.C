@@ -14,6 +14,7 @@ import qchem.Mesh.Quadrature;          // qcMesh::Integrate (over qcMath ScalarF
 import qchem.Reporting;                 // report::Scope: the mesh files its fields one level into the caller's scope
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 import qchem.Structure.MeshFactory;   // MakeMesh, StructureMeshMaker<S> (V-MESH-FACTORY)
+import qchem.Lattice_3D.Imposition;   // ResolveImposition: a crystal run's SymmetrySource (the strain gate)
 using namespace qchem;
 
 // Note: this TU sees BOTH the old global `Mesh`/`MeshParams` (via qchem.Structure) and the new
@@ -420,4 +421,50 @@ TEST(MeshFactory, AMakerBuildsWhatTheFactoryBuildsForEveryStructureKind)
 TEST(MeshFactory, AMakerDemandsItsStructure)
 {
     EXPECT_THROW(StructureMeshMaker<Molecule>(nullptr), std::invalid_argument);
+}
+
+// THE STRAIN GATE (controller 2026-11-22, the user's "Does the grid builder hold state information?"): a symmetry source supplies OPS only, and
+// the MAKER owns the geometry.  An imposition resolved at the REFERENCE cell, handed to a maker over a STRAINED cell (an isotropic strain keeps
+// the group, so the session keeps the imposition's ops), must build the strained cell's invariant mesh -- never the reference cell's.
+TEST(MeshFactory, AStrainedCellsMakerBuildsOverItsOwnCellUnderTheReferencesOps)
+{
+    const auto bcc=[](double a){ auto c=std::make_shared<UnitCell>(a); c->AddAtom(1, rvec3_t(0,0,0)); c->AddAtom(1, rvec3_t(0.5,0.5,0.5)); return c; };
+    const auto ref=bcc(6.0), strained=bcc(6.3);
+    const CrystalImposition imp=ResolveImposition(Lattice_3D(*ref, ivec3_t(1,1,1)), {.imposeSymmetry=true});
+    const std::vector<Symmetry::SymOp> ops=imp.MeshOps();
+    ASSERT_FALSE(ops.empty());
+    ASSERT_TRUE(imp.AveragesDensityOverOrbits());
+    qcMesh::MeshParams uni; uni.nUniform=6;
+    const qcMesh::FoldedMesh q=StructureMeshMaker<UnitCell>(strained).Make(uni, imp);
+    ASSERT_TRUE(q.GetMesh());
+    EXPECT_TRUE(q.HasFold()) << "an imposed run folds its mesh";
+    ExpectSameMesh(*q.GetMesh(), MakeMesh(*strained, uni, ops));
+    const qcMesh::Mesh atRef=MakeMesh(*ref, uni, ops);
+    ASSERT_EQ(q.GetMesh()->size(), atRef.size());
+    double moved=0.0;
+    for (size_t i=0;i<atRef.size();i++) moved=std::max(moved, norm(q.GetMesh()->Points()[i]-atRef.Points()[i]));
+    EXPECT_GT(moved, 0.1) << "the strained maker built the REFERENCE cell's mesh";
+}
+
+// The symmetric overload's per-structure hooks: an atom's invariant mesh is its radial-only set (an angular one refused); a molecule's is a
+// tracked, not-yet-built feature (V-FOLD-NEUTRAL) refused by name; and with NO ops neither hook is reached -- the plain mesh, unfolded.
+TEST(MeshFactory, TheSymmetricOverloadsHooksPerStructure)
+{
+    auto atom=std::make_shared<const Atom>(8, rvec3_t(0,0,0));
+    auto mol=std::make_shared<Molecule>();
+    mol->Insert(Site{8, rvec3_t(0,0,0)}); mol->Insert(Site{1, rvec3_t(0,1.4,1.1)}); mol->Insert(Site{1, rvec3_t(0,-1.4,1.1)});
+    struct OneOp : qcMesh::SymmetrySource
+    {
+        std::vector<Symmetry::SymOp> MeshOps() const override {return {Symmetry::SymOp{Matrix3D<double>(1,0,0, 0,1,0, 0,0,1), rvec3_t(0,0,0)}};}
+        bool AveragesDensityOverOrbits() const override {return true;}
+    } oneOp;
+    qcMesh::MeshParams radial=Params(); radial.angular=qcMesh::AngularKind::None; radial.angularDegree=0;
+    const qcMesh::FoldedMesh a=StructureMeshMaker<Atom>(atom).Make(radial, oneOp);
+    ExpectSameMesh(*a.GetMesh(), MakeMesh(*atom, radial));
+    EXPECT_FALSE(a.HasFold()) << "one direction per shell: the trivial fold";
+    EXPECT_THROW(StructureMeshMaker<Atom>(atom).Make(Params(), oneOp), std::invalid_argument) << "an angular set on an atom claims a symmetry it lacks";
+    EXPECT_THROW(StructureMeshMaker<Molecule>(mol).Make(Params(), oneOp), std::invalid_argument) << "V-FOLD-NEUTRAL: not built yet";
+    const qcMesh::FoldedMesh m=StructureMeshMaker<Molecule>(mol).Make(Params(), qcMesh::NoSymmetry());
+    ExpectSameMesh(*m.GetMesh(), MakeMesh(*mol, Params()));
+    EXPECT_FALSE(m.HasFold());
 }

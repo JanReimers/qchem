@@ -80,6 +80,10 @@ struct MoleculeSetup : Setup
     //! Every Hamiltonian of a point is built on \c xcMesh, never on \c opts.xcMesh.
     bool meshStated   = false;   //!< the caller stated \c *opts.xcMesh (either number): audited against eps, never raised (pin 31 rule 3)
     bool meshResolved = false;   //!< a pilot settled \c xcMesh already (a session's later points): no climb, no audit
+    //! The symmetry source the run's meshes respect (V-MESH-FACTORY §4.1; policy MeshFoldNotBuilt): a molecule HAS a point group, but a
+    //! point-group mesh is not built yet (OOD-SOLID V-FOLD-NEUTRAL; the library's molecular hooks refuse non-trivial ops by name), so the
+    //! policy chooses the unfolded mesh, \c qcMesh::NoSymmetry, and reports the group it left on the table.
+    std::shared_ptr<const qcMesh::SymmetrySource> meshSymmetry;
 
     //! \brief ONE GEOMETRY POINT: the structure it is built over and the mesh maker over THAT structure (V-MESH-FACTORY §8 step 2).
     //! The structure is the reference's atoms (moved, for \c MakePoint(R)), each ADDING its core charge Z - Zion to the net charge it

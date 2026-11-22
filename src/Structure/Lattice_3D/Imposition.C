@@ -13,6 +13,7 @@ export import qchem.Lattice_3D;
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // SymmetryPolicy, ReciprocalOp, DirectOp, SymOp
 export import qchem.Symmetry.Imposition;              // SymmetryImposition: the face its consumers ask (S3)
 export import qchem.Mesh.Folded;                      // qcMesh::FoldedMesh, MeshParams: what XCMeshSource makes
+export import qchem.Mesh.Maker;                       // qcMesh::SymmetrySource: the face a mesh maker asks for the ops
 import qchem.Types;
 
 export namespace qchem
@@ -61,10 +62,14 @@ public:
 
 //! For a SYMMORPHIC crystal every τ=0 and the density faces collapse to the W-only ops.
 //! It REALIZES \c Symmetry::SymmetryImposition, the face the composite density and wave function ask (V-BS-SYMMETRY S3), and
-//! \c XCMeshSource, the face the XC quadrature builder asks (S2).
-class CrystalImposition : public virtual Symmetry::SymmetryImposition, public virtual XCMeshSource
+//! \c XCMeshSource, the face the XC quadrature builder asks (S2; TRANSITIONAL, step 4 retires it), and \c qcMesh::SymmetrySource, the ops a
+//! mesh maker builds the run's meshes invariant under (V-MESH-FACTORY §4.1 as built): the imposition supplies OPS only, never geometry.
+//! All three faces are public; a non-public base would go BEFORE them (CLAUDE.md, the cross-cast trap).
+class CrystalImposition : public virtual Symmetry::SymmetryImposition, public virtual XCMeshSource, public virtual qcMesh::SymmetrySource
 {
 public:
+    std::vector<Symmetry::SymOp> MeshOps() const override;
+    bool AveragesDensityOverOrbits() const override;
     const std::vector<Symmetry::SymOp>&               SpinPairOps   () const override {return spinPairOps;}
     std::shared_ptr<const Symmetry::StarGroup> DensityGroup() const override {return densityGroup;}
     qcMesh::FoldedMesh MakeXCMesh(const qcMesh::MeshParams& mp) const override;

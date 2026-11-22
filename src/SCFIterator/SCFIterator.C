@@ -228,7 +228,8 @@ public:
 private:
     //! The shared construction body both public ctors delegate to; \a seedMesh is the SeedStrategy ctor's (empty from the other).
     tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*, tChargeDensity<T>* seedDensity, const Structure* st,
-                 std::optional<qcMesh::MeshParams> seedMesh, qchem::Ortho basisOrtho, double basisOrthoTol, SeedRole role, size_t numBands);
+                 std::optional<qcMesh::MeshParams> seedMesh, std::shared_ptr<const qcMesh::MeshMaker> seedMeshMaker,
+                 qchem::Ortho basisOrtho, double basisOrthoTol, SeedRole role, size_t numBands);
 public:
     virtual ~tSCFIterator();
     //! Iterate resolves \c ipar.Mixer first (\c ResolveMixing), so \c Mixing::Auto becomes this run's mixer.
@@ -442,6 +443,9 @@ private:
     //! The HF/DHF SAD bootstrap's sibling mesh (the SeedStrategy ctor's \c seedMesh); empty from the explicit-seed ctor, whose
     //! seed is matrix-backed, so a matrix-free seed arriving there with no mesh THROWS rather than picking one.
     std::optional<qcMesh::MeshParams> itsSeedMesh;
+    //! The SeedStrategy ctor's maker over \c st's geometry point: the LDA sibling's XC quadrature is its plain mesh (null beside an empty
+    //! itsSeedMesh).
+    std::shared_ptr<const qcMesh::MeshMaker> itsSeedMeshMaker;
     const tbs_t<T>*  itsBS = nullptr;         //!< orbital basis (for the Kerker G-space fit basis) -- from the ctor
     double             itsResidual=0.0;   //!< this iteration's \c tHamiltonian::DeltaRho (the driver writes it)
     std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>> itsMixer;  //!< the density-face concrete for this run

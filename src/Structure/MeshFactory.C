@@ -34,6 +34,20 @@ qcMesh::Mesh MakeMesh(const UnitCell&, const qcMesh::MeshParams&);
 //! The same cell mesh made INVARIANT under \a ops (§6a imposed symmetry): site-adapted by construction for \c Becke (W2b), the generic
 //! raster group-averaged onto the op orbits for \c Uniform.  \a ops non-empty.
 qcMesh::Mesh MakeMesh(const UnitCell&, const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops);
+//! An atom's mesh invariant under \a ops: the radial-only set (\c AngularKind::None), whose angular part is analytic, so ANY rotation about
+//! the atom leaves it invariant.  An angular recipe THROWS: its finite direction set would claim a symmetry it does not carry.
+qcMesh::Mesh MakeMesh(const Atom&,     const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops);
+//! A molecule's mesh invariant under a point group: NOT BUILT YET (OOD-SOLID V-FOLD-NEUTRAL) -- THROWS by name.  A molecule today is only
+//! ever handed \c qcMesh::NoSymmetry, whose empty op set never reaches this.
+qcMesh::Mesh MakeMesh(const Molecule&, const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops);
+
+//! The ORBIT FOLD of a cell mesh invariant under \a ops: the orbit partition (fractional, torus-metric point matching), and on a
+//! Shubnikov op set the per-op spin actions and the flip-fixed points (m = 0 there exactly).
+qcMesh::FoldedMesh FoldOrbits(const UnitCell&, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops);
+//! An atom's radial-only mesh: one direction per shell, so every orbit is a single point -- the trivial fold.
+qcMesh::FoldedMesh FoldOrbits(const Atom&,     qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops);
+//! A molecule's: NOT BUILT YET (OOD-SOLID V-FOLD-NEUTRAL) -- THROWS by name.
+qcMesh::FoldedMesh FoldOrbits(const Molecule&, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops);
 
 //! \brief THE concrete \c qcMesh::MeshMaker: closes over one structure of concrete type \a S and builds through \c MakeMesh(const S&, mp).
 //! One class template instead of a hand-written hierarchy parallel to the structures (§2 (ii)).  The structure is DEMANDED: no null.
@@ -44,7 +58,13 @@ public:
     {
         if (!itsStructure) throw std::invalid_argument("StructureMeshMaker: a null structure -- a mesh maker needs the geometry it builds over");
     }
+    using qcMesh::MeshMaker::Make;   // the symmetric overload, the face's template method
     qcMesh::Mesh Make(const qcMesh::MeshParams& mp) const override {return MakeMesh(*itsStructure, mp);}
+protected:
+    qcMesh::Mesh MakeInvariant(const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops) const override
+        {return MakeMesh(*itsStructure, mp, ops);}
+    qcMesh::FoldedMesh FoldOrbits(qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops) const override
+        {return qchem::FoldOrbits(*itsStructure, std::move(mesh), ops);}
 private:
     std::shared_ptr<const S> itsStructure;
 };

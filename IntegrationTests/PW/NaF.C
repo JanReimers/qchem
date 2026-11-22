@@ -45,6 +45,7 @@ import qchem.SCFIterator;                           // cSCFIterator (the real fr
 import qchem.WaveFunction;                          // cWaveFunction (read view of the converged state)
 import qchem.ElectronConfiguration;                 // ElectronConfiguration base
 import qchem.ElectronConfiguration.Crystal;         // Crystal_EC (single-k Bloch configuration)
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the factory doors take the point's mesh maker and a symmetry source)
 
 using namespace qchem;
 using namespace qchem::tests::pw;
@@ -73,7 +74,7 @@ TEST(PW_NaF, Γ_Anchor)
 
     using SS=qchem::ChargeDensity::SeedStrategy;
     auto mkHam=[&](const BasisSet::Complex_BS* bs, const qchem::Hamiltonian::CoulombFitSlot<dcmplx>& coulombFit)   // multi-species one-call; bs -> the Hartree fit basis
-        { return new Ham_PW_DFT(lat.GetStructure(), bs, coulombFit, 8.0, {{"Na",1},{"F",7}}, "LDA"); };
+        { return new Ham_PW_DFT(lat.GetStructure(), bs, coulombFit, 8.0, *MakeMeshMaker(lat.GetUnitCell()), qcMesh::NoSymmetry(), {{"Na",1},{"F",7}}, "LDA"); };
 
     // IonicSAD seed: the electronegativity heuristic assigns Na+ / F-, and the per-species valence densities
     // are scaled to the formal-charge electron counts (0 e- on Na, 8 e- on F) -- the seed pre-bakes the

@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <functional>
 #include <nlohmann/json.hpp>
 import qchem.MoleculeCalculation;
 import qchem.Structure;
@@ -12,6 +13,7 @@ import qchem.ChargeDensity.Seed;   // SeedStrategy, SeedLibrary (via AtomicDensi
 import qchem.SeedPolicy;           // SeedLibraryCovers: the Auto rule's coverage
 import qchem.Vector3D;             // norm(rvec3_t)
 import qchem.Structure.MeshFactory; // MakeMesh: what a point's maker must build (V-MESH-FACTORY)
+import qchem.Reporting;             // report::Run / GlobalReport: the MeshFoldNotBuilt row
 
 using namespace qchem;
 
@@ -217,4 +219,46 @@ TEST(MoleculeSetup, APointsMeshMakerBuildsOverThePointNotTheReference)
     for (size_t q=0; q<got.size(); q++) ASSERT_EQ(norm(got.Points()[q]-want.Points()[q]), 0.0);
     const qcMesh::Mesh atRef=MakeMesh(h2, mp);
     EXPECT_GT(norm(got.Points()[0]-atRef.Points()[0]), 0.05) << "not the reference's mesh";
+}
+
+// POLICY MeshFoldNotBuilt (user 2026-11-22: "molecules have a point group"): the molecule's group is detected, but its orbit fold is not
+// built yet (OOD-SOLID V-FOLD-NEUTRAL), so the setup chooses the unfolded mesh -- a source with no ops -- and reports the group it left on
+// the table.  A mesh-free run (HF, all-electron) files no such row.
+TEST(MoleculeSetup, ASymmetricMoleculesUnfoldedMeshIsAReportedPolicy)
+{
+    Molecule h2o;
+    h2o.Insert(Site{8, rvec3_t(0,0,0)});
+    h2o.Insert(Site{1, rvec3_t(0, 1.43,1.11)});
+    h2o.Insert(Site{1, rvec3_t(0,-1.43,1.11)});
+    auto rows=[](const std::string& tag)
+    {
+        std::vector<report::json> out;
+        const auto& G=report::GlobalReport();
+        const report::json* filed=nullptr;
+        for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind(tag+"@",0)==0) filed=&it.value();
+        if (!filed) throw std::logic_error(tag+" was not filed");
+        std::function<void(const report::json&)> walk=[&](const report::json& x)
+        {
+            if (x.is_object())
+                for (auto it=x.begin(); it!=x.end(); ++it)
+                {
+                    if (it.key()=="policy" && it.value().is_array())
+                        for (const auto& r : it.value()) if (r.value("name","")=="MeshFoldNotBuilt") out.push_back(r);
+                    walk(it.value());
+                }
+            else if (x.is_array()) for (const auto& y : x) walk(y);
+        };
+        walk(*filed);
+        return out;
+    };
+    std::shared_ptr<const MoleculeSetup> lda, hf;
+    { report::Run run("MeshFoldNotBuilt LDA"); lda=MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .molecule={.basis="dzvp"}}); }
+    { report::Run run("MeshFoldNotBuilt HF");  hf =MoleculeSetup::Resolve(h2o, {.model=Model::HF,  .molecule={.basis="dzvp"}}); }
+    ASSERT_TRUE(lda->meshSymmetry);
+    EXPECT_TRUE(lda->meshSymmetry->MeshOps().empty()) << "the policy chose the unfolded mesh";
+    const auto r=rows("MeshFoldNotBuilt LDA");
+    ASSERT_EQ(r.size(), size_t(1));
+    EXPECT_NE(r[0].dump().find("C2v"), std::string::npos) << r[0].dump();
+    EXPECT_NE(r[0].dump().find("V-FOLD-NEUTRAL"), std::string::npos) << r[0].dump();
+    EXPECT_TRUE(rows("MeshFoldNotBuilt HF").empty()) << "an all-electron HF run builds no XC mesh";
 }

@@ -277,7 +277,7 @@ namespace qchem::Hamiltonian
     // the Internal ExFunctional where one is needed.  Every other DFT entry point (the Model resolver, the
     // alpha convenience) funnels through here, so the functional->Hamiltonian mapping lives in ONE place.
     // The functional internals never leak past this switch; if/else returns keep the U/P pointer types clean.
-    rHamiltonian* Factory(SpinGroup p, const st_t& st, const XCFunctional& xc, const qcMesh::MeshParams& mp, const rbs_t* bs,
+    rHamiltonian* Factory(SpinGroup p, const st_t& st, const XCFunctional& xc, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs,
                           const CoulombFitSlot<double>& coulombFit, XCRoute fit, const CoulombRoute& coulomb)
     {
         RequireAdmitted(*st,fit.fit,mp);
@@ -285,59 +285,59 @@ namespace qchem::Hamiltonian
         // Slater Xalpha keeps its own ctor (it is the same single SlaterExchange part).  Every other kind sums its parts into the
         // one XC term (each contributes its OWN eps, so E_c is the correct integral eps_c rho, not the 3/4 exchange virial); libxc is
         // spin-native through its XC_POLARIZED contract (2026-10-21).
-        if (xc.kind==XC::SlaterXalpha) return new Ham_DFT(st, xc.alpha, mp, bs, coulombFit, p, fit, coulomb);
-        if (xc.kind==XC::LibXCGGA)     return new Ham_DFT(st, MakeGGAFunctional(xc), mp, bs, coulombFit, p, fit, coulomb);   // GGA stage 2
-        return new Ham_DFT(st, MakeXCParts(xc), mp, bs, coulombFit, p, fit, coulomb);
+        if (xc.kind==XC::SlaterXalpha) return new Ham_DFT(st, xc.alpha, mp, meshMaker, symmetry, bs, coulombFit, p, fit, coulomb);
+        if (xc.kind==XC::LibXCGGA)     return new Ham_DFT(st, MakeGGAFunctional(xc), mp, meshMaker, symmetry, bs, coulombFit, p, fit, coulomb);   // GGA stage 2
+        return new Ham_DFT(st, MakeXCParts(xc), mp, meshMaker, symmetry, bs, coulombFit, p, fit, coulomb);
     }
 
     // The unified one-call resolver: HF/1-e/Dirac build directly; DFT Models map to an XCFunctional and
     // delegate to the single build site above -- so the Model token never leaks past here, and the DFT
     // build logic is NOT duplicated between this and the XCFunctional resolver.
-    rHamiltonian* Factory(Model m,SpinGroup p,const st_t& st, const qcMesh::MeshParams& mp, const rbs_t* bs,
+    rHamiltonian* Factory(Model m,SpinGroup p,const st_t& st, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs,
                           const CoulombFitSlot<double>& coulombFit, double xalpha, XCRoute fit, const CoulombRoute& coulomb)
     {
         if (!IsDFT(m)) return Factory(m,p,st);                       // non-DFT: mp/bs/xalpha unused
-        return Factory(p, st, ModelToXC(m,xalpha), mp, bs, coulombFit, fit, coulomb);    // DFT: Model -> XCFunctional -> Hamiltonian
+        return Factory(p, st, ModelToXC(m,xalpha), mp, meshMaker, symmetry, bs, coulombFit, fit, coulomb);    // DFT: Model -> XCFunctional -> Hamiltonian
     }
 
     // Convenience: the Slater-Xalpha functional by alpha alone.
-    rHamiltonian* Factory(SpinGroup p,const st_t& st,double alpha, const qcMesh::MeshParams& mp, const rbs_t* bs,
+    rHamiltonian* Factory(SpinGroup p,const st_t& st,double alpha, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs,
                           const CoulombFitSlot<double>& coulombFit)
     {
-        return Factory(p, st, XCFunctional{XC::SlaterXalpha, alpha}, mp, bs, coulombFit);
+        return Factory(p, st, XCFunctional{XC::SlaterXalpha, alpha}, mp, meshMaker, symmetry, bs, coulombFit);
     }
 
     // Pseudopotential front door: the all-electron nuclear attraction -> GTH local + KB nonlocal PP, LDA XC.
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const std::string& element, int valence,
-                         const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, XCRoute fit,
+                         const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, XCRoute fit,
                          const CoulombRoute& coulomb, const XCFunctional& xc)
     {
         RequireAdmitted(*st,fit.fit,mp);
         RequireAdmitted(*st,coulomb,mp,fit.fit);
-        return new Ham_PP(st, element, valence, mp, meshMaker, bs, coulombFit, p, fit, coulomb, MakeXCParts(xc));
+        return new Ham_PP(st, element, valence, mp, meshMaker, symmetry, bs, coulombFit, p, fit, coulomb, MakeXCParts(xc));
     }
 
     // Multi-species pseudopotential front door: per-Z router PP so each atom gets its own GTH pseudopotential.
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const Pseudopotential::PseudopotentialSet& pp,
-                         const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, XCRoute fit,
+                         const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, XCRoute fit,
                          const CoulombRoute& coulomb, const XCFunctional& xc)
     {
         RequireAdmitted(*st,fit.fit,mp);
         RequireAdmitted(*st,coulomb,mp,fit.fit);
-        return new Ham_PP(st, pp.Species(*st), pp.Functional(), mp, meshMaker, bs, coulombFit, p, fit, coulomb, MakeXCParts(xc));
+        return new Ham_PP(st, pp.Species(*st), pp.Functional(), mp, meshMaker, symmetry, bs, coulombFit, p, fit, coulomb, MakeXCParts(xc));
     }
 
     // The SOLID front door (Step 4): the cHamiltonian twin of the PP factory above.
     cHamiltonian* Factory(SpinGroup p, const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons,
-                          const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh, XCRoute fit,
+                          const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, XCRoute fit,
                           std::vector<HubbardManifold> hubbard, const XCFunctional& xc,
                           ChargeDensity::LatticeSummedSet vxcAux)
     {
         RequireAdmitted(*st,fit.fit,xcMesh);
         if (xc.kind==XC::LibXCGGA)   // GGA stage 3: the periodic point route (the setup admitted it: policy GGARoute)
-            return new Ham_PW_DFT(st, bs, coulombFit, numElectrons, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard), {},
+            return new Ham_PW_DFT(st, bs, coulombFit, numElectrons, meshMaker, symmetry, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard), {},
                                   std::move(vxcAux), MakeGGAFunctional(xc));
-        return new Ham_PW_DFT(st, bs, coulombFit, numElectrons, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard), MakeXCParts(xc),
+        return new Ham_PW_DFT(st, bs, coulombFit, numElectrons, meshMaker, symmetry, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard), MakeXCParts(xc),
                               std::move(vxcAux));
     }
 

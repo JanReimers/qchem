@@ -54,6 +54,7 @@ import qchem.BasisSet.OrbitalImageSource;               // OrbitalImage (KAxisPl
 import qchem.Symmetry.Lattice_3D.BlochOperationRep;      // ImageOfK
 import qchem.Symmetry.Lattice_3D.BlochQN;                // Getk (a block's fractional k)
 import qchem.BasisSet.Gaussian.Point.BasisFiles;           // BasisFile: the data path of sipp_sr.bsd
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the factory doors take the point's mesh maker and a symmetry source)
 
 using namespace qchem;
 using ChargeDensity::TransitionBlock;
@@ -228,7 +229,8 @@ TEST(ResponseKernel, MissingCapabilityThrowsAtConstruction)
     Hamiltonian::CoulombFitSlot<double> coulombFit;   // the run's Coulomb-fit slot, beside its basis (S2b)
     std::unique_ptr<Hamiltonian::rHamiltonian> H(Hamiltonian::Factory(Hamiltonian::Model::LDA, SpinGroup::UnPolarized, st,
         qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=3, .mhl_alpha=2.0,
-                           .angular=qcMesh::AngularKind::Lebedev, .angularDegree=5, .beckeOrder=2}, bs.get(), coulombFit, 0.7));
+                           .angular=qcMesh::AngularKind::Lebedev, .angularDegree=5, .beckeOrder=2},
+        *MakeMeshMaker(dynamic_cast<const Molecule&>(*st)), qcMesh::NoSymmetry(), bs.get(), coulombFit, 0.7));
     try
     {
         (void)H->MakeResponseKernel(bs.get(), nullptr);

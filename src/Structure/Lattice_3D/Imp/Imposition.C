@@ -9,8 +9,8 @@ module;
 module qchem.Lattice_3D.Imposition;
 import qchem.Symmetry.Lattice_3D.Fold;   // RequireClosedGroup (the imposition gate), MapsMeshOntoItself
 import qchem.Matrix3D;                   // Transpose (the G-index scatter U = W^T)
-import qchem.SymmetrizeMesh;             // FoldMesh, kMeshMatchTol (the XC mesh's orbit fold)
 import qchem.Reporting;                  // report::Timed -- the XC-mesh buckets (ParallelAndOraclePlan 1.1(b))
+import qchem.Structure.MeshFactory;      // MakeMesh(UnitCell[, ops]): the cell's plain and invariant meshes (V-MESH-FACTORY §4.6)
 
 namespace qchem
 {
@@ -118,70 +118,27 @@ CrystalImposition ResolveImposition(const Lattice_3D& lat, const ImpositionOptio
     return ops;
 }
 
-// Moved verbatim from tGPW_IBS::CreateXCQuadrature (V-BS-SYMMETRY S2): the δ-fit XC quadrature (doc/SymmetryUpgradePlan.md
-// §6a).  On a §3-imposed run:
-//  - Becke grid: the SITE-ADAPTED mesh (W2b) -- rep atoms carry site-group-invariant angular sets, partners the op-rotated
-//    copies -- invariant BY CONSTRUCTION, no group-average growth pass;
-//  - uniform grid (the cross cell): group-average it invariant (W1's MakeInvariant -- a no-op dedup when the grid is already
-//    commensurate).
-// Either way the geometry-fixed orbit fold feeds the engine's per-iteration rho star-average.  The CALLER opens the report
-// scope ("nonlinearMesh"), so every mesh built below reports one level into it.
+// THE OPS A CRYSTAL RUN'S MESH MUST RESPECT (qcMesh::SymmetrySource; controller + user rulings 2026-11-22).  On a §3-imposed run the
+// σ-carrying Shubnikov set when magnetic (its SPATIAL parts equal the density raster ops: ResolveImposition filled both from one group),
+// else the density raster ops {W|τ}; on a FREE run with mesh invariance the detected group; else none.  The mesh, its invariance under
+// them (site-adapted by construction for Becke, W2b; group-averaged for uniform) and the orbit fold are the MAKER's: the geometry is its.
+std::vector<Symmetry::SymOp> CrystalImposition::MeshOps() const
+{
+    if (directDensity.empty()) return meshInvariance;
+    if (!magneticDirect.empty()) return magneticDirect;
+    std::vector<Symmetry::SymOp> ops;
+    ops.reserve(directDensity.size());
+    for (const auto& op : directDensity) ops.push_back({op.W, op.tau});
+    return ops;
+}
+bool CrystalImposition::AveragesDensityOverOrbits() const {return !directDensity.empty();}
+
+// TRANSITIONAL (V-MESH-FACTORY step 4 deletes it with XCMeshSource, this->cell and its last client, BasisSet::MakeXCQuadrature): the
+// same build through the cell's maker.  The CALLER opens the report scope ("nonlinearMesh").
 qcMesh::FoldedMesh CrystalImposition::MakeXCMesh(const qcMesh::MeshParams& mp) const
 {
     assert(cell && "CrystalImposition::MakeXCMesh: an imposition not made by ResolveImposition has no cell");
-    const auto& dops = directDensity;
-    if (dops.empty() && meshInvariance.empty())
-        return {std::make_shared<const qcMesh::Mesh>(cell->CreateIntegrationMesh(mp)), {}};
-    // FREE run: the same invariant mesh an imposed run gets, but NO fold -- nothing averages the density.
-    if (dops.empty())
-    {
-        qcMesh::Mesh mesh = cell->CreateIntegrationMesh(mp, meshInvariance);
-        std::cout << "[XC mesh] free run: mesh invariant under the " << meshInvariance.size() << " detected ops, "
-                  << mesh.size() << " points; the density is NOT averaged" << std::endl;
-        return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), {}};
-    }
-
-    // On a MAGNETICALLY imposed run (S3) the σ-carrying Shubnikov set drives the quadrature; its SPATIAL parts equal the
-    // density raster ops (ResolveImposition filled both from one group), so the mesh/fold machinery is unchanged -- σ only ADDS
-    // the per-op spin actions and the odd-field flags the engine's (ρ,m) channel-pair star-average consumes.
-    std::vector<Symmetry::Lattice_3D::SymOp> ops;
-    if (!magneticDirect.empty()) ops = magneticDirect;
-    else { ops.reserve(dops.size()); for (const auto& op : dops) ops.push_back({op.W, op.tau}); }
-    const double tol = qchem::kMeshMatchTol;   // the ONE mesh-point coincidence tolerance (R2.12)
-    const Matrix3D<double>& A = cell->GetCellMatrix();
-
-    // Ask the CELL for a mesh invariant under the ops.  WHICH strategy realises that (site-adapted by construction for Becke,
-    // group-average for uniform) is the cell's business -- the imposition only needs the invariance, which is the T2
-    // precondition for the fold below.
-    qcMesh::Mesh mesh = cell->CreateIntegrationMesh(mp, ops);
-    // ★ 1.1(b): the XC quadrature build is 23.75 s/call EXCLUSIVE of the mesh build and the Φ tables, and it is the largest
-    // non-threading block in a GPW run.  These two buckets are the only candidates left inside it -- both are point-matching
-    // passes over ~97k mesh points against 24 ops.
-    auto fold = [&]{ qchem::report::Timed timed("setup: XC mesh orbit fold (FoldMesh)");
-                     return FoldMesh(mesh, A, ops, tol); }();
-    std::cout << "[Becke grid] imposed symmetry (" << ops.size() << " ops): invariant mesh "
-              << mesh.size() << " points in " << fold.Reps()
-              << " orbits; rho star-averaged each iteration (doc/SymmetryUpgradePlan.md 6a)" << std::endl;
-    if (magneticDirect.empty())
-        return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold)};
-
-    // The σ tags (parallel to ops -- the fold's edge opIndex indexes them) and the odd-field zero flags: FRACTIONAL mesh
-    // coordinates for the torus-metric fixed-point test.
-    std::vector<Symmetry::SpinAction> sigmas;
-    sigmas.reserve(ops.size());
-    for (const auto& op : ops) sigmas.push_back(op.sigma);
-    auto flags = [&]{
-        qchem::report::Timed timed("setup: XC mesh Shubnikov flip-fixed test");
-        std::vector<rvec3_t> frac;
-        frac.reserve(mesh.size());
-        const Matrix3D<double> Ainv = Invert(A);
-        for (size_t i=0;i<mesh.size();++i) frac.push_back(Ainv*mesh.Points()[i]);
-        return Symmetry::Lattice_3D::FlipFixedPointsPeriodic(frac, ops, tol); }();
-    size_t nFixed=0; for (char c : flags) if (c) nFixed++;
-    std::cout << "[Becke grid] Shubnikov: " << nFixed << " flip-fixed mesh points (m==0 there exactly)"
-              << std::endl;
-    return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold),
-            std::move(sigmas), std::move(flags)};
+    return StructureMeshMaker<UnitCell>(cell).Make(mp, *this);
 }
 
 } // namespace qchem

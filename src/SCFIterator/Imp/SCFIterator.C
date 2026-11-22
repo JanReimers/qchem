@@ -151,16 +151,16 @@ static const qcMesh::MeshMaker& DemandMaker(const std::shared_ptr<const qcMesh::
 // the SAD seed, which integrates itself on \a seedMesh (a Coulomb fit has no grid, doc/Pins.md); bs/st and \a seedMesh are also
 // forwarded for the HF/DHF bootstrap (its LDA sibling's mesh).
 template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,const qcMesh::MeshParams& seedMesh,std::shared_ptr<const qcMesh::MeshMaker> seedMeshMaker,const ChargeDensity::SeedKey& seedKey,qchem::Ortho basisOrtho,double basisOrthoTol,size_t numBands) requires std::is_same_v<T,double>
-    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity(seed,bs,st,ec,seedMesh,DemandMaker(seedMeshMaker),seedKey, H&&H->GetSpinGroup()==SpinGroup::Polarized), st, std::optional<qcMesh::MeshParams>(seedMesh), basisOrtho, basisOrthoTol, SeedRole::Guess, numBands)
+    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity(seed,bs,st,ec,seedMesh,DemandMaker(seedMeshMaker),seedKey, H&&H->GetSpinGroup()==SpinGroup::Polarized), st, std::optional<qcMesh::MeshParams>(seedMesh), seedMeshMaker, basisOrtho, basisOrthoTol, SeedRole::Guess, numBands)
 {}
 
 // The explicit-seed ctor (grid-continuation): \a seedDensity is a pre-built density (owned; consumed in
 // Init) instead of a strategy enum.  It states no seed mesh: its seeds are matrix-backed (a carried D, a coarse-grid density).
 template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol,SeedRole role,size_t numBands)
-    : tSCFIterator(bs,ec,H,acc, seedDensity, st, std::nullopt, basisOrtho, basisOrthoTol, role, numBands)
+    : tSCFIterator(bs,ec,H,acc, seedDensity, st, std::nullopt, nullptr, basisOrtho, basisOrthoTol, role, numBands)
 {}
 
-template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,std::optional<qcMesh::MeshParams> seedMesh,qchem::Ortho basisOrtho,double basisOrthoTol,SeedRole role,size_t numBands)
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,std::optional<qcMesh::MeshParams> seedMesh,std::shared_ptr<const qcMesh::MeshMaker> seedMeshMaker,qchem::Ortho basisOrtho,double basisOrthoTol,SeedRole role,size_t numBands)
     : itsHamiltonian (H )
     , itsAccelerator (acc)
     , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator,basisOrtho,basisOrthoTol,numBands) )
@@ -173,6 +173,7 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
     assert(itsWaveFunction);
     itsBS=bs;   // kept for the optional Kerker G-space fit basis (bs outlives the iterator; safe to hold raw)
     itsSeedMesh=std::move(seedMesh);   // before Initialize: the HF/DHF SAD bootstrap builds its sibling on it
+    itsSeedMeshMaker=std::move(seedMeshMaker);
     Initialize(seedDensity, bs, st, role);   // Init owns the seed transiently (see Initialize)
 }
 
@@ -224,12 +225,14 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
             // Its XC mesh is the RUN's (the facade states it): a coarse default broke the structure's symmetry at the seed (the
             // 12-direction Lebedev icosahedron split O2's pi_g by 13 mHa, lane A 2026-11-10), and a seed that is not symmetric
             // decides which state a degenerate open shell converges to.
-            if (!itsSeedMesh)
+            if (!itsSeedMesh || !itsSeedMeshMaker)
                 throw std::logic_error("tSCFIterator: an HF/DHF run handed a matrix-free seed needs the mesh its LDA seed sibling is built on "
                                        "(the SeedStrategy constructor's seedMesh); the explicit-seed constructor takes a matrix-backed seed");
             H::CoulombFitSlot<double> seedFit;   // the sibling's own Coulomb fit: it lives as long as the sibling, and an HF run has no fit to share
             std::unique_ptr<H::rHamiltonian> dftSibling=[&]{ qchem::report::Scope here("seedHamiltonian");
-                return std::unique_ptr<H::rHamiltonian>(H::Factory(pol, stView, 2.0/3.0, *itsSeedMesh, bs, seedFit)); }();   // Dirac exchange (alpha=2/3)
+                // Its XC quadrature is the plain mesh of the run's point (a molecule or an atom: no symmetry source), built by the seed's maker.
+                return std::unique_ptr<H::rHamiltonian>(H::Factory(pol, stView, 2.0/3.0, *itsSeedMesh, *itsSeedMeshMaker, qcMesh::NoSymmetry(),
+                                                                   bs, seedFit)); }();   // Dirac exchange (alpha=2/3)
             SetWorkingCD(cd_t(itsWaveFunction->Init(*dftSibling, seed, *itsOccPolicy, 0.0001)));  // D0: a real (matrix-backed) density
             RecordFockInput(nullptr);   // the sibling's Fock: not this run's F, so no D_in of this run
             assert(itsCD);

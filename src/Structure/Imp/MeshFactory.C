@@ -13,6 +13,7 @@ module;
 #include <vector>
 #include <functional>
 #include <exception> // std::exception_ptr (the threaded weight response)
+#include <algorithm> // std::any_of (is the fold's op set magnetic?)
 #include <memory>    // the scoped-but-early-stopped Timed on the site-adapted angular build (1.1(b))
 module qchem.Structure.MeshFactory;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
@@ -24,6 +25,8 @@ import qchem.Mesh.BeckePartition;   // BeckePartitionWeight / PeriodicBeckeWeigh
 import qchem.SymmetrizeMesh; // MakeInvariantAngularMesh + FoldPointsPeriodic + MakeInvariant (the §6a imposed builds)
 import qchem.Symmetry.Group; // Symmetry::Frame, TrivialGroup, kAdmissionTolerance (what each mesh forces, pin 30)
 import qchem.Reporting;      // the meshes' fields, one level into the caller's report scope (inert when no run is open)
+import qchem.Symmetry.Lattice_3D.Fold;   // FlipFixedPointsPeriodic (a Shubnikov fold's m = 0 points)
+import qchem.Matrix3D;                   // Invert (fractional mesh coordinates)
 
 namespace qchem {
 
@@ -754,6 +757,74 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp)
     qcMesh::Mesh m=AtomCentredMesh(mol, mp);
     RequireSiteBlocks(m, "MakeMesh(Molecule)");
     return m;
+}
+
+// ------------------------------------------------------------------ the symmetric overload's hooks (StructureMeshMaker<S>)
+
+// The orbit fold, moved from CrystalImposition::MakeXCMesh (controller + user rulings 2026-11-22): the geometry it needs -- the cell
+// matrix, the flip-fixed test's fractional coordinates -- is the cell's, so it is the maker's, never the source's.
+qcMesh::FoldedMesh FoldOrbits(const UnitCell& cell, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops)
+{
+    const double tol = qchem::kMeshMatchTol;   // the ONE mesh-point coincidence tolerance (R2.12)
+    const Matrix3D<double>& A = cell.GetCellMatrix();
+    // ★ 1.1(b): the XC quadrature build is 23.75 s/call EXCLUSIVE of the mesh build and the Φ tables, and it is the largest
+    // non-threading block in a GPW run.  These two buckets are the only candidates left inside it -- both are point-matching
+    // passes over ~97k mesh points against 24 ops.
+    auto fold = [&]{ qchem::report::Timed timed("setup: XC mesh orbit fold (FoldMesh)");
+                     return FoldMesh(mesh, A, ops, tol); }();
+    std::cout << "[Becke grid] imposed symmetry (" << ops.size() << " ops): invariant mesh "
+              << mesh.size() << " points in " << fold.Reps()
+              << " orbits; rho star-averaged each iteration (doc/SymmetryUpgradePlan.md 6a)" << std::endl;
+    const bool magnetic=std::any_of(ops.begin(), ops.end(), [](const Symmetry::SymOp& op){return op.sigma!=Symmetry::SpinAction::None;});
+    if (!magnetic)
+        return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold)};
+
+    // The σ tags (parallel to ops -- the fold's edge opIndex indexes them) and the odd-field zero flags: FRACTIONAL mesh
+    // coordinates for the torus-metric fixed-point test.
+    std::vector<Symmetry::SpinAction> sigmas;
+    sigmas.reserve(ops.size());
+    for (const auto& op : ops) sigmas.push_back(op.sigma);
+    auto flags = [&]{
+        qchem::report::Timed timed("setup: XC mesh Shubnikov flip-fixed test");
+        std::vector<rvec3_t> frac;
+        frac.reserve(mesh.size());
+        const Matrix3D<double> Ainv = Invert(A);
+        for (size_t i=0;i<mesh.size();++i) frac.push_back(Ainv*mesh.Points()[i]);
+        return Symmetry::Lattice_3D::FlipFixedPointsPeriodic(frac, ops, tol); }();
+    size_t nFixed=0; for (char c : flags) if (c) nFixed++;
+    std::cout << "[Becke grid] Shubnikov: " << nFixed << " flip-fixed mesh points (m==0 there exactly)"
+              << std::endl;
+    return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold),
+            std::move(sigmas), std::move(flags)};
+}
+
+qcMesh::Mesh MakeMesh(const Atom& atom, const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops)
+{
+    if (mp.angular!=qcMesh::AngularKind::None)
+        throw std::invalid_argument("MakeMesh(Atom, "+std::to_string(ops.size())+" ops): an angular mesh on an atom is not invariant under "
+                                    "the atom's rotations (a finite direction set claims a symmetry it does not carry) -- To fix this, please "
+                                    "state the radial-only set (xcMesh angular None), whose angular part is analytic");
+    return MakeMesh(atom, mp);
+}
+qcMesh::FoldedMesh FoldOrbits(const Atom&, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>&)
+{
+    return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), {}};   // one direction per shell: every orbit is one point
+}
+
+static void RefuseMolecularPointGroupMesh(const char* what, size_t nOps)
+{
+    throw std::invalid_argument(std::string(what)+"(Molecule, "+std::to_string(nOps)+" ops): a molecular point-group mesh is not built yet "
+                                "(OOD-SOLID V-FOLD-NEUTRAL) -- a molecule's mesh is built with no symmetry source (qcMesh::NoSymmetry)");
+}
+qcMesh::Mesh MakeMesh(const Molecule&, const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops)
+{
+    RefuseMolecularPointGroupMesh("MakeMesh", ops.size());
+    return {};
+}
+qcMesh::FoldedMesh FoldOrbits(const Molecule&, qcMesh::Mesh, const std::vector<Symmetry::SymOp>& ops)
+{
+    RefuseMolecularPointGroupMesh("FoldOrbits", ops.size());
+    return {};
 }
 
 } // namespace qchem
