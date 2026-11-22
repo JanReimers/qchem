@@ -50,7 +50,10 @@ Stacking Clang-modules + experimental-CMake-import-std + modular-Blaze-fork + de
 multiplies "which layer broke?" debugging (the same tax as the ninja dyndep bug). Keep each step separate and
 green before the next.
 
-- **Step 0 — Upgrade Clang 21.1.6 → 22.1.6 (latest).** Newest module + `import std` fixes; do this first so the
+- **Step 0 — Upgrade Clang 21.1.6 → 23.1.4 (latest; user 2026-11-22: *"I am inclined to get on the latest clang before starting any of
+  doc/ModuleToolchainPlan.md"*).  The USER installs `/opt/LLVM-23.1.4-Linux-X64` beside 21; a lane (lane G, proposed) rebuilds Enzyme against it
+  in its own build tree, re-passes the three Enzyme checks and #3747/#3748, pairs the matching libomp, sweeps, then switches main's trees.
+  Sequenced AFTER lane A's k-fold lands and is measured (no toolchain change under an open performance comparison).  (Was: 22.1.6.)** Newest module + `import std` fixes; do this first so the
   rest is on the best-supported base. Verify a clean `UTMain` + `allTests` build on 22.1.6 before changing any
   code. (GCC remains out — Clang-only.)
 - **Step R — Rename the project to SOLID² (user, 2026-10-30).**  `qchem` is taken, and this is not strictly a chemistry app
