@@ -42,6 +42,7 @@ import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac excha
 import qchem.Hamiltonian.Internal.VWN_Correlation;// VWN_Correlation (VWN5 -- the SCF's own C term)
 import qchem.Vector3D;                          // rvec3_t arithmetic (r + R0)
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
 using BasisSet::Real_BS;
@@ -95,7 +96,7 @@ TEST(GPW_XC, PotentialConsistencyFD)
     cell.AddAtom(14,{0,0,0});
     cell.AddAtom(14,{0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
-    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
                 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, DifferenceSetRasters());   // EXACT-QUADRATURE gate (production: sized from eps)
     const GPW_Evaluator& ev=gpw;
     const auto& grid=ev.DensityGrid();
@@ -219,7 +220,7 @@ TEST(GPW_XC, RawConsistencyFD)
     cell.AddAtom(14,{0,0,0});
     cell.AddAtom(14,{0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
-    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
+    GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
                 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, DifferenceSetRasters());   // EXACT-QUADRATURE gate (production: sized from eps)
     const GPW_Evaluator& ev=gpw;
     const auto& grid=ev.DensityGrid();

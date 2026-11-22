@@ -26,6 +26,7 @@ import qchem.Mesh.XCPolicy;   // BeckeXCParams
 import qchem.Reporting;   // the policy rows the setup files
 import qchem.ChargeDensity.Seed;   // SeedStrategy (the Auto seed rule)
 import qchem.SeedPolicy;           // ResolveSeed (the Auto rule's uncovered branch, on a stated coverage)
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (a GPW basis demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
 using BasisSet::Gaussian::BasisSetData;
@@ -54,7 +55,7 @@ TEST(SolidSetup, ARecipeFreezesTheTrimTheVetLoopDecides)
     // The deck's twin: the same loop, run by hand on the same cell.
     auto make=[&](const ShellTrim& t){ return std::shared_ptr<const BasisSet::Real_BS>(BasisSet::Gaussian::Factory(
         BasisSetData::VALENCE_LOWQ_VA, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian, t)); };
-    const auto twin=BasisSet::Lattice::VetStageTrim(lat, make, {}, kNa2.orthoTol);
+    const auto twin=BasisSet::Lattice::VetStageTrim(lat, MakeMeshMaker(lat.GetUnitCell()), make, {}, kNa2.orthoTol);
     ASSERT_FALSE(twin.trim.empty()) << "the compressed cell must be near-dependent, or this test tests nothing";
     const ShellTrim& frozen=setup->recipe->trim;
     ASSERT_EQ(frozen.shells.size(), twin.trim.shells.size());

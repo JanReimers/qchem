@@ -24,30 +24,30 @@ import qchem.BasisSet.PlaneWave.PlaneWaveFit_IBS;
 namespace qchem::BasisSet::Gaussian
 {
 
-template <class T> tGPW_IBS<T>::tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const sym_t& irrep,
+template <class T> tGPW_IBS<T>::tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, std::shared_ptr<const qcMesh::MeshMaker> meshMaker, const sym_t& irrep,
                  std::shared_ptr<const BasisSet::Real_BS> mol, std::shared_ptr<const GpwRasterLadder> ladder, CellImages images,
                  std::shared_ptr<const Symmetry::StarGroup> group, const GPWTolerances& tol)
     : BasisSet::IrrepBasisSetImp<T>(irrep, cache)
     // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1); group = what the evaluator's T1 {G} fold asks
-    , GPW_Evaluator(std::move(mol), cell, std::move(ladder), Symmetry::Lattice_3D::Getk(irrep), irrep->IsReal(),
+    , GPW_Evaluator(std::move(mol), cell, std::move(meshMaker), std::move(ladder), Symmetry::Lattice_3D::Getk(irrep), irrep->IsReal(),
                     images==CellImages::HomeCellOnly, std::move(group), tol)
 {}
 
 // A bare block: its own ladder from the same builder the factory uses, then the primary constructor.
-template <class T> tGPW_IBS<T>::tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const sym_t& irrep,
+template <class T> tGPW_IBS<T>::tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, std::shared_ptr<const qcMesh::MeshMaker> meshMaker, const sym_t& irrep,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, double ladderFactor, RasterFields rasterFields, const GPWTolerances& tol)
-    : tGPW_IBS(cache, cell, irrep, mol,
+    : tGPW_IBS(cache, cell, std::move(meshMaker), irrep, mol,
               MakeRasterLadder(cell, *mol, {.densityEcut=densityEcut, .cutoffFactor=cutoffFactor, .ladderFactor=ladderFactor,
                                             .rasterFields=rasterFields, .tol=tol}),
               images, {}, tol)
 {}
 
 // Convenience: build the Bloch irrep from BZ-grid indices and delegate to the bare-block constructor.
-template <class T> tGPW_IBS<T>::tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
+template <class T> tGPW_IBS<T>::tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, std::shared_ptr<const qcMesh::MeshMaker> meshMaker, const ivec3_t& N, const ivec3_t& kIndex,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, double ladderFactor, RasterFields rasterFields, const GPWTolerances& tol)
-    : tGPW_IBS(cache, cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor, ladderFactor, rasterFields, tol)
+    : tGPW_IBS(cache, cell, std::move(meshMaker), Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor, ladderFactor, rasterFields, tol)
 {}
 
 template <class T> mat_t<T> tGPW_IBS<T>::MakeRepMatrix(const Symmetry::SymOp& g) const

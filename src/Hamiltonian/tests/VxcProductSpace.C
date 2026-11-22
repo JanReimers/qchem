@@ -59,6 +59,7 @@ import qchem.Types;
 import qchem.Blaze;                                // D + s*Delta, rvec_t *= (the A1 Pρ derivative gate)
 import qchem.Reporting;                            // the I3 cell's health entry (xcFitAtPoints)
 import qchem.BasisSet.PlaneWave.PlaneWave_IBS;     // plane-wave orbitals: the ball's exact cell (the certificate gate)
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
 using Hamiltonian::VxcFit;
@@ -338,7 +339,7 @@ TEST(VxcProductSpace, TheProductionsBuildTheOneTerm)
         const qcMesh::MeshParams mesh=PointsFor(points);
         ASSERT_TRUE(Hamiltonian::AdmitVxc(cell, fit, mesh)) << name;
         std::unique_ptr<BasisSet::Complex_BS> bs(orbitals==Orbitals::GPW
-            ? BasisSet::Lattice::GPWFactory(lat, mol, {.densityEcut=8.0})
+            ? BasisSet::Lattice::GPWFactory(lat, mol, MakeMeshMaker(lat.GetUnitCell()), {.densityEcut=8.0})
             : BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, 4.0));
         Hamiltonian::CoulombFitSlot<dcmplx> coulombFit;
         std::unique_ptr<Hamiltonian::cHamiltonian> ham(Hamiltonian::Factory(SpinGroup::UnPolarized, lat.GetStructure(), bs.get(), coulombFit, 4.0,
@@ -434,7 +435,7 @@ SamplerPair SampleBoth(double densityEcut, double rasterX)
         BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     BasisSet::Gaussian::GPWTolerances tol;
     tol.rasterX=tol.vlocRasterX=tol.xcRasterX=rasterX;
-    BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, densityEcut,
+    BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(1,1,1), ivec3_t(0,0,0), mol, densityEcut,
                                             BasisSet::Gaussian::CellImages::Periodic, 2.0, 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, tol);
 
     // Two electrons spread over the block's first two functions: a density with structure, not one Gaussian
@@ -500,7 +501,7 @@ TEST(VxcProductSpace, ThePlaneWaveBallAtBeckePointsOverGPWOrbitalsIsRefused)
     std::shared_ptr<const Structure> st=cell.Clone();
     std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(
         BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-    BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, 12.0,
+    BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(1,1,1), ivec3_t(0,0,0), mol, 12.0,
                                             BasisSet::Gaussian::CellImages::Periodic, 2.0, 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, {});
     const qcMesh::MeshParams becke=qcMesh::BeckeXCParams(30, -1.0, 11);
     BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*st, becke, nullptr);
@@ -577,10 +578,10 @@ TEST(VxcProductSpace, EverySamplersPin28CertificateMatchesItsMeasuredDistanceFro
         std::shared_ptr<const Structure> st=cell.Clone();
         std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(
             BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-        BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, 12.0,
+        BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(1,1,1), ivec3_t(0,0,0), mol, 12.0,
                                                 BasisSet::Gaussian::CellImages::Periodic, 2.0, 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, {});
         std::shared_ptr<const BasisSet::Real_BS> a1mol(BasisSet::Gaussian::FactoryFromFile("A1_exch.bsd", &cell));
-        auto a1=std::make_shared<const BasisSet::Gaussian::tGPW_IBS<double>>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell,
+        auto a1=std::make_shared<const BasisSet::Gaussian::tGPW_IBS<double>>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell),
                                                                                ivec3_t(1,1,1), ivec3_t(0,0,0), a1mol, 0.0);
         const size_t n=cx.GetNumFunctions();
         chmat_t D(n);
@@ -592,7 +593,7 @@ TEST(VxcProductSpace, EverySamplersPin28CertificateMatchesItsMeasuredDistanceFro
         {   // THE PAIR RASTER at a raster that resolves every pair: measured 2026-11-15, its rho sits 3.9e-3 / 3.2e-3 (relative, at the nucleus)
             // from pointwise rho[D] at densityEcut 12 / 24 and 4.4e-10 at 48 -- grid convergence of the raster, not a fit (doc/OpenWork.md row
             // "the GPW pair raster's rho at the nuclei"), so the certificate is checked where the raster is converged.
-            BasisSet::Gaussian::tGPW_IBS<dcmplx> fine(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, 48.0,
+            BasisSet::Gaussian::tGPW_IBS<dcmplx> fine(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(1,1,1), ivec3_t(0,0,0), mol, 48.0,
                                                       BasisSet::Gaussian::CellImages::Periodic, 2.0, 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, {});
             auto cdFine=std::make_unique<tComposite_CD<dcmplx>>();
             cdFine->Insert(std::unique_ptr<tDM_CD<dcmplx>>(new PeriodicIrrepCD<dcmplx>(D, &fine, fine.GetIrrep(Spin::None))), fine.GetIrrep(Spin::None));
@@ -724,7 +725,7 @@ TEST(VxcProductSpace, DeltaSinglesAreTheirEnergysDerivativeOnEveryGridKind)
         UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5});
         std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(
             BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-        BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, 12.0,
+        BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(1,1,1), ivec3_t(0,0,0), mol, 12.0,
                                                 BasisSet::Gaussian::CellImages::Periodic, 2.0, 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, {});
         BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(cell, qcMesh::MeshParams{.nUniform=16, .cellKind=UnitCellKind::Uniform}, nullptr);
         auto delta=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), quad,

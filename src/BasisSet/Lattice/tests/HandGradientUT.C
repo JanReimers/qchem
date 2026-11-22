@@ -26,6 +26,7 @@ import qchem.Lattice_3D;
 import qchem.VectorFunction;
 import qchem.Types;
 import qchem.Blaze;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 using namespace qchem;
 
 namespace
@@ -89,7 +90,7 @@ TEST(HandGradient, EveryLatticeFamilysGradientIsTheFiniteDifferenceOfItsValues)
         for (const ivec3_t k : {ivec3_t(0,0,0), ivec3_t(1,0,0)})
             for (const auto& [name, src] : {std::pair<std::string,std::shared_ptr<const BasisSet::Real_BS>>{"Cartesian", cart}, {"spherical view", view}})
             {
-                BasisSet::Gaussian::GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(4,4,4), k, src, /*densityEcut=*/0.0);
+                BasisSet::Gaussian::GPW_IBS gpw(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(4,4,4), k, src, /*densityEcut=*/0.0);
                 const BasisSet::Complex_OIBS& g=gpw;
                 EXPECT_GT(CheckHandGradient<dcmplx>(g, pts, "GPW_IBS "+name+" k=("+std::to_string(k.x)+",0,0)"), 0.01);
             }

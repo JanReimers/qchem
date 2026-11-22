@@ -18,6 +18,7 @@ import qchem.BasisSet.Lattice.BasisSet;            // GPWFactory, GPWParams, Emi
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH (a local PP to size V_long's ladder for)
 import qchem.Reporting;                            // the run the blocks file their grids into (a test may read it)
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
 using BasisSet::Real_BS;
@@ -135,11 +136,11 @@ TEST(RasterLadder, AHandedInLadderIsSharedAndAMismatchIsRefused)
     const auto mol=Mol(BasisSetData::SIPP, *k.GetStructure());
     BasisSet::Lattice::GPWParams p{.densityEcut=20.0};
     p.ladder=BasisSet::Lattice::MakeRasterLadder(k, mol, p);
-    std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::GPWFactory(k, mol, p));
+    std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::GPWFactory(k, mol, MakeMeshMaker(k.GetUnitCell()), p));
     EXPECT_GT(bs->GetNumIBS(), 1u);
     BasisSet::Lattice::GPWParams q=p;
     q.densityEcut=30.0;                           // the params now state another ball than the ladder was built for
-    EXPECT_THROW(std::unique_ptr<BasisSet::Complex_BS>(BasisSet::Lattice::GPWFactory(k, mol, q)), std::invalid_argument);
+    EXPECT_THROW(std::unique_ptr<BasisSet::Complex_BS>(BasisSet::Lattice::GPWFactory(k, mol, MakeMeshMaker(k.GetUnitCell()), q)), std::invalid_argument);
 }
 
 //! V_loc long's audit row is the LADDER's: present exactly when it was sized for a local PP with a closed Gaussian sharpness, and a

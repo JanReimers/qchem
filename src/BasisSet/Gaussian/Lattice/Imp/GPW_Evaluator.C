@@ -26,7 +26,7 @@ import qchem.Mesh.XCPolicy;   // qcMesh::RequiredUniformCutoff (the KB mesh fall
 import qchem.ScalarFunction;  // ScalarFunction<double> (the V_loc / beta*Ylm fields handed to the quadrature)
 import qchem.Math.SolidHarmonics;   // RealYlm, YlmCartesian, MultiplyR2 (the analytic KB polynomials)
 import qchem.Math.Angular;    // Monomial/CartTerm/SphericalShell (the analytic KB Cartesian expansion)
-import qchem.Structure;       // Structure / Atom (the PP centres + Z, and CreateIntegrationMesh)
+import qchem.Structure;       // Structure / Atom (the PP centres + Z)
 import qchem.UnitCell;        // UnitCell (the direct cell for CollocateDensity / IntegratePotential grid<->cell)
 import qchem.Reporting;       // the run report -- EmitGridsReport builds the `grids` section
 import qchem.RunPolicy;       // theRunPolicy().DAwareScreen() -- WHICH LatticeScreener this evaluator builds (N5)
@@ -117,7 +117,7 @@ double BetaSupportRadius(const SpeciesProjectorSet_R& sep, int Z, size_t p)
 } //anon
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
-                             std::shared_ptr<const GpwRasterLadder> ladder, const rvec3_t& kFrac, bool kIsReal, bool homeCellOnly,
+                             std::shared_ptr<const qcMesh::MeshMaker> meshMaker, std::shared_ptr<const GpwRasterLadder> ladder, const rvec3_t& kFrac, bool kIsReal, bool homeCellOnly,
                              std::shared_ptr<const Symmetry::StarGroup> group, const GPWTolerances& tol)
     : itsGroup(group ? std::move(group) : std::make_shared<const Symmetry::StarGroup>())
     , itsMol(std::move(mol))
@@ -126,8 +126,10 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     , itsk(kFrac)
     , itsTRIM(kIsReal)
     , itsCell(cell)
+    , itsMeshMaker(std::move(meshMaker))
     , itsLadder(std::move(ladder))
 {
+    if (!itsMeshMaker) throw std::invalid_argument("GPW_Evaluator: no mesh maker (the cell's StructureMeshMaker<UnitCell>, V-MESH-FACTORY §4.4)");
     if (!itsLadder) throw std::invalid_argument("GPW_Evaluator: no raster ladder (build one with MakeRasterLadder)");
     if (!(itsLadder->Inputs().tol==itsTol))
         throw std::invalid_argument("GPW_Evaluator: the raster ladder was built with tolerances "+itsLadder->Inputs().tol.Describe()
@@ -1526,7 +1528,7 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
     }
 
     const qcMesh::Mesh mesh=[&]{ qchem::report::Scope here("ppNonLocal");   // the mesh builder reports one level in
-                                 return cl->CreateIntegrationMesh(PPMeshParams(cl, sep)); }();
+                                 return itsMeshMaker->Make(PPMeshParams(cl, sep)); }();
     const rvec3vec_t& R=mesh.Points();
     const rvec_t&     W=mesh.Weights();
     size_t npts=mesh.size();

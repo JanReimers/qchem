@@ -36,6 +36,7 @@ export import qchem.BasisSet.AtomCentredSet;
 export import qchem.BasisSet.PointSetPullback;    // the δ XC quadrature's derivative face (READY 4)         // the +U projector functions' overlap face (HubbardProjectorPlan D2)
 export import qchem.BasisSet.Transition_DFT_IBS;     // the (k+q, k) transition pair (LinearResponsePlan B2)
 export import qchem.UnitCell;                      // UnitCell (the direct lattice handed to the ctor)
+export import qchem.Mesh.Maker;                    // qcMesh::MeshMaker (the PP fallback quadrature's maker handed to the ctor)
 export import qchem.BasisSet.Gaussian.Lattice.RasterLadder;  // GpwRasterLadder (the point's shared ladder handed to the ctor)
 import qchem.Symmetry;                            // sym_t (the Bloch irrep)
 import qchem.Structure;                           // Structure (Create*FitBasisSet arg)
@@ -143,7 +144,8 @@ public:
     //! \param mol   the molecular Gaussian orbital basis built over \a cell's atoms (kept alive by the evaluator).
     //! \param ladder  the point's raster ladder (\c MakeRasterLadder), shared by every block: the density grid and its multigrid levels.
     //! \param images  the lattice-image MODE (see \c CellImages; default \c Periodic).
-    tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const sym_t& irrep,
+    //! \param meshMaker  (every ctor) builds the separable PP's fallback quadrature over \a cell: DEMANDED, never null (V-MESH-FACTORY §4.4).
+    tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, std::shared_ptr<const qcMesh::MeshMaker> meshMaker, const sym_t& irrep,
             std::shared_ptr<const BasisSet::Real_BS> mol, std::shared_ptr<const GpwRasterLadder> ladder,
             CellImages images = CellImages::Periodic,
             std::shared_ptr<const Symmetry::StarGroup> group = nullptr,   //!< the imposed density group the T1 {G}-star fold asks (null = {E})
@@ -152,13 +154,13 @@ public:
     //! \brief A block built BARE (the unit tests): its OWN ladder from \a densityEcut (\f$<0\f$ AUTO floor
     //! \a cutoffFactor\f$\cdot\alpha_{\max}\f$, \f$0\f$ DFT tier off, \f$>0\f$ explicit Ha) and the other grid settings, by the same
     //! builder the factory uses.  No imposed ops.
-    tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const sym_t& irrep,
+    tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, std::shared_ptr<const qcMesh::MeshMaker> meshMaker, const sym_t& irrep,
             std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0,
             CellImages images = CellImages::Periodic, double cutoffFactor = 2.0, double ladderFactor = 4.0,
             RasterFields rasterFields = RasterFields::HartreeXC, const GPWTolerances& tol = {});
 
     //! \brief The bare block in BZ-grid indices: builds the Bloch irrep \c BlochFactory(N,kIndex).
-    tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
+    tGPW_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const UnitCell& cell, std::shared_ptr<const qcMesh::MeshMaker> meshMaker, const ivec3_t& N, const ivec3_t& kIndex,
             std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0,
             CellImages images = CellImages::Periodic, double cutoffFactor = 2.0, double ladderFactor = 4.0,
             RasterFields rasterFields = RasterFields::HartreeXC, const GPWTolerances& tol = {});

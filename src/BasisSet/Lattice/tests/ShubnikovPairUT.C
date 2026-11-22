@@ -23,6 +23,7 @@ import qchem.BasisSet.Lattice.BasisSet;            // GPWFactory, GPWParams
 import qchem.BasisSet.Internal.BasisSetImp;        // BasisSetImp<dcmplx>::GetChild (tests may cheat)
 import qchem.Blaze;
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
 using BasisSet::Real_BS;
@@ -48,7 +49,7 @@ struct Fixture
         lat=std::make_unique<Lattice_3D>(cell, ivec3_t(1,1,1));
         BasisSet::Lattice::GPWParams p;
         p.densityEcut=20.0; p.imposeSymmetry=true; p.siteSpins={1,-1};
-        bs.reset(BasisSet::Lattice::GPWFactory(*lat, mol, p));
+        bs.reset(BasisSet::Lattice::GPWFactory(*lat, mol, MakeMeshMaker(lat->GetUnitCell()), p));
     }
     const BasisSet::Orbital_1E_IBS<dcmplx>& Block() const {return BlockOf(*bs);}
     static const BasisSet::Orbital_1E_IBS<dcmplx>& BlockOf(const BasisSet::Complex_BS& bs)
@@ -134,7 +135,7 @@ TEST(ShubnikovPair, AFreeRunIsLeftAlone)
     Fixture f;
     BasisSet::Lattice::GPWParams p;
     p.densityEcut=20.0; p.siteSpins={1,-1};                       // decorated but NOT imposed
-    std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::GPWFactory(*f.lat, f.mol, p));
+    std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::GPWFactory(*f.lat, f.mol, MakeMeshMaker(f.lat->GetUnitCell()), p));
     const size_t n=f.Block().GetNumFunctions();
     chmat_t Du=RandomHermitian(n,5), Dd=RandomHermitian(n,6);
     const chmat_t Pu=Du, Pd=Dd;

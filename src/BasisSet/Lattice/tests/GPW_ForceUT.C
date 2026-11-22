@@ -26,6 +26,7 @@ import qchem.Pseudopotential.GTH_Potentials;          // GetGTH (the Si GTH-LDA-
 import qchem.Vector3D;
 import qchem.Types;
 import qchem.Blaze;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
 using BasisSet::Real_BS;
@@ -70,7 +71,7 @@ std::shared_ptr<const Real_BS> Mol(const Structure& st)
 }
 std::unique_ptr<GPW_IBS> Block(const UnitCell& cell)
 {
-    return std::make_unique<GPW_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, kMesh, kIndex, Mol(cell), /*densityEcut*/6.0);
+    return std::make_unique<GPW_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), kMesh, kIndex, Mol(cell), /*densityEcut*/6.0);
 }
 chmat_t RandomHermitian(size_t n)
 {

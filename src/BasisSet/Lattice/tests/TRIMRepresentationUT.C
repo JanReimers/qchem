@@ -18,6 +18,7 @@ import qchem.BasisSet.Internal.BasisSetImp;        // GetChild (tests may cheat)
 import qchem.Symmetry.Lattice_3D.BlochQN;          // Getk
 import qchem.Blaze;
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
 using BasisSet::Gaussian::BasisSetData;
@@ -51,7 +52,7 @@ TEST(TRIMRepresentation, ARealXBlockIsARepresentationAutomaticallyAndAgreesWithT
                                                        BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     BasisSet::Lattice::GPWParams pr{.densityEcut=0.0}; pr.hamPreservesReal=true;    // TRIM blocks real
     BasisSet::Lattice::GPWParams pc{.densityEcut=0.0};                              // all complex
-    const std::unique_ptr<BasisSet::Complex_BS> real(BasisSet::Lattice::GPWFactory(lat, mol, pr)), cplx(BasisSet::Lattice::GPWFactory(lat, mol, pc));
+    const std::unique_ptr<BasisSet::Complex_BS> real(BasisSet::Lattice::GPWFactory(lat, mol, MakeMeshMaker(lat.GetUnitCell()), pr)), cplx(BasisSet::Lattice::GPWFactory(lat, mol, MakeMeshMaker(lat.GetUnitCell()), pc));
     const BasisSet::Complex_BS& rs=*real;
     const auto& ci=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>&>(*cplx);
     ASSERT_EQ(rs.GetNumIBS(), cplx->GetNumIBS());

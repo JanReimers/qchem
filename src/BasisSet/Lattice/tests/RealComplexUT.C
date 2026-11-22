@@ -19,6 +19,7 @@ import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> + ibs_child
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;     // tGPW_IBS<T> (both alternatives)
 import qchem.BasisSet.Gaussian.Point.Factory;       // the molecular Gaussian basis over the cell's atoms
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
 using namespace qchem::BasisSet;
@@ -52,8 +53,8 @@ TEST(RealComplexBasisSlot, MixedChildrenAggregateAndTypedViewsWork)
     auto mol = MakeMol(cell);
 
     MixedTestBS bs;
-    auto* re = new tGPW_IBS<double>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(4,4,4), ivec3_t(0,0,0), mol, 0.0);   // Γ: TRIM, REAL
-    auto* cx = new tGPW_IBS<dcmplx>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(4,4,4), ivec3_t(1,0,0), mol, 0.0);   // k=(1/4,0,0): complex
+    auto* re = new tGPW_IBS<double>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(4,4,4), ivec3_t(0,0,0), mol, 0.0);   // Γ: TRIM, REAL
+    auto* cx = new tGPW_IBS<dcmplx>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(4,4,4), ivec3_t(1,0,0), mol, 0.0);   // k=(1/4,0,0): complex
     bs.Insert(re);
     bs.Insert(cx);
     ASSERT_EQ(bs.NumIBS(), 2u);
@@ -83,8 +84,8 @@ TEST(RealComplexBasisSlot, HomogeneousComplexSetIsUnchanged)
     auto mol = MakeMol(cell);
 
     MixedTestBS bs;
-    auto* g0 = new tGPW_IBS<dcmplx>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, 0.0);
-    auto* g1 = new tGPW_IBS<dcmplx>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ivec3_t(1,1,1), mol, 0.0);
+    auto* g0 = new tGPW_IBS<dcmplx>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(2,2,2), ivec3_t(0,0,0), mol, 0.0);
+    auto* g1 = new tGPW_IBS<dcmplx>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(2,2,2), ivec3_t(1,1,1), mol, 0.0);
     bs.Insert(g0);
     bs.Insert(g1);
 

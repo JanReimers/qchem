@@ -11,6 +11,7 @@ import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.BasisSet.Lattice.BasisSet;
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
 using BasisSet::Real_BS;
@@ -25,15 +26,15 @@ TEST(GPWImposition, AHandedInImpositionBuildsTheSameIBZAndAMismatchIsRefused)
     const std::shared_ptr<const Real_BS> mol(BasisSet::Gaussian::Factory(BasisSetData::SIPP, lat.GetStructure().get(),
                                              BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     BasisSet::Lattice::GPWParams p{.densityEcut=0.0, .imposeSymmetry=true};
-    const std::unique_ptr<BasisSet::Complex_BS> own(BasisSet::Lattice::GPWFactory(lat, mol, p));
+    const std::unique_ptr<BasisSet::Complex_BS> own(BasisSet::Lattice::GPWFactory(lat, mol, MakeMeshMaker(lat.GetUnitCell()), p));
 
     p.imposition=std::make_shared<const CrystalImposition>(ResolveImposition(lat, {.imposeSymmetry=true, .freeMeshInvariant=p.freeMeshInvariant}));
-    const std::unique_ptr<BasisSet::Complex_BS> handed(BasisSet::Lattice::GPWFactory(lat, mol, p));
+    const std::unique_ptr<BasisSet::Complex_BS> handed(BasisSet::Lattice::GPWFactory(lat, mol, MakeMeshMaker(lat.GetUnitCell()), p));
     ASSERT_EQ(handed->GetNumIBS(), own->GetNumIBS()) << "the same IBZ fold";
     EXPECT_LT(own->GetNumIBS(), 8u) << "an imposed k222 run folds";
     ASSERT_TRUE(handed->GetImposition()->DensityGroup() && own->GetImposition()->DensityGroup()) << "an imposed run averages its density";
     EXPECT_EQ(handed->GetImposition()->DensityGroup()->size(), own->GetImposition()->DensityGroup()->size());
 
     p.imposition=std::make_shared<const CrystalImposition>(ResolveImposition(lat, {.imposeSymmetry=false}));
-    EXPECT_THROW(BasisSet::Lattice::GPWFactory(lat, mol, p), std::invalid_argument);
+    EXPECT_THROW(BasisSet::Lattice::GPWFactory(lat, mol, MakeMeshMaker(lat.GetUnitCell()), p), std::invalid_argument);
 }

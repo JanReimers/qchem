@@ -20,6 +20,7 @@ import qchem.BasisSet.Lattice.BasisSet;            // VetStageTrim, GPWFactory, 
 import qchem.BasisSet.Internal.BasisSetImp;        // BasisSetImp<dcmplx>::GetChild (tests may cheat)
 import qchem.LASolver;                             // PivotedCholeskyDrops(S, tol)
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
 using BasisSet::Real_BS;
@@ -48,7 +49,7 @@ UnitCell TwoNa(double a)
 //! How many AOs the ortho step would drop, summed over every k-block of the full mesh.
 size_t OrthoDrops(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol)
 {
-    std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::GPWFactory(lat, mol, {}));
+    std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::GPWFactory(lat, mol, MakeMeshMaker(lat.GetUnitCell()), {}));
     auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(bs.get());
     size_t n=0;
     for (size_t i=0;i<bs->GetNumIBS();++i)
@@ -82,7 +83,7 @@ TEST(VetStageTrim, DiluteCellNeedsNoTrim)
     UnitCell cell=TwoNa(20.0);
     Lattice_3D lat(cell, ivec3_t(2,2,2));
     auto make=[&](const ShellTrim& t){ return NaBasis(cell,t); };
-    auto r=BasisSet::Lattice::VetStageTrim(lat, make, {}, kTol);
+    auto r=BasisSet::Lattice::VetStageTrim(lat, MakeMeshMaker(lat.GetUnitCell()), make, {}, kTol);
     EXPECT_TRUE(r.trim.empty());
     EXPECT_EQ(r.mol->GetNumFunctions(), NaBasis(cell)->GetNumFunctions());
 }
@@ -93,7 +94,7 @@ TEST(VetStageTrim, CompressedCellTrimsWholeElementMostDiffuseFirstAndLeavesNothi
     Lattice_3D lat(cell, ivec3_t(2,2,2));
     ASSERT_GT(OrthoDrops(lat, NaBasis(cell)), 0u) << "the compressed cell must be near-dependent, or this test tests nothing";
     auto make=[&](const ShellTrim& t){ return NaBasis(cell,t); };
-    auto r=BasisSet::Lattice::VetStageTrim(lat, make, {}, kTol);
+    auto r=BasisSet::Lattice::VetStageTrim(lat, MakeMeshMaker(lat.GetUnitCell()), make, {}, kTol);
     ASSERT_FALSE(r.trim.empty());
     // The first cut is the most diffuse shell in the block: Na p alpha=0.09.
     EXPECT_EQ(r.trim.shells[0].Z, 11);

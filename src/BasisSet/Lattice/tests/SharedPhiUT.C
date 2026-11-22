@@ -23,6 +23,7 @@ import qchem.Symmetry.Factory;                             // BlochFactory (the 
 import qchem.UnitCell;
 import qchem.Types;
 import qchem.Blaze;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
 using namespace qchem::BasisSet;
@@ -67,9 +68,9 @@ void RecordIsTheTable(bool spherical)
     const UnitCell cell=MnOCell();
     const auto mol=Mol(cell, spherical);
     auto cache=std::make_shared<BasisCache>();
-    const tGPW_IBS<dcmplx> k1(cache, cell, ivec3_t(4,4,4), ivec3_t(1,0,0), mol, 0.0);   // k=(1/4,0,0): complex values
-    const tGPW_IBS<dcmplx> k2(cache, cell, ivec3_t(4,4,4), ivec3_t(1,2,3), mol, 0.0);   // a second general k
-    const tGPW_IBS<double> kr(cache, cell, ivec3_t(4,4,4), ivec3_t(2,0,0), mol, 0.0);   // k=(1/2,0,0): TRIM, a real block
+    const tGPW_IBS<dcmplx> k1(cache, cell, MakeMeshMaker(cell), ivec3_t(4,4,4), ivec3_t(1,0,0), mol, 0.0);   // k=(1/4,0,0): complex values
+    const tGPW_IBS<dcmplx> k2(cache, cell, MakeMeshMaker(cell), ivec3_t(4,4,4), ivec3_t(1,2,3), mol, 0.0);   // a second general k
+    const tGPW_IBS<double> kr(cache, cell, MakeMeshMaker(cell), ivec3_t(4,4,4), ivec3_t(2,0,0), mol, 0.0);   // k=(1/2,0,0): TRIM, a real block
     const BlochImageSource& s1=k1;
     const BlochImageSource& s2=k2;
     const BlochImageSource& sr=kr;
@@ -116,9 +117,9 @@ void ContractionsAgree(bool spherical)
     std::shared_ptr<const Structure> st=cell.Clone();
     const auto mol=Mol(cell, spherical);
     auto cache=std::make_shared<BasisCache>();
-    const tGPW_IBS<dcmplx> k1(cache, cell, ivec3_t(4,4,4), ivec3_t(1,0,0), mol, 0.0);
-    const tGPW_IBS<dcmplx> k2(cache, cell, ivec3_t(4,4,4), ivec3_t(1,2,3), mol, 0.0);
-    const tGPW_IBS<double> kr(cache, cell, ivec3_t(4,4,4), ivec3_t(2,0,0), mol, 0.0);
+    const tGPW_IBS<dcmplx> k1(cache, cell, MakeMeshMaker(cell), ivec3_t(4,4,4), ivec3_t(1,0,0), mol, 0.0);
+    const tGPW_IBS<dcmplx> k2(cache, cell, MakeMeshMaker(cell), ivec3_t(4,4,4), ivec3_t(1,2,3), mol, 0.0);
+    const tGPW_IBS<double> kr(cache, cell, MakeMeshMaker(cell), ivec3_t(4,4,4), ivec3_t(2,0,0), mol, 0.0);
     const FitQuadrature q=MakeXCQuadrature(*st, qcMesh::MeshParams{.nUniform=14, .cellKind=qcMesh::UnitCellKind::Uniform}, nullptr);
     const auto sym=Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0));
     auto sourceOf=[](const IrrepBasisSet_IDs& b){return dynamic_cast<const BlochImageSource*>(&b);};

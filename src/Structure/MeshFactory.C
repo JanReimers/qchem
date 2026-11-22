@@ -49,4 +49,11 @@ private:
     std::shared_ptr<const S> itsStructure;
 };
 
+//! A maker over a COPY of \a s (a concrete \c Atom, \c Molecule or \c UnitCell): for a caller that holds its geometry by value -- a
+//! facade's point cell, a unit test's -- and hands the maker to a library that builds at a recipe only it knows (the GPW basis, §4.4).
+template <class S> std::shared_ptr<const qcMesh::MeshMaker> MakeMeshMaker(const S& s)
+{
+    return std::make_shared<const StructureMeshMaker<S>>(std::make_shared<const S>(s));
+}
+
 } // namespace qchem

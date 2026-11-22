@@ -32,7 +32,7 @@ export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::PW_Grid_Evaluat
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;       // Gaussian::LatticeSum1E (the periodic-1E capability we call)
 import qchem.BasisSet.Orbital_PP_IBS;              // SpeciesRadialField / SpeciesProjectorSet(_R): the species-field arguments (V1.2)
 import qchem.BasisSet.AtomCentredSet;              // AtomCentredSet_Gaussian (the +U projector functions, HubbardProjectorPlan D2)
-import qchem.Mesh;                                 // qcMesh::MeshParams (the PP-quadrature integration mesh)
+export import qchem.Mesh.Maker;                    // qcMesh::MeshParams + MeshMaker (the PP-quadrature mesh, built over the cell; ctor arg)
 import qchem.BasisSet;                             // Real_BS (the molecular Gaussian basis we own)
 import qchem.BasisSet.Orbital_1E_IBS;              // Real_OIBS (its orbital block: op()/Gradient/size)
 export import qchem.BasisSet.PointImages;      // PointImages: the k-independent images of my molecular block (shared Φ)
@@ -85,7 +85,9 @@ public:
     //!              construction: the ops were detected from these very atoms); no op list reaches the evaluator (Star-average
     //!              remainder (a), 2026-11-18).  A ctor argument with NO default since D4 (was the setter SetSymmetryOps): the
     //!              factory gathers the group, so a caller that forgets it is a compile error, never a silently free evaluator.
-    GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
+    //! \param meshMaker  builds the separable PP's fallback quadrature over \a cell (a projector model with no closed-Gaussian face, at the
+    //!              recipe only this evaluator knows, \c PPMeshParams).  DEMANDED, never null (V-MESH-FACTORY §4.4 (ii), user 2026-11-21).
+    GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell, std::shared_ptr<const qcMesh::MeshMaker> meshMaker,
                   std::shared_ptr<const GpwRasterLadder> ladder, const rvec3_t& kFrac, bool kIsReal,
                   bool homeCellOnly,
                   std::shared_ptr<const Symmetry::StarGroup> group,   // NO default: a forgotten one must not build a free evaluator
@@ -310,6 +312,7 @@ private:
                                                           //!< silently shift every collocation box)
     size_t                              itsN   = 0;       //!< number of Gaussian orbitals
     GPWTolerances itsTol;          //!< vlocEps / localPPRelCutoff / relFieldSharp / mgridEcuts, injected at construction
+    std::shared_ptr<const qcMesh::MeshMaker> itsMeshMaker;   //!< builds the PP fallback quadrature over itsCell (V-MESH-FACTORY §4.4)
     std::shared_ptr<const GpwRasterLadder> itsLadder;   //!< the point's ONE raster ladder, shared by every block (V-BS-RASTER)
     //! The RELATIVE rule's field-sharpness floor handed to every density-path CollocateDensity /
     //! IntegratePotential / stream build: -1 = the historical \f$\tfrac23\alpha_{\max}\f$ rule

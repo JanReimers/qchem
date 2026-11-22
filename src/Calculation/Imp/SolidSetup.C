@@ -26,6 +26,7 @@ import qchem.Policy;                           // policy::Refuse: each refusal f
 import qchem.Reporting;                         // report::Scope: the vet-stage trim files under basisTrim
 import qchem.XCRhoPolicy;                      // ReportSolidXCRho: the XC rho-axis decision
 import qchem.BasisCoverage;                    // RequireBasisCovers: a basis lacking an element is refused before the build
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (a GPW basis demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 namespace qchem
 {
@@ -281,7 +282,7 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, co
         BasisSet::Lattice::VetTrimResult r;
         {
             qchem::report::Scope here("basisTrim");   // the vet stage files its passes and its verdict one level in
-            r=BasisSet::Lattice::VetStageTrim(lat, make, {.images=opts.solid.images, .kShift=opts.solid.kShift, .tol=rec.tolerances}, opts.orthoTol);   // the tolerances make() binds
+            r=BasisSet::Lattice::VetStageTrim(lat, MakeMeshMaker(lat.GetUnitCell()), make, {.images=opts.solid.images, .kShift=opts.solid.kShift, .tol=rec.tolerances}, opts.orthoTol);   // the tolerances make() binds
         }
         frozen.trim=std::move(r.trim);
         frozen.autoTrim=false;
@@ -602,7 +603,7 @@ static GaussianBasisRecipe Untrimmed(const std::optional<GaussianBasisRecipe>& r
 std::unique_ptr<BasisSet::Lattice::ShellConditioning> SolidSetup::MakeShellConditioning() const
 {
     const GaussianBasisRecipe bare=Untrimmed(recipe, planeWave, "SolidSetup::MakeShellConditioning");
-    return std::make_unique<BasisSet::Lattice::ShellConditioning>(lattice, bare.Make(*structure, *pp),
+    return std::make_unique<BasisSet::Lattice::ShellConditioning>(lattice, MakeMeshMaker(lattice.GetUnitCell()), bare.Make(*structure, *pp),
                                                                   BasisSet::Lattice::GPWParams{.images=opts.solid.images, .kShift=opts.solid.kShift, .tol=bare.tolerances});
 }
 
@@ -611,7 +612,7 @@ BasisSet::Gaussian::ShellTrim SolidSetup::MakeVetTrim(double orthoTol) const
     const GaussianBasisRecipe bare=Untrimmed(recipe, planeWave, "SolidSetup::MakeVetTrim");
     if (!(orthoTol>0.0)) throw std::invalid_argument("SolidSetup::MakeVetTrim: an orthoTol > 0 to trim at -- at 0 it would drop nothing");
     auto make=[&](const BasisSet::Gaussian::ShellTrim& t){ GaussianBasisRecipe r=bare; r.trim=t; return r.Make(*structure, *pp); };
-    return BasisSet::Lattice::VetStageTrim(lattice, make, {.images=opts.solid.images, .kShift=opts.solid.kShift, .tol=bare.tolerances}, orthoTol).trim;
+    return BasisSet::Lattice::VetStageTrim(lattice, MakeMeshMaker(lattice.GetUnitCell()), make, {.images=opts.solid.images, .kShift=opts.solid.kShift, .tol=bare.tolerances}, orthoTol).trim;
 }
 
 } //namespace qchem

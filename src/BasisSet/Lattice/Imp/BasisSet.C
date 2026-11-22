@@ -119,7 +119,7 @@ static std::vector<KBlock> BuildKBlocks(const ::qchem::Lattice_3D& lat, const GP
 }
 
 GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                           const GPWParams& p)
+                           std::shared_ptr<const qcMesh::MeshMaker> meshMaker, const GPWParams& p)
 {
     const rvec3_t kShift=p.kShift;
     const ivec3_t N=lat.GetLimits();
@@ -198,7 +198,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         // both alternatives; the typed Insert (Step 3b) files each under its own child slot.
         auto build=[&]<class U>()
         {
-            auto* b=new Gaussian::tGPW_IBS<U>(BlockCache(), lat.GetUnitCell(), irrep,
+            auto* b=new Gaussian::tGPW_IBS<U>(BlockCache(), lat.GetUnitCell(), meshMaker, irrep,
                                     mol, ladder, p.images,  // mol and the ladder shared across k-blocks
                                     ops.densityGroup,     // the imposed density group (null = {E}): the T1 {G}-star fold asks it
                                     p.tol);               // the typed GPW tolerances (D-ENV step 5)
@@ -237,7 +237,7 @@ void EmitGpwGrids(const Gaussian::GpwRasterLadder& ladder, const BasisSet::Real_
 
 // ------------------------------------------------------------------ the VET-STAGE TRIM (pin 22)
 
-VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
+VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat, std::shared_ptr<const qcMesh::MeshMaker> meshMaker,
                            const std::function<std::shared_ptr<const BasisSet::Real_BS>(const Gaussian::ShellTrim&)>& make,
                            const GPWParams& p, double orthoTol)
 {
@@ -266,7 +266,7 @@ VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
     for (int pass=0; pass<64; ++pass)
     {
         r.mol=make(r.trim);
-        GPW_BasisSet bs(lat, r.mol, full);
+        GPW_BasisSet bs(lat, r.mol, meshMaker, full);
         const Complex_BS& cbs=bs;                  // the public face (GetNumIBS is protected on the Imp)
         // Per pass: every implicated (element, l), and the most diffuse shell of each (its exponents).
         struct Candidate { int Z; int l; rvec_t exponents; double alphaMin; };
@@ -358,7 +358,8 @@ VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
 }
 
 //--------------------------------------------------------------------------------------------- THE SHELL WHAT-IF
-ShellConditioning::ShellConditioning(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> untrimmed, const GPWParams& p)
+ShellConditioning::ShellConditioning(const ::qchem::Lattice_3D& lat, std::shared_ptr<const qcMesh::MeshMaker> meshMaker,
+                                     std::shared_ptr<const BasisSet::Real_BS> untrimmed, const GPWParams& p)
 {
     std::vector<std::pair<int,rvec3_t>> sites;
     lat.GetUnitCell().ForEachSite([&](int Z, const rvec3_t& R, bool){ sites.push_back({Z,R}); });
@@ -387,7 +388,7 @@ ShellConditioning::ShellConditioning(const ::qchem::Lattice_3D& lat, std::shared
     full.imposeSymmetry=false;                 // every k of the mesh, no fold: the rank question is the BASIS's (as VetStageTrim)
     full.siteSpins.clear();
     full.densityEcut=0.0;                      // analytic overlaps only
-    GPW_BasisSet bs(lat, untrimmed, full);
+    GPW_BasisSet bs(lat, untrimmed, meshMaker, full);
     const Complex_BS& cbs=bs;
     for (size_t i=0;i<cbs.GetNumIBS();++i)
         std::visit([&](const auto& b)
@@ -542,14 +543,15 @@ ShellConditioning::Answer ShellConditioning::Analyze(const std::vector<bool>& ke
 }
 
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                       const GPWParams& p)
+                       std::shared_ptr<const qcMesh::MeshMaker> meshMaker, const GPWParams& p)
 {
-    return new GPW_BasisSet(lat, std::move(mol), p);
+    return new GPW_BasisSet(lat, std::move(mol), std::move(meshMaker), p);
 }
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                       double densityEcut, rvec3_t kShift, Gaussian::CellImages images, double cutoffFactor)
+                       std::shared_ptr<const qcMesh::MeshMaker> meshMaker, double densityEcut, rvec3_t kShift,
+                       Gaussian::CellImages images, double cutoffFactor)
 {
-    return new GPW_BasisSet(lat, std::move(mol),
+    return new GPW_BasisSet(lat, std::move(mol), std::move(meshMaker),
                             GPWParams{densityEcut, cutoffFactor, images, kShift});
 }
 

@@ -54,7 +54,7 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut, cons
 //! \param images  the lattice-image MODE (\c Gaussian::CellImages::Periodic default; \c HomeCellOnly = the box gates).
 //! \param cutoffFactor  \f$C\ge4\f$ in the density-grid floor \f$C\cdot\alpha_{\max}\f$ (default 4).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                       double densityEcut, rvec3_t kShift={0,0,0},
+                       std::shared_ptr<const qcMesh::MeshMaker> meshMaker, double densityEcut, rvec3_t kShift={0,0,0},
                        Gaussian::CellImages images=Gaussian::CellImages::Periodic, double cutoffFactor=2.0);
 
 //! \brief The GPW factory knobs as ONE readable struct (doc/GPWPlan1.md item 1) -- designated
@@ -132,8 +132,10 @@ struct GPWParams
     std::shared_ptr<const Gaussian::GpwRasterLadder> ladder = {};
 };
 //! The struct-parameter factory (preferred surface; the positional overload above forwards here).
+//! \a meshMaker: the maker over \a lat's cell (the point's \c StructureMeshMaker<UnitCell>, V-MESH-FACTORY §4.4), shared by every k-block
+//! like \a mol and the ladder; each block's PP fallback quadrature is built by it.  DEMANDED, never null.
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                       const GPWParams& p = {});
+                       std::shared_ptr<const qcMesh::MeshMaker> meshMaker, const GPWParams& p = {});
 
 //! \brief THE ONE BUILDER of a GPW point's raster ladder (V-BS-RASTER): the density grid and its multigrid levels from the k-independent
 //! inputs -- the cell, \a mol's exponent range (its one orbital block, as the evaluator reads it), \a p's densityEcut / cutoffFactor
@@ -171,7 +173,9 @@ struct VetTrimResult
     std::shared_ptr<const BasisSet::Real_BS> mol;    //!< the trimmed cell basis (== make(trim))
     Gaussian::ShellTrim                      trim;   //!< what was removed; empty when nothing was
 };
-VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
+//! \a meshMaker: the maker over \a lat's cell, which every GPW basis the vet builds demands (V-MESH-FACTORY §4.4); the vet's analytic
+//! overlaps build no mesh.
+VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat, std::shared_ptr<const qcMesh::MeshMaker> meshMaker,
                            const std::function<std::shared_ptr<const BasisSet::Real_BS>(const Gaussian::ShellTrim&)>& make,
                            const GPWParams& p, double orthoTol);
 
@@ -204,7 +208,8 @@ public:
         std::vector<double> participation;
         bool Healthy() const {return aoDrops==0;}
     };
-    ShellConditioning(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> untrimmed, const GPWParams& p);
+    ShellConditioning(const ::qchem::Lattice_3D& lat, std::shared_ptr<const qcMesh::MeshMaker> meshMaker,   //!< \a meshMaker as VetStageTrim's
+                      std::shared_ptr<const BasisSet::Real_BS> untrimmed, const GPWParams& p);
     const std::vector<Shell>& Shells() const {return itsShells;}
     //! \a kept: one flag per \c Shells() entry.  \a floor: the pivot floor (an orthoTol) and the near-null eigenvalue bound.
     //! WRITES ITS RECORD one level in (the caller opens the scope): the verdict, a \c blocks row per k, a \c shells row per shell.
@@ -247,7 +252,7 @@ class GPW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
 {
 public:
     GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                 const GPWParams& p);
+                 std::shared_ptr<const qcMesh::MeshMaker> meshMaker, const GPWParams& p);
     // The density star ops and the Shubnikov pair group are the imposition's (\c GetImposition, V-BS-SYMMETRY S3); the pair
     // projection is \c Symmetry::ProjectSpinPair over each block's \c DenseRepresentation.
 };

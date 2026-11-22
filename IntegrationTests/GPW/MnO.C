@@ -70,6 +70,7 @@ import qchem.BasisSet.GMap;              // PairProjection<dcmplx> (the collocat
 import qchem.ChargeDensity.SeedCD;              // PolarizedSeedCD (the raw spin-SAD seed, for the sublattice gate)               // IrrepCD_Factory/PolarizedCD_Factory (fixed-density probe)
 import qchem.Pseudopotential.GTH_Potentials;      // GetGTH, GTH_PP (the PP model, for the matrix-trace probe)
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
 using BasisSet::Real_BS;
@@ -355,7 +356,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
     EXPECT_EQ(spins[2],  0); EXPECT_EQ(spins[3],  0);
 
     // The magnetically IMPOSED GPW basis (coarse everything: this gate tests symmetry, not accuracy).
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR),
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), MakeMeshMaker(lat.GetUnitCell()),
         L3::GPWParams{.densityEcut=8.0, .imposeSymmetry=true, .siteSpins=spins}));
     BasisSet::FitQuadrature q = BasisSet::MakeXCQuadrature(*st, qcMesh::BeckeXCParams(20, -1.0, 11), bs->GetImposition());
     ASSERT_EQ(q.NumSpinOps(), 24u) << "the Shubnikov group of the AFM-II cell has 24 ops (12+12)";
@@ -428,7 +429,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedReadsTheStatedOrdering)
     }
     Lattice_3D lat(spinless, ivec3_t(1,1,1));
     auto st=lat.GetStructure();
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisLowQ(spinless, BasisSetData::VALENCE_LOWQ_SR),
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisLowQ(spinless, BasisSetData::VALENCE_LOWQ_SR), MakeMeshMaker(lat.GetUnitCell()),
         L3::GPWParams{.densityEcut=8.0, .imposeSymmetry=true, .siteSpins=stated}));
     BasisSet::FitQuadrature q = BasisSet::MakeXCQuadrature(*st, qcMesh::BeckeXCParams(20, -1.0, 11), bs->GetImposition());
     ASSERT_EQ(q.NumSpinOps(), 24u) << "the stated ordering imposes the Shubnikov group whatever the cell's own spins";

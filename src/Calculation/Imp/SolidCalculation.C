@@ -55,6 +55,7 @@ import qchem.SCFRecipe;                              // ReportRecipe: the recipe
 import qchem.DegenerateFillReport;                   // the `choose` row for a kT = 0 fill that shared a degenerate level
 import qchem.Hamiltonian.Factory;
 import qchem.RunPolicy;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 namespace qchem
 {
@@ -477,7 +478,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         ResolveGpwPoint(lat, mol, *S.pp, p);
         itsImp->imposition=p.imposition;
         itsImp->ladder    =p.ladder;
-        itsImp->bs.reset(L3::GPWFactory(lat, mol, p));
+        itsImp->bs.reset(L3::GPWFactory(lat, mol, MakeMeshMaker(lat.GetUnitCell()), p));
     }
     itsImp->coulombFit={};   // a new basis: its Coulomb fit is built afresh by the first Hamiltonian on it
     // THE RUN REPORTS ITS OWN BASIS AND GRIDS (TE phase 2, 2026-09-15; the reporting rule: each class emits
@@ -545,7 +546,7 @@ static ChargeDensity::LatticeSummedSet PeriodicA1Set(const RunOptions& o, const 
     }
     // The block is summed over THIS cell's lattice, so a fit space over it forces what the A1 family forces in the cell's frame (T(cell),
     // BasisSet::Forces) -- issued here, where the cell is concrete.
-    return {std::make_shared<const BasisSet::Gaussian::tGPW_IBS<double>>(std::make_shared<BasisSet::BasisCache>(), cell, ivec3_t(1,1,1),
+    return {std::make_shared<const BasisSet::Gaussian::tGPW_IBS<double>>(std::make_shared<BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(1,1,1),
                                                                           ivec3_t(0,0,0), a1mol, 0.0),
             BasisSet::Forces(Hamiltonian::VxcFit::Auxiliary, Symmetry::Frame{.lattice=cell.GetCellMatrix(), .centre={}}).Value()};
 }
@@ -2427,7 +2428,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             .hamPreservesReal = S.realTRIMBlocks};
         ResolveGpwPoint(latRef, molRef, *S.pp, p);   // the reference's own ladder (its rasters / ball differ), sized for the same PP
         ladderRef=p.ladder;
-        bsRef.reset(L3::GPWFactory(latRef, molRef, p));
+        bsRef.reset(L3::GPWFactory(latRef, molRef, MakeMeshMaker(latRef.GetUnitCell()), p));
         if (rpt::Depth()>0)   // the reference's grids + verdicts, as setup files the run's
         {
             rpt::Section grids("grids");
@@ -3449,7 +3450,7 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
             BasisSet::Lattice::VetTrimResult vet;
             {
                 qchem::report::Scope here("basisTrim");   // the re-vet files its verdict one level in (as SolidSetup's first vet)
-                vet=BasisSet::Lattice::VetStageTrim(latR, make, {.images=S.opts.solid.images, .kShift=S.opts.solid.kShift, .tol=recipe.tolerances}, S.opts.orthoTol);   // the tolerances make() binds
+                vet=BasisSet::Lattice::VetStageTrim(latR, MakeMeshMaker(latR.GetUnitCell()), make, {.images=S.opts.solid.images, .kShift=S.opts.solid.kShift, .tol=recipe.tolerances}, S.opts.orthoTol);   // the tolerances make() binds
             }
             if (!vet.trim.empty())
             {

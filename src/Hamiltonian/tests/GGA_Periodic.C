@@ -26,6 +26,7 @@ import qchem.Mesh;
 import qchem.Mesh.XCPolicy;                       // BeckeXCParams
 import qchem.Types;
 import qchem.Blaze;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 using namespace qchem;
 
 namespace
@@ -67,8 +68,8 @@ struct Rig
         st=cell.Clone();
         namespace M = qchem::BasisSet::Gaussian;
         mol.reset(M::Factory(M::BasisSetData::SIPP, &cell, M::Engine::MnD, M::Angular::Cartesian));
-        cx=std::make_unique<M::tGPW_IBS<dcmplx>>(std::make_shared<BasisSet::BasisCache>(), cell, ivec3_t(3,1,1), ivec3_t(1,0,0), mol, 20.0);
-        re=std::make_unique<M::tGPW_IBS<double>>(std::make_shared<BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, 20.0);
+        cx=std::make_unique<M::tGPW_IBS<dcmplx>>(std::make_shared<BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(3,1,1), ivec3_t(1,0,0), mol, 20.0);
+        re=std::make_unique<M::tGPW_IBS<double>>(std::make_shared<BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(2,2,2), ivec3_t(0,0,0), mol, 20.0);
         quad=BasisSet::MakeXCQuadrature(*st, qcMesh::BeckeXCParams(30, -1.0, 11), nullptr);
         fb=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(std::make_shared<BasisSet::BasisCache>(), quad,
                                                                   Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));

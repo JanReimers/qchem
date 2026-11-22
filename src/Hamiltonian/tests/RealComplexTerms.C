@@ -54,6 +54,7 @@ import qchem.Fitting.FunctionFitter;               // DeltaScalarFit
 import qchem.BasisSet.GSpaceDensityProjector;      // ρ̃ through the one projection face (V-ONE-OF-N 3c)
 import qchem.BasisSet.RasterDensityProjector;      // raw ρ_DM through the same face (R1.0n/o)
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
 using namespace qchem::Hamiltonian;
@@ -75,8 +76,8 @@ struct Rig
         st=cell.Clone();
         namespace M = qchem::BasisSet::Gaussian;
         mol.reset(M::Factory(M::BasisSetData::SIPP, &cell, M::Engine::MnD, M::Angular::Cartesian));
-        re=std::make_unique<tGPW_IBS<double>>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
-        cx=std::make_unique<tGPW_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+        re=std::make_unique<tGPW_IBS<double>>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+        cx=std::make_unique<tGPW_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
     }
     //! A one-block complex density in the run's shape (tComposite_CD<dcmplx>): D(0,0)=2 -- two electrons
     //! in the first orbital.  Enough to make V_H / rho genuinely nonzero; the terms never see past the
@@ -300,7 +301,7 @@ TEST(RealComplexTerms, FactoredLeafMatchesDirectLeafBothScalars)
     //     rho' - rho = sum_{i<j} 4 Im(D_ij) Im(Phi_gi conj(Phi_gj)).
     // k=(1/4,0,0) on a 4x4x4 mesh is not TRIM, so the second factor is nonzero and a conjugation error in
     // the factor becomes visible.  This is the arm that caught R2.21.
-    tGPW_IBS<dcmplx> kb(std::make_shared<::qchem::BasisSet::BasisCache>(), rig.cell, ivec3_t(4,4,4), ivec3_t(1,0,0), rig.mol, /*densityEcut*/20.0);
+    tGPW_IBS<dcmplx> kb(std::make_shared<::qchem::BasisSet::BasisCache>(), rig.cell, MakeMeshMaker(rig.cell), ivec3_t(4,4,4), ivec3_t(1,0,0), rig.mol, /*densityEcut*/20.0);
     arm(dcmplx(0.0), kb, "FactoredRho<PeriodicIrrepCD<dcmplx>> (Bloch at k=(1/4,0,0) -- Phi complex)");
 }
 
@@ -382,8 +383,8 @@ struct FccRig
         st=cell.Clone();
         namespace M = qchem::BasisSet::Gaussian;
         mol.reset(M::Factory(M::BasisSetData::SIPP_SR, &cell, M::Engine::MnD, M::Angular::Cartesian));
-        re=std::make_unique<tGPW_IBS<double>>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
-        cx=std::make_unique<tGPW_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+        re=std::make_unique<tGPW_IBS<double>>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+        cx=std::make_unique<tGPW_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
     }
 };
 
@@ -738,8 +739,8 @@ TEST(RealComplexTerms, ARealTRIMGPWBlockGivesTheOneElectronAndPPForcesAndVirials
     const auto st=cell.Clone();
     namespace M = qchem::BasisSet::Gaussian;
     std::shared_ptr<const Real_BS> mol(M::Factory(M::BasisSetData::SIPP, &cell, M::Engine::MnD, M::Angular::Cartesian));
-    tGPW_IBS<double> re(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
-    tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+    tGPW_IBS<double> re(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+    tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
     const size_t n=cx.GetNumFunctions();
     rsmat_t Dr(n); chmat_t Dc(n);
     for (size_t i=0;i<n;i++) for (size_t j=0;j<=i;j++) { const double d=std::sin(1.0+i+2.0*j)/(1.0+i+j); Dr(i,j)=Dr(j,i)=d; Dc(j,i)=dcmplx(d,0.0); }
@@ -829,8 +830,8 @@ TEST(RealComplexTerms, TheGPWHartreeForceWalksBothBlockScalarsAndSumsToTheEggBox
     cell.AddAtom(14,{0.62,0.55,0.47});
     namespace M = qchem::BasisSet::Gaussian;
     std::shared_ptr<const Real_BS> mol(M::Factory(M::BasisSetData::SIPP, &cell, M::Engine::MnD, M::Angular::Cartesian));
-    tGPW_IBS<double> re(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
-    tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+    tGPW_IBS<double> re(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
+    tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
     const size_t n=cx.GetNumFunctions();
     rsmat_t Dr(n); chmat_t Dc(n);
     for (size_t i=0;i<n;i++) for (size_t j=0;j<=i;j++) { const double d=std::sin(1.0+i+2.0*j)/(1.0+i+j); Dr(i,j)=Dr(j,i)=d; Dc(j,i)=dcmplx(d,0.0); }
