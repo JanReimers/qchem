@@ -2,7 +2,7 @@
 
 **APPROVED as a whole: USER RULING 2026-11-21, "Please proceed with the plan"** (§8's steps, §4.4 (ii), §5's hub diffs as written;
 a hub diff that departs from §5 goes back to the user first).  Born as lane H's design note in the session notes; moved here when its
-execution began, per the doc/ rule that a plan lives at the top of doc/ only while it is executed.  Progress: §8 step 1 landed; step 2 in flight.
+execution began, per the doc/ rule that a plan lives at the top of doc/ only while it is executed.  Progress: §8 steps 1 and 2 landed; step 3 in flight.
 
 This note is design only: no code. It surveys main at 8952f826c (lane-h-group3b, which contains main 41581b896; landed as main 360fee3ff, so the line numbers hold there).
 The row is the controller's, carrying the user's framing ("big compile time when we extend (OCP), as a hint there is a design flaw hiding
@@ -134,6 +134,36 @@ setup that knows its kind should DEMAND the concrete structure. Today `Setup::st
 1. **`MakeXCQuadrature`** (BasisSet hub, `BasisSet/Imp/BasisSet.C:98`).
    - Today it cross-casts `SymmetryImposition` → `XCMeshSource` and otherwise calls `cl.CreateIntegrationMesh(mp)`.
    - It moves to the factory layer: the Hamiltonian factory's caller (the setup) builds the `FitQuadrature` and INJECTS it.
+   - **AS BUILT (step 3; controller + user rulings 2026-11-22): the setup injects the MAKER and a SYMMETRY SOURCE, not a built quadrature.**
+     The Hamiltonian builds its quadratures lazily and by route: `XCMeshShare` on its first ask, none on the raster route ("pays for no
+     mesh"), a second at the molecular Hartree grid's own `nRadial`.  Injecting BUILT quadratures would build meshes nobody asked for, or
+     copy those route conditions into every setup.  A quadrature depends only on geometry and recipe, never on the density, so building
+     it lazily is allowed.
+     - **One interface, not two class networks** (the user: "why do we need two parallel class networks for raw and folded meshes? And
+       where does the Symmetry class enter for folding?").  `qcMesh::MeshMaker` has two overloads: `Mesh Make(mp)` and
+       `FoldedMesh Make(mp, const SymmetrySource&)`.  The second is a non-virtual TEMPLATE METHOD: no ops → the plain mesh; ops but no
+       density averaging (a free run's symmetric numerics) → the invariant mesh, unfolded; averaging → invariant and orbit-folded.  Only
+       the two steps that need GEOMETRY are the realization's protected hooks, `MakeInvariant` and `FoldOrbits` (the fold needs the cell
+       matrix and the Shubnikov flip-fixed test), realized in `StructureMeshMaker<S>` through `MakeMesh(S, mp, ops)` / `FoldOrbits(S, mesh,
+       ops)`: the cell's are the moved body of `CrystalImposition::MakeXCMesh`; an atom's invariant mesh is its radial-only set (an angular
+       recipe throws: a finite direction set claims a symmetry it lacks) with the trivial fold; a molecule's throws by name (OOD-SOLID
+       V-FOLD-NEUTRAL: a point-group mesh is not built yet; until then the molecule setup's policy hands it no ops, and the empty op set
+       returns before either hook).
+     - **`qcMesh::SymmetrySource`** (data-free: `MeshOps()`, `AveragesDensityOverOrbits()`, named for what the maker does with the answer)
+       supplies OPS ONLY; the maker owns the geometry.  So a source resolved at one cell can never move a mesh built over another (the
+       user's "does the grid builder hold state information?"; gated by `MeshFactory.AStrainedCellsMakerBuildsOverItsOwnCellUnderTheReferencesOps`).
+       Realized by `CrystalImposition` (listed after its other public faces, the cross-cast trap) and `NoSymmetry` (the plane-wave family,
+       the HF bootstrap's sibling, an atom, a C1 molecule).  **A molecule HAS a point group** (the user, 2026-11-22: "molecules have a point
+       group"): handing it `NoSymmetry` silently would be V-FOLD-NEUTRAL's defect under a new name.  So the library stays truthful (the
+       molecular hooks refuse non-trivial ops by name) and the POLICY layer chooses: `MoleculeSetup` detects the group and, until the fold
+       exists, picks the unfolded mesh (`MoleculeSetup::meshSymmetry`) and files policy row `MeshFoldNotBuilt` ("point group C2v (4 ops)
+       detected; the XC mesh is not folded", citing V-FOLD-NEUTRAL) on every run that builds an XC mesh.  A molecular point-group source
+       realizes the face later (V-FOLD-NEUTRAL, lane H's next task) with no library change.
+     - **No name carries the client's intended use** (the user: "MakeXCMesh should not have XC in the name"): the Hamiltonian's helper is
+       `BuildMeshQuadrature`.  `CrystalImposition` no longer builds meshes: its `MakeXCMesh` is a one-line transitional forwarder for
+       `XCMeshSource`'s last client, `MakeXCQuadrature` (a hub declaration with ~20 test callers); step 4 deletes the four together
+       (`MakeXCQuadrature`, `XCMeshSource`, `MakeXCMesh`, `CrystalImposition::cell`) and moves those tests to `maker.Make(mp, source)`.
+     - `Fold` / `FoldPoints` stay in `Symmetry::Lattice_3D` though they are geometry-free bookkeeping (noted for V-SYM-ONE-SYMOP).
    - The imposed path asks `CrystalImposition::MakeXCMesh`, which holds the concrete cell and calls
      `MakeMesh(cell, mp, ops)` / `MakeMesh(cell, mp)`.
    - The cross-cast leaves the library, as D-POINTSET-CAST prefers.
@@ -174,6 +204,11 @@ setup that knows its kind should DEMAND the concrete structure. Today `Setup::st
      maker it is given through `GPWParams` (non-hub), one maker shared by every k-block like `mol` and `ladder`. The solid setup builds
      it as `StructureMeshMaker<UnitCell>` (§3), the same maker its own meshes come from.
      - The unit tests that build a `tGPW_IBS` by hand (`GPW_UT.C`, `VxcProductSpace.C`) build one from the cell they already hold.
+   - **AS BUILT (step 3):** the maker is a DEMANDED positional argument of `GPWFactory(lat, mol, meshMaker, p)` (and of `GPW_BasisSet`),
+     not a `GPWParams` field: a struct field left out of a designated initializer compiles to a silent null, an argument cannot (CLAUDE.md,
+     compile-time over runtime).  The two library passes that build a GPW basis for its analytic overlaps alone, `VetStageTrim` and
+     `ShellConditioning`, take it too.  `MakeMeshMaker(const S&)` (`qchem.Structure.MeshFactory`) makes one over a copy of a held
+     geometry, which every hand-built block in the ~100 test and facade sites uses.
    - **What no face gains.** `Orbital_PP_IBS::MakeProjectorMatrix` / `MakeProjectorMatrixByL` / `MakeProjectorPullback` keep their
      signatures. No `Orbital_1E_IBS`, `Orbital_PP_IBS` or `BasisSet` entry point names a mesh, a recipe or a maker. Today's
      `Orbital_1E_IBS` snapshot (lines 113-138) carries no mesh or quadrature entity, and the plan keeps it that way.
@@ -337,6 +372,10 @@ src/, IntegrationTests/ and CLIapps/.
    - The setups build and hold their maker. **As built:** the molecule setup's typed point builder hands each point its maker (§3).
    - The factory gets the every-atom-centred `RequireSiteBlocks` check.
 3. **The self-builders in §4, one commit each.**
+   - **AS SEQUENCED (controller ruling 2026-11-22, option (ii)): the fit factories moved to step 4.**  The A1 block builds its mesh
+     behind the `Orbital_DFT_IBS` face `CreateVxcFitBasisSet(const Structure*, const MeshParams&)`; handing it the quadrature IS §5's
+     hub line, so it lands with the other §5 diffs and step 3 stays hub-free.  Step 4 rebases onto lane S's δ-default landing and keeps
+     its placeholder comments in the Gaussian `CreateCDFitBasisSet` / `CreateVxcFitBasisSet` bodies.
    - Order: Seed and ppQuadrature, then the fit factories (they get the duplicate-mesh saving), then `MakeXCQuadrature` into the factory
      layer, then the GPW PP mesh (§4.4 (ii): the `tGPW_IBS` constructors demand the maker, `GPWParams` carries it, and step 1's gate must
      stay green), then the SCFIterator bootstrap.
