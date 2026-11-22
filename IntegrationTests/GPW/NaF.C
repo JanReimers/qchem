@@ -25,6 +25,7 @@
 #include <functional>
 #include <string>
 #include <filesystem>
+#include <iostream>
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
 
 import qchem.SCFCap;                             // IterationBudget: the convergence PANEL's budget (doc/SCFRobustnessPlan.md §4)
@@ -59,6 +60,8 @@ import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;         // GPW_IBS (build a conc
 import qchem.BasisSet.GMap;              // PairProjection<dcmplx> (the collocation weight tensor); SymmetryDefects (§3 diagnostic)
 import qchem.Pseudopotential.GTH_Potentials;      // GetGTH, GTH_PP (the PP model, for the matrix-trace probe)
 import qchem.Types;
+import qchem.GeometryOptimizer;                   // GeometryOptimizer, CellWyckoffMap (the rocksalt cell relaxation)
+import qchem.Matrix3D;                           // Matrix3D<double> (the fcc start cell)
 
 using namespace qchem;
 using BasisSet::Real_BS;
@@ -372,4 +375,104 @@ TEST(GPW_NaF, Γ_PathIsContinuous_Long)
         const double d5=E[i+5]-5*E[i+4]+10*E[i+3]-10*E[i+2]+5*E[i+1]-E[i];
         EXPECT_LT(std::abs(d5), 1e-7) << "a jump between δ=" << d[i] << " and δ=" << d[i+5];
     }
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------
+// ROCKSALT NaF RELAXES ITS CELL ON GPW (doc/OpenWork.md §2 "Real relaxations end to end", the easy cases: controller plan 2026-11-20 (b)).
+// Cell only: rocksalt has no free internal coordinate, so the map over the detected group (Fm-3m) has ONE coordinate, the cubic constant.
+// FREE density (all 8 k-points, the plain Becke mesh), the group held by the map.  SEMICORE Na q9: with q1 Na the site has no restoring
+// force, in CP2K too (OpenWork "A light-PP ion has NO restoring force"), so a q1 crystal is no stable structure to relax.  The oracle is
+// CP2K CELL_OPT on the identical model (`~/Code/cp2k-runs/NaF/cellopt/naf_q9_k222_cellopt.{inp,out}`): the Γ-centred 2x2x2 mesh (the 8
+// TRIM points, listed), PADE, OUR basis valence_lowq_sr2_naq9.bsd (NAF-Q9-BASIS by scripts/bsd2cp2k; s and p only, so spherical =
+// Cartesian), GTH-PADE q9 Na / q7 F, CUTOFF 1200 Ry.  Both start at a = 8.73 bohr.  CP2K's minimum: a 8.519577 bohr, E -72.0950276 Ha
+// (6 steps); at 2400 Ry 8.519336 / -72.0950120, so CP2K's cutoff holds a to 2.4e-4 bohr.  Rocksalt is STABLE here: CP2K's free CELL_OPT
+// from 0.002 fractional noise (`naf_q9_k222_free_cellopt.out`, 200 steps, its BFGS stalled) never went below -72.0948712.
+namespace
+{
+//! The rocksalt NaF geometry run at cubic constant \a a0 (fcc primitive cell, Na q9 / F q7, PADE, k222, FREE density), with the
+//! Fm-3m map over its group; runs \a body on the run's surface and the map.  The grids are STATED: those the default accuracy's raster
+//! pilot settled on at a = 8.73 (2026-11-21: 3 audit rounds, the ball doubled 2 -> 4 -> 8, every term meeting 1e-5 Ha), as its "a deck
+//! restates these grids as" line prints them.  The piloted relaxation reached the same a (8.519761) and E (-72.0950084) to 1e-9 Ha, but
+//! its audit rounds (2.4 GB references) made it a 4 h run; stated, it is 2.4 h (OpenWork §4 "A GPW forces + stress point on NaF").
+void WithNaF(double a0, const char* label,
+             const std::function<void(qchem::PotentialEnergySurface&, const qchem::CellWyckoffMap&)>& body)
+{
+    using namespace qchem;
+    const double h=0.5*a0;
+    UnitCell cell(Matrix3D<double>(0.0,h,h,  h,0.0,h,  h,h,0.0));
+    cell.AddAtom(11, rvec3_t(0.0,0.0,0.0));
+    cell.AddAtom( 9, rvec3_t(0.5,0.5,0.5));
+    SCFParams p; p.NMaxIter=100; p.MinΔρPerElectron=1e-7; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
+    RunOptions o; o.Nelec=16; o.species={{"Na",9},{"F",7}}; o.label=label; o.scf=p;
+    o.model=Hamiltonian::Model::PADE;   // the GTH-PADE PPs' own functional, and CP2K's &PADE
+    o.solid.cellStrainAllowance=0.05;   // the minimum is 2.4 % COMPRESSED from the cold start: the frozen sizes over-converge
+    o.solid.xcMeshSymmetric=false;      // a FREE geometry run: one plain Becke mesh at every point
+    o.accuracy.eps=0.0;                 // the pilot's grids, stated (above)
+    o.solid.cutoffFactor=8.0;
+    o.solid.tolerances.rasterX=o.solid.tolerances.xcRasterX=19.35139721329466;
+    o.solid.tolerances.vlocRasterX=21.583068172270572;
+    o.solid.tolerances.vlocEps=1e-6;
+    o.xcMesh=qcMesh::BeckeXCParams(100, 2.0, 53);
+    const auto setup=SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(2,2,2)), {.file="valence_lowq_sr2_naq9.bsd"}, o);
+    auto run=MakeSolidGeometryRun(setup, {SCFStage{p, SCFAccelerators::Type::Auto}}, nullptr, SolidSession::Carry::AO, /*relaxCell*/true);
+    const PESGeometry ref=run.surface->Reference();
+    const CellWyckoffMap map(ref, setup->lattice.GetSpaceGroup(), ElasticModel{}, 1e-4*a0);
+    ASSERT_EQ(map.Dimension(), 1u) << "rocksalt's one free coordinate is the cubic constant";
+    body(*run.surface, map);
+}
+} // namespace
+
+//------------------------------------------------------------------------------------------------------------------------------------
+// ROCKSALT NaF RELAXES ITS CELL ON GPW (doc/OpenWork.md §2 "Real relaxations end to end", the easy cases: controller plan 2026-11-20 (b)).
+// Cell only: rocksalt has no free internal coordinate, so the map over the detected group (Fm-3m) has ONE coordinate, the cubic constant.
+// FREE density (all 8 k-points, the plain Becke mesh), the group held by the map.  SEMICORE Na q9: with q1 Na the site has no restoring
+// force, in CP2K too (OpenWork "A light-PP ion has NO restoring force"), so a q1 crystal is no stable structure to relax.  The oracle is
+// CP2K CELL_OPT on the identical model (`~/Code/cp2k-runs/NaF/cellopt/naf_q9_k222_cellopt.{inp,out}`): the Γ-centred 2x2x2 mesh (the 8
+// TRIM points, listed), PADE, OUR basis valence_lowq_sr2_naq9.bsd (NAF-Q9-BASIS by scripts/bsd2cp2k; s and p only, so spherical =
+// Cartesian), GTH-PADE q9 Na / q7 F, CUTOFF 1200 Ry.  Both start at a = 8.73 bohr.  CP2K's minimum: a 8.519577 bohr, E -72.0950276 Ha
+// (6 steps, 432 s on one rank); at 2400 Ry 8.519336 / -72.0950120, so CP2K's cutoff holds a to 2.4e-4 bohr.  Rocksalt is STABLE here:
+// CP2K's free CELL_OPT from 0.002 fractional noise (`naf_q9_k222_free_cellopt.out`, 200 steps, its BFGS stalled) never went below
+// -72.0948712.
+// MEASURED 2026-11-21 (4 threads): 4 steps, 5 points, a 8.519761 (1.8e-4 bohr from CP2K), E -72.0950084 (19 uHa above CP2K's), 8659 s.
+// So the cold run is in the PERIODIC tier; its long-tier twin is the ONE point below.
+TEST(GPW_NaF, k222_RelaxesToCP2KsCell_Long)
+{
+    using namespace qchem;
+    WithNaF(8.73, "NaF relax", [](PotentialEnergySurface& pes, const CellWyckoffMap& map)
+    {
+        auto r=GeometryOptimizer(pes, map, OptimizerOptions::FromEps(1e-6)).Run();
+        ASSERT_TRUE(bool(r)) << r.Error().details;
+        report::FormatGuard keep(std::cout);
+        std::cout<<"[relax] NaF: "<<r->Steps()<<" steps, "<<r->history.size()<<" evaluations"<<std::endl;
+        for (const auto& it : r->history)
+            std::cout<<"[relax]   "<<std::setw(3)<<it.index<<"  E "<<std::setprecision(10)<<std::fixed<<it.value<<std::defaultfloat
+                     <<"  max|g| "<<std::setprecision(3)<<std::scientific<<it.maxGradient<<"  |s| "<<it.stepLength
+                     <<std::defaultfloat<<(it.accepted ? "" : "  rejected")<<std::endl;
+        const rmat3d_t& A=*r->geometry.cell;
+        const double a=2.0*A(2,1);   // the fcc primitive vector (0, a/2, a/2) in column 1
+        std::cout<<std::setprecision(10)<<"[relax] NaF a "<<a<<"  E "<<r->value<<"  (CP2K a 8.519577, E -72.0950276)"<<std::endl;
+        EXPECT_NEAR(A(1,1), 0.0, 1e-8); EXPECT_NEAR(A(3,1), A(2,1), 1e-8);   // still fcc (the map holds it)
+        EXPECT_NEAR(a, 8.519577, 5e-3);
+        EXPECT_NEAR(r->value, -72.0950276, 1e-4);
+    });
+}
+
+// THE TWIN: CP2K's minimum is a stationary point of OUR surface -- one point, the map gradient at CP2K's cubic constant.  The cold start
+// (a 8.73) has max|g| 7.5e-3; the relaxation above ends 1.8e-4 bohr from this point.
+TEST(GPW_NaF, k222_CP2KsCellIsStationary_Long)
+{
+    using namespace qchem;
+    WithNaF(8.519577, "NaF twin", [](PotentialEnergySurface& pes, const CellWyckoffMap& map)
+    {
+        const rvec_t q=map.Start();
+        const PESGeometry g=map.At(q);
+        auto point=pes.ConvergeAt(g.cell, g.R, map.PointRequest());
+        ASSERT_TRUE(bool(point)) << point.Error().details;
+        const rvec_t grad=map.Project(q, map.Gradient(q, *point));
+        report::FormatGuard keep(std::cout);
+        std::cout<<std::setprecision(10)<<"[stationary] NaF at CP2K's cell: E "<<point->energy<<" (CP2K -72.0950276)  g "
+                 <<std::setprecision(3)<<std::scientific<<grad[0]<<std::defaultfloat<<std::endl;
+        EXPECT_LT(std::fabs(grad[0]), 1e-4);
+        EXPECT_NEAR(point->energy, -72.0950276, 1e-4);
+    });
 }

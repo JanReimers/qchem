@@ -44,6 +44,7 @@
 #include <algorithm>
 #include <functional>
 #include <string>
+#include <chrono>
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
 #include <filesystem>    // the deck run's scratch directory
 #include <nlohmann/json.hpp>  // the deck the supercell gate is run from
@@ -80,6 +81,7 @@ import qchem.Energy;                             // EnergyBreakdown
 import qchem.Symmetry.Irrep;                     // Irrep
 import qchem.Reporting;                          // report:: -- bracket the GPW run so grids/basis sections land
 import qchem.Symmetry.Spin;                      // Spin
+import qchem.GeometryOptimizer;                  // GeometryOptimizer, OptimizerOptions (the cell relaxation gate)
 import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
 import qchem.BasisSet.GMap;              // PairProjection<dcmplx> (the collocation weight tensor); SymmetryDefects (§3 diagnostic)
@@ -1626,3 +1628,52 @@ TEST(GPW_Si, Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel)
     const double USC=loop.at("U_eV").back().at(0).get<double>();
     EXPECT_NEAR(USC, 1.2399187, 1e-3) << "the Kerker/Pulay arm's self-consistent U";
 }
+
+//------------------------------------------------------------------------------------------------------------------------------------
+// Si DIAMOND RELAXES ITS CELL ON GPW (doc/OpenWork.md §2 "Real relaxations end to end", the easy cases: controller plan 2026-11-20 (a),
+// after rutile showed the hard case).  Cell only: diamond has no free internal coordinate, so the map over the detected group (Fd-3m)
+// has ONE coordinate, the cubic constant.  FREE density (all 27 k-points, the plain Becke mesh), the group held by the map.  The oracle is
+// CP2K CELL_OPT on the identical model (`~/Code/cp2k-runs/Si/si_k333_cellopt.{inp,out}`): the Γ-centred 3x3x3 mesh (MONKHORST-PACK 3 3 3,
+// odd, so it holds Γ; FULL_GRID), PADE (stated: the GTH-PADE PP's own functional), SIPP_SR, GTH q4, CUTOFF 400 Ry.  Both start at
+// a = 10.40 bohr, the fcc primitive cell, on the DEFAULT accuracy (the raster pilot sizes every grid at the reference, see below).
+// CP2K's minimum: a 10.242904 bohr, E -7.849454525 Ha (5 steps).  Diamond is STABLE here:
+// CP2K's free CELL_OPT from 0.002 fractional noise (`si_k333_free_cellopt.out`, 200 steps, not converged) never went below -7.8492577.
+TEST(GPW_Si, k333_RelaxesToCP2KsCell_Long)
+{
+    using namespace qchem;
+    const double a0=10.40;
+    const double h=0.5*a0;
+    UnitCell cell(Matrix3D<double>(0.0,h,h,  h,0.0,h,  h,h,0.0));
+    cell.AddAtom(14, rvec3_t(0.0,0.0,0.0));
+    cell.AddAtom(14, rvec3_t(0.25,0.25,0.25));
+    SCFParams p; p.NMaxIter=100; p.MinΔρPerElectron=1e-7; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
+    RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.label="Si relax"; o.scf=p;
+    o.model=Hamiltonian::Model::PADE;   // the GTH-PADE PP's own functional, and CP2K's &PADE
+    o.solid.cellStrainAllowance=0.05;   // the minimum is COMPRESSED from the start: the frozen sizes over-converge
+    o.solid.xcMeshSymmetric=false;      // a FREE geometry run: one plain Becke mesh at every point
+    const auto setup=SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(3,3,3)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
+    auto run=MakeSolidGeometryRun(setup, {SCFStage{p, SCFAccelerators::Type::Auto}}, nullptr, SolidSession::Carry::AO, /*relaxCell*/true);
+    const PESGeometry ref=run.surface->Reference();
+    const CellWyckoffMap map(ref, setup->lattice.GetSpaceGroup(), ElasticModel{}, 1e-4*a0);
+    ASSERT_EQ(map.Dimension(), 1u) << "diamond's one free coordinate is the cubic constant";
+    auto r=GeometryOptimizer(*run.surface, map, OptimizerOptions::FromEps(1e-6)).Run();
+    ASSERT_TRUE(bool(r)) << r.Error().details;
+    report::FormatGuard keep(std::cout);
+    std::cout<<"[relax] Si: "<<r->Steps()<<" steps, "<<r->history.size()<<" evaluations"<<std::endl;
+    for (const auto& it : r->history)
+        std::cout<<"[relax]   "<<std::setw(3)<<it.index<<"  E "<<std::setprecision(10)<<std::fixed<<it.value<<std::defaultfloat
+                 <<"  max|g| "<<std::setprecision(3)<<std::scientific<<it.maxGradient<<"  |s| "<<it.stepLength
+                 <<std::defaultfloat<<(it.accepted ? "" : "  rejected")<<std::endl;
+    const rmat3d_t& A=*r->geometry.cell;
+    const double a=2.0*A(2,1);   // the fcc primitive vector (0, a/2, a/2) in column 1
+    std::cout<<std::setprecision(10)<<"[relax] Si a "<<a<<"  E "<<r->value<<"  (CP2K a 10.242904, E -7.849454525)"<<std::endl;
+    EXPECT_NEAR(A(1,1), 0.0, 1e-8); EXPECT_NEAR(A(3,1), A(2,1), 1e-8);   // still fcc (the map holds it)
+    // MEASURED 2026-11-20 (33 min on 4 threads, 3 evaluations; most of it the pilot's 4 audit rounds): a 10.243201, E -7.8494563, 3e-4 bohr
+    // and 1.8 μHa from CP2K's.  THE DEFAULT ACCURACY IS THE POINT: the pilot doubles the density ball 4 -> 32 Ha (round 0 delivered 8.4e-3
+    // in Eee on the 4 Ha start) and settles Becke (100, 53).  At accuracy 0 the same relaxation stops at a 10.2324, E -7.8502356: the
+    // stated ball is the pilot's unjudged START (2 alpha_max = 4 Ha, N = 8), 2.6 mHa off CP2K at its cell (probe 2026-11-20: 20 or 60 Ha
+    // rasters with Becke (80, 41) give 8 μHa and σ -4e-7 Ha/bohr³ there; Becke (40, 29) alone leaves σ +2.1e-5, ~0.2 % of a).
+    EXPECT_NEAR(a, 10.242904, 2e-3);
+    EXPECT_NEAR(r->value, -7.849454525, 2e-5);
+}
+
