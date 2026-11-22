@@ -38,7 +38,11 @@ struct SCFFailure
         ResourceRefused,
         //! a SCHEDULE STAGE the kind cannot run as stated (another setup, an accelerator its setup did not admit; V-FACADE-PARITY P4) was
         //! REFUSED before it ran: \c details names the policy row and its reason.  The stages before it ran and were checkpointed.
-        StageRefused
+        StageRefused,
+        //! the SCF ran, but the state the setup asked to save (\c RunOptions::saveStateTo) could NOT be written (a missing directory, a
+        //! full disk): a run that asked for a state must not read green without it (doc/OpenWork.md "state.save into a missing
+        //! directory", 2026-11-22).  \c details names the path and the writer's reason; the converged answer is still in memory.
+        StateNotSaved
     };
     Why         why        = Why::NotConverged;
     size_t      iterations = 0;
