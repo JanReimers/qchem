@@ -434,7 +434,8 @@ void WithNaF(double a0, const char* label,
 // CP2K's free CELL_OPT from 0.002 fractional noise (`naf_q9_k222_free_cellopt.out`, 200 steps, its BFGS stalled) never went below
 // -72.0948712.
 // MEASURED 2026-11-21 (4 threads): 4 steps, 5 points, a 8.519761 (1.8e-4 bohr from CP2K), E -72.0950084 (19 uHa above CP2K's), 8659 s.
-// So the cold run is in the PERIODIC tier; its long-tier twin is the ONE point below.
+// So the cold run is in the PERIODIC tier.  Its twin, the ONE point below, is there too: one point costs 2328 s alone and timed out
+// (3600 s) in the long tier beside two others (2026-11-22).  It returns to the long tier with OpenWork §4's Becke-force cost row.
 TEST(GPW_NaF, k222_RelaxesToCP2KsCell_Long)
 {
     using namespace qchem;

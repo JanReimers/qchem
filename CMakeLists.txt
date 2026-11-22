@@ -167,6 +167,8 @@ set(QCHEM_PERIODIC
     "ResponseLittleGroup.GPW_Si_k222_q211_ReducedEqualsFull_Long"           # (uniform raster) same twin: the cost is per q per solve
     "GPW_TiO2.k222_RelaxesToCP2KsCell_Long"                                 # cold rutile relaxation (55 min, 4 threads); twin: GPW_TiO2.k222_CP2KsCellIsStationary_Long (one point)
     "GPW_NaF.k222_RelaxesToCP2KsCell_Long"                                  # cold NaF relaxation (2.4 h, 4 threads); twin: GPW_NaF.k222_CP2KsCellIsStationary_Long (one point)
+    "GPW_NaF.k222_CP2KsCellIsStationary_Long"                               # NOT a cheap twin: ONE point is 2328 s alone (OpenWork §4, the Becke force), past 3600 s beside two others
+    "GPW_Si.k333_RelaxesToCP2KsCell_Long"                                   # cold Si relaxation on the DEFAULT accuracy (33 min, the pilot); twin: GPW_Si.k333_CP2KsCellIsStationary_Long
 )
 list(JOIN QCHEM_PERIODIC ":" _qchemPeriodic)
 list(JOIN QCHEM_PANEL_RED ":" _qchemPanelRed)
