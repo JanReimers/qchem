@@ -130,6 +130,7 @@ include(GoogleTest)
 #      claim honest end to end and is the only thing that REFRESHES a vendored state (by an explicit cp, never as a sweep side
 #      effect), so it is labelled `long;periodic` and runs with the panel: `ctest -L "panel|periodic"`.  The routine long tier
 #      is `ctest -j3 -L long -LE "panel|periodic"`.
+#      Its TIMEOUT is 14400 (the panel's 4 h): the cold NaF relaxation takes 8659 s alone on 4 threads, rutile 3320 s (lane B 2026-11-21).
 #      A panel case that FAILS today (an open tracker row) is listed in QCHEM_PANEL_RED below, with its row: it runs every time and PASSES only while gtest reports it failed -- the WILL_FAIL semantics (CLAUDE.md), but
 #      as a PASS_REGULAR_EXPRESSION on gtest's own "[  FAILED  ] 1 test", so a red case whose filter matched nothing, or that
 #      crashed, is red too (bare WILL_FAIL would invert "no tests were run" into a pass).  When one is fixed it goes red: remove
@@ -164,6 +165,10 @@ set(QCHEM_PERIODIC
     "GPW_MnO.k222_Shub_Pol_Smear_CP2K_Long"                                  # cold k-mesh oracle (~2 h serial); twin: GPW_Mn2Box.k211_Becke_Pol_Smear_EqualsItsSupercellAtGamma_Long (the k-phase identity)
     "ResponseLittleGroup.GPW_Si_k222_q222_Becke_ReducedEqualsFull_Long"     # twin: ResponseLittleGroup.GPW_Si_k222_q211_Becke_ReducedEqualsFull
     "ResponseLittleGroup.GPW_Si_k222_q211_ReducedEqualsFull_Long"           # (uniform raster) same twin: the cost is per q per solve
+    "GPW_TiO2.k222_RelaxesToCP2KsCell_Long"                                 # cold rutile relaxation (55 min, 4 threads); twin: GPW_TiO2.k222_CP2KsCellIsStationary_Long (one point)
+    "GPW_NaF.k222_RelaxesToCP2KsCell_Long"                                  # cold NaF relaxation (2.4 h, 4 threads); twin: GPW_NaF.k222_CP2KsCellIsStationary_Long (one point)
+    "GPW_NaF.k222_CP2KsCellIsStationary_Long"                               # NOT a cheap twin: ONE point is 2328 s alone (OpenWork §4, the Becke force), past 3600 s beside two others
+    "GPW_Si.k333_RelaxesToCP2KsCell_Long"                                   # cold Si relaxation on the DEFAULT accuracy (33 min, the pilot); twin: GPW_Si.k333_CP2KsCellIsStationary_Long
 )
 list(JOIN QCHEM_PERIODIC ":" _qchemPeriodic)
 list(JOIN QCHEM_PANEL_RED ":" _qchemPanelRed)
@@ -185,7 +190,7 @@ function(qchem_discover_tests target)
     gtest_discover_tests(${target}
         TEST_FILTER ${_qchemPeriodic}
         DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS "long\;periodic" TIMEOUT 3600)
+        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS "long\;periodic" TIMEOUT 14400)
     gtest_discover_tests(${target}
         TEST_FILTER *_Panel-${_qchemPanelRed}
         DISCOVERY_EXTRA_ARGS --gtest_output=
