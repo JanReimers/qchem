@@ -11,7 +11,7 @@ export import qchem.ChargeDensity.AtomicDensity;   // SeedKey (the functional + 
 import qchem.BasisSet;               // tBasisSet<T>, and (re-exported) Structure
 import qchem.ElectronConfiguration;
 import qchem.UnitCell;               // UnitCell (the plane-wave seeds' cell)
-import qchem.Mesh;                   // qcMesh::MeshParams (the molecular SAD seed's own quadrature)
+import qchem.Mesh.Maker;             // qcMesh::MeshParams + MeshMaker (the molecular SAD seed's own quadrature, built over the run's point)
 
 export namespace qchem::ChargeDensity
 {
@@ -78,8 +78,9 @@ enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 //! \a key names the functional and, per Z, the pseudopotential variant q whose seed densities the
 //! seeds read (the run setup builds it from its \c PseudopotentialSet; \c SeedLibrary picks the library per Z, the same rule
 //! for a molecule and a solid); the default is unkeyed LDA (an all-electron run).
-//! \a quadrature (molecular): the mesh a matrix-free SAD seed integrates itself on -- a Coulomb fit has no grid of its own
-//! (doc/Pins.md), so the field that is only a function on space brings one; the run passes its XC mesh.
+//! \a quadrature (molecular): the recipe of the mesh a matrix-free SAD seed integrates itself on -- a Coulomb fit has no grid of its own
+//! (doc/Pins.md), so the field that is only a function on space brings one; the run passes its XC recipe.  \a meshMaker builds it over
+//! the run's geometry point (\a st's; V-MESH-FACTORY §4.3), only when a SAD/IonicSAD seed needs it.
 //!
 //! \a polarized (molecular, the Hamiltonian's \c IsPolarized as for the periodic overload) upgrades the SAD/IonicSAD seeds to the
 //! two-channel \c PolarizedNumericCD: each site plants its library Hund pair at its electron count (swapped on a flipped site, a STATED
@@ -90,7 +91,7 @@ enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 //! that plants 0 itself (flipped sites, a broken-symmetry singlet) is kept as planted.
 tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<double>* bs,
                                         const Structure* st, const ElectronConfiguration* ec, const qcMesh::MeshParams& quadrature,
-                                        const SeedKey& key, bool polarized=false);
+                                        const qcMesh::MeshMaker& meshMaker, const SeedKey& key, bool polarized=false);
 tChargeDensity<dcmplx>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<dcmplx>* bs,
                                         const UnitCell& cell, const ElectronConfiguration* ec,
                                         bool polarized=false, const SeedKey& key=SeedKey{});

@@ -139,12 +139,19 @@ template <class T> static OccupiedConfiguration OccupationsByBlock(const qchem::
 }
 
 
+// The SeedStrategy ctor's maker, demanded (CLAUDE.md, constructors pass concrete objects): a null is a wiring defect no caller can act on.
+static const qcMesh::MeshMaker& DemandMaker(const std::shared_ptr<const qcMesh::MeshMaker>& m)
+{
+    if (!m) throw std::logic_error("tSCFIterator: the SeedStrategy constructor was handed a null mesh maker (the run point's StructureMeshMaker)");
+    return *m;
+}
+
 // The SeedStrategy ctor resolves the strategy into a concrete (heap, owned) density -- nullptr for
 // CoreGuess -- then DELEGATES to the shared construction body below.  \a st (the structure) is consumed only by
 // the SAD seed, which integrates itself on \a seedMesh (a Coulomb fit has no grid, doc/Pins.md); bs/st and \a seedMesh are also
 // forwarded for the HF/DHF bootstrap (its LDA sibling's mesh).
-template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,const qcMesh::MeshParams& seedMesh,const ChargeDensity::SeedKey& seedKey,qchem::Ortho basisOrtho,double basisOrthoTol,size_t numBands) requires std::is_same_v<T,double>
-    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity(seed,bs,st,ec,seedMesh,seedKey, H&&H->GetSpinGroup()==SpinGroup::Polarized), st, std::optional<qcMesh::MeshParams>(seedMesh), basisOrtho, basisOrthoTol, SeedRole::Guess, numBands)
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,const qcMesh::MeshParams& seedMesh,std::shared_ptr<const qcMesh::MeshMaker> seedMeshMaker,const ChargeDensity::SeedKey& seedKey,qchem::Ortho basisOrtho,double basisOrthoTol,size_t numBands) requires std::is_same_v<T,double>
+    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity(seed,bs,st,ec,seedMesh,DemandMaker(seedMeshMaker),seedKey, H&&H->GetSpinGroup()==SpinGroup::Polarized), st, std::optional<qcMesh::MeshParams>(seedMesh), basisOrtho, basisOrthoTol, SeedRole::Guess, numBands)
 {}
 
 // The explicit-seed ctor (grid-continuation): \a seedDensity is a pre-built density (owned; consumed in

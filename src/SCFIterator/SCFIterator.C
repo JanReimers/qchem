@@ -20,7 +20,7 @@ import qchem.ElectronConfiguration.OccupationPolicy;   // the iterator's occupat
 export import qchem.SCFParams;
 export import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 export import qchem.UnitCell;   // UnitCell: what a SolidSCFIterator demands
-import qchem.Mesh;       // qcMesh::MeshParams (the mesh the HF SAD bootstrap's LDA sibling is built on)
+import qchem.Mesh.Maker; // qcMesh::MeshParams (the mesh the HF SAD bootstrap's LDA sibling is built on) + MeshMaker (the SAD seed's)
 import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation knob, forwarded to the WF)
 import qchem.BasisSet.Orbital_DFT_IBS;   // BasisSet::FIT_SF_ABS<T> (the G-space fit basis for Kerker rho-tilde extraction)
 export import qchem.ChargeDensity.DensityMixer;   // tDensityMixer<T> (the density-face of SCF convergence)
@@ -200,10 +200,12 @@ public:
     // Initialize) -- the RUN's resolved mesh, which the facade states (lane A 2026-11-10).  A hidden default here was the 12-direction
     // Lebedev rule, an icosahedron with no C4 axis: on O2 it split pi_g by 13 mHa at the seed, and a stated Shared fill then
     // converged to the broken state 0.25 Ha below the shared one.  Unused when the seed needs no sibling.
+    // \a seedMeshMaker: builds the SAD seed's mesh (at \a seedMesh) over \a st's geometry point (V-MESH-FACTORY §4.3); demanded, never null.
     tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,
                  ChargeDensity::SeedStrategy seed,
                  const Structure* st,
                  const qcMesh::MeshParams& seedMesh,
+                 std::shared_ptr<const qcMesh::MeshMaker> seedMeshMaker,
                  const ChargeDensity::SeedKey& seedKey,   //!< the seed library's key: per Z, the pseudopotential q of the run's pseudo-atom (none all-electron)
                  qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, size_t numBands=0)
         requires std::is_same_v<T,double>;

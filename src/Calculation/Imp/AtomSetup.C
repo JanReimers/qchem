@@ -11,6 +11,7 @@ import qchem.SetupDecisions;    // AcceleratorTypeByName, DIISEngageGate, Resolv
 import qchem.XCRhoPolicy;       // RefuseGradientConsumers (pin 32)
 import qchem.ChargeDensity.Seed;   // SeedStrategy
 import qchem.Types;                // rvec3_t (the atom at the origin)
+import qchem.Structure.MeshFactory;   // StructureMeshMaker<Atom> (meshMaker)
 
 namespace qchem
 {
@@ -62,7 +63,11 @@ std::shared_ptr<const AtomSetup> AtomSetup::Resolve(const Structure& atom, const
     s->Z =int(std::lround(atom.GetNuclearCharge()));
     const int charge=int(std::lround(atom.GetNetCharge()));
     s->Ne=s->Z-charge;
-    s->structure=std::make_shared<Atom>(s->Z, double(charge), rvec3_t(0,0,0));   // at the origin, whatever the caller's position
+    {
+        auto at=std::make_shared<const Atom>(s->Z, double(charge), rvec3_t(0,0,0));   // at the origin, whatever the caller's position
+        s->structure=at;
+        s->meshMaker=std::make_shared<const StructureMeshMaker<Atom>>(at);
+    }
     // THE RADIAL-ONLY ALIAS (V-XC-ONE-TERM step 5, controller 2026-11-14: deck backward compatibility).  Before AngularKind::None the atom
     // spelled its radial-only set Lebedev at degree 0, the 1-direction rule: the SAME points (one direction at 4 pi).  On the atom that
     // spelling still reads as it always did, now under its own name, so the admission rule and the reports see what the mesh IS.

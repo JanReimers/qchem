@@ -13,7 +13,7 @@ import qchem.Hamiltonian.Types;
 import qchem.Hamiltonian.Factory;                  // HubbardManifold (the +U input vocabulary)
 import qchem.BasisSet.Orbital_1E_IBS;              // the periodic A1 Vxc fit's real Gamma set (Ham_PW_DFT)
 import qchem.ChargeDensity.DensitySampler;   // LatticeSummedSet: the periodic A1 set + the translations it forces (Group face step 3a)
-import qchem.Mesh;
+import qchem.Mesh.Maker;   // MeshParams + MeshMaker (Ham_PP's PP quadrature, built over the run's point)
 import qchem.Pseudopotential.LocalPotential;      // the PW pseudopotential model the term owns (Ham_PW_DFT ctor)
 import qchem.Pseudopotential.SeparablePotential;
 import qchem.Pseudopotential.GTH_Potentials;      // GTH_PP / GetGTH (the convenience ctor looks up + OWNS the model)
@@ -80,15 +80,16 @@ class Ham_PP : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     //! \a xc: the functional's parts (\c Hamiltonian::Factory's MakeXCParts); EMPTY = Dirac + VWN5, the default LDA.
+    //! \a meshMaker: builds the PP terms' quadrature (at the recipe) over \a st's geometry point, when a block needs one (V-MESH-FACTORY §4.3).
     Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
            std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-           const qcMesh::MeshParams&, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
+           const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
            const CoulombRoute& coulomb={}, std::vector<std::shared_ptr<ExFunctional>> xc={});
-    Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const rbs_t* bs,
+    Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const rbs_t* bs,
            const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={}, const CoulombRoute& coulomb={},
            std::vector<std::shared_ptr<ExFunctional>> xc={});
     Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
-           const qcMesh::MeshParams&, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
+           const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
            const CoulombRoute& coulomb={}, std::vector<std::shared_ptr<ExFunctional>> xc={});
 };
 

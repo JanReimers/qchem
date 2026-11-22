@@ -207,7 +207,7 @@ void MoleculeCalculation::BuildGraph()
         SeededIterator(itsCarry && itsCarryExact);   // the exact-resume Pulay policy's first-stage bit
         if (!itsCarry)
         {
-            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsSetup->xcMesh, itsSetup->seedKey);   // an HF SAD seed's sibling: the run's mesh
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsSetup->xcMesh, itsMeshMaker, itsSetup->seedKey);   // an HF SAD seed's sibling: the run's mesh
             // The fit's error BEFORE the SCF (warn and run): on D0, the seed's first matrix density (the iteration-0 Fock's fill).
             const auto D0=itsScf->GetWaveFunction()->GetChargeDensity();
             CheckCoulombFit(D0.get(), "seed");
@@ -541,7 +541,7 @@ qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const q
 {
     const RunOptions& opts=itsSetup->opts;
     return itsSetup->pp
-        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, itsBasis, fit, {opts.vxcFit, opts.xcRho},
+        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, *itsMeshMaker, itsBasis, fit, {opts.vxcFit, opts.xcRho},
                                       coulomb, qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha))
         : qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, itsBasis, fit, opts.xalpha,
                                       {opts.vxcFit, opts.xcRho}, coulomb);

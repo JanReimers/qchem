@@ -26,6 +26,7 @@ import qchem.BasisSet.Lattice.BasisSet;     // BasisSet::Lattice::Factory(PW)
 import qchem.Lattice_3D;
 import qchem.UnitCell;
 import qchem.Mesh;
+import qchem.Structure.MeshFactory;        // StructureMeshMaker (the SAD seed's mesh, built over its molecule)
 import qchem.Types;
 import qchem.Structure;                     // Molecule, Site (the SAD seed's charge gate)
 import qchem.Symmetry.Spin;                 // Spin::Up / Down (a channel seed, the SeedSpins gate)
@@ -264,7 +265,8 @@ TEST(SADSeed, ItsChargeIsTheElectronCountTheDunlapFitIsConstrainedTo)
     const std::unique_ptr<BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, &oh,
                                                 BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     const Molecule_EC ec(10);
-    const std::unique_ptr<tChargeDensity<double>> seed(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &oh, &ec, kSeedMesh, SeedKey{}));
+    const std::unique_ptr<tChargeDensity<double>> seed(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &oh, &ec, kSeedMesh,
+                                                                       StructureMeshMaker<Molecule>(std::make_shared<const Molecule>(oh)), SeedKey{}));
     ASSERT_TRUE(seed);
     EXPECT_EQ(seed->GetTotalCharge(), oh.GetNumElectrons());   // bit-equal: the same double the Dunlap term holds
 }
@@ -289,7 +291,8 @@ TEST(SADSeed, APolarizedRunPlantsItsHundPairsAtItsStatedMoment)
         const std::unique_ptr<BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, &m,
                                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
         const Molecule_EC ec(nUp, nDn);
-        return std::unique_ptr<tChargeDensity<double>>(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &m, &ec, kSeedMesh, SeedKey{}, polarized));
+        return std::unique_ptr<tChargeDensity<double>>(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &m, &ec, kSeedMesh,
+                                                                       StructureMeshMaker<Molecule>(std::make_shared<const Molecule>(m)), SeedKey{}, polarized));
     };
     ASSERT_TRUE(HasAtomicSpinPair(11, "LDA", "atomic_densities.json"));
     const auto [maj, min]=GetAtomicSpinPair(11, "LDA", "atomic_densities.json");

@@ -308,7 +308,7 @@ void AtomCalculation::BuildGraph()
                                  0.0, qchem::SCFIterator::SeedRole::WorkingDensity);
         else if (itsRestored.empty())
             itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsSetup->structure.get(), *itsSetup->opts.xcMesh,
-                                 itsSetup->seedKey,   // a stated SAD seed reads the run's own atom (the setup's key)
+                                 itsSetup->meshMaker, itsSetup->seedKey,   // a stated SAD seed reads the run's own atom (the setup's key)
                                  ortho);   // an HF SAD seed's sibling: the run's mesh
         else
         {
@@ -676,7 +676,7 @@ qchem::Hamiltonian::rHamiltonian* AtomCalculation::MakeHamiltonianOn(const Grids
         slot.GetOrFill([&]{return fit_t(ladder->MakeCoulombFitRung(g.fitRung));});
     }
     return itsSetup->opts.atom.pseudopotential
-        ? H::Factory(itsSetup->opts.spin, itsSetup->structure, thePeriodicTable().GetSymbol(itsSetup->Z), itsSetup->PseudoValence(), mesh, itsBasis,
+        ? H::Factory(itsSetup->opts.spin, itsSetup->structure, thePeriodicTable().GetSymbol(itsSetup->Z), itsSetup->PseudoValence(), mesh, *itsSetup->meshMaker, itsBasis,
                      slot, H::XCRoute(itsSetup->opts.vxcFit, itsSetup->opts.xcRho), g.coulomb, PseudoAtomXC(itsSetup->opts))
         : itsSetup->opts.atom.xc.has_value()
             ? H::Factory(itsSetup->opts.spin, itsSetup->structure, *itsSetup->opts.atom.xc, mesh, itsBasis, slot, H::XCRoute(itsSetup->opts.vxcFit, itsSetup->opts.xcRho), g.coulomb)

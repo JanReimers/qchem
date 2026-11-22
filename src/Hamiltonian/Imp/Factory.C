@@ -309,22 +309,22 @@ namespace qchem::Hamiltonian
 
     // Pseudopotential front door: the all-electron nuclear attraction -> GTH local + KB nonlocal PP, LDA XC.
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const std::string& element, int valence,
-                         const qcMesh::MeshParams& mp, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, XCRoute fit,
+                         const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, XCRoute fit,
                          const CoulombRoute& coulomb, const XCFunctional& xc)
     {
         RequireAdmitted(*st,fit.fit,mp);
         RequireAdmitted(*st,coulomb,mp,fit.fit);
-        return new Ham_PP(st, element, valence, mp, bs, coulombFit, p, fit, coulomb, MakeXCParts(xc));
+        return new Ham_PP(st, element, valence, mp, meshMaker, bs, coulombFit, p, fit, coulomb, MakeXCParts(xc));
     }
 
     // Multi-species pseudopotential front door: per-Z router PP so each atom gets its own GTH pseudopotential.
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const Pseudopotential::PseudopotentialSet& pp,
-                         const qcMesh::MeshParams& mp, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, XCRoute fit,
+                         const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, XCRoute fit,
                          const CoulombRoute& coulomb, const XCFunctional& xc)
     {
         RequireAdmitted(*st,fit.fit,mp);
         RequireAdmitted(*st,coulomb,mp,fit.fit);
-        return new Ham_PP(st, pp.Species(*st), pp.Functional(), mp, bs, coulombFit, p, fit, coulomb, MakeXCParts(xc));
+        return new Ham_PP(st, pp.Species(*st), pp.Functional(), mp, meshMaker, bs, coulombFit, p, fit, coulomb, MakeXCParts(xc));
     }
 
     // The SOLID front door (Step 4): the cHamiltonian twin of the PP factory above.

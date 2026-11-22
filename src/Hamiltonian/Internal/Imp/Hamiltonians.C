@@ -361,8 +361,8 @@ std::vector<std::shared_ptr<ExFunctional>> OrDefaultLDA(std::vector<std::shared_
 
 Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
                std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit,
-               const CoulombRoute& coulomb, std::vector<std::shared_ptr<ExFunctional>> xc)
+               const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit,
+               SpinGroup g, XCRoute fit, const CoulombRoute& coulomb, std::vector<std::shared_ptr<ExFunctional>> xc)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
@@ -376,7 +376,7 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     {
         if (!NeedsPPQuadrature(bs, *vloc, sep.get())) return nullptr;
         qchem::report::Scope here("ppQuadrature");
-        return std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mp));
+        return std::make_shared<const qcMesh::Mesh>(meshMaker.Make(mp));
     }();
     Add(new PP_Local(st, vloc, ppMesh));             // pseudized replacement for Ven (combined model -> _R view)
     if (sep) Add(new PP_NonLocal(st, std::move(sep), mp, ppMesh));   // KB separable projectors (null => local-only)
@@ -393,13 +393,13 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     Add(new tVxc_DFT<double>(std::make_shared<CompositeExFunctional>(OrDefaultLDA(std::move(xc))), std::move(mesh), g));
 }
 
-Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,
+Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker,
                const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb,
                std::vector<std::shared_ptr<ExFunctional>> xc)
     : Ham_PP(st,
              std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
              std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal),
-             mp, bs, coulombFit, g, fit, coulomb, std::move(xc))
+             mp, meshMaker, bs, coulombFit, g, fit, coulomb, std::move(xc))
 {}
 
 namespace {
@@ -415,9 +415,9 @@ BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species, con
 } //anon
 
 Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit,
-               const CoulombRoute& coulomb, std::vector<std::shared_ptr<ExFunctional>> xc)
-    : Ham_PP(st, Pseudopotential::MakeMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, bs, coulombFit,
+               const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit,
+               SpinGroup g, XCRoute fit, const CoulombRoute& coulomb, std::vector<std::shared_ptr<ExFunctional>> xc)
+    : Ham_PP(st, Pseudopotential::MakeMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, meshMaker, bs, coulombFit,
              g, fit, coulomb, std::move(xc))
 {}
 

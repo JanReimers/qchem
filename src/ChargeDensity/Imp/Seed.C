@@ -236,7 +236,7 @@ static tChargeDensity<double>* PolarizedSeed(const std::vector<SADSite>& sites, 
 
 tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<double>* bs,
                                         const Structure* st, const ElectronConfiguration* ec, const qcMesh::MeshParams& quadrature,
-                                        const SeedKey& key, bool polarized)
+                                        const qcMesh::MeshMaker& meshMaker, const SeedKey& key, bool polarized)
 {
     assert(bs);
     assert(ec);
@@ -294,8 +294,8 @@ tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSe
         sites.push_back(std::move(one));
     });
     // The seed is only a function on space, so it OWNS the points it integrates itself on (a Coulomb fit has none, doc/Pins.md):
-    // the run's XC mesh, reported one level into the seed's own context.
-    auto mesh=[&]{ qchem::report::Scope here("seedDensity"); return std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(quadrature)); }();
+    // the run's XC mesh, built by the run point's maker and reported one level into the seed's own context.
+    auto mesh=[&]{ qchem::report::Scope here("seedDensity"); return std::make_shared<const qcMesh::Mesh>(meshMaker.Make(quadrature)); }();
     const double N=st->GetNumElectrons();
     if (!polarized) return TotalSeed(sites, N, std::move(mesh));
     return PolarizedSeed(sites, N, StatedMoment(bs, ec), std::move(mesh));

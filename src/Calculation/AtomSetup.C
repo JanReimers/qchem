@@ -10,6 +10,7 @@ module;
 export module qchem.AtomSetup;
 
 export import qchem.Setup;   // Setup: what every run setup holds
+export import qchem.Mesh.Maker;   // qcMesh::MeshMaker (meshMaker)
 import qchem.Hamiltonian.Factory;   // Hamiltonian::Model (the view's default)
 
 export namespace qchem
@@ -53,6 +54,9 @@ struct AtomSetup : Setup
     //! The \c directmin accelerator name (an alias kept from the atom's json escape hatch): GDM stepping from the first iteration,
     //! seeded by a diagonalization (\c accelerator is GDM).
     bool directMin = false;
+    //! The mesh maker over \c structure (a \c StructureMeshMaker<Atom>, V-MESH-FACTORY §3): the atom never moves, so its one geometry
+    //! point is the reference and the setup can hold the maker.  Every mesh the atom run builds at a recipe comes from it.
+    std::shared_ptr<const qcMesh::MeshMaker> meshMaker;
 
     //! The pseudo-atom's valence (Zion): \c opts.atom.valence when stated, else \c Ne (a neutral pseudo-atom).  Meaningful only under
     //! \c opts.atom.pseudopotential.

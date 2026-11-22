@@ -11,7 +11,7 @@ import qchem.BasisSet.Orbital_1E_IBS;   // the periodic A1 Vxc fit's real Gamma 
 import qchem.ChargeDensity.DensitySampler;   // LatticeSummedSet: the periodic A1 set + the translations it forces (Group face step 3a)
 import qchem.Hamiltonian.Types;
 export import qchem.Symmetry.Spin;   // SpinGroup -- the imposed spin subgroup every Factory takes
-import qchem.Mesh;
+import qchem.Mesh.Maker;   // MeshParams + MeshMaker (the PP doors build their quadrature over the run's point)
 import qchem.Structure;
 import qchem.Types;                  // rmat3d_t (the site rotations)
 export import qchem.SlotMap;         // OnceSlot: CoulombFitSlot
@@ -246,9 +246,10 @@ export namespace qchem::Hamiltonian
     //! Build a pseudopotential Hamiltonian for `element` (e.g. "Si") with `valence` (zion) valence
     //! electrons: the all-electron nuclear attraction is replaced by the GTH local + KB-separable nonlocal
     //! pseudopotential, with LSDA exchange-correlation.  \a pol selects spin-native (open-shell) vs the
-    //! unpolarized collapse.  The public front door to Ham_PP.
+    //! unpolarized collapse.  The public front door to Ham_PP.  \a meshMaker builds the PP quadrature over \a st's geometry point
+    //! (the run point's \c StructureMeshMaker, V-MESH-FACTORY §4.3), only when a basis block cannot assemble the PP in closed form.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const std::string& element, int valence,
-                         const qcMesh::MeshParams&, const rbs_t*, const CoulombFitSlot<double>& coulombFit, XCRoute fit={},
+                         const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const rbs_t*, const CoulombFitSlot<double>& coulombFit, XCRoute fit={},
                          const CoulombRoute& coulomb={}, const XCFunctional& xc={});
 
     //! Pseudopotential Hamiltonian from the run's CHOSEN \a pp set (doc/CalcNetworkReview.md §4): a per-Z router PP is built over the
@@ -257,7 +258,7 @@ export namespace qchem::Hamiltonian
     //! \a xc: the run's STATED functional (default LDA = Dirac + VWN5); the set's PP is fitted with its own (\c FittedFunctional), and a
     //! mismatch is the facade's warn-and-run policy, never a substitution here.
     rHamiltonian* Factory(SpinGroup, const st_t& st, const Pseudopotential::PseudopotentialSet& pp,
-                         const qcMesh::MeshParams&, const rbs_t*, const CoulombFitSlot<double>& coulombFit, XCRoute fit={},
+                         const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const rbs_t*, const CoulombFitSlot<double>& coulombFit, XCRoute fit={},
                          const CoulombRoute& coulomb={}, const XCFunctional& xc={});
 
     //=== The SOLID (periodic, dcmplx) front door ======================================================
