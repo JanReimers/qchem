@@ -1405,3 +1405,18 @@ TEST(Deck, TheGuiWritersAfmDeckIsThePolarizedRun)
     const json v1={{"structure","MnO_AFM2"},{"solid",{{"multiplicity",1},{"siteSpins",{1,-1,0,0}},{"hubbard",hub}}}};
     deck::RunSpec b; EXPECT_THROW(deck::FromJson(v1,b), std::runtime_error) << "the old GUI spelling";
 }
+
+// A molecule's Hartree route is a deck key (policy CoulombFit, lane S 2026-11-21): `coulomb.fit` and `coulomb.auxBasis` read into the
+// options and the molecule's record writes them back, so a record reloads to the same fit.
+TEST(Deck, AMoleculesCoulombBlockReadsAndRoundTrips)
+{
+    deck::RunSpec r; deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"fit","Auxiliary"},{"auxBasis","A2_coul"}}}}, r);
+    EXPECT_EQ(r.opts.coulomb.fit, Hamiltonian::CoulombFit::Auxiliary);
+    EXPECT_EQ(r.opts.coulomb.auxBasis, "A2_coul");
+    const json j=deck::ToJson(r);
+    EXPECT_EQ(j.at("coulomb").at("auxBasis"), "A2_coul");
+    deck::RunSpec back; deck::FromJson(j, back); EXPECT_EQ(deck::ToJson(back), j);
+    deck::RunSpec bad;
+    EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"fit","Gaussian"}}}}, bad), std::runtime_error) << "an unknown route name";
+    EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"auxbasis","A1_coul"}}}}, bad), std::runtime_error) << "typo guard";
+}

@@ -78,3 +78,12 @@ TEST(AtomSetup, OnlyOneAtomIsAdmitted)
     EXPECT_EQ(r.Error().policy, "AtomStructure");
     EXPECT_THROW((void)AtomSetup::Resolve(two), std::invalid_argument) << "the code door throws it";
 }
+
+// The radial atom's Coulomb fit is its own exponent pool's (the fit-rung ladder), so a Gaussian fit FILE is refused by name, never ignored.
+TEST(AtomSetup, ACoulombFitFileIsRefused)
+{
+    RunOptions o; o.model=Model::LDA; o.coulomb.auxBasis="A1_coul";
+    const auto r=AtomSetup::Admit(Atom(8), o);
+    ASSERT_FALSE(r);
+    EXPECT_EQ(r.Error().policy, "ForeignOption");
+}

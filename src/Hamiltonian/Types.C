@@ -1,6 +1,7 @@
 // File: Hamiltonian/Types.C  Define types used throughout the Hamiltonian module.
 module;
 #include <stdexcept>
+#include <string>
 
 export module qchem.Hamiltonian.Types;
 
@@ -78,7 +79,7 @@ struct XCRoute
 //!  - \c Multipole: radial channels per (site, l, m) on the same mesh, by radial Poisson.  The same \f$v\f$ as \c Delta, with a true
 //!    \f$\tilde\rho\f$ on the energy's second leg, so the \f$l\f$ truncation cancels to second order; the mesh's own error stays first
 //!    order.  Finite structures only (\c AdmitCoulomb).
-//!  - \c Auto: the caller did not choose; the molecular policy picks \c Auxiliary.
+//!  - \c Auto: the caller did not choose; the molecular policy (\c MoleculeSetup, \c CoulombFit) resolves it before any factory sees it.
 //! They live here and not beside \c VxcFit because no basis factory reads them.
 enum class CoulombFit {Auto, Auxiliary, Delta, Multipole};
 
@@ -95,6 +96,10 @@ struct CoulombRoute
     int lMax    = 0;
     //! Radial points of the Hartree mesh; 0 = the run's own.  All-electron densities want about twice what the contraction needs.
     int nRadial = 0;
+    //! The \c Auxiliary route's Coulomb fit basis, a file stem in BasisSetData (\c "A1_coul", \c "A2_coul"); empty = the policy picks
+    //! (\c MoleculeSetup, policy \c CoulombFit).  Read by the POLICY layer only, which builds the fit and hands it to the factories in
+    //! the run's \c CoulombFitSlot: no Hamiltonian factory reads this name.  Refused by name on a route that has no fit basis.
+    std::string auxBasis;
     bool operator==(const CoulombRoute&) const = default;   //!< "is a stated option the default?" (RunOptions refusals)
 };
 

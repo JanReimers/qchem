@@ -99,4 +99,11 @@ export namespace qchem::BasisSet::Gaussian
     // Config-driven entry point (see the key table above).  An unknown "basis"/"engine"/"angular" value, or
     // a missing "basis", throws with the list of valid values.
     Real_BS* Factory(const nlohmann::json& js, const Structure* cl);
+
+    //! The Coulomb (Dunlap) fit basis read from \a bsdFile (a bare name in the shipped BasisSetData directory, e.g. "A1_coul.bsd", or a
+    //! path), in the family an orbital basis of \a engine / \a angular pairs with: MnD Cartesian -> PG_Cart, MnD spherical -> PG_Spherical
+    //! (the families' own \c CreateCDFitBasisSet read the same files the same way).  MECHANISM only: WHICH file is the setup's policy
+    //! (\c MoleculeSetup, policy \c CoulombFit), never chosen here.  \a name is the fit basis's reported name.  THROWS for \c LibCint, whose
+    //! orbital blocks have no DFT face, so no Coulomb fit pairs with them.
+    rFIT_CD_ABS* CoulombFitFromFile(const std::string& bsdFile, const std::string& name, const Structure* cl, Engine engine, Angular angular);
 }
