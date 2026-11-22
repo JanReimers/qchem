@@ -181,6 +181,7 @@ static int Main(int argc, char** argv)
     int valence=0;   // >0: dump only the outermost `valence` electrons' density (pseudo-VALENCE for PW SAD)
     string configuration;   // --config: the atom's STATED electron configuration (NIST notation; empty = derived)
     int xcNRadial=0, hNRadial=0, hLMax=0; string coulombFit;   // the atom's XC radial mesh and Hartree route (0 / empty = the facade's)
+    string xcRadial; double de2Alpha=0.0, de2RMax=0.0;   // the XC radial RULE (empty = the facade's MHL) and its DE2 shape knobs (0 = the rule's default)
 
     // ---- help text ----
     auto usage=[&](std::ostream& os){
@@ -243,6 +244,9 @@ static int Main(int argc, char** argv)
         "\n"
         " Atom integration (DFT models):\n"
         "  --nradial <int>    XC radial mesh points, stated (audited, never raised; default: sized from eps)\n"
+        "  --radial <name>    XC radial rule: MHL (the default) | DE2 (Mitani's double exponential)\n"
+        "  --de2alpha <dbl>   DE2's mapping parameter alpha (0 => MeshParams' default)\n"
+        "  --de2rmax <dbl>    DE2's outermost node, bohr (0 => MeshParams' default)\n"
         "  --coulomb <name>   Hartree route: multipole (radial Poisson, the default) | aux (the Dunlap fit) | delta (refused on an atom)\n"
         "  --hnradial <int>   the multipole Hartree's radial points, stated (default: sized from eps)\n"
         "  --hlmax <int>      the Hartree route's l cut (0 => its default; the atom's rule allows 0 only)\n"
@@ -300,6 +304,9 @@ static int Main(int argc, char** argv)
         else if (a=="--ngrid")   ngrid=std::stoi(need(i));
         else if (a=="--valence") valence=std::stoi(need(i));
         else if (a=="--nradial") xcNRadial=std::stoi(need(i));
+        else if (a=="--radial")  xcRadial=need(i);
+        else if (a=="--de2alpha")de2Alpha=std::stod(need(i));
+        else if (a=="--de2rmax") de2RMax=std::stod(need(i));
         else if (a=="--coulomb") coulombFit=need(i);
         else if (a=="--hnradial")hNRadial=std::stoi(need(i));
         else if (a=="--hlmax")   hLMax=std::stoi(need(i));
@@ -395,6 +402,14 @@ static int Main(int argc, char** argv)
     opts.atom.basisPool    = accs[acc];
     opts.atom.accelerator = accj;                  // full accelerator config (type + tuned knobs) -- the escape hatch
     if (xcNRadial>0) AtomXCMesh(opts).nRadial=xcNRadial;   // a stated XC radial count (default: sized from eps by the atom pilot)
+    if (!xcRadial.empty())
+    {
+        static const std::map<string,qcMesh::RadialKind> rks={{"MHL",qcMesh::RadialKind::MHL},{"DE2",qcMesh::RadialKind::DE2}};
+        if (!rks.count(xcRadial)) {cout<<"--radial takes MHL | DE2"<<endl; return 1;}
+        AtomXCMesh(opts).radial=rks.at(xcRadial);
+    }
+    if (de2Alpha>0.0) AtomXCMesh(opts).de2_alpha=de2Alpha;
+    if (de2RMax >0.0) AtomXCMesh(opts).de2_rMax =de2RMax;
     if (!coulombFit.empty())
     {
         using CF=qchem::Hamiltonian::CoulombFit;
@@ -436,7 +451,7 @@ static int Main(int argc, char** argv)
 
     // ---- report ----
     double E=calc.Energy();
-    cout << "RESULT  E="<<std::setprecision(10)<<E
+    cout << "RESULT  E="<<std::setprecision(14)<<E
          << "  iters="<<calc.IterationCount()
          << "  Nelec="<<calc.TotalCharge()
          << "  converged="<<(calc.IsConverged()?"yes":"no") << endl;

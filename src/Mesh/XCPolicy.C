@@ -492,6 +492,8 @@ static void RequireNoRecipeUnderAuto(const MeshParams& mp)
     note(mp.radial!=d.radial && mp.radial!=f.radial,"radial");           note(mp.nRadial!=d.nRadial && mp.nRadial!=f.nRadial,"nRadial");
     note(mp.mhl_m!=d.mhl_m && mp.mhl_m!=f.mhl_m,"mhlM");               note(mp.mhl_alpha!=d.mhl_alpha && mp.mhl_alpha!=f.mhl_alpha,"mhlAlpha");
     note(mp.logStart!=d.logStart && mp.logStart!=f.logStart,"logStart");     note(mp.logStop!=d.logStop && mp.logStop!=f.logStop,"logStop");
+    note(mp.de2_alpha!=d.de2_alpha && mp.de2_alpha!=f.de2_alpha,"de2Alpha");   note(mp.de2_rMin!=d.de2_rMin && mp.de2_rMin!=f.de2_rMin,"de2RMin");
+    note(mp.de2_rMax!=d.de2_rMax && mp.de2_rMax!=f.de2_rMax,"de2RMax");
     note(mp.angular!=d.angular && mp.angular!=f.angular,"angular");        note(mp.angularDegree!=d.angularDegree && mp.angularDegree!=f.angularDegree,"angularDegree");
     note(mp.angRot!=d.angRot && mp.angRot!=f.angRot,"angRot");           note(mp.beckeOrder!=d.beckeOrder && mp.beckeOrder!=f.beckeOrder,"beckeOrder");
     note(mp.nUniform!=d.nUniform && mp.nUniform!=f.nUniform,"nUniform");     note(mp.eCut!=d.eCut && mp.eCut!=f.eCut,"eCut");

@@ -102,6 +102,32 @@ TEST(Mesh_Radial, Linear)
     MeshParams p; p.radial=RadialKind::Linear; p.nRadial=4000; p.logStop=40;
     EXPECT_NEAR(RadialIntegralExp(p),0.25,1e-3);
 }
+// DE2 (Mitani): the trapezoid rule under a double-exponential map, so an analytic integrand converges like exp(-cN/log N).  60 points
+// carry r^2 e^{-2r} to roundoff; the nodes span exactly [rMin, rMax] and increase; a bad parameter is refused, never clamped.
+TEST(Mesh_Radial, DE2)
+{
+    MeshParams p; p.radial=RadialKind::DE2; p.nRadial=60;
+    EXPECT_NEAR(RadialIntegralExp(p),0.25,1e-14);
+    const RadialMesh m=MakeRadial(p);
+    EXPECT_NEAR(m.R()[0],p.de2_rMin,1e-12*p.de2_rMin);
+    EXPECT_NEAR(m.R()[m.size()-1],p.de2_rMax,1e-12*p.de2_rMax);
+    for (size_t i=1;i<m.size();i++) EXPECT_GT(m.R()[i],m.R()[i-1]);
+    for (size_t i=0;i<m.size();i++) EXPECT_GT(m.W()[i],0.0);
+    // A Gaussian, the GPW density's building block: integral r^2 e^{-a r^2} = sqrt(pi)/(4 a^{3/2}), sharp (a=1e3) and diffuse (a=0.05).
+    // The sharp one binds: at the calibrated alpha 1.0, 6.4e-9 at 80 points, 1.6e-12 at 100, 2.4e-13 at 110 (a numpy mirror of this
+    // rule gives the same numbers); the smooth ones are at roundoff from 60.
+    for (double a : {1e3, 1.0, 0.05})
+    {
+        double I=0;
+        p.nRadial=110;
+        const RadialMesh g=MakeRadial(p);
+        for (size_t i=0;i<g.size();i++) I+=g.W()[i]*std::exp(-a*g.R()[i]*g.R()[i]);
+        const double exact=std::sqrt(Pi)/(4.0*a*std::sqrt(a));
+        EXPECT_NEAR(I/exact,1.0,1e-12)<<"a="<<a;
+    }
+    p.de2_alpha=0.0;                  EXPECT_THROW(MakeRadial(p),std::invalid_argument);
+    p.de2_alpha=1.0; p.de2_rMax=1e-8; EXPECT_THROW(MakeRadial(p),std::invalid_argument);
+}
 
 //================================================================================================
 //  3. Angular meshes: sum of weights = 4*pi, and integral z^2 dOmega = 4*pi/3.

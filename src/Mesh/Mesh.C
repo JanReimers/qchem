@@ -144,8 +144,9 @@ rvec_t SiteIntegrals(const Mesh& m, const rvec_t& f);
 //! FFT raster, a uniform cell grid, or an atom-centred Becke build.
 double Integrate(const Mesh& m, const rvec_t& f);
 
-//! \brief Radial mesh family.  See the per-class transplanted formulae in Internal/.
-enum class RadialKind  {MHL, Log, Linear};
+//! \brief Radial mesh family.  See the per-scheme formulae in Internal/.  \c DE2 = Mitani's double-exponential rule (the radial rule of
+//! Dasgupta & Herbert's SG-2/SG-3), Internal/DE2RadialMesh.C.
+enum class RadialKind  {MHL, Log, Linear, DE2};
 //! \brief Angular mesh family.  All schemes are normalised so \f$\sum_i w_i = 4\pi\f$.
 // EulerMaclaren RETIRED 2026-08-07 (user): it was a CONVERGENCE rule, not an exactness rule -- its
 // theta quadrature is a transformed trapezoid, so it has NO algebraic degree at all (measured -1: it
@@ -207,6 +208,23 @@ inline double BeckeCutoff(double mu, int k)
     return 0.5*(1.0-mu);
 }
 
+//! \brief EMPIRICAL: the DE2 radial rule's mapping parameter alpha (\c MeshParams::de2_alpha), one value for every element.
+//!
+//! There is no rigorous alpha: it only shares a fixed node count between core and tail, and the ε radial climb picks the count.  MEASURED
+//! 2026-11-21 (lane A; `~/Code/qchem6-runs/radial_de2/fine/`, `scfrun --radial DE2`): free LDA atoms on the atom route (Slater Medium, the
+//! XC radial count stated, Hartree at 800), the fewest points from which E stays within ε of the 300-point value, on a 5-point ladder:
+//!   ε 1e-6, alpha 0.6 / 0.8 / 1.0 / 1.2 / 1.5 | MHL (m 3, alpha 2: the atom default)
+//!     all-electron  F 50/45/40/45/40 | 40    Na 55/45/50/45/45 | 45    Ar 65/55/55/55/60 | 60    Mn 70/65/65/55/60 | 65
+//!     GTH           Na q1 25/30/30/35/35 | 45   Na q9 50/50/45/50/55 | 55   O q6 40/35/35/40/40 | 50   F q7 40/40/40/45/45 | 50
+//!                   Si q4 35/25/40/35/45 | 55   Mn q15 45/45/45/50/50 | 55
+//!   ε 1e-8 at alpha 1.0 vs MHL: all-electron F 60|60, Na 55|70, Ar 70|75, Mn 80|80; GTH Na q1 40|55, Na q9 60|70, O q6 50|60, F q7 50|60,
+//!   Si q4 45|65, Mn q15 55|75.
+//! The optimum is FLAT from 0.8 to 1.2 on every atom (within one 5-point rung of the best), so one value serves all elements and a
+//! per-element table would hold the same number (user 2026-11-21: "a ball park number to keep grid sizes reasonably down").  1.0 is also
+//! Mitani 2011's molecular value; his atom-averaged optimum 1.9 (2012) costs 5-20 points on the GTH atoms here.  A crystal revisits it
+//! only if its radial climb shows alpha matters.  DE2 against MHL: equal on all-electron atoms, 15-30% fewer points on pseudo-atoms.
+inline constexpr double kDE2AlphaCalibrated = 1.0;
+
 //! \brief Typed, fully-defaulted mesh parameters.  Set only the knobs you actually use
 //! (C++20 designated initializers); no field is required-but-unused.
 struct MeshParams
@@ -214,6 +232,10 @@ struct MeshParams
     RadialKind  radial    = RadialKind::MHL;    int    nRadial   = 30;
     int         mhl_m     = 2;                   double mhl_alpha = 1.0;     //!< MHL only.
     double      logStart  = 1.0e-4;             double logStop   = 50.0;     //!< Log only.
+    //! DE2 only: the mapping parameter alpha (a SHAPE parameter: how the nodes divide between core and tail; nRadial sets the accuracy)
+    //! and the node span [rMin, rMax] (Mitani's truncation, both ends included).  alpha is a calibration, never part of the formula
+    //! (Internal/DE2RadialMesh.C): its default is \c kDE2AlphaCalibrated, whose record is at its declaration.
+    double      de2_alpha = kDE2AlphaCalibrated;   double de2_rMin = 1.0e-7;   double de2_rMax = 40.0;
     AngularKind angular   = AngularKind::Lebedev;
     //! \brief The requested angular POLYNOMIAL DEGREE -- the same quantity for every scheme (R2.15).
     //!
