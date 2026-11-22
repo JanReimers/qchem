@@ -51,17 +51,17 @@ std::shared_ptr<const Structure> Lattice_3D::GetStructure() const
 const Symmetry::Lattice_3D::SpaceGroup& Lattice_3D::GetSpaceGroup(double tol) const
 {
     namespace SL = Symmetry::Lattice_3D;
-    if (!itsSpaceGroup)
+    std::shared_ptr<const SL::SpaceGroup>& sg = itsSpaceGroups[tol];   // keyed by the EXACT tolerance asked
+    if (!sg)
     {
         // The UnitCell -> {A, fractional sites} adapter (formerly private to the GPW factory).
         const Structure& st = itsUnitCell;   // iterate atoms via the PUBLIC Structure interface
         std::vector<SL::AtomSite> sites;
         for (const Site& a : st.Sites())
             sites.push_back({a.Z, itsUnitCell.ToFractional(a.R)});
-        itsSpaceGroup = std::make_shared<const SL::SpaceGroup>(
-                            SL::SpaceGroup::Detect(itsUnitCell.GetCellMatrix(), sites, tol));
+        sg = std::make_shared<const SL::SpaceGroup>(SL::SpaceGroup::Detect(itsUnitCell.GetCellMatrix(), sites, tol));
     }
-    return *itsSpaceGroup;
+    return *sg;
 }
 
 std::vector<Symmetry::Lattice_3D::SymOp> Lattice_3D::ShubnikovOps(const std::vector<int>& spins,

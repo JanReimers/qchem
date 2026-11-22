@@ -3,6 +3,7 @@ module;
 #include <vector>
 #include <iosfwd>
 #include <memory>
+#include <map>
 
 export module qchem.Lattice_3D;
 export import qchem.Structure;
@@ -78,7 +79,7 @@ public:
     ivec3_t     GetLimits() const {return itsLimits;}
 
     //! \brief The crystal's SPACE GROUP -- detected from the cell matrix + fractional atom basis on
-    //! first call and cached (geometry is immutable, so the cache is shared across copies).  The
+    //! first call at each \a tol and cached per \a tol (geometry is immutable; a different tolerance can detect a different group).  The
     //! UnitCell \f$\to\f$ {A, fractional sites} adapter lives HERE, common to EVERY lattice basis
     //! flavour (PW/GPW/APW/LAPW) instead of private to one factory (doc/SymmetryUpgradePlan.md §6a:
     //! qcStructure is where Mesh and Symmetry meet).  What a run IMPOSES from this group remains the
@@ -154,8 +155,10 @@ private:
     UnitCell       itsUnitCell;  //Unit cell dimensions, no atoms.
     Vector3D<int>  itsLimits;    //Number of unit cell in each direction.
     double         itsTolerence; //Positions closer than this are considered the same.
-    //! Lazily-detected space group (shared_ptr: copies of an immutable lattice share the cache).
-    mutable std::shared_ptr<const Symmetry::Lattice_3D::SpaceGroup> itsSpaceGroup;
+    //! Lazily-detected space groups, ONE PER TOLERANCE: the detection depends on \c tol, so \c tol is the cache key (EXACT, the
+    //! double itself; V-SPACEGROUP-TOL-KEY, 2026-11-21: a single slot returned the first tolerance's group for every later one).
+    //! shared_ptr values: copies of an immutable lattice share what was detected before the copy.
+    mutable std::map<double, std::shared_ptr<const Symmetry::Lattice_3D::SpaceGroup>> itsSpaceGroups;
 };
 
 

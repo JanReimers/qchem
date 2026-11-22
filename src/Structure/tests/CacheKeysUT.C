@@ -8,6 +8,7 @@
 #include <string>
 import qchem.Structure;   // Molecule, Site, Structure::ID
 import qchem.Types;       // KeyString, rvec3_t
+import qchem.Lattice_3D;  // Lattice_3D::GetSpaceGroup (cached per tolerance)
 using namespace qchem;
 
 TEST(CacheKeys, KeyStringSeparatesUlpNeighboursAndRoundTrips)
@@ -39,4 +40,30 @@ TEST(CacheKeys, StructureIDSeparatesGeometriesAnUlpApart)
     EXPECT_EQ(h2o2ID(x), h2o2ID(x)) << "equal geometries share their key";
     EXPECT_NE(h2o2ID(x), h2o2ID(x+3e-6)) << "3e-6 bohr apart: lane A's collision";
     EXPECT_NE(h2o2ID(x), h2o2ID(std::nextafter(x, 0.0))) << "an ulp apart";
+}
+
+//! V-SPACEGROUP-TOL-KEY (lane H, 2026-11-21): the space group a lattice detects depends on the tolerance, so the cache is keyed by it.
+//! A single slot returned the FIRST tolerance's group for every later one.  Si diamond with one atom moved 1e-3 off its site is
+//! diamond at a loose tolerance and a lower group at a tight one; each answer must be what a fresh lattice detects at that tolerance,
+//! in either order of asking.
+TEST(CacheKeys, ASpaceGroupIsCachedPerTolerance)
+{
+    auto lattice=[]()
+    {
+        FCCUnitCell cell(10.26);
+        cell.AddAtom(14, {0,0,0});
+        cell.AddAtom(14, {0.251,0.25,0.25});
+        return Lattice_3D(cell, ivec3_t(1,1,1));
+    };
+    const double loose=1e-2, tight=1e-5;
+    const size_t nLoose=lattice().GetSpaceGroup(loose).Order(), nTight=lattice().GetSpaceGroup(tight).Order();
+    ASSERT_GT(nLoose, nTight) << "the displaced atom must separate the two tolerances, or this test proves nothing";
+
+    const Lattice_3D a=lattice();
+    EXPECT_EQ(a.GetSpaceGroup(loose).Order(), nLoose);
+    EXPECT_EQ(a.GetSpaceGroup(tight).Order(), nTight) << "the loose tolerance's group came back for the tight one";
+    const Lattice_3D b=lattice();
+    EXPECT_EQ(b.GetSpaceGroup(tight).Order(), nTight);
+    EXPECT_EQ(b.GetSpaceGroup(loose).Order(), nLoose) << "the tight tolerance's group came back for the loose one";
+    EXPECT_EQ(&a.GetSpaceGroup(loose), &a.GetSpaceGroup(loose)) << "and a repeated tolerance is a cache hit";
 }
