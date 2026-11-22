@@ -3897,3 +3897,50 @@ GATES: `BeckePartitionTests` (the periodic weight's gradient vs FD, 1.2e-10), `M
 Becke and imposed Becke meshes.  COST: one force or virial ≈ 3 mesh builds (profile: Enzyme gradient ~43 %, the weight re-form ~24 %);
 OpenWork §4 row "A Becke-mesh XC force costs ~3 mesh builds".
 
+
+READY 5, RUTILE TiO₂ RELAXES END TO END ON GPW (lane B, 2026-11-20, lane-b-becke; OpenWork §2 "Real relaxations end to end" step 3).
+`GPW_TiO2.k222_RelaxesToCP2KsCell_Long`: the cell (a, c) and O 4f u of P4₂/mnm on the whole GPW force and stress, XC on the free Becke
+mesh, against CP2K CELL_OPT on the identical model (k222 Γ-centred, eight TRIM points listed; PADE stated, since the solid default is
+VWN5 and policy PPFittedFunctional warns; valence_lowq_tm.bsd spherical; GTH q4 Ti / q6 O; `~/Code/cp2k-runs/TiO2/tio2_rutile_k222_cellopt.*`,
+a 8.209552, c 5.422002 bohr, u 0.301844, E -71.337813131).  Result: 6 steps, 7 points, 55 min on 4 threads; a 8.208446, c 5.431751,
+u 0.301768, E -71.3378274 (14 μHa).
+- WHY k222: at Γ alone CP2K's CELL_OPT leaves rutile (a +7.6 %, c -6.7 %, 0.31 Ha down, `tio2_rutile_G_cellopt.out`).
+- WHY THE MAP HOLDS THE GROUP: rutile is UNSTABLE at k222 in this model too.  Our first gate ran a FREE session with its own map (the
+  identity: a free setup's `KeptOps`), 55 steps, 7.7 h: it reached CP2K's rutile minimum at step ~14 (E -71.3378282) and then slid
+  50 mHa down until the cell's stretch passed the 5 % allowance (refused, `CellChange`).  A free CP2K CELL_OPT from rutile + 0.002
+  fractional noise (`tio2_rutile_k222_free_cellopt.out`, 162 steps) goes the same way to -71.44335 Ha, monoclinic (α 112.7°).  CP2K's
+  KEEP_SYMMETRY run stays rutile only because a symmetric start has symmetric forces.  So the gate pairs the free session (all eight
+  k-points, the plain Becke mesh) with a `CellWyckoffMap` over the group detected on the reference (a, c, u): CP2K's own constraint.
+- c's 0.18 % IS THE STATED MESH: at CP2K's geometry the (40, 29) Becke mesh gives σzz = -3.9e-5 Ha/bohr³ (~1.1 GPa), the (80, 41) mesh
+  (307690 points) -8.4e-7 with σxx 1.7e-6, so CP2K's cell is our minimum on the finer mesh.  The energy's 14 μHa is partly luck of the
+  stated mesh: (80, 41) puts CP2K's point 152 μHa above CP2K.  The gate's c tolerance (1.5e-2) is that measured shift; an eps-sized mesh
+  would close it, but at eps 1e-5 the mesh is 388440 points and the pilot's audit needs 8-16 GB (OpenWork G2 "Mesh sizing for geometry runs").
+- FOUND ON THE WAY: an IMPOSED k222 point (6 irreducible k) gives O forces and a stress that break the rutile mirror by a grid-independent
+  1e-2 Ha/bohr (OpenWork §3 "On an IMPOSED k-mesh the session's forces and stress break the group"); a Wyckoff map projects it out.
+- COST per relaxation point on (40, 29), 47638 points: a warm energy point 66 s, forces +160 s, stress +150 s (OpenWork §4 rows: the
+  Becke force's mesh-build cost, and the doubled weight response of a forces + stress point).  READY 4's "(c) 147600 points" for rutile
+  was an estimate; the stated mesh measured 47638 (after the tail drop).
+- TIERS: the cold run takes 3320 s alone, past the long tier's 3600 s beside a build, so it moved to the PERIODIC tier (its TIMEOUT
+  raised past 3600; 14400 since (b) NaF below).  A relaxation started ON CP2K's cell is no twin: it pays the stated mesh's own c shift in 6 evaluations (3300 s,
+  c 5.431955, E -71.3379007).  The twin `GPW_TiO2.k222_CP2KsCellIsStationary_Long` is ONE point: at CP2K's cell the map gradient is
+  max|g| 2.0e-3 (the stated mesh's σzz) and E 75 μHa from CP2K's, against max|g| 1.1e-1 at the cold start; the gate holds it under 3e-3.
+- THE EASY CASES (controller, relaying the user 2026-11-20: "why not move and test geom. opt. on materials that are less challenging?").
+  (a) Si diamond, cell only, k333 (`GPW_Si.k333_RelaxesToCP2KsCell_Long`): CP2K CELL_OPT a 10.242904, E -7.849454525 (`~/Code/cp2k-runs/Si/
+  si_k333_cellopt.*`); CP2K's free run from 0.002 noise never went below -7.8492577 (diamond is stable).  Ours on the DEFAULT accuracy:
+  3 points, a 10.243201, E -7.8494563 (3e-4 bohr, 1.8 μHa), 33 min, mostly the raster pilot (4 audit rounds; it doubles the density ball
+  4 -> 32 Ha and settles Becke (100, 53)).  At accuracy 0 the same run stopped at a 10.2324 (E 0.8 mHa low): the stated ball is the pilot's
+  unjudged START, 2 alpha_max = 4 Ha (N = 8), 2.6 mHa off CP2K at its cell.  Probe at CP2K's cell: 20 or 60 Ha rasters agree to 0.4 μHa;
+  Becke (40, 29) leaves σ +2.1e-5 Ha/bohr³ (~0.2 % of a), Becke (80, 41) 8 μHa from CP2K and σ -4e-7.  OpenWork §3 row "`accuracy 0` with
+  an AUTO density ball takes the pilot's unjudged START".
+  (b) NaF rocksalt, q9 (`valence_lowq_sr2_naq9.bsd`), cell only, k222 (`GPW_NaF.k222_RelaxesToCP2KsCell_Long`): CP2K CELL_OPT a 8.519577,
+  E -72.0950276 (432 s, 5 points); its free run stays rocksalt.  Ours PILOTED from a 8.73: 4 h (14280 s), the pilot's audit WARNING that its
+  reference (2.4 GB) nears what is available (3.52 GB).  The pilot's answer STATED (ball 640 Ha: FFT 90^3, top rung 120^3; Becke (100, 53),
+  129872 points) reproduces it without the pilot: 4 steps, 5 points, a 8.519761, E -72.0950084 (1.8e-4 bohr, 19 μHa), 8659 s on 4 threads,
+  RSS 3.46 GB.  So the cold gate is in the PERIODIC tier, whose TIMEOUT rose 3600 -> 14400 (the panel's 4 h).  The long-tier twin
+  `GPW_NaF.k222_CP2KsCellIsStationary_Long`, one point at CP2K's a: g -1.05e-5 Ha (gate 1e-4), E -72.09500932 (18 μHa), 2328 s, RSS 3.0 GB.
+  Per point that is ~1730 s against CP2K's 86 s at 600 Ha on one rank: 20x wall, ~80x cores, unattributed (OpenWork §4 row on the Becke
+  force's mesh-build cost: ledger one point).
+  (c) wurtzite AlN, first CP2K pass (`~/Code/cp2k-runs/AlN/cellopt/`): on our low-q basis (`valence_lowq_aln.bsd`, uncommitted) the free
+  run stays wurtzite but at c/a 1.505, u 0.402 (expt 1.601, 0.382), E -24.2074417.  ⚠ CP2K's `SYMMETRY HEXAGONAL` rewrites a 120° cell to
+  γ = 60° and re-reads SCALED (1/3,2/3) sites in it: a 3-coordinated non-wurtzite start that KEEP_SYMMETRY holds (the DZVP-MOLOPT-SR and
+  Al-trim basis probes ended there, 3 bonds of 1.80 / 1.71 Å, unusable; re-run free as `*_v2`).  State Cartesian sites or drop the keyword.
