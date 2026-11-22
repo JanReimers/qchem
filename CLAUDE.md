@@ -200,6 +200,12 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     (within a few lines). As a result `delete` should be rare or non-existent.
 - void* is banashed from this project. It has no place in modern c++.
 - Do not key map/set etc off pointers.
+- **A mutable static needs a careful justification at its declaration** (user, 2026-11-22: *"use of static variables requires careful
+    justification"*).  Namespace-scope or function-local, it is hidden process-wide state: it leaks between runs in one process (a geometry
+    series, a test binary, the GUI session), races under threads, and can route around an interface.  The comment says what it holds, why
+    per-process is right, and how it is thread-safe.  Acceptable so far: an atomic monotonic ID counter; a cache of a pure function of fixed
+    inputs (a file read, a fixed table).  Not acceptable: warn-once flags, tuning knobs, test overrides, previous-iteration state.  A constant
+    is `constexpr`, not `static`.  The controller's landing scan flags every new one.
 
 ## Design
 
