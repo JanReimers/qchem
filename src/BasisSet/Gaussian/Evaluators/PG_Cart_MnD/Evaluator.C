@@ -2809,6 +2809,11 @@ public:
         for (const auto& t : terms) Dsym.push_back(FoldProjectedD(*t.first));
         const size_t nT=terms.size();
         const std::vector<ShellPairTasks>& tl=BoxTasks(A);
+        // Each term's conjugated phase, tabulated once on the task list's offset box (PhaseTable): the walk below asks it per task.
+        ivec3_t nLo{0,0,0}, nHi{-1,-1,-1}; bool anyTask=false;
+        for (const ShellPairTasks& spt : tl) for (const BoxTask& task : spt.tasks) Cover(nLo, nHi, task.n, anyTask);
+        std::vector<PhaseTable> phT; phT.reserve(nT);
+        for (const auto& t : terms) phT.emplace_back(*t.second, nLo, nHi, true);
         // THE SHELL-BLOCKED SCATTER -- now the ONLY route.  Every component pair of ONE shell pair shares
         // its box walk: offsets, level, geometry, ellipsoid pre-screen and wrap are all shell properties.
         //
@@ -2870,7 +2875,7 @@ public:
                 // ONE phase query per TASK, not per component pair: the offset phase is a property of n and
                 // every component of this shell pair asked for the same one.  Bit-identical (same value, same
                 // multiplication order), and it pays for the block fill below.
-                for (size_t t=0;t<nT;t++) phs[t]=std::conj((*terms[t].second)(n));
+                for (size_t t=0;t<nT;t++) phs[t]=phT[t](n);
                 for (size_t key : want)
                 {
                     const size_t i=key/nn, j=key%nn;
@@ -3005,6 +3010,33 @@ public:
         for (size_t sp=0;sp<sprs.size();sp++) scatterShell(sp,rho);       // serial (byte-identical default)
         return rho;
     }
+    //! \brief A k-phase TABULATED on a bounding box of lattice offsets (lane A 2026-11-22).  The phase is a std::function (an exp per call), and a
+    //! sweep asks it for the same few thousand offsets over and over (every task of every shell pair; every pair of a memo replay), and under
+    //! the k-fold once per block.  Same values, same order of use: a sweep through the table is bit-identical to calling the phase.
+    struct PhaseTable
+    {
+        ivec3_t lo{0,0,0}; int ny=0, nz=0;
+        std::vector<dcmplx> v;
+        PhaseTable(const cellphase_t& phase, const ivec3_t& nLo, const ivec3_t& nHi, bool conjugate) : lo(nLo)
+        {
+            const int nx=nHi.x-nLo.x+1; ny=nHi.y-nLo.y+1; nz=nHi.z-nLo.z+1;
+            if (nx<=0 || ny<=0 || nz<=0) { ny=nz=0; return; }
+            v.resize(size_t(nx)*ny*nz);
+            for (int a=0;a<nx;a++) for (int b=0;b<ny;b++) for (int c=0;c<nz;c++)
+            {
+                const dcmplx p=phase(ivec3_t(nLo.x+a, nLo.y+b, nLo.z+c));
+                v[(size_t(a)*ny+b)*nz+c]= conjugate ? std::conj(p) : p;
+            }
+        }
+        dcmplx operator()(const ivec3_t& n) const {return v[(size_t(n.x-lo.x)*ny+(n.y-lo.y))*nz+(n.z-lo.z)];}
+    };
+    //! Widen [\a lo, \a hi] to cover \a n (\a any false: start the box at \a n).
+    static void Cover(ivec3_t& lo, ivec3_t& hi, const ivec3_t& n, bool& any)
+    {
+        if (!any) { lo=n; hi=n; any=true; return; }
+        lo=ivec3_t(std::min(lo.x,n.x), std::min(lo.y,n.y), std::min(lo.z,n.z));
+        hi=ivec3_t(std::max(hi.x,n.x), std::max(hi.y,n.y), std::max(hi.z,n.z));
+    }
     // --- Phase-independent integrate-back memo ---------------------------------------------------------------
     // h_ij(k) = w_l Sum_n e^{+ik.R_n} B_ij(n), with B_ij(n) = Sum_box chi_i chi_j^n V.  The expensive per-offset
     // reductions B are k-INDEPENDENT (the Bloch phase enters only the final contraction), and the SAME field V
@@ -3023,6 +3055,7 @@ public:
         double relFieldSharp=-1.0;                              //   + the relative rule's beta floor (level-assignment identity)
         std::vector<rvec_t>  V_L;                               //   + the integrated field itself (exact)
         std::vector<PairB>   B;                                 // indexed [i*n+j], j>=i only
+        ivec3_t nLo{0,0,0}, nHi{-1,-1,-1};                      // the offsets' bounding box (a hit tabulates phase(n) on it once)
     };
     static constexpr size_t kMaxIntegrateMemos=4;               // static PP + the iteration's KS fields
     bool SameShape(const IntegrateMemo& m, const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
@@ -3152,19 +3185,24 @@ public:
                 if (SameShape(*m,N_L,ecut_L,absRelCutoff,relFieldSharp) && SameField(m->V_L,V_L)) {hit=m; break;}
         }
         if (hit)
-                {
-                    const IntegrateMemo& m=*hit;
-                    for (auto i:indices()) for (auto j:indices(i))
-                    {
-                        const PairB& pb=m.B[i*nn+j];
-                        const double w=A.GetCellVolume()/double(V_L[pb.level].size());
-                        dcmplx s(0.0);
-                        for (const auto& [n,b] : pb.nb) s+=phase(n)*b;
-                        s*=w;
-                        h(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;
-                    }
-                    return h;
-                }
+        {
+            // Contract phases only.  The phase is a k-dependent std::function (an exp per call); a pair's offsets repeat across
+            // every pair, so tabulate it ONCE on the offsets' bounding box (lane A 2026-11-22: per (pair, offset) it cost ~0.6 s a
+            // hit on NaF q9 k222, x7 per field).  Same phase values, same summation order: still bit-identical to recomputation.
+            qchem::report::Timed replay("scf: integrate-back memo replay (phase contraction)");
+            const IntegrateMemo& m=*hit;
+            const PhaseTable at(phase, m.nLo, m.nHi, false);
+            for (auto i:indices()) for (auto j:indices(i))
+            {
+                const PairB& pb=m.B[i*nn+j];
+                const double w=A.GetCellVolume()/double(V_L[pb.level].size());
+                dcmplx s(0.0);
+                for (const auto& [n,b] : pb.nb) s+=at(n)*b;
+                s*=w;
+                h(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;
+            }
+            return h;
+        }
         // Miss: evaluate every (shell pair, offset) task live, recording B for the next caller.  There is
         // no value cache any more (plan step 7) -- the TASK LIST supplies the geometry and the contraction
         // kernel supplies the arithmetic, in both directions.
@@ -3178,6 +3216,8 @@ public:
         auto publish=[&]()
         {
             if (!built) return;
+            bool any=false;                                  // the offsets' bounding box, for the hit's phase table
+            for (const PairB& pb : built->B) for (const auto& nb : pb.nb) Cover(built->nLo, built->nHi, nb.first, any);
             std::lock_guard<std::mutex> lock(itsIntegrateMemosLock.m);
             if (itsIntegrateMemos.size()>=kMaxIntegrateMemos) itsIntegrateMemos.erase(itsIntegrateMemos.begin());
             itsIntegrateMemos.push_back(std::move(built));
