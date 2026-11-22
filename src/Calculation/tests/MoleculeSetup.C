@@ -189,6 +189,8 @@ TEST(MoleculeSetup, ACoulombFitFileTheRunCannotUseIsRefusedByName)
         ASSERT_FALSE(r) << c.policy;
         EXPECT_EQ(r.Error().policy, c.policy);
     }
+}
+
 // A GEOMETRY POINT (V-MESH-FACTORY §8 step 2): MakePoint(R) moves the reference's sites to R, keeps its charges (valence-charged under a
 // pseudopotential), and its mesh maker builds over THAT point -- never over the reference -- exactly the factory's mesh for it.
 TEST(MoleculeSetup, APointsMeshMakerBuildsOverThePointNotTheReference)
