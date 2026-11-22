@@ -18,6 +18,7 @@ export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.Mesh.CoulombOperator;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.Symmetry;
+import qchem.Symmetry.Group;   // Symmetry::GroupPtr / TrivialGroup (Forces, Group face step 3)
 import qchem.Types;
 export namespace qchem::BasisSet
 {
@@ -49,7 +50,7 @@ public:
     }
     // --- the δ basis, unchanged
     bool   isOrtho        () const override {return itsDelta->isOrtho();}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsDelta->Imposes();}   //!< the \f$\delta\f$ basis's ({e})
+    Symmetry::GroupPtr      Forces () const override {return itsDelta->Forces ();}   //!< the \f$\delta\f$ basis's ({e})
     rvec_t Overlap        (const ScalarFunction<double>& f) const override {return itsDelta->Overlap(f);}
     rvec_t OverlapDiagonal() const override {return itsDelta->OverlapDiagonal();}
     rvec_t Charge         () const override {return itsDelta->Charge();}

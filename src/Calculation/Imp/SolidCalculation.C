@@ -24,6 +24,7 @@ module qchem.SolidCalculation;
 
 import qchem.BasisSet.Gaussian.Point.Factory;     // FactoryFromFile: the A1_exch set on the cell's sites (the periodic A1 Vxc fit)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;   // tGPW_IBS<double>: the real Gamma block over it
+import qchem.BasisSet.Fit_Types;                  // BasisSet::Forces: what the A1 family forces in the cell's frame
 import qchem.BasisSet.AoShellSource;           // FunctionName: the audit's largest element, by atom, shell and l
 import qchem.BasisSet.Conditioning;            // ReportConditioning, MinOverlapEigenvalue
 import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS / Complex_OIBS (the per-irrep bases to iterate)
@@ -32,6 +33,8 @@ import qchem.Pseudopotential.GTH_Potentials;  // MakeMultiSpeciesLocal -- the lo
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (element symbol -> Z)
 import qchem.ElectronConfiguration.Crystal;    // Crystal_EC
 import qchem.Symmetry.Irrep;                   // Irrep, Spin
+import qchem.Symmetry.Group;                   // TranslationGroup: what the periodic A1 set forces (Group face step 3a)
+import qchem.ChargeDensity.DensitySampler;     // LatticeSummedSet: the periodic A1 set + its translations
 import qchem.Blaze;                            // blazem::conjs (the u_bands weights)
 import qchem.PseudoAtomOrbital;                // the pseudo-atom l orbital: the +U projector (HubbardProjectorPlan D5)
 import qchem.Orbitals;                         // TOrbitals/TOrbital -- the ACBN0 feed (EstimateHubbardU)
@@ -42,6 +45,7 @@ import qchem.SetupDecisions;                 // ResolveSpinGroup: the banner sta
 import qchem.Mesh.XCPolicy;                     // BeckeXCParams / BeckeEntryRung and the rungs above (a geometry run's XC route and its nested ladder)
 import qchem.Mesh.BeckeClimb;                   // ClimbBeckeLadder: the pilot's one-round Becke climb at a fixed D
 import qchem.Policy;                            // policy::Report: a stated grid that misses eps reports itself (StatedDensityEcutMissesEps)
+import qchem.PhiTablesPolicy;                    // MakeXCOrbitalTablesChooser: the δ fit's orbital tables (dense | images | auto)
 import qchem.XCRhoPolicy;                        // RefuseGradientConsumers: the fitted-potential cell refuses GDM / the Ladder
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
 import qchem.SCFCap;                           // SetupSCF / AuditSCF -- the seed's atomic solves and the pilot's re-convergence are not the run's iterations
@@ -442,7 +446,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
     // (TRIM) ∧ every term preserves realness.  This composition root builds the LDA GPW stack --
     // kinetic, the PP trio, Hartree, XC -- every member of which PreservesReal(), so the term half is
     // TRUE here; it is asserted against the constructed Hamiltonian below, so a future term that
-    // breaks realness must also flip this forecast.  The ansatz half -- forceComplex, or a planned response (k AND q) -- is the
+    // breaks realness must also flip this forecast.  The ansatz half -- a planned response (k AND q) -- is the
     // setup's ONE decision, S.realTRIMBlocks (user ruling 2026-11-18); every GPWParams below reads it.
     // ★ THE FACADE'S SETUP IS BUCKETED (doc/ParallelAndOraclePlan.md 1.1, 2026-09-06).  Every MnO row drives
     // SolidCalculation directly, and until now only the phases INSIDE these calls were timed -- so the basis
@@ -527,7 +531,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
 // GPW block at Gamma -- its analytic lattice-summed overlap and image-summed point values are the fit space's (ChargeDensity's
 // GaussianFitSpace).  Built HERE, the run's concrete wiring: the Hamiltonian library does not link the Gaussian factories, and the complex
 // lineage's fit-basis factory cannot return a real fit without changing a tier-1 hub (controller 2026-11-15).  Empty unless xc.fit Auxiliary.
-static std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> PeriodicA1Set(const RunOptions& o, const Structure& st)
+static ChargeDensity::LatticeSummedSet PeriodicA1Set(const RunOptions& o, const Structure& st)
 {
     if (o.vxcFit!=Hamiltonian::VxcFit::Auxiliary) return {};
     const auto& cell=dynamic_cast<const UnitCell&>(st);   // the facade's concrete wiring: a solid's structure IS its cell
@@ -539,8 +543,11 @@ static std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> PeriodicA1Set(con
                        std::string("the A1_exch set covers Z = 1-54, and building it on this cell's species failed (")+e.what()+") -- state "
                        "xc.fit Delta or PlaneWave");
     }
-    return std::make_shared<const BasisSet::Gaussian::tGPW_IBS<double>>(std::make_shared<BasisSet::BasisCache>(), cell, ivec3_t(1,1,1),
-                                                                          ivec3_t(0,0,0), a1mol, 0.0);
+    // The block is summed over THIS cell's lattice, so a fit space over it forces what the A1 family forces in the cell's frame (T(cell),
+    // BasisSet::Forces) -- issued here, where the cell is concrete.
+    return {std::make_shared<const BasisSet::Gaussian::tGPW_IBS<double>>(std::make_shared<BasisSet::BasisCache>(), cell, ivec3_t(1,1,1),
+                                                                          ivec3_t(0,0,0), a1mol, 0.0),
+            BasisSet::Forces(Hamiltonian::VxcFit::Auxiliary, Symmetry::Frame{.lattice=cell.GetCellMatrix(), .centre={}}).Value()};
 }
 
 // THE PERIODIC A1 FIT'S COST (controller 2026-11-15: warn with an estimate, bytes as a range, beside the memory available -- the shape of the
@@ -638,10 +645,16 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
             xc.sampling.eta           =opts.solid.grid.samplerEta;
         }
         const auto a1=PeriodicA1Set(opts, *itsImp->st);
-        if (a1) ReportPeriodicA1Cost(*a1, SizeReference("periodic A1 Vxc fit", opts.solid.tolerances, 1.0, &xc), Tag());
+        if (a1) ReportPeriodicA1Cost(*a1.set, SizeReference("periodic A1 Vxc fit", opts.solid.tolerances, 1.0, &xc), Tag());
+        // The XC route carries the δ fit's orbital-table door: the user's stated xcOrbitalTables, judged at the fit factory on both
+        // realizations' footprints (qchem.PhiTablesPolicy; user ruling 2026-11-19, option (a)).
+        qchem::Hamiltonian::XCRoute route(opts.vxcFit, opts.xcRho);
+        const bool gga=qchem::Hamiltonian::IsDFT(*opts.model) && qchem::Hamiltonian::ConsumesDensityGradient(qchem::Hamiltonian::ModelToXC(*opts.model));
+        route.phiTables= gga ? qchem::policy::MakeGGAOrbitalTablesChooser()   // the image tables have no gradient yet (GGA stage 3)
+                             : qchem::policy::MakeXCOrbitalTablesChooser(opts.solid.xcOrbitalTables);
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, double(itsImp->setup->opts.Nelec), *itsImp->setup->pp, xc, {opts.vxcFit, opts.xcRho}, hubbard,
+            itsImp->st, itsImp->bs.get(), itsImp->coulombFit, double(itsImp->setup->opts.Nelec), *itsImp->setup->pp, xc, route, hubbard,
             qchem::Hamiltonian::ModelToXC(*opts.model), a1));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
@@ -1856,7 +1869,9 @@ std::optional<ResourceRefusal> SolidCalculation::PilotPreflight() const
     if (S.planeWave || S.rastersResolved || itsImp->rastersSettled || !itsImp->ladder) return std::nullopt;
     // ROUND 0's two references, exactly as CalibrateRasters names and builds them (a geometry run on Becke carries the rungs).
     const qcMesh::MeshParams& xcCur=S.xcMesh;
-    const bool xcOnBecke = itsImp->consumes==BasisSet::Gaussian::ClientConsumes::MatrixElements && xcCur.cellKind==qcMesh::UnitCellKind::Becke;
+    // A geometry run climbs its Becke mesh; so does an ENERGY run whose GGA route chose Becke itself (controller ruling 2026-11-21, pin 31:
+    // the new route may not ship on the fixed (40, 29) default -- NaF PBE moved 29 uHa from L47 to L65).  An LDA energy run keeps (40, 29): OpenWork G2.
+    const bool xcOnBecke = (itsImp->consumes==BasisSet::Gaussian::ClientConsumes::MatrixElements || S.ggaChoseBecke) && xcCur.cellKind==qcMesh::UnitCellKind::Becke;
     std::optional<qcMesh::MeshParams> xcAngular, xcRadial;
     if (xcOnBecke)
     {
@@ -1925,6 +1940,15 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     const bool   onH   =c==G::ClientConsumes::MatrixElements;
     const size_t nAtoms=itsImp->lat->GetUnitCell().GetNumAtoms();
     const double target=itsImp->setup->opts.solid.grid.Target(c, nAtoms);
+    // THE BECKE CLIMB'S MEASURE FOLLOWS THE CLIENT (user ruling 2026-11-21, option A): a geometry run's climb settles on max|dH_xc| <= eps, a GGA
+    // ENERGY run's on |dE_xc| between rungs <= eps x atoms -- every other term of an energy run is judged on its energy.  max|dH_xc| is still
+    // MEASURED and REPORTED on an energy run, beside dE_xc (ruling part 1), but does not steer it.  WHY not max|dH| there: NaF Gamma PBE at eps 1e-5
+    // climbed (100, L53) -> (140, GL89) on it in 93 min and ended NOT SETTLED (L53/L65 8.7e-5, L65/GL77 2.3e-5, GL77/GL89 1.1e-4) while its
+    // energy sat within 1 uHa of CP2K from L65 on (GPW_NaF.Γ_Becke_PBE_CP2K_Long).  The max|dH_xc| floor (~3.5e-5 per element from GL53 to GL89,
+    // probed at one fixed D, side-session note lane-s-GGA-design.md §11a): GGA-ONLY (LDA on the same meshes converges to 7e-9), in the w half,
+    // on diffuse x diffuse pairs only (the empty Na p, F's most diffuse p), symmetry-forbidden elements included; not the partition (Becke
+    // orders 2/3/5, SSF, modified Becke), not the image cut, not radial (that converges, 1.8e-5 -> 1.7e-6 from nR 100 to 200).  OpenWork row.
+    const double xcTarget=target;
     qchem::report::Timed timed("postSCF: raster pilot (reference basis + audit; re-converge when a raster rises)");
     const std::streamsize prec0=std::cout.precision();
     report::FormatGuard keepFormat(std::cout);   // exact restore on every exit (prec0 alone missed the flags and the early returns)
@@ -1951,7 +1975,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         // read from the reference that moved it.  Four separate references built the run's own 259200-point mesh twice a round to compare it with itself
         // (MnO geometry, 2026-11-05: 6 of the stage's 15 mesh builds).  An admitted PlaneWave fit on Becke would break this: it would put a raster under XC.
         const qcMesh::MeshParams& xcCur=itsImp->setup->xcMesh;
-        const bool xcOnBecke=onH && xcCur.cellKind==qcMesh::UnitCellKind::Becke;
+        const bool xcOnBecke=(onH || itsImp->setup->ggaChoseBecke) && xcCur.cellKind==qcMesh::UnitCellKind::Becke;   // as PilotPreflight
         std::optional<qcMesh::MeshParams> xcAngular, xcRadial;
         if (xcOnBecke)
         {
@@ -2053,6 +2077,12 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             ΔHof[key(xcCur)]={};
             if (xcAngular) ΔHof[key(*xcAngular)]=std::move(ΔHangular);
             if (xcRadial)  ΔHof[key(*xcRadial)] =std::move(ΔHradial);
+            // ... and each mesh's E_xc - E_xc(run) at this D (the audit's Exc rows: E_run - E_reference, so the reference's own is minus it)
+            auto excOf=[](const GridAuditResult& a){double e=0.0; for (const auto& T : a.terms) if (T.entries=="Exc") e-=T.ΔE; return e;};
+            std::map<std::string, double> ΔEof;
+            ΔEof[key(xcCur)]=0.0;
+            if (xcAngular) ΔEof[key(*xcAngular)]=excOf(R);
+            if (xcRadial)  ΔEof[key(*xcRadial)] =excOf(Bl);
             int built=0;   // references the climb built beyond the round's two
             // A climb rung the audit RSS policy refuses: the distance callback has no failure channel (qcMesh::ClimbBeckeLadder asks it for a
             // number), so the refusal leaves the climb as this local type and is caught right around it.
@@ -2064,11 +2094,11 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                                           "Becke climb, pilot round "+std::to_string(round), kPilotEscape))
                     throw ClimbRefused{std::move(*r)};
                 std::vector<hmat_t<dcmplx>> d;
-                (void)CompareAtFixedD(itsImp->setup->opts.solid.tolerances, rvec3_t(0,0,0), "Becke climb: "+BeckeName(m), &m, 1.0, &d);
+                ΔEof[key(m)]=excOf(CompareAtFixedD(itsImp->setup->opts.solid.tolerances, rvec3_t(0,0,0), "Becke climb: "+BeckeName(m), &m, 1.0, &d));
                 ++built;
                 return ΔHof.emplace(key(m), std::move(d)).first->second;   // std::map: references stay valid across later inserts
             };
-            const qcMesh::BeckeRungDistance distance=[&](const qcMesh::MeshParams& a, const qcMesh::MeshParams& b)
+            const qcMesh::BeckeRungDistance distanceH=[&](const qcMesh::MeshParams& a, const qcMesh::MeshParams& b)
             {
                 const auto& da=ΔHat(a);
                 const auto& db=ΔHat(b);
@@ -2086,9 +2116,16 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                 }
                 return worst;
             };
+            const qcMesh::BeckeRungDistance distanceE=[&](const qcMesh::MeshParams& a, const qcMesh::MeshParams& b)
+            {
+                (void)ΔHat(a); (void)ΔHat(b);   // builds (and caches) both, as the H distance would
+                return std::fabs(ΔEof.at(key(b))-ΔEof.at(key(a)));
+            };
+            const qcMesh::BeckeRungDistance& distance = onH ? distanceH : distanceE;
+            const char* measure = onH ? "max|dH_xc|" : "|dE_xc|";
             const int cap = (stated || round>0) ? 1 : 0;   // a stated mesh is only measured; a confirming round raises at most once
             qcMesh::BeckeClimbResult climb;
-            try { climb=qcMesh::ClimbBeckeLadder(xcCur, target, itsImp->setup->opts.solid.beckeLadder, itsImp->setup->imposed, distance, cap); }
+            try { climb=qcMesh::ClimbBeckeLadder(xcCur, xcTarget, itsImp->setup->opts.solid.beckeLadder, itsImp->setup->imposed, distance, cap); }
             catch (ClimbRefused& c)
             {
                 std::cout<<tag<<"round "<<round<<"  REFUSED ON RESOURCES in the Becke climb: the pilot stops here, NOT SETTLED -- "<<c.r.Summary()<<std::endl;
@@ -2099,8 +2136,11 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             for (const qcMesh::BeckeClimbStep& step : climb.steps)
             {
                 std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<(std::string("XC mesh, ")+step.axis)<<std::right<<" delivered "<<std::scientific
-                         <<std::setprecision(3)<<step.delivered<<" (tail estimate "<<step.tailEstimate<<") on "<<BeckeName(step.rung)<<" against "<<BeckeName(step.reference)<<"  ";
-                if (!step.over)    std::cout<<"meets "<<target<<std::endl;
+                         <<std::setprecision(3)<<measure<<" "<<step.delivered<<" (tail estimate "<<step.tailEstimate<<")";
+                const double hStep=onH ? step.delivered : distanceH(step.rung, step.reference);   // ruling part 1: always measured
+                if (!onH) std::cout<<" [max|dH_xc| "<<hStep<<", reported]";
+                std::cout<<" on "<<BeckeName(step.rung)<<" against "<<BeckeName(step.reference)<<"  ";
+                if (!step.over)    std::cout<<"meets "<<xcTarget<<std::endl;
                 else if (stated)
                 {
                     std::cout<<"OVER, and the mesh is STATED: honoured (state xcMesh Auto to let the pilot size it)"<<std::endl;
@@ -2108,7 +2148,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                 }
                 else             std::cout<<"OVER"<<std::endl;
                 std::cout<<std::defaultfloat<<std::setprecision(prec0);
-                terms.push_back({{"term","XC Becke mesh"},{"axis",step.axis},{"delivered",step.delivered},{"tailEstimate",step.tailEstimate},{"mesh",BeckeName(step.rung)},
+                terms.push_back({{"term","XC Becke mesh"},{"axis",step.axis},{"measure",measure},{"delivered",step.delivered},{"maxAbsΔH",hStep},{"tailEstimate",step.tailEstimate},{"mesh",BeckeName(step.rung)},
                                  {"reference",BeckeName(step.reference)},{"over",step.over}});
             }
             const char* end = climb.end==qcMesh::BeckeClimbResult::End::Settled ? "settled"
@@ -2202,7 +2242,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             const bool statedOver=xcStatedOver || ballStatedOver;
             std::cout<<tag<<(statedOver ? "NOT SETTLED (a STATED grid misses the target)" : "SETTLED")<<" after "<<round<<" re-convergence(s): every raster term meets "
                      <<target<<" Ha on "<<RasterName(t);
-            if (onH && xcCur.cellKind==qcMesh::UnitCellKind::Becke) std::cout<<", the XC on "<<BeckeName(xcCur)<<(xcStatedOver ? " (STATED, OVER)" : "");
+            if (xcOnBecke) std::cout<<", the XC on "<<BeckeName(xcCur)<<(xcStatedOver ? " (STATED, OVER)" : "");
             std::cout<<", the density ball "<<(ballStatedOver ? "(STATED, OVER)" : "meets it");
             std::cout<<std::endl;
             metEveryTarget=!statedOver;
@@ -2778,7 +2818,7 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
         if (itsImp->bs->GetRealIBS(i))
             return Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>::Fail({qchem::Response::ResponseFailure::Why::Configuration,
                 "the setup built REAL TRIM blocks (no response was planned), and the linear response is complex-only: state the "
-                "response at setup (RunOptions::Solid::responseQMeshes; a deck does it from its postSCF) or set forceComplex"});
+                "response at setup (RunOptions::Solid::responseQMeshes; a deck does it from its postSCF)"});
     if (perturbed.empty()) perturbed=DefaultPerturbed(*hub);
     const FrozenHubbard frozen(itsImp->ham->GetHubbardUTarget());
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
@@ -2919,6 +2959,12 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
     if (!hub || !target) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: this run carries no Hubbard manifold");
     const auto channels=hub->Channels();
     if (J>=channels.size()) throw std::out_of_range("SolidCalculation::HubbardFiniteDifferenceChi: no such manifold");
+    // THE ANSATZ WAS DECIDED AT SETUP (SolidSetup::realTRIMBlocks): the occupations are measured through the complex-only Hubbard probe,
+    // so a setup that planned no response (real TRIM blocks) is the caller's error -- refused before any SCF is spent.
+    if (itsImp->setup->realTRIMBlocks)
+        throw std::invalid_argument("SolidCalculation::HubbardFiniteDifferenceChi: the setup built REAL TRIM blocks (no response planned), "
+                                    "and the Hubbard probe is complex-only: state RunOptions::Solid::responseQMeshes = {{1,1,1}} at setup "
+                                    "(a deck's hubbardFiniteDifference does it)");
     // ⛔ An IMPOSED run's SCF star-averages the XC density every iteration (the Becke (ρ, m) projector, the raster
     // average) -- so a +-alpha run on one site would respond with a SYMMETRIZED XC potential and an unsymmetrized
     // Hartree one: neither the physical response nor the linear response's.  Found 2026-09-29 on NiO AFM-II.
@@ -2938,7 +2984,7 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
         for (const Irrep& ir : wf->GetQNs())
         {
             const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf->GetOrbitals(ir));
-            if (!os) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: a real TRIM block (run with forceComplex)");
+            if (!os) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: a real TRIM block slipped past the entry check");
             qchem::Response::cmat_t X(os->GetNumOrbitals(), os->GetNumOrbitals(), dcmplx(0.0));
             size_t i=0;
             for (const auto* o : os->Iterate<Orbitals::TOrbital<dcmplx>>()) {X(i,i)=o->GetOccupation(); i++;}

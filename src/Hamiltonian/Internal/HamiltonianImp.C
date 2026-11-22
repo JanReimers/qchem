@@ -8,7 +8,7 @@ module;
 export module qchem.Hamiltonian.Internal.Hamiltonian;
 export import qchem.Hamiltonian;
 import qchem.Hamiltonian.Types;
-import qchem.Hamiltonian.Internal.RealSpaceResidual;
+import qchem.ChargeDensity.DensitySampler;   // the nonlinear integration mesh the Hamiltonian holds (V-NONLINEAR-MESH)
 import qchem.Structure;
 
 export namespace qchem::Hamiltonian
@@ -64,18 +64,14 @@ public:
     //! an exact-exchange HF term (K needs D) or is relativistic (the non-rel LDA-sibling SAD bootstrap does
     //! not apply -- see SCFIterator).  Derived from the term lists, so no concrete Hamiltonian need declare it.
     virtual bool            RequiresDensityMatrix() const override {return !itsHF_HTs.empty() || itsIsRelativistic;}
-    //! FIRST term that owns an atom-centred partition wins (there is exactly one XC quadrature in a term
-    //! stack; a second would be a construction error, not a case to average).
-    virtual rvec_t          SiteMoments(const tChargeDensity<T>* cd) const override
-    {
-        for (const auto& t : itsDHTs)
-            if (rvec_t m=t->SiteMoments(cd); m.size()>0) return m;
-        return rvec_t();
-    }
+    //! \copydoc tHamiltonian::SiteMoments
+    //! Asked of the Hamiltonian's NONLINEAR INTEGRATION MESH (V-NONLINEAR-MESH): its atom-centred partition integrates
+    //! \f$\rho_\uparrow-\rho_\downarrow\f$.  Empty with no mesh, on a mesh with no site blocks, or on a run that resolves no spin.
+    virtual rvec_t          SiteMoments(const tChargeDensity<T>* cd) const override;
     //! \copydoc tHamiltonian::DeltaRho
     virtual double          DeltaRho(const tChargeDensity<T>* in, const tChargeDensity<T>* out) const override;
     //! \copydoc tHamiltonian::DeltaRhoLabel
-    virtual std::string     DeltaRhoLabel() const override {return itsRealSpaceTerm ? "Δρ" : "‖ΔD‖";}
+    virtual std::string     DeltaRhoLabel() const override {return itsNonlinearMesh ? "Δρ" : "‖ΔD‖";}
     //! \copydoc tHamiltonian::MakeACBN0Estimator
     //! The FIRST dynamic term answering the \c HubbardProjection face (abstract->abstract); null when none does.
     virtual std::unique_ptr<ACBN0Estimator> MakeACBN0Estimator() const override;
@@ -127,9 +123,17 @@ protected:
     typedef std::vector<std::unique_ptr<  tDynamic_HT<T>>> dhtv_t;
     typedef std::vector<std::unique_ptr<tDynamic_HF_HT<T>>> hf_htv_t;
 
+    //! \brief THE NONLINEAR INTEGRATION MESH (V-NONLINEAR-MESH, user ruling 2026-11-20 1(a)): the run's one real-space quadrature for
+    //! whatever has no closed form in the basis -- the sampler (points, weights, fold, site partition) plus \f$\rho[D]\f$ at its points.
+    //! The HAMILTONIAN holds it and answers \c DeltaRho and \c SiteMoments on it; the XC term is one client, holding the same object by
+    //! \c shared_ptr.  The FACTORY builds it, only when a term needs one (an HF run holds none), and hands it here BEFORE the first
+    //! client term is added.  THROWS on a second mesh: one Hamiltonian, one nonlinear mesh (a broken factory, not a case to average).
+    using mesh_t=std::shared_ptr<const ChargeDensity::tDensitySampler<T>>;
+    void HoldNonlinearMesh(mesh_t m);
+
     shtv_t   itsSHTs;
     dhtv_t   itsDHTs;
-    const tRealSpaceResidual<T>* itsRealSpaceTerm=nullptr;   //!< the term owning the real-space quadrature, one of itsDHTs; null if none
+    mesh_t   itsNonlinearMesh;   //!< null when no term needs one (HF, 1-electron, an auxiliary-only route)
     hf_htv_t itsHF_HTs;   // HF capable terms require a widened interface for efficient J/K table handling.
 
     SpinGroup itsSpinGroup;

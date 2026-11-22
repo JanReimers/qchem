@@ -38,6 +38,9 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/SlaterExchange.C         # e_x, and Enzyme's v_x / f_x (the plugin rides this file)
     Internal/Imp/VWN_Correlation.C        # e_c, and Enzyme's v_c / f_c (the plugin rides this file)
     Internal/Imp/Libxc_LDA.C
+    Internal/Imp/Libxc_GGA.C              # one libxc GGA functional, the batch face (GGA stage 1, 2026-11-20)
+    Internal/Imp/GGAFunctional.C          # the forgotten-gradient detector (GGA stage 2, 2026-11-21)
+    Internal/Imp/Vxc_DFT_GGA.C            # the GGA XC term on the density-gradient quadrature (GGA stage 2, 2026-11-21)
     )
 target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Energy.C  
@@ -49,7 +52,6 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Factory.C
     Types.C
     Internal/HamiltonianImp.C 
-    Internal/RealSpaceResidual.C
     Internal/GeometryGradient.C           # the term face of the analytic force (GeometryOptimizationPlan §13.2; 2026-11-08)
     Internal/HamiltonianTerm.C 
     Internal/Hamiltonians.C 
@@ -59,6 +61,9 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/Hubbard.C                    # DFT+U: Hubbard_U + LowdinProjector (born on MatrixForward/Adjoint)
     Internal/ACBN0.C                      # DFT+U increment 3: ACBN0 realises HubbardUEstimator over HubbardProjection
     Internal/Libxc_LDA.C
+    Internal/GGAFunctional.C
+    Internal/Libxc_GGA.C
+    Internal/Vxc_DFT_GGA.C                # the GGA XC term (GGA stage 2, 2026-11-21)
     Internal/IonIon.C
     Internal/Kinetic.C
     Internal/Terms.C

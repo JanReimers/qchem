@@ -22,6 +22,7 @@ import qchem.Mesh.Builder;   // MeshBuilder (efficient incremental accumulation)
 import qchem.Mesh.BeckePartition;   // PeriodicBeckeWeight: the ONE periodic partition (the build and its derivative)
 import qchem.SymmetrizeMesh; // MakeInvariantAngularMesh + FoldPointsPeriodic (the §6a W2b site-adapted mesh)
 import qchem.Ewald;          // EwaldEnergy (IonIonEnergy: a periodic cell's ion-ion sum)
+import qchem.Symmetry.Lattice_3D.SpaceGroup;   // SpaceGroup::Detect (MakeSymmetry)
 import qchem.Reporting;      // the Becke mesh's fields, one level into the caller's report scope (inert when no run is open)
 
 namespace qchem {
@@ -343,7 +344,8 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     { switch (r) {
         case qcMesh::RadialKind::MHL:    return "MHL";
         case qcMesh::RadialKind::Log:    return "Log";
-        case qcMesh::RadialKind::Linear: return "Linear"; }
+        case qcMesh::RadialKind::Linear: return "Linear";
+        case qcMesh::RadialKind::DE2:    return "DE2"; }
       return "?"; };
     size_t nDirs=0;
     if (angPerAtom) for (const auto& a : *angPerAtom) nDirs=max(nDirs, a.size());
@@ -354,7 +356,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     const size_t kept=mesh.size();
     const double angRot=angPerAtom ? 0.0 : mp.angRot;   // a site-adapted rule is the site's own: the rotation applies to the plain factory grid only
     std::cout<<"[Becke grid] natom="<<natom<<" radial="<<RadialName(mp.radial)<<" nR="<<mp.nRadial
-             <<" alpha="<<mp.mhl_alpha<<" angular="<<(angPerAtom?"SITE-ADAPTED":AngularName(mp.angular))
+             <<" alpha="<<(mp.radial==qcMesh::RadialKind::DE2 ? mp.de2_alpha : mp.mhl_alpha)<<" angular="<<(angPerAtom?"SITE-ADAPTED":AngularName(mp.angular))
              <<" L="<<mp.angularDegree<<" ("<<nDirs<<" dirs"<<(angPerAtom?" max/atom":"")<<")";
     if (angRot!=0.0) std::cout<<" angRot="<<angRot;
     std::cout<<" beckeOrder="<<k
@@ -383,7 +385,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     // there and picks no key.  Was a root-anchored EmitAt("grids","becke") -- one key, so a second Becke mesh overwrote it.
     namespace rpt=qchem::report;
     rpt::Set("kind", "Becke"); rpt::Set("natom", (long)natom); rpt::Set("radial", RadialName(mp.radial));
-    rpt::Set("nRadial", mp.nRadial); rpt::Set("mhl_alpha", mp.mhl_alpha);
+    rpt::Set("nRadial", mp.nRadial); if (mp.radial==qcMesh::RadialKind::DE2) { rpt::Set("de2_alpha", mp.de2_alpha); rpt::Set("de2_rMax", mp.de2_rMax); } else rpt::Set("mhl_alpha", mp.mhl_alpha);
     rpt::Set("angular", angPerAtom ? "SiteAdapted" : AngularName(mp.angular)); rpt::Set("L", mp.angularDegree); rpt::Set("angRot", angRot);
     rpt::Set("nDirs", (long)nDirs); rpt::Set("beckeOrder", k); rpt::Set("points", (long)kept);
     rpt::Set("dropped", (long)(total-kept)); rpt::Set("eps", eps);
@@ -462,9 +464,22 @@ void ReportMeshPlaneWaveOrtho(const UnitCell& cell, const qcMesh::Mesh& mesh)
     std::cout<<std::endl;
 }
 
+// WHAT A CELL'S MESH FORCES, from the one descriptor (qcMesh::Forces; doc/Pins.md pin 30, Group face step 3b) in the cell's frame: its
+// lattice, and no centre -- a cell has a lattice of sites, and no field periodic on a lattice is spherical about one point (only a
+// constant is both).  So the radial-only set (angular none) cannot exist here: a CONSTRUCTION REFUSAL, the descriptor's own reason.
+// \a mp is the mesh AS BUILT: an Auto kind reaching the uniform branch is stamped as the uniform raster it became.
+static Symmetry::GroupPtr CellMeshForces(const UnitCell& cell, const qcMesh::MeshParams& mp)
+{
+    const auto H=qcMesh::Forces(mp, Symmetry::Frame{.lattice=cell.GetCellMatrix(), .centre={}});
+    if (!H) throw std::invalid_argument("the periodic cell mesh: "+H.Error()+" (doc/Pins.md pin 30)");
+    return H.Value();
+}
+static qcMesh::MeshParams AsUniform(qcMesh::MeshParams mp) {mp.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Uniform); return mp;}
+
 qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
                                              const std::vector<Symmetry::SymOp>& ops) const
 {
+    (void)CellMeshForces(*this, mp);   // refuse what cannot exist on a cell, before any point is built
     namespace SL = Symmetry::Lattice_3D;
     assert(!ops.empty());
 
@@ -475,6 +490,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
     if (mp.cellKind!=qcMesh::UnitCellKind::Becke)
     {
         qcMesh::Mesh m=MakeInvariant(CreateIntegrationMesh(mp), GetCellMatrix(), ops, kMeshMatchTol);
+        m.InstallForces(CellMeshForces(*this, AsUniform(mp)));   // the orbit-averaged raster is still this cell's lattice of points
         ReportMeshPlaneWaveOrtho(*this, m);
         return m;
     }
@@ -595,6 +611,7 @@ static qchem::report::json UniformGridFields(const CellGeometry& c, const vec3_t
 // cheap diffuse tails): the XC quadrature for pointwise-nonlinear, sharp-at-the-core fields.
 qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
 {
+    (void)CellMeshForces(*this, mp);   // refuse what cannot exist on a cell, before any point is built
     if (mp.cellKind==qcMesh::UnitCellKind::Becke)
     {
         qcMesh::Mesh mB=MakePeriodicBeckeMesh(*this,mp);
@@ -631,6 +648,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
     // here by the exact inverse FFT, not the NUFFT default (the rho-tilde sampler, OpenWork §4; user ruling 2026-11-04).
     m.InstallFourierSampling(std::make_shared<const MidpointRasterSampling>(ivec3_t(n,n,n),
         ToCartesian(rvec3_t(1,0,0)), ToCartesian(rvec3_t(0,1,0)), ToCartesian(rvec3_t(0,0,1))));
+    m.InstallForces(CellMeshForces(*this, AsUniform(mp)));   // a field on the raster is periodic on this lattice by construction (pin 30)
     ReportMeshPlaneWaveOrtho(*this, m);   // the UNIFORM control: exact orthogonality up to Nyquist
     return m;
 }
@@ -879,6 +897,15 @@ rvec3_t CellGeometry::InverseInterplanarSpacings() const
 double CellGeometry::GetDistance(const rvec3_t& f) const
 {
     return sqrt(f*itsM*f); // ‖A f‖ for fractional f
+}
+
+Symmetry::GroupPtr UnitCell::MakeSymmetry(const Symmetry::GroupTolerance& tol) const
+{
+    namespace SL=Symmetry::Lattice_3D;
+    std::vector<SL::AtomSite> sites;
+    for (const Site& a:Sites()) sites.push_back({a.Z, ToFractional(a.R)});   // spin 0: the SPATIAL group (see Structure::MakeSymmetry)
+    // Detect keeps every coset {W|τ}, so a centred cell's centring translations reach the group, which joins them to the lattice.
+    return Symmetry::CrystalGroup(SL::SpaceGroup::Detect(GetCellMatrix(), sites, tol.length), tol);
 }
 
 std::ostream& UnitCell::Write(std::ostream& os) const

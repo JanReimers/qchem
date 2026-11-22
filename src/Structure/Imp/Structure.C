@@ -3,6 +3,7 @@ module;
 #include <vector>
 #include <memory>
 #include <functional>
+#include <stdexcept>
 
 module qchem.Structure;
 
@@ -108,9 +109,9 @@ void Structure::MoveSites(const std::vector<rvec3_t>& R)
     for (size_t a=0; a<R.size(); a++) GetSite(a).R=R[a];
 }
 
-void Structure::SetNetCharges(const std::function<double(int)>& netChargeOf)
+void Structure::AddNetCharges(const std::function<double(int)>& extraChargeOf)
 {
-    for (size_t a=0; a<GetNumAtoms(); a++) GetSite(a).netCharge=netChargeOf(GetSite(a).Z);
+    for (size_t a=0; a<GetNumAtoms(); a++) GetSite(a).netCharge+=extraChargeOf(GetSite(a).Z);
 }
 
 // Moved from the interface (D-BUILD-BLAST, lane B 2026-11-18): an edit here recompiles this TU, not the ~450 importers of qchem.Structure.
@@ -124,7 +125,6 @@ SiteRange::iterator SiteRange::end  () const {return iterator(itsS,size());}
 SiteRange::SiteRange(const Structure& s) : itsS(&s) {}
 Structure::~Structure() {}
 double Structure::G0Background(const std::function<double(int Z)>&) const {return 0.0;}
-bool Structure::Admits(qcMesh::ImposedSymmetry H) const {return H<=qcMesh::ImposedSymmetry::None;}
 SiteRange Structure::Sites() const {return SiteRange(*this);}
 const Site& SiteRange::At(const Structure* s, size_t i) {return s->GetSite(i);}
 const Site& SiteRange::iterator::operator*() const      {return At(itsS,itsI);}

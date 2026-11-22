@@ -18,6 +18,8 @@ import qchem.UnitCell;                                 // UnitCell (CollocateDen
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.Structure;
+import qchem.Symmetry.Group;   // Symmetry::GroupPtr / TrivialGroup (Forces, Group face step 3)
+import qchem.BasisSet.Fit_Types;   // BasisSet::Forces(VxcFit, Frame): the one source of what a fit family forces
 import qchem.Types;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.Fit_IBS;   // the shared Gaussian-family implementation base we DERIVE
@@ -109,6 +111,8 @@ public:
     //! image sum belongs on this side of the seam rather than in the periodic caller.
     virtual void    BlochPointValues(const rvec3vec_t& pts, const cellphase_t& phase, const UnitCell& A,
                                      mat_t<dcmplx>& Phi) const override;
+    //! The same image terms, k-independent and sparse (\c LatticeCollocation::MakePointImages).
+    virtual ::qchem::BasisSet::PointImages MakePointImages(const rvec3vec_t& pts, const UnitCell& A) const override;
     //! Its derivative (LatticeCollocation's doc): the same images and reach screens, the jets from the radials' Enzyme gradient.
     virtual PointPullback BlochPointPullback(const rvec3vec_t& pts, const rvec_t& c, const chmat_t& D, const cellphase_t& phase,
                                              const UnitCell& A, const Structure* st) const override;
@@ -178,7 +182,7 @@ public:
     //! The run report's name for this fit.  Not the cache identity: \c BasisSetID stays the shells' own.
     virtual std::string Name() const override {return itsName;}
     //! Atom-centred Gaussians of every l on the structure's sites: no group of their own ({e}, doc/Pins.md pin 30).
-    virtual qcMesh::ImposedSymmetry Imposes() const override {return qcMesh::ImposedSymmetry::None;}
+    virtual Symmetry::GroupPtr      Forces () const override {return BasisSet::Forces(VxcFit::Auxiliary, {}).Value();}   //!< the molecular A1 set: {e}
     virtual rsmat_t MakeOverlap() const override {return MakeOverlap2C(this);}
     // d/dR (GeometryOptimizationPlan §13.2): no geometry derivative for this fit block yet (the Dunlap increment adds the fit faces').
     virtual bool CanPullbackOverlap() const override {return false;}

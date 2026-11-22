@@ -38,11 +38,13 @@ import qchem.Mesh.SiteMultipoles;           // MultipoleFitSpace: the site multi
 import qchem.Symmetry.Lattice_3D.Fold;      // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
 import qchem.Symmetry;                      // sym_t / SymMap
 import qchem.SlotMap;                       // InstanceSlotMap: the per-block adjoint views, by the block's instance
+import qchem.BasisSet.GradOverlap3C;   // the δ basis's gradient 3-centre overlap (GGA stage 2)
 import qchem.BasisSet.PairProjection;  // ScreenedMatrixIntegrator -- the pair route's MatrixAdjoint view
 import qchem.BasisSet.GSpaceDensityProjector;
 import qchem.BasisSet.PointSetPullback;   // the block face the Becke mesh's pullback asks (READY 4)   // the BALL route's ρ̃ (V-ONE-OF-N 3c)
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Types;
+import qchem.Symmetry.Group;                 // Forces (Group face step 3)
 
 export namespace qchem::ChargeDensity
 {
@@ -141,7 +143,7 @@ public:
     //! =v^P(\rho)\f$).  Fold star-average applies per channel (collinear: the spatial ops act channel-wise).
     const rvec_t& RhoPol(const tChargeDensity<T>* cd, const Spin& s) const override;
     XCRhoSource RhoSource() const override {return itsSource;}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsFit->Imposes();}   //!< the \f$\delta\f$ basis's ({e})
+    Symmetry::GroupPtr      Forces () const override {return itsFit->Forces ();}
     //! R2.1: measured at the two projector calls (\c Rho, \c RhoPol), on the density just sampled -- the cost is one copy of the
     //! raster per refresh.  0 on a free run.
     std::optional<double> GroupResidual() const override {return itsGroupResidual;}
@@ -294,6 +296,100 @@ public:
     Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const robs_t* bs, const rvec_t& v, const hmat_t<double>& D, const Structure* st) const override;
 };
 
+//! \brief THE GRADIENT PROJECTOR (GGA stages 2-3): the density's ONE operation (\c tChargeDensity::Project) onto the δ basis's GRADIENT
+//! 3-centre overlap, so \f$\nabla\rho\f$ at the points comes off the density exactly as \f$\rho\f$ does -- the density contracts its own D, and
+//! no density face changes.  Its coefficient axis is 3N long, component-major (\c BasisSet::Integrals_GradOverlap3C).  Per block it vends the
+//! forward + adjoint PAIR (\c ScreenedMatrixIntegrator over the tensor), so the gradient half of H is the exact transpose of what sampled it.
+//! A density with no D (the seed) projects its FIELD: the field's own analytic gradient at the points.  The \c Forward overloads are each
+//! lineage's block faces (CRTP, as \c DeltaAxisFitFaces), so the periodic projector serves the Bloch AND the real TRIM blocks.
+template <class Self, class T> class GradProjectorFaces;
+template <class Self> class GradProjectorFaces<Self,double>
+    : public virtual BasisSet::PairProjector<double>
+{
+public:
+    const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const override
+        {return static_cast<const Self&>(*this).template Integrator<double>(orb);}
+};
+template <class Self> class GradProjectorFaces<Self,dcmplx>
+    : public virtual BasisSet::PairProjector<dcmplx>
+{
+public:
+    const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override
+        {return static_cast<const Self&>(*this).template Integrator<double>(orb);}
+    const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
+        {return static_cast<const Self&>(*this).template Integrator<dcmplx>(orb);}
+};
+
+template <class T> class DeltaGradientProjector
+    : public GradProjectorFaces<DeltaGradientProjector<T>,T>
+{
+public:
+    //! \a fb must have the gradient face (THROWS \c invalid_argument otherwise); \a mesh is its quadrature (one point per function).
+    DeltaGradientProjector(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>> fb, const qcMesh::Mesh& mesh);
+    //! The block's forward + adjoint pair over its gradient tensor (\a U the block scalar), cached for the run (geometry-fixed).
+    template <class U> const ScreenedMatrixIntegrator<U>& Integrator(const BasisSet::Orbital_DFT_IBS<U,T>& orb) const;
+    //! \f$\nabla f(r_g)\f$, component-major: the field's own gradient (\c ScalarFunction::Gradient) at each point.
+    Projections ProjectField(const ScalarFunction<double>& f) const override;
+    size_t NumCoefficients() const override {return 3*itsPoints.size();}
+private:
+    template <class U> const InstanceSlotMap<ScreenedMatrixIntegrator<U>>& Cache() const
+    {
+        if constexpr (std::is_same_v<U,double>) return itsIntR;
+        else                                    return itsIntC;
+    }
+    std::shared_ptr<const BasisSet::FIT_SF_ABS<T>>          itsFit;    //!< co-owned: the tensors' closures capture its tables
+    rvec3vec_t                                              itsPoints;
+    std::shared_ptr<const rvec_t>                           itsW3;     //!< the mesh weights, tiled once per component (\c Integrate only)
+    InstanceSlotMap<ScreenedMatrixIntegrator<double>>       itsIntR;
+    InstanceSlotMap<ScreenedMatrixIntegrator<dcmplx>>       itsIntC;   //!< used on the periodic lineage only
+    qchem::LazyLock                                         itsIntLock;
+};
+
+//! \brief THE SINGLES DENSITY-GRADIENT STRATEGY (GGA stages 2-3, the point route): \a Base (the Singles strategy of the lineage) plus
+//! \f$\nabla\rho_\sigma\f$ through \c DeltaGradientProjector and the \f$\{v,\mathbf{w}\}\f$ gather.  Always spin-resolved: \c Rho is the sum of the
+//! channels, so one serial-keyed cache answers every face (\c tDensityGradientSampler).
+//! REFUSES (throws) what it cannot sample exactly: a folded quadrature (constructor), and a density mixed as a field whose exact source is
+//! retained (\c GradRhoPol: the cusp-deficit correction is a G-series whose gradient no field gives yet).
+template <class T, class Base=tSinglesDensitySampler<T>> class tSinglesGradientSampler
+    : public         Base
+    , public virtual tDensityGradientSampler<T>
+{
+public:
+    tSinglesGradientSampler(typename tSinglesDensitySampler<T>::fit_t fit, BasisSet::FitQuadrature quad);
+    using Base::Matrix;
+    //! \f$\rho=\rho_\uparrow+\rho_\downarrow\f$ off the spin cache (never the base's scalar cache: see the class note).
+    const rvec_t& Rho(const tChargeDensity<T>* cd) const override;
+    const rvec3vec_t& GradRhoPol(const tChargeDensity<T>* cd, const Spin& s) const override;
+    hmat_t<T> Matrix(const tobs_t<T>* bs, const rvec_t& v, const rvec3vec_t& w) const override;
+    //! Warms ρ AND ∇ρ, spin-resolved, whatever \a polarized says (the run's shape is the term's collapse, not this cache's).
+    void WarmForDensity(const tChargeDensity<T>* cd, bool polarized) const override;
+protected:
+    //! The {v, w} gather on a block of scalar \a U (a Bloch block, or the periodic run's real TRIM block).
+    template <class U> hmat_t<U> MatrixVW(const tobs_t<U>* bs, const rvec_t& v, const rvec3vec_t& w) const;
+private:
+    rvec3vec_t ProjectGradDM(const tDM_CD<T>& dm) const;
+    rvec3vec_t ProjectGradField(const tChargeDensity<T>& cd) const;
+    rvec3vec_t Unpack(const rvec_t& c) const;   //!< component-major 3N -> one 3-vector per point
+
+    DeltaGradientProjector<T> itsGrad;
+    mutable rvec3vec_t itsGradUp, itsGradDn;
+    mutable size_t     itsGradVersion=size_t(-1);
+    mutable rvec_t     itsRhoSum;
+    mutable size_t     itsRhoSumVersion=size_t(-1);
+};
+
+//! \brief The PERIODIC singles density-gradient strategy (GGA stage 3): the transition and real-TRIM faces of \c SinglesDensitySampler, the
+//! gradient faces above, and the real TRIM block's {v, w} gather.
+class SinglesGradientSampler
+    : public         tSinglesGradientSampler<dcmplx, SinglesDensitySampler>
+    , public virtual DensityGradientSampler
+{
+public:
+    using tSinglesGradientSampler<dcmplx, SinglesDensitySampler>::tSinglesGradientSampler;
+    using tSinglesGradientSampler<dcmplx, SinglesDensitySampler>::Matrix;
+    rsmat_t Matrix(const robs_t* bs, const rvec_t& v, const rvec3vec_t& w) const override {return this->template MatrixVW<double>(bs, v, w);}
+};
+
 //! \brief THE PAIR STRATEGY: \f$\rho\f$ COLLOCATED from the density-matrix through the orbital-pair
 //! 3-centre tensor, and \f$H_{xc}\f$ through that same tensor's RAW ADJOINT -- the production GPW route.
 //!
@@ -310,7 +406,7 @@ public:
 //! route and the H route were two members that happened to agree -- see the \c DensitySampler header for
 //! what that permitted.
 //!
-//! \warning TWO ROUTES, LATCHED (R2.16).  A density-matrix-backed density answers \c GetRhoOnGrid with
+//! \warning TWO ROUTES, LATCHED (R2.16).  A density-matrix-backed density projects onto the raster (\c MakeRasterDensityProjector) as
 //! the RAW collocated \f$\rho_{DM}\f$; the matrix-free SEED answers EMPTY, and then \f$\rho\f$ comes from the
 //! BALL round trip (\f$\tilde\rho\f$ inverse-FFT) while \f$H\f$ stays the raw adjoint.  (A plane-wave lineage, whose
 //! ball holds every pair, no longer reaches this class: \c ProjectedDensitySampler, V-XC-ONE-TERM step 2, 2026-11-09.)  These minimise DIFFERENT functionals, so the route is latched
@@ -346,7 +442,7 @@ public:
     //! missing was the per-channel CACHE and the channel walk, both of which the singles route already had.
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
     XCRhoSource RhoSource() const override {return itsSource;}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsFitBasis->Imposes();}   //!< the plane-wave fit on its raster (T)
+    Symmetry::GroupPtr      Forces () const override {return itsFitBasis->Forces ();}
     //! R2.1: the raster route does not star-average \f$\rho\f$ at all, so it cannot say how far from the group its input sat --
     //! and an imposed run on this route feeds XC an UNPROJECTED density (the Becke singles route is the one that projects).
     std::optional<double> GroupResidual() const override {return std::nullopt;}
@@ -395,6 +491,10 @@ private:
     //! The seed's ρ̃ on this basis (iteration 0 only: a matrix-free seed has no D to collocate).  The ball ADJOINT is gone from this
     //! strategy (V-XC-ONE-TERM step 2): a plane-wave lineage runs on \c ProjectedDensitySampler.
     std::unique_ptr<BasisSet::PairProjector<dcmplx>> itsRhoProjector;
+    //! The RAW ρ_DM on the same raster (R1.0n/o): \f$\langle\delta_g|\rho\rangle\f$, asked as every density answers anything,
+    //! \c Project.  This strategy serves only the GPW lineage (a plane-wave one runs on \c ProjectedDensitySampler), so every
+    //! D-backed block has the raw route; a matrix-free density answers its own raster values, empty for the seed.
+    std::unique_ptr<BasisSet::PairProjector<dcmplx>> itsRasterProjector;
     mutable rvec_t itsRho;                        //!< ρ(r) on the raster for the current density serial
     mutable size_t itsRhoVersion=size_t(-1);      //!< density logical-clock serial itsRho was built for
     mutable bool   itsRhoIsRaw=false;             //!< is itsRho the RAW collocated ρ_DM (vs the ball round trip)?
@@ -461,7 +561,7 @@ public:
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
     //! \c ExactFit when \f$P\f$ is exact (the ball holds every orbital pair), \c Fitted otherwise (pin 28).
     XCRhoSource RhoSource() const override {return itsSource;}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsFitBasis->Imposes();}   //!< the ball (T)
+    Symmetry::GroupPtr      Forces () const override {return itsFitBasis->Forces ();}
     //! This route does not star-average on a quadrature (the projection does it in G space), so it cannot say how far from the group
     //! its input sat.
     std::optional<double> GroupResidual() const override {return std::nullopt;}
@@ -533,8 +633,8 @@ public:
     //! space reproduces the raster's field EXACTLY at the points (the plane-wave ball over a raster that is itself Parseval-exact in it);
     //! every other case answers \c Fitted.  Default \c Fitted: a fit space that does not answer is NOT certified (fail closed).
     virtual XCRhoSource SourceAtPoints(XCRhoSource rasterSource) const {(void)rasterSource; return XCRhoSource::Fitted;}
-    //! What the fit space imposes on the potential it carries (\c DensitySamplerBase::Imposes; doc/Pins.md pin 30).  Pure: each states it.
-    virtual qcMesh::ImposedSymmetry Imposes() const=0;
+    //! What the fit space forces on the potential it carries, as a Group (\c DensitySamplerBase::Forces; doc/Pins.md pin 30).  Pure: each states it.
+    virtual Symmetry::GroupPtr Forces() const=0;
 };
 
 //! \brief THE PLANE-WAVE BALL as a fit space (I3, V-XC-ONE-TERM step 4): forward = the raster's forward FFT truncated to the ball and synthesized
@@ -554,7 +654,7 @@ public:
     XCRhoSource SourceAtPoints(XCRhoSource rasterSource) const override
     {return rasterSource==XCRhoSource::ExactFit ? XCRhoSource::ExactFit : XCRhoSource::Fitted;}
     std::string Name() const override {return "the plane-wave ball";}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsFitBasis->Imposes();}   //!< the ball's (T)
+    Symmetry::GroupPtr      Forces () const override {return itsFitBasis->Forces ();}
 private:
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsFitBasis;
     BasisSet::FitQuadrature itsPoints;
@@ -582,17 +682,17 @@ public:
     //! The set's values at a chunk of points (points x functions): the one thing the fit space asks of the set besides its metric.
     typedef std::function<rmat_t(const rvec3vec_t&)> Evaluator;
     //! \a a1: the real Gamma A1 block; \a points: the XC mesh, which is also the inner strategy's (the delta basis on it).
-    GaussianFitSpace(std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1, BasisSet::FitQuadrature points);
+    GaussianFitSpace(const LatticeSummedSet& a1, BasisSet::FitQuadrature points);
     //! \brief The same fit space over ANY Gaussian set with an analytic metric \a S and an evaluator \a eval at points: the molecular A1
     //! fit (FittedVxc's retirement, lane S 2026-11-15) and the periodic Gamma block alike.  \a name is the report's and console's.
-    //! \a imposes: what the set imposes (pin 30) -- the fit basis's own \c Imposes for the molecular / atom A1 fit.
-    GaussianFitSpace(const rsmat_t& S, Evaluator eval, BasisSet::FitQuadrature points, std::string name, qcMesh::ImposedSymmetry imposes);
+    //! \a forces: what the set forces (pin 30) -- the fit basis's own \c Forces for the molecular / atom A1 fit.
+    GaussianFitSpace(const rsmat_t& S, Evaluator eval, BasisSet::FitQuadrature points, std::string name, Symmetry::GroupPtr forces);
     //! ⛔ THROWS: a fitted rho never reaches XC (pin 28; the projected A1 cell was deleted with the ρ axis, 2026-11-15).  This fit space
     //! serves only the fitted-potential cell's v (\c OnRaster).
     rvec_t AtPoints(const rvec_t& rho) const override;
     rvec_t OnRaster(const rvec_t& v  ) const override {return Resample(v);}
     std::string Name() const override {return itsName;}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsImposes;}
+    Symmetry::GroupPtr      Forces () const override {return itsForces;}
     //! \brief R x = Phi_X S^-1 Phi_X^T (w x): \a x fitted onto the set in the XC quadrature and sampled back at the points -- the
     //! fitted-potential cell's whole operation (A1 x rho[D]: v(rho[D]) fitted for H, pin 32).
     rvec_t Resample(const rvec_t& atPoints) const;
@@ -611,7 +711,7 @@ private:
     Evaluator   itsEval;
     BasisSet::FitQuadrature itsPoints;
     std::string itsName;
-    qcMesh::ImposedSymmetry itsImposes;   //!< the periodic Gamma block's T, or the molecular / atom fit basis's own answer
+    Symmetry::GroupPtr      itsForces;    //!< T of the periodic Gamma block's cell, or the molecular / atom fit basis's own \c Forces
     rsmat_t     itsSinv;
     double      itsMetricGap=0.0;
 };
@@ -628,7 +728,7 @@ public:
     rvec_t AtPoints(const rvec_t& rho) const override;
     rvec_t OnRaster(const rvec_t& v  ) const override {return Resample(v);}
     std::string Name() const override {return "the multipole channels";}
-    qcMesh::ImposedSymmetry Imposes() const override {return qcMesh::ImposedSymmetry::None;}   //!< channels on every site: no group of their own
+    Symmetry::GroupPtr      Forces () const override {return BasisSet::Forces(BasisSet::VxcFit::Multipole, {}).Value();}   //!< channels on every site: {e}
     rvec_t Resample(const rvec_t& atPoints) const;
 private:
     std::shared_ptr<const qcMesh::SiteMultipoles> itsSites;
@@ -653,7 +753,7 @@ public:
     double Integrate(const rvec_t& f) const override {return itsInnerT->Integrate(f);}
     size_t NumPoints() const override {return itsInnerT->NumPoints();}
     XCRhoSource RhoSource() const override {return itsInnerT->RhoSource();}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsFit->Imposes();}   //!< v lives in the fit space: its group
+    Symmetry::GroupPtr      Forces () const override {return itsFit->Forces ();}
     std::optional<double> GroupResidual() const override {return itsInnerT->GroupResidual();}
     rvec_t SiteIntegrals(const rvec_t& f) const override {return itsInnerT->SiteIntegrals(f);}
     const rvec_t& Rho(const tChargeDensity<T>* cd) const override {return itsInnerT->Rho(cd);}
@@ -701,7 +801,7 @@ public:
     //! What XC sees is the fit space's synthesis, so the FIT SPACE certifies it (never the raster's own source: the raster's rho[D] truncated
     //! to a ball is not rho[D]).
     XCRhoSource RhoSource() const override {return itsFit->SourceAtPoints(itsRaster->RhoSource());}
-    qcMesh::ImposedSymmetry Imposes() const override {return itsFit->Imposes();}   //!< the fit space's (the ball: T)
+    Symmetry::GroupPtr      Forces () const override {return itsFit->Forces ();}
     std::optional<double> GroupResidual() const override {return std::nullopt;}
     const rvec_t& Rho(const cChargeDensity* cd) const override;
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;

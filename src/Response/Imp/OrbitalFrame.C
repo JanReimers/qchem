@@ -83,7 +83,7 @@ OrbitalFrame<T>::ToAO(const BlockPairs& dD, std::shared_ptr<const Symmetry::Sele
         // ⛔ THE BZ WEIGHT (found 2026-09-29, the first MULTI-k kernel run: NiO k222 chi came out 14x the
         // finite-difference chi).  R0 hands back each block's δD UNWEIGHTED (the Reference weights only its
         // Contract), but a block's AO density carries w_k -- the composite sums blocks "already BZ-weighted"
-        // (Composite_Fourier) -- so the transition density must too, or δρ is N_k times too large.  Every
+        // (tComposite_CD::Project) -- so the transition density must too, or δρ is N_k times too large.  Every
         // Γ-only gate had w = 1 and could not see it.  (A pair's two blocks share w: a full mesh, D5.)
         const cmat_t M=itsRef.Weight(b)*Complexify(bra.C)*dD.m[b]*blazem::ctrans(Complexify(ket.C));
         mat_t<T> A(M.rows(), M.columns());
@@ -95,7 +95,7 @@ OrbitalFrame<T>::ToAO(const BlockPairs& dD, std::shared_ptr<const Symmetry::Sele
             for (size_t i=0;i<A.rows();i++) for (size_t j=0;j<A.columns();j++) A(i,j)=H(i,j);
         }
         else if constexpr (std::is_floating_point_v<T>)
-            throw std::logic_error("OrbitalFrame::ToAO: a (k+q, k) pair of REAL blocks -- q != 0 rides forceComplex "
+            throw std::logic_error("OrbitalFrame::ToAO: a (k+q, k) pair of REAL blocks -- q != 0 needs the response planned at setup "
                                    "(doc/LinearResponsePlan.md §3d Q8)");
         else
             A=M;                                   // q != 0: bra x ket, NOT Hermitian (its partner is the (k, k+q) pair)

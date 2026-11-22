@@ -287,14 +287,23 @@ std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const {retur
 void Orbital_IBS::BlochPointValues(const rvec3vec_t& pts, const cellphase_t& phase, const UnitCell& A,
                                    mat_t<dcmplx>& Phi) const
 {
-    const size_t n=GetNumFunctions(), npts=pts.size();
-    Phi=mat_t<dcmplx>(npts,n,dcmplx(0.0));
-    if (npts==0) return;
+    // ONE enumeration (2026-11-19): the dense table IS the image record phased at this k, so the shared-Φ route (the δ fit holding the
+    // record once for every k-block) and this one cannot drift apart.  Bit-identical to the former in-line sum: same images, same
+    // point-outer/offset-inner order, and the record skips only exact zeros, which cannot move an accumulator that starts at +0.
+    const ::qchem::BasisSet::PointImages im=MakePointImages(pts, A);
+    cvec_t ph(im.Offsets().size());
+    for (size_t k=0;k<ph.size();k++) ph[k]=phase(im.Offsets()[k]);
+    Phi=im.Bloch(ph, 0, im.NumPoints());
+}
 
-    // A single orbital reaches sqrt(-ln eps/alpha_min) and its centre sits within a cell span of any
-    // evaluation point, so reach + span covers every image the magnitude screen keeps (the caller's own
-    // note; the per-function screen inside operator() then prunes it sparse per point).
-    const double maxReach=sqrt(-log(1e-10)/MinExponent());   // qchem.CMath, per the include convention
+// The image terms with no phase.  A single orbital reaches sqrt(-ln eps/alpha_min) and its centre sits within a cell span of any
+// evaluation point, so reach + span covers every image the magnitude screen keeps (the per-function screen inside operator() then prunes
+// it sparse per point).  Point-outer/offset-inner order, so PointImages::Bloch at any k's phases is that table bit for bit.  Serial: the caller chunks the
+// points and threads over the chunks (qcBasisSet hosts no parallel region, as for the dense build).
+::qchem::BasisSet::PointImages Orbital_IBS::MakePointImages(const rvec3vec_t& pts, const UnitCell& A) const
+{
+    const size_t n=GetNumFunctions(), npts=pts.size();
+    const double maxReach=sqrt(-log(1e-10)/MinExponent());
     const rvec3_t ctr=A.ToCartesian(rvec3_t(0.5,0.5,0.5));
     double cellRad=0.0;
     for (int cx=0;cx<=1;cx++) for (int cy=0;cy<=1;cy++) for (int cz=0;cz<=1;cz++)
@@ -304,21 +313,20 @@ void Orbital_IBS::BlochPointValues(const rvec3vec_t& pts, const cellphase_t& pha
 
     std::vector<ivec3_t> offs=LatticePointsInSphere(A, Rcut);
     std::vector<rvec3_t> Rc(offs.size());
-    cvec_t               ph(offs.size());
-    for (size_t k=0;k<offs.size();k++)
-    {
-        Rc[k]=A.ToCartesian(rvec3_t(double(offs[k].x),double(offs[k].y),double(offs[k].z)));
-        ph[k]=phase(offs[k]);
-    }
+    for (size_t k=0;k<offs.size();k++) Rc[k]=A.ToCartesian(rvec3_t(double(offs[k].x),double(offs[k].y),double(offs[k].z)));
 
+    ::qchem::BasisSet::PointImages im(n, std::move(offs));
     for (size_t q=0;q<npts;q++)
+    {
         for (size_t k=0;k<Rc.size();k++)
         {
             const rvec3_t d=pts[q]-Rc[k]-ctr;
             if (d.x*d.x+d.y*d.y+d.z*d.z > rr*rr) continue;   // image cannot reach this point
-            const rvec_t chi=(*this)(pts[q]-Rc[k]);
-            for (size_t i=0;i<n;i++) Phi(q,i)+=ph[k]*chi[i];
+            im.AddImage(k, (*this)(pts[q]-Rc[k]));
         }
+        im.EndPoint();
+    }
+    return im;
 }
 
 // THE DERIVATIVE of a point-set quadrature over BlochPointValues (LatticeCollocation::BlochPointPullback; lane B 2026-11-19).  Per point q,

@@ -92,7 +92,11 @@ public:
         }
         return g;
     }
-    static const Structure& Structure_(const MoleculeCalculation& c) {return *c.itsStructure;}
+    //! The structure \a c was built AT, with its TRUE charges (the setup's): what TermEnergiesAt / TermForcesAt take as `at`.  Not the
+    //! calculation's own point structure, whose sites already carry Z - Zion under a pseudopotential: a point re-entering a calculation
+    //! would add the core charge twice (Structure::AddNetCharges, 2026-11-21).  Every caller here builds \a c by Prepare, at the setup's
+    //! positions.
+    static const Structure& Structure_(const MoleculeCalculation& c) {return *c.itsSetup->structure;}
     //! THE HAMILTONIAN'S FORCE (GeometryOptimizationPlan §13) at the carried density \a D with the energy-weighted density \a W.
     static rvec3vec_t Forces(const MoleculeCalculation& c, const MoleculeCalculation::Carry& D, const MoleculeCalculation::Carry& W)
     {

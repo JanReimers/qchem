@@ -71,6 +71,7 @@ import qchem.Structure;      // Structure (the nuclear-attraction centres)
 import qchem.UnitCell;       // UnitCell (the cell geometry the internal enumeration walks)
 import qchem.Types;          // rvec3_t, cvec_t, chmat_t, rmat_t, ivec3_t
 export import qchem.Math.SolidHarmonics;   // Math::CartGaussian
+export import qchem.BasisSet.PointImages;      // PointImages: the k-independent images (MakePointImages)
 export import qchem.BasisSet.GridResolution;   // GaussianSharpness IS-A GridResolution (V-BS-RASTER)
 export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;     // Tolerances() / BindTolerances' type
 export import qchem.BasisSet.Gaussian.Lattice.LatticeScreener;   // LatticeScreener -- the collocation tolerance policy
@@ -275,6 +276,10 @@ public:
     //! ~1e-16 of summing before transforming instead of after.
     virtual void BlochPointValues(const rvec3vec_t& pts, const cellphase_t& phase, const UnitCell& A,
                                   mat_t<dcmplx>& Phi) const = 0;
+    //! \brief The SAME sum before the phases: every nonzero image value \f$\chi_i(r_q-R)\f$ that \c BlochPointValues adds, in its
+    //! order, so \c PointImages::Bloch at the phases of any k reproduces \c BlochPointValues at that k BIT FOR BIT.  k-independent:
+    //! one record serves every k-block over this basis (the shared δ-fit \f$\Phi\f$, lane S 2026-11-19).
+    virtual BasisSet::PointImages MakePointImages(const rvec3vec_t& pts, const UnitCell& A) const = 0;
     //! \brief THE DERIVATIVE of a point-set quadrature over \c BlochPointValues, beside it (GeometryOptimizationPlan §13.2; the user's
     //! 2026-11-08 "derivative beside" ruling; lane B 2026-11-19): for \f$E=\sum_q c_q\,\mathrm{Re}\sum_{ij}D_{ji}\overline{\Phi_{qi}}\Phi_{qj}\f$
     //! (= Re Tr(D M), M the point-set matrix a quadrature with weights x field \a c assembles) at FIXED \a c and Hermitian \a D:

@@ -77,7 +77,7 @@ CrystalImposition ResolveImposition(const Lattice_3D& lat, const ImpositionOptio
         reportDropped("Shubnikov", nShubnikov, nOff);
         // The density faces get ONLY the σ=None (sublattice-preserving) subgroup.  MEASURED (MnO run 37, 2026-08-11): they must
         // NOT get the flip ops' spatial parts -- the composite star-average is applied PER CHANNEL (each channel's
-        // GetFourierDensity/GetRhoOnGrid symmetrizes ITSELF, and the ρ̃ MIXER consumes the channels separately through exactly
+        // Project symmetrizes ITSELF, and the ρ̃ MIXER consumes the channels separately through exactly
         // those faces), and a sublattice-swap op is not a symmetry of ONE channel: averaging under it equalizes the channels
         // and annihilates m MACHINE-EXACTLY at iteration 1 (the seed reads m1=+0.717, the first mixed density m1=6e-14).
         // Each channel IS invariant under the σ=None subgroup, so that is the correct per-channel projector; the flip content
@@ -125,7 +125,7 @@ CrystalImposition ResolveImposition(const Lattice_3D& lat, const ImpositionOptio
 //  - uniform grid (the cross cell): group-average it invariant (W1's MakeInvariant -- a no-op dedup when the grid is already
 //    commensurate).
 // Either way the geometry-fixed orbit fold feeds the engine's per-iteration rho star-average.  The CALLER opens the report
-// scope ("xcQuadrature"), so every mesh built below reports one level into it.
+// scope ("nonlinearMesh"), so every mesh built below reports one level into it.
 qcMesh::FoldedMesh CrystalImposition::MakeXCMesh(const qcMesh::MeshParams& mp) const
 {
     assert(cell && "CrystalImposition::MakeXCMesh: an imposition not made by ResolveImposition has no cell");

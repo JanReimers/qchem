@@ -8,6 +8,7 @@ module;
 export module qchem.Hamiltonian.Factory;
 export import qchem.Hamiltonian;
 import qchem.BasisSet.Orbital_1E_IBS;   // the periodic A1 Vxc fit's real Gamma set (the solid door's vxcAux)
+import qchem.ChargeDensity.DensitySampler;   // LatticeSummedSet: the periodic A1 set + the translations it forces (Group face step 3a)
 import qchem.Hamiltonian.Types;
 export import qchem.Symmetry.Spin;   // SpinGroup -- the imposed spin subgroup every Factory takes
 import qchem.Mesh;
@@ -27,15 +28,16 @@ export namespace qchem::Hamiltonian
     //! The one Hamiltonian method/model enum (unified -- HF, DFT, and the relativistic/1-e cases that the
     //! GUI never uses but the unit tests rely on).  E1 = 1 electron, DE1 = Dirac 1 electron.  The DFT
     //! members name a FUNCTIONAL: Xalpha (Slater exchange, tuned alpha) and LDA (parameter-free Dirac
-    //! exchange + VWN5 correlation -- the molecular default).  Next functional milestone: PBE (a GGA --
-    //! needs density-gradient machinery on the mesh, not just an enum value; see doc/FacadeDFTPlan.md).
+    //! exchange + VWN5 correlation -- the molecular default).  The GGAs (PBE, PBEsol, BLYP; GGA stage 1, user ruling 2026-11-20)
+    //! are named here and built as functionals, but every XC route REFUSES them by policy until it samples \f$\nabla\rho\f$
+    //! (GGA design note §5, stages 2-4).
     //!
     //! This is the FRIENDLY front token.  Its DFT members are a shorthand that resolves to an XCFunctional
     //! (below); for finer control -- a specific libxc id, a non-default alpha -- pass an XCFunctional directly.
     //! PADE (2026-11-12, user ruling on the OpenWork PADE row, option a): the Goedecker-Teter-Hutter Padé LDA (libxc
     //! LDA_XC_TETER93, id 20; CP2K's XC_FUNCTIONAL PADE), the functional every GTH-PADE pseudopotential was fitted with.  A run
     //! STATES it; LDA (Dirac + VWN5) stays the default, and a PP fitted with another functional than the run's is a WARN AND RUN.
-    enum class Model {E1,HF,DE1,DHF, Xalpha,LDA,PADE};
+    enum class Model {E1,HF,DE1,DHF, Xalpha,LDA,PADE, PBE,PBEsol,BLYP};
     // (The Hamiltonian's polarization is qchem::SpinGroup -- the imposed spin subgroup, one currency for the
     //  Hamiltonian, the wave function and the density, V1.37.  The old Pol enum is gone.)
 
@@ -51,21 +53,30 @@ export namespace qchem::Hamiltonian
         SlaterXalpha,   //!< Slater-Dirac exchange only, scaled by alpha (classic Xα; alpha=2/3 is pure Dirac)
         DiracVWN,       //!< Dirac exchange (alpha=2/3) + spin-native VWN5 correlation -- parameter-free LSDA (== Model::LDA)
         LibXC,          //!< an LDA functional from libxc, selected by integer id (libxc.gitlab.io/functionals)
+        LibXCGGA,       //!< a GGA from libxc: exchange \c libxcId plus correlation \c libxcCorrId (0: none) -- PBE {101,130} (GGA stage 1)
     };
 
     //! A chosen functional plus its parameters.  Designated-initializer friendly:
     //!     XCFunctional{.kind=XC::SlaterXalpha, .alpha=0.7}
     //!     XCFunctional{.kind=XC::LibXC,        .libxcId=7}
+    //!     XCFunctional{.kind=XC::LibXCGGA,     .libxcId=101, .libxcCorrId=130}   (PBE)
     struct XCFunctional
     {
         XC     kind    = XC::DiracVWN;
         double alpha   = 2.0/3.0;   //!< exchange scaling, XC::SlaterXalpha only
-        int    libxcId = 1;         //!< libxc functional id, XC::LibXC only (1 = LDA_X / Slater)
+        int    libxcId = 1;         //!< libxc functional id, XC::LibXC / XC::LibXCGGA (1 = LDA_X / Slater; a GGA's exchange part)
+        int    libxcCorrId = 0;     //!< XC::LibXCGGA only: the correlation part's libxc id (0: none, e.g. an exchange-correlation id)
         bool operator==(const XCFunctional&) const = default;
     };
 
-    //! The DFT \a m as its functional (LDA -> DiracVWN, PADE -> libxc 20, Xalpha -> SlaterXalpha at \a xalpha).  THROWS for a non-DFT model.
+    //! The DFT \a m as its functional (LDA -> DiracVWN, PADE -> libxc 20, Xalpha -> SlaterXalpha at \a xalpha, PBE -> libxc GGA {101,130},
+    //! PBEsol -> {116,133}, BLYP -> {106,131}).  THROWS for a non-DFT model.
     XCFunctional ModelToXC(Model m, double xalpha=2.0/3.0);
+    //! Does the CHOICE \a xc name a GGA (a \c GGAFunctional, whose input TYPE carries \f$\sigma\f$)?  A question about the deck's
+    //! choice, not about a functional object.  What the CLIENT does with it: the setup -- the factory side, the ONE run-time check --
+    //! refuses (policy GGARoute, an Outcome) every route with no density-gradient sampler, which in GGA stage 1 is all of them; from
+    //! stage 2 it picks the GGA term, whose constructor demands the GGA functional and a gradient sampler.
+    bool ConsumesDensityGradient(const XCFunctional& xc);
     //! The model's NAME, as decks, the facades' reports, saved states and a GUI spell it ("LDA", "PADE", "Xalpha", "HF", ...).
     std::string Name(Model);
     //! The inverse of \c Name (exact spelling); empty for a name no model has -- the caller refuses it, naming the choices.
@@ -84,7 +95,7 @@ export namespace qchem::Hamiltonian
     //! name not in the map, naming it: an unmapped fit is a gap in this table, never a silent match.
     std::vector<int> LibxcIDsOfFitted(const std::string& fitted);
     //! The model a run STATES to match a PP fitted with \a fitted (the model whose \c LibxcIDs equal the fit's): "PADE" -> PADE.  Empty when
-    //! no model this code offers matches it (a GTH-PBE PP until GGA lands): the guidance is then "use PPs fitted for the run's functional".
+    //! no model this code offers matches it (a GTH-BP PP: B88 + P86): the guidance is then "use PPs fitted for the run's functional".
     std::optional<Model> ModelForGTHFitted(const std::string& fitted);
     //! One element's PP against the run's functional (user 2026-11-12: most users do not know a PP is tuned to a functional, so the code
     //! tracks it, warns and guides; the GUI shows this record).  The CP2K name is the display LABEL; the comparison is on the libxc ids.
@@ -184,14 +195,14 @@ export namespace qchem::Hamiltonian
     //=== The Vxc product space's symmetry rule (doc/Pins.md pin 30) ===================================
     //! The cell \c AdmitVxc admitted: the fit and the XC point set as stated.
     struct AdmittedVxc { VxcFit fit; qcMesh::UnitCellKind points; };
-    // GroupOf and ImposedBy(VxcFit, Structure) live in qchem.Hamiltonian.Types (pin 30 stage 2): the Vxc builders check the BUILT
-    // realization against the same pre-flight answer, and they cannot see this module.
-    //! \brief Is (structure x Vxc fit x XC point set) an ADMISSIBLE cell?  The rule (doc/Pins.md pin 30) is ONE check:
-    //! \f$H_{fit}\subseteq G\f$ and \f$H_{points}\subseteq G\f$ (\c ImposedBy, \c GroupOf, \c qcMesh::ImposedBy).  Besides it, ONE
-    //! correctness limit (user ruling 2026-11-06): a multipole fit on a periodic structure, whose lattice sum is conditionally convergent.
-    //! A refusal is an expected answer to a user-reachable choice, so it is an Outcome naming the imposed group H_R and the structure's
-    //! G.  Every DFT factory below consults it and throws \c std::invalid_argument with the same reason when handed a refused cell; a
-    //! caller that wants the answer as a value (a setup / deck pre-flight, UTHamiltonian VxcProductSpace) asks here first.
+    //! \brief Is (structure x Vxc fit x XC point set) an ADMISSIBLE cell, asked BEFORE anything is built (doc/Pins.md pin 30)?  Admission
+    //! proper is on the built objects (Group face step 3b; USER RULING 2026-11-21, (A)): the Vxc builder asks the structure's group G to
+    //! contain the realization's and the point set's \c Forces, \f$H_{fit}\subseteq G\f$ and \f$H_{points}\subseteq G\f$.  This is the same
+    //! question asked of G alone, so a setup and deck::Vet refuse a bad deck without building a basis or a mesh; UTHamiltonian
+    //! VxcProductSpace checks it against the built objects.  Besides it, ONE correctness limit (user ruling 2026-11-06): a multipole fit
+    //! on a periodic structure, whose lattice sum is conditionally convergent.  A refusal is an expected answer to a user-reachable
+    //! choice, so it is an Outcome naming the imposed group H_R and the structure's G.  Every DFT factory below consults it and throws
+    //! \c std::invalid_argument with the same reason when handed a refused cell.
     Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure&, VxcFit, const qcMesh::MeshParams&);
     //! The Hartree partner of \c AdmitVxc.  Refuses a multipole fit on a periodic structure, on the direct sum, and past its \f$l\f$ bound.
     Outcome<CoulombRoute,std::string> AdmitCoulomb(const Structure&, const CoulombRoute&, const qcMesh::MeshParams&, VxcFit=VxcFit::Auto);
@@ -266,11 +277,12 @@ export namespace qchem::Hamiltonian
     //! calling -- \c qcMesh::ResolveXCMesh is the policy, and an unresolved \c Auto reads as \c Uniform here.
     //! \a hubbard: the DFT+U manifold list (empty = no Hubbard term).  \a fit carries the rho axis too (\c XCRoute; I3 and the periodic A1).
     //! \a vxcAux: the periodic A1 Vxc fit's real Gamma set -- the A1_exch set on the cell's sites as a GPW block at Gamma -- which a caller
-    //! stating xc.fit Auxiliary builds (V-XC-ONE-TERM step 6: this library does not link the Gaussian factories); ignored otherwise.
+    //! stating xc.fit Auxiliary builds (V-XC-ONE-TERM step 6: this library does not link the Gaussian factories), with T of the cell it is
+    //! summed over (\c LatticeSummedSet::forces, Group face step 3a); ignored otherwise.
     //! \a numElectrons: the run's resolved electron count (SolidSetup's Nelec), the local PP's G = 0 alignment's FIXED N (Ven_PP_Short).
     cHamiltonian* Factory(SpinGroup, const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons,
                           const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh,
                           XCRoute fit = {}, std::vector<HubbardManifold> hubbard = {}, const XCFunctional& xc = {},
-                          std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux = {});
+                          ChargeDensity::LatticeSummedSet vxcAux = {});
 
 } // namespace

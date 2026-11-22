@@ -1,4 +1,5 @@
 DGauss A1 DFT Coulomb Fitting
+KIND fit-coulomb
 
 !
 BASIS="DGauss A1 DFT Coulomb Fitting"

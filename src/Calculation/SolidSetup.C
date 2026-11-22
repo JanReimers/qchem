@@ -21,11 +21,9 @@ import qchem.BasisSet.Gaussian.Point.Factory; // BasisSetData (the registered ba
 import qchem.Hamiltonian.Factory;             // HubbardManifold, VxcFit
 import qchem.SCFAccelerator.Factory;          // Type, AcceleratorParams
 import qchem.ChargeDensity.Seed;              // SeedStrategy
-import qchem.ChargeDensity.AtomicDensity;     // SeedKey
 import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKind
 import qchem.Mesh.XCPolicy;                   // qcMesh::XCMeshDefault (the BeckeXCParams recipe under Auto)
 import qchem.RunPolicy;                       // RunPolicySpec
-import qchem.LASolver;                        // qchem::Ortho
 export import qchem.RunOptions;               // RunOptions: the one options tree (V-FACADE-PARITY P0b-2)
 export import qchem.SetupDecisions;           // AcceleratorOptions (the accelerator block, every structure), the spin rule
 export import qchem.SCFRecipe;                // SCFRecipe (the stage's material regime, beside its accelerator)
@@ -86,6 +84,11 @@ void RequireConsistentSiteCharges(const RunOptions& o, const Structure& st);
 //! (the EXPLICIT two-channel singlet, nUp = nDown) on an odd \a nel, unless \c o.solid.spinsShareFermi lets one Fermi level set the channels
 //! (a metal: the counts are only the split the occupations start from).  Called by the resolve phase and by \c deck::Resolve.
 std::pair<int,int> SpinChannelCounts(const RunOptions& o, int nel);
+//! \brief THE PERIODIC GGA ROUTE (GGA stage 3), asked once the XC mesh and the imposition are resolved (\a xcMesh, \a imposed): a GGA runs
+//! on the FREE Becke δ point route, and every other periodic route REFUSES it by name (policy GGARoute).  A non-GGA passes silently.
+//! \a choseBecke: the setup itself picked the Becke mesh for an unstated one (the row says so).  CLIENTS: the setup (\c Resolve, on what it
+//! resolved) and \c deck::Vet (on the deck's stated mesh; an unstated one is what the setup will choose, Becke).
+void RouteSolidGradient(const RunOptions& o, const qcMesh::MeshParams& xcMesh, bool imposed, bool choseBecke=false);
 
 //! \brief HOW the molecular orbital basis of a GPW run is made at a geometry: the frozen RECIPE a geometry step rebuilds
 //! (doc/CalcNetworkReview.md §3.2 item 2, §7).
@@ -176,9 +179,11 @@ struct SolidSetup : Setup
     //! How \c mol was made, the trim FROZEN; empty when the caller handed a pre-built basis (that setup cannot follow moved atoms).
     std::optional<GaussianBasisRecipe>       recipe;
     bool planeWave = false;   //!< \c opts.solid.orbitalBasis is PlaneWave
+    bool ggaChoseBecke = false;   //!< a GGA with the XC mesh unstated: the setup chose the Becke delta route (policy GGARoute, GGA stage 3)
     //! \brief THE ANSATZ, decided ONCE from k and q (user ruling 2026-11-18): a TRIM block may run REAL (\c GPWParams::hamPreservesReal;
-    //! a non-TRIM block is complex regardless).  False when \c opts.solid.forceComplex is stated or \c opts.solid.responseQMeshes plans a
-    //! response.  The run's ONE source of the decision: nothing reads \c opts.solid.forceComplex after Resolve.
+    //! a non-TRIM block is complex regardless).  False exactly when \c opts.solid.responseQMeshes plans a response.  The run's ONE source
+    //! of the decision; there is no user knob (\c forceComplex retired 2026-11-19).  A test comparing real against complex on purpose sets
+    //! it on a COPY of a resolved setup (tests may cheat).
     bool realTRIMBlocks = true;
     std::vector<int> decoration;   //!< \c spins, or all zeros: the per-site spins the run was built with (the +U site groups read it)
     //! \brief THE GROUP A GEOMETRY STEP MUST KEEP, read at \a at: the space group detected there (\c GetSpaceGroup's \f$\{W|\tau\}\f$, or

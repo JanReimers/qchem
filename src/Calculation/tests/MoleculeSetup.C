@@ -45,6 +45,25 @@ TEST(MoleculeSetup, APseudopotentialSetGivesTheValenceCountAndTheValenceStructur
     EXPECT_EQ(int(s->structure->GetNumElectrons()), 11) << "the reference keeps the TRUE charges; only a point is valence-charged";
 }
 
+// A CHARGED molecule keeps its charge under a pseudopotential (lane G, 2026-11-21): the point structure REPLACED each site's stated
+// net charge with Z - Zion, so OH- with GTH ran NEUTRAL, 7 valence electrons instead of 8 -- a silent wrong answer.  A point now ADDS
+// the core charge Z - Zion to the stated one: the valence count is sum(Zion) minus the stated charge, O q6 + H q1 + 1 = 8.
+TEST(MoleculeSetup, AChargedMoleculeKeepsItsChargeUnderAPseudopotential)
+{
+    Molecule oh;
+    oh.Insert(Site{8, rvec3_t(0,0,0), -1.0});        // OH-: the anion's extra electron on the O site
+    oh.Insert(Site{1, rvec3_t(0,0,1.8330)});
+    const auto s=MoleculeSetup::Resolve(oh, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp_molopt_gth"}});
+    ASSERT_TRUE(s->pp);
+    const int valence=s->pp->Valence("O")+s->pp->Valence("H");
+    EXPECT_EQ(s->Ne, valence+1) << "OH- carries one electron past its valence count";
+    const auto point=s->PointStructure(oh);
+    EXPECT_EQ(int(point->GetNumElectrons()), s->Ne);
+    EXPECT_DOUBLE_EQ(point->GetNetCharge()-s->structure->GetNetCharge(), double(9-valence))
+        << "a point adds the core charges Z - Zion to the stated ones";
+    EXPECT_EQ(int(s->structure->GetNumElectrons()), 10) << "the reference keeps the TRUE charges: 9 + 1";
+}
+
 // A pseudopotential run seeds its OWN pseudo-atoms (OpenWork §3 "A pseudopotential run seeds from the VALENCE library for its q, on every
 // structure", lane B 2026-11-12): the setup keys the seed library by each element's PP q, so a PP molecule reads the VALENCE densities at
 // that q, as a solid does, and an all-electron one stays unkeyed (the all-electron library).  The tell: Si has no ALL-ELECTRON LDA entry,
@@ -129,4 +148,42 @@ TEST(MoleculeSetup, TheRetiredEMaxKeyIsRefusedNamingEngageBelowFD)
     EXPECT_FALSE(j.contains("EMax")); EXPECT_EQ(j.at("EngageBelowFD"), 0.2);
     std::unique_ptr<SCFAccelerators::SCFAccelerator> ok(SCFAccelerators::Factory(Type::DIIS, j));
     EXPECT_TRUE(ok);
+}
+
+// THE COULOMB FIT IS A SETUP POLICY (policy CoulombFit; OpenWork "The Coulomb-fit default is a hidden policy", lane S 2026-11-21): a density
+// model's unstated Hartree route resolves HERE to the Auxiliary (Dunlap) fit on a NAMED file, and every use the name cannot have is refused
+// by name -- before the row, the orbital families read A1_coul.bsd themselves and nothing above them could see or change it.
+TEST(MoleculeSetup, AnUnstatedCoulombFitIsNamedByTheSetup)
+{
+    using CF=Hamiltonian::CoulombFit;
+    const auto s=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .molecule={.basis="dzvp"}});
+    EXPECT_EQ(s->opts.coulomb.fit, CF::Auxiliary);
+    EXPECT_EQ(s->opts.coulomb.auxBasis, "A1_coul") << "today's default, named in the policy layer";
+    const auto a2=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .coulomb={.auxBasis="A2_coul"}, .molecule={.basis="dzvp"}});
+    EXPECT_EQ(a2->opts.coulomb.fit, CF::Auxiliary) << "a stated fit file implies its route";
+    EXPECT_EQ(a2->opts.coulomb.auxBasis, "A2_coul");
+    const auto hf=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::HF, .molecule={.basis="dzvp"}});
+    EXPECT_TRUE(hf->opts.coulomb.auxBasis.empty()) << "HF reads no fit: nothing is named";
+    const auto delta=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .coulomb={.fit=CF::Delta}, .molecule={.basis="dzvp"}});
+    EXPECT_EQ(delta->opts.coulomb.fit, CF::Delta);
+    EXPECT_TRUE(delta->opts.coulomb.auxBasis.empty());
+}
+
+TEST(MoleculeSetup, ACoulombFitFileTheRunCannotUseIsRefusedByName)
+{
+    using CF=Hamiltonian::CoulombFit;
+    struct Case { RunOptions o; std::string policy; int Z; };
+    const std::vector<Case> cases={
+        {{.model=Model::LDA, .coulomb={.fit=CF::Delta, .auxBasis="A1_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnused", 8},
+        {{.model=Model::LDA, .coulomb={.fit=CF::Multipole, .auxBasis="A1_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnused", 8},
+        {{.model=Model::HF, .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnused", 8},
+        {{.model=Model::LDA, .coulomb={.auxBasis="no_such_fit"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnknown", 8},
+        {{.model=Model::LDA, .coulomb={.auxBasis="A2_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisCoverage", 52},   // A2 stops at Zn
+    };
+    for (const Case& c : cases)
+    {
+        const auto r=MoleculeSetup::Admit(OneAtom(c.Z), c.o);
+        ASSERT_FALSE(r) << c.policy;
+        EXPECT_EQ(r.Error().policy, c.policy);
+    }
 }

@@ -45,6 +45,7 @@ import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quad
 import qchem.Mesh.SiteMultipoles;           // the multipole fitted-potential cell's channels
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Types;
+import qchem.Symmetry.Group;                 // Symmetry::GroupPtr: what a fit FORCES (Forces, Group face step 3a)
 import qchem.PointSampling;                  // SamplingTarget (FourierTarget's slot)
 
 export namespace qchem::ChargeDensity
@@ -166,13 +167,12 @@ public:
     //! Fock matrix's XC saw each iteration (pin 28).  Asked of the term's own build rather than logged here, because
     //! this engine also samples for the energy pass and the residual, which would bury the one sampling that matters.
     virtual XCRhoSource RhoSource() const=0;
-    //! \brief What the Vxc FIT this strategy realizes imposes on the potential (doc/Pins.md pin 30): the fit basis's own answer
-    //! (\c BasisSet::FIT_SF_ABS::Imposes) where it holds one, else the fit space's (the periodic A1 Gamma block, lattice-summed: T; the site
-    //! multipole channels: {e}).  It is the WHOLE realization's answer, not one object's: on a solid the A1 cell is a delta basis inside a
-    //! Gaussian fit space.  CLIENT: the Vxc builder, which throws a \c logic_error when it differs from the pre-flight
-    //! \c Hamiltonian::ImposedBy the admission ruled on (pin 30 admission stage 2, user ruling 2026-11-15 Q2).  The POINTS' group is
-    //! the mesh's (\c qcMesh::ImposedBy), not asked here.
-    virtual qcMesh::ImposedSymmetry Imposes() const=0;
+    //! \brief H_fit: what the Vxc FIT this strategy realizes FORCES on the potential, as a Group in the Cartesian frame (doc/Pins.md pin 30;
+    //! Group face step 3, admission on the built object): the fit basis's own \c BasisSet::FIT_SF_ABS::Forces where it holds one, else the
+    //! fit space's (the periodic A1 Gamma block, lattice-summed: T of its cell; the site multipole channels: {e}).  It is the WHOLE
+    //! realization's answer, not one object's: on a solid the A1 cell is a delta basis inside a Gaussian fit space.  CLIENT: the Vxc builder,
+    //! which asks the structure's group to contain it.  The POINTS' group is the mesh's (\c qcMesh::Mesh::Forces), asked beside it.
+    virtual Symmetry::GroupPtr Forces() const=0;
     //! \brief R2.1 (doc/SCFRobustnessPlan.md P2): the density this sampler last cached, measured against the imposed group
     //! BEFORE its own projector -- \f$\max|f-Pf|/\max|\rho|\f$ over \f$\rho\f$ (and \f$m\f$ on a polarized run).  What XC reads is
     //! \f$Pf\f$; the number says how far from invariant the density it was HANDED was.  0 on a free run (P is the identity);
@@ -260,6 +260,32 @@ public:
     }
 };
 
+//! \brief THE DENSITY-GRADIENT QUADRATURE (GGA stage 2; GGA design note §3b): a \c tDensitySampler that ALSO samples \f$\nabla\rho_\sigma\f$
+//! at its points and gathers a GGA's \f$\{v,\mathbf{w}\}\f$ field back.
+//!
+//! THE GRADIENT IS A TYPE, NOT A RUN-TIME PROPERTY (user, 2026-11-20: "if GGA/PBE needs a gradient of object X, grad op is either 1) In the
+//! X interface or b) not in the X interface.  If b the compile fails").  So it is its OWN face: only a strategy that really produces
+//! \f$\nabla\rho\f$ derives it (Singles on a real δ basis in stage 2), a GGA term's constructor DEMANDS one, and a strategy without it simply
+//! has no \c GradRhoPol -- never a pure virtual answered by a throw on the common face.
+//!
+//! \f$\rho\f$ and \f$\nabla\rho\f$ come off ONE cache keyed by the density's serial, and the scalar \c Rho is the sum of the channels: an
+//! engine of this kind always samples spin-resolved (an unpolarized density collapses to \f$\rho/2\f$, \f$\nabla\rho/2\f$ per channel, pin 5),
+//! so the scalar and spin caches cannot disagree (the cross-invalidation warning on the LDA strategies does not apply here).
+template <class T> class tDensityGradientSampler
+    : public virtual tDensitySampler<T>
+{
+public:
+    using tDensitySampler<T>::Matrix;
+    //! \f$\nabla\rho_\sigma(r_g)\f$ for \a cd's current serial, cached beside \c RhoPol.  A spin-agnostic density answers \f$\nabla\rho/2\f$ per
+    //! channel.  THROWS for a density whose gradient this strategy cannot give exactly (a mixed field: GGA stage 4).
+    virtual const rvec3vec_t& GradRhoPol(const tChargeDensity<T>* cd, const Spin& s) const=0;
+    //! \f$H_{ij}=\sum_g w_g\left[v_g\,\chi_i\chi_j+\mathbf{w}_g\cdot\nabla(\chi_i\chi_j)\right](r_g)\f$ -- the exact adjoint of (\c RhoPol, \c GradRhoPol)
+    //! on this block, so \f$H=\partial E/\partial D\f$ for \f$E=\sum_g w_g\,e(\rho,\sigma)\f$ with \f$v=\partial e/\partial\rho\f$ and
+    //! \f$\mathbf{w}_\sigma=2v_{\sigma\sigma\sigma}\nabla\rho_\sigma+v_{\sigma\uparrow\downarrow}\nabla\rho_{\bar\sigma}\f$.  \a w is REQUIRED (the LDA call is
+    //! \c Matrix(bs, v)): there is no "empty w means LDA".
+    virtual hmat_t<T> Matrix(const tobs_t<T>* bs, const rvec_t& v, const rvec3vec_t& w) const=0;
+};
+
 //! \brief The PERIODIC quadrature: \c tDensitySampler<dcmplx> plus the faces only a Bloch run has -- the linear-response
 //! transition pair (R2/R3) and the real TRIM block (Step 3c).  Its name is the one every periodic client already spells.
 class DensitySampler
@@ -298,6 +324,19 @@ public:
     {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"the XC quadrature's strategy gives no virial of its matrix on the real block "+bs->Name()});}
 };
 
+//! \brief THE PERIODIC DENSITY-GRADIENT QUADRATURE (GGA stage 3): \c tDensityGradientSampler<dcmplx> plus the periodic sampler's faces, and
+//! the real TRIM block's {v, w} gather (Step 3c: a real block's tables are real, so its quadrature runs in real arithmetic).
+class DensityGradientSampler
+    : public virtual tDensityGradientSampler<dcmplx>
+    , public virtual DensitySampler
+{
+public:
+    using tDensityGradientSampler<dcmplx>::Matrix;
+    using DensitySampler::Matrix;
+    //! \copydoc tDensityGradientSampler::Matrix -- on a real TRIM block.
+    virtual rsmat_t Matrix(const robs_t* bs, const rvec_t& v, const rvec3vec_t& w) const=0;
+};
+
 //! \brief Pick the assembly strategy for \a fb -- CAPABILITY decides, and the answer is fixed for the run.
 //!
 //! A δ fit basis carries points and nothing else, so it can only be contracted
@@ -318,14 +357,34 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad={});
 std::shared_ptr<const tDensitySampler<double>>
 MakeDensitySampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, BasisSet::FitQuadrature quad={});
 
+//! \brief THE MOLECULAR DENSITY-GRADIENT STRATEGY (GGA stage 2): Singles on a real δ basis that has the gradient 3-centre overlap
+//! (\c BasisSet::Integrals_GradOverlap3C).  THROWS \c invalid_argument for a fit basis that is not δ or has no gradient face, and for a FOLDED
+//! quadrature (the star-average of a vector field rotates it, which no fold does yet): both are refused above, by policy, first.
+std::shared_ptr<const tDensityGradientSampler<double>>
+MakeDensityGradientSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& fb, BasisSet::FitQuadrature quad={});
+
+//! \brief THE PERIODIC DENSITY-GRADIENT STRATEGY (GGA stage 3): Singles on the periodic δ basis, over its dense Φ tables.  THROWS
+//! \c invalid_argument as the molecular one does (not δ, no gradient face, a FOLDED quadrature).
+std::shared_ptr<const DensityGradientSampler>
+MakeDensityGradientSampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad={});
+
 //! \brief THE PERIODIC A1 VXC FIT's strategies (V-XC-ONE-TERM step 6, lane S 2026-11-15), over \a a1: the REAL Gamma block of the A1 set on
 //! the cell's sites, built by the Hamiltonian's caller and held by the strategy (a real fit cannot pass the complex lineage's fit-basis
 //! factory without changing a tier-1 hub).  The cell works on the XC points through \a delta, the delta basis on \a points: XC of rho[D], its
 //! v FITTED (R v, R = Phi_X S^-1 Phi_X^T w) for H (target W, pin 32: H is not dE/dD; the policy layer warns and refuses what needs dE/dD).
 //! (Its projected twin, XC of P rho, was deleted with the ρ axis, 2026-11-15: pin 28.)
+//! \brief A LATTICE-SUMMED real set and the translations it is summed over (Group face step 3a): the periodic A1 Gamma block, and
+//! T of the cell it was built on.  The block's face (\c Orbital_1E_IBS, tier 1) has no lattice to ask, so the FACTORY that built it on
+//! its concrete cell issues the group beside it (CLAUDE.md: factories concentrate the concrete associations).  Empty = no A1 fit.
+struct LatticeSummedSet
+{
+    std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> set;
+    Symmetry::GroupPtr                                      forces;   //!< T(cell): what a fit space over \c set forces
+    explicit operator bool() const {return bool(set);}
+};
+
 std::shared_ptr<const DensitySampler>
-MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points,
-                        std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> a1);
+MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points, const LatticeSummedSet& a1);
 
 //! \brief THE MOLECULAR / ATOM FITTED-POTENTIAL CELLS (target W; FittedVxc's retirement, lane S 2026-11-15): XC of rho[D] on \a points through
 //! \a delta (the delta basis on them: singles, E = sum_g w_g e(rho[D]) exactly), its v FITTED for H onto

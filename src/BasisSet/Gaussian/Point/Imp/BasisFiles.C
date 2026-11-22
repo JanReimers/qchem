@@ -4,6 +4,7 @@ module;
 #include <cctype>
 #include <cstdio>
 #include <fstream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -53,5 +54,53 @@ namespace qchem::BasisSet::Gaussian
         while (in.get(c)) { h^=(unsigned char)c; h*=1099511628211ULL; }
         char b[32]; std::snprintf(b, sizeof b, "%016llx", h);
         return b;
+    }
+
+    std::string KindName(BasisKind k)
+    {
+        switch (k)
+        {
+            case BasisKind::AllElectron: return "all-electron";
+            case BasisKind::PPValence:   return "pp-valence";
+            case BasisKind::CoulombFit:  return "fit-coulomb";
+            case BasisKind::ExchangeFit: return "fit-exchange";
+            case BasisKind::Unstated:    break;
+        }
+        return "";
+    }
+
+    BasisFileKind KindOfBasisFile(const std::string& filename)
+    {
+        const std::string path=BasisFile(filename);
+        std::ifstream in(path);
+        if (!in) throw std::runtime_error("KindOfBasisFile: cannot read basis file "+path);
+        const auto bad=[&](const std::string& why)
+        {
+            return std::runtime_error("basis file "+path+": "+why+" -- To fix this, please state ONE preamble line "
+                "'KIND all-electron', 'KIND pp-valence <pseudopotential set>', 'KIND fit-coulomb' or 'KIND fit-exchange'");
+        };
+        BasisFileKind out;
+        bool seen=false;
+        std::string line;
+        while (std::getline(in,line))
+        {
+            std::istringstream is(line);
+            std::string tok;
+            if (!(is>>tok)) continue;
+            if (tok=="!") break;                                   // end of the preamble
+            if (tok!="KIND") continue;
+            if (seen) throw bad("two KIND lines");
+            seen=true;
+            std::string word, set, extra;
+            is>>word>>set>>extra;
+            if (!extra.empty()) throw bad("KIND line '"+line+"' has trailing words");
+            for (BasisKind k : {BasisKind::AllElectron, BasisKind::PPValence, BasisKind::CoulombFit, BasisKind::ExchangeFit})
+                if (word==KindName(k)) out.kind=k;
+            if (out.kind==BasisKind::Unstated) throw bad("unknown KIND '"+word+"'");
+            if (out.kind==BasisKind::PPValence && set.empty()) throw bad("KIND pp-valence names no pseudopotential set");
+            if (out.kind!=BasisKind::PPValence && !set.empty()) throw bad("KIND "+word+" names a pseudopotential set ("+set+")");
+            out.ppSet=set;
+        }
+        return out;
     }
 }

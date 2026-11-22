@@ -1,4 +1,5 @@
 DZVP-MOLOPT-SR-GTH: transcribed from CP2K's BASIS_MOLOPT by scripts/cp2k2bsd (Te F)
+KIND pp-valence gth-lda-valence
 PP-PROVENANCE Te=6 F=7
 Coefficients as CP2K states them (normalized primitives); one shell per CP2K contraction, the set's exponents shared.
 CP2K runs every basis SPHERICAL: compare against it with basis.spherical true.

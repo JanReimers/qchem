@@ -30,6 +30,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -50,6 +51,7 @@ import qchem.BasisSet.DeltaFit_IBS;               // the δ basis the singles sa
 import qchem.BasisSet.G_FieldEvaluator;           // G_RasterTransform: the pair sampler's raster length
 import qchem.Symmetry.Factory;                    // BlochFactory (the Γ irrep of the δ basis)
 import qchem.ChargeDensity.DensitySampler;        // MakeDensitySampler: the strategy chosen by capability
+import qchem.Symmetry.Group;                       // Forces / TranslationGroup (Group face step 3a)
 import qchem.ChargeDensity.Imp.IrrepCD;           // PeriodicIrrepCD
 import qchem.CompositeCD;                         // tComposite_CD<dcmplx>
 import qchem.Streamable;
@@ -66,7 +68,6 @@ using qcMesh::UnitCellKind;
 using namespace qchem;
 using Hamiltonian::VxcFit;
 using qcMesh::UnitCellKind;
-using qcMesh::ImposedSymmetry;
 
 namespace
 {
@@ -84,9 +85,7 @@ qcMesh::MeshParams PointsFor(Points p)
     return m;
 }
 
-//! The three groups admission sees, and one structure of each kind.
-constexpr ImposedSymmetry E=ImposedSymmetry::None, T=ImposedSymmetry::Translations, O3=ImposedSymmetry::FullRotation;
-constexpr bool eq(ImposedSymmetry a, ImposedSymmetry b) {return a==b;}
+//! One structure of each kind.
 std::shared_ptr<const Structure> TheSolid()    {UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5}); return cell.Clone();}   // one Si, Γ
 std::shared_ptr<const Structure> TheMolecule()
 {
@@ -97,6 +96,31 @@ std::shared_ptr<const Structure> TheMolecule()
 }
 std::shared_ptr<const Structure> TheAtom()     {return std::make_shared<Atom>(7, 0.0, rvec3_t(0,0,0));}
 
+//! \brief THE RULE'S STATEMENT (pin 30), independent of \c AdmitVxc's code: what each representation forces, as a Group in a structure's
+//! own frame.  The three groups admission sees are {e}, T (a lattice) and O(3) about one centre.  T is the solid's own lattice (a test
+//! may cheat to read it); a finite structure has no lattice, so any one serves -- no finite group holds a translation family.  O(3) is
+//! about the structure's first site.  \a G is what the structure's kind carries: T on the solid, O(3) on the atom, neither on a molecule.
+enum class Kind {Solid, Molecule, Atom};
+const char* Name(Kind k) {return k==Kind::Solid ? "solid" : k==Kind::Molecule ? "molecule" : "atom";}
+std::shared_ptr<const Structure> StructureOf(Kind k) {return k==Kind::Solid ? TheSolid() : k==Kind::Molecule ? TheMolecule() : TheAtom();}
+enum class H3 {E, T, O3};
+const char* Name(H3 h) {return h==H3::E ? "{e}" : h==H3::T ? "T" : "O(3)";}
+Symmetry::GroupPtr Realize(H3 h, const Structure& st)
+{
+    using namespace Symmetry;
+    if (h==H3::E) return TrivialGroup();
+    if (h==H3::O3) return PointRotationGroup(st.Sites()[0].R, kExactTolerance);
+    const auto* cell=dynamic_cast<const UnitCell*>(&st);
+    return TranslationGroup(cell ? cell->GetCellMatrix() : Matrix3D<double>(8,0,0, 0,8,0, 0,0,8), kExactTolerance);
+}
+H3 OwnGenerator(Kind k) {return k==Kind::Solid ? H3::T : k==Kind::Atom ? H3::O3 : H3::E;}
+//! What a Vxc fit FAMILY forces on each kind: the ball T everywhere; the lineage's A1 fit its structure's own generator (lattice-summed on
+//! a solid, the l = 0 set on the atom path, atom-centred Gaussians on a molecule); δ, multipole and Auto nothing.
+H3 FitForces(VxcFit f, Kind k) {return f==VxcFit::PlaneWave ? H3::T : f==VxcFit::Auxiliary ? OwnGenerator(k) : H3::E;}
+//! What a stated point set forces: a uniform cell mesh T, the radial-only set O(3) about its centre, Becke (and Auto) nothing.
+H3 PointsForce(Points p) {return p==Points::Uniform ? H3::T : p==Points::Radial ? H3::O3 : H3::E;}
+Symmetry::GroupPtr GroupOf(const Structure& st) {return st.MakeSymmetry(Symmetry::kAdmissionTolerance);}
+
 bool HoldsTheOneTerm(const Streamable& ham)
 {
     std::ostringstream os; ham.Write(os);
@@ -106,62 +130,142 @@ bool HoldsTheOneTerm(const Streamable& ham)
 
 //! THE RULE ALONE (pin 30): over H_fit, H_points ∈ {e, T, O(3)} and G ∈ {the atom path's O(3), a molecule's point group (neither
 //! generator), a solid's space group (T)} -- 27 values -- a cell is admissible iff BOTH are subgroups of G, and a subgroup here is
-//! {e} or G itself (each G carries at most one generator).  Stated independently of \c operator<= and checked against it.
+//! {e} or G's own generator (each G carries at most one of the two families).  Stated independently, and asked of each structure's
+//! own group (Group face step 3b: the three-state enum and its order are retired).
 TEST(VxcProductSpace, TheAdmissionRuleIsHWithinG)
 {
-    struct Named {ImposedSymmetry h; const char* name;};
-    const Named groups[]={{E,"{e}"},{T,"T"},{O3,"O(3)"}};
-    for (const auto& g : {groups[0], groups[1], groups[2]})   // molecule, solid, atom
+    for (Kind k : {Kind::Molecule, Kind::Solid, Kind::Atom})
     {
-        for (const auto& hf : groups)
-            for (const auto& hp : groups)
+        const auto st=StructureOf(k);
+        const auto G=GroupOf(*st);
+        for (H3 hf : {H3::E, H3::T, H3::O3})
+            for (H3 hp : {H3::E, H3::T, H3::O3})
             {
-                const bool expected=(eq(hf.h,E) || eq(hf.h,g.h)) && (eq(hp.h,E) || eq(hp.h,g.h));
-                EXPECT_EQ(hf.h<=g.h && hp.h<=g.h, expected) << "H_fit " << hf.name << ", H_points " << hp.name << ", G " << g.name;
+                const bool expected=(hf==H3::E || hf==OwnGenerator(k)) && (hp==H3::E || hp==OwnGenerator(k));
+                EXPECT_EQ(G->Contains(*Realize(hf,*st)) && G->Contains(*Realize(hp,*st)), expected)
+                    << "H_fit " << Name(hf) << ", H_points " << Name(hp) << ", G " << Name(k) << " (" << G->Describe() << ")";
             }
-        EXPECT_STREQ(qcMesh::Name(g.h), g.name);
     }
 }
 
-//! WHAT EACH REPRESENTATION IMPOSES.  Point sets: a uniform cell mesh T, the radial-only set O(3), Becke and Auto nothing.  Fits: the
-//! plane-wave ball T everywhere; A1 is the REALIZATION's group -- lattice-summed (T) on a solid, the spherical set (O(3)) on the atom
-//! path, atom-centred ({e}) on a molecule; δ, multipole and Auto nothing.  And G: T on a solid, O(3) on the atom, neither on a molecule.
-TEST(VxcProductSpace, WhatEachRepresentationImposes)
+//! WHAT EACH BUILT POINT SET FORCES (Group face step 3b: \c qcMesh::Mesh::Forces, stamped by the structure that built it), and it is what
+//! the rule's statement says: a uniform cell mesh T of ITS cell, the radial-only set O(3) about the atom's site (an atom off the origin,
+//! so a set answering about the origin is caught), Becke nothing.  The fits' half is \c EveryFitClassForcesTheGroupItImposesInItsOwnFrame.
+//! Both answer from the descriptors \c AdmitVxc's cheap pre-flight asks before anything is built.
+TEST(VxcProductSpace, EveryPointSetForcesWhatThePreflightAssumes)
 {
-    EXPECT_TRUE(eq(qcMesh::ImposedBy(PointsFor(Points::Becke)),   E));
-    EXPECT_TRUE(eq(qcMesh::ImposedBy(PointsFor(Points::Uniform)), T));
-    EXPECT_TRUE(eq(qcMesh::ImposedBy(PointsFor(Points::Radial)),  O3));
+    using Symmetry::Generator;
+    const auto solid=TheSolid();
+    const auto* cell=dynamic_cast<const UnitCell*>(solid.get());
+    ASSERT_NE(cell, nullptr);
     {
-        qcMesh::MeshParams uniformRadial=PointsFor(Points::Uniform);
-        uniformRadial.angular=qcMesh::AngularKind::None;
-        EXPECT_TRUE(eq(qcMesh::ImposedBy(uniformRadial), T)) << "a uniform cell mesh reads no angular rule: T, never a T x O(3) (AdmitVxc refuses the combination)";
+        const auto H=solid->CreateIntegrationMesh(PointsFor(Points::Uniform)).Forces();
+        EXPECT_TRUE (H->Contains(Generator::Translations(cell->GetCellMatrix()))) << H->Describe();
+        EXPECT_FALSE(H->Contains(Generator::Translations(0.5*cell->GetCellMatrix()))) << "half the cell is not the raster's lattice";
+        EXPECT_TRUE (GroupOf(*solid)->Contains(*H));
     }
-    EXPECT_TRUE(eq(qcMesh::ImposedBy(qcMesh::MeshParams{}),       E)) << "Auto: each structure resolves it to a mesh it admits";
-
-    struct Kind {std::shared_ptr<const Structure> st; ImposedSymmetry G; const char* name;};
-    for (const auto& [st, G, name] : {Kind{TheSolid(),T,"solid"}, Kind{TheMolecule(),E,"molecule"}, Kind{TheAtom(),O3,"atom"}})
+    EXPECT_TRUE(Symmetry::TrivialGroup()->Contains(*solid->CreateIntegrationMesh(PointsFor(Points::Becke)).Forces())) << "a cell's Becke mesh: {e}";
+    EXPECT_THROW(solid->CreateIntegrationMesh(PointsFor(Points::Radial)), std::invalid_argument) << "a cell has no one centre for the radial-only set";
     {
-        EXPECT_TRUE(eq(Hamiltonian::GroupOf(*st), G)) << name;
-        EXPECT_TRUE(eq(Hamiltonian::ImposedBy(VxcFit::PlaneWave, *st), T)) << name;
-        EXPECT_TRUE(eq(Hamiltonian::ImposedBy(VxcFit::Auxiliary, *st), G)) << name << ": the lineage's own A1 fit carries its structure's group";
-        for (VxcFit f : {VxcFit::Delta, VxcFit::Multipole, VxcFit::Auto})
-            EXPECT_TRUE(eq(Hamiltonian::ImposedBy(f, *st), E)) << name << " x " << Name(f);
+        const rvec3_t R(0.3,-0.2,0.7);
+        const auto atom=std::make_shared<Atom>(7, 0.0, R);
+        const auto H=atom->CreateIntegrationMesh(PointsFor(Points::Radial)).Forces();
+        EXPECT_TRUE (H->Contains(Generator::FullRotations(R)))               << "O(3) about the atom's site";
+        EXPECT_FALSE(H->Contains(Generator::FullRotations(rvec3_t(0,0,0)))) << "not about the origin";
+        EXPECT_TRUE (GroupOf(*atom)->Contains(*H));
+        EXPECT_TRUE (Symmetry::TrivialGroup()->Contains(*atom->CreateIntegrationMesh(PointsFor(Points::Becke)).Forces())) << "the atom's Lebedev mesh: {e}";
+    }
+    const auto mol=TheMolecule();
+    EXPECT_TRUE (Symmetry::TrivialGroup()->Contains(*mol->CreateIntegrationMesh(PointsFor(Points::Becke)).Forces())) << "a molecule's Becke mesh: {e}";
+    EXPECT_THROW(mol->CreateIntegrationMesh(PointsFor(Points::Radial)),  std::invalid_argument) << "two sites: no one centre";
+    EXPECT_THROW(mol->CreateIntegrationMesh(PointsFor(Points::Uniform)), std::invalid_argument) << "no lattice: no uniform cell mesh";
+    Molecule one; one.Insert(Site{7, rvec3_t(0.3,0,0)});
+    EXPECT_THROW(one.CreateIntegrationMesh(PointsFor(Points::Radial)), std::invalid_argument) << "one site, but a molecule's G holds no O(3)";
+}
+
+namespace
+{
+//! What a fit family's BUILT object forces on \a st, or empty when the library cannot build it there (a construction refusal).  The
+//! lineage is each kind's own: Gaussians on the molecule, the radial set on the atom, plane waves on the solid.  The solid's A1 set is
+//! the one exception: the facade builds it (\c SolidCalculation's lattice-summed Gamma block, issued with T of its cell), so its group
+//! is stated here as the facade issues it.
+std::optional<Symmetry::GroupPtr> BuiltFitForces(Kind k, const std::shared_ptr<const Structure>& st, VxcFit f)
+{
+    const qcMesh::MeshParams becke=PointsFor(Points::Becke);
+    try
+    {
+        if (k==Kind::Solid)
+        {
+            const auto* cell=dynamic_cast<const UnitCell*>(st.get());
+            if (f==VxcFit::Auxiliary) return Symmetry::TranslationGroup(cell->GetCellMatrix(), Symmetry::kExactTolerance);
+            if (f==VxcFit::Delta)
+            {
+                const BasisSet::FitQuadrature q=BasisSet::MakeXCQuadrature(*st, becke, nullptr);
+                return BasisSet::DeltaFit_IBS<dcmplx>(std::make_shared<::qchem::BasisSet::BasisCache>(), q,
+                                                      Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0))).Forces();
+            }
+            Lattice_3D lat(*cell, ivec3_t(1,1,1));
+            std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, 4.0));
+            std::unique_ptr<const BasisSet::cFIT_SF_ABS> fit(bs->CreateVxcFitBasisSet(st.get(), PointsFor(Points::Uniform), f));
+            return fit->Forces();
+        }
+        std::shared_ptr<const BasisSet::Real_BS> bs(k==Kind::Atom
+            ? BasisSet::Radial::Factory(BasisSet::Radial::BasisSetAccuracy::Low, BasisSet::Radial::Type::Gaussian, 7)
+            : BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(), BasisSet::Gaussian::Engine::MnD,
+                                          BasisSet::Gaussian::Angular::Cartesian));
+        const BasisSet::FitQuadrature q=BasisSet::MakeXCQuadrature(*st, becke, nullptr);
+        std::unique_ptr<const BasisSet::rFIT_SF_ABS> fit(bs->CreateVxcFitBasisSet(st.get(), becke, f, &q));
+        return fit->Forces();
+    }
+    catch (const std::logic_error&) {return std::nullopt;}   // "no realization on this lineage": the library cannot build it here
+}
+} //namespace
+
+//! BUILT == DESCRIPTOR (Group face step 3b; controller rulings 2026-11-21, short tier).  The pre-flight (\c AdmitVxc) asks the two
+//! descriptors -- \c BasisSet::Forces(VxcFit, Frame), \c qcMesh::Forces(MeshParams, Frame) -- of the structure's group's frame, nothing
+//! built; the built objects answer \c Forces from the same descriptors in their own frames.  Over every cell (each structure x each point
+//! set, and each structure x each fit family with a realization) the pre-flight ADMITS exactly the cells whose objects the libraries BUILD
+//! and whose \c Forces the structure's group contains -- the check that the frames the classes hold and the frame the group offers agree.
+//! The Vxc build itself throws a logic_error naming both answers if a run ever finds them apart.  The multipole fit forces {e} on every
+//! structure, and its one refusal (the periodic sum) is a correctness limit: \c ThePeriodicMultipoleIsACorrectnessLimitNotASymmetryRefusal.
+TEST(VxcProductSpace, EveryBuiltObjectForcesWhatItsDescriptorSaysOnEveryCell)
+{
+    for (Kind k : {Kind::Solid, Kind::Molecule, Kind::Atom})
+    {
+        const auto st=StructureOf(k);
+        const auto G=GroupOf(*st);
+        for (Points p : {Points::Becke, Points::Uniform, Points::Radial})
+        {
+            const bool preflight=bool(Hamiltonian::AdmitVxc(*st, VxcFit::Delta, PointsFor(p)));
+            std::optional<Symmetry::GroupPtr> H;
+            try {H=st->CreateIntegrationMesh(PointsFor(p)).Forces();} catch (const std::invalid_argument&) {}
+            EXPECT_EQ(preflight, H && G->Contains(**H)) << Name(k) << " x " << Name(p) << " points"
+                                                        << (H ? ": built, forcing "+(*H)->Describe() : ": not built");
+        }
+        for (VxcFit f : {VxcFit::Delta, VxcFit::Auxiliary, VxcFit::PlaneWave})
+        {
+            const bool preflight=bool(Hamiltonian::AdmitVxc(*st, f, PointsFor(f==VxcFit::PlaneWave && k==Kind::Solid ? Points::Uniform : Points::Becke)));
+            const auto H=BuiltFitForces(k, st, f);
+            EXPECT_EQ(preflight, H && G->Contains(**H)) << Name(k) << " x " << Name(f) << " fit"
+                                                        << (H ? ": built, forcing "+(*H)->Describe() : ": not built");
+        }
     }
 }
 
 //! \c AdmitVxc IS THE RULE over the whole space (3 structures x 5 fits x 3 point sets), plus case (b): asked, never built.
 TEST(VxcProductSpace, AdmitVxcAdmitsExactlyTheCellsTheRuleAdmits)
 {
-    for (const auto& st : {TheSolid(), TheMolecule(), TheAtom()})
+    for (Kind k : {Kind::Solid, Kind::Molecule, Kind::Atom})
     {
-        const ImposedSymmetry G=Hamiltonian::GroupOf(*st);
+        const auto st=StructureOf(k);
+        const auto G=GroupOf(*st);
         for (VxcFit f : {VxcFit::Auto, VxcFit::Delta, VxcFit::Auxiliary, VxcFit::PlaneWave, VxcFit::Multipole})
             for (Points p : {Points::Becke, Points::Uniform, Points::Radial})
             {
-                const bool periodicMultipole=G==T && f==VxcFit::Multipole;   // (b), not a symmetry reason
-                const bool rule=Hamiltonian::ImposedBy(f,*st)<=G && qcMesh::ImposedBy(PointsFor(p))<=G;
+                const bool periodicMultipole=k==Kind::Solid && f==VxcFit::Multipole;   // (b), not a symmetry reason
+                const bool rule=G->Contains(*Realize(FitForces(f,k),*st)) && G->Contains(*Realize(PointsForce(p),*st));
                 const auto a=Hamiltonian::AdmitVxc(*st, f, PointsFor(p));
-                EXPECT_EQ(bool(a), rule && !periodicMultipole) << qcMesh::Name(G) << " x " << Name(f) << " x " << Name(p)
+                EXPECT_EQ(bool(a), rule && !periodicMultipole) << Name(k) << " x " << Name(f) << " x " << Name(p)
                                                                << (a ? "" : ": "+a.Error());
                 if (!a && !periodicMultipole) EXPECT_NE(a.Error().find("pin 30"), std::string::npos) << a.Error();
             }
@@ -173,7 +277,7 @@ TEST(VxcProductSpace, AdmitVxcAdmitsExactlyTheCellsTheRuleAdmits)
 TEST(VxcProductSpace, ThePeriodicMultipoleIsACorrectnessLimitNotASymmetryRefusal)
 {
     const auto st=TheSolid();
-    EXPECT_TRUE(Hamiltonian::ImposedBy(VxcFit::Multipole, *st)<=Hamiltonian::GroupOf(*st)) << "the rule alone admits it";
+    EXPECT_TRUE(GroupOf(*st)->Contains(*Realize(FitForces(VxcFit::Multipole, Kind::Solid), *st))) << "the rule alone admits it";
     const auto a=Hamiltonian::AdmitVxc(*st, VxcFit::Multipole, PointsFor(Points::Becke));
     ASSERT_FALSE(a);
     EXPECT_NE(a.Error().find("conditionally convergent"), std::string::npos) << a.Error();
@@ -187,11 +291,11 @@ TEST(VxcProductSpace, AngularNoneOnAUniformCellMeshIsRefusedAsAMeshCombination)
 {
     qcMesh::MeshParams uniformRadial=PointsFor(Points::Uniform);
     uniformRadial.angular=qcMesh::AngularKind::None;
-    for (const auto& st : {TheSolid(), TheMolecule(), TheAtom()})
+    for (Kind k : {Kind::Solid, Kind::Molecule, Kind::Atom})
         for (VxcFit f : {VxcFit::Auto, VxcFit::Delta, VxcFit::Auxiliary, VxcFit::PlaneWave, VxcFit::Multipole})
         {
-            const auto a=Hamiltonian::AdmitVxc(*st, f, uniformRadial);
-            ASSERT_FALSE(a) << qcMesh::Name(Hamiltonian::GroupOf(*st)) << " x " << Name(f);
+            const auto a=Hamiltonian::AdmitVxc(*StructureOf(k), f, uniformRadial);
+            ASSERT_FALSE(a) << Name(k) << " x " << Name(f);
             EXPECT_NE(a.Error().find("reads no angular rule"), std::string::npos) << a.Error();
             EXPECT_EQ(a.Error().find("H_R"), std::string::npos) << "not worded as a symmetry refusal: " << a.Error();
         }
@@ -211,7 +315,7 @@ TEST(VxcProductSpace, TheProductionsBuildTheOneTerm)
     {
         const qcMesh::MeshParams mesh=PointsFor(points);
         ASSERT_TRUE(Hamiltonian::AdmitVxc(*st, fit, mesh)) << name;
-        std::shared_ptr<const BasisSet::Real_BS> bs(st->Admits(O3)
+        std::shared_ptr<const BasisSet::Real_BS> bs(dynamic_cast<const Atom*>(st.get())
             ? BasisSet::Radial::Factory(BasisSet::Radial::BasisSetAccuracy::Low, BasisSet::Radial::Type::Gaussian, 7)
             : BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(), BasisSet::Gaussian::Engine::MnD,
                                           BasisSet::Gaussian::Angular::Cartesian));
@@ -243,50 +347,43 @@ TEST(VxcProductSpace, TheProductionsBuildTheOneTerm)
     }
 }
 
-//! PIN 30 STAGE 2 (user ruling 2026-11-15 Q2): each structure answers \c Admits from its own group -- a molecule {e} only, a cell T, the atom
-//! O(3).  (T x O(3) is not a state: only a constant is both periodic and spherical.)  The two booleans this replaced made every client assemble the group.
-TEST(VxcProductSpace, EachStructureAdmitsExactlyItsOwnGroup)
+//! GROUP FACE STEP 3: every fit CLASS answers \c Forces (\c BasisSet::FIT_SF_ABS::Forces, pure), the group it forces in its own Cartesian frame -- {e} for atom-centred sets, O(3)
+//! about the ATOM'S SITE for the radial l = 0 set (an atom off the origin, so a set answering about the origin is caught), T of ITS cell for
+//! plane waves (contained in the cell's own group; a cell half as long is not its lattice).
+TEST(VxcProductSpace, EveryFitClassForcesTheGroupItImposesInItsOwnFrame)
 {
-    struct Row {const char* name; std::shared_ptr<const Structure> st; bool t, o3;};
-    for (const auto& [name, st, t, o3] : {Row{"molecule", TheMolecule(), false, false}, Row{"solid", TheSolid(), true, false},
-                                          Row{"atom", TheAtom(), false, true}})
-    {
-        EXPECT_TRUE (st->Admits(E))     << name << " admits {e}";
-        EXPECT_EQ   (st->Admits(T),  t)  << name << " x T";
-        EXPECT_EQ   (st->Admits(O3), o3) << name << " x O(3)";
-        EXPECT_TRUE (Hamiltonian::GroupOf(*st)==(t ? T : o3 ? O3 : E)) << name;
-    }
-}
-
-//! PIN 30 STAGE 2: every fit CLASS states what it imposes (\c BasisSet::FIT_SF_ABS::Imposes, pure), and the class each lineage builds for
-//! \c VxcFit::Auxiliary / \c PlaneWave answers what the pre-flight table says (\c Hamiltonian::ImposedBy).  The Vxc builders check the same
-//! thing on the whole built realization (the sampler) and throw a logic_error on a difference; the productions above run that check.
-TEST(VxcProductSpace, EveryFitClassStatesWhatItImposesAndItIsThePreflightAnswer)
-{
+    using Symmetry::Generator;
     const qcMesh::MeshParams becke=PointsFor(Points::Becke);
+    const auto trivial=Symmetry::TrivialGroup();
     {
         const auto st=TheMolecule();
         std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(),
                                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
         std::unique_ptr<const BasisSet::rFIT_SF_ABS> a1(bs->CreateVxcFitBasisSet(st.get(), becke, VxcFit::Auxiliary));
-        EXPECT_TRUE(a1->Imposes()==E) << "the molecular A1 set: atom-centred Gaussians of every l";
-        EXPECT_TRUE(a1->Imposes()==Hamiltonian::ImposedBy(VxcFit::Auxiliary, *st));
+        EXPECT_TRUE(trivial->Contains(*a1->Forces())) << a1->Forces()->Describe();
     }
     {
-        const auto st=TheAtom();
+        const rvec3_t R(0.3,-0.2,0.7);
+        const auto st=std::make_shared<Atom>(7, 0.0, R);
         std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Radial::Factory(BasisSet::Radial::BasisSetAccuracy::Low,
                                                                               BasisSet::Radial::Type::Gaussian, 7));
         std::unique_ptr<const BasisSet::rFIT_SF_ABS> a1(bs->CreateVxcFitBasisSet(st.get(), becke, VxcFit::Auxiliary));
-        EXPECT_TRUE(a1->Imposes()==O3) << "the atom path's A1 set: one centre, l = 0";
-        EXPECT_TRUE(a1->Imposes()==Hamiltonian::ImposedBy(VxcFit::Auxiliary, *st));
+        const auto H=a1->Forces();
+        EXPECT_TRUE (H->Contains(Generator::FullRotations(R)))               << "O(3) about the atom's site";
+        EXPECT_FALSE(H->Contains(Generator::FullRotations(rvec3_t(0,0,0)))) << "not about the origin: the set is pinned at the nucleus";
+        EXPECT_TRUE (st->MakeSymmetry(Symmetry::kExactTolerance)->Contains(*H));
     }
     {
-        UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5});
+        const double a=8.0;
+        UnitCell cell(a); cell.AddAtom(14, {0.5,0.5,0.5});
         Lattice_3D lat(cell, ivec3_t(1,1,1));
         std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, 4.0));
         std::unique_ptr<const BasisSet::cFIT_SF_ABS> pw(bs->CreateVxcFitBasisSet(&cell, PointsFor(Points::Uniform), VxcFit::PlaneWave));
-        EXPECT_TRUE(pw->Imposes()==T) << "plane waves on the reciprocal lattice";
-        EXPECT_TRUE(pw->Imposes()==Hamiltonian::ImposedBy(VxcFit::PlaneWave, cell));
+        const auto H=pw->Forces();
+        EXPECT_TRUE (H->Contains(Generator::Translations(cell.GetCellMatrix())));
+        EXPECT_FALSE(H->Contains(Generator::Translations(0.5*cell.GetCellMatrix()))) << "half the cell is not my lattice";
+        EXPECT_FALSE(trivial->Contains(*H));
+        EXPECT_TRUE (cell.MakeSymmetry(Symmetry::GroupTolerance{.length=1e-6, .angle=1e-8})->Contains(*H));
     }
 }
 
@@ -512,7 +609,7 @@ TEST(VxcProductSpace, EverySamplersPin28CertificateMatchesItsMeasuredDistanceFro
         add("GPW: delta singles at Becke",        *MakeDensitySampler(delta, quad), cd.get(), ref);
         std::shared_ptr<const BasisSet::cFIT_SF_ABS> pwBecke(cx.CreateVxcFitBasisSet(st.get(), becke));
         EXPECT_THROW((void)MakeDensitySampler(pwBecke, quad), std::invalid_argument) << "the GPW ball at Becke points is not built (pin 28)";
-        add("GPW: periodic A1 fitted potential",  *MakeAuxiliaryFitSampler(delta, quad, a1), cd.get(), ref);
+        add("GPW: periodic A1 fitted potential",  *MakeAuxiliaryFitSampler(delta, quad, {a1, Symmetry::TranslationGroup(cell.GetCellMatrix(), Symmetry::kExactTolerance)}), cd.get(), ref);
     }
     {   // PERIODIC, plane-wave orbitals: the ball (>= 4 Ecut) holds every orbital pair
         UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5});

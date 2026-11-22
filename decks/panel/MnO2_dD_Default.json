@@ -32,7 +32,6 @@
   "autoTrim": false
  },
  "solid": {
-  "forceComplex": true,
   "hubbard": [
    {
     "site": 0,

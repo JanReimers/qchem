@@ -160,6 +160,15 @@ namespace qchem::BasisSet::Gaussian
         return new PG_Cart::BasisSet(&reader, cl);
     }
 
+    rFIT_CD_ABS* CoulombFitFromFile(const std::string& bsdFile, const std::string& name, const Structure* cl, Engine engine, Angular angular)
+    {
+        if (engine==Engine::LibCint)
+            throw std::invalid_argument("CoulombFitFromFile: the libcint orbital blocks have no DFT face, so no Coulomb fit pairs with them");
+        Gaussian94Reader reader(BasisFile(bsdFile));
+        if (angular==Angular::Spherical) return new PG_Spherical::EFit_IBS(std::make_shared<BasisCache>(), &reader, cl, name);
+        return new PG_Cart::EFit_IBS(std::make_shared<BasisCache>(), &reader, cl, name);   // a fit basis gets its OWN cache (S3a)
+    }
+
     tBasisSet<double>* Factory(const json& js, const Structure* cl)
     {
         if (!js.contains("basis") || !js["basis"].is_string() || js["basis"].get<std::string>().empty())

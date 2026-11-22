@@ -12,6 +12,8 @@ module;
 #include <cassert>
 #include <iomanip>
 #include <map>
+#include <chrono>
+#include <cmath>
 #include <sstream>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
@@ -40,6 +42,7 @@ import qchem.BasisSet.AoShellSource;   // MeshAudit: the largest element named b
 import qchem.Mesh.BeckeClimb;          // ClimbBeckeLadder: the mesh pilot's climb at a fixed D
 import qchem.Policy;                   // policy::Report: the pilot's decision files itself
 import qchem.ERI4MemoryPolicy;         // policy::ERI4Memory: the ERI4 RAM cap at setup (S6)
+import qchem.AuditFootprint;           // QueryAvailableMemory: the Coulomb-fit check's table budget
 
 namespace qchem
 {
@@ -166,6 +169,16 @@ void MoleculeCalculation::BuildGraph()
         for (auto b : itsBasis->Iterate<BasisSet::Real_IBS>()) blocks.push_back(b->GetNumFunctions());
         policy::ERI4Memory(blocks, opts.molecule.basis);
     }
+    // THE COULOMB FIT, built HERE from the setup's choice (policy CoulombFit, MoleculeSetup::Resolve), never by an orbital family: the
+    // run's slot is filled before the first Hamiltonian asks, so every Hamiltonian of this point reads the fit the policy named.  The
+    // libcint engine has no DFT face (no fit pairs with it); its density-model run is refused where the Hamiltonian asks for one.
+    if (qchem::Hamiltonian::UsesCoulombFitBasis(opts.coulomb) && !opts.coulomb.auxBasis.empty() && opts.molecule.engine==Engine::MnD)
+        (void)itsCoulombFit.GetOrFill([&]
+        {
+            namespace G=BasisSet::Gaussian;
+            return std::shared_ptr<const BasisSet::rFIT_CD_ABS>(G::CoulombFitFromFile(opts.coulomb.auxBasis+".bsd", opts.coulomb.auxBasis,
+                itsStructure.get(), G::Engine::MnD, opts.molecule.angular==Angular::Spherical ? G::Angular::Spherical : G::Angular::Cartesian));
+        });
     decltype(itsHam.get()) ham=nullptr;
     {
         rpt::Scope hamiltonian("hamiltonian");
@@ -192,7 +205,12 @@ void MoleculeCalculation::BuildGraph()
         if (itsCarry && itsCarry->moved) itsCarry=std::make_unique<const Carry>(CarryOntoThisBasis(*itsCarry));   // a session step
         SeededIterator(itsCarry && itsCarryExact);   // the exact-resume Pulay policy's first-stage bit
         if (!itsCarry)
+        {
             itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsSetup->xcMesh, itsSetup->seedKey);   // an HF SAD seed's sibling: the run's mesh
+            // The fit's error BEFORE the SCF (warn and run): on D0, the seed's first matrix density (the iteration-0 Fock's fill).
+            const auto D0=itsScf->GetWaveFunction()->GetChargeDensity();
+            CheckCoulombFit(D0.get(), "seed");
+        }
         else
         {
             // THE CARRY (a MoleculeSession step, or a restored state): the D, block for block, onto THIS point's basis -- a
@@ -258,6 +276,7 @@ bool MoleculeCalculation::RunStage(const SCFParams& asked)
     (void)itsScf->Iterate(ExactResumeMixing(params, itsScf->ResolveMixing(params)));   // the outcome is the iterator's Converged(), minted below
     RebuildSampling();
     if (!itsPiloted && HasXCMesh() && !itsSetup->meshResolved && itsScf->Converged()) PilotMesh(params);
+    if (!itsFitConfirmed && itsScf->Converged()) { itsFitConfirmed=true; CheckCoulombFit(itsDensity.get(), "converged"); }   // the seed's estimate, confirmed
 
     // (No end-of-run cache snapshot since S6: each owner-held table reported its own bytes under `cache` where it was filled.)
 
@@ -508,13 +527,90 @@ GridAuditResult MoleculeCalculation::MeshAudit(const qcMesh::MeshParams& referen
 
 qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const qcMesh::MeshParams& mesh) const
 {
+    // Every Hamiltonian of this point shares ONE Coulomb fit (S2b): BuildGraph fills the slot from the setup's choice (policy CoulombFit).
+    return MakeHamiltonianOn(mesh, itsSetup->opts.coulomb, itsCoulombFit);
+}
+qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const qcMesh::MeshParams& mesh, const qchem::Hamiltonian::CoulombRoute& coulomb,
+                                                                         const qchem::Hamiltonian::CoulombFitSlot<double>& fit) const
+{
     const RunOptions& opts=itsSetup->opts;
-    // Every Hamiltonian of this point shares ONE Coulomb fit (S2b): the first one's Hartree term fills the slot.
     return itsSetup->pp
-        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, itsBasis, itsCoulombFit, {opts.vxcFit, opts.xcRho},
-                                      opts.coulomb, qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha))
-        : qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, itsBasis, itsCoulombFit, opts.xalpha,
-                                      {opts.vxcFit, opts.xcRho}, opts.coulomb);
+        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, itsBasis, fit, {opts.vxcFit, opts.xcRho},
+                                      coulomb, qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha))
+        : qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, itsBasis, fit, opts.xalpha,
+                                      {opts.vxcFit, opts.xcRho}, coulomb);
+}
+
+// THE COULOMB-FIT CHECK (policy CoulombFitResidual; OpenWork "The Coulomb-fit default is a hidden policy", lane S 2026-11-21; the
+// controller's ruling the same day: warn BEFORE the SCF on the seed, confirm on the converged density).  A Dunlap (robust) fit's energy
+// error is the self-energy of its residual r = rho - rho~: J_fit = J - (r|r)/2, second order and one-signed, so J_delta - J_fit >= 0 up
+// to the delta route's own error.  The delta route (rho on the XC mesh, radial Poisson, lMax 16) is mesh-converged to uHa on the molecules
+// measured (water LDA dzvp 150/47: 2 uHa, Hamiltonian/Types.C ResolvedLMax), three orders below the mHa a mismatched fit costs (OH- /
+// H2O on DZVP-MOLOPT-GTH: 1.9 / 4.4 mHa).  So ONE delta J at the same D estimates the fit's error; it WARNs over the run's energy target.
+// COST: one reference Hamiltonian on the run's mesh (its delta basis tabulates every function at every point) and one refresh -- about
+// one SCF iteration of the default (delta) XC route.  The table is the one silly cost: skipped, saying so, when it would not fit in
+// a quarter of the memory available.
+void MoleculeCalculation::CheckCoulombFit(const qchem::ChargeDensity::rDM_CD* d, const std::string& when)
+{
+    namespace rpt=qchem::report;
+    namespace H=qchem::Hamiltonian;
+    const RunOptions& opts=itsSetup->opts;
+    if (!d || !HasXCMesh() || !H::UsesCoulombFitBasis(opts.coulomb)) return;
+    const size_t nAtoms=itsStructure->GetNumAtoms(), nFun=itsBasis->GetNumFunctions();
+    // The predicted delta table: points ~ atoms x radial x the angular rule's (L+1)^2/3 (Lebedev), x functions x 8 bytes.
+    const double L=itsSetup->xcMesh.angularDegree;
+    const double points=double(nAtoms)*itsSetup->xcMesh.nRadial*(L+1.0)*(L+1.0)/3.0;
+    const double bytes=points*double(nFun)*sizeof(double);
+    const double target=opts.accuracy.Target(ClientConsumes::Energy, nAtoms);
+    const std::string tag="[coulomb fit] ";
+    const AvailableMemory avail=QueryAvailableMemory();
+    if (bytes>0.25*avail.bytes)
+    {
+        std::cout<<tag<<when<<": the delta-J check is SKIPPED -- its table ("<<bytes/1e9<<" GB) exceeds a quarter of the memory available ("
+                 <<avail.bytes/1e9<<" GB); the "<<opts.coulomb.auxBasis<<" fit's error is unmeasured"<<std::endl;
+        policy::Report("CoulombFitResidual", "the "+when+" check of the "+opts.coulomb.auxBasis+" Coulomb fit is skipped", policy::Verdict::Warn,
+                       "one delta J needs a table of every function at every mesh point, predicted "+std::to_string(bytes/1e9)+" GB against "
+                       +std::to_string(avail.bytes/1e9)+" GB available ("+avail.source+"); the fit's J error is unmeasured -- state coulomb.fit "
+                       "Delta to run on the mesh route itself", policy::Cost{.memoryBytes=bytes});
+        return;
+    }
+    const auto t0=std::chrono::steady_clock::now();
+    double Jfit=0.0, Jdelta=0.0;
+    {
+        // FENCED: the reference's mesh and term reports go to a nested run, so this run's `hamiltonian` keeps describing what it USED.
+        struct Fence { explicit Fence(const std::string& n) {rpt::Begin(n);} ~Fence() {rpt::End();} } fence("coulomb fit check "+when);
+        auto eee=[&](const H::rHamiltonian& h)
+        {
+            double E=0.0; bool found=false;
+            for (const auto& te : h.MakeTermEnergies(d)) if (te.entries=="Eee") { E+=te.E; found=true; }
+            if (!found) throw std::logic_error("MoleculeCalculation::CheckCoulombFit: a density model's Hamiltonian reports no Hartree (Eee) term");
+            return E;
+        };
+        H::CoulombRoute deltaRoute=opts.coulomb; deltaRoute.fit=H::CoulombFit::Delta; deltaRoute.auxBasis.clear();
+        const H::CoulombFitSlot<double> none;   // the delta route reads no fit basis
+        const std::unique_ptr<H::rHamiltonian> ref(MakeHamiltonianOn(itsSetup->xcMesh, deltaRoute, none));
+        ref->RefreshForDensity(itsBasis, d);
+        Jdelta=eee(*ref);
+        itsHam->RefreshForDensity(itsBasis, d);   // a read of the run's own Hartree at d (every iteration refreshes it again)
+        Jfit=eee(*itsHam);
+    }
+    const double wall=std::chrono::duration<double>(std::chrono::steady_clock::now()-t0).count();
+    const double residual=Jdelta-Jfit;
+    const bool over=std::fabs(residual)>target;
+    report::FormatGuard keep(std::cout);
+    std::cout<<tag<<when<<" density: J("<<opts.coulomb.auxBasis<<" fit) "<<std::setprecision(10)<<Jfit<<"  J(delta) "<<Jdelta
+             <<"  residual self-energy "<<std::scientific<<std::setprecision(3)<<residual<<" Ha against the target "<<target
+             <<(over ? "  WARNING: over the target" : "  meets")<<"  ("<<std::fixed<<std::setprecision(2)<<wall<<" s)"<<std::endl;
+    const rpt::json detail={{"when",when},{"auxBasis",opts.coulomb.auxBasis},{"Jfit",Jfit},{"Jdelta",Jdelta},{"residual",residual},{"target",target},
+                            {"predictedTableBytes",bytes}};
+    policy::Report("CoulombFitResidual",
+                   "the "+opts.coulomb.auxBasis+" Coulomb fit at the "+when+" density: J error "+std::to_string(residual)+" Ha"+(over ? ", over the target" : ""),
+                   over ? policy::Verdict::Warn : policy::Verdict::Choose,
+                   over ? "the fit's residual self-energy (J_delta - J_fit) exceeds the energy target "+std::to_string(target)+" Ha, so the energy "
+                          "is that far LOW whatever the mesh does; the run goes on -- state coulomb.fit Delta (rho on the XC mesh) or a larger "
+                          "coulomb.auxBasis for an answer within the target"
+                        : "one delta-route J at the same density: the fit's residual self-energy is within the energy target",
+                   policy::Cost{.wallSeconds=wall, .memoryBytes=bytes}, detail);
 }
 
 bool MoleculeCalculation::HasXCMesh() const {return qchem::Hamiltonian::IsDFT(*itsSetup->opts.model) || itsSetup->pp.has_value();}

@@ -622,7 +622,7 @@ Outcome<std::vector<mat_t<dcmplx>>, RestartRefusal> CheckedBlockDensities(const 
             for (size_t a=0;a<n;a++) for (size_t c=0;c<n;c++) {imax=std::max(imax, std::fabs(sb.D(a,c).imag())); scale=std::max(scale, std::abs(sb.D(a,c)));}
             if (imax>1e-12*scale)
                 return O::Fail({RestartRefusal::Why::Realness, "block "+std::to_string(b)+" restarts REAL but its saved D has |Im D| up to "
-                                +std::to_string(imax)+" (run with forceComplex, or resave)"});
+                                +std::to_string(imax)+" (a run that plans a response builds complex blocks; or resave)"});
         }
         mat_t<dcmplx> D(n,n);
         for (size_t a=0;a<n;a++)

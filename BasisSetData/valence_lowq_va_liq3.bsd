@@ -1,4 +1,5 @@
 Low-q GTH valence basis for LiF with SEMICORE Li (q3) -- the F block of valence_lowq_va (F q7, unchanged) and a valgen Li q3 block
+KIND pp-valence gth-lda-valence
 PP-PROVENANCE F=7 Li=3
 (2026-10-31, lane B, the voltage-deck PP valence audit, OpenWork V): q1 Li puts 1s in the core, the same question as Na q1 in NaF.  Li
 window s 8 x [0.1, 60], p 4 x [0.15, 3], validated on the Li+ cation the solid holds (valgen --q 3 --electrons 2 --floor: 0.68 mHa above

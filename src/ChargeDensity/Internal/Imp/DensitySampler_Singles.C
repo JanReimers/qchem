@@ -608,4 +608,158 @@ Outcome<rmat3d_t,AD::NoGradient> SinglesDensitySampler::MakeMatrixVirial(const r
 template class tSinglesDensitySampler<double>;   // the molecular / atom path (V-XC-ONE-TERM)
 template class tSinglesDensitySampler<dcmplx>;   // the periodic path
 
+// ---- THE DENSITY-GRADIENT STRATEGY (GGA stages 2-3, the point route) ------------------------------------------------------------------
+
+template <class T> DeltaGradientProjector<T>::DeltaGradientProjector(std::shared_ptr<const BasisSet::FIT_SF_ABS<T>> fb, const qcMesh::Mesh& mesh)
+    : itsFit(std::move(fb))
+    , itsPoints(mesh.Points())
+{
+    if (!dynamic_cast<const BasisSet::Integrals_GradOverlap3C<T,T>*>(itsFit.get()))   // abstract -> abstract
+        throw std::invalid_argument("DeltaGradientProjector: the fit basis "+itsFit->Name()+" has no gradient 3-centre overlap "
+                                    "(BasisSet::Integrals_GradOverlap3C), so this route cannot sample the density gradient");
+    if (itsPoints.size()!=itsFit->GetNumFunctions())
+        throw std::logic_error("DeltaGradientProjector: the mesh and the delta basis must be one object -- one point per function");
+    const rvec_t& w=mesh.Weights();
+    const size_t n=w.size();
+    rvec_t w3(3*n);
+    for (size_t a=0; a<3; a++) for (size_t g=0; g<n; g++) w3[a*n+g]=w[g];
+    itsW3=std::make_shared<const rvec_t>(std::move(w3));
+}
+
+template <class T> template <class U>
+const ScreenedMatrixIntegrator<U>& DeltaGradientProjector<T>::Integrator(const BasisSet::Orbital_DFT_IBS<U,T>& orb) const
+{
+    std::lock_guard<std::mutex> lock(itsIntLock.m);   // filled from the parallel Fock pass
+    return Cache<U>().GetOrFill(orb.Instance(), [&]
+    {
+        const auto* face=dynamic_cast<const BasisSet::Integrals_GradOverlap3C<U,T>*>(itsFit.get());   // abstract -> abstract
+        if (!face) throw std::logic_error("DeltaGradientProjector: the fit basis has no gradient 3-centre overlap for this block scalar");
+        return ScreenedMatrixIntegrator<U>(face->GradOverlap3C(orb), itsW3);
+    });
+}
+
+template <class T> Projections DeltaGradientProjector<T>::ProjectField(const ScalarFunction<double>& f) const
+{
+    const size_t n=itsPoints.size();
+    rvec_t c(3*n);
+    for (size_t g=0; g<n; g++)
+    {
+        const rvec3_t d=f.Gradient(itsPoints[g]);
+        c[g]=d.x; c[n+g]=d.y; c[2*n+g]=d.z;
+    }
+    return Projections(std::move(c));
+}
+
+template <class T, class Base> tSinglesGradientSampler<T,Base>::tSinglesGradientSampler(typename tSinglesDensitySampler<T>::fit_t fit,
+                                                                                         BasisSet::FitQuadrature quad)
+    : Base(fit, quad)
+    , itsGrad(fit, *quad.GetMesh())
+{
+    if (this->itsQuad.HasFold())
+        throw std::invalid_argument("tSinglesGradientSampler: a FOLDED quadrature star-averages rho over orbits, and the density gradient "
+                                    "is a vector field the fold would have to rotate -- no fold does that yet, so a GGA runs free");
+}
+
+template <class T, class Base> rvec3vec_t tSinglesGradientSampler<T,Base>::Unpack(const rvec_t& c) const
+{
+    const size_t n=this->NumPoints();
+    if (c.size()!=3*n) throw std::logic_error("tSinglesGradientSampler: a gradient projection is not three components per point");
+    rvec3vec_t out(n);
+    for (size_t g=0; g<n; g++) out[g]=rvec3_t(c[g], c[n+g], c[2*n+g]);
+    return out;
+}
+template <class T, class Base> rvec3vec_t tSinglesGradientSampler<T,Base>::ProjectGradDM(const tDM_CD<T>& dm) const
+{
+    return Unpack(dm.Project(itsGrad).Vector());   // the density contracts its D into the gradient tensor
+}
+template <class T, class Base> rvec3vec_t tSinglesGradientSampler<T,Base>::ProjectGradField(const tChargeDensity<T>& cd) const
+{
+    return Unpack(itsGrad.ProjectField(cd).Vector());
+}
+
+template <class T, class Base> const rvec3vec_t& tSinglesGradientSampler<T,Base>::GradRhoPol(const tChargeDensity<T>* cd, const Spin& s) const
+{
+    assert(cd);
+    if (s==Spin::None) throw std::logic_error("tSinglesGradientSampler::GradRhoPol: ask for a channel, not the total");
+    if (cd->Version()!=itsGradVersion)
+    {
+        qchem::report::Timed timed("scf: XC-mesh grad-rho sampling (all iterations)");
+        const tChargeDensity<T>* up=ChannelOf(cd, Spin::Up  );
+        const tChargeDensity<T>* dn=ChannelOf(cd, Spin::Down);
+        auto refuseMixed=[](const tChargeDensity<T>* c)
+        {
+            if (ExactSourceOf(c))
+                throw std::logic_error("tSinglesGradientSampler: a density mixed as a field with its exact source retained (the cusp-deficit "
+                                       "route) -- its correction is a G-series whose gradient no field gives yet, so a GGA on the point "
+                                       "route needs rho[D] at the points (D-mixing); the policy layer should have chosen it");
+        };
+        if (auto* dmUp=dynamic_cast<const tDM_CD<T>*>(up))
+        {
+            auto* dmDn=dynamic_cast<const tDM_CD<T>*>(dn);
+            if (!dmDn) throw std::logic_error("tSinglesGradientSampler: a D-backed Up channel beside a matrix-free Down channel");
+            itsGradUp=ProjectGradDM(*dmUp);
+            itsGradDn=ProjectGradDM(*dmDn);
+        }
+        else if (up && dn)
+        {
+            refuseMixed(up); refuseMixed(dn);
+            itsGradUp=ProjectGradField(*up);
+            itsGradDn=ProjectGradField(*dn);
+        }
+        else
+        {   // spin-agnostic: grad rho_up = grad rho_down = grad rho / 2 (the HalfDensity rule RhoPol applies)
+            if (auto dm=dynamic_cast<const tDM_CD<T>*>(cd)) itsGradUp=ProjectGradDM(*dm);
+            else {refuseMixed(cd); itsGradUp=ProjectGradField(*cd);}
+            for (auto& d : itsGradUp) d*=0.5;
+            itsGradDn=itsGradUp;
+        }
+        itsGradVersion=cd->Version();
+    }
+    return s==Spin::Up ? itsGradUp : itsGradDn;
+}
+
+template <class T, class Base> const rvec_t& tSinglesGradientSampler<T,Base>::Rho(const tChargeDensity<T>* cd) const
+{
+    assert(cd);
+    if (cd->Version()!=itsRhoSumVersion)
+    {
+        itsRhoSum=this->RhoPol(cd, Spin::Up)+this->RhoPol(cd, Spin::Down);
+        itsRhoSumVersion=cd->Version();
+    }
+    return itsRhoSum;
+}
+
+template <class T, class Base> void tSinglesGradientSampler<T,Base>::WarmForDensity(const tChargeDensity<T>* cd, bool) const
+{
+    this->RhoPol(cd, Spin::Up); this->RhoPol(cd, Spin::Down);
+    GradRhoPol(cd, Spin::Up);   GradRhoPol(cd, Spin::Down);
+}
+
+template <class T, class Base> template <class U>
+hmat_t<U> tSinglesGradientSampler<T,Base>::MatrixVW(const tobs_t<U>* bs, const rvec_t& v, const rvec3vec_t& w) const
+{
+    const size_t n=this->NumPoints();
+    if (v.size()!=n || w.size()!=n) throw std::invalid_argument("tSinglesGradientSampler::Matrix: v and w must be one entry per point");
+    rvec_t c(3*n);
+    for (size_t g=0; g<n; g++) {c[g]=w[g].x; c[n+g]=w[g].y; c[2*n+g]=w[g].z;}
+    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,T>&>(*bs);   // the DFT tier, as the LDA Matrix asks it
+    hmat_t<U> H=this->template MatrixT<U>(bs, v);                                // v chi_i chi_j, through the LDA path
+    H+=itsGrad.template Integrator<U>(orb).Adjoint(c);                           // + w . grad(chi_i chi_j), through the gradient tensor
+    return H;
+}
+template <class T, class Base> hmat_t<T> tSinglesGradientSampler<T,Base>::Matrix(const tobs_t<T>* bs, const rvec_t& v, const rvec3vec_t& w) const
+{
+    return MatrixVW<T>(bs, v, w);
+}
+
+template class DeltaGradientProjector<double>;
+template class DeltaGradientProjector<dcmplx>;
+template class tSinglesGradientSampler<double>;                          // stage 2: the molecular point route
+template class tSinglesGradientSampler<dcmplx, SinglesDensitySampler>;   // stage 3: the periodic point route
+// The member templates the interface's inline faces call (a class instantiation does not reach them): each lineage's block scalars.
+template const ScreenedMatrixIntegrator<double>& DeltaGradientProjector<double>::Integrator<double>(const BasisSet::Orbital_DFT_IBS<double,double>&) const;
+template const ScreenedMatrixIntegrator<double>& DeltaGradientProjector<dcmplx>::Integrator<double>(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const;
+template const ScreenedMatrixIntegrator<dcmplx>& DeltaGradientProjector<dcmplx>::Integrator<dcmplx>(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const;
+template hmat_t<double> tSinglesGradientSampler<dcmplx, SinglesDensitySampler>::MatrixVW<double>(const tobs_t<double>*, const rvec_t&, const rvec3vec_t&) const;
+
 } //namespace

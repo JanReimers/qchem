@@ -199,9 +199,9 @@ public:
     //! to become an honest \f$Y_{lm}\f$ per (i, m).  Every other representation is the hub's.  The same values as the 3-D face gives
     //! today, which evaluates \f$\chi_i(|r|)\f$ too.
     virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp, VxcFit fit=VxcFit::Auto,
-                                              const FitQuadrature* quad=nullptr) const override
+                                              const FitQuadrature* quad=nullptr, const PhiChooser& phiTables={}) const override
     {
-        if (fit!=VxcFit::Delta) return BasisSetImp<double>::CreateVxcFitBasisSet(cl, mp, fit, quad);
+        if (fit!=VxcFit::Delta) return BasisSetImp<double>::CreateVxcFitBasisSet(cl, mp, fit, quad, phiTables);
         if (!quad) throw std::invalid_argument("Radial::BasisSet_HF::CreateVxcFitBasisSet: VxcFit::Delta is built over a quadrature, and none "
                                                "was handed in (MakeXCQuadrature)");
         std::map<uint64_t, const EOrbital_HF_IBS*> mine;   // these blocks by instance: the closure is handed one of them, alive

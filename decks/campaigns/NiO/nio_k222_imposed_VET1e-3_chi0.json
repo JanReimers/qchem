@@ -75,8 +75,7 @@
         "U_eV": 0.0,
         "orthoAtomic": true
       }
-    ],
-    "forceComplex": true
+    ]
   },
   "schedule": [
     {

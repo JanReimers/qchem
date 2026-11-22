@@ -31,7 +31,6 @@ export import qchem.Outcome;    // Outcome<Converged, SCFFailure>
 import qchem.ScalarFunction;    // ScalarFunction<double> (the spin density's face)
 import qchem.ChargeDensity;     // tDM_CD<T> (the converged density)
 export import qchem.SCFParams;  // SCFParams (Converge's edit argument)
-import qchem.Policy;            // policy::Refused: a schedule stage's refusal, answered as an SCFFailure
 export import qchem.Setup;      // Setup (a stage's optional setup) + RunOptions (Converge's settings, the checkpoint path) + SCFRecipe
 
 export namespace qchem

@@ -2,9 +2,11 @@ add_library(qcMesh)
 # Module implementation units (no module interface; not part of the BMI file set).
 target_sources(qcMesh PRIVATE
     Imp/Mesh.C
+    Imp/Recipe.C
     Internal/MHLRadialMesh.C
     Internal/LogRadialMesh.C
     Internal/LinearRadialMesh.C
+    Internal/DE2RadialMesh.C
     Internal/RadialFactory.C
     Internal/LebedevAngularMesh.C
     Internal/GaussLegendreAngularMesh.C
@@ -15,6 +17,7 @@ target_sources(qcMesh PRIVATE
 # Module interface units (export the BMI .gcm files other modules import).
 target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Mesh.C
+    Recipe.C   # qchem.Mesh.Recipe: MeshParams and its kinds (V-MESH-FACTORY step 1)
     GaussLegendre.C
     RadialMesh.C
     AngularMesh.C

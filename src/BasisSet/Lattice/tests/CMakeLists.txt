@@ -33,6 +33,7 @@ add_executable(UTLattice_BS ../../Radial/tests/gtestmain.C
     TRIMRepresentationUT.C   # a real TRIM block off Γ: the complex block's answer or a refusal naming k (V-BS-SYMMETRY S3)
     ShubnikovPairUT.C   # the Shubnikov pair projection on the Γ block (2026-10-29)
     PlaneWave_FieldsUT.C  # the PW basis / FFT / Poisson unit tests (idem)
+    SharedPhiUT.C       # the shared δ-fit Φ: one image record per lattice basis, phased per block (lane S 2026-11-19)
     HandGradientUT.C    # the hand-gradient audit: every lattice family's Gradient(r) vs the FD of its values (2026-11-09)
 )
 

@@ -32,6 +32,8 @@ RunOptions AtomOptions(const RunOptions& asked)
         refuse("imposeSymmetry / symmetryTol / spins", "an atom's symmetry is spherical by construction");
     if (asked.orthoTol!=def.orthoTol) refuse("orthoTol", "the atom's solver takes no truncation floor");
     if (asked.label!=def.label) refuse("label", "an atom names itself by its element in its own output");
+    if (!asked.coulomb.auxBasis.empty())
+        refuse("coulomb.auxBasis", "the radial atom's Coulomb fit is its own exponent pool's (the fit-rung ladder), not a Gaussian fit file");
     if (!o.model)  o.model=Hamiltonian::Model::HF;
     if (!o.xcMesh) o.xcMesh=kAtomMeshDefault;
     if (!o.ortho)  o.ortho=qchem::Auto;
@@ -87,8 +89,14 @@ std::shared_ptr<const AtomSetup> AtomSetup::Resolve(const Structure& atom, const
         s->accelerator=t;
     }
     else s->accelerator=MolecularAcceleratorType(o.accelerator, "qchem::AtomCalculation");
+    // A GGA (stated model, or an atom.xc override): built, but the radial atom route does not sample the gradient yet (GGA stage 1).
+    RefuseUnroutedGradient(*o.model, "an atom");
+    if (o.atom.xc) RefuseUnroutedGradient(*o.atom.xc, "an atom (atom.xc)");
     const bool densityFock = o.atom.pseudopotential || o.atom.xc.has_value() || Hamiltonian::IsDFT(*o.model);
     if (densityFock) RefuseGradientConsumers(o.vxcFit, o.xcRho, NameOf(s->accelerator));   // GDM needs H = dE/dD (pin 32)
+    // The Vxc product space's admission (pin 30), asked HERE, before the basis and the Hamiltonian are built, as the molecule and the cell
+    // ask it (Group face step 3b): until then the atom met it only as the Hamiltonian factory's throw, after the work was done.
+    if (densityFock) RequireVxcAdmitted(*s->structure, o.vxcFit, s->xcMesh, "atom");
     // Atoms keep the proven Z-scaled DIIS engage gate unless the caller pins one (DFT too: \c DIISEngageGate's density-Fock rule is
     // the molecule's), over the molecular defaults.  The json escape hatch merges over these when the graph is built.
     const double eMax=DIISEngageGate(acc.diis.engageBelowFD.value_or(0.0), s->Z, /*the atom keeps the Z-scaled gate, DFT too*/false);

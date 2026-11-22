@@ -597,17 +597,6 @@ rvec3_t FiniteIrrepCD::Gradient(const rvec3_t& r) const
     return GradientContraction(gphir,phir,this->itsDensityMatrix);
 }
 
-// Raw rho_DM(r) on c's raster (doc/GPWPlan 0.5(f2)): the basis's collocation-native forward, when it has
-// one (GPW's Overlap3C carries applyRaw; a plane-wave basis leaves it empty -> we answer empty and the
-// caller falls back to the ball route).  itsDensityMatrix carries the BZ weight, exactly as above.
-template <class Leaf> rvec_t IrrepCD_Fourier<Leaf>::GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const
-{
-    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<typename Leaf::scalar_t,dcmplx>*>(self().itsBasisSet);
-    assert(fb && "GetRhoOnGrid requires a periodic (G-space) Orbital_DFT_IBS basis");
-    const PairProjection<dcmplx>& g=fb->Overlap3C(c);
-    return g.applyRaw ? g.applyRaw(self().itsDensityMatrix) : rvec_t{};
-}
-
 //-----------------------------------------------------------------------
 //
 //  Streamable stuff.
@@ -652,8 +641,6 @@ template <class Leaf> double PeriodicIrrepCD_RealEnergy<Leaf>::DM_ContractE(cons
     return blazem::sum(b.itsDensityMatrix % blazem::trans(v->GetEMatrix(b.itsBasisSet,b.itsSpin,id)));
 }
 
-template class IrrepCD_Fourier<PeriodicIrrepCD<double>>;
-template class IrrepCD_Fourier<PeriodicIrrepCD<dcmplx>>;
 template class PeriodicIrrepCD<double>;
 template class PeriodicIrrepCD<dcmplx>;
 template class PeriodicIrrepCD_RealEnergy<PeriodicIrrepCD<double>>;

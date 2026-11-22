@@ -135,25 +135,64 @@ template <class T> std::unique_ptr<ResponseKernel<T>> tHamiltonianImp<T>::MakeRe
 template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
 {
     itsDHTs.push_back(std::unique_ptr<tDynamic_HT<T>>(p));
-    // There is exactly one XC quadrature in a term stack (see SiteMoments); a second would be a construction error.
-    if (const auto* r=dynamic_cast<const tRealSpaceResidual<T>*>(p)) itsRealSpaceTerm=r;
     // AND, not OR: the virial holds only if EVERY term is Coulombic (V1.27).  One PP term kills it.
     itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
     itsPreservesReal  = itsPreservesReal  && p->PreservesReal();   // AND: one SOC/A-field term flips all blocks complex
 }
-// D-MINDRHO (2026-10-22, user: "option A"): the L1 distance per electron on the run's own quadrature -- the fraction of the electrons
+template <class T> void tHamiltonianImp<T>::HoldNonlinearMesh(mesh_t m)
+{
+    if (!m) throw std::logic_error("tHamiltonianImp::HoldNonlinearMesh: no mesh (a factory that needs none holds none)");
+    if (itsNonlinearMesh) throw std::logic_error("tHamiltonianImp::HoldNonlinearMesh: this Hamiltonian already holds a nonlinear integration "
+                                                 "mesh -- one Hamiltonian, one mesh; its clients share it (V-NONLINEAR-MESH)");
+    itsNonlinearMesh=std::move(m);
+}
+
+// THE OBSERVABLE (doc/OpenWork.md N1/T2; R1.0h): mu_A = Integral w_A (rho_up - rho_dn), in electrons, over the mesh's atom-centred
+// partition.  FREE -- both channel rasters are cached for this density serial.  Empty when the run resolves no spin (m == 0
+// identically), when the mesh has no site blocks, or when there is no mesh: the caller treats empty as "this run cannot answer",
+// never as "zero".  It moved here from the XC term (V-NONLINEAR-MESH): the partition is the mesh's, not the functional's.
+template <class T> rvec_t tHamiltonianImp<T>::SiteMoments(const tChargeDensity<T>* cd) const
+{
+    if (!itsNonlinearMesh || itsSpinGroup!=SpinGroup::Polarized) return rvec_t();
+    const auto& m=*itsNonlinearMesh;
+    return m.SiteIntegrals(rvec_t(m.RhoPol(cd,Spin::Up)-m.RhoPol(cd,Spin::Down)));
+}
+
+// D-MINDRHO (2026-10-22, user: "option A"): the L1 distance per electron on the run's nonlinear mesh -- the fraction of the electrons
 // the step would still move, the same number for every mixer, representation and system (cached rasters: ~one extra raster per
-// iteration).  With no quadrature, the S-metric size of ΔD per electron over every block and spin, which needs no mesh at all.
+// iteration), per spin channel on a polarized run (a moment still moving keeps the SCF unconverged).  With no mesh, the S-metric
+// size of ΔD per electron over every block and spin, which needs no mesh at all.  The sampler caches ONE density serial (both
+// channels of it), so BOTH of a's channels are copied before b's replace them -- two rasters per call, not four.
 template <class T> double tHamiltonianImp<T>::DeltaRho(const tChargeDensity<T>* in, const tChargeDensity<T>* out) const
 {
     double d=0.0;
-    if (itsRealSpaceTerm) d=itsRealSpaceTerm->L1Distance(in,out);
+    if (itsNonlinearMesh)
+    {
+        const auto& m=*itsNonlinearMesh;
+        auto l1=[&](const rvec_t& fa, const rvec_t& fb)
+        {
+            rvec_t x(fa.size());
+            for (size_t g=0; g<x.size(); g++) x[g]=std::fabs(fa[g]-fb[g]);
+            return m.Integrate(x);
+        };
+        if (itsSpinGroup!=SpinGroup::Polarized)
+        {
+            const rvec_t fa=m.Rho(in);
+            d=l1(fa, m.Rho(out));
+        }
+        else
+        {
+            const rvec_t au=m.RhoPol(in,Spin::Up), ad=m.RhoPol(in,Spin::Down);
+            const rvec_t bu=m.RhoPol(out,Spin::Up), bd=m.RhoPol(out,Spin::Down);
+            d=l1(au,bu)+l1(ad,bd);
+        }
+    }
     else
     {
         const auto* a=dynamic_cast<const ChargeDensity::tDensityMatrixDistance<T>*>(in);
         const auto* b=dynamic_cast<const ChargeDensity::tMixableDensity<T>*>(out);
-        if (!a || !b) throw std::logic_error("tHamiltonianImp::DeltaRho: no real-space quadrature in this Hamiltonian and no density "
+        if (!a || !b) throw std::logic_error("tHamiltonianImp::DeltaRho: no nonlinear integration mesh in this Hamiltonian and no density "
                                              "matrix in these densities, so nothing can measure the change");
         d=std::sqrt(a->SquaredDistanceTo(*b));
     }
@@ -241,6 +280,9 @@ template <class T> EnergyBreakdown tHamiltonianImp<T>::GetTotalEnergy( const tDM
     for (auto& t:itsSHTs)  t->GetEnergy(e,cd);
     for (auto& t:itsDHTs)  t->GetEnergy(e,cd);
     for (auto& t:itsHF_HTs)  t->GetEnergy(e,cd);
+    // The integrated site moments are the MESH's observable (V-NONLINEAR-MESH), written with the energy so the trace and the
+    // observer read them off the breakdown they already hold (R1.0h); free -- the energy pass cached both channel rasters.
+    e.charge.siteMoments=SiteMoments(cd);
     return e;
 }
 

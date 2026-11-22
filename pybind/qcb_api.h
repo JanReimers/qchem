@@ -3,7 +3,8 @@
 // Flat C ABI between the two worlds:
 //   qchem_bridge.cpp -- a C++20 *module unit* that `import`s qchem (its #includes live in a
 //                       global-module-fragment, so they de-dup against the imported modules' GMFs --
-//                       no <ranges> ODR clash).  It runs MoleculeSetup::Admit + qchem::MoleculeCalculation.
+//                       no <ranges> ODR clash).  It runs MoleculeSetup::Admit + qchem::MoleculeCalculation, AtomSetup::Admit +
+//                       qchem::AtomCalculation (the radial atom), and deck::Build (a crystal).
 //   qchem_py.cpp     -- pure nanobind; includes ONLY this header, never a module.
 //
 // HANDLES ARE OPAQUE STRUCT POINTERS, never void*.  `qcb_calc` is defined only inside the bridge (it owns the
@@ -19,7 +20,7 @@
 extern "C" {
 #endif
 
-typedef struct qcb_calc qcb_calc;   //!< a converged molecular calculation (bridge-owned)
+typedef struct qcb_calc qcb_calc;   //!< a finite system's calculation, a molecule's or a radial atom's (bridge-owned)
 typedef struct qcb_sink qcb_sink;   //!< the caller's per-iteration sink (nanobind-owned)
 typedef struct qcb_solid qcb_solid; //!< a periodic calculation built from a deck (bridge-owned)
 typedef struct qcb_view  qcb_view;  //!< a saved state, drawn: a reopened run's fields with no live calculation (bridge-owned)
@@ -87,6 +88,10 @@ typedef struct qcb_request
     const char*   seed;           //!< SeedStrategy: "Default" (the Auto rule, qchem.SeedPolicy) | "CoreGuess" | "Uniform" | "SAD" | "IonicSAD";
                                   //!< null/"" = Default
     const char*   angular;        //!< BasisSet::Gaussian::Angular: "cartesian" | "spherical"; null/"" = cartesian
+    //! Each site's NET CHARGE, `nat` values (qchem::Site::netCharge: Z minus the electrons the site carries; OH- puts -1 on the O),
+    //! null = every site neutral.  A molecule's charge is its STRUCTURE's (MoleculeSetup refuses a run-level charge); the total
+    //! sets the electron count, the split shapes only the SAD seed.
+    const double* netCharge;
 } qcb_request;
 
 //! Admit + converge.  `step`/`sink` may be null; when given, the trace streams live.  Null on failure (`err`).
@@ -100,6 +105,15 @@ qcb_calc* qcb_make(const qcb_request* req, qcb_row_fn step, qcb_sink* sink, char
 //! from a failure and decide on a fresh run; a refusal of the SETUP (MoleculeSetup::Admit: the options themselves) sets 2.
 qcb_calc* qcb_start(const qcb_request* req, const char* path, int buildOnly, qcb_row_fn step, qcb_sink* sink, int* refused,
                     char* err, int errlen);
+//! THE RADIAL ATOM (qchem::AtomCalculation: spherical, radial bases), as qcb_start in every other respect: the lone atom of nuclear
+//! charge `Z` and net charge `charge` (electrons Z - charge) at the origin, and its options as JSON in the INPUT DECK's spelling
+//! (doc/InputDeck.md, schema 2: "schema": 2 and the top-level keys -- model, spin, accelerator, scf, xc, seed, saveStateTo, ... --
+//! with the `atom` block: type, basisPool / N / emin / emax / exponents, configuration, pseudopotential, valence, xc; and the deck's
+//! `acceleratorOptions`).  Null / "" = every default.  What an atom does not consume (a molecule or solid block, multiplicity, charge
+//! as an option) is the setup's refusal, *refused = 2.  The handle answers every qcb_calc call; qcb_iterate_density refuses (the atom
+//! has no iterate field) and qcb_orbital returns 0 (no 3-D atomic orbital yet: OpenWork "an honest atomic op(r)").
+qcb_calc* qcb_start_atom(int Z, int charge, const char* optionsJson, const char* path, int buildOnly, qcb_row_fn step, qcb_sink* sink,
+                         int* refused, char* err, int errlen);
 void      qcb_free(qcb_calc* h);
 //! SAVE the run's state to `path` (HDF5 "qchem-state 2.0", converged or not: a restart says which), filed as its own report run
 //! "<ID> state save".  1 on success, 0 with `err`.
@@ -188,6 +202,8 @@ int        qcb_solid_levels(const qcb_solid* h, char* out, int outlen);   //!< a
 //! "view refused (<why>): <details>" in `err`; a molecule's refused SETUP: 2, "setup refused (policy <name>): <reason>") or a
 //! failure (*refused = 0).  Files the run "<structure> view", its "view" section.
 qcb_view* qcb_view_molecule(const qcb_request* req, const char* path, int* refused, char* err, int errlen);
+//! A radial atom's saved state, drawn (AtomCalculation::ViewState): `Z`, `charge` and `optionsJson` as qcb_start_atom.
+qcb_view* qcb_view_atom(int Z, int charge, const char* optionsJson, const char* path, int* refused, char* err, int errlen);
 qcb_view* qcb_view_solid(const char* deckJson, const char* path, int* refused, char* err, int errlen);
 void      qcb_view_free(qcb_view* h);
 //! As qcb_levels: the saved state's every level, in the live run's order (empty for a state that saved no orbitals).
@@ -245,6 +261,13 @@ int qcb_materials(const char* req, char* out, int outlen);
 //! {"error": why} when the library cannot represent it (an ECP block, a scaled shell, ...).  The text is parsed as data only.
 //! The same two calls as qcb_materials.
 int qcb_basis_import(const char* req, char* out, int outlen);
+
+//! THE BASIS MENU (qchem::OrbitalBasisOffers, the user's 2026-11-21 ruling): every orbital-basis choice a structure admits, unsorted.
+//! {"numbers": [Z], "positions": [3N bohr], "symmetryTol"?: t, "route"?: "molecule"} (a molecule; one site is the radial atom, unless
+//! route "molecule" asks for the one-atom molecule's Gaussian menu) or {"cell": <materials.json
+//! entry>} -> {"offers": [{route, key, name, admitted, reason, blockGroup, note, optIn, kind, ppSet}]}, or {"error"}.  The same two calls as
+//! qcb_materials.
+int qcb_basis_offers(const char* req, char* out, int outlen);
 
 //! A named pseudopotential set's choice (Pseudopotential::PseudopotentialSet, the ONE reader of pseudopotentials.json and its rule):
 //! {"set": S, "elements": [El, ...], "model"?: M} -> {set, functional, valence: {El: q}, fitted: {El: label}, checks?} -- q per element, the set's exception if it lists one, else

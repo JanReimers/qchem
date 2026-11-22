@@ -108,6 +108,8 @@ TEST(SCFTrace, HartreeFockShowsTheDensityMatrixNormNotDeltaRho)
     EXPECT_TRUE(Has(h,"‖ΔD‖")) << h;
     EXPECT_FALSE(Has(h,"Δρ"))  << h;
     EXPECT_EQ(trace.find("residualMesh"), std::string::npos) << "a mesh built for the gate alone";
+    // V-NONLINEAR-MESH (user ruling 2026-11-20 1(a)): the Hamiltonian holds a nonlinear mesh only when a term needs one; HF needs none.
+    EXPECT_EQ(trace.find("nonlinearMesh"), std::string::npos) << "an HF run built a nonlinear integration mesh";
 }
 
 // Combo 2 of 4: MOLECULAR/ATOMIC x PP.  A pseudopotential is not Coulombic, so the virial theorem does

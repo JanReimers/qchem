@@ -1,5 +1,6 @@
 // File: BasisSetImp.C Quantum Chemistry basis set expressed as a sequence of Irrep basis sets.
 module;
+#include <vector>
 #include <cassert>
 #include <memory>
 #include <stdexcept>
@@ -62,7 +63,8 @@ template <class T> FIT_CD_ABS<T>* tBasisSet<T>::CreateCDFitBasisSet(const Struct
 }
 template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp,
                                                                     VxcFit fit,
-                                                                    const FitQuadrature* quad) const
+                                                                    const FitQuadrature* quad,
+                                                                    const PhiChooser&) const   // real blocks: no lattice images, dense
 {
     // The REAL (molecular) path's two representations (2026-10-31, user: "replace the Vxc fit basis with delta functions
     // ... if our OOD design (LSP) is working correctly, this should just work"):
@@ -95,7 +97,7 @@ template <> FIT_CD_ABS<dcmplx>* tBasisSet<dcmplx>::CreateCDFitBasisSet (const St
 }
 FitQuadrature MakeXCQuadrature(const Structure& cl, const qcMesh::MeshParams& mp, const Symmetry::SymmetryImposition* imp)
 {
-    qchem::report::Scope here("xcQuadrature");   // the mesh builder reports one level in
+    qchem::report::Scope here("nonlinearMesh");   // the mesh builder reports one level in (V-NONLINEAR-MESH 3(a): was "xcQuadrature")
     const auto* src=dynamic_cast<const XCMeshSource*>(imp);   // abstract face to abstract face
     FitQuadrature q = src ? src->MakeXCMesh(mp) : FitQuadrature{std::make_shared<const qcMesh::Mesh>(cl.CreateIntegrationMesh(mp)), {}};
     // The accuracy a Fourier series sampled on THIS quadrature must meet (the rho-tilde sampler, step 2): stated by the run in the
@@ -112,7 +114,8 @@ FitQuadrature MakeXCQuadrature(const Structure& cl, const qcMesh::MeshParams& mp
 //            unresolved Auto lands here, the historical pairing).
 template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp,
                                                                        VxcFit fit,
-                                                                       const FitQuadrature* quad) const
+                                                                       const FitQuadrature* quad,
+                                                                       const PhiChooser& phiTables) const
 {
     if (fit==VxcFit::Auxiliary)
         throw std::logic_error("tBasisSet<dcmplx>: VxcFit::Auxiliary (a molecular / atom auxiliary fit) has no realization on a periodic basis -- an "
@@ -134,8 +137,20 @@ template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const St
             q=*quad;
         }
         qchem::report::Timed timed("setup: DeltaFit_IBS ctor");
-        return new DeltaFit_IBS<dcmplx>(std::make_shared<BasisCache>(), std::move(q),
-                                Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+        // THE SHARED Φ (lane S 2026-11-19): every block of mine that is a phased sum of lattice images can hand them over (BlochImageSource),
+        // so the δ fit can hold one image record per lattice basis instead of a dense table per k-block.  The concrete wiring is HERE: the
+        // closure is the factory's abstract-to-abstract cross-cast, and the δ fit never casts.
+        auto imageSourceOf=[](const IrrepBasisSet_IDs& b){return dynamic_cast<const BlochImageSource*>(&b);};
+        auto* d=new DeltaFit_IBS<dcmplx>(std::make_shared<BasisCache>(), std::move(q),
+                                         Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), {}, imageSourceOf);
+        // Which realization (dense tables or the shared images) is the POLICY layer's decision, made here at setup on both footprints.
+        std::vector<const Orbital_1E_IBS<dcmplx>*> cblocks;
+        std::vector<const Orbital_1E_IBS<double>*> rblocks;
+        for (size_t i=0;i<GetNumIBS();i++)
+            if (const auto* rb=GetRealIBS(i)) rblocks.push_back(rb);
+            else                              cblocks.push_back(GetIBS(i));
+        d->ChoosePhiRealization(cblocks, rblocks, phiTables);
+        return d;
     }
     return FirstPeriodicDFT(*this, [&](const auto* dft){return dft->CreateVxcFitBasisSet(cl,mp);});
 }

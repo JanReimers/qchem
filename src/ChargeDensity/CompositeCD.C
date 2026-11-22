@@ -10,7 +10,6 @@ export module qchem.CompositeCD;
 import qchem.Structure;   // DM_Pullback (GeometryOptimizationPlan §13.2)
 export import qchem.ChargeDensity;
 export import qchem.ChargeDensity.DensityMatrixDistance;
-export import qchem.ChargeDensity.RasterDensity;    // the raw-raster face (summed over k-blocks)
 export import qchem.Symmetry.StarGroup;             // StarGroup -- the IBZ density star-average group
 export import qchem.Symmetry.Irrep;                 // the block label (spatial ⊗ ms)
 
@@ -34,22 +33,8 @@ using cd_ref_t   = std::variant<tDM_CD<double>*, tDM_CD<dcmplx>*>;
 //  Templated on the matrix element type T (rX/cX); the <double> alias preserves the existing
 //  real callers, the <dcmplx> instantiation aggregates the plane-wave (Bloch-irrep) densities.
 //
-//! \brief The raw-raster face for a COMPOSITE -- periodic path only (V1.7).  Each block already carries its BZ weight, so it is a
-//! straight sum over the leaves.  (ρ̃ and the Hartree projection are \c Project's since V-ONE-OF-N 3c, star-averaged there once.)
-//! CRTP for the same reason as the leaf's: reach the contained blocks without exposing them.
-template <class Comp> class Composite_Fourier : public virtual RasterDensity
-{
-public:
-    virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const;   // empty if any block lacks the raw path
-private:
-    const Comp& self() const {return static_cast<const Comp&>(*this);}
-};
-
-template <class T, class Comp> using CompositeFourierBase =
-    std::conditional_t<std::is_same_v<T,dcmplx>, Composite_Fourier<Comp>, NoRasterDensity>;
-
 //! \brief The whole-system exact-exchange sweep for a COMPOSITE -- real path only (V1.6, completing it).
-//! Same CRTP shape as \c Composite_Fourier, and for the same reason the LEAF got one: inheriting the
+//! CRTP, for the same reason the LEAF's pair face is: inheriting the
 //! \c tHF_System_CD face conditionally but DECLARING its two methods unconditionally left
 //! \c tComposite_CD<dcmplx> carrying exact-exchange members that override nothing and can only throw --
 //! the very "denial the other half of the hierarchy must write" this item set out to remove, surviving
@@ -100,7 +85,6 @@ template <class T> class tComposite_CD
     , public virtual tDensityMatrixDistance<T>
     , public virtual tLineageTracked<T> // Layer-2: this top-level density tracks its SCF lineage head
     , public virtual tSpinResolved_CD<T> // the channel VIEW face (V1.37)
-    , public CompositeFourierBase<T,tComposite_CD<T>>   // reciprocal trio: periodic path only (V1.7)
     , public CompositeHFBase<T,tComposite_CD<T>>        // whole-system exact exchange: real path only (V1.6)
 {
 public:
@@ -164,11 +148,7 @@ public:
     virtual double operator()(const rvec3_t&) const override;
     virtual rvec3_t  Gradient  (const rvec3_t&) const override;
 
-    // The reciprocal trio is NOT declared here (V1.7 ISP) -- see Composite_Fourier below, inherited only
-    // on the periodic path, so the finite composite is not asked questions it cannot answer.
-
 private:
-    friend class Composite_Fourier<tComposite_CD<T>>;   // sums the blocks; nothing is exposed publicly
     friend class Composite_HFSystem<tComposite_CD<T>>;  // drives the canonical-pair sweep over the blocks
     tComposite_CD(const tComposite_CD&);
 

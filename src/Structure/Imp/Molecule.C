@@ -9,6 +9,7 @@ module;
 
 module qchem.Structure;
 import qchem.Streamable;
+import qchem.Symmetry.Molecule.AbelianGroup;   // BuildAbelianGroup, Centroid (MakeSymmetry)
 import qchem.Mesh.Product;         // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
 import qchem.Mesh.Builder;         // MeshBuilder (efficient incremental accumulation)
 import qchem.Mesh.BeckePartition;  // BeckePartitionWeight (the partition, one home with its geometry gradient)
@@ -33,7 +34,7 @@ static void RefuseCellMesh(const qcMesh::MeshParams& mp, const char* what)
 {
     if (mp.cellKind==qcMesh::UnitCellKind::Uniform)
         throw std::invalid_argument(std::string(what)+": a uniform CELL mesh imposes a translation group; this structure has none "
-                                    "(point-group symmetry only).  State cellKind Becke or Auto -- the atom-centred mesh.");
+                                    "(point-group symmetry only) -- To fix this, please state cellKind Becke or Auto -- the atom-centred mesh.");
 }
 
 // THE MESH REPORTS ITSELF as it is built (OpenWork §3 "A molecule's mesh never reports itself", 2026-11-02), ONE LEVEL IN:
@@ -47,6 +48,7 @@ static const char* RadialName(qcMesh::RadialKind r)
         case qcMesh::RadialKind::MHL:    return "MHL";
         case qcMesh::RadialKind::Log:    return "Log";
         case qcMesh::RadialKind::Linear: return "Linear";
+        case qcMesh::RadialKind::DE2:    return "DE2";
     }
     return "?";
 }
@@ -64,7 +66,7 @@ static void ReportMolecularMesh(size_t natom, const qcMesh::MeshParams& mp, size
 {
     namespace rpt=qchem::report;
     rpt::Set("kind", "Becke"); rpt::Set("natom", (long)natom); rpt::Set("radial", RadialName(mp.radial));
-    rpt::Set("nRadial", mp.nRadial); rpt::Set("mhl_alpha", mp.mhl_alpha); rpt::Set("angular", AngularName(mp.angular));
+    rpt::Set("nRadial", mp.nRadial); if (mp.radial==qcMesh::RadialKind::DE2) { rpt::Set("de2_alpha", mp.de2_alpha); rpt::Set("de2_rMax", mp.de2_rMax); } else rpt::Set("mhl_alpha", mp.mhl_alpha); rpt::Set("angular", AngularName(mp.angular));
     rpt::Set("L", mp.angularDegree); rpt::Set("nDirs", (long)nDirs); rpt::Set("beckeOrder", mp.beckeOrder);
     rpt::Set("points", (long)kept); rpt::Set("dropped", (long)(total-kept));
 }
@@ -72,10 +74,16 @@ static void ReportMolecularMesh(size_t natom, const qcMesh::MeshParams& mp, size
 qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams& mp)
 {
     RefuseCellMesh(mp, "the atom-centred (molecule / atom) mesh");
-    // The radial-only set imposes O(3): a library invariant here (the callers ask Hamiltonian::AdmitVxc first), so a THROW.
-    if (!atoms.Admits(qcMesh::ImposedBy(mp)))   // past RefuseCellMesh, only the radial-only set's O(3) can fail
-        throw std::invalid_argument("the atom-centred mesh: the radial-only point set (angular none) integrates one direction, exact only for a "
-                                    "spherical integrand -- it imposes O(3), and this structure's group has no full rotation symmetry (doc/Pins.md pin 30)");
+    // WHAT THIS MESH FORCES, from the one descriptor (qcMesh::Forces; doc/Pins.md pin 30, Group face step 3b) in the structure's own frame
+    // (its group's: an atom offers its site, a molecule's finite point group offers no centre).  Only the radial-only set (angular none)
+    // forces anything, O(3) about the one centre, so it exists only on the atom: elsewhere a CONSTRUCTION REFUSAL, the descriptor's reason.
+    Symmetry::GroupPtr forced=Symmetry::TrivialGroup();
+    if (mp.angular==qcMesh::AngularKind::None)
+    {
+        const auto H=qcMesh::Forces(mp, atoms.MakeSymmetry(Symmetry::kAdmissionTolerance)->MakeFrame());
+        if (!H) throw std::invalid_argument("the atom-centred mesh: "+H.Error()+" (doc/Pins.md pin 30)");
+        forced=H.Value();
+    }
     const int beckeOrder=mp.beckeOrder;
     assert(beckeOrder>=0);
     size_t natom=atoms.GetNumAtoms();
@@ -105,6 +113,7 @@ qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams&
         }
     }
     qcMesh::Mesh mesh=out.take();
+    mesh.InstallForces(forced);
     ReportMolecularMesh(natom, mp, ang.size(), rad.size()*ang.size()*natom, mesh.size());
     return mesh;
 }
@@ -144,6 +153,20 @@ std::ostream& Molecule::Write(std::ostream& os) const
 Molecule::Molecule() {}
 std::shared_ptr<Structure> Molecule::Clone() const {return std::make_shared<Molecule>(*this);}
 size_t Molecule::GetNumAtoms() const {return itsSites.size();}
+Symmetry::GroupPtr Molecule::MakeSymmetry(const Symmetry::GroupTolerance& tol) const
+{
+    namespace SM=Symmetry::Molecule;
+    if (itsSites.empty()) throw std::invalid_argument("Molecule::MakeSymmetry: an empty site set -- its group would be every isometry, "
+                                                      "and there is no finite group to issue");
+    std::vector<SM::SymPoint> pts;
+    for (const Site& s:itsSites) pts.push_back({s.Z, s.R});
+    // The ABELIAN subgroup (see the declaration): BuildAbelianGroup's ops act about the centroid of the points it was given.  The group
+    // NAMES itself as that subgroup of the detected full group (user, 2026-11-20), so a report never passes it off as the point group.
+    const SM::PointGroup pg=SM::DetectPointGroup(pts, tol.length);
+    const std::string name=pg.abelian==pg.symbol ? pg.symbol+" (the detected point group; abelian)"
+                                                 : pg.abelian+" (abelian subgroup of "+pg.symbol+")";
+    return Symmetry::FiniteGroup(SM::BuildAbelianGroup(pts, tol.length).ops, SM::Centroid(pts), tol, name);
+}
 const Site& Molecule::GetSite(size_t i) const {return itsSites[i];}
       Site& Molecule::GetSite(size_t i)       {return itsSites[i];}
 

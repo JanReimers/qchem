@@ -28,6 +28,8 @@ export import qchem.BasisSet.Orbital_DFT_IBS;          // Orbital_DFT_IBS<T,dcmp
 export import qchem.BasisSet.Orbital_PP_IBS;          // the species-field integral service (V1.2)
 export import qchem.BasisSet;                      // Real_BS (the molecular Gaussian basis handed to the ctor)
 export import qchem.BasisSet.AoShellSource;          // the shell-layout face this block forwards to its molecular block
+export import qchem.BasisSet.PointImages;            // BlochImageSource: my images, shared by every k-block over my molecular basis (shared Φ)
+export import qchem.BasisSet.RasterDensityProjector; // RasterPairCollocation: my pair products collocate RAW on a fit raster (R1.0n/o)
 export import qchem.BasisSet.OrbitalImageSource;     // the image of this block's orbitals under a crystal op (KAxisPlan P4)
 export import qchem.BasisSet.BareCoulombSource;      // the ACBN0 face it forwards too (+U increment 3, 2026-09-21)
 export import qchem.BasisSet.AtomCentredSet;
@@ -73,6 +75,8 @@ template <class T> class tGPW_IBS
     , public GPW_Evaluator                          // the shared Gaussian evaluator (Cast() target for the mixins)
     , public virtual BasisSet::AoShellSource        // built from the molecular block's shells, same order (+U, 2026-09-19)
     , public virtual BasisSet::OrbitalImageSource   // C_{gk} = M C_k under a crystal op (KAxisPlan P4)
+    , public virtual BasisSet::BlochImageSource     // the k-independent images of my functions on a point set (the δ fit's shared Φ)
+    , public virtual BasisSet::RasterPairCollocation   // my pair products collocate RAW on a fit raster: the raw XC/mixer route (R1.0n/o)
     , public virtual BasisSet::BareCoulombSource    // the molecular block's bare (m1m2|m3m4): central cell only (ACBN0, 2026-09-21)
     , public virtual BasisSet::AtomCentredOverlapSource<T>   // <chi_i^k|an atom-centred function> (+U projectors, HubbardProjectorPlan D2)
     , public virtual BasisSet::Transition_DFT_IBS   // the (k+q, k) transition density, this block the ket (LinearResponsePlan B2)
@@ -110,6 +114,13 @@ public:
     //! \copydoc BasisSet::OrbitalImageSource::OrbitalImage
     //! The Bloch sum keeps the molecular block's shells, so the image is that shell list's, on this block's cell and k.
     virtual mat_t<dcmplx> OrbitalImage(const Symmetry::SymOp& g) const override;
+    //! \name BasisSet::BlochImageSource: the evaluator's split of \c EvalMany at the phase (the molecular block's images, my k's phases).
+    //!@{
+    virtual bool CanMakePointImages() const override {return GPW_Evaluator::CanMakePointImages();}
+    virtual const InstanceToken& ImageSource() const override {return GPW_Evaluator::ImageSource();}
+    virtual BasisSet::PointImages MakePointImages(const rvec3vec_t& pts) const override {return GPW_Evaluator::MakePointImages(pts);}
+    virtual cvec_t ImagePhases(const BasisSet::PointImages& images) const override {return GPW_Evaluator::ImagePhases(images);}
+    //!@}
     //! \copydoc BasisSet::BareCoulombSource::BareCoulomb
     //! ACBN0 wants the AO in the CENTRAL CELL, unscreened and un-summed (Agapito et al. eq 4, g=l=m=0): that
     //! is the molecular block's integral, so forward -- the Bloch phase and the image sum are deliberately absent.

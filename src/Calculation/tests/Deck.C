@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <map>
 #include <set>
 #include <nlohmann/json.hpp>
@@ -466,6 +467,45 @@ TEST(Deck, BasisFileOverridesTheRegisteredDataFileAndABadPathFails)
     EXPECT_ANY_THROW(deck::Vet(bad,std::filesystem::temp_directory_path()));
 }
 
+// PIN 30 AT --check (Group face step 3b; the user's condition on ruling 2026-11-21: Vet keeps refusing a bad deck before Run): Vet asks the
+// setup's cheap pre-flight of the cell's group -- nothing built -- so a multipole Vxc fit (no periodic form) and the radial-only XC point
+// set (O(3) about one centre: a cell has none) is refused at vet, as is angular none on a uniform cell mesh (a mesh option the uniform
+// mesh would ignore), by the same reasons the setup gives, and the default deck passes.  (A deck cannot state the multipole fit.)  The
+// cell's refusal row is the same policy AdmitVxc the molecule and atom setups file (below).
+TEST(Deck, VetRefusesAPin30CellBeforeRun)
+{
+    const auto tmp=std::filesystem::temp_directory_path();
+    const json si={{"data","SIPP_SR"}};
+    deck::RunSpec ok;  deck::FromJson(json{{"structure","Si_diamond"},{"basis",si}}, ok);
+    EXPECT_NO_THROW(deck::Vet(ok, tmp));
+    deck::RunSpec uni; deck::FromJson(json{{"structure","Si_diamond"},{"basis",si},{"xc",{{"mesh",{{"cellKind","Uniform"},{"angular","none"}}}}}}, uni);
+    try { deck::Vet(uni, tmp); ADD_FAILURE() << "angular none on a uniform cell mesh passed vet"; }
+    catch (const std::exception& e) {std::cout << "[vet refusal] " << e.what() << "\n"; EXPECT_NE(std::string(e.what()).find("reads no angular rule"), std::string::npos) << e.what();}
+    // A molecule and an atom deck run their own setup's Admit at vet (nothing built): the radial-only set on H2O (no one centre: O(3)), and
+    // the plane-wave fit on the radial atom B (no lattice: T).  The printed refusal is the setup's policy row.
+    auto refusedAtVet=[&](const json& j, const char* imposed)
+    {
+        deck::RunSpec r; deck::FromJson(j, r);
+        try { deck::Vet(r, tmp); ADD_FAILURE() << j.dump() << " passed vet"; }
+        catch (const std::exception& e)
+        {
+            std::cout << "[vet refusal] " << e.what() << "\n";
+            EXPECT_NE(std::string(e.what()).find("policy AdmitVxc"), std::string::npos) << e.what();
+            EXPECT_NE(std::string(e.what()).find(imposed),          std::string::npos) << e.what();
+            EXPECT_NE(std::string(e.what()).find("pin 30"),          std::string::npos) << e.what();
+        }
+    };
+    refusedAtVet(json{{"structure","Si_diamond"},{"basis",si},{"xc",{{"mesh",{{"cellKind","Becke"},{"angular","none"}}}}}}, "H_R = O(3)");
+    refusedAtVet(json{{"structure","H2O"},{"model","LDA"},{"basis",{{"data","dzvp"}}},{"xc",{{"mesh",{{"angular","none"}}}}}}, "H_R = O(3)");
+    refusedAtVet(json{{"structure","B"},  {"model","LDA"},{"xc",{{"fit","PlaneWave"}}}},           "H_R = T");
+    {
+        deck::RunSpec h2o; deck::FromJson(json{{"structure","H2O"},{"model","LDA"},{"basis",{{"data","dzvp"}}}}, h2o);
+        EXPECT_NO_THROW(deck::Vet(h2o, tmp)) << "the default molecule deck passes vet";
+        deck::RunSpec b; deck::FromJson(json{{"structure","B"},{"model","LDA"}}, b);
+        EXPECT_NO_THROW(deck::Vet(b, tmp)) << "the default atom deck passes vet";
+    }
+}
+
 // A NON-SHIPPED BASIS IS INLINED (user ruling 2026-11-10: "the more self contained the decks are the better"): Resolve turns a
 // basis.file outside BasisSetData into basis.inline -- the preamble (the attribution) and only the blocks of the material's
 // elements -- so the record runs without the file; the build is the same basis; a file AND inline text, or a file missing an
@@ -626,11 +666,11 @@ TEST(Deck, HubbardLoopEstimatorRoundTripsAndOwnsItsKeys)
     json cplx=hub; cplx["forceComplex"]=true;
     auto deckWith=[](json solid, json loop, json kmesh){ return json{{"structure","NiO_AFM2"},{"kmesh",kmesh},{"solid",solid},{"postSCF",{{{"hubbardLoop",loop}}}}}; };
     const json lr={{"estimator","linearResponse"}};
-    EXPECT_EQ(msg(deckWith(hub,lr,{1,1,1})),"NO THROW") << "an LR loop needs no forceComplex: its setup decides the ansatz from k and q";
-    EXPECT_EQ(msg(deckWith(cplx,lr,{1,1,1})),"NO THROW");
-    EXPECT_NE(msg(deckWith(cplx,{{"estimator","linearResponse"},{"nq",2}},{3,3,3})).find("incommensurate"),std::string::npos);
+    EXPECT_EQ(msg(deckWith(hub,lr,{1,1,1})),"NO THROW") << "an LR loop needs no complex demand: its setup decides the ansatz from k and q";
+    EXPECT_NE(msg(deckWith(cplx,lr,{1,1,1})).find("RETIRED"),std::string::npos) << "solid.forceComplex is refused by name (OpenWork G4)";
+    EXPECT_NE(msg(deckWith(hub,{{"estimator","linearResponse"},{"nq",2}},{3,3,3})).find("incommensurate"),std::string::npos);
     EXPECT_EQ(msg(deckWith(hub,json::object(),{1,1,1})),"NO THROW") << "an ACBN0 loop needs no complex ansatz";
-    json smeared={{"structure","NiO_AFM2"},{"kmesh",{2,2,2}},{"solid",cplx},{"scf",{{"smearingkT",0.01}}},{"postSCF",{{{"independentResponse",{{"nq",2}}}}}}};
+    json smeared={{"structure","NiO_AFM2"},{"kmesh",{2,2,2}},{"solid",hub},{"scf",{{"smearingkT",0.01}}},{"postSCF",{{{"independentResponse",{{"nq",2}}}}}}};
     EXPECT_EQ(msg(smeared),"NO THROW") << "one Fermi level across k is the default (D-FERMI-DEFAULT)";
     smeared["solid"]["perKFermiLevels"]=true;
     EXPECT_NE(msg(smeared).find("perKFermiLevels"),std::string::npos) << "a smeared q-mesh response needs one Fermi level";
@@ -649,22 +689,20 @@ TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
 
     EXPECT_NE(msg(base({{{"estimateHubbardU",json::object()}}},json::object())).find("no Hubbard manifold"),std::string::npos);
     EXPECT_EQ(msg(base({{{"estimateHubbardU",json::object()}}},hub)),"NO THROW");
-    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},hub)),"NO THROW") << "no forceComplex needed: the setup builds a response run complex";
-    json cplx=hub; cplx["forceComplex"]=true;
-    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},cplx)),"NO THROW");
-    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},cplx,json::array({1,1,1}),{{"imposeSymmetry",true}})),"NO THROW")
+    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},hub)),"NO THROW") << "no complex demand: the setup builds a response run complex";
+    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},hub,json::array({1,1,1}),{{"imposeSymmetry",true}})),"NO THROW")
         << "imposition does not always reduce the mesh (NiO AFM-II 2x2x2: 8 -> 8): the response decides at run time, Vet() notes it";
     EXPECT_NE(msg(base({{{"independentResponse",{{"nq",2}}}}},hub,json::array({3,3,3}))).find("incommensurate"),std::string::npos);
     EXPECT_EQ(msg(base({{{"independentResponse",{{"nq",2}}}}},hub,json::array({4,4,2}))),"NO THROW");
-    EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",2}}}}},cplx,json::array({2,1,1}))).find("incommensurate"),std::string::npos) << "the q loop shares the pre-flight";
-    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1,1}}}}}},cplx,json::array({2,1,1}))),"NO THROW");
+    EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",2}}}}},hub,json::array({2,1,1}))).find("incommensurate"),std::string::npos) << "the q loop shares the pre-flight";
+    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1,1}}}}}},hub,json::array({2,1,1}))),"NO THROW");
     {
-        json lg=base({{{"hubbardLinearResponse",{{"littleGroupK",true}}}}},cplx);
+        json lg=base({{{"hubbardLinearResponse",{{"littleGroupK",true}}}}},hub);
         EXPECT_NE(msg(lg).find("minDeltaRhoPerElectron <= 1e-9"),std::string::npos) << "littleGroupK on a reference converged only to the default gate";
         lg["scf"]={{"minDeltaRhoPerElectron",1e-9}};
         EXPECT_EQ(msg(lg),"NO THROW");
     }
-    EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1}}}}}},cplx)).find("must be n or [n1,n2,n3]"),std::string::npos);
+    EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1}}}}}},hub)).find("must be n or [n1,n2,n3]"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardFiniteDifference",{{"perturb",{5}},{"alpha_eV",0.1}}}}},hub)).find("past the 1 manifolds"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardFiniteDifference",json::object()}}},hub)).find("alpha_eV must be nonzero"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardLoop",{{"maxOuter",0}}}}},hub)).find("maxOuter >= 1"),std::string::npos);
@@ -1366,4 +1404,19 @@ TEST(Deck, TheGuiWritersAfmDeckIsThePolarizedRun)
     EXPECT_NO_THROW(RequireStatedMagneticOrdering(a.opts, *Materials::Get("MnO_AFM2").cell)) << "its ordering is stated: the setup admits it";
     const json v1={{"structure","MnO_AFM2"},{"solid",{{"multiplicity",1},{"siteSpins",{1,-1,0,0}},{"hubbard",hub}}}};
     deck::RunSpec b; EXPECT_THROW(deck::FromJson(v1,b), std::runtime_error) << "the old GUI spelling";
+}
+
+// A molecule's Hartree route is a deck key (policy CoulombFit, lane S 2026-11-21): `coulomb.fit` and `coulomb.auxBasis` read into the
+// options and the molecule's record writes them back, so a record reloads to the same fit.
+TEST(Deck, AMoleculesCoulombBlockReadsAndRoundTrips)
+{
+    deck::RunSpec r; deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"fit","Auxiliary"},{"auxBasis","A2_coul"}}}}, r);
+    EXPECT_EQ(r.opts.coulomb.fit, Hamiltonian::CoulombFit::Auxiliary);
+    EXPECT_EQ(r.opts.coulomb.auxBasis, "A2_coul");
+    const json j=deck::ToJson(r);
+    EXPECT_EQ(j.at("coulomb").at("auxBasis"), "A2_coul");
+    deck::RunSpec back; deck::FromJson(j, back); EXPECT_EQ(deck::ToJson(back), j);
+    deck::RunSpec bad;
+    EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"fit","Gaussian"}}}}, bad), std::runtime_error) << "an unknown route name";
+    EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"auxbasis","A1_coul"}}}}, bad), std::runtime_error) << "typo guard";
 }

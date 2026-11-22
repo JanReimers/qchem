@@ -7,9 +7,30 @@ module;
 export module qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Streamable;
 export import qchem.Symmetry.Spin;   // Spin -- the channel argument of the spin-native face
+export import qchem.Types;           // rvec_t -- the batch records
 
 export namespace qchem::Hamiltonian
 {
+
+//! \brief THE BATCH INPUT of an LDA evaluation, spin-native: \f$\rho_\uparrow,\rho_\downarrow\f$, one entry per point in the caller's order.
+//! An LDA reads nothing else, so this record HAS nothing else: a GGA's input is its own type (\c GGAInput, \c qchem.Hamiltonian.Internal.GGAFunctional)
+//! with \f$\sigma\f$ required, never an optional member of a shared record (user, 2026-11-20).  An unpolarized run is its
+//! \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$ collapse, which the TERM supplies (pin 5).
+struct LDAInput
+{
+    rvec_t up, dn;   //!< \f$\rho_\uparrow,\rho_\downarrow\f$
+    size_t size() const {return up.size();}
+};
+
+//! \brief THE BATCH OUTPUT of an LDA: the energy density PER UNIT VOLUME \f$e\f$ (\f$E_{xc}=\sum_g w_g e_g\f$) and
+//! \f$v_{\rho\sigma}=\partial e/\partial\rho_\sigma\f$.  A composite SUMS outputs.
+struct LDAOutput
+{
+    rvec_t e;          //!< energy density per unit volume, \f$\sum_\sigma\rho_\sigma\varepsilon^\sigma\f$
+    rvec_t vUp, vDn;   //!< \f$\partial e/\partial\rho_\uparrow,\ \partial e/\partial\rho_\downarrow\f$
+    //! Zeroed, one entry per point of \a in: what an \c Evaluate accumulates into.
+    explicit LDAOutput(const LDAInput& in) : e(in.size(),0.0), vUp(in.size(),0.0), vDn(in.size(),0.0) {}
+};
 
 //! \brief An XC functional as a pure VALUE face: \f$\rho\mapsto v_{xc}\f$ and \f$\rho\mapsto
 //! \varepsilon_{xc}\f$.  Data-free, like every other abstract interface in the project.
@@ -95,6 +116,27 @@ public:
     //! (handing an \c ExFunctional& to a \c qcBasisSet method would be a library cycle -- pass the NUMBER).
     //! LDA is band-limited to the density's own bandwidth \f$\Rightarrow 1\f$; a GGA overrides with ~1.5--2.
     virtual double GridCutoffFactor() const {return 1.0;}
+
+    //! \name THE BATCH FACE (GGA design note §2, revised 2026-11-20: an LDA batch, typed).
+    //! One evaluation over many points, records in and out.  \c Evaluate ADDS this functional's contribution to \a out, so a composite
+    //! is a loop.  The DEFAULT loops the spin-native scalar face above, so every LDA answers with the numbers it gives today, point for
+    //! point (a COMPOSITE's e associates its sum differently from its point face: roundoff, measured 1 ulp).  A GGA is NOT an
+    //! \c ExFunctional: it has no \f$\rho\f$-only face to give, and its batch takes a \c GGAInput (\c qchem.Hamiltonian.Internal.GGAFunctional).
+    //!@{
+    virtual void Evaluate(const LDAInput& in, LDAOutput& out) const
+    {
+        for (size_t g=0;g<in.size();++g)
+        {
+            const double u=in.up[g], d=in.dn[g];
+            out.e  [g]+=GetExcDensity(u,d);
+            out.vUp[g]+=GetVxc(u,d,Spin::Up);
+            out.vDn[g]+=GetVxc(u,d,Spin::Down);
+        }
+    }
+    //! FALSE: an LDA reads no \f$\nabla\rho\f$, so the factory builds its term with no gradient sampler (the \c GGAFunctional face
+    //! answers true).  User, 2026-11-20: "the sampler should know (or be able to ask) Exc if σ are needed or not".
+    virtual bool ConsumesDensityGradient() const final {return false;}
+    //!@}
 };
 
 // (The separate SpinCorrelation capability face is GONE -- V1.37 step 3.  It existed because only
@@ -140,6 +182,9 @@ public:
     //! Each part answers with its OWN kernel (an analytic override where it has one) -- never a difference of the sum.
     virtual double GetFxc(double up, double dn, const Spin& s, const Spin& t) const
     {double f=0.0; for (const auto& p : itsParts) f+=p->GetFxc(up,dn,s,t); return f;}
+    //! The batch: each part adds its own contribution.
+    virtual void Evaluate(const LDAInput& in, LDAOutput& out) const
+    {for (const auto& p : itsParts) p->Evaluate(in,out);}
     //! The DENSEST part wins: a GGA in the mix sets the fit grid for the whole sum.
     virtual double GridCutoffFactor() const
     {double f=1.0; for (const auto& p : itsParts) f=max(f,p->GridCutoffFactor()); return f;}

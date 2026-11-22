@@ -14,5 +14,15 @@
     "comment": "The smallest-q (valence-only, largest core) GTH-LDA entry of every element: the recipe every banked anchor was run at.",
     "functional": "LDA",
     "valence": {}
+  },
+  "gth-pbe-valence": {
+    "comment": "The smallest-q GTH-PBE entry of every element: the GGA twin of gth-lda-valence (GGA stage 3, 2026-11-21).",
+    "functional": "PBE",
+    "valence": {}
+  },
+  "gth-blyp-valence": {
+    "comment": "The smallest-q GTH-BLYP entry of every element (GGA stage 3, 2026-11-21).",
+    "functional": "BLYP",
+    "valence": {}
   }
 }

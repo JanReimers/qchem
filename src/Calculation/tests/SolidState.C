@@ -66,9 +66,19 @@ SCFParams Params()
     p.NMaxIter=80; p.MinΔρPerElectron=1e-7; p.MinΔE=1e-10; p.MinΔFD=1e-7; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
     return p;
 }
-RunOptions Options(int multiplicity, bool forceComplex, const std::string& save)
+RunOptions Options(int multiplicity, const std::string& save)
 {
-    return RunOptions{.Nelec=8, .multiplicity=multiplicity, .spin=multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, .species={{"Si",4}}, .label="ck1", .saveStateTo=save, .scf=Params(), .solid={.densityEcut=20.0, .forceComplex=forceComplex}};
+    return RunOptions{.Nelec=8, .multiplicity=multiplicity, .spin=multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, .species={{"Si",4}}, .label="ck1", .saveStateTo=save, .scf=Params(), .solid={.densityEcut=20.0}};
+}
+//! TEST-ONLY HOOK (tests may cheat): \a o resolved, with every TRIM block COMPLEX when \a complexBlocks -- the ansatz the retired
+//! \c forceComplex stated (OpenWork G4, 2026-11-19: no user knob; a run is complex only when it plans a response).  These gates
+//! compare the two representations ON PURPOSE (a state saved in one restarts in the other), so they set the setup's one decision,
+//! \c SolidSetup::realTRIMBlocks, on a copy.
+std::shared_ptr<const SolidSetup> ResolvedSetup(const SiRun& si, const RunOptions& o, bool complexBlocks)
+{
+    auto s=std::make_shared<SolidSetup>(*SolidSetup::Resolve(*si.lat, si.mol, o));
+    if (complexBlocks) s->realTRIMBlocks=false;
+    return s;
 }
 
 //! One converged-and-saved state per (spin, ansatz), built once for the whole suite.
@@ -78,27 +88,27 @@ struct Saved
     double      energy=0.0;
     size_t      iterations=0;
 };
-Saved& SavedState(int multiplicity, bool forceComplex)
+Saved& SavedState(int multiplicity, bool complexBlocks)
 {
     static std::map<std::pair<int,bool>, Saved> cache;
-    auto key=std::make_pair(multiplicity, forceComplex);
+    auto key=std::make_pair(multiplicity, complexBlocks);
     if (auto i=cache.find(key); i!=cache.end()) return i->second;
     Saved s;
-    s.path=TempPath("ck1_si_m"+std::to_string(multiplicity)+(forceComplex?"_c":"_r")+".h5");
+    s.path=TempPath("ck1_si_m"+std::to_string(multiplicity)+(complexBlocks?"_c":"_r")+".h5");
     SiRun si=Si(ivec3_t(2,2,2));
-    auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(*si.lat, si.mol, Options(multiplicity, forceComplex, s.path))).TakeValue(); (void)calc->Converge();
+    auto calc=SolidCalculation::Prepare(ResolvedSetup(si, Options(multiplicity, s.path), complexBlocks)).TakeValue(); (void)calc->Converge();
     auto r=calc->Result();
     EXPECT_TRUE(r) << "the Si reference run must converge";
     if (r) { s.energy=r->Energy(); s.iterations=r->IterationCount(); }
     return cache[key]=s;
 }
 
-void ExpectExactResume(int multiplicity, bool forceComplex)
+void ExpectExactResume(int multiplicity, bool complexBlocks)
 {
-    const Saved& s=SavedState(multiplicity, forceComplex);
+    const Saved& s=SavedState(multiplicity, complexBlocks);
     ASSERT_TRUE(std::filesystem::exists(s.path));
     SiRun si=Si(ivec3_t(2,2,2));
-    auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, Options(multiplicity, forceComplex, "")), Params());
+    auto c=SolidCalculation::Restart(s.path, ResolvedSetup(si, Options(multiplicity, ""), complexBlocks), Params());
     ASSERT_TRUE(c) << c.Error().details;
     auto r=(*c)->Result();
     ASSERT_TRUE(r);
@@ -328,7 +338,7 @@ TEST(SolidState, ARestartAcrossTheLadderPrintsItsLineAndConverges)
 {
     const Saved& s=SavedState(0, false);
     SiRun si=Si(ivec3_t(2,2,2));
-    RunOptions o=Options(0, false, "");
+    RunOptions o=Options(0, "");
     o.solid.ladderFactor=3.0;
     testing::internal::CaptureStdout();
     auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, o), Params());
@@ -410,7 +420,7 @@ TEST(SolidState, AFormat10StateStillRestores)
     EXPECT_TRUE(std::isnan(st->summary.densityChange)) << "absent in 1.0 = not recorded";
     SiRun si=Si(ivec3_t(2,2,2));
     testing::internal::CaptureStdout();
-    auto c=SolidCalculation::Restart(old, SolidSetup::Resolve(*si.lat, si.mol, Options(0, false, "")), Params());
+    auto c=SolidCalculation::Restart(old, SolidSetup::Resolve(*si.lat, si.mol, Options(0, "")), Params());
     const std::string out=testing::internal::GetCapturedStdout();
     ASSERT_TRUE(c) << c.Error().details;
     EXPECT_NE(out.find("EXACT RESUME"), std::string::npos) << out;
@@ -431,7 +441,7 @@ TEST(SolidState, WarmStart_OtherGrid_StartsAtTheAnswer)
     // 1e-12 energy noise), a property of the accelerator, not of the restart.
     const Saved& s=SavedState(0, false);
     SiRun si=Si(ivec3_t(2,2,2));
-    RunOptions o=Options(0, false, "");
+    RunOptions o=Options(0, "");
     o.solid.densityEcut=30.0;
     std::vector<double> E;
     auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, o), Params(),
@@ -453,7 +463,7 @@ TEST(SolidState, LadderRestart_Smeared_StartsOnDIIS)
 {
     const Saved& s=SavedState(0, false);                     // a kT=0 state: the restart is a WARM start (kT differs)
     SiRun si=Si(ivec3_t(2,2,2));
-    RunOptions o=Options(0, false, "");
+    RunOptions o=Options(0, "");
     o.accelerator=SCFAccelerators::Type::Ladder;
     SCFParams p=Params();
     p.SmearingkT=0.02;
@@ -485,13 +495,13 @@ TEST(SolidState, SmearedExactResume_StartsAtTheSavedState)
     const std::string path=TempPath("ck1_si_smeared.h5");
     double saved=0.0;
     {
-        RunOptions o=Options(0, false, path); o.scf=p;
+        RunOptions o=Options(0, path); o.scf=p;
         auto calc=SolidCalculation::Prepare(SolidSetup::Resolve(*si.lat, si.mol, o)).TakeValue(); (void)calc->Converge();
         auto r=calc->Result();
         ASSERT_TRUE(r) << "the smeared Si reference must converge";
         saved=r->Energy();
     }
-    RunOptions o=Options(0, false, "");
+    RunOptions o=Options(0, "");
     std::vector<double> E;
     auto c=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, o), p,
                                      [&E](const SCFIterator::IterationRow& pr){ E.push_back(pr.eb.GetTotalEnergy()); });
@@ -518,7 +528,7 @@ void ExpectFieldMixerExactResume(double kerkerG0)
     SCFParams p=Params();
     p.Mixer=SCFParams::Mixing::Pulay; p.PulayDepth=8; p.PulayStart=2; p.KerkerG0=kerkerG0;
     const std::string path=TempPath("ck1_si_fieldmix_m1_"+std::to_string(int(kerkerG0*10))+".h5");
-    RunOptions o=Options(1, true, path);         // POLARIZED: the (ρ,m) mixer, as on the TiO2 / NiO campaign decks
+    RunOptions o=Options(1, path);               // POLARIZED: the (ρ,m) mixer, as on the TiO2 / NiO campaign decks
     o.accelerator=SCFAccelerators::Type::Null;
     SolidXCMesh(o).cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke);     // the singles route: rho[D] only through the N4 correction
     double saved=0.0;
@@ -553,14 +563,14 @@ TEST(SolidState, ExactResume_KerkerPulay_Null_StartsAtTheSavedState_Panel) {Expe
 
 TEST(SolidState, RealnessCrossesBothWays)
 {
-    // Complex-saved -> real run (D at a TRIM point is real) and real-saved -> forced-complex run: the working type is REPRESENTATION,
+    // Complex-saved -> real run (D at a TRIM point is real) and real-saved -> complex run (the test hook): the working type is REPRESENTATION,
     // not physics (user ruling 2026-11-18), so with nothing else changed both are EXACT resumes and land on the saved energy.  (When
     // blocks.real was a warm entry, TiO₂ k222 real -> complex took 9 iterations through the warm seed role against 3 exact.)
     for (bool savedComplex : {true, false})
     {
         const Saved& s=SavedState(savedComplex ? 1 : 0, savedComplex);
         SiRun si=Si(ivec3_t(2,2,2));
-        auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, Options(savedComplex ? 1 : 0, !savedComplex, "")), Params());
+        auto c=SolidCalculation::Restart(s.path, ResolvedSetup(si, Options(savedComplex ? 1 : 0, ""), !savedComplex), Params());
         ASSERT_TRUE(c) << c.Error().details;
         ASSERT_TRUE((*c)->RestartedFrom());
         EXPECT_TRUE((*c)->RestartedFrom()->exact) << (savedComplex ? "complex -> real" : "real -> complex") << " is a warm start: a "
@@ -578,20 +588,20 @@ TEST(SolidState, RefusedOnAnotherKMesh_OrSpinGroup_OrMissingFile)
     const Saved& s=SavedState(0, false);
     {
         SiRun si=Si(ivec3_t(1,1,1));
-        auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, Options(0, false, "")), Params());
+        auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, Options(0, "")), Params());
         ASSERT_FALSE(c);
         EXPECT_EQ(c.Error().why, RestartRefusal::Why::Mismatch);
         EXPECT_NE(c.Error().details.find("blocks.k"), std::string::npos);
     }
     {
         SiRun si=Si(ivec3_t(2,2,2));
-        auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, Options(1, false, "")), Params());
+        auto c=SolidCalculation::Restart(s.path, SolidSetup::Resolve(*si.lat, si.mol, Options(1, "")), Params());
         ASSERT_FALSE(c);
         EXPECT_NE(c.Error().details.find("spinGroup"), std::string::npos);
     }
     {
         SiRun si=Si(ivec3_t(2,2,2));
-        auto c=SolidCalculation::Restart(TempPath("ck1_no_such_state.h5"), SolidSetup::Resolve(*si.lat, si.mol, Options(0, false, "")), Params());
+        auto c=SolidCalculation::Restart(TempPath("ck1_no_such_state.h5"), SolidSetup::Resolve(*si.lat, si.mol, Options(0, "")), Params());
         ASSERT_FALSE(c);
         EXPECT_EQ(c.Error().why, RestartRefusal::Why::Unreadable);
     }
@@ -602,7 +612,7 @@ TEST(SolidState, RefusedOnAnotherKMesh_OrSpinGroup_OrMissingFile)
 //! PW run uses, whose restored stage starts on DIIS (GDM needs every virtual).
 RunOptions PWOptions(size_t numBands, const std::string& save)
 {
-    RunOptions o=Options(0, false, save);
+    RunOptions o=Options(0, save);
     o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=4.0; o.solid.numBands=numBands; o.label="ck1pw";
     return o;
 }
@@ -625,7 +635,7 @@ void ExpectPlaneWaveExactResume(size_t numBands)
     EXPECT_LE(rr->IterationCount(), 3u) << "the reference run took " << r->IterationCount();
 
     // The family is REFUSE: a plane-wave state cannot seed a Gaussian run, nor the other way round.
-    auto g=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, Options(0, false, "")), Params());
+    auto g=SolidCalculation::Restart(path, SolidSetup::Resolve(*si.lat, si.mol, Options(0, "")), Params());
     ASSERT_FALSE(g);
     EXPECT_NE(g.Error().details.find("basis.family"), std::string::npos) << g.Error().details;
 }

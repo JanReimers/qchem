@@ -25,6 +25,7 @@
 // The old NumPoints/Sample/Integrate trio described the QUADRATURE behind them, and read as correct only
 // because here n_functions == n_points, so the wrong accessor returned the right number.
 module;
+#include <array>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -34,13 +35,17 @@ module;
 #include <string>
 #include <type_traits> // std::is_same_v (the same-scalar table cache)
 #include <utility>
+#include <vector>
 export module qchem.BasisSet.DeltaFit_IBS;
 export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary                    // cFIT_SF_ABS + Integrals_Overlap3C + FitQuadrature
+export import qchem.BasisSet.PointImages;          // PhiRealization / PhiChooser / BlochImageSource: the shared-Φ realization (2026-11-19)
 export import qchem.BasisSet.Transition_DFT_IBS;   // Transition_Overlap3C: the (k+q, k) pair on my Φ tables (LinearResponsePlan B2)
+export import qchem.BasisSet.GradOverlap3C;        // Integrals_GradOverlap3C: the GGA's ∇(χ_iχ_j) at my points (GGA stage 2)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep)
+import qchem.Symmetry.Group;   // Symmetry::GroupPtr / TrivialGroup (Forces, Group face step 3)
 import qchem.Types;                                      // dcmplx, rvec3_t, vec_t
 import qchem.Mesh.Quadrature;                            // qcMesh::SiteIntegrals (the atomic-partition observable)
 import qchem.SlotMap;                                    // InstanceSlotMap: the per-block caches, keyed by the block's instance (S3c)
@@ -73,6 +78,32 @@ private:
     const Self& Self_() const {return static_cast<const Self&>(*this);}
 };
 
+//! \brief THE GRADIENT 3-CENTRE OVERLAP FACES (GGA stages 2-3): \f$\nabla(\overline{\chi_i}\chi_j)(r_g)\f$ (\c Integrals_GradOverlap3C), which a
+//! GGA's \f$\nabla\rho\f$ and its gradient term of H go through, for every block scalar a fit axis serves: the real (molecular) axis its real
+//! blocks; the complex (Bloch) axis its Bloch blocks AND its real TRIM blocks (3c-3).  Built on the DENSE Φ table only: the shared-Φ images
+//! realization has no gradient yet, and the policy layer chooses the dense tables for a GGA.  CRTP: the bodies are the δ basis's own.
+template <class Self, class T> class DeltaGradFaces;
+template <class Self> class DeltaGradFaces<Self,double>
+    : public virtual Integrals_GradOverlap3C<double,double>
+{
+public:
+    //! \copydoc BasisSet::Integrals_GradOverlap3C::GradOverlap3C
+    const PairProjection<double>& GradOverlap3C(const Orbital_DFT_IBS<double,double>& orb) const override {return Self_().template GradTensor<double>(orb);}
+private:
+    const Self& Self_() const {return static_cast<const Self&>(*this);}
+};
+template <class Self> class DeltaGradFaces<Self,dcmplx>
+    : public virtual Integrals_GradOverlap3C<dcmplx,dcmplx>
+    , public virtual Integrals_GradOverlap3C<double,dcmplx>   // a REAL TRIM block, in real arithmetic (3c-3)
+{
+public:
+    //! \copydoc BasisSet::Integrals_GradOverlap3C::GradOverlap3C
+    const PairProjection<dcmplx>& GradOverlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override {return Self_().template GradTensor<dcmplx>(orb);}
+    const PairProjection<double>& GradOverlap3C(const Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Self_().template GradTensor<double>(orb);}
+private:
+    const Self& Self_() const {return static_cast<const Self&>(*this);}
+};
+
 //! \brief The \f$\delta\f$-basis realization of the \f$v_{xc}\f$ fit face: it holds the finished XC quadrature and
 //! answers nothing else.
 //!
@@ -92,11 +123,13 @@ private:
 template <class T> class DeltaFit_IBS
     : public virtual FIT_SF_ABS<T>                   // the neutral scalar-fit face (+ Integrals_Overlap3C<T,T>)
     , public         DeltaPeriodicFaces<DeltaFit_IBS<T>,T>   // dcmplx only: the real TRIM block + the transition pair
+    , public         DeltaGradFaces<DeltaFit_IBS<T>,T>       // the GGA's gradient 3-centre overlap, every block scalar the axis serves
     , public         IrrepBasisSetImp<T>             // GetSymmetry/GetSymt/GetIrrep
     , public         Symmetry::IdentityRepresentation<T>   // identity at E only: the points PERMUTE under an op, which is the
                                                             // orbit fold's business (a vector op), not a matrix image (S3)
 {
     friend class DeltaPeriodicFaces<DeltaFit_IBS<T>,T>;
+    friend class DeltaGradFaces<DeltaFit_IBS<T>,T>;
 public:
     //! ORTHOGONAL, with \f$\langle\delta_g|\delta_g\rangle=w_g\f$ -- diagonal, so no metric SOLVE, which
     //! is what \c isOrtho asks.  (Not orthoNORMAL: a fit through this basis divides by that diagonal,
@@ -104,20 +137,26 @@ public:
     //! thing holding up a \f$\delta\f$-only FACE, and "my metric is diagonal" is a fact about this
     //! implementation, not a type other code needs to name.
     bool isOrtho() const override {return true;}
-    //! \f$\delta\f$ functions at points impose nothing of their own: the POINTS carry any group (\c qcMesh::ImposedBy).
-    qcMesh::ImposedSymmetry Imposes() const override {return qcMesh::ImposedSymmetry::None;}
+    //! \f$\delta\f$ functions at points force nothing of their own: {e}.  The POINTS carry any group (\c qcMesh::Mesh::Forces).
+    Symmetry::GroupPtr Forces() const override {return BasisSet::Forces(VxcFit::Delta, {}).Value();}
     //! \brief How a REAL orbital block is evaluated at this basis's points, when its OWN basis set's factory says so (R1.0 step 2,
     //! user ruling 2026-11-14).  The atom's blocks are radial: the factory (\c Radial::BasisSet_HF) hands a closure that fills
     //! \f$\Phi_{gi}=R_i(|r_g|)\f$ from each block's radial face, the m count living in the occupation, so the atom SCF never asks a
     //! block's 3-D face -- which is display work, to become an honest \f$Y_{lm}\f$ per (i, m).  Unset (every other lineage): the block's
     //! own \c op(r).  Concrete wiring in the factory, never a capability cast here.
     using RealPointValues=std::function<mat_t<double>(const Orbital_1E_IBS<double>&, const rvec3vec_t&)>;
+    //! \brief Where a block's k-independent lattice IMAGES come from, when its basis set's factory says so (the shared \f$\Phi\f$, lane S
+    //! 2026-11-19): the periodic factory hands a closure answering a block's \c BlochImageSource face, or null for a block without one.
+    //! Concrete wiring in the factory, never a capability cast here.  Empty (every non-periodic lineage): no images, dense tables.
+    using ImageSourceOf=std::function<const BlochImageSource*(const IrrepBasisSet_IDs&)>;
     //! \a q is the FINISHED quadrature (mesh + fold + Shubnikov tags) from \c MakeXCQuadrature, and \a sym the irrep the caller's lineage gives a fit block (see the class note).
-    //! \a realValues: see \c RealPointValues (empty = each block's \c op(r)).
-    DeltaFit_IBS(const std::shared_ptr<BasisCache>& cache, FitQuadrature q, const sym_t& sym, RealPointValues realValues={})
+    //! \a realValues: see \c RealPointValues (empty = each block's \c op(r)).  \a imageSourceOf: see \c ImageSourceOf.
+    DeltaFit_IBS(const std::shared_ptr<BasisCache>& cache, FitQuadrature q, const sym_t& sym, RealPointValues realValues={},
+                 ImageSourceOf imageSourceOf={})
         : IrrepBasisSetImp<T>(sym, cache)
         , itsQuad(std::move(q))
         , itsRealValues(std::move(realValues))
+        , itsImageSourceOf(std::move(imageSourceOf))
     {
         assert(itsQuad.GetMesh() && itsQuad.GetMesh()->size()>0 && "DeltaFit_IBS: a delta basis IS its mesh -- it cannot be empty");
         // The invariants of the bundle, checked HERE, once, where it becomes an object -- they used to be
@@ -172,6 +211,14 @@ public:
     // and it applies the free SymmetrizeValues / SymmetrizeValuesSigned itself.  Same cure, and the same
     // reason, as SiteIntegrals leaving here in increment 5.
 
+    //! \brief THE FACTORY'S SETUP STEP for the shared \f$\Phi\f$ (not a face: the factory holds the concrete object it just built).  Counts
+    //! both realizations' memory for the orbital blocks \a cblocks (complex) and \a rblocks (real TRIM) -- the dense tables exactly, the image
+    //! records from an exact count on a subsample -- asks \a choose (the policy layer's door) which realization to take, and on \c Images builds
+    //! the shared records now, at setup, so the run's console reads in run order.  On \c Dense nothing is built here: the tables fill as they
+    //! always did (lazily, per block, bit-identical).  Returns the realization taken.
+    PhiRealization ChoosePhiRealization(const std::vector<const Orbital_1E_IBS<dcmplx>*>& cblocks,
+                                        const std::vector<const Orbital_1E_IBS<double>*>&  rblocks, const PhiChooser& choose);
+
     //! One \f$\delta\f$ function per mesh point -- ~100k of them, so anything reasoning about a fit basis
     //! by COUNTING functions (grid sizing, memory reports, cache dimensions) must not choke on that.
     size_t GetNumFunctions() const override {return itsQuad.GetMesh()->size();}
@@ -209,29 +256,83 @@ private:
                                        const cvec_t& v) const;
     //! ONE body for both \c Overlap3C overloads, each with its own typed cache.  R2.9(i) idiom: the
     //! accessor is const and the tensor is a lazily-built, geometry-fixed cache, so the maps are \c mutable.
+    //! \brief ONE BLOCK'S \f$\Phi\f$, one of two realizations (V-ONE-OF-N; exactly one populated): the DENSE table, or the shared IMAGE
+    //! record plus this block's phases, from which a contraction forms a point batch of rows when it needs one.  Read only by this class's
+    //! own contraction bodies (they are the record's realization-aware clients); nothing above them sees which one is filled.
+    template <class U> struct PhiRows
+    {
+        mat_t<U>                           dense;    //!< (npts x n), or empty
+        std::shared_ptr<const PointImages> images;   //!< the shared record, or null
+        cvec_t                             phases;   //!< this block's Bloch phase per image offset (with \c images)
+        bool   IsDense()  const {return !images;}
+        size_t NumRows()  const {return images ? images->NumPoints()    : dense.rows();}
+        size_t NumCols()  const {return images ? images->NumFunctions() : dense.columns();}
+    };
     template <class U> const PairProjection<U>& Tensor(const InstanceSlotMap<PairProjection<U>>& cache,
-                                                   const InstanceSlotMap<mat_t<U>>& phis,
+                                                   const InstanceSlotMap<PhiRows<U>>& phis,
                                                    const Orbital_1E_IBS<U>& orb) const;
     //! \f$\Phi_{gi}=\chi_i(r_g)\f$ -- HOW this class evaluates its own 3-centre integral, cached per block.
     //! Entirely private since 2026-08-23: a table of values is not an integral and has no business in an
     //! interface (user).  The three contractions below are what leaves.
-    template <class U> const mat_t<U>& Table(const InstanceSlotMap<mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const;
+    template <class U> const PhiRows<U>& Table(const InstanceSlotMap<PhiRows<U>>& cache, const Orbital_1E_IBS<U>& orb) const;
+    //! Rows [lo,hi) of a block's \f$\Phi\f$ as a plain matrix, whichever realization holds it (a copy from a dense table; a phase sum
+    //! from the images, bit-identical to the dense table's rows).
+    template <class U> mat_t<U> Rows(const PhiRows<U>& P, size_t lo, size_t hi) const;
+    //! The shared image record of \a src on my points, built once (threaded over point chunks) and cached per source.
+    std::shared_ptr<const PointImages> Images(const BlochImageSource& src) const;
+    //! \name THE GRADIENT TENSOR (GGA stages 2-3; \c DeltaGradFaces), one body per block scalar \a U.
+    //! \f$\partial_a\Phi_{gi}=\partial_a\chi_i(r_g)\f$, three dense (npts x n) tables per block, from the block's own \c VectorFunction::Gradient.
+    //! THROWS on the images realization (no gradient yet) and on a block my factory evaluates itself (the atom's radial closure: it has no
+    //! gradient yet, and the policy layer refuses a GGA on an atom).  The tensor's two closures are \c GradForward / \c GradAdjoint.
+    //!@{
+    template <class U> using GradRows=std::array<mat_t<U>,3>;
+    template <class U> const PairProjection<U>& GradTensor(const Orbital_DFT_IBS<U,T>& orb) const;
+    template <class U> const GradRows<U>& GradTable(const Orbital_1E_IBS<U>& orb) const;
+    //! \f$[\nabla\rho]_{aN+g}=2\,\mathrm{Re}\sum_i\partial_a\Phi_{gi}\overline{[\Phi D]_{gi}}\f$ (D Hermitian, \f$\rho_g=\sum_{ij}\Phi_{gi}D_{ij}\overline{\Phi_{gj}}\f$
+    //! as \c ForwardT has it): one GEMM \f$\Phi D\f$ for all three components.
+    template <class U> rvec_t GradForward(const mat_t<U>& P, const GradRows<U>& G, const hmat_t<U>& D) const;
+    //! \f$H=M+M^\dagger\f$, \f$M=\Phi^\dagger C\f$, \f$C_{gi}=w_g\sum_a c_{aN+g}\partial_a\Phi_{gi}\f$ -- the exact adjoint of \c GradForward in the
+    //! pairing \c AdjointT uses (\f$\delta E=\mathrm{Tr}(\delta D\,H)\f$): one GEMM.
+    template <class U> hmat_t<U> GradAdjoint(const mat_t<U>& P, const GradRows<U>& G, const rvec_t& c) const;
+    //! Which typed caches a block scalar uses.
+    template <class U> const InstanceSlotMap<GradRows<U>>& GradCache() const
+    {
+        if constexpr (std::is_same_v<U,double>) return itsGradPhiR;
+        else                                    return itsGradPhi;
+    }
+    template <class U> const InstanceSlotMap<PairProjection<U>>& GradTensorCache() const
+    {
+        if constexpr (std::is_same_v<U,double>) return itsGO3R;
+        else                                    return itsGO3;
+    }
+    //!@}
     //! \f$\langle\chi_i|\sum_g c_g\delta_g|\chi_j\rangle=\Phi^\dagger\mathrm{diag}(w\,c)\Phi\f$
-    template <class U> hmat_t<U> AdjointT(const mat_t<U>& P, const rvec_t& c) const;
+    template <class U> hmat_t<U> AdjointT(const PhiRows<U>& P, const rvec_t& c) const;
+    template <class U> hmat_t<U> AdjointDenseT(const mat_t<U>& P, const rvec_t& c) const;
+    template <class U> hmat_t<U> AdjointBatchedT(const PhiRows<U>& P, const rvec_t& c) const;
     //! \f$\langle\delta_g|\rho[D]\rangle/w_g=[\Phi D\Phi^\dagger]_{gg}\f$ -- the full quadratic form
-    template <class U> rvec_t ForwardT(const mat_t<U>& P, const hmat_t<U>& D) const;
+    template <class U> rvec_t ForwardT(const PhiRows<U>& P, const hmat_t<U>& D) const;
+    template <class U> rvec_t ForwardDenseT(const mat_t<U>& P, const hmat_t<U>& D) const;
     //! ...and the same thing for a caller holding \f$D=LL^\dagger\f$: \f$\sum_m|[\Phi L]_{gm}|^2\f$
-    template <class U> rvec_t ForwardFactoredT(const mat_t<U>& P, const mat_t<U>& L) const;
+    template <class U> rvec_t ForwardFactoredT(const PhiRows<U>& P, const mat_t<U>& L) const;
     // Per orbital BLOCK, keyed by the block's InstanceToken (S3c, user ruling 2026-11-14: the δ fit caches Φ itself).  Not by its
     // spatial sym_t: two blocks of equal symmetry (two basis sets, or one rebuilt at a new geometry against a surviving fit) are two
     // tables.  The spin channels share one block object, so they share its table.  A dead block's entries go on the next fill.
     // Thread-safe once-fills (the parallel Fock pass reaches them per block); a Tensor fill asks its Table, never the reverse.
-    InstanceSlotMap<mat_t<dcmplx>> itsPhi;    //!< Bloch blocks' tables (npts x n)
-    InstanceSlotMap<mat_t<double>> itsPhiR;   //!< real TRIM blocks' tables (3c-3)
+    InstanceSlotMap<PhiRows<dcmplx>> itsPhi;    //!< Bloch blocks' Φ (npts x n), dense or images
+    InstanceSlotMap<PhiRows<double>> itsPhiR;   //!< real TRIM blocks' Φ (3c-3)
+    //! The shared image records, one per lattice basis behind the blocks (keyed by \c BlochImageSource::ImageSource), on the images route.
+    InstanceSlotMap<std::shared_ptr<const PointImages>> itsImages;
     InstanceSlotMap<PairProjection<dcmplx>> itsO3;   //!< the Bloch blocks' 3-centre tensors, built on itsPhi
     InstanceSlotMap<PairProjection<double>> itsO3R;  //!< ...and the real TRIM blocks', on itsPhiR
+    InstanceSlotMap<GradRows<dcmplx>>       itsGradPhi;   //!< Bloch blocks' ∂_aΦ (GGA stage 3), beside itsPhi and keyed the same
+    InstanceSlotMap<GradRows<double>>       itsGradPhiR; //!< real blocks' ∂_aΦ (GGA stage 2; and the real TRIM blocks)
+    InstanceSlotMap<PairProjection<dcmplx>> itsGO3;       //!< their gradient tensors (\c GradTensor), on the Φ and ∂Φ tables
+    InstanceSlotMap<PairProjection<double>> itsGO3R;
     FitQuadrature itsQuad;   //!< the mesh + its orbit fold + the Shubnikov spin tags
     RealPointValues itsRealValues;   //!< the factory's evaluation of a real block at my points, or empty (\c RealPointValues)
+    ImageSourceOf   itsImageSourceOf;   //!< the factory's image source of a block, or empty (\c ImageSourceOf)
+    PhiRealization  itsRealization=PhiRealization::Dense;   //!< set once, at setup, by \c ChoosePhiRealization
 };
 
 } //namespace

@@ -39,8 +39,7 @@
         "U_eV": 0.0,
         "projector": "siteShells"
       }
-    ],
-    "forceComplex": true
+    ]
   },
   "scf": {
     "NMaxIter": 200,

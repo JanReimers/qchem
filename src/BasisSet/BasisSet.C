@@ -348,6 +348,7 @@ export module qchem.BasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary
+export import qchem.BasisSet.PointImages; // PhiChooser -- the δ fit's orbital-table realization door (ruling 2026-11-19)
 export import qchem.BasisSet.GridResolution;   // Resolution -- what a grid builder asks of the whole basis (V-BS-RASTER)
 export import qchem.Structure;
 export import qchem.Symmetry;
@@ -398,9 +399,13 @@ public:
     //! question).  Handing the sibling fields the same way as the mesh removes both members and lets the
     //! consumer call the free \c SymmetrizeValues / \c SymmetrizeValuesSigned directly.  The mesh alone is
     //! still what the ATOMIC PARTITION observable needs, which is why it was the first field to travel.
+    //! \a phiTables (user ruling 2026-11-19, "Yes a all the way.  Good call."): the POLICY layer's door for HOW a δ fit holds its per-k
+    //! orbital tables (dense, or one shared image record -- a memory-vs-speed choice, \c PhiChooser).  Injected at creation so the factory
+    //! that gathers the blocks decides with them; empty = dense (every lineage without lattice images, and every caller that states none).
     virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&,
                                                 VxcFit fit=VxcFit::Auto,
-                                                const FitQuadrature* quad=nullptr) const;
+                                                const FitQuadrature* quad=nullptr,
+                                                const PhiChooser& phiTables={}) const;
 
     //! \brief The symmetry IMPOSITION this basis was built under (user ruling B, V-BS-SYMMETRY 2026-11-03), or nullptr.
     //! WHY the basis holds it: the basis is CONSTRUCTED under the imposition -- its irreps are irreps of that group and its k
@@ -447,7 +452,7 @@ typedef tBasisSet<dcmplx> Complex_BS;
 //! the δ XC term integrates on.  A free builder, because neither job of a basis set is to build it: the IMPOSITION builds the
 //! mesh under its own ops when it can (\c XCMeshSource -- the invariant, orbit-folded mesh of an imposed crystal run, the
 //! invariant unfolded one of a free run), and otherwise (no imposition, or one that builds no mesh) it is \a cl's own plain
-//! integration mesh, no fold.  \a imp is the basis's \c GetImposition().  Reports one level into an "xcQuadrature" scope.
+//! integration mesh, no fold.  \a imp is the basis's \c GetImposition().  Reports one level into a "nonlinearMesh" scope.
 FitQuadrature MakeXCQuadrature(const Structure& cl, const qcMesh::MeshParams& mp, const Symmetry::SymmetryImposition* imp);
 
 }//namespace

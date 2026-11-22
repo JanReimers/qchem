@@ -100,7 +100,8 @@ TEST(PPFittedFunctional, TheFitAndTheRunCompareAsLibxcIDs)
     for (const char* f : {"PADE","PBE","BLYP","BP","OLYP","PBESOL","HCTH120","HCTH407"})
         EXPECT_NO_THROW(Hamiltonian::LibxcIDsOfFitted(f)) << f;
     EXPECT_EQ(Hamiltonian::ModelForGTHFitted("PADE"), Model::PADE);
-    EXPECT_FALSE(Hamiltonian::ModelForGTHFitted("PBE").has_value()) << "no model offered matches PBE until GGA lands";
+    EXPECT_EQ(Hamiltonian::ModelForGTHFitted("PBE"), Model::PBE) << "GGA stage 1 (2026-11-20) offers PBE";
+    EXPECT_FALSE(Hamiltonian::ModelForGTHFitted("BP").has_value()) << "no model offered matches B88 + P86";
 }
 
 TEST(PPFittedFunctional, ThePolicyNamesBothAndSaysWhatToDo)
@@ -132,13 +133,13 @@ TEST(PPFittedFunctional, ThePolicyNamesBothAndSaysWhatToDo)
     EXPECT_EQ(rows[0]["detail"]["O"]["matchingModel"], "PADE");
 }
 
-// Any mismatch, not only VWN5 vs PADE: a fit no offered model matches (a GTH-PBE PP under PADE) still warns, and its advice is the PPs.
+// Any mismatch, not only VWN5 vs PADE: a fit no offered model matches (a GTH-BP PP under PADE) still warns, and its advice is the PPs.
 TEST(PPFittedFunctional, AFitNoModelMatchesWarnsAndPointsAtThePPs)
 {
-    const auto cc=Hamiltonian::PPFunctionalChecks({{"Si","PBE"},{"O","PADE"}}, Hamiltonian::ModelToXC(Model::PADE));
+    const auto cc=Hamiltonian::PPFunctionalChecks({{"Si","BP"},{"O","PADE"}}, Hamiltonian::ModelToXC(Model::PADE));
     ASSERT_EQ(cc.size(), 2u);
     EXPECT_FALSE(cc[0].match);
-    EXPECT_EQ(cc[0].matchingModel, "") << "no model offered matches PBE (until GGA lands)";
+    EXPECT_EQ(cc[0].matchingModel, "") << "no model offered matches BP (B88 + P86)";
     EXPECT_TRUE(cc[1].match) << "O's PADE fit matches a PADE run";
     {
         report::Run run("ppfitted helper pbe");

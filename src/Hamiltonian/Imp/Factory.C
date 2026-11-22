@@ -11,16 +11,21 @@ module;
 module qchem.Hamiltonian.Factory;
 import qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Libxc_LDA;             // XC::LibXC selector (one libxc LDA functional)
+import qchem.Hamiltonian.Internal.Libxc_GGA;             // XC::LibXCGGA: the GGA functional the factory asks
 import qchem.Hamiltonian.Internal.SlaterExchange;        // the DiracVWN functional list
 import qchem.Hamiltonian.Internal.VWN_Correlation;
+import qchem.Symmetry.Group;                             // the pre-flight asks the structure's group (HasLattice, Contains O(3))
 
 namespace qchem::Hamiltonian
 {
 
-    bool IsDFT(Model m) {return m==Model::Xalpha || m==Model::LDA || m==Model::PADE;}
+    bool IsDFT(Model m) {return m==Model::Xalpha || m==Model::LDA || m==Model::PADE || m==Model::PBE || m==Model::PBEsol || m==Model::BLYP;}
 
     //! libxc's id for the Goedecker-Teter-Hutter Padé LDA (LDA_XC_TETER93): CP2K's XC_FUNCTIONAL PADE, the GTH-PADE PPs' own.
     static constexpr int kLibxcPADE=20;
+    //! The GGAs' libxc ids (xc_funcs.h): PBE = GGA_X_PBE 101 + GGA_C_PBE 130; PBEsol = GGA_X_PBE_SOL 116 + GGA_C_PBE_SOL 133;
+    //! BLYP = GGA_X_B88 106 + GGA_C_LYP 131 -- the same pairs the GTH table's "fitted" names map to (LibxcIDsOfFitted).
+    static constexpr int kLibxcPBEx=101, kLibxcPBEc=130, kLibxcPBEsolx=116, kLibxcPBEsolc=133, kLibxcB88=106, kLibxcLYP=131;
 
     std::string Name(Model m)
     {
@@ -28,12 +33,14 @@ namespace qchem::Hamiltonian
         {
             case Model::E1: return "E1"; case Model::HF: return "HF"; case Model::DE1: return "DE1"; case Model::DHF: return "DHF";
             case Model::Xalpha: return "Xalpha"; case Model::LDA: return "LDA"; case Model::PADE: return "PADE";
+            case Model::PBE: return "PBE"; case Model::PBEsol: return "PBEsol"; case Model::BLYP: return "BLYP";
         }
         throw std::logic_error("Hamiltonian::Name: a Model with no name");
     }
     std::optional<Model> ModelFromName(const std::string& n)
     {
-        for (Model m : {Model::E1, Model::HF, Model::DE1, Model::DHF, Model::Xalpha, Model::LDA, Model::PADE}) if (Name(m)==n) return m;
+        for (Model m : {Model::E1, Model::HF, Model::DE1, Model::DHF, Model::Xalpha, Model::LDA, Model::PADE, Model::PBE, Model::PBEsol, Model::BLYP})
+            if (Name(m)==n) return m;
         return std::nullopt;
     }
     std::string Describe(const XCFunctional& xc)
@@ -43,12 +50,24 @@ namespace qchem::Hamiltonian
             case XC::SlaterXalpha: return "Slater Xalpha (alpha "+std::to_string(xc.alpha)+")";
             case XC::DiracVWN:     return "LDA (Dirac + VWN5)";
             case XC::LibXC:        return xc.libxcId==kLibxcPADE ? "PADE (libxc LDA_XC_TETER93)" : "libxc LDA id "+std::to_string(xc.libxcId);
+            case XC::LibXCGGA:
+                if (xc.libxcId==kLibxcPBEx    && xc.libxcCorrId==kLibxcPBEc)    return "PBE (libxc GGA_X_PBE + GGA_C_PBE)";
+                if (xc.libxcId==kLibxcPBEsolx && xc.libxcCorrId==kLibxcPBEsolc) return "PBEsol (libxc GGA_X_PBE_SOL + GGA_C_PBE_SOL)";
+                if (xc.libxcId==kLibxcB88     && xc.libxcCorrId==kLibxcLYP)     return "BLYP (libxc GGA_X_B88 + GGA_C_LYP)";
+                return "libxc GGA ids "+std::to_string(xc.libxcId)+(xc.libxcCorrId ? " + "+std::to_string(xc.libxcCorrId) : std::string());
         }
         throw std::logic_error("Hamiltonian::Describe: an XC kind with no description");
     }
     std::string GTHFittedName(const XCFunctional& xc)
     {
-        return xc.kind==XC::LibXC && xc.libxcId==kLibxcPADE ? "PADE" : "";
+        if (xc.kind==XC::LibXC && xc.libxcId==kLibxcPADE) return "PADE";
+        if (xc.kind==XC::LibXCGGA)
+        {
+            if (xc.libxcId==kLibxcPBEx    && xc.libxcCorrId==kLibxcPBEc)    return "PBE";
+            if (xc.libxcId==kLibxcPBEsolx && xc.libxcCorrId==kLibxcPBEsolc) return "PBESOL";
+            if (xc.libxcId==kLibxcB88     && xc.libxcCorrId==kLibxcLYP)     return "BLYP";
+        }
+        return "";
     }
     std::vector<int> LibxcIDs(const XCFunctional& xc)
     {
@@ -58,6 +77,7 @@ namespace qchem::Hamiltonian
             case XC::SlaterXalpha: ids = xc.alpha==2.0/3.0 ? std::vector<int>{1} : std::vector<int>{1, 6}; break;
             case XC::DiracVWN:     ids = {1, 7}; break;
             case XC::LibXC:        ids = Libxc_LDA(xc.libxcId).IsExchangeCorrelation() ? std::vector<int>{xc.libxcId} : std::vector<int>{1, xc.libxcId}; break;
+            case XC::LibXCGGA:     ids = xc.libxcCorrId ? std::vector<int>{xc.libxcId, xc.libxcCorrId} : std::vector<int>{xc.libxcId}; break;
         }
         std::sort(ids.begin(), ids.end());
         return ids;
@@ -77,7 +97,7 @@ namespace qchem::Hamiltonian
     std::optional<Model> ModelForGTHFitted(const std::string& fitted)
     {
         const std::vector<int> ids=LibxcIDsOfFitted(fitted);
-        for (Model m : {Model::LDA, Model::PADE}) if (LibxcIDs(ModelToXC(m))==ids) return m;
+        for (Model m : {Model::LDA, Model::PADE, Model::PBE, Model::PBEsol, Model::BLYP}) if (LibxcIDs(ModelToXC(m))==ids) return m;
         return std::nullopt;
     }
     std::vector<PPFunctionalCheck> PPFunctionalChecks(const std::vector<std::pair<std::string,std::string>>& elementFitted, const XCFunctional& run)
@@ -115,23 +135,27 @@ namespace qchem::Hamiltonian
                 if (f->IsExchangeCorrelation()) return {f};
                 return {std::make_shared<Libxc_LDA>(1), f};
             }
+            case XC::LibXCGGA:
+                // A GGA is not a list of ExFunctional parts (it is a GGAFunctional, with sigma in its input TYPE), and no Hamiltonian
+                // term takes one until GGA stage 2: the setups refuse it first (policy GGARoute), so reaching here is a broken invariant.
+                throw std::logic_error("Hamiltonian::MakeXCParts: "+Describe(xc)+" is a GGA, which has no LDA parts and no XC term yet -- "
+                                       "the setup should have refused it (policy GGARoute)");
         }
         throw std::logic_error("Hamiltonian::MakeXCParts: an XC kind with no functional");
     }
 
     //! A CORRECTNESS LIMIT, NOT A POLICY (user ruling 2026-11-06; the one exception to "every combination").
     static const std::string thePeriodicMultipole="site multipoles have no periodic form.  The lattice sum of their potentials is "
-        "conditionally convergent, so an answer would depend on the order of summation -- state Delta on a periodic structure";
+        "conditionally convergent, so an answer would depend on the order of summation -- To fix this, please state Delta on a periodic structure";
 
 
-    //! The one wording of a pin-30 refusal: what imposes H_R, the structure's G, and what to state instead.
-    static std::string SymmetryRefusal(const std::string& what, ImposedSymmetry H, ImposedSymmetry G, const std::string& instead)
-    {
-        return what+" imposes H_R = "+qcMesh::Name(H)+", and this structure's G (its "+
-               (G==ImposedSymmetry::Translations ? "space group" : G==ImposedSymmetry::FullRotation ? "atom path's O(3)" : "point group")+") does not contain it -- "+
-               instead+" (doc/Pins.md pin 30)";
-    }
-
+    //! \brief THE CHEAP PRE-FLIGHT (Group face step 3b; controller rulings 2026-11-21).  Admission AUTHORITY is on the built objects (USER
+    //! RULING 2026-11-21, (A)): the Vxc builder asks G to contain the realization's and the point set's \c Forces.  Those answer from the same
+    //! two descriptors this asks -- \c BasisSet::Forces(VxcFit, Frame) for the fit family, \c qcMesh::Forces(MeshParams, Frame) for the
+    //! point set -- because the KIND of a representation fixes its group's type and the frame only says where (user 2026-11-21).  So this
+    //! asks them of the structure's group's frame (\c Group::MakeFrame: a cell's lattice, the atom's site, nothing for a molecule) before
+    //! anything is built, and a setup or deck::Vet refuses a bad deck without paying for a basis or a mesh.  A descriptor that fails (the
+    //! frame lacks what the kind needs) is the refusal; one that answers is admitted iff G contains its group.
     Outcome<AdmittedVxc,std::string> AdmitVxc(const Structure& st, VxcFit fit, const qcMesh::MeshParams& mp)
     {
         using R=Outcome<AdmittedVxc,std::string>;
@@ -139,23 +163,18 @@ namespace qchem::Hamiltonian
         // (the radial-only set) would be silently ignored -- refused, never substituted (CLAUDE.md, user-reachable choices).
         if (mp.cellKind==qcMesh::UnitCellKind::Uniform && mp.angular==qcMesh::AngularKind::None)
             return R::Fail("the XC mesh: angular none (the radial-only point set) on a uniform cell mesh -- a uniform cell mesh reads no "
-                           "angular rule, so the stated angular would be ignored.  State cellKind Becke or Auto for the radial-only set, "
+                           "angular rule, so the stated angular would be ignored -- To fix this, please state cellKind Becke or Auto for the radial-only set, "
                            "or drop angular none for the uniform mesh");
-        if (st.Admits(ImposedSymmetry::Translations) && fit==VxcFit::Multipole) return R::Fail("the multipole Vxc fit: "+thePeriodicMultipole);
-        const ImposedSymmetry G=GroupOf(st);   // for the wording only: the rule itself is the structure's own answer
-        // THE RULE: H_fit within G and H_points within G.  Below each failure, the wording names the generator G lacks.
-        if (const ImposedSymmetry H=ImposedBy(fit,st); !st.Admits(H))
+        const Symmetry::GroupPtr G=st.MakeSymmetry(Symmetry::kAdmissionTolerance);
+        if (G->HasLattice() && fit==VxcFit::Multipole) return R::Fail("the multipole Vxc fit: "+thePeriodicMultipole);
+        const Symmetry::Frame frame=G->MakeFrame();
+        // THE RULE: H_fit within G and H_points within G.
+        for (const auto& H : {BasisSet::Forces(fit, frame), qcMesh::Forces(mp, frame)})
         {
-            if (fit!=VxcFit::PlaneWave) throw std::logic_error("Hamiltonian::AdmitVxc: a refused Vxc fit with no wording");
-            return R::Fail(SymmetryRefusal("the plane-wave Vxc fit", H, G, "state the Vxc fit Delta or Auxiliary"));
-        }
-        if (const ImposedSymmetry H=qcMesh::ImposedBy(mp); !st.Admits(H))
-        {
-            if (H==ImposedSymmetry::Translations)
-                return R::Fail(SymmetryRefusal("a uniform cell mesh", H, G,
-                                               "state the XC mesh cellKind Becke or Auto, the atom-centred mesh"));
-            return R::Fail(SymmetryRefusal("the radial-only point set (angular none: one direction at 4 pi, exact only for a spherical "
-                                           "integrand)", H, G, "state an angular rule (Lebedev or GaussLegendre)"));
+            if (!H) return R::Fail(H.Error()+"; this structure's G is "+G->Describe()+" (doc/Pins.md pin 30)");
+            if (!G->Contains(*H.Value()))
+                return R::Fail("a representation imposes H_R = "+H.Value()->Describe()+", and this structure's G ("+G->Describe()+
+                               ") does not contain it (doc/Pins.md pin 30)");
         }
         return R::Ok({fit, mp.cellKind});
     }
@@ -165,7 +184,7 @@ namespace qchem::Hamiltonian
         const bool multipole=coulomb.fit==CoulombFit::Multipole;
         if (multipole)
         {
-            if (st.Admits(ImposedSymmetry::Translations)) return R::Fail("the multipole Coulomb fit: "+thePeriodicMultipole);
+            if (st.MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice()) return R::Fail("the multipole Coulomb fit: "+thePeriodicMultipole);
             if (coulomb.solver==CoulombSolver::DirectSum)
                 return R::Fail("a multipole fit's potential is the radial Poisson solve of its channels; a direct sum runs over points -- "
                                "state the solver RadialPoisson or Auto, or the fit Delta");
@@ -214,6 +233,9 @@ namespace qchem::Hamiltonian
             case Model::Xalpha:
             case Model::LDA:
             case Model::PADE:
+            case Model::PBE:
+            case Model::PBEsol:
+            case Model::BLYP:
                 NeedsResolver();
         }
         assert(false); return nullptr;
@@ -227,8 +249,28 @@ namespace qchem::Hamiltonian
             case Model::Xalpha: return {XC::SlaterXalpha, xalpha};
             case Model::LDA:    return {XC::DiracVWN};
             case Model::PADE:   return {.kind=XC::LibXC, .libxcId=kLibxcPADE};
+            case Model::PBE:    return {.kind=XC::LibXCGGA, .libxcId=kLibxcPBEx,    .libxcCorrId=kLibxcPBEc};
+            case Model::PBEsol: return {.kind=XC::LibXCGGA, .libxcId=kLibxcPBEsolx, .libxcCorrId=kLibxcPBEsolc};
+            case Model::BLYP:   return {.kind=XC::LibXCGGA, .libxcId=kLibxcB88,     .libxcCorrId=kLibxcLYP};
             default: throw std::invalid_argument("Hamiltonian::ModelToXC: "+Name(m)+" is not a DFT model, so it has no functional");
         }
+    }
+
+    //! A GGA choice as its functional: one \c Libxc_GGA per part (THROWS for an id that is not a pure GGA), summed.  GGA stage 2's term
+    //! factory takes it from here; until then only the query below asks it.
+    static std::shared_ptr<const GGAFunctional> MakeGGAFunctional(const XCFunctional& xc)
+    {
+        std::vector<std::shared_ptr<const GGAFunctional>> parts{std::make_shared<Libxc_GGA>(xc.libxcId)};
+        if (xc.libxcCorrId) parts.push_back(std::make_shared<Libxc_GGA>(xc.libxcCorrId));
+        return std::make_shared<CompositeGGAFunctional>(std::move(parts));
+    }
+
+    //! THE FACTORY ASKS THE FUNCTIONAL (user, 2026-11-20: "the sampler should know (or be able to ask) Exc if σ are needed or not"):
+    //! the choice is built as its functional, of the face its kind names, and that object answers.
+    bool ConsumesDensityGradient(const XCFunctional& xc)
+    {
+        if (xc.kind==XC::LibXCGGA) return MakeGGAFunctional(xc)->ConsumesDensityGradient();
+        return CompositeExFunctional(MakeXCParts(xc)).ConsumesDensityGradient();
     }
 
     // THE single DFT build site: an XCFunctional choice -> the concrete polymorphic Hamiltonian, building
@@ -244,6 +286,7 @@ namespace qchem::Hamiltonian
         // one XC term (each contributes its OWN eps, so E_c is the correct integral eps_c rho, not the 3/4 exchange virial); libxc is
         // spin-native through its XC_POLARIZED contract (2026-10-21).
         if (xc.kind==XC::SlaterXalpha) return new Ham_DFT(st, xc.alpha, mp, bs, coulombFit, p, fit, coulomb);
+        if (xc.kind==XC::LibXCGGA)     return new Ham_DFT(st, MakeGGAFunctional(xc), mp, bs, coulombFit, p, fit, coulomb);   // GGA stage 2
         return new Ham_DFT(st, MakeXCParts(xc), mp, bs, coulombFit, p, fit, coulomb);
     }
 
@@ -288,9 +331,12 @@ namespace qchem::Hamiltonian
     cHamiltonian* Factory(SpinGroup p, const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons,
                           const Pseudopotential::PseudopotentialSet& pp, const qcMesh::MeshParams& xcMesh, XCRoute fit,
                           std::vector<HubbardManifold> hubbard, const XCFunctional& xc,
-                          std::shared_ptr<const BasisSet::Orbital_1E_IBS<double>> vxcAux)
+                          ChargeDensity::LatticeSummedSet vxcAux)
     {
         RequireAdmitted(*st,fit.fit,xcMesh);
+        if (xc.kind==XC::LibXCGGA)   // GGA stage 3: the periodic point route (the setup admitted it: policy GGARoute)
+            return new Ham_PW_DFT(st, bs, coulombFit, numElectrons, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard), {},
+                                  std::move(vxcAux), MakeGGAFunctional(xc));
         return new Ham_PW_DFT(st, bs, coulombFit, numElectrons, pp.Species(*st), pp.Functional(), xcMesh, fit, p, std::move(hubbard), MakeXCParts(xc),
                               std::move(vxcAux));
     }

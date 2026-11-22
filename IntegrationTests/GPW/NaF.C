@@ -476,3 +476,25 @@ TEST(GPW_NaF, k222_CP2KsCellIsStationary_Long)
         EXPECT_NEAR(point->energy, -72.0950276, 1e-4);
     });
 }
+
+// THE PERIODIC GGA ON NaF (GGA stage 3): the free Becke delta route, Pulay on D (the default mixer: a GGA refuses Kerker), SR2, Gamma, PBE
+// (gth-pbe-valence), the XC mesh UNSTATED: the GGA route chooses Becke and the pilot sizes it from eps (controller ruling 2026-11-21, pin 31).
+// The oracle is CP2K naf_gpw_sr2_diag.inp at PBE, converged in CUTOFF (~/Code/cp2k-runs/NaF/naf_sr2_pbe*): 320 / 600 / 1000 / 1600 Ry =
+// -24.453123 / -24.452611 / -24.452574 / -24.4525727; libxc's PBE at 1000 Ry -24.4525716, XC cutoffs 1e-14 -24.4525740.
+// WHY THE MESH IS NOT STATED (measured 2026-11-21, ours at Becke nR 150, LDA / PBE): L47 -24.4310540 / -24.4525424, L65 -24.4310536 /
+// -24.4525718 -- the GGA moved 29 uHa between two angular rungs that moved LDA 0.4 uHa, so the energy-calibrated default (40, 29) cannot
+// serve a GGA; radial 150 -> 200 at L47 moved PBE 1.2 uHa.
+TEST(GPW_NaF, Γ_Becke_PBE_CP2K_Long)
+{
+    const Material naf=qchem::Materials::Get("NaF_rocksalt");
+    const Lattice_3D lat=LatticeOf(naf);
+    RunOptions o=NaFOptions(naf, "NaF Gamma Becke PBE");
+    o.model=qchem::Hamiltonian::Model::PBE; o.pp=std::string("gth-pbe-valence");
+    SCFParams par=NaFGates(); par.KerkerG0=0.0; par.StartingRelaxRo=0.45;
+    o.scf=par;
+    auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisNaFSR2(*naf.cell), o)).TakeValue(); (void)calc->Converge();
+    auto R=calc->Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
+    EXPECT_NEAR(R->Energy(), -24.4525727, 2e-5) << "PBE on the mesh the run sized from eps (1e-5 x 2 atoms) vs CP2K at 1600 Ry";
+}

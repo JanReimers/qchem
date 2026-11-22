@@ -10,7 +10,6 @@ module;
 #include <cassert>
 export module qchem.ChargeDensity;
 export import qchem.Symmetry.Spin;
-export import qchem.ChargeDensity.RasterDensity;    // the interim raw-raster face (V-ONE-OF-N 3c; sub-step 4 retires it)
 export import qchem.BasisSet.PairProjection;        // ΔG_Map algebra + Contract (was re-exported through the retired FourierDensity module)
 import qchem.ScalarFunction;
 import qchem.Structure;   // DM_Pullback: the atoms a force is taken in

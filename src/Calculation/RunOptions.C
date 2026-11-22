@@ -18,6 +18,7 @@ export import qchem.BasisSet.Lattice.BasisSet;  // CellImages, GPWTolerances, Gr
 export import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSet::Gaussian::Angular
 export import qchem.RunPolicy;                  // RunPolicySpec
 export import qchem.AuditFootprint;             // AuditFootprintCalibration
+export import qchem.PhiTablesPolicy;            // policy::XCOrbitalTables (the δ fit's orbital tables)
 export import qchem.ChargeDensity.Seed;         // SeedStrategy
 export import qchem.LASolver;                   // qchem::Ortho
 export import qchem.SCFAccelerator.Factory;     // SCFAccelerators::Type, ScheduleSignal
@@ -350,6 +351,16 @@ struct RunOptions
         //! (OpenWork, X): a session invariant under the group the WHOLE session keeps (a symmetry-preserving relaxation keeps its space
         //! group), so one mesh serves both.
         bool xcMeshSymmetric = true;
+        //! \brief HOW THE δ FIT HOLDS ITS ORBITAL TABLES ON THE XC MESH -- a MEMORY-vs-SPEED TRADE-OFF the user may decide (lane S 2026-11-19;
+        //! the user: "For some of these the user should be allowed to decide").  Both give the same numbers (to roundoff):
+        //!   \c dense   one table \f$\Phi^k_{gi}\f$ per k-block: nk x points x functions x 16 B.  The fastest contractions, the largest RAM.
+        //!   \c images  one k-independent record of the lattice-image values, shared by every k-block and phased when used: ~25-30 B per
+        //!              (point, function) whatever nk -- smaller from about two complex k-blocks on, a few percent slower.
+        //!   \c auto    (default) the realization with the lower PEAK memory, unless the other is faster by more than
+        //!              \c policy::kPhiSpeedGainThreshold and still fits (qchem.PhiTablesPolicy).
+        //! A stated value wins; one the policy finds peculiar (dense near the memory budget, images where they are larger) runs with a
+        //! warning naming what \c auto would pick.  The [policy] line prints both realizations' peak, average and wall either way.
+        policy::XCOrbitalTables xcOrbitalTables = policy::XCOrbitalTables::Auto;
         //! THE CELL'S STRAIN ALLOWANCE s (linear, a fraction; the cell half's frozen rule, doc/Records/CellHalf_Design.md §3, ruled
         //! 2026-11-10).  0 (default): the cell is fixed -- a geometry session refuses a moved cell (\c PESFailure::CellChange) and every size
         //! is decided on the cell itself, as always.  > 0: every discrete size (G sets, raster and FFT counts, uniform-mesh divisions) is
@@ -362,27 +373,14 @@ struct RunOptions
         //! (the plane-wave family); must exceed the larger spin channel's electron count; refused beside a direct minimiser
         //! (GDM / the Ladder's GDM rung), which rotates into the WHOLE virtual space.
         size_t       numBands = 0;
-        //! ANSATZ POLICY (doc/RealComplexPlan.md §6): force every Bloch block COMPLEX even where the run
-        //! admits real ones (a TRIM k-point under a realness-preserving Hamiltonian -- with the default
-        //! LDA stack every Γ / zone-boundary block runs REAL: real S/T/V/KB, real eigensolve, real
-        //! quadrature GEMMs).  The physics is identical either way (the 3c-3 acceptance gate pins ON==OFF
-        //! to machine precision); complex is the DOWNGRADE direction (§1), kept as the escape hatch for
-        //! complex-instability experiments and as the gate's A/B door.
-        //!
-        //! NOT needed for MOM any more (R2.21, 2026-08-17).  It used to be: a real block's MOM reference had
-        //! nowhere to live in a run-typed reference home, so switching \c SCFParams::UseMOM on threw mid-SCF
-        //! and the documented workaround was to come here and pay for an all-complex run.  The occupation
-        //! state now keys each block's reference by the BLOCK's scalar, so MOM runs REAL on a mixed mesh --
-        //! measured identical to the forced-complex twin (Si (3,1,1), ΔE = 1.8e-15) at the real run's cost.
-        //! No knob, and no surprise: turning MOM on no longer changes what the run is made of.
-        bool forceComplex = false;
         //! \brief THE LINEAR RESPONSES THIS RUN WILL RUN, one q-mesh each (empty = none).  The ansatz is decided ONCE per run, at setup,
         //! from k AND q (user ruling 2026-11-18, OpenWork "LR on REAL TRIM blocks"): a response's dD at q != 0 couples block k to block
         //! k+q through a complex phase, so a run that will run one builds EVERY block complex from the start -- never a real block
         //! re-typed, rebuilt or released mid-run.  q = 0 alone counts too: the response face is complex-only (route B, typing each object
         //! from its own quantum numbers, is the hub change that would lift it).  \c SolidSetup::realTRIMBlocks is the decision.  A deck
         //! fills it per run (its two-run split: none for the ground state, the planned responses for the response run); code that calls
-        //! \c SolidCalculation::HubbardLinearResponse states it (or \c forceComplex).
+        //! \c SolidCalculation::HubbardLinearResponse or \c HubbardFiniteDifferenceChi states it.  There is no knob that forces complex
+        //! without a response (user 2026-11-19, OpenWork G4: real vs complex is provable, not a trade-off; \c forceComplex is retired).
         std::vector<ivec3_t> responseQMeshes = {};
 
         //! \name Knobs the GPW test driver carried that this struct did not (2026-08-25)

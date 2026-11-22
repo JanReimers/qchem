@@ -3846,6 +3846,29 @@ Original row:
 
 · **The libcint engine has no geometry pullbacks** (lane H, 2026-11-11).  `.engine=LibCint` blocks answer no kinetic or nuclear (nor overlap) pullback, so `MissingGradients` refuses a forces request on them, by name and correctly; but a geometry run cannot use the faster engine, and the ForceFacade gates already call libcint's `KineticGradient` / `NuclearGradient` directly.  Next action: give the libcint block the pullback faces from those (lane B's faces), gated by the per-term FD at fixed D · `doc/GeometryOptimizationPlan.md` §15 item 3
 
+## ✅ The δ fit's Φ table is stored DENSE (closed 2026-11-19, lane S: shared across k)
+
+The row as it stood:
+
+| [G1] **The δ fit's Φ table is stored DENSE: a screened Φ may cut the largest χ-on-a-grid holder** (lane H, 2026-11-15, from the basis-on-grid survey; controller ruling) | `DeltaFit_IBS::itsPhi` holds χ_i(r_g) for every orbital block on every Becke XC point, npts × n_b.  It is the ONLY orbital χ table the code holds (the survey, `side-session-notes/.../laneH-BasisOnGrid-survey.md`): on the TiO₂ little-group deck, 8 k-blocks × 147,600 points × 152 functions × 16 B = **2.87 GB of an 8.06 GB peak RSS**.  A Becke point far from a Bloch function's centres sees ~e^{-α r²}, so much of it may sit below ε.  ⚠ TiO₂'s Φ is complex only because its deck sets `forceComplex` (the row above, "LR on REAL TRIM blocks"): route A of that row (landed b28a03e79) halves the GROUND-STATE table to 1.44 GB real; the response still builds the complex 2.87 GB for its siblings (route-B row).  **MEASURED 2026-11-15 (lane H, no code; a scratch extension of the phi_sparsity diagnostic, reverted), TiO₂ little-group deck, 147,600 points × 152 functions, 8 complex blocks within ±0.5 % of each other (the pattern is |χ|, nearly k-independent; max |χ| = 8.9).  Fraction of |χ_i(r_g)| BELOW threshold: 1e-12 50.6 % · 1e-10 51.8-52.0 % · 1e-8 55.1-55.6 % · 1e-6 60.5-61.6 % · 1e-4 70.6-71.5 % · 1e-3 76-77 % (tight Ti functions vanish ~6 bohr from every image of their atom).  Per POINT BATCH, significant columns n_sig mean / max and significant column SPAN mean (of 152): 256 points: ε 1e-10 91 / 144 / 147, 1e-8 85 / 138 / 147, 1e-6 78 / 131 / 146; 1024 points: 1e-10 94 / 152 / 148, 1e-8 89 / 145 / 147, 1e-6 82 / 143 / 147; SITE batches (6 atoms) 145-150 at any ε.  VERDICT: the span is the full width (every point sees diffuse functions of every atom), so a contiguous column RANGE buys nothing -- a screen needs a per-batch column LIST (gather/scatter; one list serves all k-blocks); SITE batching is useless.  CEILING: ~40 % off the table (256 points, 1e-10: 60 % of dense, 2.87 → ~1.72 GB; element-wise CSR at 48 % nonzero + 4 B index is no better) and ≤ 2.7× on the ρ forward and H_xc GEMMs (Σ npts·n_sig² / npts·n²: 2.66× at 256, 2.43× at 1024, 2.93× at 64), for a gather layer through `Table()` and every Φ consumer.  Not built (controller 2026-11-15)** | REVISIT only when **a TiO₂-class deck still presses RAM after REAL-TRIM** (route A landed; its response-phase peak is the route-B row's question first).  Then: a rigorous dropped-mass bound |Δρ_g| ≤ t·Σ_j|D_ij||χ_j| as its own function, any η a separate named calibration, both printed, a gate against the dense table stated in ε, a mover table · `src/BasisSet/Imp/DeltaFit_IBS.C` (MakePhiAt) |
+
+**Closed by sharing, not screening** (controller ruling 2026-11-19: option C ahead of B; design note `side-session-notes/.../lane-s-phi-memory-design.md`).  The image values χ_i(r_g − R) are k-independent: measured on TiO₂ rutile Γ (147,600 points, 166 Cartesian functions), 2.47 significant images per (g,i) at ε 1e-10 (1.77 at 1e-8, 1.17 at 1e-6), so one sparse record per lattice basis is ~25-30 B per (g,i) against 16 B × nk dense.  Landed:
+- `qchem.BasisSet.PointImages` (the record, `BlochImageSource` face on the GPW blocks; the spherical view's transform rides on it).  `Orbital_IBS::BlochPointValues` builds the dense table THROUGH the record, so Φ^k is bit-equal on both realizations by construction (gate `UTLattice_BS SharedPhi.*`: 0 differing entries at two non-TRIM k from one record, a real TRIM block, a row batch, the spherical view; the contractions agree to 1e-13, summation order only).
+- `DeltaFit_IBS`: a one-of-N Φ per block (dense \| images + phases), batched contractions on images (the adjoint over a fixed 16-group partition, thread-count independent).
+- The choice: `solid.xcOrbitalTables` dense \| images \| auto, the user's ("For some of these the user should be allowed to decide"); `auto` takes the LOWER PEAK unless the other beats `kPhiSpeedGainThreshold` 25 % (judgement) and fits within `kPhiPeakHeadroom` 0.5; `kPhiImagesWallRatio` 0.75 measured (complex blocks).  It reaches the δ fit's factory through `tBasisSet<T>::CreateVxcFitBasisSet(..., const PhiChooser& phiTables={})` (hub change, user ruling 2026-11-19 option (a): "Yes a all the way.  Good call."), carried on `Hamiltonian::XCRoute`.
+
+**Measured, TiO₂ k222 little-group deck (8 complex blocks, 147,600 Becke points, 152 spherical functions), 6 capped iterations, energies equal to 1e-12:**
+
+| | dense 8 thr | images 8 thr | dense 1 thr | images 1 thr |
+|---|---|---|---|---|
+| H_xc (112 calls) | 109.6 s | 46.8 s | 197.7 s | 114.3 s |
+| ρ sampling (25 calls) | 9.3 s | 42.4 s | 97.5 s | 97.3 s |
+| Φ setup | 19.0 s | 2.7 s (one record) | 107.6 s | 9.6 s |
+| wall | 3:17 | 2:32 | 9:36 | 5:43 |
+| peak RSS | 4.08 GB | 1.86 GB | 3.94 GB | 2.01 GB |
+
+The policy's prediction on the same run: dense 2.67 GB, images 0.86 GB average / 1.64 GB peak (estimated from a 1-in-36 sample).  Follow-ups are the three [G1] rows left in the tracker (the images ρ forward, the dense serial zgemm, the dense build through the record).
+## ✅ GPW PP and raster-XC forces (lane B, 2026-11-19; READY 1-3, landed with lane-b-xc)
 ## ✅ GPW PP and raster-XC forces (lane B, 2026-11-19; READY 1-3, landed with lane-b-xc; READY 4, the free Becke mesh, with lane-b-becke)
 
 The three GPW pseudopotential terms and XC on the raster route now give their force and virial at fixed D, so the WHOLE GPW force and
@@ -3944,3 +3967,41 @@ u 0.301768, E -71.3378274 (14 μHa).
   run stays wurtzite but at c/a 1.505, u 0.402 (expt 1.601, 0.382), E -24.2074417.  ⚠ CP2K's `SYMMETRY HEXAGONAL` rewrites a 120° cell to
   γ = 60° and re-reads SCALED (1/3,2/3) sites in it: a 3-coordinated non-wurtzite start that KEEP_SYMMETRY holds (the DZVP-MOLOPT-SR and
   Al-trim basis probes ended there, 3 bonds of 1.80 / 1.71 Å, unusable; re-run free as `*_v2`).  State Cartesian sites or drop the keyword.
+## ✅ A charged molecule ran NEUTRAL under a pseudopotential (closed 2026-11-21, lane G, 05990e136)
+
+Found wiring the GUI's molecule charge: `MoleculeSetup::PointStructure` called `Structure::SetNetCharges(Z - Zion)`, which REPLACED each site's stated net charge, and the setup counts `Ne` on that point.  A charged molecule with a pseudopotential therefore ran neutral, silently: OH- (O site netCharge -1) with GTH counted 7 valence electrons, not 8, and converged at -16.4651900.  The fix ADDS the core charge: the mutator is now `Structure::AddNetCharges` (`netCharge +=`), its one caller `MoleculeSetup`; a tier-1 hub face change, ruled by the user 2026-11-21: ""Approve the Structure change with the rename to AddNetCharges?" yes that looks good.  A brief discussion is always preferred over finding "workarounds" for hub changes."  Gates, both red on the old code: `MoleculeSetup.AChargedMoleculeKeepsItsChargeUnderAPseudopotential` (Ne = 8) and `M_DFT.Hydroxide_PP_KeepsItsChargeVsPySCF` (LDA, GTH-PADE, CP2K DZVP-MOLOPT-GTH spherical, delta Coulomb at 150/47: -16.5335491647 vs PySCF 2.14 -16.5335495587).  No other `SetNetCharges` caller (solid and atom setups count from `RunOptions::charge` / the atom's own charge).  The oracle run exposed a separate gap: the hard-wired A1 Coulomb fit is 1.9 mHa low on this basis (OpenWork §3 row "The Coulomb-fit default is a hidden policy").
+
+## ✅ The GUI's molecule charge field (closed 2026-11-21, lane G, qchem f0b642bd0 + qchem-GUI 20cfcc4)
+
+The row as filed (its premise corrected: a molecule's charge is its STRUCTURE's, per-site `Site.netCharge`, and `MoleculeSetup` refuses `RunOptions::charge`):
+
+| **The GUI's molecule charge field** (lane G, 2026-11-21) | `structure.charge` (qchem-GUI f542982) is wired for the radial ATOM only (`qcb_start_atom` takes it); the spec REFUSES a charged molecule ("not wired yet").  A molecule's charge is its STRUCTURE's: per-site `Site.netCharge` (`MoleculeSetup` refuses `RunOptions::charge`, "a molecule's charge is its structure's"), and the bridge's molecule start (`qcb_start` / `Calculator(...)`) and `StateView.molecule` take none | lane G (controller 2026-11-21, option (a)): the bridge takes a per-site `netCharge` array mirroring `Site`; the GUI puts the total on one site by default (the most electronegative) and lets the user edit it per site; drop the refusal; gate a cation through Build -> Run and a state reopen · `pybind/qchem_bridge.cpp`, `qchem-GUI qviz/spec.py` |
+
+Done as the controller's option (a), 2026-11-21.
+- The bridge takes a per-site `qcb_request.netCharge` array mirroring `Site` (Python `net_charges=` on `Calculator` and `StateView.molecule`).
+- The GUI's `Structure` carries the total `charge` and an optional per-site `site_charges`, one per site and summing to the charge. THE DEFAULT RULE puts the whole charge on the most electronegative site (Pauling, the first on a tie); the split shapes only the SAD seed.  The sites table's q column edits the split, and the total and label follow (H2O -> H2O+).  A crystal's charge is still refused, and CP2K refuses a charged structure by name (it writes no `&DFT CHARGE` yet).
+- Gate: `tests.test_molecule_charge`.  The H2O+ HF doublet gives -75.6191133 (9 e) through Build -> Run, against neutral -76.0229032, and its state reopens through `StateView` with the same charges.
+- Found on the way: the charged-PP neutral defect (closed in 05990e136), and the hard-wired A1 Coulomb fit, 1.9 mHa low on the GTH MOLOPT bases (open §3 row "The Coulomb-fit default is a hidden policy").
+
+## ✅ A basis file states its KIND (closed 2026-11-21, lane G)
+
+The row as filed:
+
+| **A basis file states its KIND (pseudopotential-valence vs all-electron, and the PP set it pairs with)** (lane G, 2026-11-21, from `qchem.BasisMenu`) | `OrbitalBasisOffers` lists a crystal's Gaussian files by coverage only, so the GUI's crystal Basis menu still keeps its OWN periodic list (`qchem-GUI qviz/backends/solid2_deck.py _BASES`).  The library cannot say which files are PP-valence: `PP-PROVENANCE` (valgen's preamble line, `CheckPPProvenance`) is on the generated `valence_lowq*` files only, while `sipp.bsd` / `sipp_sr.bsd` (hand-made GTH valence sets) carry none and read as legacy all-electron.  Record: `side-session-notes laneG-READY-basis-menu.md` | state the kind in every shipped `.bsd` preamble (a `KIND` line, or `PP-PROVENANCE` on sipp / sipp_sr too), expose it through `BasisFiles`, have `BasisOffer` carry it (a crystal on GTH greys an all-electron file with the reason), then delete the GUI's `_BASES` list · `src/BasisSet/Gaussian/Point/`, `src/Calculation/BasisMenu.C` |
+
+Done, 2026-11-21 (controller's assignment: reader / BasisFiles only, no hub).
+- Every shipped `.bsd` (28) states ONE preamble line: `KIND fit-coulomb` (A1_coul, A2_coul, cd), `KIND fit-exchange` (A1_exch, A2_exch,
+  x), `KIND all-electron` (dzvp, dzvp2, tzvp, orb, orb1, dzvp_test), `KIND pp-valence gth-lda-valence` (sipp, sipp_sr, the MOLOPT
+  transcriptions, every valence_lowq*).  sipp / sipp_sr also gained `PP-PROVENANCE Si=4 O=6`.  The writers emit it: valgen's
+  `AssembleBasisFile(..., ppSet)` and `scripts/cp2k2bsd [--pp-set NAME]`.
+- `qchem.BasisSet.Gaussian.Point.BasisFiles`: `KindOfBasisFile(file) -> {BasisKind, ppSet}`, `KindName`; a malformed line THROWS
+  ("-- To fix this, please state ONE preamble line ...").
+- `BasisOffer` gains `kind` and `ppSet`; on the crystal route a file is admitted only when it is pp-valence ("dzvp is an all-electron
+  basis: a crystal runs on a pseudopotential and needs a pseudopotential-valence basis").  The bridge's offers carry both.
+- GUI (qchem-GUI): the crystal Basis box is the library's menu (all-electron files greyed with the reason; plane waves greyed: the
+  GUI's crystal deck writes `basis.data` only); `solid2_deck.why_not(spec, qc)` judges the basis by the library's offer.  `_BASES`
+  and `periodic_bases` are deleted.
+- Gates: `UTGaussian_BS BasisKind.TheKindLineIsReadAndAMalformedOneThrows`, `BasisKind.EveryShippedFileStatesItsKind`;
+  `UTCalculation BasisMenu.ACrystalAddsThePlaneWaves` (dzvp greyed, admitted = pp-valence AND covers), `BasisMenu.EveryPPValenceFilesSetShipsAndCoversItsElements`.
+- Residual: a RUN does not judge the KIND yet, and the menu lists by enum handle -- open row "The basis KIND is read by the menu only".
+

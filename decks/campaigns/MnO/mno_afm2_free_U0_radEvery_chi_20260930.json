@@ -27,7 +27,6 @@
   },
   "solid": {
     "cutoffFactor": 2.0,
-    "forceComplex": true,
     "hubbard": [
       {
         "site": 0,

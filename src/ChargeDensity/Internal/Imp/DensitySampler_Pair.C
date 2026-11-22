@@ -25,7 +25,7 @@ module;
 module qchem.ChargeDensity.Internal.DensitySampler;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.ChargeDensity;
-import qchem.ChargeDensity.RasterDensity;    // the raw-raster face (interim, sub-step 4)
+import qchem.BasisSet.RasterDensityProjector;  // the RAW ρ_DM projector on the raster (R1.0n/o)
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
@@ -47,6 +47,7 @@ namespace qchem::ChargeDensity
 PairDensitySampler::PairDensitySampler(fbs_t fb)
     : itsFitBasis(std::move(fb))
     , itsRhoProjector(BasisSet::MakeGSpaceDensityProjector(itsFitBasis, "xc: rho-tilde IBZ star-average (SymmetrizeGMap)"))
+    , itsRasterProjector(BasisSet::MakeRasterDensityProjector(itsFitBasis))
 {
     assert(itsFitBasis);
 }
@@ -98,9 +99,9 @@ XCRhoSource PairSource(const cChargeDensity* cd, bool isRaw, bool ballHoldsPairs
 rvec_t PairDensitySampler::SampleOne(const cChargeDensity* cd, bool& isRaw) const
 {
     assert(cd);
-    auto rd=dynamic_cast<const qchem::ChargeDensity::RasterDensity*>(cd);   // the interim raw-raster face (abstract -> abstract)
-    if (!rd) throw std::logic_error("PairDensitySampler requires a periodic charge density (a RasterDensity)");
-    rvec_t rho=rd->GetRhoOnGrid(*itsFitBasis);
+    // RAW: <δ_g|ρ> through the one projection face -- a D-backed density collocates its D (star-averaged once by a k-composite), a
+    // mixed one hands back its raster shadow, the seed answers none (empty) and takes the BALL below.
+    rvec_t rho=cd->Project(*itsRasterProjector).Vector();
     isRaw=(rho.size()!=0);
     RequireRawForCusp(cd, isRaw, BallHoldsPairs(*itsFitBasis));
     if (!isRaw)

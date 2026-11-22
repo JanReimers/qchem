@@ -12,7 +12,7 @@ using std::cout;
 using std::endl;
 
 import qchem.Structure;
-import qchem.Mesh;   // qcMesh::ImposedSymmetry (Structure::Admits)
+import qchem.Symmetry.Group;   // HasLattice, kAdmissionTolerance (is the structure periodic?)
 import qchem.UnitCell;
 import qchem.Lattice_3D;
 import qchem.Ewald;
@@ -349,20 +349,20 @@ TEST_F(StructureTests, EwaldFarApartHomeAtoms)
 }
 
 // The three questions isFinite() used to switch on (V-STRUCTURE-ISP F3), each answered by the structure itself:
-// the translation-symmetry admission bit, the G=0 background (0 finite, (1/Omega) Sum_a f periodic) and the
+// does its group hold a lattice (HasLattice), the G=0 background (0 finite, (1/Omega) Sum_a f periodic) and the
 // ion-ion energy (direct pairs finite, Ewald periodic).
 TEST_F(StructureTests, PeriodicAnswersVsFinite)
 {
     Atom h(1,0,{0,0,0});
-    EXPECT_FALSE(h.Admits(qcMesh::ImposedSymmetry::Translations));
+    EXPECT_FALSE(h.MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice());
     Molecule m;
     m.Insert(Site{1, {0,0,0}});
     m.Insert(Site{1, {0,0,1.4}});
-    EXPECT_FALSE(m.Admits(qcMesh::ImposedSymmetry::Translations));
+    EXPECT_FALSE(m.MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice());
     FCCUnitCell si(10.26);
     si.AddAtom(14,{0,0,0});
     si.AddAtom(14,{0.25,0.25,0.25});
-    EXPECT_TRUE(si.Admits(qcMesh::ImposedSymmetry::Translations));
+    EXPECT_TRUE(si.MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice());
 
     const auto f=[](int Z){return 0.5*Z;};
     EXPECT_EQ(h.G0Background(f), 0.0);                                   // finite: no background, exactly 0

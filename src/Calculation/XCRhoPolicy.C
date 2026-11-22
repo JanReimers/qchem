@@ -14,6 +14,7 @@ module;
 #include <string>
 export module qchem.XCRhoPolicy;
 import qchem.Hamiltonian.Types;   // VxcFit, XCρ
+import qchem.Hamiltonian.Factory; // XCFunctional, ConsumesDensityGradient, Describe (the GGA route refusal)
 import qchem.Policy;
 
 export namespace qchem
@@ -89,6 +90,36 @@ inline void RefuseGradientConsumers(Hamiltonian::VxcFit fit, Hamiltonian::XCρ r
             "GDM descends E along the direction H, and on this cell H is the fitted v(rho[D]), not dE/dD (doc/Pins.md pin 32), so its line "
             "search would minimise a different function from the one it follows -- state xc.rho fit (the variational A1 route) or the DIIS "
             "accelerator");
+}
+
+//! THE GGA ROUTE REFUSAL (GGA stage 1; GGA design note §5; user ruling 2026-11-20).  A functional that reads \f$\nabla\rho\f$ is built and
+//! named, but no XC sampling route samples the gradient yet (stages 2-4: the molecular point route, the periodic point route, the raster),
+//! so every route REFUSES it here, before anything is built -- never a silent LDA in its place.  \a where names the run kind.
+inline void RefuseUnroutedGradient(const Hamiltonian::XCFunctional& xc, const std::string& where)
+{
+    if (!Hamiltonian::ConsumesDensityGradient(xc)) return;
+    policy::Refuse("GGARoute", Hamiltonian::Describe(xc)+" on "+where,
+        "a GGA reads the density gradient, and no XC sampling route samples it yet (GGA stages 2-4: the molecular point route, the periodic "
+        "point route, the GPW raster) -- state an LDA (model LDA or PADE) until the route lands");
+}
+//! \brief THE MOLECULAR GGA ROUTE (GGA stage 2): the all-electron δ Vxc fit samples \f$\nabla\rho\f$ (the density-gradient strategy), so a GGA
+//! there RUNS and the policy says which route it took; a Gaussian (A1) or multipole Vxc fit has no gradient route and REFUSES, named.
+//! (A pseudopotential molecule refuses any non-LDA model on its own, \c PseudopotentialIsLDA.)  \a model is the run's; a non-GGA passes silently.
+inline void RouteMolecularGradient(Hamiltonian::Model model, Hamiltonian::VxcFit fit)
+{
+    if (!Hamiltonian::IsDFT(model) || !Hamiltonian::ConsumesDensityGradient(Hamiltonian::ModelToXC(model))) return;
+    const std::string what=Hamiltonian::Describe(Hamiltonian::ModelToXC(model))+" on a molecule";
+    if (fit!=Hamiltonian::VxcFit::Auto && fit!=Hamiltonian::VxcFit::Delta)
+        policy::Refuse("GGARoute", what+" with a non-delta Vxc fit",
+            "only the delta Vxc fit samples the density gradient on a molecule (GGA stage 2); the Gaussian auxiliary and multipole fits "
+            "have no gradient route -- state the delta fit (the default)");
+    policy::Report("GGARoute", what+": the delta Vxc fit samples grad rho at the XC points (GGA stage 2)", policy::Verdict::Choose,
+        "the molecular point route: grad rho through the delta basis's gradient 3-centre overlap, H = dE/dD by the {v, w} gather");
+}
+//! The same for a stated MODEL (a non-DFT model reads no functional, so it passes).
+inline void RefuseUnroutedGradient(Hamiltonian::Model m, const std::string& where)
+{
+    if (Hamiltonian::IsDFT(m)) RefuseUnroutedGradient(Hamiltonian::ModelToXC(m), where);
 }
 
 } // namespace qchem

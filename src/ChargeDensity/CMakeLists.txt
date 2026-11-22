@@ -20,7 +20,6 @@ target_sources(qcChargeDensity PRIVATE
 )
 target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     ChargeDensity.C
-    RasterDensity.C
     CompositeCD.C
     DensityMatrixDistance.C
     TransitionDensity.C

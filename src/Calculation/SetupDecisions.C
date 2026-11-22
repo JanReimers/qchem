@@ -18,8 +18,9 @@ export module qchem.SetupDecisions;
 export import qchem.SeedPolicy;              // ResolveSeed, SeedKeyOf, SeedLibraryCovers: the seed's Auto rule (re-exported: one door)
 import qchem.ChargeDensity.Seed;             // SeedStrategy
 import qchem.ChargeDensity.AtomicDensity;    // SeedKey
-import qchem.Structure;                      // Structure::Admits (does the structure repeat?)
-import qchem.Mesh;                           // qcMesh::ImposedSymmetry, MeshParams
+import qchem.Structure;                      // Structure::MakeSymmetry (does the structure repeat?  HasLattice)
+import qchem.Symmetry.Group;                 // HasLattice, kAdmissionTolerance
+import qchem.Mesh;                           // qcMesh::MeshParams
 import qchem.Pseudopotential.Set;            // PseudopotentialSet: the run's pseudo-atoms key the seed library
 export import qchem.SCFAccelerator.Factory;  // SCFAccelerators::Type, AcceleratorParams (the accelerator block resolves to it)
 export import qchem.SCFRecipe;               // SCFRecipe (AcceleratorOptions::recipe)
