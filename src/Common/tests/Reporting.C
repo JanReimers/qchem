@@ -474,3 +474,29 @@ TEST(Reporting, AScopeDescendsOneLevelAndRendersOnlyWhatItChanged)
     for (size_t p=out.find("\ngrids"); p!=std::string::npos; p=out.find("\ngrids", p+1)) n++;
     EXPECT_EQ(n, 2u) << "the section once, its xcQuadrature block once; the outer scope changed nothing:\n" << out;
 }
+
+// -- a key is an array of rows OR an object scope, never re-typed (OpenWork G5, 2026-11-22) --------------------------------------
+// A Scope("policy") in the GPW point build turned the setup's `policy` ROWS into an empty object, and the next Row turned that back into
+// an array: both sides' entries vanished from every deck run's report, silently.  Now the collision throws, and rows and scopes still nest.
+TEST(Reporting, ARowAndAScopeCannotShareAKey)
+{
+    ClearGlobal();
+    Begin("collision", "t0");
+    { const Row r("policy"); Set("name", "A"); }
+    EXPECT_THROW({ const Scope s("policy"); }, std::logic_error) << "a Scope over an array of rows would erase them";
+    { const Row r("policy"); Set("name", "B"); }                  // the rows are intact, and a second row appends
+    { const Scope s("symmetry"); Set("kept", 4); }
+    EXPECT_THROW({ const Row r("symmetry"); }, std::logic_error) << "a Row over an object scope would erase it";
+    { const Scope s("symmetry"); Set("dropped", 2); }               // re-entering a scope keeps what it held
+    { const Scope s("basis"); const Row r("policy"); Set("name", "C"); }   // rows one level in, beside a scope: no collision
+    const json run = CurrentRunReport();
+    End();
+    ASSERT_TRUE(run.at("policy").is_array());
+    ASSERT_EQ(run.at("policy").size(), 2u);
+    EXPECT_EQ(run.at("policy")[0].at("name"), "A");
+    EXPECT_EQ(run.at("policy")[1].at("name"), "B");
+    EXPECT_EQ(run.at("symmetry").at("kept"), 4);
+    EXPECT_EQ(run.at("symmetry").at("dropped"), 2);
+    EXPECT_EQ(run.at("basis").at("policy")[0].at("name"), "C");
+    ClearGlobal();
+}
