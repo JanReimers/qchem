@@ -24,6 +24,9 @@ public:
     virtual ~PointSetPullback() = default;
     struct Result { rvec3vec_t gradient; rmat3d_t moment; rvec3vec_t perPoint; };
     virtual Outcome<Result,AD::NoGradient> MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const hmat_t<T>& D, const Structure* st) const=0;
+    //! Can \c MakePointSetPullback answer?  A block that implements it says yes; a DECORATOR that forwards it asks what it wraps (the SALC
+    //! block over a raw AO basis).  CLIENT: the XC sampler's \c CanPullbackMatrix (the term's MissingGradients entry, at setup).
+    virtual bool CanPointSetPullback() const {return true;}
 };
 
 } // namespace qchem::BasisSet

@@ -9,8 +9,8 @@
 // from step 1's and EQUAL a cold run's at step 2's geometry.
 //
 // Driven through MoleculeSession::ConvergeAt, the surface the optimizer steps, not through GeometryOptimizer itself: only a DFT run has
-// a Coulomb fit, and LDA's molecular XC route (δ on the Becke mesh) refuses its force today (a MissingGradients() entry), so the
-// optimizer's pre-flight would refuse it.  The iteration under test is the surface's step; the optimizer adds only the choice of R.
+// a Coulomb fit, and (written when LDA's molecular XC route refused its force; it has one since lane B 2026-11-22) driving the surface
+// directly keeps the claim independent of which terms have a force.  The iteration under test is the surface's step; the optimizer adds only the choice of R.
 // "Cold" is a fresh session at step 2's geometry after the first one is gone and the string-keyed global integral cache is EMPTY.
 #include "gtest/gtest.h"
 #include <cmath>

@@ -1,0 +1,49 @@
+Low-q GTH valence basis for wurtzite AlN -- the Al q3 block of valence_lowq_sr (unchanged) and a valgen N q5 block
+KIND pp-valence gth-lda-valence
+PP-PROVENANCE Al=3 N=5
+(2026-11-21, lane B, OpenWork "Real relaxations" (3b)(c): the easy-case relaxation with one free internal coordinate, u, and c/a).
+N: valgen --element N --shell 0:5:0.30:14 --shell 1:4:0.35:6 (neutral pseudo-atom, E -9.55785, converged), the O window of
+valence_lowq_sr (s 5x 0.39-18, p 4x 0.46-8) shifted diffuse for the lighter atom.
+
+!
+BASIS="Low-q GTH-pseudopotential valence basis for AlN (Al from valence_lowq_sr, N generated)"
+ AL   0
+ S   1  1.00
+            0.10047546        1.00000000
+ S   1  1.00
+            0.25238294        1.00000000
+ S   1  1.00
+            0.63395728        1.00000000
+ S   1  1.00
+            1.59242868        1.00000000
+ S   1  1.00
+            4.00000000        1.00000000
+ P   1  1.00
+            0.13295740        1.00000000
+ P   1  1.00
+            0.35355339        1.00000000
+ P   1  1.00
+            0.94015077        1.00000000
+ P   1  1.00
+            2.50000000        1.00000000
+ ****
+ N   0
+ S   1  1.00
+            0.30000000        1.00000000
+ S   1  1.00
+            0.78410270        1.00000000
+ S   1  1.00
+            2.04939015        1.00000000
+ S   1  1.00
+            5.35644118        1.00000000
+ S   1  1.00
+           14.00000000        1.00000000
+ P   1  1.00
+            0.35000000        1.00000000
+ P   1  1.00
+            0.90246239        1.00000000
+ P   1  1.00
+            2.32696677        1.00000000
+ P   1  1.00
+            6.00000000        1.00000000
+ ****

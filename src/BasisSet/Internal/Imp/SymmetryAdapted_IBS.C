@@ -209,6 +209,19 @@ Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeOverlapPullback(cons
 {return itsRaw->MakeOverlapPullback(FoldUp(D), st);}
 Outcome<rvec3vec_t,AD::NoGradient> SymmetryAdapted_IBS::MakeKineticPullback(const hmat_t<double>& D, const Structure* st) const
 {return itsRaw->MakeKineticPullback(FoldUp(D), st);}
+bool SymmetryAdapted_IBS::CanPointSetPullback() const
+{
+    const auto* f=dynamic_cast<const PointSetPullback<double>*>(itsRaw);   // abstract -> abstract cross-cast
+    return f && f->CanPointSetPullback();
+}
+Outcome<PointSetPullback<double>::Result,AD::NoGradient>
+SymmetryAdapted_IBS::MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const hmat_t<double>& D, const Structure* st) const
+{
+    const auto* f=dynamic_cast<const PointSetPullback<double>*>(itsRaw);
+    if (!f || !f->CanPointSetPullback())
+        return Outcome<PointSetPullback<double>::Result,AD::NoGradient>::Fail({"the raw basis under the SALC block "+Name()+" gives no point-set pullback"});
+    return f->MakePointSetPullback(pts, c, FoldUp(D), st);
+}
 bool SymmetryAdapted_IBS::CanVirialOverlap() const {return itsRaw->CanVirialOverlap();}
 bool SymmetryAdapted_IBS::CanVirialKinetic() const {return itsRaw->CanVirialKinetic();}
 Outcome<rmat3d_t,AD::NoGradient> SymmetryAdapted_IBS::MakeOverlapVirial(const hmat_t<double>& D, const Structure* st) const

@@ -5,6 +5,8 @@
 #include "gtest/gtest.h"
 #include <cmath>
 #include <cstdio>
+#include <algorithm>
+#include <vector>
 #include <memory>
 #include <stdexcept>
 
@@ -377,6 +379,56 @@ TEST(MolecularMesh, TheMeshFilesItsFieldsOneLevelIntoTheCallersScope)
     EXPECT_EQ(doc["outer"]["callerB"]["points"].get<long>(), long(b.size()));
     EXPECT_EQ(doc["outer"]["callerB"]["nRadial"].get<int>(), 30);
     EXPECT_FALSE(doc.contains("points")) << "the builder chose a key of its own, or wrote at the root";
+}
+
+// THE MOLECULAR BECKE MESH's WEIGHT RESPONSE (lane B 2026-11-22): for a field f held per point (here a smooth function of the point's
+// owner offset u, so it rides with its atom), Pullback(m, f) is d(Σ_g f_g w_g)/dR_D, the points riding their owners.  Against the central
+// difference of the rebuilt mesh at R_D ± h, on a bent triatomic (water's shape, unequal Z).  The partition is smooth: h = 1e-4, 1e-8.
+TEST(MolecularMesh, TheWeightResponseIsTheFiniteDifferenceOfTheRebuiltMesh)
+{
+    qcMesh::MeshParams mp=Params();
+    const std::vector<int>     Z{8, 1, 1};
+    const std::vector<rvec3_t> R0{rvec3_t(0.0, 0.0, 0.2214), rvec3_t(0.0, 1.4309, -0.8857), rvec3_t(0.0, -1.4309, -0.8857)};
+    auto build=[&](const std::vector<rvec3_t>& R){ Molecule m; for (size_t a=0;a<R.size();a++) m.Insert(Site{Z[a], R[a]}); return m.CreateIntegrationMesh(mp); };
+    const qcMesh::Mesh m0=build(R0);
+    ASSERT_NE(m0.WeightResponse(), nullptr) << "the molecular mesh installs its weight response";
+    ASSERT_EQ(m0.OwnerOffsets().size(), m0.size()) << "every point records its owner offset";
+    ASSERT_EQ(m0.NSites(), R0.size());
+    auto field=[](const qcMesh::Mesh& m)
+    {
+        rvec_t f(m.size());
+        for (size_t g=0;g<f.size();g++) { const rvec3_t& u=m.OwnerOffsets()[g]; f[g]=std::exp(-0.3*(u*u))*(1.0+0.4*u.x-0.2*u.y+0.7*u.z); }
+        return f;
+    };
+    const rvec_t f0=field(m0);
+    const auto r=m0.WeightResponse()->Pullback(m0, f0);
+    ASSERT_EQ(r.gradient.size(), R0.size());
+    auto E=[&](size_t a, int k, double s)
+    {
+        std::vector<rvec3_t> R=R0; (k==0 ? R[a].x : k==1 ? R[a].y : R[a].z)+=s;
+        const qcMesh::Mesh m=build(R);
+        EXPECT_EQ(m.size(), m0.size()) << "the moved mesh kept the same points";
+        const rvec_t f=field(m);
+        double e=0.0; for (size_t g=0;g<f.size();g++) e+=f[g]*m.Weights()[g];
+        return e;
+    };
+    const double h=1e-4;
+    double big=0.0, worst=0.0;
+    rvec3_t sum(0,0,0);
+    for (size_t a=0;a<R0.size();a++)
+    {
+        sum+=r.gradient[a];
+        for (int k=0;k<3;k++)
+        {
+            const double fd=(E(a,k,h)-E(a,k,-h))/(2*h);
+            const double an=k==0 ? r.gradient[a].x : k==1 ? r.gradient[a].y : r.gradient[a].z;
+            std::printf("  [Becke weight response] atom %zu %c  analytic % .10e  FD % .10e  diff %.2e\n", a, "xyz"[k], an, fd, an-fd);
+            big=std::max(big, std::fabs(fd)); worst=std::max(worst, std::fabs(an-fd));
+        }
+    }
+    EXPECT_GT(big, 1e-3) << "a vanishing response cannot show it is wired";
+    EXPECT_LT(worst, 1e-8*std::max(1.0,big)) << "the weight response is not the finite difference of the rebuilt mesh";
+    EXPECT_LT(norm(sum), 1e-10) << "translation invariance";
 }
 
 // THE STRUCTURE MESH FACTORY (V-MESH-FACTORY §8 step 2).  A StructureMeshMaker<S> handed to a library must build EXACTLY what the

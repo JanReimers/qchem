@@ -22,6 +22,7 @@ import qchem.Symmetry.Group;   // Symmetry::GroupPtr / TrivialGroup (Forces, Gro
 import qchem.BasisSet.Fit_Types;   // BasisSet::Forces(VxcFit, Frame): the one source of what a fit family forces
 import qchem.Types;
 import qchem.BasisSet.Orbital_DFT_IBS;
+import qchem.BasisSet.PointSetPullback;   // the molecular δ quadrature derivative face
 import qchem.BasisSet.Internal.Fit_IBS;   // the shared Gaussian-family implementation base we DERIVE
 
 export namespace qchem::BasisSet::Gaussian::PG_Cart
@@ -79,6 +80,7 @@ class Orbital_IBS
     , public virtual Gaussian::TransitionCollocation   // the (k+q, k) transition density + adjoint (LinearResponsePlan B1)
     , public virtual Gaussian::ToleranceBinding        // the builder binds the pair-loop tolerances (D-ENV-TOL option A)
     , public IrrepBasisSet
+    , public virtual ::qchem::BasisSet::PointSetPullback<double>   // the molecular δ quadrature's derivative (the Becke mesh force; lane B 2026-11-22)
 {
 public:
     Orbital_IBS(const std::shared_ptr<BasisCache>& cache, Reader *, const Structure *);
@@ -116,6 +118,9 @@ public:
     //! Its derivative (LatticeCollocation's doc): the same images and reach screens, the jets from the radials' Enzyme gradient.
     virtual PointPullback BlochPointPullback(const rvec3vec_t& pts, const rvec_t& c, const chmat_t& D, const cellphase_t& phase,
                                              const UnitCell& A, const Structure* st) const override;
+    //! The MOLECULAR twin (BasisSet::PointSetPullback): the same jets with no images, the functions at their own centres.
+    virtual Outcome<::qchem::BasisSet::PointSetPullback<double>::Result,AD::NoGradient>
+            MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const hmat_t<double>& D, const Structure* st) const override;
     virtual chmat_t MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
                                       const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const override;
     virtual chmat_t MakeLocalGaussian(const Structure* cl,
