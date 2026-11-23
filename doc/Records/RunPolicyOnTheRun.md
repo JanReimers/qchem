@@ -126,3 +126,102 @@ The groups are independent.  Each commit carries one group, with 0 movers and th
    policy on `RunOptions`.
 
 Until step 5, `SetRunPolicy` stays.  Readers move off it one group at a time, and each group's commit removes its reads.
+
+## 4. Addendum: group E as E2′, the density maker (user ruling 2026-11-23)
+
+**The ruling.**
+- E1 is WITHDRAWN.  The user: *"It sounds very odd to me things with names like RunPolicy and a RhoRoute enum should be stored
+  and served up by the Orbitalbasis."*
+- E2′ is chosen.  The user: *"I like E2'."*
+- On where the factored/direct decision is made, the user: *"As kT rises the factoring route gets more and more inefficient
+  (useless).  SO there is some high level decision making there that we don't want hard coded inside Orbitals and
+  WaveFunction.  1) Density maker could make that decision, or 2) the decision could be pre determined and passed into the
+  Density maker at construction time, or 3) Density maker could be an interface with multiple concrete implementations
+  representing different policies.  The last is overkill if there just a single policy defined by one enum RhoRoute."*
+- Taken: option **(2)**.  The setup decides, and the maker only carries the decision out.
+
+### 4.1 The shape
+
+**`ChargeDensity::DensityMaker`**: a CONCRETE class in `qchem.ChargeDensity.Factory`, with no virtuals.
+- It holds the resolved `RhoRoute` and nothing else.
+- Its one job is `template <class T> std::unique_ptr<tDM_CD<T>> Make(hmat_t<T> D, const tobs_t<T>* bs, const Irrep& qns) const`,
+  which calls `IrrepCD_Factory(D, bs, qns, itsRoute)`.
+- It decides nothing and never switches route.
+
+**Who builds it: each SETUP, once.**  The setup holds `std::shared_ptr<const DensityMaker> densityMaker` on the base `Setup`, so
+every run kind has one.
+- `SolidSetup` resolves the route:
+  1. a stated `policy.dmLowRank` wins;
+  2. otherwise `cp2kCompat` gives `Direct`;
+  3. otherwise the qchem default (`PivotedCholesky`), until the kT rule exists (§4.3).
+- `MoleculeSetup` and `AtomSetup` take the qchem default; they have no policy block today.
+- Each writes its decision and the reason under the run report's `policy` scope.
+
+**The construction chain it travels.**  Each step DEMANDS the maker: no default and no null (CLAUDE.md, constructors pass
+concrete objects).
+1. the facades: `SolidCalculation.C:717, 1021, 1025`, `MoleculeCalculation.C:220`, `AtomCalculation.C:308, 317`;
+2. → `tSCFIterator`'s three constructors (`SCFIterator.C:195, 213, 221`) and `SolidSCFIterator`;
+3. → `WaveFunction::Factory` (`qchem.WaveFunction.Factory`);
+4. → the polarized / unpolarized / composite wave functions;
+5. → `tIrrepWF`'s constructor;
+6. → `Orbitals::Factory(bs, ms, maker)` → `TOrbitalsImp(bs, ms, maker)`.
+
+`TOrbitalsImp::MakeChargeDensity` then calls `itsMaker->Make(...)` in place of the free `IrrepCD_Factory`.
+
+**Other densities built from a D take the setup's maker too:**
+- the restart (`SolidState.C:263-264`);
+- the carried states (`MoleculeCalculation.C:464`, `AtomCalculation.C:517`);
+- the seed (`Seed.C:143, 151`), whose callers pass it in.
+
+**What goes away:** `DefaultRhoRoute()`, its `theRunPolicy()` read, and the `IrrepCD_Factory` overload without a route.  Every
+remaining direct call states its route; `TransitionDensity` already does.
+
+**The hub.**  The protected face of `qchem.WaveFunction` (`tWaveFunction`, `hub-interfaces.snapshot:528`) does not change, and
+neither `qchem.WaveFunction.Factory` nor `qchem.Orbitals` is in the snapshot.  So `HubInterfaceAudit` stays green.  The commit
+still cites this ruling, because the chain it changes runs through the hub's construction.
+
+**Bare and test constructors.**
+- Tests build SCF runs through the facades.  There is one direct `SCFIterator` construction in a test, and no test calls
+  `WaveFunction::Factory` or `Orbitals::Factory`.
+- That one test, and the 14 test calls to the route-less `IrrepCD_Factory`, STATE their route: a `DensityMaker` or an explicit
+  `RhoRoute`.
+- There is no default maker helper, which would only re-create the hidden default.
+
+### 4.2 Order
+- **E-a.**  Thread the maker, with the route resolved exactly as today: 0 movers.
+  - The leak test (`D-RUNPOLICY-LEAK`, knownRed until then) turns green here: a molecule after a `cp2kCompat` solid takes its own
+    setup's route.
+  - One commit, which cites the ruling.
+- **E-b.**  Move the collocation route (§4.4): 0 movers.
+- **E-c.**  The kT rule (§4.3), after its measurement.  It is `movesState`, so its movers are reported and judged.
+
+### 4.3 The kT rule: a policy, in the setup, measured first
+At kT > 0 the occupations are fractional, the factor's rank r rises toward n, and the factored route costs more than the direct
+one.  So the setup will pick `Direct` above a crossover kT.  The crossover is MEASURED before the rule is written: rank r/n and
+the per-iteration ρ cost on both routes, against kT, on a smeared metal (Li k444 Becke smear) and a smeared d-shell oxide (MnO
+Γ Shub smear).  The rule then follows CLAUDE.md's rigorous/empirical split:
+- the rigorous part is r = n at full fractional fill;
+- the crossover is a NAMED calibration, with its measurement record at its declaration.
+
+**The maker's health column.**  The maker reports the achieved rank r/n per block, so a poor choice is visible in the run
+report.  It does not act on it.  (Today the rank is printed only under the `dm_rank` diagnostic.)
+
+### 4.4 The collocation route has the same shape: proposed home
+`CollocationRoute {contractCube, expRecurrence}` (78e621788) is BOUND ON THE MOLECULAR BASIS through `ToleranceBinding::BindRoute`
+and read by its MnD evaluator's kernels (`UseContractCube()` / `UseExpRecurrence()`, `PG_Cart_MnD/Evaluator.C:1640, 2111`).
+That is the shape the user just rejected: a kernel choice of a CLIENT's operation, stored and served by the orbital basis.
+It is not a run input; only unit tests ever bind it.
+
+**Proposed home: the collocation CALL, beside the screener.**
+- `LatticeCollocation`'s collocate / integrate-back virtuals (`LatticeSum1E.C:339-442`; not a tier-1 hub) already take the
+  `LatticeScreener`, *"chosen once, at a high level, and passed down; the walk never branches on which rule answers"*.  The
+  route is the same kind of thing.
+- Each of those virtuals takes a `const CollocationRoute&` beside the screener.
+- The GPW evaluator holds the route: a `GPWParams` field, defaulted to production, like group B's `dAwareScreen`.
+- `ToleranceBinding::BindRoute`, the MnD `itsRoute` member, and its "changed after this basis computed" throw are DELETED.
+- The tests that A/B the kernels (`M_TransitionCollocation`, `M_CollocationPullback`, `GPWTolerances`) pass the route in their
+  calls instead of binding it.
+
+**Not proposed:** `ToleranceBinding::BindTolerances` (D-ENV-TOL).  Its `screenEps` / `fieldSharp` / ... define the integrals the
+basis itself returns (S, T, V's lattice sums), so they are a property of the basis, not a client's route choice.  Flagged for
+the user in case the same objection is meant to cover it.
