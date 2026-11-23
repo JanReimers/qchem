@@ -1740,43 +1740,88 @@ TEST(GPW_Si, Γ_U_Ladder_LinearResponseUIsAFixedPoint_Panel)
 // a = 10.40 bohr, the fcc primitive cell, on the DEFAULT accuracy (the raster pilot sizes every grid at the reference, see below).
 // CP2K's minimum: a 10.242904 bohr, E -7.849454525 Ha (5 steps).  Diamond is STABLE here:
 // CP2K's free CELL_OPT from 0.002 fractional noise (`si_k333_free_cellopt.out`, 200 steps, not converged) never went below -7.8492577.
-TEST(GPW_Si, k333_RelaxesToCP2KsCell_Long)
+namespace
+{
+//! Si diamond at cubic constant \a a0 (fcc primitive cell, GTH q4, PADE, SIPP_SR, k333, FREE density) with the Fd-3m map over its group;
+//! runs \a body on the run's surface and the map.  \a stated: the grids the default accuracy's raster pilot settled on at a = 10.40
+//! (2026-11-20, its "a deck restates these grids as" line: the ball doubled to cutoffFactor 16, Becke (100, 53)), else the pilot runs.
+void WithSi(double a0, bool stated, const char* label,
+            const std::function<void(qchem::PotentialEnergySurface&, const qchem::CellWyckoffMap&)>& body)
 {
     using namespace qchem;
-    const double a0=10.40;
     const double h=0.5*a0;
     UnitCell cell(Matrix3D<double>(0.0,h,h,  h,0.0,h,  h,h,0.0));
     cell.AddAtom(14, rvec3_t(0.0,0.0,0.0));
     cell.AddAtom(14, rvec3_t(0.25,0.25,0.25));
     SCFParams p; p.NMaxIter=100; p.MinΔρPerElectron=1e-7; p.MinΔE=std::nullopt; p.MinΔFD=std::nullopt; p.MinVirial=std::nullopt; p.MinFD=std::nullopt;
-    RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.label="Si relax"; o.scf=p;
+    RunOptions o; o.Nelec=8; o.species={{"Si",4}}; o.label=label; o.scf=p;
     o.model=Hamiltonian::Model::PADE;   // the GTH-PADE PP's own functional, and CP2K's &PADE
     o.solid.cellStrainAllowance=0.05;   // the minimum is COMPRESSED from the start: the frozen sizes over-converge
     o.solid.xcMeshSymmetric=false;      // a FREE geometry run: one plain Becke mesh at every point
+    if (stated)
+    {
+        o.accuracy.eps=0.0;
+        o.solid.cutoffFactor=16.0;
+        o.solid.tolerances.rasterX=o.solid.tolerances.xcRasterX=19.35139721329466;
+        o.solid.tolerances.vlocRasterX=21.583068172270572;
+        o.solid.tolerances.vlocEps=1e-6;
+        o.xcMesh=qcMesh::BeckeXCParams(100, 2.0, 53);
+    }
     const auto setup=SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(3,3,3)), {.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
     auto run=MakeSolidGeometryRun(setup, {SCFStage{p, SCFAccelerators::Type::Auto}}, nullptr, SolidSession::Carry::AO, /*relaxCell*/true);
     const PESGeometry ref=run.surface->Reference();
     const CellWyckoffMap map(ref, setup->lattice.GetSpaceGroup(), ElasticModel{}, 1e-4*a0);
     ASSERT_EQ(map.Dimension(), 1u) << "diamond's one free coordinate is the cubic constant";
-    auto r=GeometryOptimizer(*run.surface, map, OptimizerOptions::FromEps(1e-6)).Run();
-    ASSERT_TRUE(bool(r)) << r.Error().details;
-    report::FormatGuard keep(std::cout);
-    std::cout<<"[relax] Si: "<<r->Steps()<<" steps, "<<r->history.size()<<" evaluations"<<std::endl;
-    for (const auto& it : r->history)
-        std::cout<<"[relax]   "<<std::setw(3)<<it.index<<"  E "<<std::setprecision(10)<<std::fixed<<it.value<<std::defaultfloat
-                 <<"  max|g| "<<std::setprecision(3)<<std::scientific<<it.maxGradient<<"  |s| "<<it.stepLength
-                 <<std::defaultfloat<<(it.accepted ? "" : "  rejected")<<std::endl;
-    const rmat3d_t& A=*r->geometry.cell;
-    const double a=2.0*A(2,1);   // the fcc primitive vector (0, a/2, a/2) in column 1
-    std::cout<<std::setprecision(10)<<"[relax] Si a "<<a<<"  E "<<r->value<<"  (CP2K a 10.242904, E -7.849454525)"<<std::endl;
-    EXPECT_NEAR(A(1,1), 0.0, 1e-8); EXPECT_NEAR(A(3,1), A(2,1), 1e-8);   // still fcc (the map holds it)
-    // MEASURED 2026-11-20 (33 min on 4 threads, 3 evaluations; most of it the pilot's 4 audit rounds): a 10.243201, E -7.8494563, 3e-4 bohr
-    // and 1.8 μHa from CP2K's.  THE DEFAULT ACCURACY IS THE POINT: the pilot doubles the density ball 4 -> 32 Ha (round 0 delivered 8.4e-3
-    // in Eee on the 4 Ha start) and settles Becke (100, 53).  At accuracy 0 the same relaxation stops at a 10.2324, E -7.8502356: the
-    // stated ball is the pilot's unjudged START (2 alpha_max = 4 Ha, N = 8), 2.6 mHa off CP2K at its cell (probe 2026-11-20: 20 or 60 Ha
-    // rasters with Becke (80, 41) give 8 μHa and σ -4e-7 Ha/bohr³ there; Becke (40, 29) alone leaves σ +2.1e-5, ~0.2 % of a).
-    EXPECT_NEAR(a, 10.242904, 2e-3);
-    EXPECT_NEAR(r->value, -7.849454525, 2e-5);
+    body(*run.surface, map);
+}
+} // namespace
+
+// The cold run is in the PERIODIC tier (33 min alone, past the long tier's 3600 s beside two others); its twin is the ONE point below.
+TEST(GPW_Si, k333_RelaxesToCP2KsCell_Long)
+{
+    using namespace qchem;
+    WithSi(10.40, /*stated*/false, "Si relax", [](PotentialEnergySurface& pes, const CellWyckoffMap& map)
+    {
+        auto r=GeometryOptimizer(pes, map, OptimizerOptions::FromEps(1e-6)).Run();
+        ASSERT_TRUE(bool(r)) << r.Error().details;
+        report::FormatGuard keep(std::cout);
+        std::cout<<"[relax] Si: "<<r->Steps()<<" steps, "<<r->history.size()<<" evaluations"<<std::endl;
+        for (const auto& it : r->history)
+            std::cout<<"[relax]   "<<std::setw(3)<<it.index<<"  E "<<std::setprecision(10)<<std::fixed<<it.value<<std::defaultfloat
+                     <<"  max|g| "<<std::setprecision(3)<<std::scientific<<it.maxGradient<<"  |s| "<<it.stepLength
+                     <<std::defaultfloat<<(it.accepted ? "" : "  rejected")<<std::endl;
+        const rmat3d_t& A=*r->geometry.cell;
+        const double a=2.0*A(2,1);   // the fcc primitive vector (0, a/2, a/2) in column 1
+        std::cout<<std::setprecision(10)<<"[relax] Si a "<<a<<"  E "<<r->value<<"  (CP2K a 10.242904, E -7.849454525)"<<std::endl;
+        EXPECT_NEAR(A(1,1), 0.0, 1e-8); EXPECT_NEAR(A(3,1), A(2,1), 1e-8);   // still fcc (the map holds it)
+        // MEASURED 2026-11-20 (33 min on 4 threads, 3 evaluations; most of it the pilot's 4 audit rounds): a 10.243201, E -7.8494563, 3e-4 bohr
+        // and 1.8 μHa from CP2K's.  THE DEFAULT ACCURACY IS THE POINT: the pilot doubles the density ball 4 -> 32 Ha (round 0 delivered 8.4e-3
+        // in Eee on the 4 Ha start) and settles Becke (100, 53).  At accuracy 0 the same relaxation stops at a 10.2324, E -7.8502356: the
+        // stated ball is the pilot's unjudged START (2 alpha_max = 4 Ha, N = 8), 2.6 mHa off CP2K at its cell (probe 2026-11-20: 20 or 60 Ha
+        // rasters with Becke (80, 41) give 8 μHa and σ -4e-7 Ha/bohr³ there; Becke (40, 29) alone leaves σ +2.1e-5, ~0.2 % of a).
+        EXPECT_NEAR(a, 10.242904, 2e-3);
+        EXPECT_NEAR(r->value, -7.849454525, 2e-5);
+    });
+}
+
+// THE TWIN: CP2K's minimum is a stationary point of OUR surface -- one point at CP2K's cubic constant on the pilot's grids, stated.  The
+// cold start (a 10.40) has max|g| 1.2e-2; the relaxation above ends 3e-4 bohr from this point.
+TEST(GPW_Si, k333_CP2KsCellIsStationary_Long)
+{
+    using namespace qchem;
+    WithSi(10.242904, /*stated*/true, "Si twin", [](PotentialEnergySurface& pes, const CellWyckoffMap& map)
+    {
+        const rvec_t q=map.Start();
+        const PESGeometry g=map.At(q);
+        auto point=pes.ConvergeAt(g.cell, g.R, map.PointRequest());
+        ASSERT_TRUE(bool(point)) << point.Error().details;
+        const rvec_t grad=map.Project(q, map.Gradient(q, *point));
+        report::FormatGuard keep(std::cout);
+        std::cout<<std::setprecision(10)<<"[stationary] Si at CP2K's cell: E "<<point->energy<<" (CP2K -7.849454525)  g "
+                 <<std::setprecision(3)<<std::scientific<<grad[0]<<std::defaultfloat<<std::endl;
+        EXPECT_LT(std::fabs(grad[0]), 1e-4);
+        EXPECT_NEAR(point->energy, -7.849454525, 2e-5);
+    });
 }
 
 

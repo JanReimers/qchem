@@ -4,6 +4,7 @@ target_sources(qcStructure PRIVATE
     Imp/Structure.C 
     Imp/Molecule.C 
     Imp/UnitCell.C
+    Imp/MeshFactory.C
     Imp/StructureData.C
     Imp/CrystalFiles.C
     Lattice_3D/Imp/Lattice_3D.C
@@ -21,6 +22,7 @@ target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Lattice_3D/Lattice_3D.C
     Lattice_3D/SymmetrizeMesh.C
     Lattice_3D/Imposition.C     # qchem.Lattice_3D.Imposition: the run's symmetry imposition (V-BS-SYMMETRY)
+    MeshFactory.C               # qchem.Structure.MeshFactory: MakeMesh per concrete structure + StructureMeshMaker<S> (V-MESH-FACTORY)
     )
 target_include_directories(qcStructure PRIVATE 
     ${QCHEM_JSON_INCLUDE}

@@ -36,7 +36,9 @@ Molecule H2O() {return qchem::StructureData::GetMolecule("H2O");}
 //! The converged energy on the converged mesh (120 radial, Lebedev L41).
 double Converged(const Molecule& m, Model model, int mult=1, SpinGroup spin=SpinGroup::UnPolarized)
 {
-    RunOptions o{.multiplicity=mult, .spin=spin, .model=model, .scf=kTight, .molecule={.basis="dzvp"}};
+    // The Hartree is STATED as A1_coul: the oracle is PySCF's density fit with the same file (1e-7).  The δ default (user ruling 2026-11-22)
+    // would move each row by the A1 fit's own residual (0.1-2.2 mHa).
+    RunOptions o{.multiplicity=mult, .spin=spin, .model=model, .coulomb={.auxBasis="A1_coul"}, .scf=kTight, .molecule={.basis="dzvp"}};
     qcMesh::MeshParams mp=qcMesh::BeckeXCParams();
     mp.nRadial=120; mp.angularDegree=41;
     o.xcMesh=mp;

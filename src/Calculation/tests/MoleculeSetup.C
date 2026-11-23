@@ -3,12 +3,15 @@
 #include <gtest/gtest.h>
 #include <stdexcept>
 #include <string>
+#include <vector>
 #include <nlohmann/json.hpp>
 import qchem.MoleculeCalculation;
 import qchem.Structure;
 import qchem.Types;
 import qchem.ChargeDensity.Seed;   // SeedStrategy, SeedLibrary (via AtomicDensity)
 import qchem.SeedPolicy;           // SeedLibraryCovers: the Auto rule's coverage
+import qchem.Vector3D;             // norm(rvec3_t)
+import qchem.Structure.MeshFactory; // MakeMesh: what a point's maker must build (V-MESH-FACTORY)
 
 using namespace qchem;
 
@@ -40,7 +43,7 @@ TEST(MoleculeSetup, APseudopotentialSetGivesTheValenceCountAndTheValenceStructur
     const auto s=MoleculeSetup::Resolve(na, {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="valence_lowq_sr"}});
     ASSERT_TRUE(s->pp);
     EXPECT_EQ(s->Ne, s->pp->Valence("Na"));
-    const auto point=s->PointStructure(na);
+    const auto point=s->MakePoint().structure;
     EXPECT_EQ(int(point->GetNumElectrons()), s->Ne);
     EXPECT_EQ(int(s->structure->GetNumElectrons()), 11) << "the reference keeps the TRUE charges; only a point is valence-charged";
 }
@@ -57,7 +60,7 @@ TEST(MoleculeSetup, AChargedMoleculeKeepsItsChargeUnderAPseudopotential)
     ASSERT_TRUE(s->pp);
     const int valence=s->pp->Valence("O")+s->pp->Valence("H");
     EXPECT_EQ(s->Ne, valence+1) << "OH- carries one electron past its valence count";
-    const auto point=s->PointStructure(oh);
+    const auto point=s->MakePoint().structure;
     EXPECT_EQ(int(point->GetNumElectrons()), s->Ne);
     EXPECT_DOUBLE_EQ(point->GetNetCharge()-s->structure->GetNetCharge(), double(9-valence))
         << "a point adds the core charges Z - Zion to the stated ones";
@@ -157,8 +160,12 @@ TEST(MoleculeSetup, AnUnstatedCoulombFitIsNamedByTheSetup)
 {
     using CF=Hamiltonian::CoulombFit;
     const auto s=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .molecule={.basis="dzvp"}});
-    EXPECT_EQ(s->opts.coulomb.fit, CF::Auxiliary);
-    EXPECT_EQ(s->opts.coulomb.auxBasis, "A1_coul") << "today's default, named in the policy layer";
+    EXPECT_EQ(s->opts.coulomb.fit, CF::Delta) << "the molecular default (user ruling 2026-11-22): the route that meets eps";
+    EXPECT_TRUE(s->opts.coulomb.auxBasis.empty());
+    const auto aux=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .coulomb={.fit=CF::Auxiliary}, .molecule={.basis="dzvp"}});
+    EXPECT_EQ(aux->opts.coulomb.auxBasis, "A2_coul") << "Auxiliary stated without a file: A2, the best Gaussian fit measured";
+    const auto te=MoleculeSetup::Resolve(OneAtom(52), {.model=Model::LDA, .coulomb={.fit=CF::Auxiliary}, .molecule={.basis="dzvp"}});
+    EXPECT_EQ(te->opts.coulomb.auxBasis, "A1_coul") << "A2 stops at Zn: the unnamed Auxiliary fit falls back to A1 (H-Te), said so";
     const auto a2=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .coulomb={.auxBasis="A2_coul"}, .molecule={.basis="dzvp"}});
     EXPECT_EQ(a2->opts.coulomb.fit, CF::Auxiliary) << "a stated fit file implies its route";
     EXPECT_EQ(a2->opts.coulomb.auxBasis, "A2_coul");
@@ -186,4 +193,28 @@ TEST(MoleculeSetup, ACoulombFitFileTheRunCannotUseIsRefusedByName)
         ASSERT_FALSE(r) << c.policy;
         EXPECT_EQ(r.Error().policy, c.policy);
     }
+}
+
+// A GEOMETRY POINT (V-MESH-FACTORY §8 step 2): MakePoint(R) moves the reference's sites to R, keeps its charges (valence-charged under a
+// pseudopotential), and its mesh maker builds over THAT point -- never over the reference -- exactly the factory's mesh for it.
+TEST(MoleculeSetup, APointsMeshMakerBuildsOverThePointNotTheReference)
+{
+    Molecule h2;
+    h2.Insert(Site{1, rvec3_t(0,0,0)});
+    h2.Insert(Site{1, rvec3_t(0,0,1.4)});
+    const auto s=MoleculeSetup::Resolve(h2, {.model=Model::LDA, .molecule={.basis="dzvp"}});
+    const std::vector<rvec3_t> R={rvec3_t(0.1,0,0), rvec3_t(0,0.2,1.6)};
+    const MoleculeSetup::Point p=s->MakePoint(R);
+    ASSERT_TRUE(p.structure); ASSERT_TRUE(p.meshMaker);
+    auto positions=[](const Structure& st){ std::vector<rvec3_t> r; st.ForEachSite([&](int, const rvec3_t& x, bool){ r.push_back(x); }); return r; };
+    const std::vector<rvec3_t> at=positions(*p.structure), ref=positions(*s->structure);
+    for (size_t a=0; a<R.size(); a++) EXPECT_EQ(norm(at[a]-R[a]), 0.0) << "the point is at R";
+    EXPECT_EQ(norm(ref[1]-rvec3_t(0,0,1.4)), 0.0) << "the reference does not move";
+    qcMesh::MeshParams mp=s->xcMesh; mp.nRadial=20; mp.angularDegree=7;
+    const qcMesh::Mesh got=p.meshMaker->Make(mp), want=MakeMesh(Molecule(*p.structure), mp);
+    ASSERT_EQ(got.size(), want.size());
+    ASSERT_EQ(got.NSites(), size_t(2));
+    for (size_t q=0; q<got.size(); q++) ASSERT_EQ(norm(got.Points()[q]-want.Points()[q]), 0.0);
+    const qcMesh::Mesh atRef=MakeMesh(h2, mp);
+    EXPECT_GT(norm(got.Points()[0]-atRef.Points()[0]), 0.05) << "not the reference's mesh";
 }

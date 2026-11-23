@@ -211,11 +211,12 @@ private:
         std::optional<SavedState>   moved;              //!< a session step: D and S of the previous point (\c MakeMovedCarry)
         double                      displacement = 0.0; //!< the step's largest atom move (bohr), for \c RestartedFrom
     };
-    //! The point at \a at (\c setup->reference's atoms, moved), seeded from \a carry when given (a WorkingDensity), else from the
-    //! setup's seed strategy.  \c Prepare is this at the reference with no carry; a \c MoleculeSession point, this at its atoms.
+    //! The point \a point (\c MoleculeSetup::MakePoint: the setup's reference atoms, moved, with the mesh maker over them), seeded from
+    //! \a carry when given (a WorkingDensity), else from the setup's seed strategy.  \c Prepare is this at the reference with no carry; a
+    //! \c MoleculeSession point, this at its atoms.
     struct BuildOnly {};
     //! Everything but the SCF: the members and the electron configuration (the graph is \c BuildGraph's).
-    MoleculeCalculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, const Structure& at, std::unique_ptr<const Carry> carry,
+    MoleculeCalculation(BuildOnly, std::shared_ptr<const MoleculeSetup> setup, MoleculeSetup::Point point, std::unique_ptr<const Carry> carry,
                 Observer onIteration, bool geometryPoint=false);
     //! The accelerator, the basis (first time), the Hamiltonian and the SCF iterator -- inside the caller's open report run.
     void BuildGraph();
@@ -229,6 +230,7 @@ private:
     //! SCF (\a when "seed"), the converged one after (\a when "converged").  WARNs over the accuracy target; skipped, saying so, when the
     //! δ reference would not fit in memory.
     void CheckCoulombFit(const qchem::ChargeDensity::rDM_CD* d, const std::string& when);
+    std::string FitCaveat(double target) const;   //!< the mesh pilot's "meets" line on a Gaussian-fit Hartree: the fit's error is not the mesh's
     //! Does this run integrate on a mesh at all (a DFT model or a pseudopotential)?  HF has none: nothing to audit or climb.
     bool HasXCMesh() const;
     //! THE MESH PILOT (§14.2): climb at the converged D, rebuild + re-converge once per raise, freeze into \c itsSetup.  From \c Converge.
@@ -238,6 +240,7 @@ private:
     bool          itsGeometryPoint = false;   //!< built by a MoleculeSession: answers MatrixElements (\c Consumes)
     bool          itsPiloted       = false;   //!< the pilot ran (once per calculation: a later Converge keeps its mesh)
     bool          itsFitConfirmed  = false;   //!< the Coulomb-fit check ran on a converged density (once per calculation)
+    double        itsFitResidual   = -1.0;    //!< the latest Coulomb-fit check's J error (Ha); < 0 = not measured.  The mesh pilot's line cites it
     MeshPilotCost itsPilotCost;
     size_t itsIterations=0;   //!< the last Converge's SCF iterations, the pilot's re-convergences included (the iterator counts only its own)
     Carry MakeCarry() const;
@@ -299,6 +302,7 @@ private:
     //! (its structure, EC, basis, Hamiltonian) or its SCF state.
     std::shared_ptr<const MoleculeSetup> itsSetup;
     std::shared_ptr<const Structure>     itsStructure;  //!< the point's structure (valence-charged under a PP); the Hamiltonian shares it
+    std::shared_ptr<const qcMesh::MeshMaker> itsMeshMaker;  //!< builds meshes over \c itsStructure (StructureMeshMaker of its concrete type)
     ElectronConfiguration*               itsEC    = nullptr;  //!< owned
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
     //! The run's ONE Coulomb (Dunlap) fit on \c itsBasis (doc/IntegralCacheOwnershipPlan.md S2b): the Hartree term of the first Hamiltonian

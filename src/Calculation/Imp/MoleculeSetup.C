@@ -7,6 +7,7 @@ module;
 #include <stdexcept>
 #include <string>
 #include <filesystem>
+#include <vector>
 module qchem.MoleculeSetup;
 
 import qchem.PeriodicTable;   // thePeriodicTable (Z -> element symbol, for the PP lookup)
@@ -17,6 +18,7 @@ import qchem.SetupDecisions;  // the structure-neutral decisions (spin channels,
 import qchem.BasisSet.Gaussian.Point.Factory; // RegisteredBasis, BasisSetData: which registered files are all-electron
 import qchem.BasisSet.Gaussian.Point.BasisFiles; // BasisFileOfName: the basis name's file, for the coverage pre-flight
 import qchem.BasisCoverage;   // RequireBasisCovers, BasisCovers, ElementsOf: a basis lacking an element is refused before anything is built
+import qchem.Structure.MeshFactory;   // StructureMeshMaker<S>: each geometry point's mesh maker, typed where S is known (V-MESH-FACTORY)
 
 namespace qchem
 {
@@ -41,15 +43,20 @@ RunOptions MoleculeOptions(const RunOptions& asked)
     return o;
 }
 
-// THE COULOMB FIT (policy CoulombFit; OpenWork "The Coulomb-fit default is a hidden policy", lane S 2026-11-21).  A density model's
-// Hartree term on the Auxiliary route is a Dunlap fit on a Gaussian fit basis, and WHICH basis is a policy: before this row it was
-// hard-wired in the orbital families (PG_Cart / PG_Spherical CreateCDFitBasisSet read A1_coul.bsd), against "policies live only in the
-// policy layer".  Here the route's Auto resolves to Auxiliary, the fit file is named (kMolecularCoulombFitDefault when unstated), checked
-// for existence and coverage, and MoleculeCalculation builds it into the run's CoulombFitSlot before the first Hamiltonian asks.
-// The default is DGauss A1 (H-Te), today's numbers: it was built for DGauss's all-electron bases, and on a diffuse valence basis it is
-// mHa low (DZVP-MOLOPT-GTH, LDA: OH- 1.9 mHa, H2O 4.4 mHa vs the delta route and PySCF's exact J).  The default per orbital-basis kind
-// is the user's to rule on (step 3 of the row).
-constexpr const char* kMolecularCoulombFitDefault="A1_coul";
+// THE COULOMB FIT (policy CoulombFit; OpenWork "The Coulomb-fit default is a hidden policy", lane S 2026-11-21/22).  A density model's
+// Hartree route and, on the Auxiliary route, WHICH Gaussian fit basis are policies: before this row A1 was hard-wired in the orbital
+// families (PG_Cart / PG_Spherical CreateCDFitBasisSet read A1_coul.bsd), against "policies live only in the policy layer".
+// USER RULING 2026-11-22 ("Yes, δ default"):
+//  - an unstated route is DELTA (rho on the XC mesh, radial Poisson) for every Gaussian orbital basis: the one route that meets eps.
+//    Measured (lane-s-CoulombFit-step3.md): the DGauss fits miss eps on every molecule tried, DGauss's own all-electron dzvp included --
+//    A1 0.4-5 mHa, A2 0.08-1.2 mHa on Cartesian orbitals, up to 0.1 Ha on spherical ones (H2S) -- while delta is 0.4 uHa from PySCF's
+//    exact J (OH-).  Its price is the mesh climb its mesh-borne Hartree needs: 2.2x (TeF6) to 8.6x (SF6) an A fit's wall.
+//  - Auxiliary stated without a file takes A2 (kMolecularCoulombFitDefault), the best Gaussian fit measured; where A2 does not cover the
+//    structure (it stops at Zn and has no K, Ca) A1 (H-Te) instead, said so.
+//  - any stated file runs, on Cartesian or spherical orbitals; MoleculeCalculation's CoulombFitResidual check WARNs when it misses eps.
+// MoleculeCalculation builds a named fit into the run's CoulombFitSlot before the first Hamiltonian asks.
+constexpr const char* kMolecularCoulombFitDefault ="A2_coul";
+constexpr const char* kMolecularCoulombFitFallback="A1_coul";
 
 static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& point, bool densityModel)
 {
@@ -69,9 +76,32 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
                            "that route puts rho on the XC mesh and has no fit basis -- drop coulomb.auxBasis, or state coulomb.fit Auxiliary");
         return;
     }
+    if (c.fit==CF::Auto && stated.empty())
+    {
+        c.fit=CF::Delta;
+        policy::Report("CoulombFit", "the Hartree term: delta (rho on the XC mesh, radial Poisson)", policy::Verdict::Choose,
+                       "no Hartree route stated: the molecular default (user ruling 2026-11-22), the one route that meets eps -- the DGauss "
+                       "fits are mHa low on every molecule measured; state coulomb.fit Auxiliary (A2) or coulomb.auxBasis for the faster fit");
+        return;
+    }
     const bool fitStated=c.fit==CF::Auxiliary;
     c.fit=CF::Auxiliary;
-    if (stated.empty()) c.auxBasis=kMolecularCoulombFitDefault;
+    auto uncovered=[&](const std::string& file)
+    {
+        std::string missing;
+        for (int Z : ElementsOf(point)) if (!BasisCovers(file, Z)) missing+=(missing.empty() ? "" : ", ")+thePeriodicTable().GetSymbol(Z);
+        return missing;
+    };
+    std::string fallbackWhy;
+    if (stated.empty())
+    {
+        c.auxBasis=kMolecularCoulombFitDefault;
+        if (const std::string m=uncovered(c.auxBasis+".bsd"); !m.empty())
+        {
+            fallbackWhy="A2 has no block for "+m+", so A1 (H-Te) instead";
+            c.auxBasis=kMolecularCoulombFitFallback;
+        }
+    }
     const std::string file=c.auxBasis+".bsd";
     if (!std::filesystem::is_regular_file(BasisSet::Gaussian::BasisFile(file)))
     {
@@ -81,30 +111,55 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
         policy::Refuse("CoulombAuxBasisUnknown", "coulomb.auxBasis \""+c.auxBasis+"\": no "+file+" in the basis data directory",
                        "state a Coulomb fit file by its stem: "+fits);
     }
-    std::string missing;
-    for (int Z : ElementsOf(point)) if (!BasisCovers(file, Z)) missing+=(missing.empty() ? "" : ", ")+thePeriodicTable().GetSymbol(Z);
-    if (!missing.empty())
+    if (const std::string missing=uncovered(file); !missing.empty())
         policy::Refuse("CoulombAuxBasisCoverage", "Coulomb fit basis "+c.auxBasis+" has no block for "+missing,
-                       std::string(stated.empty() ? "the default fit (A1, H-Te) does not cover this structure" : "the stated fit does not cover this structure")
+                       std::string(stated.empty() ? "neither A2 nor A1 (H-Te) covers this structure" : "the stated fit does not cover this structure")
                        +" -- state coulomb.fit Delta (rho on the XC mesh, every element), or a fit file that covers it");
     if (!stated.empty() && fitStated) return;   // fully stated: as asked, nothing decided
     policy::Report("CoulombFit", "the Hartree term: a Dunlap fit on "+c.auxBasis, policy::Verdict::Choose,
                    stated.empty()
-                     ? std::string(fitStated ? "coulomb.fit Auxiliary stated without coulomb.auxBasis" : "no Hartree route stated")
-                       +": the molecular default fit, DGauss A1 (H-Te, built for all-electron bases; mHa low on a diffuse valence basis such "
-                       "as DZVP-MOLOPT-GTH) -- state coulomb.auxBasis (A1_coul, A2_coul) or coulomb.fit Delta to choose"
+                     ? "coulomb.fit Auxiliary stated without coulomb.auxBasis: the fastest-good fit, DGauss A2 (user ruling 2026-11-22)"
+                       +(fallbackWhy.empty() ? std::string() : " -- "+fallbackWhy)+"; its residual is checked against eps (CoulombFitResidual)"
                      : "coulomb.auxBasis stated: its route is the Auxiliary (Dunlap) fit");
 }
 
 // THE DOORS (as SolidSetup's): Admit for user input, Resolve its throwing twin for code that states its own options.
-Outcome<std::shared_ptr<const MoleculeSetup>, SetupRefusal> MoleculeSetup::Admit(const Structure& st, const RunOptions& opts, const AcceleratorOptions& acc)
+Outcome<std::shared_ptr<const MoleculeSetup>, SetupRefusal> MoleculeSetup::Admit(const Molecule& st, const RunOptions& opts, const AcceleratorOptions& acc)
 {
     return AdmitBy([&]{ return Resolve(st, opts, acc); });
 }
 
-std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st, const RunOptions& asked, const AcceleratorOptions& acc)
+// THE TYPED POINT BUILDER (V-MESH-FACTORY §8 step 2): made here, where the reference's concrete type S is known, so every geometry point
+// is a copy of an S (never a Clone through the abstract face) and its mesh maker is StructureMeshMaker<S> over THAT point -- no cast.
+// A pseudopotential run re-expresses the point as its VALENCE ions: each atom keeps its true species Z (so the PP lookup and the true
+// geometry are intact) but ADDS the core charge Z-Zion (its own element, from the run's chosen set) to the net charge the site states,
+// so GetNumElectrons() reports the Zion valence count minus the stated charge (OH- with GTH: 6 + 1 + 1), the count the EC + FittedVee
+// charge constraint consume.
+template <class S> static auto TypedPointBuilder(std::shared_ptr<const S> ref)
+{
+    return [ref](const std::vector<rvec3_t>* R, const Pseudopotential::PseudopotentialSet* pp)
+    {
+        auto point=std::make_shared<S>(*ref);
+        if (R) point->MoveSites(*R);
+        if (pp) point->AddNetCharges([pp](int Z){return double(Z - pp->Valence(thePeriodicTable().GetSymbol(Z)));});   // + the core Z - Zion: a stated ion stays one
+        return MoleculeSetup::Point{point, std::make_shared<const StructureMeshMaker<S>>(point)};
+    };
+}
+
+MoleculeSetup::Point MoleculeSetup::MakePoint() const {return itsPointBuilder(nullptr, pp ? &*pp : nullptr);}
+MoleculeSetup::Point MoleculeSetup::MakePoint(const std::vector<rvec3_t>& R) const {return itsPointBuilder(&R, pp ? &*pp : nullptr);}
+
+std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Molecule& st, const RunOptions& asked, const AcceleratorOptions& acc)
 {
     auto s=std::make_shared<MoleculeSetup>();
+    auto ref=std::make_shared<const Molecule>(st);   // deep copy, TRUE charges
+    s->structure=ref;
+    s->itsPointBuilder=TypedPointBuilder(ref);
+    return Decide(std::move(s), asked, acc);
+}
+
+std::shared_ptr<const MoleculeSetup> MoleculeSetup::Decide(std::shared_ptr<MoleculeSetup> s, const RunOptions& asked, const AcceleratorOptions& acc)
+{
     s->opts=MoleculeOptions(asked);   // the kind's defaults filled, what a molecule does not consume refused (V-FACADE-PARITY P0b-2)
     s->acc =acc;
     const RunOptions& opts=s->opts;   // from here on, the RESOLVED options
@@ -132,9 +187,8 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
                            "its core shells describe electrons the pseudopotential removed -- the run goes on; a valence basis "
                            "(sipp*, valence_lowq*) is the matched choice");
     }
-    s->structure=st.Clone();
-    s->imposed=opts.imposeSymmetry;   // a molecule's imposition has no policy veto: as asked   // polymorphic deep copy: a UnitCell stays periodic, not sliced to a Molecule
-    const std::shared_ptr<const Structure> point=s->PointStructure(*s->structure);
+    s->imposed=opts.imposeSymmetry;   // a molecule's imposition has no policy veto: as asked
+    const std::shared_ptr<const Structure> point=s->MakePoint().structure;
     s->Ne=int(point->GetNumElectrons());
     RequireBasisStated(opts.molecule.basis, *point);   // no default basis: an unstated one is refused, naming the bases that cover this structure
     // Coverage, when the name is a basis file (an unknown name is the build's refusal, which lists every name there).
@@ -215,22 +269,10 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Structure& st,
     return s;
 }
 
-// Re-express a structure as its VALENCE ions for a pseudopotential run: each atom keeps its true species Z (so the PP lookup and
-// the true geometry are intact) but ADDS the core charge Z-Zion (its own element, from the run's chosen set) to the net charge the
-// site states, so GetNumElectrons() reports the Zion valence count minus the stated charge (OH- with GTH: 6 + 1 + 1), the count the
-// EC + FittedVee charge constraint consume.  Clone-and-mutate (not rebuild-as-Molecule)
-// so the concrete geometry is preserved: a PP run on a periodic UnitCell stays a UnitCell (Ewald ion-ion, uniform mesh).
 std::vector<Hamiltonian::PPFunctionalCheck> MoleculeSetup::PPFunctionalChecks() const
 {
     if (!pp || !Hamiltonian::IsDFT(*opts.model)) return {};
     return Hamiltonian::PPFunctionalChecks(*pp, *structure, Hamiltonian::ModelToXC(*opts.model, opts.xalpha));
-}
-
-std::shared_ptr<const Structure> MoleculeSetup::PointStructure(const Structure& st) const
-{
-    auto point = st.Clone();
-    if (pp) point->AddNetCharges([this](int Z){return double(Z - pp->Valence(thePeriodicTable().GetSymbol(Z)));});   // + the core Z - Zion: a stated ion stays one
-    return point;
 }
 
 

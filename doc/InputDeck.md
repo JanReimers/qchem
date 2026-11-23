@@ -74,9 +74,9 @@ forces Polarized.  An AFM crystal states `"spin": "Polarized", "multiplicity": 1
   "accuracy": 1e-5,                       // THE ONE accuracy target eps (pin 31)
   "xc": { "fit": "Auto", "rho": "exact",  // the Vxc fit basis, the density XC sees
           "mesh": { "cellKind": "Auto|Uniform|Becke", "nRadial": 40, "angularDegree": 29, "beckeEps": 1e-6, ... } },   // was solid.xcMesh
-  "coulomb": { "fit": "Auto",              // a MOLECULE's Hartree route: Auto (the policy picks; today Auxiliary) | Auxiliary (a Dunlap fit) | Delta (rho on the XC mesh,
+  "coulomb": { "fit": "Auto",              // a MOLECULE's Hartree route: Auto (the policy picks: Delta, user ruling 2026-11-22) | Auxiliary (a Dunlap fit) | Delta (rho on the XC mesh,
                                           //   radial Poisson) | Multipole; a solid refuses the block (its Hartree is its density ball)
-               "auxBasis": "A1_coul" },   // the Auxiliary route's fit file stem (A1_coul, A2_coul); empty = the policy picks (policy CoulombFit).  An atom
+               "auxBasis": "A2_coul" },   // the Auxiliary route's fit file stem (A1_coul, A2_coul); empty = A2 (A1 where A2 misses an element).  An atom
                                           //   refuses it; so do HF and the Delta / Multipole routes.  Every Auxiliary run reports the fit's J error,
                                           //   one delta J at the seed and at the converged density (policy CoulombFitResidual), WARNING over eps x N
   "solid": {                              // the PERIODIC-ONLY options
