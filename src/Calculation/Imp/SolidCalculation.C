@@ -258,7 +258,7 @@ static const char* RasterSourceName(SolidSetup::RasterSource r)
 
 static const char* AccelName(SCFAccelerators::Type t) {return qchem::NameOf(t);}   // qchem.SCFRecipe
 // WHAT THE RUN IS MADE OF: system, grids, symmetry, threads, deviations.  Emitted once, from the ctor.
-static void EmitRunBanner(const RunOptions& o, const qcMesh::MeshParams& xc, size_t nAtoms,
+static void EmitRunBanner(const RunOptions& o, const RunPolicy& policy, const qcMesh::MeshParams& xc, size_t nAtoms,
                           bool imposed, const std::vector<qchem::Hamiltonian::HubbardManifold>& hubbard)
 {
     const char* omp=std::getenv("OMP_NUM_THREADS");
@@ -292,7 +292,7 @@ static void EmitRunBanner(const RunOptions& o, const qcMesh::MeshParams& xc, siz
              // uninterpretable unless it says which policy produced it (see StopOmpThreadsBusyWaiting).
              <<";  OMP wait="<<[]{const char* b=std::getenv("KMP_BLOCKTIME"); return b?b:"?";}()
              <<" ms spin"<<std::endl;
-    std::cout<<"["<<o.label<<" run] "<<theRunPolicy().Banner()<<std::endl;
+    std::cout<<"["<<o.label<<" run] "<<policy.Banner()<<std::endl;
     // +U's manifolds are a RUN OPTION, so they are stated here beside the knob banner (the FORM --
     // eigenvalues vs CP2K's diagonal populations -- is the knob QCHEM_U_EIGEN on that banner).  What is
     // declared here beyond the manifolds is the one deviation that is neither: occupations from D_out, the
@@ -306,7 +306,7 @@ static void EmitRunBanner(const RunOptions& o, const qcMesh::MeshParams& xc, siz
         bool resolved=false; for (const auto& M : hubbard) resolved|=!M.Uirrep.empty();
         std::cout<<"["<<o.label<<" run] +U: LOWDIN (CP2K's all-l-shells manifold), "
                  <<(resolved ? "ORBITAL-RESOLVED* (one U per site-irrep slot, see the [+U] slot table)" : "shell-averaged")<<", "
-                 <<(theRunPolicy().HubbardEigen() ? "eigenvalue form (Dudarev)" : "DIAGONAL populations (CP2K's form)")
+                 <<(policy.HubbardEigen() ? "eigenvalue form (Dudarev)" : "DIAGONAL populations (CP2K's form)")
                  <<", occupations from D_out*;  manifolds:";
         for (const auto& M : hubbard)             // the list AS HANDED to the Hamiltonian (site groups filled)
         {
@@ -331,7 +331,7 @@ static void EmitRunBanner(const RunOptions& o, const qcMesh::MeshParams& xc, siz
 // WHAT THE SCF IS DOING: the mixer, the accelerator, the occupation machinery.  Emitted per Converge,
 // because that is where these take effect -- and an anneal changes them stage by stage.
 //! \a p is RESOLVED (\c tSCFIterator::ResolveMixing); \a autoMixer = the caller left \c Mixer at \c Auto.
-static void EmitSCFBanner(const std::string& label, const SCFParams& p, SCFAccelerators::Type acc, bool autoMixer, bool autoAccel)
+static void EmitSCFBanner(const std::string& label, const SCFParams& p, bool xcFromDM, SCFAccelerators::Type acc, bool autoMixer, bool autoAccel)
 {
     using M = SCFParams::Mixing;
     // ⚠ THE PRECONDITIONER AND THE HISTORY ARE INDEPENDENT, AND THE BANNER USED TO HIDE IT (2026-08-28).
@@ -358,7 +358,7 @@ static void EmitSCFBanner(const std::string& label, const SCFParams& p, SCFAccel
              <<(autoMixer ? " [mixer: Auto]" : "")
              <<" alpha="<<p.StartingRelaxRo
              <<";  XC rho source: "<<(dMixer                   ? "rho[D] (D-mixing)"
-                                     : theRunPolicy().XCFromDM() ? "rho[D] WHOLESALE"
+                                     : xcFromDM                 ? "rho[D] WHOLESALE"
                                      : p.XCCuspDeficit         ? "rho_mix + cusp deficit"
                                      :                           "rho_mix")
              <<";  accel: "<<AccelName(acc)<<(autoAccel ? " [accel: Auto]" : "")
@@ -732,7 +732,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     // (T2's gate -- itsImp->setup->imposed -- was resolved by SolidSetup::Resolve: an imposition is an ASSERTION about the answer,
     // and only then is losing the order a contradiction rather than physics.)
 
-    EmitRunBanner(opts, itsImp->setup->xcMesh, itsImp->st->GetNumAtoms(), imposed, hubbard);
+    EmitRunBanner(opts, itsImp->setup->policy, itsImp->setup->xcMesh, itsImp->st->GetNumAtoms(), imposed, hubbard);
     itsImp->hubbard = hubbard;        // RESOLVED (groups, radials): what the Hamiltonian carries and a save records
 }
 
@@ -1262,7 +1262,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::IterateStage(
     ++itsImp->dGeneration;   // this stage moves D: no earlier audit measured the D it ends on
     // The banner and the recipe say what the iterator WILL build: SCFParams::Mixing::Auto resolved by the iterator itself.
     const SCFParams resolved=itsImp->scf->ResolveMixing(params);
-    EmitSCFBanner(Tag(), resolved, itsImp->stageAccel, params.Mixer==SCFParams::Mixing::Auto,
+    EmitSCFBanner(Tag(), resolved, itsImp->setup->policy.XCFromDM(), itsImp->stageAccel, params.Mixer==SCFParams::Mixing::Auto,
                   itsImp->stageAccelAsked==SCFAccelerators::Type::Auto);
     { qchem::report::Section scf("scf"); ReportSCFRecipe(resolved, AccelName(itsImp->stageAccel)); }
     ReportRecipe(Tag(), itsImp->stageRecipe, itsImp->stageKind, itsImp->stageAccelAsked, itsImp->stageAccel,
@@ -3176,7 +3176,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
     // to come, and that audit stays the gate.  A later point keeps the mesh the first one settled.  What stays at (40, 29) is an ENERGY point, not a
     // geometry one: a deck's own run before its `displace` builds that mesh seven times on MnO, once for its SCF and the rest for its raster pilot's
     // rebuilds of the same mesh, and no ladder is involved there.
-    if (!setup->planeWave && setup->opts.xcMesh->cellKind==qcMesh::UnitCellKind::Auto && theRunPolicy().BeckeXC())
+    if (!setup->planeWave && setup->opts.xcMesh->cellKind==qcMesh::UnitCellKind::Auto && setup->policy.BeckeXC())
     {
         const bool toBecke=setup->xcMesh.cellKind!=qcMesh::UnitCellKind::Becke;
         if (toBecke || !setup->rastersResolved)
