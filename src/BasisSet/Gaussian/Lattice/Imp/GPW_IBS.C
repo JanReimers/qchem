@@ -102,6 +102,9 @@ template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(cons
     // representations (delta vs fitted) is the WHOLE-SET factory's job, one level up in tBasisSet, since
     // the delta basis is a property of the run's quadrature and not of any one Bloch block.
     // {G}_vxc = relCutoff * {G}_rho.  LDA relCutoff==1 => == DensityGrid(); a GGA's denser grid is not wired yet.
+    // INTERNAL invariant, not a user choice (checked 2026-11-22): no functional returns GridCutoffFactor() > 1 (the base answers 1, a
+    // composite the max of its parts), and a GGA on GPW is refused off the delta Vxc fit (SolidSetup, policy GGARoute), so no deck or
+    // facade reaches this G-grid factory with a factor above 1.  A functional that raises it must wire the denser grid here first.
     assert(fitCutoffFactor<=1.0 && "GPW: relCutoff>1 (GGA denser Vxc grid) not wired -- the LDA Vxc grid = the CD grid");
     // The SAME basis as CreateCDFitBasisSet's (same {G} ball, same BasisSetID): since 2026-11-09 it stores no crystal ops -- the
     // run's group star-averages the raster through G_RasterStarField -- so the two instances are identical.
