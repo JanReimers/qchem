@@ -11,6 +11,7 @@
 module;
 #include <functional>
 #include <memory>
+#include <vector>
 export module qchem.Fitting.CoulombOperator;
 export import qchem.BasisSet.PairProjector;    // what both density-fit faces are (the density projects itself onto them)
 export import qchem.BasisSet.Orbital_DFT_IBS;  // the fit-basis faces and the orbital block
@@ -91,6 +92,16 @@ public:
     virtual Outcome<rmat3d_t,AD::NoGradient> MakeRepulsionVirial(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const hmat_t<dcmplx>&,
                                                                  const Structure*) const
     {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"this density fit gives no repulsion virial"});}
+    //!@}
+    //! \name THE WHOLE DENSITY's orbital-side derivatives (user ruling 2026-11-22 "yes", the k-fold): the SUM of \c MakeRepulsionPullback /
+    //! \c MakeRepulsionVirial over \a blocks (each with its D in \a Ds, the same order), asked once.  A fit whose blocks share one jet walk
+    //! (GPW: one lattice basis at several k) overrides them to walk once.  DEFAULT: block by block, the first refusal the answer.
+    //! CLIENT: Vee_Fit's PullbackBlocks / VirialBlocks.
+    //!@{
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullbackBlocks(const std::vector<BasisSet::FoldBlockRef>& blocks,
+                                                                           const std::vector<BasisSet::FoldBlockD>& Ds, const Structure* st) const;
+    virtual Outcome<rmat3d_t,AD::NoGradient>   MakeRepulsionVirialBlocks  (const std::vector<BasisSet::FoldBlockRef>& blocks,
+                                                                           const std::vector<BasisSet::FoldBlockD>& Ds, const Structure* st) const;
     //!@}
 };
 

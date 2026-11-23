@@ -27,6 +27,7 @@ module;
 #include <array>      // FoldDomain
 #include <cstdint>
 export module qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;
+export import qchem.BasisSet.KFoldable;   // KFoldTerm (the k-fold of the pullbacks)
 export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // the typed tolerances (D-ENV step 5)
 export import qchem.BasisSet.Gaussian.Lattice.RasterLadder;    // GpwRasterLadder: the density grid + its levels, shared by every block (V-BS-RASTER)
 export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::PW_Grid_Evaluator + RasterFields
@@ -123,6 +124,14 @@ public:
     bool CanOneElectronPullback() const {return !itsHomeOnly;}
     //! \c LatticeCollocation::BlochPointPullback at this block's phase and cell (the δ XC quadrature's derivative; READY 4).
     Gaussian::LatticeCollocation::PointPullback PointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const chmat_t& D, const Structure* st) const;
+    //! The k-fold domain (PairProjection::foldDomain, BasisSet::KFoldable): my lattice basis's and my ladder's instance serials.
+    std::array<uint64_t,2> FoldDomain() const;
+    //! My Bloch phase on \a n (\c CellPhase's value): what a fold lead applies to my D (BasisSet::KFoldable::FoldPhase).
+    dcmplx FoldPhase(const ivec3_t& n) const;
+    //! \c PointSetPullback for SEVERAL blocks of my fold domain at once (\c LatticeCollocation::BlochPointPullbackFolded, each term's
+    //! own phase).  THROWS if a term is outside my domain: the caller groups by domain.
+    Gaussian::LatticeCollocation::PointPullback PointSetPullbackFolded(const rvec3vec_t& pts, const rvec_t& c,
+                                                                       const std::vector<BasisSet::KFoldTerm>& terms, const Structure* st) const;
     Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient> OneElectronPullback(int which, const chmat_t& Abar, const Structure* st) const;
 
     // --- isLattice_DFT_Evaluator surface: the DFT tier by COLLOCATION on the density grid (the genuinely-new GPW
@@ -436,8 +445,6 @@ private:
     //! analytic kernels call back for each screened cross-cell pair offset (the k-CONVENTION stays here,
     //! lattice-side; the molecular basis never sees \f$k\f$).
     Gaussian::LatticeSum1E::cellphase_t CellPhase() const;
-    //! The k-fold domain (PairProjection::foldDomain): my lattice basis's and my ladder's instance serials.
-    std::array<uint64_t,2> FoldDomain() const;
     //! \f$b_i=\langle\chi_i^k|R\,Y_{lm}(\cdot-C)\rangle\f$ for \f$R=\sum_tc_tr^{l+2n_t}e^{-\alpha_tr^2}\f$: one analytic
     //! lattice-sum seam call per radial term (home term only in home-only mode).  THE shared projection of the
     //! KB assembly and of \c MakeAtomCentredOverlap.
@@ -471,6 +478,17 @@ private:
     //! (held per G index, so per raster index), then \c LatticeCollocation::IntegratePotentialVirial at fixed D.
     std::function<rmat3d_t(const std::function<dcmplx(const ivec3_t&)>&, const chmat_t&, const Structure*)>
         MakeIntegratorVirial(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    //! The k-folds of the two above (PairProjection::applyAdjointPullbackFolded / applyAdjointVirialFolded): the same restriction of
+    //! the field, then one jet walk over the summed blocks (\c LatticeCollocation::IntegratePotentialPullbackFolded / VirialFolded).
+    std::function<rvec3vec_t(const std::function<dcmplx(const ivec3_t&)>&,
+                             const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>&, const Structure*)>
+        MakeIntegratorPullbackFolded(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    std::function<rmat3d_t(const std::function<dcmplx(const ivec3_t&)>&,
+                           const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>&, const Structure*)>
+        MakeIntegratorVirialFolded(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    //! Each term's D with its block's phase (\c PairProjection::foldPhase), THROWING when a block is outside \a domain.
+    static std::vector<std::pair<const chmat_t*, const Gaussian::LatticeSum1E::cellphase_t*>>
+        PhasedTerms(const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>& terms, const std::array<uint64_t,2>& domain);
     //! \brief The RAW-RASTER pair (doc/GPWPlan 0.5(f2)) -- \c PairProjection<dcmplx>::applyRaw / \c applyRawAdjoint.
     //! \c MakeRawCollocator: \f$D\to\rho_{DM}(r)\f$ on \a grid's raster -- the finest ladder level kept RAW
     //! (its analytic samples are pointwise \f$\ge 0\f$ to screening-\f$\varepsilon\f$ for PSD \f$D\f$), every

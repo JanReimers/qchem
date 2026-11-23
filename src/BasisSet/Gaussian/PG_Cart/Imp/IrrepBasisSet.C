@@ -336,9 +336,21 @@ void Orbital_IBS::BlochPointValues(const rvec3vec_t& pts, const cellphase_t& pha
 Gaussian::LatticeCollocation::PointPullback Orbital_IBS::BlochPointPullback(const rvec3vec_t& pts, const rvec_t& c, const chmat_t& D, const cellphase_t& phase,
                                               const UnitCell& A, const Structure* st) const
 {
-    const size_t n=GetNumFunctions(), npts=pts.size();
+    return BlochPointPullbackFolded(pts, c, {{&D,&phase}}, A, st);
+}
+
+// THE k-FOLD of the above (user ruling 2026-11-22 "yes"): E = Σ_b E_b over blocks b of this ONE lattice basis at several k, each its own
+// (D_b, phase_b).  The functions' values and gradients at a (point, image) are k-INDEPENDENT, so they are evaluated once for all the blocks;
+// only Φ^b, z^b and the weight w = Σ_b 2 c_q Re(z^b_qi phase_b,k) are per block.  One term is the single-block pullback, bit for bit.
+Gaussian::LatticeCollocation::PointPullback Orbital_IBS::BlochPointPullbackFolded(const rvec3vec_t& pts, const rvec_t& c,
+                                              const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                              const UnitCell& A, const Structure* st) const
+{
+    const size_t n=GetNumFunctions(), npts=pts.size(), nT=terms.size();
+    if (nT==0) throw std::invalid_argument("BlochPointPullback: no density to pull back");
     if (c.size()!=npts) throw std::invalid_argument("BlochPointPullback: the weights are "+std::to_string(c.size())+" for "+std::to_string(npts)+" points");
-    if (D.rows()!=n) throw std::invalid_argument("BlochPointPullback: D is "+std::to_string(D.rows())+" square for "+std::to_string(n)+" functions");
+    for (const auto& t : terms)
+        if (t.first->rows()!=n) throw std::invalid_argument("BlochPointPullback: D is "+std::to_string(t.first->rows())+" square for "+std::to_string(n)+" functions");
     if (!st) throw std::invalid_argument("BlochPointPullback: the pullback needs the structure (the sites the functions sit on)");
     const std::vector<size_t> atom=NR_Evaluator::ComponentSites(st, "BlochPointPullback");
     PointPullback out{rvec3vec_t(st->GetNumAtoms(), rvec3_t(0,0,0)), rmat3d_t(0,0,0, 0,0,0, 0,0,0), rvec3vec_t(npts, rvec3_t(0,0,0))};
@@ -353,45 +365,58 @@ Gaussian::LatticeCollocation::PointPullback Orbital_IBS::BlochPointPullback(cons
     const double Rcut=std::max(2.0*maxReach+2.0*A.GetMaximumCellEdge(), maxReach+2.0*cellRad);
     const double rr  =cellRad+maxReach;
     std::vector<ivec3_t> offs=LatticePointsInSphere(A, Rcut);
-    std::vector<rvec3_t> Rc(offs.size());
-    cvec_t               ph(offs.size());
-    for (size_t k=0;k<offs.size();k++)
+    const size_t nK=offs.size();
+    std::vector<rvec3_t> Rc(nK);
+    std::vector<dcmplx>  ph(nT*nK);                                   // [t*nK+k]
+    for (size_t k=0;k<nK;k++)
     {
         Rc[k]=A.ToCartesian(rvec3_t(double(offs[k].x),double(offs[k].y),double(offs[k].z)));
-        ph[k]=phase(offs[k]);
+        for (size_t t=0;t<nT;t++) ph[t*nK+k]=(*terms[t].second)(offs[k]);
     }
     const rvec_t& reach=Reaches();
-    const mat_t<dcmplx> Dm(D);
+    std::vector<mat_t<dcmplx>> Dm; Dm.reserve(nT);
+    for (const auto& t : terms) Dm.emplace_back(*t.first);
     double M[3][3]={{0,0,0},{0,0,0},{0,0,0}};
-    cvec_t Phi(n), z(n);
+    std::vector<cvec_t> Phi(nT, cvec_t(n)), z(nT, cvec_t(n));
+    std::vector<size_t> live; std::vector<rvec_t> chiK;                 // this point's reaching images and their values (k-independent)
     for (size_t q=0;q<npts;q++)
     {
         if (c[q]==0.0) continue;
-        for (size_t i=0;i<n;i++) Phi[i]=dcmplx(0.0);
-        for (size_t k=0;k<Rc.size();k++)
+        live.clear(); chiK.clear();
+        for (size_t k=0;k<nK;k++)
         {
             const rvec3_t d=pts[q]-Rc[k]-ctr;
             if (d.x*d.x+d.y*d.y+d.z*d.z > rr*rr) continue;
-            const rvec_t chi=(*this)(pts[q]-Rc[k]);
-            for (size_t i=0;i<n;i++) Phi[i]+=ph[k]*chi[i];
+            live.push_back(k);
+            chiK.push_back((*this)(pts[q]-Rc[k]));
         }
-        for (size_t i=0;i<n;i++)
+        for (size_t t=0;t<nT;t++)
         {
-            dcmplx s(0.0);
-            for (size_t j=0;j<n;j++) s+=Dm(i,j)*std::conj(Phi[j]);
-            z[i]=s;
+            cvec_t& P=Phi[t];
+            for (size_t i=0;i<n;i++) P[i]=dcmplx(0.0);
+            for (size_t m=0;m<live.size();m++)
+            {
+                const dcmplx p=ph[t*nK+live[m]]; const rvec_t& chi=chiK[m];
+                for (size_t i=0;i<n;i++) P[i]+=p*chi[i];
+            }
+            for (size_t i=0;i<n;i++)
+            {
+                dcmplx s(0.0);
+                for (size_t j=0;j<n;j++) s+=Dm[t](i,j)*std::conj(P[j]);
+                z[t][i]=s;
+            }
         }
-        for (size_t k=0;k<Rc.size();k++)
+        for (size_t m=0;m<live.size();m++)
         {
-            const rvec3_t dk=pts[q]-Rc[k]-ctr;
-            if (dk.x*dk.x+dk.y*dk.y+dk.z*dk.z > rr*rr) continue;
+            const size_t k=live[m];
             const rvec3_t r=pts[q]-Rc[k];   // the point relative to this image's frame: χ_i(r) is the function at X_i + R_k
             for (size_t i=0;i<n;i++)
             {
                 const GaussianRF& rf=*radials[i];
                 const rvec3_t dr=r-rf.GetCenter();   // = r_q - (X_i + R_k)
                 if (dr.x*dr.x+dr.y*dr.y+dr.z*dr.z > reach[i]*reach[i]) continue;   // operator()'s screen: the value is 0 there
-                const double w=2.0*c[q]*std::real(z[i]*ph[k]);
+                double w=0.0;
+                for (size_t t=0;t<nT;t++) w+=2.0*c[q]*std::real(z[t][i]*ph[t*nK+k]);
                 if (w==0.0) continue;
                 const rvec3_t gchi=ns[i]*rf.Gradient(pols[i], r);   // ∇_r χ_i at the point (Enzyme's, as IrrepBasisSet::Gradient)
                 const rvec3_t wg=w*gchi;
@@ -470,6 +495,16 @@ rmat3d_t Orbital_IBS::IntegratePotentialVirial(const std::vector<rvec_t>& V_L, c
                                                const std::vector<double>& ecut_L, const LatticeScreener& screener,
                                                double relFieldSharp, const std::vector<size_t>* pairLevels) const
 {   return NR_Evaluator::IntegratePotentialVirial(V_L,D,phase,A,N_L,ecut_L,screener,relFieldSharp,pairLevels); }
+rvec3vec_t Orbital_IBS::IntegratePotentialPullbackFolded(const std::vector<rvec_t>& V_L, const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                                         const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                         const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                                         double relFieldSharp, const Structure* st, const std::vector<size_t>* pairLevels) const
+{   return NR_Evaluator::IntegratePotentialPullbackFolded(V_L,terms,A,N_L,ecut_L,screener,relFieldSharp,st,pairLevels); }
+rmat3d_t Orbital_IBS::IntegratePotentialVirialFolded(const std::vector<rvec_t>& V_L, const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                                     const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                     const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                                     double relFieldSharp, const std::vector<size_t>* pairLevels) const
+{   return NR_Evaluator::IntegratePotentialVirialFolded(V_L,terms,A,N_L,ecut_L,screener,relFieldSharp,pairLevels); }
 std::vector<cvec_t> Orbital_IBS::CollocateTransition(const mat_t<dcmplx>& dD, const cellphase_t& ketPhase, const rvec3_t& q,
                                                      const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                                      const std::vector<double>& ecut_L, double relFieldSharp) const

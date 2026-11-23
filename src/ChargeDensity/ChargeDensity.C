@@ -8,6 +8,7 @@ module;
 #include <map>
 #include <string>
 #include <cassert>
+#include <stdexcept>
 export module qchem.ChargeDensity;
 export import qchem.Symmetry.Spin;
 export import qchem.BasisSet.PairProjection;        // ΔG_Map algebra + Contract (was re-exported through the retired FourierDensity module)
@@ -168,11 +169,32 @@ public:
 //! 2026-11-08: a derivative version beside a hub face's method).  For ONE irrep block (\a bs, \a s) and that block's density matrix \a D,
 //! Σ_ij Re(D_ij* ∂M_ij/∂R_A) per atom of \a st, where M is the term's matrix: what \c tDM_CD::DM_Pullback sums over the blocks, exactly
 //! as \c DM_Contract sums the energy.
+//! \brief ONE BLOCK of a density, as a whole-density derivative hands it to a term (user ruling 2026-11-22 "yes", the k-fold of the forces and
+//! the stress): the orbital block, its spin and its density matrix (a reference the density keeps; valid for one call).
+template <class T> struct BlockDensity
+{
+    const tobs_t<T>* bs=nullptr;
+    Spin             s =Spin::None;
+    const hmat_t<T>* D =nullptr;
+};
+//! \brief The blocks of ONE density for one derivative call: the blocks on the run's own scalar \a T and, in a complex (periodic) run, its
+//! real TRIM blocks (the lineage's two block types; \c real is empty when \a T is double).
+template <class T> struct DensityBlocks
+{
+    std::vector<BlockDensity<T>>      blocks;
+    std::vector<BlockDensity<double>> real;
+};
+
 template <class T> class tStatic_PC
 {
 public:
     virtual ~tStatic_PC() = default;
     virtual rvec3vec_t Pullback(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const=0;
+    //! \brief THE WHOLE DENSITY'S PULLBACK (user ruling 2026-11-22 "yes"): the sum of \c Pullback over \a b's blocks, asked ONCE by a
+    //! composite density instead of block by block.  A term whose blocks share one real-space walk (GPW: one lattice basis at several k,
+    //! the k-dependence only in each block's coefficient Re[D_ij e^{-ik.R}]) overrides it to walk once for all of them.  The DEFAULT is
+    //! the block-by-block sum (a real TRIM block through the term's \c tStatic_PC<double> face), so every other term is unchanged.
+    virtual rvec3vec_t PullbackBlocks(const DensityBlocks<T>& b, const Structure* st) const;
 };
 
 //! \brief The VIRIAL client of a static term, beside \c tStatic_PC (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10: "the
@@ -183,7 +205,53 @@ template <class T> class tStatic_VC
 public:
     virtual ~tStatic_VC() = default;
     virtual rmat3d_t Virial(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const=0;
+    //! \brief THE WHOLE DENSITY'S VIRIAL, the twin of \c tStatic_PC::PullbackBlocks (user ruling 2026-11-22 "yes"): the sum of \c Virial
+    //! over \a b's blocks; the DEFAULT is that block-by-block sum.
+    virtual rmat3d_t VirialBlocks(const DensityBlocks<T>& b, const Structure* st) const;
 };
+
+//! The default: block by block.  A REAL block inside a complex run goes through the term's real-block face (an abstract -> abstract
+//! cross-cast, as \c tComposite_CD's per-block loop did); a real run has only its own blocks.
+template <class T> rvec3vec_t tStatic_PC<T>::PullbackBlocks(const DensityBlocks<T>& b, const Structure* st) const
+{
+    rvec3vec_t F;
+    auto add=[&](const rvec3vec_t& f)
+    {
+        if (F.size()==0) { F=f; return; }
+        if (f.size()!=F.size()) throw std::logic_error("tStatic_PC::PullbackBlocks: two blocks answered for different atom counts");
+        for (size_t A=0;A<F.size();A++) F[A]+=f[A];
+    };
+    for (const BlockDensity<T>& x : b.blocks) add(Pullback(x.bs, x.s, *x.D, st));
+    if (!b.real.empty())
+    {
+        if constexpr (std::is_same_v<T,double>) { for (const auto& x : b.real) add(Pullback(x.bs, x.s, *x.D, st)); }
+        else
+        {
+            auto* rv=dynamic_cast<const tStatic_PC<double>*>(this);
+            if (!rv) throw std::logic_error("tStatic_PC::PullbackBlocks: a real block needs the term's real-block pullback client "
+                                            "(tStatic_PC<double>, GeometryOptimizationPlan §13.2)");
+            for (const auto& x : b.real) add(rv->Pullback(x.bs, x.s, *x.D, st));
+        }
+    }
+    return F;
+}
+template <class T> rmat3d_t tStatic_VC<T>::VirialBlocks(const DensityBlocks<T>& b, const Structure* st) const
+{
+    rmat3d_t V(0,0,0, 0,0,0, 0,0,0);
+    for (const BlockDensity<T>& x : b.blocks) V+=Virial(x.bs, x.s, *x.D, st);
+    if (!b.real.empty())
+    {
+        if constexpr (std::is_same_v<T,double>) { for (const auto& x : b.real) V+=Virial(x.bs, x.s, *x.D, st); }
+        else
+        {
+            auto* rv=dynamic_cast<const tStatic_VC<double>*>(this);
+            if (!rv) throw std::logic_error("tStatic_VC::VirialBlocks: a real block needs the term's real-block virial client "
+                                            "(tStatic_VC<double>, CellHalf_Design §5)");
+            for (const auto& x : b.real) V+=rv->Virial(x.bs, x.s, *x.D, st);
+        }
+    }
+    return V;
+}
 
 template <class T> class tDynamic_CC //Contract client for dynamic (CD dependent) Ham terms.
 {

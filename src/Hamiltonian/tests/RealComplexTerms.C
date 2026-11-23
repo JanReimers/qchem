@@ -31,6 +31,7 @@ import qchem.UnitCell;
 import qchem.BasisSet;
 import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;          // tGPW_IBS<T> (both block alternatives)
+import qchem.BasisSet.Gaussian.Lattice.RasterLadder;     // MakeRasterLadder (one ladder shared by the k-fold gate's blocks)
 import qchem.Hamiltonian;                          // the terms and their real block faces
 import qchem.Hamiltonian.Internal.Kinetic;         // Kinetic<T> (tests may cheat-import internals)
 import qchem.Hamiltonian.Internal.Hamiltonian;     // tHamiltonianImp<dcmplx> (the 3c-2 assembly gate)
@@ -50,6 +51,7 @@ import qchem.Pseudopotential.LocalPotential;       // GaussianSmearedNucleus (a 
 import qchem.ChargeDensity.Imp.IrrepCD;            // PeriodicIrrepCD (the periodic leaf -- 3c-2b)
 import qchem.CompositeCD;                          // tComposite_CD<dcmplx> (the run-shaped density)
 import qchem.Mesh;                                 // qcMesh::MeshParams
+import qchem.Mesh.XCPolicy;                        // BeckeXCParams (the Becke fold gate)
 import qchem.Fitting.FunctionFitter;               // DeltaScalarFit
 import qchem.BasisSet.GSpaceDensityProjector;      // ρ̃ through the one projection face (V-ONE-OF-N 3c)
 import qchem.BasisSet.RasterDensityProjector;      // raw ρ_DM through the same face (R1.0n/o)
@@ -868,4 +870,137 @@ TEST(RealComplexTerms, TheGPWHartreeForceWalksBothBlockScalarsAndSumsToTheEggBox
     // energy's egg-box (the force is that energy's exact derivative: GPW_Force, M_CollocationPullback), floored by the ladder's relative
     // level rule, not by this code.  The bound catches a missing or doubled side (which would leave Σ F of order max|F|).
     EXPECT_LT(s, 1e-3*big) << "a rigid translation at fixed D must cost the Hartree energy only the raster's egg-box";
+}
+
+// THE k-FOLD OF THE BECKE XC PULLBACK AND VIRIAL (user ruling 2026-11-22 "yes"; the controller's gate: "each overriding term's folded
+// pullback equals its per-block sum").  Three GPW blocks of ONE molecular basis on ONE raster ladder -- a real TRIM block at Γ and two Bloch
+// blocks at general k -- share a fold domain, so the singles sampler takes them through the first one's folded point-set pullback (the
+// functions evaluated once per point for all three).  Against the per-block sum (the base class's default, called non-virtually) the
+// forces and the virial agree to roundoff: the same terms in a different order.
+TEST(RealComplexTerms, TheBeckeXcPullbackFoldsTheKBlocksOfOneLatticeBasisToThePerBlockSum)
+{
+    UnitCell cell(8.0);
+    cell.AddAtom(14,{0.40,0.50,0.50});
+    cell.AddAtom(14,{0.62,0.55,0.47});
+    const auto st=cell.Clone();
+    namespace M = qchem::BasisSet::Gaussian;
+    std::shared_ptr<const Real_BS> mol(M::Factory(M::BasisSetData::SIPP, &cell, M::Engine::MnD, M::Angular::Cartesian));
+    const auto ladder=M::MakeRasterLadder(cell, *mol, {.densityEcut=20.0});
+    auto cache=std::make_shared<::qchem::BasisSet::BasisCache>();
+    tGPW_IBS<double> re (cache, cell, Symmetry::BlochFactory(ivec3_t(3,3,3), ivec3_t(0,0,0)), mol, ladder);
+    tGPW_IBS<dcmplx> cx1(cache, cell, Symmetry::BlochFactory(ivec3_t(3,3,3), ivec3_t(1,0,0)), mol, ladder);
+    tGPW_IBS<dcmplx> cx2(cache, cell, Symmetry::BlochFactory(ivec3_t(3,3,3), ivec3_t(0,1,1)), mol, ladder);
+    ASSERT_NE(re.FoldDomain()[0], 0u);
+    ASSERT_TRUE(re.FoldDomain()==cx1.FoldDomain() && cx1.FoldDomain()==cx2.FoldDomain()) << "one basis and one ladder: one fold domain";
+    const size_t n=re.GetNumFunctions();
+    rsmat_t Dr(n); chmat_t D1(n), D2(n);
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<=i;j++)
+    {
+        const double d=std::sin(1.0+i+2.0*j)/(1.0+i+j);
+        Dr(i,j)=Dr(j,i)=d;
+        D1(j,i)=dcmplx(0.8*d, i==j ? 0.0 : 0.3*std::cos(0.5+i+j)/(1.0+i+j));
+        D2(j,i)=dcmplx(1.1*d, i==j ? 0.0 : -0.2*std::sin(2.0+i-j)/(1.0+i+j));
+    }
+    auto q = BasisSet::MakeXCQuadrature(*st, qcMesh::BeckeXCParams(30, -1.0, 11), nullptr);   // a small atom-centred mesh: owners and a weight response
+    auto dfb=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    auto engine=ChargeDensity::MakeDensitySampler(dfb, q);
+    {
+        const auto gap=engine->MakeQuadraturePullback(rvec_t(dfb->GetNumFunctions(), 0.0), st.get());
+        ASSERT_TRUE(gap) << "the Becke mesh must give the derivatives: " << gap.Error().why;
+    }
+    ASSERT_TRUE(engine->CanPullbackMatrix(&cx1)) << "the GPW block must give the point-set pullback";
+    rvec_t v(dfb->GetNumFunctions());
+    for (size_t g=0; g<v.size(); g++) v[g]=0.5+std::sin(0.37*double(g));   // any field: the identity is linear in it
+    ChargeDensity::SampledBlocks<dcmplx> b;
+    b.blocks.push_back({&cx1, &v, &D1});
+    b.blocks.push_back({&cx2, &v, &D2});
+    b.real  .push_back({&re,  &v, &Dr});
+    const ChargeDensity::tDensitySampler<dcmplx>& face=*engine;
+    const auto Ff=face.MakeMatrixPullbackBlocks(b, st.get());
+    const auto Fp=face.ChargeDensity::tDensitySampler<dcmplx>::MakeMatrixPullbackBlocks(b, st.get());   // the per-block default
+    ASSERT_TRUE(Ff) << Ff.Error().why;
+    ASSERT_TRUE(Fp) << Fp.Error().why;
+    double big=0.0, d=0.0;
+    for (size_t A=0;A<Ff->size();A++)
+    {
+        const rvec3_t a=(*Ff)[A], c=(*Fp)[A];
+        big=std::max({big, std::fabs(c.x), std::fabs(c.y), std::fabs(c.z)});
+        d  =std::max({d, std::fabs(a.x-c.x), std::fabs(a.y-c.y), std::fabs(a.z-c.z)});
+    }
+    std::printf("  [Becke XC fold] max|F| %.3e  |F_folded - F_per-block| %.2e\n", big, d);
+    ASSERT_GT(big, 1e-4) << "a vanishing pullback cannot show the fold is wired";
+    EXPECT_LT(d, 1e-12*big) << "the folded Becke XC pullback differs from the per-block sum";
+    const auto Vf=face.MakeMatrixVirialBlocks(b, st.get());
+    const auto Vp=face.ChargeDensity::tDensitySampler<dcmplx>::MakeMatrixVirialBlocks(b, st.get());
+    ASSERT_TRUE(Vf) << Vf.Error().why;
+    ASSERT_TRUE(Vp) << Vp.Error().why;
+    double vbig=0.0, vd=0.0;
+    for (size_t a=1;a<=3;a++) for (size_t c=1;c<=3;c++)
+    {
+        vbig=std::max(vbig, std::fabs((*Vp)(a,c)));
+        vd  =std::max(vd,   std::fabs((*Vf)(a,c)-(*Vp)(a,c)));
+    }
+    std::printf("  [Becke XC fold] max|V| %.3e  |V_folded - V_per-block| %.2e\n", vbig, vd);
+    ASSERT_GT(vbig, 1e-4);
+    EXPECT_LT(vd, 1e-12*vbig) << "the folded Becke XC virial differs from the per-block sum";
+}
+
+// THE k-FOLD OF THE GPW HARTREE PULLBACK AND VIRIAL (user ruling 2026-11-22 "yes"; the controller's gate: the folded pullback equals the
+// per-block sum).  The same three blocks of one basis on one ladder as the Becke gate, in ONE composite density; Vee_Fit<dcmplx> refreshed
+// for it, then its PullbackBlocks / VirialBlocks (one jet walk through the first block's Coulomb tensor) against the base class's per-block
+// default, called non-virtually, on the same list.
+TEST(RealComplexTerms, TheGPWHartreePullbackFoldsTheKBlocksOfOneLatticeBasisToThePerBlockSum)
+{
+    UnitCell cell(8.0);
+    cell.AddAtom(14,{0.40,0.50,0.50});
+    cell.AddAtom(14,{0.62,0.55,0.47});
+    const auto st=cell.Clone();
+    namespace M = qchem::BasisSet::Gaussian;
+    std::shared_ptr<const Real_BS> mol(M::Factory(M::BasisSetData::SIPP, &cell, M::Engine::MnD, M::Angular::Cartesian));
+    const auto ladder=M::MakeRasterLadder(cell, *mol, {.densityEcut=20.0});
+    auto cache=std::make_shared<::qchem::BasisSet::BasisCache>();
+    tGPW_IBS<double> re (cache, cell, Symmetry::BlochFactory(ivec3_t(3,3,3), ivec3_t(0,0,0)), mol, ladder);
+    tGPW_IBS<dcmplx> cx1(cache, cell, Symmetry::BlochFactory(ivec3_t(3,3,3), ivec3_t(1,0,0)), mol, ladder);
+    tGPW_IBS<dcmplx> cx2(cache, cell, Symmetry::BlochFactory(ivec3_t(3,3,3), ivec3_t(0,1,1)), mol, ladder);
+    const size_t n=re.GetNumFunctions();
+    rsmat_t Dr(n); chmat_t D1(n), D2(n);
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<=i;j++)
+    {
+        const double d=std::sin(1.0+i+2.0*j)/(1.0+i+j);
+        Dr(i,j)=Dr(j,i)=d;
+        D1(j,i)=dcmplx(0.8*d, i==j ? 0.0 : 0.3*std::cos(0.5+i+j)/(1.0+i+j));
+        D2(j,i)=dcmplx(1.1*d, i==j ? 0.0 : -0.2*std::sin(2.0+i-j)/(1.0+i+j));
+    }
+    using namespace qchem::ChargeDensity;
+    auto cd=std::make_unique<tComposite_CD<dcmplx>>();
+    cd->Insert(std::unique_ptr<tDM_CD<dcmplx>>(new PeriodicIrrepCD<dcmplx>(D1, &cx1, cx1.GetIrrep(Spin::None))), cx1.GetIrrep(Spin::None));
+    cd->Insert(std::unique_ptr<tDM_CD<dcmplx>>(new PeriodicIrrepCD<dcmplx>(D2, &cx2, cx2.GetIrrep(Spin::None))), cx2.GetIrrep(Spin::None));
+    cd->Insert(std::unique_ptr<tDM_CD<double>>(new PeriodicIrrepCD<double>(Dr, &re,  re .GetIrrep(Spin::None))), re .GetIrrep(Spin::None));
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(cx1.CreateCDFitBasisSet(&cell));
+    Vee_Fit<dcmplx> vh(Fitting::MakeGSpaceDensityFitter(fb), 0.0, fb);
+    RefreshTerm(static_cast<const cDynamic_HT&>(vh), cd.get(), &cx1);
+    DensityBlocks<dcmplx> b;
+    b.blocks.push_back({&cx1, Spin::None, &D1});
+    b.blocks.push_back({&cx2, Spin::None, &D2});
+    b.real  .push_back({&re,  Spin::None, &Dr});
+    const tStatic_PC<dcmplx>& pc=vh;
+    const rvec3vec_t Ff=pc.PullbackBlocks(b, st.get());
+    const rvec3vec_t Fp=pc.tStatic_PC<dcmplx>::PullbackBlocks(b, st.get());   // the per-block default
+    double big=0.0, d=0.0;
+    for (size_t A=0;A<Ff.size();A++)
+    {
+        big=std::max({big, std::fabs(Fp[A].x), std::fabs(Fp[A].y), std::fabs(Fp[A].z)});
+        d  =std::max({d, std::fabs(Ff[A].x-Fp[A].x), std::fabs(Ff[A].y-Fp[A].y), std::fabs(Ff[A].z-Fp[A].z)});
+    }
+    std::printf("  [GPW Hartree fold] max|F| %.3e  |F_folded - F_per-block| %.2e\n", big, d);
+    ASSERT_GT(big, 1e-4) << "a vanishing pullback cannot show the fold is wired";
+    EXPECT_LT(d, 1e-12*big) << "the folded Hartree pullback differs from the per-block sum";
+    const tStatic_VC<dcmplx>& vc=vh;
+    const rmat3d_t Vf=vc.VirialBlocks(b, st.get());
+    const rmat3d_t Vp=vc.tStatic_VC<dcmplx>::VirialBlocks(b, st.get());
+    double vbig=0.0, vd=0.0;
+    for (size_t a=1;a<=3;a++) for (size_t c=1;c<=3;c++) { vbig=std::max(vbig, std::fabs(Vp(a,c))); vd=std::max(vd, std::fabs(Vf(a,c)-Vp(a,c))); }
+    std::printf("  [GPW Hartree fold] max|V| %.3e  |V_folded - V_per-block| %.2e\n", vbig, vd);
+    ASSERT_GT(vbig, 1e-4);
+    EXPECT_LT(vd, 1e-12*vbig) << "the folded Hartree virial differs from the per-block sum";
 }

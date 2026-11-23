@@ -179,6 +179,14 @@ tGPW_IBS<T>::MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const 
     const auto p=GPW_Evaluator::PointSetPullback(pts, c, WidenD<T>(D), st);
     return R::Ok({p.gradient, p.moment, p.perPoint});
 }
+template <class T> Outcome<typename BasisSet::PointSetPullback<T>::Result,AD::NoGradient>
+tGPW_IBS<T>::MakePointSetPullbackFolded(const rvec3vec_t& pts, const rvec_t& c, const std::vector<BasisSet::KFoldTerm>& terms, const Structure* st) const
+{
+    using R=Outcome<typename BasisSet::PointSetPullback<T>::Result,AD::NoGradient>;
+    if (!GPW_Evaluator::CanOneElectronPullback()) return R::Fail({"a home-only (molecule in a box) GPW block gives no point-set pullback"});
+    const auto p=GPW_Evaluator::PointSetPullbackFolded(pts, c, terms, st);
+    return R::Ok({p.gradient, p.moment, p.perPoint});
+}
 
 template <class T> std::map<int,hmat_t<T>> tGPW_IBS<T>::MakeProjectorMatrixByL(const Structure* cl, const SpeciesProjectorSet& nl) const
 {

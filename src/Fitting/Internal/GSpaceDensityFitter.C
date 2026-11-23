@@ -132,7 +132,78 @@ public:
                                                          const Structure* st) const override
     {return RepulsionVirialT(orb, D, st);}
 
+    //! THE k-FOLD of the two orbital sides (user ruling 2026-11-22 "yes"): blocks whose Coulomb tensors share a fold domain (one lattice
+    //! basis and ladder at several k) are pulled back in ONE jet walk through the first one's folded realization; the rest block by block.
+    Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullbackBlocks(const std::vector<BasisSet::FoldBlockRef>& blocks,
+                                                                   const std::vector<BasisSet::FoldBlockD>& Ds, const Structure* st) const override
+    {
+        return FoldedRepulsionT<rvec3vec_t>(blocks, Ds, st, "a repulsion pullback", rvec3vec_t{},
+            [](const PairProjection<dcmplx>& g){return bool(g.applyAdjointPullbackFolded);},
+            [&](const PairProjection<dcmplx>& g, const auto& f, const auto& terms){return g.applyAdjointPullbackFolded(f, terms, st);},
+            [&](size_t b){return FirstOrderDensityFit<dcmplx>::MakeRepulsionPullbackBlocks({blocks[b]}, {Ds[b]}, st);},
+            [](rvec3vec_t& F, const rvec3vec_t& f)
+            {
+                if (F.size()==0) { F=f; return; }
+                if (f.size()!=F.size()) throw std::logic_error("GSpaceDensityFitter::MakeRepulsionPullbackBlocks: two blocks answered for different atom counts");
+                for (size_t A=0;A<F.size();A++) F[A]+=f[A];
+            });
+    }
+    Outcome<rmat3d_t,AD::NoGradient> MakeRepulsionVirialBlocks(const std::vector<BasisSet::FoldBlockRef>& blocks,
+                                                               const std::vector<BasisSet::FoldBlockD>& Ds, const Structure* st) const override
+    {
+        return FoldedRepulsionT<rmat3d_t>(blocks, Ds, st, "a repulsion virial", rmat3d_t(0,0,0, 0,0,0, 0,0,0),
+            [](const PairProjection<dcmplx>& g){return bool(g.applyAdjointVirialFolded);},
+            [&](const PairProjection<dcmplx>& g, const auto& f, const auto& terms){return g.applyAdjointVirialFolded(f, terms, st);},
+            [&](size_t b){return FirstOrderDensityFit<dcmplx>::MakeRepulsionVirialBlocks({blocks[b]}, {Ds[b]}, st);},
+            [](rmat3d_t& V, const rmat3d_t& v){V+=v;});
+    }
+
 private:
+    //! The fold's body for both: group the blocks by their Coulomb tensors' fold domain, widen a real block's D onto the complex face, and
+    //! sum the groups' folded answers and the singles' own.
+    template <class Res, class CanFold, class Fold, class Single, class Add> Outcome<Res,AD::NoGradient>
+    FoldedRepulsionT(const std::vector<BasisSet::FoldBlockRef>& blocks, const std::vector<BasisSet::FoldBlockD>& Ds, const Structure*,
+                     const char* what, Res total, CanFold canFold, Fold fold, Single single, Add add) const
+    {
+        using R=Outcome<Res,AD::NoGradient>;
+        RequireFit(what);
+        if (blocks.size()!=Ds.size()) throw std::logic_error(std::string("GSpaceDensityFitter: ")+what+": the blocks and their density matrices differ in count");
+        std::vector<const PairProjection<dcmplx>*> g(blocks.size(), nullptr);
+        for (size_t b=0;b<blocks.size();b++)
+        {
+            if      (blocks[b].real ) g[b]=&blocks[b].real ->Repulsion3C(*itsCD);
+            else if (blocks[b].bloch) g[b]=&blocks[b].bloch->Repulsion3C(*itsCD);
+            else throw std::logic_error(std::string("GSpaceDensityFitter: ")+what+": block "+std::to_string(b)+" names no orbital block");
+        }
+        const ΔG_Map& rho=itsRho;
+        const std::function<dcmplx(const ivec3_t&)> f=[&rho](const ivec3_t& dm)->dcmplx
+            { auto it=rho.find(dm); return it==rho.end() ? dcmplx(0.0) : it->second; };
+        std::vector<bool> done(blocks.size(), false);
+        for (size_t b=0;b<blocks.size();b++)
+        {
+            if (done[b]) continue;
+            done[b]=true;
+            std::vector<size_t> grp{b};
+            if (g[b]->foldDomain[0]!=0 && canFold(*g[b]))
+                for (size_t c=b+1;c<blocks.size();c++)
+                    if (!done[c] && g[c]->foldDomain==g[b]->foldDomain && canFold(*g[c])) { grp.push_back(c); done[c]=true; }
+            if (grp.size()==1) { const R r=single(b); if (!r) return r; add(total, *r); continue; }
+            std::vector<chmat_t> widened; widened.reserve(grp.size());   // reserved: the terms point into it
+            std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>> terms;
+            for (size_t c : grp)
+            {
+                if (Ds[c].bloch) { terms.push_back({Ds[c].bloch, g[c]}); continue; }
+                if (!Ds[c].real) throw std::logic_error(std::string("GSpaceDensityFitter: ")+what+": block "+std::to_string(c)+" has no density matrix");
+                const hmat_t<double>& d=*Ds[c].real;
+                chmat_t w(d.rows());
+                for (size_t i=0;i<d.rows();i++) for (size_t j=i;j<d.rows();j++) w(i,j)=dcmplx(d(i,j),0.0);
+                widened.push_back(std::move(w));
+                terms.push_back({&widened.back(), g[c]});
+            }
+            add(total, fold(*g[b], f, terms));
+        }
+        return R::Ok(std::move(total));
+    }
     template <class U> Outcome<rmat3d_t,AD::NoGradient> RepulsionVirialT(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb, const chmat_t& D,
                                                                          const Structure* st) const
     {

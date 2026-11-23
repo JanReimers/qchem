@@ -567,30 +567,130 @@ tSinglesDensitySampler<T>::PointSetOf(const tobs_t<U>* bs, const rvec_t& v, cons
     for (size_t g=0; g<c.size(); g++) c[g]=w[g]*v[g];
     return face->MakePointSetPullback(m.Points(), c, D, st);
 }
+template <class T> template <class P> rvec3vec_t tSinglesDensitySampler<T>::FinishPullback(const P& p) const
+{
+    rvec3vec_t g=p.gradient;
+    const qcMesh::Mesh& m=*itsQuad.GetMesh();
+    for (size_t a=0; a<m.NSites(); a++)
+        for (size_t q=m.SiteBegin(a); q<m.SiteEnd(a); q++) g[a]+=p.perPoint[q];   // the point rides its owner
+    return g;
+}
+template <class T> template <class P> rmat3d_t tSinglesDensitySampler<T>::FinishVirial(const P& p) const
+{
+    rmat3d_t V=p.moment;
+    const rvec3vec_t& Uq=itsQuad.GetMesh()->OwnerOffsets();
+    for (size_t q=0; q<Uq.size(); q++)   // the point is X_owner + u (u not strained): moment - perPoint (x) u
+    {
+        const double pp[3]={p.perPoint[q].x, p.perPoint[q].y, p.perPoint[q].z}, uu[3]={Uq[q].x, Uq[q].y, Uq[q].z};
+        for (size_t a=0;a<3;a++) for (size_t b=0;b<3;b++) V(a+1,b+1)-=pp[a]*uu[b];
+    }
+    return V;
+}
 template <class T> template <class U> Outcome<rvec3vec_t,AD::NoGradient>
 tSinglesDensitySampler<T>::PullbackT(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const
 {
     const auto p=PointSetOf(bs, v, D, st);
     if (!p) return Outcome<rvec3vec_t,AD::NoGradient>::Fail(p.Error());
-    rvec3vec_t g=p->gradient;
-    const qcMesh::Mesh& m=*itsQuad.GetMesh();
-    for (size_t a=0; a<m.NSites(); a++)
-        for (size_t q=m.SiteBegin(a); q<m.SiteEnd(a); q++) g[a]+=p->perPoint[q];   // the point rides its owner
-    return Outcome<rvec3vec_t,AD::NoGradient>::Ok(std::move(g));
+    return Outcome<rvec3vec_t,AD::NoGradient>::Ok(FinishPullback(*p));
 }
 template <class T> template <class U> Outcome<rmat3d_t,AD::NoGradient>
 tSinglesDensitySampler<T>::VirialT(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const
 {
     const auto p=PointSetOf(bs, v, D, st);
     if (!p) return Outcome<rmat3d_t,AD::NoGradient>::Fail(p.Error());
-    rmat3d_t V=p->moment;
-    const rvec3vec_t& Uq=itsQuad.GetMesh()->OwnerOffsets();
-    for (size_t q=0; q<Uq.size(); q++)   // the point is X_owner + u (u not strained): moment - perPoint (x) u
+    return Outcome<rmat3d_t,AD::NoGradient>::Ok(FinishVirial(*p));
+}
+
+// THE k-FOLD of the whole-density calls (user ruling 2026-11-22 "yes").  Each block (either scalar) is one entry; entries whose blocks are
+// KFoldable with one non-zero domain AND see the same field (one spin's v) form a group, and a group of two or more goes through its first
+// block's MakePointSetPullbackFolded with every member's D widened onto the complex face.  The rest go alone, exactly as the per-block calls.
+// Linear end to end: the finish (owners, the u moment) of a summed result is the sum of the finishes.
+template <class T> template <class Res, class Finish, class Add> Outcome<Res,AD::NoGradient>
+tSinglesDensitySampler<T>::FoldedBlocksT(const SampledBlocks<T>& b, const Structure* st, Res total, Finish finish, Add add) const
+{
+    using R=Outcome<Res,AD::NoGradient>;
+    if (const std::string gap=MeshDerivativeGap(); !gap.empty()) return R::Fail({gap});
+    struct Entry
     {
-        const double pp[3]={p->perPoint[q].x, p->perPoint[q].y, p->perPoint[q].z}, uu[3]={Uq[q].x, Uq[q].y, Uq[q].z};
-        for (size_t a=0;a<3;a++) for (size_t b=0;b<3;b++) V(a+1,b+1)-=pp[a]*uu[b];
+        const tobs_t<T>*      bs=nullptr;  const hmat_t<T>*      D=nullptr;   // exactly one of the two pairs is set
+        const tobs_t<double>* rbs=nullptr; const hmat_t<double>* rD=nullptr;
+        const rvec_t* v=nullptr;
+        const BasisSet::KFoldable* kf=nullptr;
+    };
+    std::vector<Entry> e;
+    for (const auto& x : b.blocks) e.push_back({x.bs, x.D, nullptr, nullptr, x.v, dynamic_cast<const BasisSet::KFoldable*>(x.bs)});
+    for (const auto& x : b.real)   e.push_back({nullptr, nullptr, x.bs, x.D, x.v, dynamic_cast<const BasisSet::KFoldable*>(x.bs)});
+    auto alone=[&](const Entry& x)->R
+    {
+        if (x.bs) { const auto p=PointSetOf(x.bs, *x.v, *x.D, st); if (!p) return R::Fail(p.Error()); return R::Ok(finish(*p)); }
+        if constexpr (std::is_same_v<T,double>)
+        { const auto p=PointSetOf(x.rbs, *x.v, *x.rD, st); if (!p) return R::Fail(p.Error()); return R::Ok(finish(*p)); }
+        else
+        { const auto p=PointSetOf<double>(x.rbs, *x.v, *x.rD, st); if (!p) return R::Fail(p.Error()); return R::Ok(finish(*p)); }
+    };
+    std::vector<bool> done(e.size(), false);
+    for (size_t i=0;i<e.size();i++)
+    {
+        if (done[i]) continue;
+        done[i]=true;
+        std::vector<size_t> grp{i};
+        if (e[i].kf && e[i].kf->FoldDomain()[0]!=0)
+            for (size_t j=i+1;j<e.size();j++)
+                if (!done[j] && e[j].kf && e[j].v==e[i].v && e[j].kf->FoldDomain()==e[i].kf->FoldDomain()) { grp.push_back(j); done[j]=true; }
+        if (grp.size()==1) { const R r=alone(e[i]); if (!r) return r; add(total, *r); continue; }
+        // The group: the lead's face, the weights c = w v, every member's D on the complex face.
+        const qcMesh::Mesh& m=*itsQuad.GetMesh();
+        const rvec_t& v=*e[i].v;
+        if (v.size()!=m.size()) return R::Fail({"the XC field is not on the mesh"});
+        if (!st || st->GetNumAtoms()!=m.NSites()) return R::Fail({"the XC mesh's site blocks are not the structure's atoms"});
+        rvec_t c(m.size());
+        const rvec_t& w=m.Weights();
+        for (size_t g=0; g<c.size(); g++) c[g]=w[g]*v[g];
+        std::vector<chmat_t> widened; widened.reserve(grp.size());   // reserved: the terms point into it
+        std::vector<BasisSet::KFoldTerm> terms;
+        for (size_t j : grp)
+        {
+            const Entry& x=e[j];
+            if (x.bs)
+            {
+                if constexpr (std::is_same_v<T,dcmplx>) { terms.push_back({x.kf, x.D}); continue; }
+                else { chmat_t d(x.D->rows()); for (size_t r=0;r<d.rows();r++) for (size_t s=r;s<d.rows();s++) d(r,s)=dcmplx((*x.D)(r,s),0.0);
+                       widened.push_back(std::move(d)); }
+            }
+            else { chmat_t d(x.rD->rows()); for (size_t r=0;r<d.rows();r++) for (size_t s=r;s<d.rows();s++) d(r,s)=dcmplx((*x.rD)(r,s),0.0);
+                   widened.push_back(std::move(d)); }
+            terms.push_back({x.kf, &widened.back()});
+        }
+        auto viaLead=[&](const auto* face)->R
+        {
+            if (!face) return R::Fail({"the orbital block gives no point-set pullback"});
+            const auto p=face->MakePointSetPullbackFolded(m.Points(), c, terms, st);
+            if (!p) return R::Fail(p.Error());
+            return R::Ok(finish(*p));
+        };
+        const R r= e[i].bs ? viaLead(dynamic_cast<const BasisSet::PointSetPullback<T>*>(e[i].bs))
+                           : viaLead(dynamic_cast<const BasisSet::PointSetPullback<double>*>(e[i].rbs));
+        if (!r) return r;
+        add(total, *r);
     }
-    return Outcome<rmat3d_t,AD::NoGradient>::Ok(V);
+    return R::Ok(std::move(total));
+}
+template <class T> Outcome<rvec3vec_t,AD::NoGradient> tSinglesDensitySampler<T>::MakeMatrixPullbackBlocks(const SampledBlocks<T>& b, const Structure* st) const
+{
+    return FoldedBlocksT<rvec3vec_t>(b, st, rvec3vec_t{},
+        [this](const auto& p){return FinishPullback(p);},
+        [](rvec3vec_t& F, const rvec3vec_t& f)
+        {
+            if (F.size()==0) { F=f; return; }
+            if (f.size()!=F.size()) throw std::logic_error("MakeMatrixPullbackBlocks: two blocks answered for different atom counts");
+            for (size_t A=0;A<F.size();A++) F[A]+=f[A];
+        });
+}
+template <class T> Outcome<rmat3d_t,AD::NoGradient> tSinglesDensitySampler<T>::MakeMatrixVirialBlocks(const SampledBlocks<T>& b, const Structure* st) const
+{
+    return FoldedBlocksT<rmat3d_t>(b, st, rmat3d_t(0,0,0, 0,0,0, 0,0,0),
+        [this](const auto& p){return FinishVirial(p);},
+        [](rmat3d_t& V, const rmat3d_t& v){V+=v;});
 }
 template <class T> bool tSinglesDensitySampler<T>::CanPullbackMatrix(const tobs_t<T>* bs) const {return CanT<T>(bs);}
 template <class T> bool tSinglesDensitySampler<T>::CanVirialMatrix  (const tobs_t<T>* bs) const {return CanT<T>(bs);}

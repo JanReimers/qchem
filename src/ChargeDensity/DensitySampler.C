@@ -26,6 +26,7 @@ module;
 #include <cstddef>
 #include <complex>
 #include <stdexcept>
+#include <type_traits>   // the whole-density defaults (a real run has no real-block list of its own)
 #include <iosfwd>
 #include <map>
 #include <optional>   // GroupResidual (R2.1)
@@ -196,6 +197,21 @@ public:
 //! \c double for the molecular / atom path, \c dcmplx for the periodic one; the periodic sampler adds the response and the
 //! real-TRIM faces below (\c DensitySampler).  (V-XC-ONE-TERM: until 2026-10-31 this face was complex-only, which is why a
 //! molecule could not run the one XC term.)
+//! \brief ONE BLOCK of a whole-density XC pullback / virial (user ruling 2026-11-22 "yes", the k-fold of the forces): the block, the field
+//! it sees (its spin's v, fixed by the refresh) and its D.  The term keeps all three alive for the call.
+template <class U> struct SampledBlock
+{
+    const tobs_t<U>* bs=nullptr;
+    const rvec_t*    v =nullptr;
+    const hmat_t<U>* D =nullptr;
+};
+//! The blocks of one density for one call: on the run's scalar \a T, and (a periodic run) its real TRIM blocks.
+template <class T> struct SampledBlocks
+{
+    std::vector<SampledBlock<T>>      blocks;
+    std::vector<SampledBlock<double>> real;
+};
+
 template <class T> class tDensitySampler
     : public virtual DensitySamplerBase
 {
@@ -244,6 +260,14 @@ public:
     virtual bool CanVirialMatrix(const tobs_t<T>*) const {return false;}
     virtual Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const tobs_t<T>* bs, const rvec_t&, const hmat_t<T>&, const Structure*) const
     {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"the XC quadrature's strategy gives no virial of its matrix on the block "+bs->Name()});}
+    //!@}
+    //! \name THE WHOLE DENSITY's pullback and virial (user ruling 2026-11-22 "yes", the k-fold): the SUM of \c MakeMatrixPullback /
+    //! \c MakeMatrixVirial over \a b's blocks, asked once.  A strategy whose blocks share their point evaluations (one lattice basis at
+    //! several k, \c BasisSet::KFoldable) overrides them to evaluate once.  DEFAULT: block by block (a real block of a periodic run
+    //! through \c DensitySampler's real-block face); the first refusal is the answer.  CLIENT: the XC term's PullbackBlocks / VirialBlocks.
+    //!@{
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullbackBlocks(const SampledBlocks<T>& b, const Structure* st) const;
+    virtual Outcome<rmat3d_t,AD::NoGradient>   MakeMatrixVirialBlocks  (const SampledBlocks<T>& b, const Structure* st) const;
     //!@}
     //! \brief Pre-warm this engine's per-density caches for \a cd -- the EAGER REFRESH PHASE
     //! (doc/OpenWork.md item **KP**).  \a polarized picks which shape to warm, because the two are
@@ -323,6 +347,60 @@ public:
     virtual Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const robs_t* bs, const rvec_t&, const hmat_t<double>&, const Structure*) const
     {return Outcome<rmat3d_t,AD::NoGradient>::Fail({"the XC quadrature's strategy gives no virial of its matrix on the real block "+bs->Name()});}
 };
+
+//! The defaults: block by block.  A real block in a periodic run takes \c DensitySampler's real-block face (abstract -> abstract).
+template <class T> Outcome<rvec3vec_t,AD::NoGradient> tDensitySampler<T>::MakeMatrixPullbackBlocks(const SampledBlocks<T>& b, const Structure* st) const
+{
+    using R=Outcome<rvec3vec_t,AD::NoGradient>;
+    rvec3vec_t F;
+    auto add=[&](const rvec3vec_t& f)
+    {
+        if (F.size()==0) { F=f; return; }
+        if (f.size()!=F.size()) throw std::logic_error("tDensitySampler::MakeMatrixPullbackBlocks: two blocks answered for different atom counts");
+        for (size_t A=0;A<F.size();A++) F[A]+=f[A];
+    };
+    for (const SampledBlock<T>& x : b.blocks)
+    {
+        const R r=MakeMatrixPullback(x.bs, *x.v, *x.D, st);
+        if (!r) return r;
+        add(*r);
+    }
+    if (!b.real.empty())
+    {
+        if constexpr (std::is_same_v<T,double>)
+            for (const auto& x : b.real) { const R r=MakeMatrixPullback(x.bs, *x.v, *x.D, st); if (!r) return r; add(*r); }
+        else
+        {
+            const auto* p=dynamic_cast<const DensitySampler*>(this);
+            if (!p) return R::Fail({"a real TRIM block needs the periodic sampler's real-block face"});
+            for (const auto& x : b.real) { const R r=p->MakeMatrixPullback(x.bs, *x.v, *x.D, st); if (!r) return r; add(*r); }
+        }
+    }
+    return R::Ok(std::move(F));
+}
+template <class T> Outcome<rmat3d_t,AD::NoGradient> tDensitySampler<T>::MakeMatrixVirialBlocks(const SampledBlocks<T>& b, const Structure* st) const
+{
+    using R=Outcome<rmat3d_t,AD::NoGradient>;
+    rmat3d_t V(0,0,0, 0,0,0, 0,0,0);
+    for (const SampledBlock<T>& x : b.blocks)
+    {
+        const R r=MakeMatrixVirial(x.bs, *x.v, *x.D, st);
+        if (!r) return r;
+        V+=*r;
+    }
+    if (!b.real.empty())
+    {
+        if constexpr (std::is_same_v<T,double>)
+            for (const auto& x : b.real) { const R r=MakeMatrixVirial(x.bs, *x.v, *x.D, st); if (!r) return r; V+=*r; }
+        else
+        {
+            const auto* p=dynamic_cast<const DensitySampler*>(this);
+            if (!p) return R::Fail({"a real TRIM block needs the periodic sampler's real-block face"});
+            for (const auto& x : b.real) { const R r=p->MakeMatrixVirial(x.bs, *x.v, *x.D, st); if (!r) return r; V+=*r; }
+        }
+    }
+    return R::Ok(V);
+}
 
 //! \brief THE PERIODIC DENSITY-GRADIENT QUADRATURE (GGA stage 3): \c tDensityGradientSampler<dcmplx> plus the periodic sampler's faces, and
 //! the real TRIM block's {v, w} gather (Step 3c: a real block's tables are real, so its quadrature runs in real arithmetic).

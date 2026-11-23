@@ -142,6 +142,12 @@ template <class T> struct PairProjection
     //! coefficients alone; the two add to the whole fixed-D strain derivative.  A plane-wave block's counts are fixed by its G
     //! indices (the frozen rule), so its realization is an EXACT ZERO; GPW's is the jet walk's channel A + B, not built (empty).
     std::function<rmat3d_t(const std::function<T(const ivec3_t&)>& f, const hmat_t<T>& D, const Structure* st)> applyAdjointVirial;
+    //! THE k-FOLDS of \ref applyAdjointPullback and \ref applyAdjointVirial (user ruling 2026-11-22 "yes"): their SUM over terms (D_b,
+    //! block b's projection), every block in MY \ref foldDomain, in one real-space walk.  Set beside them by a basis that folds (GPW).
+    std::function<rvec3vec_t(const std::function<T(const ivec3_t&)>& f, const std::vector<std::pair<const hmat_t<T>*, const PairProjection*>>& terms,
+                             const Structure* st)> applyAdjointPullbackFolded;
+    std::function<rmat3d_t(const std::function<T(const ivec3_t&)>& f, const std::vector<std::pair<const hmat_t<T>*, const PairProjection*>>& terms,
+                           const Structure* st)> applyAdjointVirialFolded;
     //! \brief RAW-RASTER forward (doc/GPWPlan 0.5(f2)): \f$\rho_{DM}(r)\f$ on the tensor's integration
     //! raster -- the D-weighted collocated level densities combined SPECTRALLY (zero-pad, no ball
     //! restriction anywhere), the finest level kept raw.  Because \f$D\f$ is PSD, \f$\rho_{DM}=\phi^T D\phi

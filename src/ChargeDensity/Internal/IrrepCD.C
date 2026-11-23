@@ -34,7 +34,7 @@ import qchem.Structure;   // DM_Pullback (GeometryOptimizationPlan §13.2)
 export import qchem.ChargeDensity;
 export import qchem.ChargeDensity.DensityMatrixDistance;
 export import qchem.Symmetry.Irrep;
-export import qchem.ChargeDensity.Internal.FoldableBlock;   // the k-fold face a periodic block answers
+import qchem.ChargeDensity.Internal.FoldableBlock;   // the k-fold face a periodic block answers (not re-exported: Internal)
 import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
@@ -96,6 +96,9 @@ public:
     //! \copydoc FoldableBlock::JoinFold -- a non-zero block joins with its orbital block and its D (its \c Project contracts exactly that).
     virtual bool JoinFold(const BasisSet::PairProjector<dcmplx>& p, std::vector<BasisSet::FoldBlockRef>& blocks,
                           std::vector<BasisSet::FoldBlockD>& Ds) const override;
+    //! \copydoc FoldableBlock::JoinPullback -- my \c DM_Pullback / \c DM_Virial are exactly the term's per-block call on (basis, spin, D).
+    virtual bool JoinPullback(DensityBlocks<double>& b) const override;
+    virtual bool JoinPullback(DensityBlocks<dcmplx>& b) const override;
     //! The old face, kept one commit (V-ONE-OF-N 3a): forwards to \c Project.
     virtual double GetTotalCharge(                      ) const override;
 

@@ -28,6 +28,7 @@ target_sources(qcBasisSet PRIVATE
 target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     DBCacheClient.C                       # the integral cache's KEY CONTRACT (V1.20d; the mechanism stays Internal)
     Orbital_PP_IBS.C                      # the species-field INTEGRAL SERVICE + its ARGUMENT vocabulary (V1.2; absorbed SpeciesField.C 2026-09-15)
+    KFoldable.C                           # a k-block that shares its real-space walk with its lattice basis's other k (lane A 2026-11-22)
     PointSetPullback.C                    # a block's point-set quadrature pullback (the δ XC force on the Becke mesh; lane B 2026-11-19)
   BasisSet.C
   Conditioning.C                        # the basis conditioning report, one phase on every facade (pin 7)

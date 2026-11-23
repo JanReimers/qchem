@@ -7,6 +7,7 @@ import qchem.Structure;                       // the sites the functions sit on
 export import qchem.Types;                    // rvec3vec_t, rmat3d_t, hmat_t<T>
 export import qchem.AD;                       // NoGradient: a block with no such derivative refuses
 export import qchem.Outcome;
+export import qchem.BasisSet.KFoldable;       // KFoldTerm (the k-fold of the pullback)
 
 export namespace qchem::BasisSet
 {
@@ -24,6 +25,12 @@ public:
     virtual ~PointSetPullback() = default;
     struct Result { rvec3vec_t gradient; rmat3d_t moment; rvec3vec_t perPoint; };
     virtual Outcome<Result,AD::NoGradient> MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const hmat_t<T>& D, const Structure* st) const=0;
+    //! \brief THE k-FOLD (user ruling 2026-11-22 "yes"): the SUM of \c MakePointSetPullback over \a terms, blocks of MY fold domain (me
+    //! among them; \c KFoldable), each with its own D -- the functions evaluated once at each point for all of them.  CLIENT: the XC
+    //! sampler's multi-block pullback, which groups the blocks.  Default: a named refusal (a block that does not fold).
+    virtual Outcome<Result,AD::NoGradient> MakePointSetPullbackFolded(const rvec3vec_t& /*pts*/, const rvec_t& /*c*/,
+                                                                     const std::vector<KFoldTerm>& /*terms*/, const Structure* /*st*/) const
+    {return Outcome<Result,AD::NoGradient>::Fail({"this block's point-set pullback does not fold over k"});}
 };
 
 } // namespace qchem::BasisSet

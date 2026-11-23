@@ -3,6 +3,7 @@ module;
 #include <vector>
 export module qchem.ChargeDensity.Internal.FoldableBlock;
 export import qchem.BasisSet.PairProjector;   // FoldBlockRef, FoldBlockD, PairProjector<dcmplx>
+export import qchem.ChargeDensity;            // DensityBlocks<T> (the whole-density pullback / virial)
 
 export namespace qchem
 {
@@ -22,6 +23,11 @@ public:
     //! FALSE, appending nothing, when projecting through \a p must stay my own call.
     virtual bool JoinFold(const BasisSet::PairProjector<dcmplx>& p, std::vector<BasisSet::FoldBlockRef>& blocks,
                           std::vector<BasisSet::FoldBlockD>& Ds) const=0;
+    //! \brief Append my (block, spin, D) to \a b, for ONE whole-density pullback or virial (\c tStatic_PC::PullbackBlocks, user ruling
+    //! 2026-11-22 "yes"), and answer TRUE -- or FALSE, appending nothing, when my derivative must stay my own \c DM_Pullback call.  A real
+    //! block in a complex run joins \a b's \c real list.
+    virtual bool JoinPullback(ChargeDensity::DensityBlocks<double>& b) const=0;
+    virtual bool JoinPullback(ChargeDensity::DensityBlocks<dcmplx>& b) const=0;
 };
 
 } // namespace qchem

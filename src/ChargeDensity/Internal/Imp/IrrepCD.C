@@ -474,6 +474,20 @@ template <class T> bool IrrepCD_Core<T>::JoinFold(const BasisSet::PairProjector<
     return true;
 }
 
+// The whole-density derivative's list (user ruling 2026-11-22 "yes"): my block, spin and D, exactly what my DM_Pullback hands the term.
+// A real block of a complex run joins the real list; a complex block has no place in a real run's list (that run has no complex blocks).
+template <class T> bool IrrepCD_Core<T>::JoinPullback(DensityBlocks<double>& b) const
+{
+    if constexpr (std::is_same_v<T,double>) { b.blocks.push_back({itsBasisSet, itsSpin, &itsDensityMatrix}); return true; }
+    else return false;
+}
+template <class T> bool IrrepCD_Core<T>::JoinPullback(DensityBlocks<dcmplx>& b) const
+{
+    if constexpr (std::is_same_v<T,double>) b.real.push_back({itsBasisSet, itsSpin, &itsDensityMatrix});
+    else                                    b.blocks.push_back({itsBasisSet, itsSpin, &itsDensityMatrix});
+    return true;
+}
+
 template <class T> Projections IrrepCD_Core<T>::Project(const BasisSet::PairProjector<dcmplx>& p) const
 {
     // A zero block answers in the PROJECTOR's own realization (a G-space projector's empty map, a δ projector's zero

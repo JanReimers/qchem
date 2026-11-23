@@ -320,6 +320,9 @@ public:
     virtual rmat3d_t    Virial(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const override
     {return VirialBlock<T>(bs, s, D, st);}
     template <class U> rmat3d_t VirialBlock(const tobs_t<U>* bs, const Spin& s, const hmat_t<U>& D, const Structure* st) const;
+    //! The whole density's orbital side at once (user ruling 2026-11-22 "yes"): the sampler's \c MakeMatrixVirialBlocks, which folds the
+    //! k-blocks of one lattice basis.
+    virtual rmat3d_t    VirialBlocks(const ChargeDensity::DensityBlocks<T>& b, const Structure* st) const override;
     //!@}
     typedef std::shared_ptr<ExFunctional> xc_t;
     //! \name THE FORCE AT FIXED D (doc/GeometryOptimizationPlan.md §13.2).  \f$E_{xc}=\sum_g w_g e(\rho(r_g))\f$ with \f$\rho\f$ the
@@ -333,6 +336,13 @@ public:
     virtual rvec3vec_t  Pullback(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const override
     {return PullbackBlock<T>(bs, s, D, st);}
     template <class U> rvec3vec_t PullbackBlock(const tobs_t<U>* bs, const Spin& s, const hmat_t<U>& D, const Structure* st) const;
+    //! The whole density's pullback at once (user ruling 2026-11-22 "yes"): the sampler's \c MakeMatrixPullbackBlocks, which folds the
+    //! k-blocks of one lattice basis (the Becke mesh's point evaluations shared).
+    virtual rvec3vec_t  PullbackBlocks(const ChargeDensity::DensityBlocks<T>& b, const Structure* st) const override;
+    //! The field block \a s sees (the refresh's v for its spin; a folded doublet sees Up), for \a who's message.
+    const rvec_t& FieldFor(const Spin& s, const char* who) const;
+    //! The sampler's view of \a b: each block with its field.
+    ChargeDensity::SampledBlocks<T> Sampled(const ChargeDensity::DensityBlocks<T>& b, const char* who) const;
     //!@}
     typedef std::shared_ptr<const ChargeDensity::tDensitySampler<T>> sampler_t;   //!< const: every accessor is const (R2.9(i))
     //! \a g is the imposed spin subgroup: which rasters the sampler is asked for (its Rho / RhoPol caches
