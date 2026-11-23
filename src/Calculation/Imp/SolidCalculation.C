@@ -481,7 +481,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
             .densityEcut = opts.solid.densityEcut, .cutoffFactor = opts.solid.cutoffFactor,
             .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
             .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = tol,
-            .hamPreservesReal = S.realTRIMBlocks};
+            .hamPreservesReal = S.realTRIMBlocks, .dAwareScreen = S.policy.DAwareScreen(), .streamFold = S.policy.StreamFold()};
         ResolveGpwPoint(lat, mol, *S.pp, p);
         itsImp->imposition=p.imposition;
         itsImp->ladder    =p.ladder;
@@ -1817,7 +1817,7 @@ AuditReferenceSize SolidCalculation::SizeReference(const std::string& name, cons
         .densityEcut = autoBall ? opts.solid.densityEcut : ballScale*opts.solid.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.solid.cutoffFactor : opts.solid.cutoffFactor,
         .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
         .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
-        .hamPreservesReal = S.realTRIMBlocks};
+        .hamPreservesReal = S.realTRIMBlocks, .dAwareScreen = S.policy.DAwareScreen(), .streamFold = S.policy.StreamFold()};
     const std::shared_ptr<const Structure> held=itsImp->lat->GetStructure();
     const double ppSharpness=BasisSet::Gaussian::LocalPPSharpness(*held, *Pseudopotential::MakeMultiSpeciesLocal(S.pp->Species(*held), S.pp->Functional()));
     const auto ladder=L3::MakeRasterLadder(*itsImp->lat, itsImp->mol, p, ppSharpness);
@@ -2434,7 +2434,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             .densityEcut = autoBall ? opts.solid.densityEcut : ballScale*opts.solid.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.solid.cutoffFactor : opts.solid.cutoffFactor,
             .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
             .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
-            .hamPreservesReal = S.realTRIMBlocks};
+            .hamPreservesReal = S.realTRIMBlocks, .dAwareScreen = S.policy.DAwareScreen(), .streamFold = S.policy.StreamFold()};
         ResolveGpwPoint(latRef, molRef, *S.pp, p);   // the reference's own ladder (its rasters / ball differ), sized for the same PP
         ladderRef=p.ladder;
         const auto makerRef=MakeMeshMaker(latRef.GetUnitCell());

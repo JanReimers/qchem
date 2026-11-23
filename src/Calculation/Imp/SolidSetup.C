@@ -605,7 +605,8 @@ std::unique_ptr<BasisSet::Lattice::ShellConditioning> SolidSetup::MakeShellCondi
 {
     const GaussianBasisRecipe bare=Untrimmed(recipe, planeWave, "SolidSetup::MakeShellConditioning");
     return std::make_unique<BasisSet::Lattice::ShellConditioning>(lattice, MakeMeshMaker(lattice.GetUnitCell()), bare.Make(*structure, *pp),
-                                                                  BasisSet::Lattice::GPWParams{.images=opts.solid.images, .kShift=opts.solid.kShift, .tol=bare.tolerances});
+                                                                  BasisSet::Lattice::GPWParams{.images=opts.solid.images, .kShift=opts.solid.kShift, .tol=bare.tolerances,
+                                                                                              .dAwareScreen=policy.DAwareScreen(), .streamFold=policy.StreamFold()});
 }
 
 BasisSet::Gaussian::ShellTrim SolidSetup::MakeVetTrim(double orthoTol) const
