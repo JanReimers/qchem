@@ -16,6 +16,7 @@ import qchem.ElectronConfiguration;
 export import qchem.SCFAccelerator;
 export import qchem.WaveFunction;
 import qchem.WaveFunction.SCF;
+export import qchem.WaveFunction.Factory;   // the facade builds the wave function it hands the iterator (group E)
 import qchem.ElectronConfiguration.OccupationPolicy;   // the iterator's occupation SLOT (V1.11 inc 3)
 export import qchem.SCFParams;
 export import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
@@ -183,22 +184,22 @@ public:
     // The seed density is chosen by strategy (see ChargeDensity::SeedStrategy): Default resolves to the
     // molecular CoreGuess.  \a st (the structure) is needed only by the SAD seed (atom Z + positions); null is
     // fine otherwise.  MOLECULAR only: the solid lineage resolves its strategy against the cell it demands.
-    // \a basisOrtho / \a basisOrthoTol select how the orbital-overlap S is orthogonalised: Cholesky
-    // (default; needs S positive-definite) or Eigen/SVD with a cutoff that drops near-null eigen/singular
-    // values -- canonical orthogonalisation for a linearly-dependent basis (e.g. GPW's diffuse Gaussians
-    // on a dense lattice, whose Bloch overlap goes singular).  \a basisOrthoTol<=0 keeps all.
+    // \a wf: the wave function, BUILT BY THE CALLER (\c WaveFunction::Factory, on THIS iterator's \a bs, \a ec, Hamiltonian and
+    // accelerator, with the run's density maker and its orthogonalisation / band choices) and OWNED here from now on.  The iterator never
+    // holds the density maker (D-MUTABLE-STATICS-RUNPOLICY group E, controller 2026-11-23): only a strategy-seeded iterator is handed one,
+    // \a seedMaker, to make the seed's block density.
     // \a seedMesh: the XC mesh of the LDA sibling an HF/DHF run builds its iteration-0 Fock on from a matrix-free (SAD) seed (see
     // Initialize) -- the RUN's resolved mesh, which the facade states (lane A 2026-11-10).  A hidden default here was the 12-direction
     // Lebedev rule, an icosahedron with no C4 axis: on O2 it split pi_g by 13 mHa at the seed, and a stated Shared fill then
     // converged to the broken state 0.25 Ha below the shared one.  Unused when the seed needs no sibling.
     // \a seedMeshMaker: builds the SAD seed's mesh (at \a seedMesh) over \a st's geometry point (V-MESH-FACTORY §4.3); demanded, never null.
-    tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,
+    tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*, std::unique_ptr<scfwf_t> wf,
+                 const ChargeDensity::DensityMaker& seedMaker,
                  ChargeDensity::SeedStrategy seed,
                  const Structure* st,
                  const qcMesh::MeshParams& seedMesh,
                  std::shared_ptr<const qcMesh::MeshMaker> seedMeshMaker,
-                 const ChargeDensity::SeedKey& seedKey,   //!< the seed library's key: per Z, the pseudopotential q of the run's pseudo-atom (none all-electron)
-                 qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, size_t numBands=0)
+                 const ChargeDensity::SeedKey& seedKey)   //!< the seed library's key: per Z, the pseudopotential q of the run's pseudo-atom (none all-electron)
         requires std::is_same_v<T,double>;
     //! Grid-continuation / explicit-seed ctor (doc/GPWPlan §0e): seed the SCF from a PRE-BUILT density
     //! \a seedDensity (TAKES OWNERSHIP -- consumed building the iteration-0 Fock, then freed) instead of
@@ -210,17 +211,16 @@ public:
     //! outlive this ctor (it is read once here, in Init).
     //! \a role: \c SeedRole::WorkingDensity when \a seedDensity is a converged state of this graph (THROWS if it is not
     //! matrix-backed); the default \c Guess is the old behaviour.
-    tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,
+    tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*, std::unique_ptr<scfwf_t> wf,
                  tChargeDensity<T>* seedDensity,
                  const Structure* st=nullptr,
-                 qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, SeedRole role=SeedRole::Guess,
-                 size_t numBands=0);   //!< \a numBands: lowest eigenpairs kept per block, 0 = all (LASolver::Factory)
+                 SeedRole role=SeedRole::Guess);
 
 private:
     //! The shared construction body both public ctors delegate to; \a seedMesh is the SeedStrategy ctor's (empty from the other).
-    tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*, tChargeDensity<T>* seedDensity, const Structure* st,
-                 std::optional<qcMesh::MeshParams> seedMesh, std::shared_ptr<const qcMesh::MeshMaker> seedMeshMaker,
-                 qchem::Ortho basisOrtho, double basisOrthoTol, SeedRole role, size_t numBands);
+    tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*, std::unique_ptr<scfwf_t> wf, tChargeDensity<T>* seedDensity,
+                 const Structure* st, std::optional<qcMesh::MeshParams> seedMesh, std::shared_ptr<const qcMesh::MeshMaker> seedMeshMaker,
+                 SeedRole role);
 public:
     virtual ~tSCFIterator();
     //! Iterate resolves \c ipar.Mixer first (\c ResolveMixing), so \c Mixing::Auto becomes this run's mixer.
@@ -389,7 +389,7 @@ private:
     //! Pulay/DIIS history, and the accelerator TYPE itself changes (anneal on Ladder, finish on GDM).
     //! Cheap to construct, so rebuilding it is right -- it is the Hamiltonian that was never the problem.
     acc_t*          itsAccelerator;
-    //! OWNED -- this one the iterator genuinely makes (\c WaveFunction::Factory, in the ctor's init list).
+    //! OWNED -- built by the caller (\c WaveFunction::Factory, with the run's density maker) and handed over at construction.
     std::unique_ptr<scfwf_t> itsWaveFunction;
     //!@}
     //! The occupation SLOT (V1.11 inc 3; SCFStrategyPlan §6), now a STATE + a POLICY over it (R2.21).
@@ -486,14 +486,14 @@ public:
     //! The seed by strategy, resolved against \a cell (\c Default = \c Uniform); the other arguments are the base's.
     //! \a mixRhoM: the density mixer's channel basis, (ρ,m) or CP2K's (ρ↑,ρ↓) -- the run's policy.mixRhoM, resolved by its setup.
     SolidSCFIterator(const tbs_t<dcmplx>*, const ElectronConfiguration*, qchem::Hamiltonian::tHamiltonian<dcmplx>*,
-                     qchem::SCFAccelerators::SCFAccelerator*, const UnitCell& cell, bool mixRhoM,
-                     ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::Default,
-                     qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, size_t numBands=0);
+                     qchem::SCFAccelerators::SCFAccelerator*, std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>> wf,
+                     const ChargeDensity::DensityMaker& seedMaker,
+                     const UnitCell& cell, bool mixRhoM,
+                     ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::Default);
     //! A pre-built \a seedDensity (TAKES OWNERSHIP), as the base's explicit-seed ctor.
     SolidSCFIterator(const tbs_t<dcmplx>*, const ElectronConfiguration*, qchem::Hamiltonian::tHamiltonian<dcmplx>*,
-                     qchem::SCFAccelerators::SCFAccelerator*, const UnitCell& cell, bool mixRhoM, tChargeDensity<dcmplx>* seedDensity,
-                     qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, SeedRole role=SeedRole::Guess,
-                     size_t numBands=0);
+                     qchem::SCFAccelerators::SCFAccelerator*, std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>> wf,
+                     const UnitCell& cell, bool mixRhoM, tChargeDensity<dcmplx>* seedDensity, SeedRole role=SeedRole::Guess);
 protected:
     //! The solid column list: the base's, with the gate swapped to ΔE/E and ρ_lost/N inserted.
     void AccumulateColumns(std::vector<ColumnData>&, const SCFParams&, size_t idealVirial) const override;

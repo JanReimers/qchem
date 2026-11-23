@@ -304,17 +304,18 @@ void AtomCalculation::BuildGraph()
         itsAccel.reset(accel);
         SeededIterator(!itsCarried && !itsRestored.empty() && itsRestoredExact);   // the exact-resume Pulay policy's first-stage bit
         if (itsCarried)   // the atom pilot's re-convergence on raised grids: the converged D drives the first Fock
-            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), itsCarried.release(), itsSetup->structure.get(), ortho,
-                                 0.0, qchem::SCFIterator::SeedRole::WorkingDensity);
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<double>>(qchem::WaveFunction::Factory(itsHam.get(), itsBasis, itsEC, itsAccel.get(), itsSetup->densityMaker, ortho, 0.0, 0)),
+                                 itsCarried.release(), itsSetup->structure.get(), qchem::SCFIterator::SeedRole::WorkingDensity);
         else if (itsRestored.empty())
-            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsSetup->structure.get(), *itsSetup->opts.xcMesh,
-                                 itsSetup->meshMaker, itsSetup->seedKey,   // a stated SAD seed reads the run's own atom (the setup's key)
-                                 ortho);   // an HF SAD seed's sibling: the run's mesh
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<double>>(qchem::WaveFunction::Factory(itsHam.get(), itsBasis, itsEC, itsAccel.get(), itsSetup->densityMaker, ortho, 0.0, 0)), itsSetup->densityMaker,
+                                 seed, itsSetup->structure.get(), *itsSetup->opts.xcMesh,   // an HF SAD seed's sibling: the run's mesh
+                                 itsSetup->meshMaker, itsSetup->seedKey);   // a stated SAD seed reads the run's own atom (the setup's key)
         else
         {
             // A RESTORED state (PrepareRestart), consumed here once: an exact resume drives the first Fock from the saved D.
-            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), RestoredDensity().release(), itsSetup->structure.get(), ortho,
-                                 0.0, itsRestoredExact ? qchem::SCFIterator::SeedRole::ExactResume : qchem::SCFIterator::SeedRole::WorkingDensity);
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<double>>(qchem::WaveFunction::Factory(itsHam.get(), itsBasis, itsEC, itsAccel.get(), itsSetup->densityMaker, ortho, 0.0, 0)),
+                                 RestoredDensity().release(), itsSetup->structure.get(),
+                                 itsRestoredExact ? qchem::SCFIterator::SeedRole::ExactResume : qchem::SCFIterator::SeedRole::WorkingDensity);
             itsRestored.clear();
             itsRestoredExact=false;
         }
@@ -514,7 +515,7 @@ std::unique_ptr<qchem::ChargeDensity::rDM_CD> AtomCalculation::RestoredDensity()
             if (b>=itsRestored.size() || itsRestored[b].rows()!=ibs->GetNumFunctions())
                 throw std::logic_error("AtomCalculation: the restored density's blocks do not match this basis");
             const Irrep irr=ibs->GetIrrep(s);
-            cd->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(itsRestored[b++], ibs, irr)), irr);
+            cd->Insert(itsSetup->densityMaker.Make<double>(itsRestored[b++], ibs, irr), irr);
         }
     if (b!=itsRestored.size()) throw std::logic_error("AtomCalculation: the restored density has more blocks than this basis");
     return cd;

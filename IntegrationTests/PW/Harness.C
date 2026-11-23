@@ -363,8 +363,9 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     // \a seed defaults to Uniform rho(r)=N/V; IonicSAD pre-bakes the formal-charge transfer (Na+ + F-).
     // Built here rather than by the enum ctor, which reads the seed library UNKEYED: that throws for Na since the q9 seeds landed.
     const bool polarized=ham->GetSpinGroup()==SpinGroup::Polarized;
-    auto* seedCD=qchem::ChargeDensity::MakeSeedDensity(seed, bs.get(), lat.GetUnitCell(), &ec, polarized, seedKey);
-    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, lat.GetUnitCell(), /*mixRhoM*/true, seedCD);
+    auto* seedCD=qchem::ChargeDensity::MakeSeedDensity(seed, bs.get(), lat.GetUnitCell(), &ec, qchem::ChargeDensity::DensityMaker(qchem::ChargeDensity::RhoRoute::PivotedCholesky), polarized, seedKey);
+    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>>(qchem::WaveFunction::Factory(ham, bs.get(), &ec, acc, qchem::ChargeDensity::DensityMaker(qchem::ChargeDensity::RhoRoute::PivotedCholesky))),
+                                         lat.GetUnitCell(), /*mixRhoM*/true, seedCD);
     SCFParams par;
     par.NMaxIter=120; par.MinΔρPerElectron=1e-6; par.MinΔFD=std::nullopt; par.MinVirial=std::nullopt; par.MinFD=std::nullopt;
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=false;

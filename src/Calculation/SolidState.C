@@ -47,6 +47,7 @@ import qchem.Types;
 import qchem.BasisSet;                   // Complex_BS (the Bloch blocks)
 import qchem.WaveFunction;               // cWaveFunction (the orbitals a save reads)
 import qchem.ChargeDensity;              // cDM_CD (the restored density)
+import qchem.ChargeDensity.Factory;      // DensityMaker (the run's rho route, group E)
 import qchem.Hamiltonian.Factory;        // HubbardManifold, SpinGroup
 
 export namespace qchem
@@ -119,7 +120,7 @@ Outcome<SavedState, RestartRefusal> ReadSolidState(const std::string& path);
 //! spin pairs projected (a magnetic group), composed exactly as the wave function composes its own.  The fingerprint must already
 //! have been compared (the block sizes and k are ASSERTED against it here, not re-judged).  FAILS only on the Realness case.
 Outcome<std::unique_ptr<ChargeDensity::cDM_CD>, RestartRefusal>
-    RestoreDensity(const SavedState&, const BasisSet::Complex_BS& bs, SpinGroup g);
+    RestoreDensity(const SavedState&, const BasisSet::Complex_BS& bs, SpinGroup g, const ChargeDensity::DensityMaker& maker);   // maker: the run's (group E)
 
 //  The file layout is qchem.SCFState's ("qchem-state 2.0", kind "solid"); each block carries its k[3] as a block extra.  A solid
 //  "qchem-solid-state 1.x" file is read through the same reader.

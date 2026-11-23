@@ -119,7 +119,7 @@ static std::shared_ptr<const BasisSet::cFIT_CD_ABS> SeedFit(const BasisSet::tBas
 }
 
 //! rho(r) = N/V on the first block: the seed both lineages share.
-template <class T> static tChargeDensity<T>* UniformSeed(const BasisSet::tBasisSet<T>* bs, const ElectronConfiguration* ec)
+template <class T> static tChargeDensity<T>* UniformSeed(const BasisSet::tBasisSet<T>* bs, const ElectronConfiguration* ec, const DensityMaker& maker)
 {
     // rho(r) = N/V  =>  D = (N/n) I on the first block.  A single block suffices since rho is
     // constant: every block's first Hartree/XC build sees the same total density.  This is the
@@ -140,7 +140,7 @@ template <class T> static tChargeDensity<T>* UniformSeed(const BasisSet::tBasisS
             // them) while its ρ̃ was not -- one density, two symmetries (V-SYM-SEQUESTER-OPS).
             const auto* imp=bs->GetImposition();
             auto* comp=new tComposite_CD<dcmplx>(imp ? imp->DensityGroup() : nullptr);
-            comp->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(D0, rb, irr)), irr);
+            comp->Insert(maker.Make<double>(D0, rb, irr), irr);
             return comp;
         }
     const tobs_t<T>* block = (*bs)[0];
@@ -148,7 +148,7 @@ template <class T> static tChargeDensity<T>* UniformSeed(const BasisSet::tBasisS
     const int        N     = ec->GetN(irr);
     hmat_t<T> D0=blazem::zeroH<T>(n);
     for (size_t i=0;i<n;i++) D0(i,i)=T(double(N)/double(n));
-    return IrrepCD_Factory<T>(D0, block, irr);
+    return maker.Make<T>(D0, block, irr).release();
 }
 
 //! One site of the molecular SAD superposition: its centre, its total radial density at its electron count with the amplitude scale
@@ -236,12 +236,12 @@ static tChargeDensity<double>* PolarizedSeed(const std::vector<SADSite>& sites, 
 
 tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<double>* bs,
                                         const Structure* st, const ElectronConfiguration* ec, const qcMesh::MeshParams& quadrature,
-                                        const qcMesh::MeshMaker& meshMaker, const SeedKey& key, bool polarized)
+                                        const qcMesh::MeshMaker& meshMaker, const SeedKey& key, const DensityMaker& maker, bool polarized)
 {
     assert(bs);
     assert(ec);
     if (s==SeedStrategy::Default || s==SeedStrategy::CoreGuess) return nullptr;   // density-independent core-Hamiltonian guess (cd=0)
-    if (s==SeedStrategy::Uniform) return UniformSeed<double>(bs, ec);
+    if (s==SeedStrategy::Uniform) return UniformSeed<double>(bs, ec, maker);
     if (s!=SeedStrategy::SAD && s!=SeedStrategy::IonicSAD)
         throw std::runtime_error("MakeSeedDensity: unknown SeedStrategy");   // see the IonicSAD arm (V1.19)
     if (!st) throw std::logic_error("MakeSeedDensity: the SAD/IonicSAD seed needs a Structure (atom Z + positions)");
@@ -302,7 +302,7 @@ tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSe
 }
 
 tChargeDensity<dcmplx>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<dcmplx>* bs,
-                                        const UnitCell& cell, const ElectronConfiguration* ec,
+                                        const UnitCell& cell, const ElectronConfiguration* ec, const DensityMaker& maker,
                                         bool polarized, const SeedKey& key)
 {
     assert(bs);
@@ -313,7 +313,7 @@ tChargeDensity<dcmplx>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSe
         return nullptr;   // density-independent core-Hamiltonian guess (today's cd=0)
     case SeedStrategy::Default:   // the plane-wave present-day behaviour
     case SeedStrategy::Uniform:
-        return UniformSeed<dcmplx>(bs, ec);
+        return UniformSeed<dcmplx>(bs, ec, maker);
     case SeedStrategy::SAD:
     {
         // Plane-wave (FT) SAD: rho-tilde(G) = Sum_atoms rho_atom(|G|) e^{-iG.R}, assembled by the basis.

@@ -47,8 +47,10 @@ using SCFAccelerators::tSCFIrrepAccelerator;
 
 
 template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,SpinGroup g,
-                                                 SCFAccelerator* acc, qchem::Ortho basisOrtho, double basisOrthoTol, size_t numBands )
+                                                 SCFAccelerator* acc, const ChargeDensity::DensityMaker& maker,
+                                                 qchem::Ortho basisOrtho, double basisOrthoTol, size_t numBands )
     : itsBS(bs)
+    , itsMaker(maker)
     , itsEC(ec)
     , itsSpinGroup(g)
     , itsBasisOrtho(basisOrtho)
@@ -180,7 +182,7 @@ template <class T> template <class U> void tCompositeWF<T>::MakeOneIrrepWF(const
 
         tSCFIrrepAccelerator<U>* acc=itsAccelerator->Create(lasb,qns,itsEC->PrescribedBlockN(qns));   // §6 typed Create (the block's own count)
 
-        std::unique_ptr<tIrrepWF<U>> wf(new tIrrepWF<U>(b,lasb,qns,acc));
+        std::unique_ptr<tIrrepWF<U>> wf(new tIrrepWF<U>(b,lasb,qns,acc,itsMaker));
         itsQNWFs[qns]=iwf_ref_t(wf.get());
         itsSpinWFs[s].push_back(iwf_ref_t(wf.get()));
         itsIWFs.push_back(iwf_child_t(std::move(wf))); //Do the move last. wf is invalid after the move.

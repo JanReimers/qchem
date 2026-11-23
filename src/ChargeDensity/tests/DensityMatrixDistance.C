@@ -67,8 +67,8 @@ TEST(DensityMatrixDistance, IsTheOverlapMetricNormOfTheChange)
     const auto* block=(*bs)[0];
     const size_t n=block->GetNumFunctions();
     const hmat_t<double> Da=SomeD<double>(n,0.3), Db=SomeD<double>(n,1.9);
-    const std::unique_ptr<tDM_CD<double>> a(IrrepCD_Factory<double>(hmat_t<double>(Da), block, bs->GetIrreps(Spin::None)[0]));
-    const std::unique_ptr<tDM_CD<double>> b(IrrepCD_Factory<double>(hmat_t<double>(Db), block, bs->GetIrreps(Spin::None)[0]));
+    const std::unique_ptr<tDM_CD<double>> a(IrrepCD_Factory<double>(hmat_t<double>(Da), block, bs->GetIrreps(Spin::None)[0], qchem::ChargeDensity::RhoRoute::PivotedCholesky));
+    const std::unique_ptr<tDM_CD<double>> b(IrrepCD_Factory<double>(hmat_t<double>(Db), block, bs->GetIrreps(Spin::None)[0], qchem::ChargeDensity::RhoRoute::PivotedCholesky));
     const auto& d=dynamic_cast<const tDensityMatrixDistance<double>&>(*a);
 
     const double expected=TraceByHand(hmat_t<double>(Da-Db), block->Overlap());
@@ -88,8 +88,8 @@ TEST(DensityMatrixDistance, IsTheFrobeniusNormInAnOrthonormalBasis)
     const auto* block=(*bs)[0];
     const size_t n=block->GetNumFunctions();
     const hmat_t<dcmplx> Da=SomeD<dcmplx>(n,0.3), Db=SomeD<dcmplx>(n,1.9);
-    const std::unique_ptr<tDM_CD<dcmplx>> a(IrrepCD_Factory<dcmplx>(hmat_t<dcmplx>(Da), block, bs->GetIrreps(Spin::None)[0]));
-    const std::unique_ptr<tDM_CD<dcmplx>> b(IrrepCD_Factory<dcmplx>(hmat_t<dcmplx>(Db), block, bs->GetIrreps(Spin::None)[0]));
+    const std::unique_ptr<tDM_CD<dcmplx>> a(IrrepCD_Factory<dcmplx>(hmat_t<dcmplx>(Da), block, bs->GetIrreps(Spin::None)[0], qchem::ChargeDensity::RhoRoute::PivotedCholesky));
+    const std::unique_ptr<tDM_CD<dcmplx>> b(IrrepCD_Factory<dcmplx>(hmat_t<dcmplx>(Db), block, bs->GetIrreps(Spin::None)[0], qchem::ChargeDensity::RhoRoute::PivotedCholesky));
 
     double frobenius=0.0;
     for (size_t i=0; i<n; i++) for (size_t j=0; j<n; j++) frobenius+=std::norm(dcmplx(Da(i,j))-dcmplx(Db(i,j)));
@@ -104,7 +104,7 @@ TEST(DensityMatrixDistance, ACompositesBlocksAddTheirSquares)
     const auto* block=(*bs)[0];
     const size_t n=block->GetNumFunctions();
     const auto up=bs->GetIrreps(Spin::Up)[0], dn=bs->GetIrreps(Spin::Down)[0];
-    auto leaf=[&](double seed, const Irrep& q){ return std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(SomeD<double>(n,seed), block, q)); };
+    auto leaf=[&](double seed, const Irrep& q){ return std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(SomeD<double>(n,seed), block, q, qchem::ChargeDensity::RhoRoute::PivotedCholesky)); };
     tComposite_CD<double> a, b;
     a.Insert(leaf(0.3,up), up); a.Insert(leaf(1.1,dn), dn);
     b.Insert(leaf(1.9,up), up); b.Insert(leaf(2.7,dn), dn);

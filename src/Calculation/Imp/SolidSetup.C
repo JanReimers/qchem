@@ -369,6 +369,16 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     std::shared_ptr<SolidSetup> s(new SolidSetup(Pseudopotential::PseudopotentialSet::Get(*opts.pp).With(opts.species), lat));
     s->opts=opts;
     s->policy=RunPolicy(opts.solid.policy);
+    {   // THE DENSITY ROUTE (group E): a stated policy.dmLowRank, else cp2kCompat's Direct (CP2K evaluates rho as the full quadratic form),
+        // else the factored route, O(npts n r) where D has rank r.  The maker only carries it out; nothing switches it during the run.
+        const bool factored=s->policy.DMLowRank();
+        s->densityMaker=ChargeDensity::DensityMaker(factored ? ChargeDensity::RhoRoute::PivotedCholesky : ChargeDensity::RhoRoute::Direct);
+        const std::string why=opts.solid.policy.dmLowRank ? "stated (policy.dmLowRank)"
+                             : s->policy.CP2KCompat()    ? "cp2kCompat: CP2K evaluates rho as the full quadratic form"
+                             :                             "the qchem default: rho = ||L^dag Phi||^2 from the pivoted-Cholesky factor of D";
+        policy::Report("DensityRoute", factored ? "rho from D: factored (pivoted Cholesky)" : "rho from D: direct (the full quadratic form)",
+                       policy::Verdict::Choose, why);
+    }
     s->acc      =acc;
     s->accParams=ResolveAcceleratorParams(acc, SCFAccelerators::AcceleratorParams{});   // the solid's defaults: the GPW production recipe
     s->accelerator=opts.accelerator;   // its one home: Auto lets each stage decide

@@ -266,7 +266,8 @@ TEST(SADSeed, ItsChargeIsTheElectronCountTheDunlapFitIsConstrainedTo)
                                                 BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     const Molecule_EC ec(10);
     const std::unique_ptr<tChargeDensity<double>> seed(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &oh, &ec, kSeedMesh,
-                                                                       StructureMeshMaker<Molecule>(std::make_shared<const Molecule>(oh)), SeedKey{}));
+                                                                       StructureMeshMaker<Molecule>(std::make_shared<const Molecule>(oh)), SeedKey{},
+                                                                       DensityMaker(RhoRoute::PivotedCholesky)));
     ASSERT_TRUE(seed);
     EXPECT_EQ(seed->GetTotalCharge(), oh.GetNumElectrons());   // bit-equal: the same double the Dunlap term holds
 }
@@ -292,7 +293,8 @@ TEST(SADSeed, APolarizedRunPlantsItsHundPairsAtItsStatedMoment)
                                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
         const Molecule_EC ec(nUp, nDn);
         return std::unique_ptr<tChargeDensity<double>>(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &m, &ec, kSeedMesh,
-                                                                       StructureMeshMaker<Molecule>(std::make_shared<const Molecule>(m)), SeedKey{}, polarized));
+                                                                       StructureMeshMaker<Molecule>(std::make_shared<const Molecule>(m)), SeedKey{},
+                                                                       DensityMaker(RhoRoute::PivotedCholesky), polarized));
     };
     ASSERT_TRUE(HasAtomicSpinPair(11, "LDA", "atomic_densities.json"));
     const auto [maj, min]=GetAtomicSpinPair(11, "LDA", "atomic_densities.json");

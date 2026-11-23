@@ -10,6 +10,7 @@ export import qchem.WaveFunction.SCF;
 import qchem.SCFAccelerator;
 import qchem.ElectronConfiguration;
 import qchem.WaveFunction.Internal.IrrepWF;
+import qchem.ChargeDensity.Factory;   // DensityMaker
 import qchem.WaveFunction.Types;
 import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation: Cholesky | Eigen | SVD + tol)
 
@@ -60,7 +61,8 @@ public:
     //! positive-definite) or \c Eigen / \c SVD with a \a basisOrthoTol cutoff that DROPS near-null
     //! eigen/singular values -- canonical orthogonalisation for a linearly-dependent basis (e.g. diffuse
     //! Gaussians on a dense lattice).  \a basisOrthoTol\f$\le0\f$ = keep all.
-    tCompositeWF(const tbs_t<T>*,const ElectronConfiguration*,SpinGroup g,SCFAccelerator*,
+    //! \a maker: the run's density maker (its setup's resolved rho route), handed to every block's orbitals.
+    tCompositeWF(const tbs_t<T>*,const ElectronConfiguration*,SpinGroup g,SCFAccelerator*, const ChargeDensity::DensityMaker& maker,
                  qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, size_t numBands=0);
     ~tCompositeWF();
 
@@ -119,6 +121,7 @@ private:
     void DisplayEigenUnPolarized() const;
 
     const tbs_t<T>*              itsBS;
+    ChargeDensity::DensityMaker  itsMaker;         //the run's density maker, handed to every block's orbitals (group E)
     const ElectronConfiguration* itsEC;
     SpinGroup                    itsSpinGroup;     //the imposed spin subgroup (V1.37)
     qchem::Ortho                 itsBasisOrtho;    //S-orthogonalisation mode for the generalised eigenproblem

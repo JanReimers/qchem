@@ -6,21 +6,9 @@ module;
 module qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.BasisSet.Orbital_DFT_IBS;   // the periodic-lineage probe (Orbital_DFT_IBS<T,dcmplx>)
-import qchem.RunPolicy;   // the resolved deviation set (doc/OpenWork.md N5) -- NOT a getenv here
 
 namespace qchem::ChargeDensity
 {
-
-// The default rho ROUTE.  QCHEM_DM_LOWRANK=0 is the A/B valve, and the escape hatch if a future density
-// ever needs the plain quadratic form.  Policy belongs HERE, in the factory -- putting it inside the
-// density would have given factorisation state to every block including those that never factor.
-// The VALUE comes from qchem::theRunPolicy() rather than a getenv on this line, because it is one of the
-// deviations from CP2K that a run has to be able to STATE and to turn off in one place (N5): a flag read
-// where it is used can be neither reported nor overridden coherently.
-RhoRoute DefaultRhoRoute()
-{
-    return theRunPolicy().DMLowRank() ? RhoRoute::PivotedCholesky : RhoRoute::Direct;
-}
 
 // TWO ORTHOGONAL AXES, ONE ENUM.
 //
@@ -52,13 +40,7 @@ template <class T> tDM_CD<T>* IrrepCD_Factory(hmat_t<T> dm,const tobs_t<T>* bs, 
         // it is what keeps the un-instantiable name out of the dcmplx build in the first place.
         throw std::logic_error("IrrepCD_Factory: a complex block density requires a periodic (G-space) basis");
 }
-template <class T> tDM_CD<T>* IrrepCD_Factory(hmat_t<T> dm,const tobs_t<T>* bs, Irrep qns)
-{
-    return IrrepCD_Factory<T>(std::move(dm),bs,qns,DefaultRhoRoute());
-}
 template tDM_CD<double>* IrrepCD_Factory<double>(hmat_t<double>,const tobs_t<double>*, Irrep, RhoRoute);
 template tDM_CD<dcmplx>* IrrepCD_Factory<dcmplx>(hmat_t<dcmplx>,const tobs_t<dcmplx>*, Irrep, RhoRoute);
-template tDM_CD<double>* IrrepCD_Factory<double>(hmat_t<double>,const tobs_t<double>*, Irrep);
-template tDM_CD<dcmplx>* IrrepCD_Factory<dcmplx>(hmat_t<dcmplx>,const tobs_t<dcmplx>*, Irrep);
 
 } //namespace
