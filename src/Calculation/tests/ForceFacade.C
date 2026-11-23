@@ -1242,7 +1242,9 @@ TEST(HamiltonianForces, TheDunlapHartreesForceAtFixedDIsItsEnergysFiniteDifferen
 TEST(HamiltonianForces, TheBeckeXCForceAtFixedDIsItsEnergysFiniteDifference)
 {
     const Molecule h2o=GetMolecule("H2O");
-    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .scf=AnyD(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
+    // The Hartree is STATED as the A1_coul Dunlap fit (it has its force): the δ default (user ruling 2026-11-22) would add the δ Hartree's
+    // own refusal until lane S's operator leg lands.
+    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .coulomb={.auxBasis="A1_coul"}, .scf=AnyD(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
     ASSERT_TRUE(c->IsConverged());
     EXPECT_TRUE(ForceFacadeTests::MissingGradients(*c).empty()) << "LDA water: every term has its force";
     const auto D=ForceFacadeTests::Carry(*c);
@@ -1279,8 +1281,7 @@ TEST(HamiltonianForces, TheBeckeXCForceAtFixedDIsItsEnergysFiniteDifference)
 TEST(HamiltonianForces, WithTheBeckeXCTheLDAForceIsTheFiniteDifferenceOfTheReconvergedEnergy_Long)
 {
     const Molecule h2o=GetMolecule("H2O");
-    RunOptions opts{.model=Model::LDA, .molecule={.basis="dzvp"}};
-    opts.coulomb.fit=Hamiltonian::CoulombFit::Auxiliary;   // STATED: the Gaussian (Dunlap) fit, not the route's default
+    RunOptions opts{.model=Model::LDA, .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="dzvp"}};   // STATED: the A1_coul Dunlap fit, not the δ default
     opts.scf=Tight(); auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, opts)).TakeValue(); (void)c->Converge();
     ASSERT_TRUE(c->IsConverged());
     ASSERT_TRUE(ForceFacadeTests::MissingGradients(*c).empty());
