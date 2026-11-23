@@ -17,6 +17,7 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <stdexcept>
 
 import qchem.BasisSet.Gaussian.Point.Factory;     // Factory(BasisSetData, cell, engine, angular)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;     // LatticeCollocation, TransitionCollocation
@@ -34,6 +35,25 @@ import qchem.Blaze;
 
 using namespace qchem;
 using namespace qchem::BasisSet::Gaussian;
+#include "forward.H"
+//! THE FRIEND of NR_Evaluator (src/forward.H): sets the collocation kernel on every block of a fresh Cartesian MnD basis, before any work.
+//! The route is the evaluator's private implementation detail (D-MUTABLE-STATICS-RUNPOLICY E-b); tests may cheat: abstract -> concrete.
+class CollocationRouteTests
+{
+public:
+    static void Bind(::qchem::BasisSet::Real_BS& bs, const ::qchem::BasisSet::Gaussian::CollocationRoute& r)
+    {
+        for (auto ibs : bs.Iterate<::qchem::BasisSet::Real_OIBS>())
+        {
+            using NR=::qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD::NR_Evaluator;
+            auto* ev=const_cast<NR*>(dynamic_cast<const NR*>(ibs));   // a fresh basis the test owns
+            if (!ev) throw std::logic_error("CollocationRouteTests: not a MnD block");
+            if (!ev->itsBoxTasks.empty() || !ev->itsIntegrateMemos.empty())
+                throw std::logic_error("CollocationRouteTests: the route changes only on a fresh basis, before any collocation work");
+            ev->itsRoute=r;
+        }
+    }
+};
 
 namespace {
 
@@ -54,7 +74,7 @@ Periodic Make(BasisSetData data, const UnitCell& cell, bool spherical, const ::q
     Periodic p;
     std::shared_ptr<const BasisSet::Real_BS> cart(Factory(data, &cell, Engine::MnD, Angular::Cartesian));
     if (!(route==::qchem::BasisSet::Gaussian::CollocationRoute{}))
-        dynamic_cast<::qchem::BasisSet::Gaussian::ToleranceBinding&>(const_cast<BasisSet::Real_BS&>(*cart)).BindRoute(route);
+        CollocationRouteTests::Bind(const_cast<BasisSet::Real_BS&>(*cart), route);
     p.bs = spherical ? std::shared_ptr<const BasisSet::Real_BS>(PG_Spherical::MakeSphericalLatticeView(cart)) : cart;
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*p.bs).Iterate<BasisSet::Real_OIBS>())
     {
@@ -389,11 +409,6 @@ TEST(GPWTolerances, TheExpRecurrenceIsUlpLevelAndTheRouteIsPerBasis)
     for (size_t l=0;l<a.size();l++) for (size_t g=0;g<a[l].size();g++) { d=std::max(d,std::abs(a[l][g]-b[l][g])); sc=std::max(sc,std::abs(a[l][g])); }
     EXPECT_GT(sc,1e-6);
     EXPECT_LT(d, 1e-12*sc) << "the exp recurrence is a ~n*eps accurate rebuild of the same tables";
-    // Per basis: binding a route after this basis built collocation work is refused (it would mix two kernels in one memo).
-    (void)p.lc->CollocateDensity(D, PhaseOf(rvec3_t(0,0,0)), cell, L.N, L.ecut, screen);
-    auto& bind=dynamic_cast<::qchem::BasisSet::Gaussian::ToleranceBinding&>(const_cast<BasisSet::Real_BS&>(*p.bs));
-    EXPECT_NO_THROW(bind.BindRoute({})) << "an equal route is a no-op";
-    EXPECT_THROW(bind.BindRoute({.expRecurrence=false}), std::runtime_error);
 }
 
 // ---- THE R-RESOLVED 1E SERIES (short-PP lever 2, lane A 2026-11-07) -------------------------------------------------------------
