@@ -1617,17 +1617,18 @@ void SolidSCFIterator::AccumulateColumns(std::vector<ColumnData>& cols, const SC
 }
 
 SolidSCFIterator::SolidSCFIterator(const tbs_t<dcmplx>* bs, const ElectronConfiguration* ec, qchem::Hamiltonian::tHamiltonian<dcmplx>* H,
-                                   qchem::SCFAccelerators::SCFAccelerator* acc, const UnitCell& cell, ChargeDensity::SeedStrategy seed,
+                                   qchem::SCFAccelerators::SCFAccelerator* acc, const UnitCell& cell, bool mixRhoM, ChargeDensity::SeedStrategy seed,
                                    qchem::Ortho basisOrtho, double basisOrthoTol, size_t numBands)
-    : SolidSCFIterator(bs,ec,H,acc,cell, ChargeDensity::MakeSeedDensity(seed,bs,cell,ec, H&&H->GetSpinGroup()==SpinGroup::Polarized),
+    : SolidSCFIterator(bs,ec,H,acc,cell, mixRhoM, ChargeDensity::MakeSeedDensity(seed,bs,cell,ec, H&&H->GetSpinGroup()==SpinGroup::Polarized),
                        basisOrtho, basisOrthoTol, SeedRole::Guess, numBands)
 {}
 
 SolidSCFIterator::SolidSCFIterator(const tbs_t<dcmplx>* bs, const ElectronConfiguration* ec, qchem::Hamiltonian::tHamiltonian<dcmplx>* H,
-                                   qchem::SCFAccelerators::SCFAccelerator* acc, const UnitCell& cell, tChargeDensity<dcmplx>* seedDensity,
+                                   qchem::SCFAccelerators::SCFAccelerator* acc, const UnitCell& cell, bool mixRhoM, tChargeDensity<dcmplx>* seedDensity,
                                    qchem::Ortho basisOrtho, double basisOrthoTol, SeedRole role, size_t numBands)
     : tSCFIterator<dcmplx>(bs,ec,H,acc,seedDensity,&cell,basisOrtho,basisOrthoTol,role,numBands)
     , itsCell(cell)
+    , itsMixRhoM(mixRhoM)
 {}
 
 // The solid mixer.  The branch here is on the KNOBS -- which RECIPE did the caller ask for? -- not on the
@@ -1653,11 +1654,12 @@ SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, co
         if (ipar.KerkerG0<=0.0) return CD::PulayDMixerFactory<dcmplx>(ipar.StartingRelaxRo, ipar.PulayDepth, ipar.PulayStart);
         CD::PulayParams p;
         p.relax=ipar.StartingRelaxRo; p.G0=ipar.KerkerG0; p.cuspDeficit=ipar.XCCuspDeficit;
-        p.depth=ipar.PulayDepth;      p.start=ipar.PulayStart;
+        p.depth=ipar.PulayDepth;      p.start=ipar.PulayStart;    p.mixRhoM=itsMixRhoM;
         return CD::PulayMixerFactory(p, bs, itsCell, seed);
     }
     case M::Kerker:
-        return CD::KerkerMixerFactory({ipar.StartingRelaxRo, ipar.KerkerG0, ipar.XCCuspDeficit}, bs, itsCell, seed);
+        return CD::KerkerMixerFactory({.relax=ipar.StartingRelaxRo, .G0=ipar.KerkerG0, .cuspDeficit=ipar.XCCuspDeficit, .mixRhoM=itsMixRhoM},
+                                      bs, itsCell, seed);
     case M::Linear:
     case M::Auto:
         break;

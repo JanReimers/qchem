@@ -484,13 +484,14 @@ class SolidSCFIterator : public tSCFIterator<dcmplx>
 {
 public:
     //! The seed by strategy, resolved against \a cell (\c Default = \c Uniform); the other arguments are the base's.
+    //! \a mixRhoM: the density mixer's channel basis, (ρ,m) or CP2K's (ρ↑,ρ↓) -- the run's policy.mixRhoM, resolved by its setup.
     SolidSCFIterator(const tbs_t<dcmplx>*, const ElectronConfiguration*, qchem::Hamiltonian::tHamiltonian<dcmplx>*,
-                     qchem::SCFAccelerators::SCFAccelerator*, const UnitCell& cell,
+                     qchem::SCFAccelerators::SCFAccelerator*, const UnitCell& cell, bool mixRhoM,
                      ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::Default,
                      qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, size_t numBands=0);
     //! A pre-built \a seedDensity (TAKES OWNERSHIP), as the base's explicit-seed ctor.
     SolidSCFIterator(const tbs_t<dcmplx>*, const ElectronConfiguration*, qchem::Hamiltonian::tHamiltonian<dcmplx>*,
-                     qchem::SCFAccelerators::SCFAccelerator*, const UnitCell& cell, tChargeDensity<dcmplx>* seedDensity,
+                     qchem::SCFAccelerators::SCFAccelerator*, const UnitCell& cell, bool mixRhoM, tChargeDensity<dcmplx>* seedDensity,
                      qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, SeedRole role=SeedRole::Guess,
                      size_t numBands=0);
 protected:
@@ -512,6 +513,7 @@ protected:
 private:
     //! A PERSISTENT copy: the mixers read the cell at \c Iterate, long after the caller's argument may be gone.
     UnitCell itsCell;
+    bool     itsMixRhoM;   //!< the mixer's channel basis: (ρ,m) when true, CP2K's (ρ↑,ρ↓) when false (policy.mixRhoM)
 };
 
 } //namespace

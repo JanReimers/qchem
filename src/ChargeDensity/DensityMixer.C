@@ -154,6 +154,10 @@ struct KerkerParams
     //! Fock a total with no channels and collapses v_xc to the zeta=0 branch (the MnO AFM-II collapse, 2026-08-07).
     //! Was the env valve QCHEM_SPINBLIND_KERKER; a constructor argument now (D-ENV), so it cannot leak in from a shell.
     bool   spinBlind   = false;
+    //! The CHANNEL BASIS of a polarized mix: (ρ,m) -- Kerker on ρ, plain linear on m -- or (ρ↑,ρ↓), which reproduces CP2K's Kerker.
+    //! A declared CP2K deviation (policy.mixRhoM, D-MUTABLE-STATICS-RUNPOLICY group C: was a \c theRunPolicy() read in the factory); the
+    //! solid iterator fills it from its setup's policy.  Default = the qchem default (ρ,m).
+    bool   mixRhoM     = true;
 };
 //! ...plus the density HISTORY a Pulay (density-DIIS) extrapolation keeps in front of that filter.
 struct PulayParams : KerkerParams

@@ -716,7 +716,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         qchem::report::Timed timed("setup: seed + ortho (iterator ctor)");
         itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
             itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-            itsImp->lat->GetUnitCell(), seed.release(), *opts.ortho, opts.SolverTruncation(), seedRole, opts.solid.numBands);   // the iterator consumes it in Init
+            itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), seed.release(), *opts.ortho, opts.SolverTruncation(), seedRole, opts.solid.numBands);   // the iterator consumes it in Init
     }
     SeededIterator(seedRole==qchem::SCFIterator::SeedRole::ExactResume);   // the exact-resume Pulay policy's first-stage bit
 
@@ -1020,11 +1020,11 @@ void SolidCalculation::BuildStage(const std::string& why, SCFAccelerators::Type 
     itsImp->scf = carried
         ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->lat->GetUnitCell(), carried.release(), *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(),
+              itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), carried.release(), *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(),
               qchem::SCFIterator::SeedRole::WorkingDensity, itsImp->setup->opts.solid.numBands)
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->lat->GetUnitCell(), itsImp->setup->opts.seed, *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.solid.numBands);
+              itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), itsImp->setup->opts.seed, *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.solid.numBands);
     SeededIterator(false);   // a fresh stage is never an exact resume
     // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
     // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on
