@@ -168,6 +168,11 @@ concrete objects).
 
 `TOrbitalsImp::MakeChargeDensity` then calls `itsMaker->Make(...)` in place of the free `IrrepCD_Factory`.
 
+**As built (E-a):** the FACADE builds the wave function (`WaveFunction::Factory`, with its setup's maker) and hands it to the
+iterator, which owns it.  The iterator never holds the maker: only a strategy-seeded iterator is given one, to make the seed's block
+density (`MakeSeedDensity`).  Its constructors lost the ortho / ortho-tolerance / band-count arguments, which now go to
+`WaveFunction::Factory`.  The maker is a small VALUE (it holds one enum), passed by const reference and copied into the orbitals.
+
 **Other densities built from a D take the setup's maker too:**
 - the restart (`SolidState.C:263-264`);
 - the carried states (`MoleculeCalculation.C:464`, `AtomCalculation.C:517`);
@@ -192,35 +197,43 @@ still cites this ruling, because the chain it changes runs through the hub's con
   - The leak test (`D-RUNPOLICY-LEAK`, knownRed until then) turns green here: a molecule after a `cp2kCompat` solid takes its own
     setup's route.
   - One commit, which cites the ruling.
-- **E-b.**  Move the collocation route (§4.4): 0 movers.
-- **E-c.**  The kT rule (§4.3), after its measurement.  It is `movesState`, so its movers are reported and judged.
+- **E-b.**  Take the collocation route's setter off the basis (§4.4): 0 movers.
+- **E-c.**  The route at kT > 0 (§4.3), after its measurement and the controller's OK on the rule.  It is `movesState`, so its movers
+  are reported and judged.
 
-### 4.3 The kT rule: a policy, in the setup, measured first
-At kT > 0 the occupations are fractional, the factor's rank r rises toward n, and the factored route costs more than the direct
-one.  So the setup will pick `Direct` above a crossover kT.  The crossover is MEASURED before the rule is written: rank r/n and
-the per-iteration ρ cost on both routes, against kT, on a smeared metal (Li k444 Becke smear) and a smeared d-shell oxide (MnO
-Γ Shub smear).  The rule then follows CLAUDE.md's rigorous/empirical split:
-- the rigorous part is r = n at full fractional fill;
-- the crossover is a NAMED calibration, with its measurement record at its declaration.
+### 4.3 The route at kT > 0: measured first (the user's correction, 2026-11-23)
+The first draft said "at kT > 0, Direct".  WITHDRAWN.  The user: *"“at kT > 0, Direct” it is not the cut and dry.  If kT is small
+(relative to the gap?) then D still factors nicely with some small pivot cutoff.  The devil is in the details!"*
 
-**The maker's health column.**  The maker reports the achieved rank r/n per block, so a poor choice is visible in the run
-report.  It does not act on it.  (Today the rank is printed only under the `dm_rank` diagnostic.)
+What decides the cost is the effective rank r/n of D at the pivot tolerance.  That depends on kT RELATIVE TO THE GAP (or to the
+density of states near the chemical potential), not on kT alone.
+- **The rigorous part:** the cost model, O(npts n r) factored against O(npts n^2) direct, written as its own function.
+- **The empirical part:** any threshold on r/n or on kT/gap is a NAMED calibration, with its measurement record at its declaration.
+- **Who decides when:** the setup chooses the STARTING route; it cannot know the gap before the SCF.  The maker reports the
+  achieved r/n per block every iteration as health and never switches.  The policy layer may revise the route only at the next SCF
+  BOUNDARY (a stage, a restart, a geometry step), reading that health, and reports the revision under `policy`.  (The controller's
+  reading, 2026-11-23; to be confirmed with the measurement.)
+- **The measurement (E-c, before any rule):** r/n and the per-iteration rho cost on both routes, against kT/gap and the pivot
+  tolerance, on a GAPPED system at kT well below the gap (Si, or MnO Γ Shub smear) and on a metal (Li k444 Becke smear).  It goes to
+  the controller, with the proposed rule, before E-c is coded.
 
-### 4.4 The collocation route has the same shape: proposed home
-`CollocationRoute {contractCube, expRecurrence}` (78e621788) is BOUND ON THE MOLECULAR BASIS through `ToleranceBinding::BindRoute`
-and read by its MnD evaluator's kernels (`UseContractCube()` / `UseExpRecurrence()`, `PG_Cart_MnD/Evaluator.C:1640, 2111`).
-That is the shape the user just rejected: a kernel choice of a CLIENT's operation, stored and served by the orbital basis.
-It is not a run input; only unit tests ever bind it.
+### 4.4 The collocation route: kept PRIVATE to the evaluator (option (2), controller 2026-11-23)
+`CollocationRoute {contractCube, expRecurrence}` (78e621788) was BOUND ON THE MOLECULAR BASIS through a public setter,
+`ToleranceBinding::BindRoute`, and read by its MnD evaluator's kernels (`UseContractCube()` / `UseExpRecurrence()`).  It is not a
+run input; only unit tests ever set it.
 
-**Proposed home: the collocation CALL, beside the screener.**
-- `LatticeCollocation`'s collocate / integrate-back virtuals (`LatticeSum1E.C:339-442`; not a tier-1 hub) already take the
-  `LatticeScreener`, *"chosen once, at a high level, and passed down; the walk never branches on which rule answers"*.  The
-  route is the same kind of thing.
-- Each of those virtuals takes a `const CollocationRoute&` beside the screener.
-- The GPW evaluator holds the route: a `GPWParams` field, defaulted to production, like group B's `dAwareScreen`.
-- `ToleranceBinding::BindRoute`, the MnD `itsRoute` member, and its "changed after this basis computed" throw are DELETED.
-- The tests that A/B the kernels (`M_TransitionCollocation`, `M_CollocationPullback`, `GPWTolerances`) pass the route in their
-  calls instead of binding it.
+The first draft proposed passing it PER CALL, beside the `LatticeScreener`.  Coding it showed why it was bound per basis: the
+evaluator's box tasks and integrate-back memos are BUILT with the kernel, so a per-call route would have to key those caches on it,
+across 7 `LatticeCollocation` virtuals in 4 implementing layers.  Taken instead (controller: *"two exact algorithms for the same
+integral tables are an implementation detail inside face 2, like an ERI algorithm.  The objection was the public setter, not the
+private member"*):
+- `ToleranceBinding::BindRoute` and its `PG_Cart::BasisSet` / `Orbital_IBS` / `NR_Evaluator` forwarders are DELETED.
+- `NR_Evaluator::itsRoute` stays PRIVATE, fixed at production; its declaration says why.
+- The kernel A/B tests (`M_TransitionCollocation`, `M_CollocationPullback`, `GPWTolerances`) set it through a `forward.H` friend,
+  `CollocationRouteTests`, on a fresh basis before any work.
+
+The user's test for what a basis may serve (2026-11-23): *"A basis describes functions ... only indirectly through 1) op(r)/grad(r),
+2) integral tables for over operators and 3) Symmetry info exchange.  Anything outside those 3 is subject to scrutiny."*
 
 **Not proposed:** `ToleranceBinding::BindTolerances` (D-ENV-TOL).  Its `screenEps` / `fieldSharp` / ... define the integrals the
 basis itself returns (S, T, V's lattice sums), so they are a property of the basis, not a client's route choice.  Flagged for
