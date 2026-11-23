@@ -618,6 +618,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
             // name nothing -- measured 2026-09-21).  Every site op is among these, so the slots are a
             // clean refinement.
             if (M.greyOps.empty()) M.greyOps=lat.SiteEnvironmentRotations(M.site);
+            M.eigenForm=itsImp->setup->policy.HubbardEigen();   // the FORM is the run's policy, never a manifold's own statement
         }
     }
     {
