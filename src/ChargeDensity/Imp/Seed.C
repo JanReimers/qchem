@@ -211,7 +211,9 @@ static tChargeDensity<double>* PolarizedSeed(const std::vector<SADSite>& sites, 
     const double f=(moment && std::abs(planted)>1e-8) ? *moment/planted : 1.0;
     if (!anyPair || f==0.0) return TotalSeed(sites, N, std::move(mesh));   // nothing to plant: the spin-agnostic seed, as before
     const double a=0.5*(1+f), b=0.5*(1-f);
-    const double M=f*planted;
+    // The channels' counts (N +- M)/2 take the STATED moment itself, not f*planted (= it to an ulp): a one-electron doublet's minority
+    // channel is then exactly 0, never -1e-17 (D-SEED-EMPTY-CHANNEL).
+    const double M=(moment && std::abs(planted)>1e-8) ? *moment : planted;   // f*planted, exactly
     auto up=std::make_unique<NumericCD>(0.5*(N+M), mesh);
     auto dn=std::make_unique<NumericCD>(0.5*(N-M), mesh);
     const auto scaled=[](std::shared_ptr<const RadialDensity> r, const rvec3_t& R, double c) -> std::shared_ptr<const ScalarFunction<double>>
