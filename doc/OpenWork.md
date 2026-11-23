@@ -410,8 +410,17 @@ G-space folds · re-take §5a on rule 3f.  Rule: COPY the run command from §5a,
   iterations, ~4.7 s each); forces add ~160 s and stress ~150 s, so a relaxation point (E + F + σ) is ~380 s, ~80 % derivatives.
   MEASURED on NaF q9 (2026-11-21, `GPW_NaF.k222_RelaxesToCP2KsCell_Long`, 2 atoms, k222, the pilot's grids stated: Becke (100, 53)
   129872 points, ball 640 Ha (FFT 90³, top rung 120³), V_long 591292 items): 5 points in 8659 s on 4 threads, ~1730 s per point,
-  against CP2K's 86 s per point on ONE rank at 600 Ha (432 s for its 6 steps): 20× in wall, ~80× in cores.  Unattributed (the test
-  prints no ledger); next action: ledger ONE such point (setup, SCF s/iteration, forces, stress) before choosing a lever.  An
+  against CP2K's 86 s per point on ONE rank at 600 Ha (432 s for its 6 steps): 20× in wall, ~80× in cores.  LEDGERED 2026-11-22 (lane A,
+  quiet window, 6ee0b4208, the twin `GPW_NaF.k222_CP2KsCellIsStationary_Long`, record `~/Code/qchem6-runs/NaF/pointcost/`): 1429 s wall on 4
+  threads = 5717 core-s against CP2K's 64.9 s on ONE rank at 1200 Ry (88× core-normalized, the user's measure).  84 % of it ran ONCE PER
+  k-BLOCK -- collocation ×120, gather ×120, the force and stress jet walks ×16 -- and the Becke response was only 4 %.  THE k-FOLD
+  (lane-a-foldk, increments 1 / 2a / 3; user rulings "I agree A" and "yes", the PullbackBlocks hub faces) collocates P(R) once per SCF step
+  and walks the force and the stress once for all blocks: collocation ×120 → ×15, the point-set pullback ×16 → ×2, the gather pullback
+  and virial ×16 → ×2.  Loaded re-measure (6620fae9d, a sweep beside it): 1111 s wall, E unchanged to 2e-8 Ha, 13 iterations.  LEFT
+  (loaded s): the gather's misses 316 (unscreened by pin 19, ~8× a collocation per call, where CP2K's two are equal), collocation 221
+  (per call ~16× CP2K per core: the kernel lever), the point-set pullback 102 and the Becke weight response 98 (G1 below; CP2K has no
+  Becke mesh), the local-PP LONG 91 (its field channel's per-atom gathers are still ×8: needs a multi-block gather energy), the h ball
+  closure's restrict + FFT 59 (still per block).  Next: a quiet re-measure for the ratio, then the kernel lever.  An
   eps-sized geometry mesh is 388440 points (nR 100, L 53; owner offsets 24 B/pt, 9.3 MB), refused on resources (the G2 row "Mesh
   sizing for geometry runs").  None of a production force's cost is FD-only (only the FD gate's ~25 builds are).  Levers in order:
   share the force's and the stress's response (the G1 row below); reuse the build's image lists in the response
