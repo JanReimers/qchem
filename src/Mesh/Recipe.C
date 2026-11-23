@@ -140,7 +140,7 @@ Outcome<Symmetry::GroupPtr,std::string> Forces(const MeshParams& mp, const Symme
 
 //-- The uniform-mesh resolution bridge --------------------------------------------------------------
 // eCut and nUniform are two spellings of ONE quantity: how finely a uniform midpoint mesh samples the cell.
-// The mapping between them was a literal inside UnitCell::CreateIntegrationMesh, so any consumer that wanted
+// The mapping between them was a literal inside UnitCell::CreateIntegrationMesh (deleted step 4b), so any consumer that wanted
 // to ASK the question ("is this mesh fine enough?", "which grid is cheaper?") had to duplicate it -- the
 // R2.12 "name it once" case.  It is named here, beside the two fields it relates.
 

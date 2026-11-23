@@ -1,7 +1,7 @@
 // File: Hamiltonian/Internal/Imp/PP_NonLocal.C  Separable (Kleinman-Bylander) non-local pseudopotential term.
 //
-// Like PP_Local, the term owns only the MODEL (the KB projectors) and asks the STRUCTURE for its integration
-// mesh (CreateIntegrationMesh -- the polymorphic geometry capability), then builds each projector's overlap
+// Like PP_Local, the term owns only the MODEL (the KB projectors) and is HANDED its integration mesh (the Hamiltonian factory
+// builds it through the point's MeshMaker, V-MESH-FACTORY; was CreateIntegrationMesh, deleted step 4b), then builds each projector's overlap
 // vector b_p = <chi_i | beta_p(|r-R|) Y_lm> with the generic qcMesh::Overlap and accumulates the rank-1
 // D|b><b|.  Geometry-neutral: no basis-specific dispatch, mesh type follows the geometry.
 module;

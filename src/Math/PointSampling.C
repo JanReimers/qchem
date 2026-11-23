@@ -117,7 +117,7 @@ public:
 };
 
 //! \brief The cell's uniform MIDPOINT raster, s = ((i+1/2)/n_1, (j+1/2)/n_2, (k+1/2)/n_3), points in (i, j, k) row-major
-//! order (k fastest) -- what \c UnitCell::CreateIntegrationMesh builds.  The inverse FFT is EXACT for ANY n: the phase
+//! order (k fastest) -- what the uniform \c MakeMesh(cell, mp) builds.  The inverse FFT is EXACT for ANY n: the phase
 //! e^{2 pi i dm.s} is n-periodic in dm, so each term lands in bin (dm mod n) carrying its half-voxel phase -- the same
 //! series, no tolerance.  The series' b vectors must be the reciprocal of the raster's own cell.
 class MidpointRasterSampling : public FourierSamplingStrategy

@@ -1120,8 +1120,8 @@ chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const
     return itsHomeOnly ? Widen(itsOrb->MakeNuclear(cl))  : itsLat->MakeNuclear(CellPhase(),itsCell,cl); }
 
 // The KB-quadrature integration mesh (the mesh FALLBACK of MakeSeparablePPByL -- a projector model with no
-// closed-Gaussian face): a uniform lattice mesh whose Nyquist resolution follows a cutoff (CreateIntegrationMesh's
-// "GPW / Nyquist path").  The DFT tier (density grid) must be on: PP assembly only ever runs inside an SCF,
+// closed-Gaussian face): a uniform lattice mesh whose Nyquist resolution follows a cutoff, built by the
+// cell's MeshMaker the evaluator holds (V-MESH-FACTORY §4.4).  The DFT tier (density grid) must be on: PP assembly only ever runs inside an SCF,
 // which needs the density collocation grid anyway.
 //
 // V2.5 (doc/CleanupCandidates.md, closed 2026-09-14): the cutoff is NOT simply the density grid's.  That grid

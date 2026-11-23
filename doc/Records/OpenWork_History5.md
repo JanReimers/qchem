@@ -4078,7 +4078,7 @@ listed them.  Fix: the imposition reports under `symmetry` at the run level, and
 when the key already holds the other type instead of re-typing it silently.  Gates: `GPW_Si.Γ_U_FiniteDifferencePlansComplexBlocks` now
 asserts the Ansatz row; `UTCommon Reporting.ARowAndAScopeCannotShareAKey`.
 
-## ✅ `Molecule(const Structure&)` is IMPLICIT, so any abstract structure converts silently to a molecule (closed 2026-11-23, lane H, 8bef4c151)
+## ✅ `Molecule(const Structure&)` is IMPLICIT, so any abstract structure converts silently to a molecule (closed 2026-11-23, lane H, b59addbf8)
 
 The row as it stood:
 

@@ -390,12 +390,26 @@ src/, IntegrationTests/ and CLIapps/.
    - **A guard the plan did not foresee:** `Molecule` has an IMPLICIT `Molecule(const Structure&)`, so `MakeMesh(*abstract, mp)` compiled
      as a molecule mesh (16 test calls on the first port, cells among them).  `MakeMesh(const Structure&, ...)` was DELETED in the
      factory as a guard, so an abstract argument was a compile error; a caller holding only the face takes a `MeshMaker`.  Step 5a
-     (USER RULING 2026-11-23, 8bef4c151) made the constructor `explicit` and removed the guard: an abstract argument now finds no
+     (USER RULING 2026-11-23, b59addbf8) made the constructor `explicit` and removed the guard: an abstract argument now finds no
      viable overload at all.
 5. **`Hamiltonian/Types.C` stops re-exporting `qchem.Mesh` for `MeshParams`.**
    - Re-measure §6: touching `qchem.Mesh.Recipe` should rebuild only the mesh library, the factory, the policy layer, the Hamiltonian
      factory and the PP/GPW sites.
    - That count is the acceptance number for "extending a scheme no longer modifies hubs".
+   - **AS BUILT (lane H 2026-11-23):**
+     - 5a (b59addbf8, USER RULING 2026-11-23): `Molecule(const Structure&)` is `explicit`; step 4b's deleted `MakeMesh(const Structure&)`
+       guards are removed (an abstract argument finds no viable overload).  Three test sites had used the conversion; no library code.
+     - aedca3550 (lane G's clang 23 finding): `qchem.SymmetrizeMesh`'s bodies move to `Lattice_3D/Imp/SymmetrizeMesh.C`; its exported
+       inlines had exposed the TU-local helpers `Wrap01`, `Fractional`, `OpsOf` (`-WTU-local-entity-exposure`, the only ones in lane G's
+       full build).
+     - 5b (70fc2d4cb): `Hamiltonian/Types.C` stops re-exporting `qchem.Mesh`, and `qchem.Mesh` ends its step-1 re-export of
+       `qchem.Mesh.Recipe`.  Two moves the plan did not foresee were needed: `RadialMesh` / `AngularMesh` (built value types) move into
+       `qchem.Mesh`, because `qchem.Mesh.Quadrature` imported the radial FACTORY module for the type alone (446 TUs on that one import);
+       and `SiteMultipoles` loses its `MeshParams` convenience ctor (it sees built meshes only; its two callers build the rules).
+     - **The measured number: a `qchem.Mesh.Recipe` edit reaches 214 TUs (of 844), down from 507.**  The "~100" above took XCPolicy's
+       reach as the proxy; the floor is the union of the modules that hold a recipe or a `MeshMaker` BY DESIGN: the Hamiltonian factory
+       122, `GPW_Evaluator` 120, `GPW_IBS` 118 (the §4.4 ruling's `MeshMaker`), `Imposition` 113, `Seed` 99, XCPolicy 99, `SCFIterator`
+       78, the structure factory and the setups.  Below it would mean taking the `MeshMaker` back out of the GPW basis.
 
 Rough size: about 60 files, most of them mechanical.
 - **Behaviour changes:**

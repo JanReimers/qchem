@@ -1,8 +1,8 @@
-// File L_PP.C  Lattice pseudopotential: the FIRST client of UnitCell::CreateIntegrationMesh.
+// File L_PP.C  Lattice pseudopotential: the FIRST client of the uniform cell mesh (was UnitCell::CreateIntegrationMesh, now MakeMesh(cell, mp)).
 //
 // PP_Local / PP_NonLocal are geometry-neutral: they quadrature <chi_i|V|chi_j> on whatever mesh the
-// Structure hands back from CreateIntegrationMesh (Atom/Molecule -> Becke, UnitCell -> uniform).  The pure
-// plane-wave path never calls that virtual (it assembles PP in G-space), so a real-space Gaussian orbital
+// geometry's mesh maker builds (Atom/Molecule -> Becke, UnitCell -> uniform).  The pure
+// plane-wave path never builds that mesh (it assembles PP in G-space), so a real-space Gaussian orbital
 // basis standing on a UnitCell is the mesh's first real caller -- the GPW seed
 // (doc/MolecularPP_HarmonizationFindings.md section 7, Item 1, step 2).
 //

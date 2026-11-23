@@ -230,7 +230,7 @@ TEST(InvariantAngularMesh, ExhaustedSeedPoolThrows)
 }
 
 //---------------------------------------------------------------------------------------
-//  the ops-taking CreateIntegrationMesh (§6a W2b): the whole periodic Becke mesh invariant BY CONSTRUCTION.
+//  the ops-taking MakeMesh(cell, mp, ops) (§6a W2b; was UnitCell::CreateIntegrationMesh, deleted step 4b): the whole periodic Becke mesh invariant BY CONSTRUCTION.
 //
 TEST(SiteAdaptedBeckeMesh, DiamondInvariantByConstruction)
 {
@@ -280,7 +280,7 @@ TEST(InvariantAngularMesh, ProductionL29Growth)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     const SL::SpaceGroup& sg = lat.GetSpaceGroup();
 
-    // Diamond's T_d site group as Cartesian ops (A W A^-1), exactly as the ops-taking CreateIntegrationMesh does.
+    // Diamond's T_d site group as Cartesian ops (A W A^-1), exactly as the ops-taking MakeMesh(cell, mp, ops) does.
     const Matrix3D<double>& A = cell.GetCellMatrix();
     const Matrix3D<double> Ainv = Invert(A);
     std::vector<Matrix3D<double>> siteOps;
@@ -380,7 +380,7 @@ TEST(SymmetrizeMesh, TorusFoldMatchesAcrossTheCellBoundary)
 // The invariance contract AT SCALE (production angular recipe L=29): with tens of thousands of
 // points, eps-BORDERLINE tail-drop decisions in the Becke builder flip inconsistently across orbit
 // partners (bit-different rotated distances) -- measured 212 orphaned points at nR=40/L=29 before
-// the orbit-consistency filter in the ops-taking CreateIntegrationMesh.  This gate holds the cured contract:
+// the orbit-consistency filter in the ops-taking MakeMesh(cell, mp, ops).  This gate holds the cured contract:
 // UnmatchedCounts identically zero at a recipe big enough to exercise the borderline channel.
 // (The full production growth measure, one-off 2026-08-02: adapted 49172 vs plain 25007 = 1.97x,
 // the dirs-ratio asymptote of the ProductionL29Growth angular gate above.)

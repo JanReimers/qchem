@@ -22,7 +22,7 @@ using namespace qchem::qcMesh;
 //  The Nyquist bridge
 //================================================================================================
 
-// The formula this replaced was a literal inside UnitCell::CreateIntegrationMesh; pin it so the extraction
+// The formula this replaced was a literal inside UnitCell::CreateIntegrationMesh (deleted step 4b; the uniform build is MakeMesh(cell, mp)); pin it so the extraction
 // is provably behaviour-preserving rather than merely plausible.
 TEST(XCPolicy, UniformDivisionsMatchesTheNyquistFormula)
 {
