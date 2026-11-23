@@ -15,8 +15,14 @@ workaround is `#include <complex>` in each such TU's global-module fragment (e.g
   Do not target GCC for the module build; do not add GCC-compatibility workarounds. (`g++` may still exist on
   the box for one-off checks, but it is not a supported build path.)
 - **GCC is now PERMANENTLY out** (user ruling 2026-11-09, Enzyme REQUIRED): Enzyme differentiates LLVM IR, so only LLVM front ends
-  (clang, flang) can build qchem, whatever GCC's module support becomes.  An LLVM MAJOR upgrade (21 → 22) needs Enzyme rebuilt against it,
-  and waits on Enzyme supporting that major.
+  (clang, flang) can build qchem, whatever GCC's module support becomes.  An LLVM MAJOR upgrade needs Enzyme REBUILT against it (the plugin is
+  `ClangEnzyme-<major>.so`; Enzyme's CMake takes any LLVM >= 15).  CORRECTED 2026-11-22 (user: *"I can't where in the enzyme docs it says one
+  must clang 21"*): Enzyme does NOT gate us.  Our pin 871de19f already has LLVM 22 / >22 / >=24 code paths and a 22-release API check,
+  and its Fortran CI tests LLVM 21, 22, 23; the current clang is 23.1.4.  The real cost is ours: rebuild Enzyme + the lld shim
+  (`doc/Records/EnzymeSpike.md` §1), re-pass configure's three checks, re-check EnzymeAD/Enzyme#3748 (the AVX2 segfault behind
+  `-mprefer-vector-width=128`) and #3747 (the FD gates) on the new LLVM, the matching libomp, full sweeps.  A newer pin may be needed for 23.
+  Also: `import std;` on clang needs libc++ (the /opt LLVM ships `std.cppm`); our build uses libstdc++ today, so the switch is an ABI
+  change (C/Fortran deps unaffected).
 - CMake 4.2.3, ninja 1.13.2 (bleeding-edge modules stack; see `reference_ninja_dyndep_recovery`).
 - CMakeLists.txt already has the `import std` toggle **scaffolded and commented out**:
   `# set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "0e5b6991-d74f-4b3d-a41c-cf096e0b2508")` and
@@ -44,7 +50,10 @@ Stacking Clang-modules + experimental-CMake-import-std + modular-Blaze-fork + de
 multiplies "which layer broke?" debugging (the same tax as the ninja dyndep bug). Keep each step separate and
 green before the next.
 
-- **Step 0 — Upgrade Clang 21.1.6 → 22.1.6 (latest).** Newest module + `import std` fixes; do this first so the
+- **Step 0 — Upgrade Clang 21.1.6 → 23.1.4 (latest; user 2026-11-22: *"I am inclined to get on the latest clang before starting any of
+  doc/ModuleToolchainPlan.md"*).  The USER installs `/opt/LLVM-23.1.4-Linux-X64` beside 21; a lane (lane G, proposed) rebuilds Enzyme against it
+  in its own build tree, re-passes the three Enzyme checks and #3747/#3748, pairs the matching libomp, sweeps, then switches main's trees.
+  Sequenced AFTER lane A's k-fold lands and is measured (no toolchain change under an open performance comparison).  (Was: 22.1.6.)** Newest module + `import std` fixes; do this first so the
   rest is on the best-supported base. Verify a clean `UTMain` + `allTests` build on 22.1.6 before changing any
   code. (GCC remains out — Clang-only.)
 - **Step R — Rename the project to SOLID² (user, 2026-10-30).**  `qchem` is taken, and this is not strictly a chemistry app

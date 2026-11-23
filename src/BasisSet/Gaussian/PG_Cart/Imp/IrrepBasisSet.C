@@ -260,12 +260,19 @@ Orbital_IBS::Orbital_IBS(const std::shared_ptr<BasisCache>& cache, const rvec_t&
     
 rFIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl) const
 {
+    // PLACEHOLDER until G2 step 1 (OpenWork "The Coulomb-fit default is a hidden policy" and G2 "An eps-sized Coulomb fit basis
+    // SYNTHESIZED from the orbital basis"; user 2026-11-22).  The orbital basis is the factory for its own fit, and G2 replaces this
+    // read with a fit DERIVED from the block's own exponents (products, thinned by pivoted Cholesky).  Until then this A1 read is
+    // reached by TESTS only: a molecular run's Hartree is delta by default, and a stated Auxiliary is named in MoleculeSetup (policy
+    // CoulombFit) and pre-filled into the run's CoulombFitSlot, so no production path asks here.
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
     return new EFit_IBS(std::make_shared<BasisCache>(),&reader,cl,"A1_coul");   // a fit basis gets its OWN cache from its factory (S3a)
 }
 rFIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
+    // PLACEHOLDER until G2 (the same OpenWork rows as CreateCDFitBasisSet above): reached by tests and by a deck stating xc.fit
+    // Auxiliary (the default Vxc route is delta).  G2 derives it from the block's own exponents instead.
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     Gaussian94Reader reader(BasisFile("A1_exch.bsd"));
     return new EFit_IBS(std::make_shared<BasisCache>(),&reader,cl,mp,"A1_exch");

@@ -486,7 +486,9 @@ TEST(HamiltonianForces, MissingGradientsNamesTheTermsWithoutAForce)
     // (TheBeckeXCForceAtFixedDIsItsEnergysFiniteDifference); HF has every term's since the HF Coulomb and exchange landed.
     for (auto model : {Model::PBE})
     {
-        auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=model, .scf=Tight(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
+        // The Hartree is STATED as the A1_coul Dunlap fit, which has its force, so the XC term is the one missing: the δ default (user
+        // ruling 2026-11-22) would add the δ Hartree's own refusal.
+        auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=model, .coulomb={.auxBasis="A1_coul"}, .scf=Tight(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
         ASSERT_TRUE(c->IsConverged());
         const auto missing=ForceFacadeTests::MissingGradients(*c);
         EXPECT_FALSE(missing.empty()) << "the GGA XC term has no force yet";
@@ -1114,7 +1116,7 @@ TEST(HamiltonianForces, WithTheDunlapHartreeTheForceIsTheFiniteDifferenceOfTheRe
     // full SCF (MinΔρ/N 1e-9, energy error second order); h = 1e-4 puts the FD's h²/6 |E‴| at ≲ 1e-8, so 2e-6 (relative above 1).
     // _Long: 18 displaced SCFs, ~59 s CPU serial (2026-11-08).
     const Molecule h2o=GetMolecule("H2O");
-    RunOptions opts{.model=Model::Xalpha, .xalpha=0.0, .molecule={.basis="dzvp"}};
+    RunOptions opts{.model=Model::Xalpha, .xalpha=0.0, .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="dzvp"}};   // the Dunlap Hartree STATED (the δ default, user ruling 2026-11-22, would make the δ Hartree the subject)
     opts.scf=Tight(); auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, opts)).TakeValue(); (void)c->Converge();
     ASSERT_TRUE(c->IsConverged());
     const auto D=ForceFacadeTests::Carry(*c);
@@ -1162,7 +1164,7 @@ TEST(HamiltonianForces, UnderAPseudopotentialEachTermsForceAtFixedDIsItsEnergysF
     // frozen (the Dunlap fit re-solved at each point under the FIXED N, so no λ piece: 2026-11-09), and since lane B 2026-11-22 the δ XC
     // term on the Becke mesh (its mesh rebuilt at R ± h).  Every term has its force.  Each is smooth in R: at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6.
     const Molecule h2o=GetMolecule("H2O");
-    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .pp="gth-lda-valence", .scf=AnyD(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
+    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .pp="gth-lda-valence", .coulomb={.auxBasis="A1_coul"}, .scf=AnyD(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();   // the Dunlap Hartree STATED
     ASSERT_TRUE(c->IsConverged());
     const auto D=ForceFacadeTests::Carry(*c);
     const auto Ft=ForceFacadeTests::TermForcesAt(c->SizedSetup(), ForceFacadeTests::Structure_(*c), D);
@@ -1204,7 +1206,7 @@ TEST(HamiltonianForces, TheDunlapHartreesForceAtFixedDIsItsEnergysFiniteDifferen
     // the gate this term could not have while the target was Tr(DS), which moved with the basis (2e-4 relative on water then).  Smooth
     // in R: at h = 1e-4 the h²/6 |E‴| is ≲ 1e-8, so 2e-6 (relative above 1).
     const Molecule h2o=GetMolecule("H2O");
-    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .scf=AnyD(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
+    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .coulomb={.auxBasis="A1_coul"}, .scf=AnyD(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();   // STATED (the δ default, user ruling 2026-11-22, would make the δ Hartree the subject)
     ASSERT_TRUE(c->IsConverged());
     const auto D=ForceFacadeTests::Carry(*c);
     const auto Ft=ForceFacadeTests::TermForcesAt(c->SizedSetup(), ForceFacadeTests::Structure_(*c), D);
@@ -1400,8 +1402,8 @@ TEST(HamiltonianForces, ASymmetryBlockedRunsForceIsTheUnblockedRunsForce)
     // mesh (the SALC block forwards the point-set pullback to its raw AO basis on the folded D; lane B 2026-11-22).
     const Molecule h2o=StretchedH2O(GetMolecule("H2O"), 1.08);
     const std::vector<RunOptions> cases{{.model=Model::E1, .molecule={.basis="dzvp"}}, {.model=Model::HF, .molecule={.basis="dzvp"}},
-                                         {.spin=SpinGroup::Polarized, .model=Model::HF, .molecule={.basis="dzvp"}}, {.model=Model::LDA, .molecule={.basis="dzvp"}},
-                                         {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}}};
+                                         {.spin=SpinGroup::Polarized, .model=Model::HF, .molecule={.basis="dzvp"}}, {.model=Model::LDA, .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="dzvp"}},
+                                         {.model=Model::LDA, .pp="gth-lda-valence", .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="dzvp"}}};   // LDA: the Dunlap 3-centre STATED (the δ default, user ruling 2026-11-22, would make the δ Hartree the subject)
     for (RunOptions free : cases)
     {
         RunOptions blocked=free; blocked.imposeSymmetry=true;

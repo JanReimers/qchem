@@ -199,7 +199,7 @@ TEST(M_Calculation, OneDeltaFitPerHamiltonianHoldsEachBlocksPhiOnce)
         return total;
     };
     double eVxc=0.0, eBoth=0.0, eOwn=0.0;
-    const double vxcOnly=phiBytes({}, eVxc);                                                    // Gaussian (Dunlap) Hartree, δ Vxc
+    const double vxcOnly=phiBytes({.fit = Hamiltonian::CoulombFit::Auxiliary}, eVxc);           // Gaussian (Dunlap) Hartree, δ Vxc
     const double both   =phiBytes({.fit = Hamiltonian::CoulombFit::Delta}, eBoth);              // δ Hartree on the XC mesh: shared
     const double own    =phiBytes({.fit = Hamiltonian::CoulombFit::Delta, .nRadial = 60}, eOwn);   // a Hartree mesh of its own
     ASSERT_GT(vxcOnly, 0.0) << "the δ Vxc fit reported no Φ bytes";
@@ -224,9 +224,11 @@ TEST(M_Calculation, WaterLDA)
     // δ basis (user ruling "δ default, A1 kept"), and the fit bases keep their D shells.  Was -75.9324615507 on the 30/5 mesh
     // (60 mHa LOW) and -75.8726517 on the A1 Vxc fit with a d-less Coulomb fit.  Independent route: PySCF with the SAME A1_coul
     // Coulomb fit and exact XC, -75.879447 (8 μHa); PySCF exact J -75.877299 (the Coulomb fit itself lowers 2.1 mHa).
-    const double E_ref = -75.8794551388;
+    // RE-JUDGED 2026-11-22 (pin 10, lane S; user ruling "Yes, δ default"): the Hartree is the δ fit.  From -75.8794551388 (the A1_coul
+    // Coulomb fit); PySCF EXACT J and XC -75.87729931, 9.3 μHa away.
+    const double E_ref = -75.8773086479;
     EXPECT_LT(std::fabs((E_ref - calc->Energy()) / E_ref), 1e-5);
-    EXPECT_NEAR(calc->Energy(), -75.87944736, 1e-4) << "ORACLE: PySCF lda,vwn/dzvp, the same A1_coul Coulomb fit, exact XC";
+    EXPECT_NEAR(calc->Energy(), -75.87729931, 3e-5) << "ORACLE: PySCF lda,vwn/dzvp, exact J and XC";
     EXPECT_GT(calc->IterationCount(), 0u);
 }
 
