@@ -388,9 +388,10 @@ src/, IntegrationTests/ and CLIapps/.
      import of `Orbital_DFT_IBS` (no new hub re-export).  4b: `CreateIntegrationMesh` leaves `Structure` / `Atom` / `Molecule` /
      `UnitCell`, and `qchem.Structure` stops importing `qchem.Mesh`.
    - **A guard the plan did not foresee:** `Molecule` has an IMPLICIT `Molecule(const Structure&)`, so `MakeMesh(*abstract, mp)` compiled
-     as a molecule mesh (16 test calls on the first port, cells among them).  `MakeMesh(const Structure&, ...)` is now DELETED in the
-     factory, so an abstract argument is a compile error; a caller holding only the face takes a `MeshMaker`.  Making that constructor
-     `explicit` is a hub change left to the user (noted in doc/OpenWork.md).
+     as a molecule mesh (16 test calls on the first port, cells among them).  `MakeMesh(const Structure&, ...)` was DELETED in the
+     factory as a guard, so an abstract argument was a compile error; a caller holding only the face takes a `MeshMaker`.  Step 5a
+     (USER RULING 2026-11-23, 8bef4c151) made the constructor `explicit` and removed the guard: an abstract argument now finds no
+     viable overload at all.
 5. **`Hamiltonian/Types.C` stops re-exporting `qchem.Mesh` for `MeshParams`.**
    - Re-measure §6: touching `qchem.Mesh.Recipe` should rebuild only the mesh library, the factory, the policy layer, the Hamiltonian
      factory and the PP/GPW sites.

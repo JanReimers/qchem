@@ -4077,3 +4077,14 @@ rows (Ansatz, KSampling, XCRhoPolicy, BasisCoverage, ...) from the report while 
 listed them.  Fix: the imposition reports under `symmetry` at the run level, and `report::Row` / `report::Scope` THROW (`std::logic_error`)
 when the key already holds the other type instead of re-typing it silently.  Gates: `GPW_Si.Γ_U_FiniteDifferencePlansComplexBlocks` now
 asserts the Ansatz row; `UTCommon Reporting.ARowAndAScopeCannotShareAKey`.
+
+## ✅ `Molecule(const Structure&)` is IMPLICIT, so any abstract structure converts silently to a molecule (closed 2026-11-23, lane H, 8bef4c151)
+
+The row as it stood:
+
+| [G3] **`Molecule(const Structure&)` is IMPLICIT, so any abstract structure converts silently to a molecule** (lane H 2026-11-22, V-MESH-FACTORY step 4b) | The first port of `CreateIntegrationMesh` to the by-type `MakeMesh` compiled clean with 16 calls that took an abstract `Structure` and meshed it AS A MOLECULE, a unit cell among them. Step 4b deleted `MakeMesh(const Structure&, ...)` as a guard, but every other by-type overload on `Molecule` has the same hole. | make the constructor `explicit` (a `qchem.Structure` HUB change: needs the user's ruling), then fix whatever stops compiling · `src/Structure/Structure.C` (class Molecule), guard in `src/Structure/MeshFactory.C` |
+
+Done: USER RULING 2026-11-23 ("I agree yes"): the constructor is `explicit` (one word on the `qchem.Structure` hub, snapshot regenerated).
+Step 4b's deleted `MakeMesh(const Structure&, ...)` guards were removed in the same commit: an abstract `Structure` now finds no viable
+overload, and the error lists the concrete candidates.  The conversion was quietly in use at three test sites (Response `Water()`, twice;
+M_Calculation's moved-water restart), each a `Molecule` seen through the abstract face; no library code relied on it.
