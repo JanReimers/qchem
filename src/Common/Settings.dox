@@ -72,7 +72,8 @@ The controls of the XC-from-D route moved with it, into the same `policy` block 
 
 These were verification switches between two routes that agree (to ~ulp, or to the screen).  They are **retired and ignored** (reported once with
 "removed"): the route they selected is the default.  The A/B survives as a unit-test hook where a test needs it
-(`NR_Evaluator::ContractCubeOverride`, `ExpRecurrenceOverride`, `SphereScreenOverride`); it is not a run input, so it is not in the deck.
+(a per-basis `CollocationRoute` {contractCube, expRecurrence}, bound through `ToleranceBinding::BindRoute` before any collocation; D-MUTABLE-STATICS
+retired the three process-wide overrides, and the sphere-screen A/B with them); it is not a run input, so it is not in the deck.
 
 | retired variable | what it switched |
 |---|---|
