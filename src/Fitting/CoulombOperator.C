@@ -53,6 +53,17 @@ public:
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const BasisSet::Orbital_DFT_IBS<double,double>&, const hmat_t<double>& D,
                                                                      const Structure* st) const=0;
     //!@}
+    //! \name THE FIT SIDE of the fixed-D force, the derivative of \c HartreeEnergy beside it (lane S 2026-11-23; the user's 2026-11-08
+    //! pre-approval of derivative faces): what \f$\partial E_H/\partial R_A|_D\f$ holds BESIDES the blocks' \c MakeRepulsionPullback, from the
+    //! fit's OWN geometry -- a quadrature whose weights and operator move with the atoms (the δ mesh).  Taken once per term, at the last fit.
+    //! So the term's whole fixed-D gradient is this plus \f$\sum_{blocks}\f$\c MakeRepulsionPullback.  A fit whose functions and metric do not
+    //! move says so with an explicit zero; the default is a named refusal, never a silent zero.  \c Can is false exactly when \c Make refuses.
+    //! CLIENT: Vee_Fit's force.
+    //!@{
+    virtual bool CanPullbackHartree() const {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeHartreePullback(const Structure*) const
+    {return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"this density fit gives no fit-side Hartree pullback"});}
+    //!@}
 };
 template <> class FirstOrderDensityFit<dcmplx> : public virtual BasisSet::PairProjector<dcmplx>
 {
@@ -71,6 +82,12 @@ public:
                                                                      const Structure* st) const=0;
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const hmat_t<dcmplx>& D,
                                                                      const Structure* st) const=0;
+    //!@}
+    //! \name The fit side of the fixed-D force, as on \c FirstOrderDensityFit<double>.
+    //!@{
+    virtual bool CanPullbackHartree() const {return false;}
+    virtual Outcome<rvec3vec_t,AD::NoGradient> MakeHartreePullback(const Structure*) const
+    {return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"this density fit gives no fit-side Hartree pullback"});}
     //!@}
     //! \name THE STRAIN DERIVATIVES beside them (doc/Records/CellHalf_Design.md §5; user ruling §6.2, 2026-11-10).  The first-order
     //! \f$E_H\f$'s fixed-D virial splits in two (\c BasisSet::PairProjection::applyAdjointVirial):
@@ -142,8 +159,9 @@ std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_pt
 //! \brief A density fit on \a deltaBasis (an orthogonal, \f$\delta\f$-like fit basis that answers its own Coulomb integrals,
 //! \c BasisSet::PointCoulombIntegrals: a \c CoulombDeltaFit_IBS or a \c MultipoleFit_IBS).  THROWS when the basis is not orthogonal or
 //! carries no Coulomb integrals.
+//! \a mesh is the δ basis's own point set (its quadrature's mesh): the fixed-D force reads its points' owners and its weight response.
 std::unique_ptr<FirstOrderDensityFit<double>>
-MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis);
+MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::shared_ptr<const qcMesh::Mesh> mesh);
 
 //! \brief A density fit on a PLANE-WAVE fit basis \a pw (orthonormal {G}): the fit is \f$\tilde\rho(G)\f$ itself, held privately;
 //! the physics is the basis's Coulomb integrals.  THROWS when \a pw is not orthonormal or lacks the G-space faces.

@@ -302,12 +302,12 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, XCMesh
     // The δ basis carries its Coulomb integrals (V-ONE-OF-N 3b-ii, ruling (f)): the operator is the BASIS's physics, chosen here.
     auto withCoulomb=[&](std::unique_ptr<qcMesh::CoulombOperator> op)
         {return std::make_shared<const BasisSet::CoulombDeltaFit_IBS>(std::make_shared<BasisSet::BasisCache>(), fb, std::move(op), sym_t(new UnitQN));};
-    if (direct) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(withCoulomb(qcMesh::MakeDirectSumCoulomb(mesh))), st->GetNumElectrons());
+    if (direct) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(withCoulomb(qcMesh::MakeDirectSumCoulomb(mesh)), quad.GetMesh()), st->GetNumElectrons());
     const auto sites=MakeSiteMultipoles(st, mesh, hmp, lMax);
-    if (!multipole) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(withCoulomb(qcMesh::MakeRadialPoissonCoulomb(sites))), st->GetNumElectrons());
+    if (!multipole) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(withCoulomb(qcMesh::MakeRadialPoissonCoulomb(sites)), quad.GetMesh()), st->GetNumElectrons());
     // A multipole fit basis owns its own solve (over its sites, in its own metric).
     const auto mfb=std::make_shared<const BasisSet::MultipoleFit_IBS>(std::make_shared<BasisSet::BasisCache>(), fb, sites, sym_t(new UnitQN));
-    return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(mfb), st->GetNumElectrons());
+    return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(mfb, quad.GetMesh()), st->GetNumElectrons());
 }
 
 Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit,

@@ -9,8 +9,10 @@
 // term's force is -Σ_blocks MakeRepulsionPullback, and its per-term fixed-D finite difference is exactly that.
 //
 // THE ROUTES.  GPW: the Coulomb tensor's applyAdjointPullback, the jet walk of the gather (LatticeCollocation::IntegratePotentialPullback).
-// A plane-wave block: exactly zero (no centre).  A δ-mesh fit (the molecular first-order Hartree): refused, its mesh rides with the atoms
-// (V-NONLINEAR-MESH), so it is a MissingGradients() entry, never a silent zero.
+// A plane-wave block: exactly zero (no centre).  A δ-mesh fit (the molecular first-order Hartree, lane S 2026-11-23): its mesh rides with the
+// atoms, so besides the blocks' leg (ρ at the moving points) the FIT moves too -- its weights and its operator -- and that fit side is
+// FirstOrderDensityFit::MakeHartreePullback, taken once per term (a plane-wave fit's is an explicit zero).  A fit with neither is a
+// MissingGradients() entry, never a silent zero.
 module;
 #include <stdexcept>
 #include <string>
@@ -34,6 +36,7 @@ template <class T, class U> const BasisSet::Orbital_DFT_IBS<U,T>* DFTof(const to
 template <class T> std::string Vee_Fit<T>::MissingGradient(const tbs_t<T>* bs, const Structure*) const
 {
     if (!bs) return "Vee_Fit: no basis to differentiate";
+    if (!itsFit->CanPullbackHartree()) return "Vee_Fit: its density fit gives no fit-side Hartree pullback";
     std::string why;
     ForEachBlock(bs, [&](const auto* b)
     {
@@ -110,6 +113,10 @@ template <class T> void Vee_Fit<T>::AddForces(rvec3vec_t& F, const tDM_CD<T>* D,
     const rvec3vec_t g=D->DM_Pullback(this, st);
     if (g.size()!=F.size()) throw std::logic_error("Vee_Fit::AddForces: the pullback and the force array differ in atom count");
     for (size_t A=0;A<F.size();A++) F[A]-=g[A];
+    const auto fit=itsFit->MakeHartreePullback(st);   // the fit's own geometry (a δ mesh's weights and operator), once
+    if (!fit) throw std::logic_error("Vee_Fit::AddForces: "+fit.Error().why+" (MissingGradients() names it before a force is asked)");
+    if (fit->size()!=F.size()) throw std::logic_error("Vee_Fit::AddForces: the fit's pullback and the force array differ in atom count");
+    for (size_t A=0;A<F.size();A++) F[A]-=(*fit)[A];
 }
 
 // The members this TU defines (the class itself is instantiated in Imp/Vee_Fit.C, where its other members live).

@@ -5,11 +5,15 @@
 #include "gtest/gtest.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <utility>
 #include <vector>
+#include <map>
 #include <memory>
+#include <tuple>
 #include <numbers>
 import qchem.Mesh.CoulombOperator;
+import qchem.Mesh.Internal.RadialPoissonCoulomb;   // the solve's adjoint, stage by stage (a unit test may cheat)
 import qchem.Hamiltonian.Factory;
 import qchem.Blaze;
 import qchem.Mesh;
@@ -217,8 +221,9 @@ TEST(SiteMultipoles, OwnShellSelfEnergyMatchesTheClosedForm)
     EXPECT_EQ(op->HartreeEnergy(7.0,qf,v), 7.0-0.5*op->SelfRepulsion(qf,v)) << "a multipole's energy has two legs: Tr(DV) is the density's";
 }
 
-// H = dE/dD needs v = K q with K symmetric, which forces will rely on.  The direct sum is, by construction.  The radial solve expands each
-// source about its own site, so K_gh and K_hg can differ across sites: this pins how much, on two different charge sets.
+// H = dE/dD needs v = K q with K symmetric, which forces rely on.  The direct sum is, by construction.  The radial solve expands each
+// source about its own site, so its raw K_gh and K_hg differ across sites; the operator answers ½(K + Kᵀ) (user ruling 2026-11-23), so
+// what is pinned is symmetry to roundoff, on two different charge sets.
 namespace {
 struct TwoChargeSets {qcMesh::Mesh mesh; rvec3vec_t centres; rvec_t q, p;};
 TwoChargeSets ChargesOn(const std::vector<std::pair<int,rvec3_t>>& atoms, const qcMesh::MeshParams& mp)
@@ -261,7 +266,41 @@ TEST(CoulombOperatorSymmetry, DirectSumIsSymmetricAndThePoissonAsymmetryIsSmall)
     const auto c=ChargesOn(water,mp);
     EXPECT_NEAR(Asymmetry(*qcMesh::MakeDirectSumCoulomb(c.mesh),c.q,c.p), 0.0, 1e-9);
     const auto f=ChargesOn(water,theMesh);
-    EXPECT_NEAR(Asymmetry(*qcMesh::MakeRadialPoissonCoulomb(Sites(f.mesh,theMesh,14,f.centres)),f.q,f.p), 0.0, 1e-5) << "measured -2.6e-6";
+    EXPECT_NEAR(Asymmetry(*qcMesh::MakeRadialPoissonCoulomb(Sites(f.mesh,theMesh,14,f.centres)),f.q,f.p), 0.0, 1e-12)
+        << "the raw K measured -2.6e-6 here; the symmetrized one is exact to roundoff";
+}
+
+// Kᵀ is built stage by stage, each the TRANSPOSE of its forward stage: <w, S V> = <Sᵀ w, V> for Synthesize, Moments and the radial solve,
+// on random-signed inputs (every channel and point live).  A wrong adjoint is a wrong Fock, so each stage is pinned alone.
+namespace {
+double Dot(const qcMesh::SiteMultipoles::channels_t& A, const qcMesh::SiteMultipoles::channels_t& B)
+{
+    double s=0.0;
+    for (size_t a=0; a<A.size(); a++) for (size_t c=0; c<A[a].size(); c++) s+=A[a][c]*B[a][c];
+    return s;
+}
+double Dot(const rvec_t& a, const rvec_t& b) {double s=0.0; for (size_t g=0; g<a.size(); g++) s+=a[g]*b[g]; return s;}
+double Hash(size_t k) {return std::sin(1.7*double(k)+0.3*std::cos(0.37*double(k)));}   // deterministic, signed, unstructured
+}
+TEST(SiteMultipoles, EachStageOfTheAdjointIsTheTransposeOfItsForwardStage)
+{
+    const std::vector<std::pair<int,rvec3_t>> atoms={{8,rvec3_t(0,0,0)},{1,rvec3_t(0.3,1.431,1.107)},{9,rvec3_t(-0.2,-1.6,0.9)}};
+    qcMesh::MeshParams mp=theMesh; mp.nRadial=40; mp.angularDegree=17;
+    const auto c=ChargesOn(atoms,mp);
+    const auto sites=Sites(c.mesh,mp,8,c.centres);
+    const size_t n=c.mesh.size(), nCh=sites->Radii().size()*sites->NumLM();
+    rvec_t w(n), q(n);
+    for (size_t g=0; g<n; g++) {w[g]=Hash(g); q[g]=Hash(g+n);}
+    qcMesh::SiteMultipoles::channels_t V(sites->NumSites(),std::vector<double>(nCh)), G=V;
+    for (size_t a=0; a<V.size(); a++) for (size_t k=0; k<nCh; k++) {V[a][k]=Hash(7*a*nCh+k); G[a][k]=Hash(3*a*nCh+k+11);}
+
+    const double sy=Dot(w,sites->Synthesize(V)), sa=Dot(sites->SynthesizeAdjoint(w),V);
+    EXPECT_NEAR(sy, sa, 1e-12*std::fabs(sy)) << "Synthesize";
+    const double my=Dot(sites->Moments(q),G), ma=Dot(q,sites->MomentsAdjoint(G));
+    EXPECT_NEAR(my, ma, 1e-12*std::fabs(my)) << "Moments";
+    const auto solver=qcMesh::RadialPoissonSolver(sites);
+    const double py=Dot(G,solver.Solve(V)), pa=Dot(solver.SolveAdjoint(G),V);
+    EXPECT_NEAR(py, pa, 1e-12*std::fabs(py)) << "the radial solve";
 }
 
 // A multipole fit is the one combination refused on a periodic structure: a correctness limit, stated as one.  The direct sum runs
@@ -287,4 +326,85 @@ TEST(CoulombRouteAdmission, MultipoleIsRefusedOnAPeriodicStructureOnTheDirectSum
     ASSERT_FALSE(v);
     EXPECT_NE(v.Error().find("conditionally convergent"), std::string::npos) << v.Error();
     EXPECT_TRUE(AdmitCoulomb(cell, {.fit=CoulombFit::Delta}, theMesh)) << "the refusal is the multipole's alone";
+}
+
+// THE OPERATOR LEG OF THE δ HARTREE FORCE (lane S 2026-11-23): MakeSelfRepulsionPullback is d(qᵀK(R)q)/dR_A at FIXED q, the points riding
+// their owners and the mesh's sites (shells, directions) moving with them.  Against the central difference of the REBUILT mesh and sites at
+// R_A ± h, the same q handed to each.  A point is matched by its IDENTITY (its owner and its offset u from it), not its index: the builder
+// drops a point whose Becke weight underflows to zero, so a move can change the count by a few.  Such a point's charge is w q ≈ 0 in both
+// meshes, so a point present in only one carries zero.  An off-symmetric triatomic (unequal Z, no mirror) at the δ default lMax 16 on
+// 80/L29, so every component is live.  Translation invariance: the gradient sums to zero.
+TEST(RadialPoissonCoulomb, TheSelfRepulsionPullbackIsTheFiniteDifferenceOfTheRebuiltOperator)
+{
+    const int lMax=16;
+    const std::vector<int> Z{8, 1, 9};
+    const std::vector<rvec3_t> R0{rvec3_t(0.1,-0.2,0.0), rvec3_t(0.3,1.5,1.0), rvec3_t(-0.4,-1.2,1.9)};
+    auto build=[&](const std::vector<rvec3_t>& R)
+    {
+        Molecule m;
+        for (size_t a=0;a<R.size();a++) m.Insert(Site{Z[a], Vector3D<double>(R[a].x,R[a].y,R[a].z)});
+        return m.CreateIntegrationMesh(theMesh);
+    };
+    const qcMesh::Mesh m0=build(R0);
+    rvec3vec_t c0(R0.size()); for (size_t a=0;a<R0.size();a++) c0[a]=R0[a];
+    rvec_t q(m0.size());
+    for (size_t g=0; g<m0.size(); g++)
+    {
+        double a=0.0;
+        for (size_t s=0; s<R0.size(); s++) {const rvec3_t d=m0.Points()[g]-R0[s]; a+=(1.0+0.3*d.x-0.2*d.y)*Rho(1.1,d*d)+0.3*Rho(5.0,d*d);}
+        q[g]=m0.Weights()[g]*a;
+    }
+    auto key=[](const qcMesh::Mesh& m, size_t a, size_t g)
+    {
+        const rvec3_t& u=m.OwnerOffsets()[g];
+        return std::tuple<size_t,long long,long long,long long>(a, std::llround(u.x*1e8), std::llround(u.y*1e8), std::llround(u.z*1e8));
+    };
+    ASSERT_EQ(m0.OwnerOffsets().size(), m0.size());
+    std::map<std::tuple<size_t,long long,long long,long long>,double> held;
+    for (size_t a=0;a<m0.NSites();a++) for (size_t g=m0.SiteBegin(a);g<m0.SiteEnd(a);g++)
+    {
+        const auto [it,fresh]=held.emplace(key(m0,a,g), q[g]);
+        if (!fresh) ASSERT_TRUE(q[g]==0.0 && it->second==0.0) << "only the rule's zero-weight r = 0 node repeats (once per direction)";
+    }
+    auto heldOn=[&](const qcMesh::Mesh& m)
+    {
+        rvec_t qm(m.size());
+        for (size_t a=0;a<m.NSites();a++) for (size_t g=m.SiteBegin(a);g<m.SiteEnd(a);g++)
+        {
+            const auto it=held.find(key(m,a,g));
+            qm[g]= it==held.end() ? 0.0 : it->second;
+        }
+        return qm;
+    };
+    const auto K0=qcMesh::MakeRadialPoissonCoulomb(Sites(m0,theMesh,lMax,c0));
+    ASSERT_TRUE(K0->CanPullbackSelfRepulsion());
+    EXPECT_FALSE(qcMesh::MakeDirectSumCoulomb(m0)->CanPullbackSelfRepulsion()) << "the direct sum's self term reads the weights: no pullback";
+    const rvec3vec_t G=K0->MakeSelfRepulsionPullback(q);
+    ASSERT_EQ(G.size(), R0.size());
+    auto E=[&](size_t a, int k, double s)
+    {
+        std::vector<rvec3_t> R=R0; (k==0 ? R[a].x : k==1 ? R[a].y : R[a].z)+=s;
+        const qcMesh::Mesh m=build(R);
+        EXPECT_NEAR(double(m.size()), double(m0.size()), 10.0) << "the moved mesh kept its points, short of a few zero weights";
+        rvec3vec_t c(R.size()); for (size_t b=0;b<R.size();b++) c[b]=R[b];
+        const auto K=qcMesh::MakeRadialPoissonCoulomb(Sites(m,theMesh,lMax,c));
+        const rvec_t qm=heldOn(m);
+        return K->SelfRepulsion(qm, K->Potential(qm));
+    };
+    const double h=1e-4;
+    double big=0.0, worst=0.0;
+    rvec3_t sum(0,0,0);
+    for (size_t a=0;a<R0.size();a++)
+    {
+        sum+=G[a];
+        for (int k=0;k<3;k++)
+        {
+            const double fd=(E(a,k,h)-E(a,k,-h))/(2*h), an=(k==0 ? G[a].x : k==1 ? G[a].y : G[a].z);
+            big=std::max(big,std::fabs(an)); worst=std::max(worst,std::fabs(an-fd));
+            std::printf("[op pullback] atom %zu %c  analytic %+.10e  FD %+.10e  diff %+.2e\n", a, "xyz"[k], an, fd, an-fd);
+        }
+    }
+    EXPECT_GT(big, 1e-2) << "the gate is vacuous";
+    EXPECT_LT(worst, 1e-8*big) << "max |analytic - FD| " << worst << " of " << big << " (measured 8e-10 of 0.97)";
+    EXPECT_LT(norm(sum), 1e-10*big) << "the cross-site pullback sums to zero";
 }
