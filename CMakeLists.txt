@@ -169,6 +169,7 @@ set(QCHEM_PERIODIC
     "GPW_NaF.k222_RelaxesToCP2KsCell_Long"                                  # cold NaF relaxation (2.4 h, 4 threads); twin: GPW_NaF.k222_CP2KsCellIsStationary_Long (one point)
     "GPW_NaF.k222_CP2KsCellIsStationary_Long"                               # NOT a cheap twin: ONE point is 2328 s alone (OpenWork §4, the Becke force), past 3600 s beside two others
     "GPW_Si.k333_RelaxesToCP2KsCell_Long"                                   # cold Si relaxation on the DEFAULT accuracy (33 min, the pilot); twin: GPW_Si.k333_CP2KsCellIsStationary_Long
+    "GPW_AlN.k222_CP2KsCellIsStationary_Long"                               # NOT a cheap twin: ONE point on stated grids is 3205 s on 4 threads (lane B 2026-11-22), 89% of the long TIMEOUT; no cold k222 gate (OpenWork §3 AlN row)
 )
 list(JOIN QCHEM_PERIODIC ":" _qchemPeriodic)
 list(JOIN QCHEM_PANEL_RED ":" _qchemPanelRed)
