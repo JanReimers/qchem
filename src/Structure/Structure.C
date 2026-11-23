@@ -175,7 +175,9 @@ export class Molecule
 {
 public:
     Molecule();
-    Molecule(const Structure& m);                     //!< copies \a m's sites (any site set)
+    //! Copies \a m's sites (any site set).  EXPLICIT (USER RULING 2026-11-23): implicit, it let an abstract \c Structure -- a cell, an
+    //! atom -- convert silently into a molecule wherever a \c const \c Molecule& was taken (16 mesh calls did, V-MESH-FACTORY step 4b).
+    explicit Molecule(const Structure& m);
     virtual std::shared_ptr<Structure> Clone() const override;
     //! \brief Add a site (was Insert(Atom*) taking ownership of a raw new).
     virtual void   Insert     (const Site& s);

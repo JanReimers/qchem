@@ -744,7 +744,7 @@ namespace qchem {
     class Molecule : public virtual Structure {
     public:
         Molecule();
-        Molecule(const Structure& m);
+        explicit Molecule(const Structure& m);
         virtual std::shared_ptr<Structure> Clone() const override;
         virtual void Insert (const Site& s);
         virtual size_t GetNumAtoms() const override;

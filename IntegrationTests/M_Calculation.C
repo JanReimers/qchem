@@ -503,9 +503,9 @@ TEST(M_Calculation, WaterRestartAtMovedAtomsStartsNearItsAnswer)
     water.ForEachSite([&](int, const Vector3D<double>& r, bool){ R.push_back(r); });
     ASSERT_EQ(R.size(), 3u);
     R[1]=R[1]+Vector3D<double>(0.0, 0.05, -0.04);   // one hydrogen, 0.064 bohr
-    std::shared_ptr<qchem::Structure> moved=water.Clone();
-    moved->MoveSites(R);
-    const auto setupMoved=MoleculeSetup::Resolve(*moved, {.molecule={.basis="dzvp"}});
+    Molecule moved=water;   // the concrete geometry: a Molecule copies, and Molecule(const Structure&) is explicit (ruling 2026-11-23)
+    moved.MoveSites(R);
+    const auto setupMoved=MoleculeSetup::Resolve(moved, {.molecule={.basis="dzvp"}});
 
     std::vector<double> E;
     auto r=MoleculeCalculation::PrepareRestart(path, setupMoved, {},

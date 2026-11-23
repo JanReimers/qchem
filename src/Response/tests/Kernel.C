@@ -152,7 +152,7 @@ private:
     double                              itsH_;
 };
 
-std::shared_ptr<const Structure> Water()     // M_Calculation's geometry, bohr
+std::shared_ptr<const Molecule> Water()      // M_Calculation's geometry, bohr
 {
     auto w=std::make_shared<Molecule>();
     w->Insert(Site{8, Vector3D<double>(0,  0.0,   0.0)});
