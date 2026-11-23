@@ -486,9 +486,8 @@ TEST(HamiltonianForces, MissingGradientsNamesTheTermsWithoutAForce)
     // (TheBeckeXCForceAtFixedDIsItsEnergysFiniteDifference); HF has every term's since the HF Coulomb and exchange landed.
     for (auto model : {Model::PBE})
     {
-        // The Hartree is STATED as the A1_coul Dunlap fit, which has its force, so the XC term is the one missing: the δ default (user
-        // ruling 2026-11-22) would add the δ Hartree's own refusal.
-        auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=model, .coulomb={.auxBasis="A1_coul"}, .scf=Tight(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
+        // The δ default Hartree has its force (lane S 2026-11-23), so the GGA XC term is the one missing.
+        auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=model, .scf=Tight(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
         ASSERT_TRUE(c->IsConverged());
         const auto missing=ForceFacadeTests::MissingGradients(*c);
         EXPECT_FALSE(missing.empty()) << "the GGA XC term has no force yet";
@@ -1242,9 +1241,8 @@ TEST(HamiltonianForces, TheDunlapHartreesForceAtFixedDIsItsEnergysFiniteDifferen
 TEST(HamiltonianForces, TheBeckeXCForceAtFixedDIsItsEnergysFiniteDifference)
 {
     const Molecule h2o=GetMolecule("H2O");
-    // The Hartree is STATED as the A1_coul Dunlap fit (it has its force): the δ default (user ruling 2026-11-22) would add the δ Hartree's
-    // own refusal until lane S's operator leg lands.
-    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .coulomb={.auxBasis="A1_coul"}, .scf=AnyD(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
+    // The δ default Hartree (nothing stated): it has its force since lane S 2026-11-23 (TheDeltaHartreeForceAtFixedDIsItsEnergysFiniteDifference).
+    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .scf=AnyD(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
     ASSERT_TRUE(c->IsConverged());
     EXPECT_TRUE(ForceFacadeTests::MissingGradients(*c).empty()) << "LDA water: every term has its force";
     const auto D=ForceFacadeTests::Carry(*c);
@@ -1298,6 +1296,80 @@ TEST(HamiltonianForces, WithTheBeckeXCTheLDAForceIsTheFiniteDifferenceOfTheRecon
                                   EXPECT_TRUE(m->IsConverged()); return m->Energy(); };
             const double fd=(E(h)-E(-h))/(2*h);
             std::printf("  [LDA force] atom %zu %c  analytic % .10e  FD % .10e  diff %.2e\n", A, "xyz"[x], C(F[A],x), -fd, C(F[A],x)+fd);
+            EXPECT_NEAR(C(F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << "atom " << A << " axis " << x;
+            largest=std::max(largest, std::fabs(fd));
+        }
+    }
+    EXPECT_GT(largest, 1e-2) << "the force is not trivially small (a sign would show)";
+    EXPECT_LT(norm(sum), 1e-8) << "translation invariance";
+}
+
+// THE δ HARTREE's FORCE AT FIXED D (lane S 2026-11-23; design note lane-s-DeltaHartree-force-design.md).  E_H = ½ qᵀKq, q_g = w_g ρ_D(r_g),
+// on the Hamiltonian's nonlinear mesh (shared with Vxc), K the radial Poisson solve.  Its three legs: the weights' response (lane B's mesh
+// face), ρ at the moving points (lane B's block face), and the operator's cross-site reads (K's own pullback).  Legs 1-2 read v̄ = ½(K + Kᵀ)q,
+// which the operator answers itself (user ruling 2026-11-23).  With v = Kq in its place this gate missed by 7e-5 Ha/bohr (K's asymmetry on a
+// converged all-electron density, 100x the synthetic estimate); with v̄, 1.1e-8.  All-electron LDA water, DZVP, the δ default Hartree
+// (nothing stated): the term's force against the central difference of its own energy entry ("Eee") with the converged D frozen and the
+// mesh REBUILT at R ± h.  2e-6 (relative above 1), as the Dunlap and Becke XC gates.
+TEST(HamiltonianForces, TheDeltaHartreeForceAtFixedDIsItsEnergysFiniteDifference)
+{
+    const Molecule h2o=GetMolecule("H2O");
+    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .scf=AnyD(), .molecule={.basis="dzvp"}})).TakeValue(); (void)c->Converge();
+    ASSERT_TRUE(c->IsConverged());
+    EXPECT_TRUE(ForceFacadeTests::MissingGradients(*c).empty()) << "LDA water on the δ default: every term has its force";
+    const auto D=ForceFacadeTests::Carry(*c);
+    const auto Ft=ForceFacadeTests::TermForcesAt(c->SizedSetup(), ForceFacadeTests::Structure_(*c), D);
+    const auto Et=ForceFacadeTests::TermEnergiesAt(c->SizedSetup(), ForceFacadeTests::Structure_(*c), D);
+    ASSERT_EQ(Ft.size(), Et.size());
+    size_t t=Ft.size();
+    for (size_t i=0;i<Ft.size();i++) if (Et[i].entries=="Eee") t=i;
+    ASSERT_LT(t, Ft.size()) << "no Hartree (Eee) term";
+    ASSERT_TRUE(Ft[t].missing.empty()) << Ft[t].missing;
+    const double h=1e-4;
+    rvec3_t sum(0,0,0);
+    double largest=0.0, worst=0.0;
+    for (size_t A=0;A<Ft[t].F.size();A++)
+    {
+        sum+=Ft[t].F[A];
+        for (int x=0;x<3;x++)
+        {
+            auto E=[&](double s){ return ForceFacadeTests::TermEnergiesAt(c->SizedSetup(), *MovedH2O(h2o,A,x,s), D)[t].E; };
+            const double fd=(E(h)-E(-h))/(2*h);
+            std::printf("  [δ Hartree force] atom %zu %c  analytic % .10e  FD % .10e  diff %.2e\n", A, "xyz"[x], C(Ft[t].F[A],x), -fd, C(Ft[t].F[A],x)+fd);
+            EXPECT_NEAR(C(Ft[t].F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << Et[t].label << ", atom " << A << " axis " << x;
+            largest=std::max(largest, std::fabs(fd)); worst=std::max(worst, std::fabs(C(Ft[t].F[A],x)+fd));
+        }
+    }
+    std::printf("  [δ Hartree force] max |analytic - FD| %.2e Ha/bohr (measured 1.1e-8: the FD's own h² error)\n", worst);
+    EXPECT_GT(largest, 1e-2) << "the force is not trivially small (a sign would show)";
+    EXPECT_LT(norm(sum), 1e-8) << "translation invariance";
+}
+
+// THE WHOLE LDA FORCE ON THE δ DEFAULT (lane S 2026-11-23): the δ Hartree's force (above) with lane B's δ XC, the 1E terms, the ion-ion sum
+// and the Pulay sum against the central difference of the RE-CONVERGED energy, all-electron LDA water, DZVP, nothing stated.  Here the
+// SCF's own stationarity enters: the Fock is built from v̄ = ½(K + Kᵀ)q, so H = ∂E/∂D and the converged D is stationary for the energy the
+// FD differentiates (with v = Kq it missed by 7e-5; measured 6e-9 now).  Each displaced point is a full SCF (MinΔρ/N 1e-9); h = 1e-4, so
+// 2e-6 (relative above 1).  _Long: 18 SCFs.
+TEST(HamiltonianForces, OnTheDeltaHartreeTheLDAForceIsTheFiniteDifferenceOfTheReconvergedEnergy_Long)
+{
+    const Molecule h2o=GetMolecule("H2O");
+    RunOptions opts{.model=Model::LDA, .molecule={.basis="dzvp"}};
+    opts.scf=Tight(); auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, opts)).TakeValue(); (void)c->Converge();
+    ASSERT_TRUE(c->IsConverged());
+    ASSERT_TRUE(ForceFacadeTests::MissingGradients(*c).empty());
+    const rvec3vec_t F=ForceFacadeTests::Forces(*c, ForceFacadeTests::Carry(*c), ForceFacadeTests::EnergyWeighted(*c));
+    const double h=1e-4;
+    rvec3_t sum(0,0,0);
+    double largest=0.0;
+    for (size_t A=0;A<F.size();A++)
+    {
+        sum+=F[A];
+        for (int x=0;x<3;x++)
+        {
+            auto E=[&](double s){ opts.scf=Tight(); auto m=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(dynamic_cast<const Molecule&>(*MovedH2O(h2o,A,x,s)), opts)).TakeValue(); (void)m->Converge();
+                                  EXPECT_TRUE(m->IsConverged()); return m->Energy(); };
+            const double fd=(E(h)-E(-h))/(2*h);
+            std::printf("  [δ LDA force] atom %zu %c  analytic % .10e  FD % .10e  diff %.2e\n", A, "xyz"[x], C(F[A],x), -fd, C(F[A],x)+fd);
             EXPECT_NEAR(C(F[A],x), -fd, 2e-6*std::max(1.0,std::fabs(fd))) << "atom " << A << " axis " << x;
             largest=std::max(largest, std::fabs(fd));
         }
@@ -1400,16 +1472,20 @@ TEST(HamiltonianForces, ASymmetryBlockedRunsForceIsTheUnblockedRunsForce)
     // forces ~1e-1, checked non-trivial).  Every term's force at fixed D is compared, and the whole force (the Pulay sum included) where the
     // model has every term's.  Both SCFs reach MinΔρ/N 1e-9 and a force is first order in the density's error, so 1e-6.  The cases cover
     // the 1E faces (E1), the HF whole-system sweep (RHF, UHF), and under LDA the Dunlap 3-centre, the PP faces and the δ XC on the Becke
-    // mesh (the SALC block forwards the point-set pullback to its raw AO basis on the folded D; lane B 2026-11-22).
+    // mesh (the SALC block forwards the point-set pullback to its raw AO basis on the folded D; lane B 2026-11-22), and the δ Hartree
+    // (its block leg rides the same forwarding; lane S 2026-11-23).
     const Molecule h2o=StretchedH2O(GetMolecule("H2O"), 1.08);
     const std::vector<RunOptions> cases{{.model=Model::E1, .molecule={.basis="dzvp"}}, {.model=Model::HF, .molecule={.basis="dzvp"}},
                                          {.spin=SpinGroup::Polarized, .model=Model::HF, .molecule={.basis="dzvp"}}, {.model=Model::LDA, .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="dzvp"}},
-                                         {.model=Model::LDA, .pp="gth-lda-valence", .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="dzvp"}}};   // LDA: the Dunlap 3-centre STATED (the δ default, user ruling 2026-11-22, would make the δ Hartree the subject)
+                                         {.model=Model::LDA, .pp="gth-lda-valence", .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="dzvp"}},   // LDA: the Dunlap 3-centre STATED
+                                         {.model=Model::LDA, .molecule={.basis="dzvp"}},                                // and the δ default Hartree (lane S 2026-11-23)
+                                         {.model=Model::LDA, .pp="gth-lda-valence", .molecule={.basis="dzvp"}}};
     for (RunOptions free : cases)
     {
         RunOptions blocked=free; blocked.imposeSymmetry=true;
         const std::string what=std::string(*free.model==Model::E1 ? "E1" : *free.model==Model::HF ? "HF" : "LDA")
-                              +(free.spin==SpinGroup::Polarized ? " polarized" : "")+(free.pp.value_or("").empty() ? "" : " PP");
+                              +(free.spin==SpinGroup::Polarized ? " polarized" : "")+(free.pp.value_or("").empty() ? "" : " PP")
+                              +(*free.model==Model::LDA ? (free.coulomb.auxBasis.empty() ? " δ" : " A1_coul") : "");
         free.scf=Tight(); blocked.scf=Tight();
         auto f=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, free)).TakeValue();    (void)f->Converge();
         auto b=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(h2o, blocked)).TakeValue(); (void)b->Converge();

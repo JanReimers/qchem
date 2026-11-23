@@ -15,7 +15,7 @@ namespace qchem::Fitting
 {
 
 std::unique_ptr<FirstOrderDensityFit<double>>
-MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis)
+MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::shared_ptr<const qcMesh::Mesh> mesh)
 {
     // The factory gathers the basis's Coulomb-integral face (the concrete association lives here, not in the class).
     if (!deltaBasis) throw std::logic_error("MakeGridDensityFitter: no fit basis");
@@ -23,7 +23,8 @@ MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis)
     if (!coulomb)
         throw std::logic_error("MakeGridDensityFitter: the fit basis '"+deltaBasis->Name()+"' carries no Coulomb integrals "
                                "(wrap a δ basis in BasisSet::CoulombDeltaFit_IBS with its operator)");
-    return std::make_unique<GridDensityFitter>(std::move(deltaBasis), *coulomb);
+    if (!mesh) throw std::logic_error("MakeGridDensityFitter: no mesh for the fit basis '"+deltaBasis->Name()+"'");
+    return std::make_unique<GridDensityFitter>(std::move(deltaBasis), *coulomb, std::move(mesh));
 }
 
 std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs)

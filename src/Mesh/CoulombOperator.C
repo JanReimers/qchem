@@ -45,6 +45,16 @@ public:
     //! Does \c HartreeEnergy read \a trDV?  Only an operator whose two legs differ does (the multipole); the caller then
     //! pays for \f$\mathrm{Tr}(DV)\f$, a full matrix contraction, only when it is used.
     virtual bool UsesTrDV() const {return false;}
+    //! \name THE DERIVATIVE of \c SelfRepulsion beside it, AT FIXED CHARGES (lane S 2026-11-23, the δ Hartree force's operator leg):
+    //! \f$\partial(q^TKq)/\partial R_A\f$ per site of an atom-centred mesh, with \a q held and every point riding its owner site, so only the
+    //! operator \f$K(R)\f$ moves -- scaled as the value is (no ½).  \f$q^TdKq\f$ is the exact derivative of the quadratic form for any K,
+    //! symmetric or not: it sees only K's symmetric part.  The charges' own motion (the weights, the density at the points) is the
+    //! caller's.  \c Can is false exactly when \c Make would throw.  Default: no pullback (the direct sum: its self term reads the weights;
+    //! the multipole: its axis is channels, not points).  CLIENT: the grid density fitter's \c MakeHartreePullback.
+    //!@{
+    virtual bool       CanPullbackSelfRepulsion() const {return false;}
+    virtual rvec3vec_t MakeSelfRepulsionPullback(const rvec_t& q) const;
+    //!@}
 };
 
 //! \brief The direct sum over \a mesh's points: \f$v(r_g)=\sum_{h\ne g}q_h/|r_g-r_h|\f$ plus a self term.  \f$O(N^2)\f$,
