@@ -117,9 +117,10 @@ public:
         {
             return new EFit_IBS(std::make_shared<BasisSet::BasisCache>(), Evaluator::Rescale(2.0, this->GetSymt()));   // the Coulomb fit: no mesh
         }
-        virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+        virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const FitQuadrature* quad, double) const
         {
-            return new EFit_IBS(std::make_shared<BasisSet::BasisCache>(), Evaluator::Rescale(2.0/3.0, this->GetSymt()), *cl, mp);
+            if (!quad) throw std::invalid_argument("Radial::CreateVxcFitBasisSet: an Auxiliary Vxc fit projects on the run's quadrature, and none was handed in");
+            return new EFit_IBS(std::make_shared<BasisSet::BasisCache>(), Evaluator::Rescale(2.0/3.0, this->GetSymt()), *cl, quad->GetMesh());
         }
         //! This block's Coulomb-fit exponents (its own x 2), for \c CoulombFitLadder's merged rungs.
         rvec_t CoulombFitExponents() const {return 2.0*this->es;}
@@ -198,12 +199,12 @@ public:
     //! wires that evaluation in by name (these are its own concrete blocks), so the SCF never asks a block's 3-D face -- display work,
     //! to become an honest \f$Y_{lm}\f$ per (i, m).  Every other representation is the hub's.  The same values as the 3-D face gives
     //! today, which evaluates \f$\chi_i(|r|)\f$ too.
-    virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp, VxcFit fit=VxcFit::Auto,
-                                              const FitQuadrature* quad=nullptr, const PhiChooser& phiTables={}) const override
+    virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, VxcFit fit, const FitQuadrature* quad, double fitCutoffFactor=1.0,
+                                              const PhiChooser& phiTables={}) const override
     {
-        if (fit!=VxcFit::Delta) return BasisSetImp<double>::CreateVxcFitBasisSet(cl, mp, fit, quad, phiTables);
+        if (fit!=VxcFit::Delta) return BasisSetImp<double>::CreateVxcFitBasisSet(cl, fit, quad, fitCutoffFactor, phiTables);
         if (!quad) throw std::invalid_argument("Radial::BasisSet_HF::CreateVxcFitBasisSet: VxcFit::Delta is built over a quadrature, and none "
-                                               "was handed in (MakeXCQuadrature)");
+                                               "was handed in");
         std::map<uint64_t, const EOrbital_HF_IBS*> mine;   // these blocks by instance: the closure is handed one of them, alive
         for (const auto* b : itsBlocks) mine.emplace(b->Instance().Serial(), b);
         auto radial=[mine](const BasisSet::Orbital_1E_IBS<double>& orb, const rvec3vec_t& R)

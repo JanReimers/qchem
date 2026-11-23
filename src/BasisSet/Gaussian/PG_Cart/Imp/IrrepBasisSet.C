@@ -269,13 +269,14 @@ rFIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl) const
     Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
     return new EFit_IBS(std::make_shared<BasisCache>(),&reader,cl,"A1_coul");   // a fit basis gets its OWN cache from its factory (S3a)
 }
-rFIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+rFIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const FitQuadrature* quad, double) const
 {
     // PLACEHOLDER until G2 (the same OpenWork rows as CreateCDFitBasisSet above): reached by tests and by a deck stating xc.fit
     // Auxiliary (the default Vxc route is delta).  G2 derives it from the block's own exponents instead.
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
+    if (!quad) throw std::invalid_argument("PG_Cart::Orbital_IBS::CreateVxcFitBasisSet: an Auxiliary Vxc fit projects on the run's quadrature, and none was handed in");
     Gaussian94Reader reader(BasisFile("A1_exch.bsd"));
-    return new EFit_IBS(std::make_shared<BasisCache>(),&reader,cl,mp,"A1_exch");
+    return new EFit_IBS(std::make_shared<BasisCache>(),&reader,cl,quad->GetMesh(),"A1_exch");
 }
 // Orbital_1E_IBS::GetAoShells: this orbital IBS IS-A PGData, so it hands its own Cartesian data to the extractor.
 std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const {return ExtractAoShells(*this);}
@@ -617,8 +618,8 @@ size_t Orbital_IBS::StreamFoldOrder() const
 EFit_IBS::EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader* bsr, const Structure* cl, const std::string& name)
 : Fit_IBS(), IrrepBasisSet(cache,bsr,cl), itsName(name)
 {};
-EFit_IBS::EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader* bsr, const Structure* cl, const qcMesh::MeshParams& mp, const std::string& name)
-: Fit_IBS(*cl,mp), IrrepBasisSet(cache,bsr,cl), itsName(name)
+EFit_IBS::EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader* bsr, const Structure* cl, std::shared_ptr<const qcMesh::Mesh> projectionMesh, const std::string& name)
+: Fit_IBS(std::move(projectionMesh)), IrrepBasisSet(cache,bsr,cl), itsName(name)
 {};
 
  

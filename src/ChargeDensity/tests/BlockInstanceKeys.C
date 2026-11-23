@@ -16,7 +16,7 @@
 #include <string>
 
 import qchem.ChargeDensity;
-import qchem.BasisSet;                          // Real_BS, MakeXCQuadrature, VxcFit, rFIT_SF_ABS, PairProjector
+import qchem.BasisSet;                          // Real_BS, VxcFit, rFIT_SF_ABS, PairProjector
 import qchem.BasisSet.Gaussian.Point.Factory;   // Gaussian::Factory
 import qchem.BasisSet.CoulombDeltaFit_IBS;      // the δ Coulomb fit basis
 import qchem.Fitting.FunctionFitter;            // MakeDeltaScalarFitter
@@ -28,6 +28,7 @@ import qchem.Symmetry.Unit;                     // UnitQN
 import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker: the quadrature a delta fit is built over (V-MESH-FACTORY step 4)
 using namespace qchem;
 
 namespace
@@ -82,8 +83,8 @@ TEST(FitterBlockKeys, TwoBlocksOfEqualSymmetryAskedOfOneFitterGetTheirOwnViews)
 
     const qcMesh::MeshParams mesh{.radial=qcMesh::RadialKind::MHL, .nRadial=40, .mhl_m=3, .mhl_alpha=2.0,
                                   .angular=qcMesh::AngularKind::Lebedev, .angularDegree=17, .beckeOrder=2};
-    BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(mol1, mesh, nullptr);
-    std::shared_ptr<const BasisSet::FIT_SF_ABS<double>> delta(bs1->CreateVxcFitBasisSet(&mol1, mesh, BasisSet::VxcFit::Delta, &quad));
+    BasisSet::FitQuadrature quad=MakeMeshMaker(mol1)->Make(mesh, qcMesh::NoSymmetry());
+    std::shared_ptr<const BasisSet::FIT_SF_ABS<double>> delta(bs1->CreateVxcFitBasisSet(&mol1, BasisSet::VxcFit::Delta, &quad));
     const auto cdelta=std::make_shared<const BasisSet::CoulombDeltaFit_IBS>(std::make_shared<BasisSet::BasisCache>(), delta,
                                                                              qcMesh::MakeDirectSumCoulomb(*quad.GetMesh()), sym_t(new UnitQN));
     const std::shared_ptr<const BasisSet::rFIT_CD_ABS> gauss(bs1->CreateCDFitBasisSet(&mol1));

@@ -40,7 +40,7 @@ void ExpectSameLadder(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol,
         report::Run run("raster ladder "+name);
         {
             report::Section grids("grids");
-            BasisSet::Lattice::EmitGpwGrids(*ladder, *mol, ResolveImposition(lat, {}));
+            BasisSet::Lattice::EmitGpwGrids(*ladder, *mol, ResolveImposition(lat, {}), lat.GetUnitCell());
         }
         filed=report::CurrentRunReport()["grids"]["ladder"];
     }

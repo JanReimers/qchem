@@ -23,6 +23,8 @@ import qchem.BasisSet.PairProjection;                    // PairProjection<doubl
 import qchem.BasisSet.Internal.ERI4;                          // ERI4, fnorm
 import qchem.Structure;
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker: the quadrature an A1 Vxc fit projects on (V-MESH-FACTORY step 4)
+import qchem.BasisSet.Fit_Types;   // FitQuadrature: the Vxc fit factory's quadrature argument (V-MESH-FACTORY §5)
 using namespace qchem;
 
 using namespace qchem::BasisSet::Gaussian::Evaluators;
@@ -147,7 +149,8 @@ TEST(M_MEvaluator, matrix_3C_4C_match_scalar)
 
     // 3-centre (DFT): a real Coulomb-fit basis from the orbital IBS; reference = public Overlap3C/Repulsion3C.
     auto   cdfit = ibs.CreateCDFitBasisSet (h2o);
-    auto  vxcfit = ibs.CreateVxcFitBasisSet(h2o,qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3});
+    const BasisSet::FitQuadrature vxcq=MakeMeshMaker(*h2o)->Make(qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3}, qcMesh::NoSymmetry());
+    auto  vxcfit = ibs.CreateVxcFitBasisSet(h2o, &vxcq, 1.0);
     Matrix_Adapter<NRE> mcdfit(dynamic_cast<const NRE&>(*cdfit));
     Matrix_Adapter<NRE> mvxcfit(dynamic_cast<const NRE&>(*vxcfit));
     const BasisSet::Orbital_DFT_IBS<double>& dft = ibs;

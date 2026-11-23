@@ -172,7 +172,7 @@ public:
     //! over GPW's OWN density grid -- so the collocated \f$\tilde\rho\f$'s \f$\{G\}\f$ matches the fitter's.  A
     //! GPW density lives on a plane-wave grid whatever the orbitals are (never orbital==fit).
     virtual BasisSet::cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl) const override;
-    virtual BasisSet::cFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
+    virtual BasisSet::cFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const BasisSet::FitQuadrature* quad, double fitCutoffFactor) const override;
 
     //! \brief The species-field integral service (Orbital_PP_IBS<T>): assemble \f$\langle i|v|j\rangle\f$ for a
     //! species radial field and \f$\langle i|V_{NL}|j\rangle\f$ for a projector set in REAL SPACE (cross-cast the

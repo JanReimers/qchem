@@ -225,14 +225,14 @@ std::shared_ptr<const Gaussian::GpwRasterLadder> MakeRasterLadder(const ::qchem:
     return Gaussian::MakeRasterLadder(lat.GetUnitCell(), *mol, LadderInputs(p), ppSharpness);
 }
 
-void EmitGpwGrids(const Gaussian::GpwRasterLadder& ladder, const BasisSet::Real_BS& mol, const CrystalImposition& imp)
+void EmitGpwGrids(const Gaussian::GpwRasterLadder& ladder, const BasisSet::Real_BS& mol, const CrystalImposition& imp, const UnitCell& cell)
 {
     if (report::Depth()==0) return;
     ladder.ReportGrids(imp.densityGroup.get());
     // The lattice-sum economy readout (grids.latticeSums + the [lattice sums] console line): the numbers that JUMP when diffuse
     // functions are added -- the owner of the screens (the molecular basis's orbital block) reports them.
     for (auto ibs : mol.Iterate<BasisSet::Real_OIBS>())
-        if (const auto* lat=dynamic_cast<const Gaussian::LatticeSum1E*>(ibs)) { lat->EmitLatticeSumReport(*imp.cell); break; }   // abstract -> abstract
+        if (const auto* lat=dynamic_cast<const Gaussian::LatticeSum1E*>(ibs)) { lat->EmitLatticeSumReport(cell); break; }   // abstract -> abstract
 }
 
 // ------------------------------------------------------------------ the VET-STAGE TRIM (pin 22)

@@ -128,7 +128,7 @@ TEST(SeedSpins, AStatedOrderingOnASpinlessCellSeedsWhatTheStructuresFlipsSeed)
     // Neutral O (2p4) carries a Hund pair too, so the structure's default seeds it +m: the stated twin says +1 there.
     SeedKey stated=kMnQ7; stated.siteSpins={+1,-1,+1,+1,+1,+1,+1};
     SeedKey none=kMnQ7;   none.siteSpins={0,0,0,0,0,0,0};
-    auto fitSF=flipped.bs->CreateVxcFitBasisSet(flipped.st.get(), qcMesh::MeshParams{});
+    auto fitSF=flipped.bs->CreateVxcFitBasisSet(flipped.st.get(), BasisSet::VxcFit::Auto, nullptr);
     auto rhoOf=[&](const Box& b, const SeedKey& k, Spin ch)
     {
         SeedCD seed(b.fitCD, b.lat.GetUnitCell(), k, {}, ch);
@@ -194,7 +194,7 @@ TEST(IonicSADSeed, AMixedValenceSeedIsTheSumOfItsChargeStates)
         auto* fA=dynamic_cast<const BasisSet::AnalyticFourier*>(sA.get());
         auto* fB=dynamic_cast<const BasisSet::AnalyticFourier*>(sB.get());
         ASSERT_TRUE(fF && fA && fB);
-        auto fitSF=box.bs->CreateVxcFitBasisSet(box.st.get(), qcMesh::MeshParams{});
+        auto fitSF=box.bs->CreateVxcFitBasisSet(box.st.get(), BasisSet::VxcFit::Auto, nullptr);
         auto rF=fF->FourierComponents(*fitSF), rA=fA->FourierComponents(*fitSF), rB=fB->FourierComponents(*fitSF);
         ASSERT_GT(rF.size(), 1u);
         double maxErr=0, maxRho=0;
@@ -353,8 +353,8 @@ TEST(SADSeed, ItsGridIsItsOwnAndGoneOnceItHasProjected)
     // Two Coulomb fits on opposite sides of the face: the analytic Gaussian (Dunlap), which asks the seed to integrate itself, and
     // the δ basis with the direct-sum operator, whose own points ARE its functions, so it asks the seed only for values there.
     const std::shared_ptr<const BasisSet::rFIT_CD_ABS> fb(bs->CreateCDFitBasisSet(&h2o));
-    BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(h2o, kSeedMesh, nullptr);
-    const std::shared_ptr<const BasisSet::rFIT_SF_ABS> delta(bs->CreateVxcFitBasisSet(&h2o, kSeedMesh, BasisSet::VxcFit::Delta, &quad));
+    BasisSet::FitQuadrature quad=MakeMeshMaker(h2o)->Make(kSeedMesh, qcMesh::NoSymmetry());
+    const std::shared_ptr<const BasisSet::rFIT_SF_ABS> delta(bs->CreateVxcFitBasisSet(&h2o, BasisSet::VxcFit::Delta, &quad));
     const auto cdelta=std::make_shared<const BasisSet::CoulombDeltaFit_IBS>(std::make_shared<BasisSet::BasisCache>(), delta, qcMesh::MakeDirectSumCoulomb(*quad.GetMesh()), sym_t(new UnitQN));
     const auto dunlap=Fitting::MakeDunlapDensityFitter(fb);
     const auto grid  =Fitting::MakeGridDensityFitter(cdelta);

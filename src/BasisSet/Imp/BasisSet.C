@@ -13,7 +13,6 @@ import qchem.BasisSet.DeltaFit_IBS;      // DeltaFit_IBS -- the delta representa
 import qchem.Symmetry.Factory;           // BlochFactory (the delta basis's Gamma irrep)
 import qchem.Symmetry.Unit;              // UnitQN: the molecular fit lineage's trivial irrep (the real delta basis's)
 import qchem.Reporting;                  // report::Timed -- splitting the delta-fit build (ParallelAndOraclePlan 1.1(b))
-import qchem.Lattice_3D.Imposition;      // XCMeshSource -- the imposition that builds the XC mesh under its own ops (S2)
 
 namespace qchem::BasisSet
 {
@@ -61,9 +60,8 @@ template <class T> FIT_CD_ABS<T>* tBasisSet<T>::CreateCDFitBasisSet(const Struct
 {
     return FirstRealDFT(*this, "tBasisSet::CreateCDFitBasisSet")->CreateCDFitBasisSet(cl);
 }
-template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp,
-                                                                    VxcFit fit,
-                                                                    const FitQuadrature* quad,
+template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Structure* cl, VxcFit fit, const FitQuadrature* quad,
+                                                                    double fitCutoffFactor,
                                                                     const PhiChooser&) const   // real blocks: no lattice images, dense
 {
     // The REAL (molecular) path's two representations (2026-10-31, user: "replace the Vxc fit basis with delta functions
@@ -79,13 +77,13 @@ template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Struc
     if (fit==VxcFit::Delta)
     {
         if (!quad) throw std::invalid_argument("tBasisSet::CreateVxcFitBasisSet: VxcFit::Delta is built over a quadrature, and none was "
-                                               "handed in (MakeXCQuadrature)");
+                                               "handed in");
         return new DeltaFit_IBS<double>(std::make_shared<BasisCache>(), *quad, sym_t(new UnitQN));   // a fit basis gets its OWN cache (S3a)
     }
     if (fit==VxcFit::PlaneWave)
         throw std::logic_error("tBasisSet: VxcFit::PlaneWave has no realization on a non-periodic (molecular / atom) basis -- an open "
                                "gap of the Vxc product space (pin 30); use Delta or Auxiliary");
-    return FirstRealDFT(*this, "tBasisSet::CreateVxcFitBasisSet")->CreateVxcFitBasisSet(cl,mp);
+    return FirstRealDFT(*this, "tBasisSet::CreateVxcFitBasisSet")->CreateVxcFitBasisSet(cl,quad,fitCutoffFactor);
 }
 
 // The plane-wave (dcmplx) density-fit basis is created THROUGH the orbital basis's own factory, exactly
@@ -95,26 +93,15 @@ template <> FIT_CD_ABS<dcmplx>* tBasisSet<dcmplx>::CreateCDFitBasisSet (const St
 {
     return FirstPeriodicDFT(*this, [&](const auto* dft){return dft->CreateCDFitBasisSet(cl);});
 }
-FitQuadrature MakeXCQuadrature(const Structure& cl, const qcMesh::MeshParams& mp, const Symmetry::SymmetryImposition* imp)
-{
-    qchem::report::Scope here("nonlinearMesh");   // the mesh builder reports one level in (V-NONLINEAR-MESH 3(a): was "xcQuadrature")
-    const auto* src=dynamic_cast<const XCMeshSource*>(imp);   // abstract face to abstract face
-    FitQuadrature q = src ? src->MakeXCMesh(mp) : FitQuadrature{std::make_shared<const qcMesh::Mesh>(cl.CreateIntegrationMesh(mp)), {}};
-    // The accuracy a Fourier series sampled on THIS quadrature must meet (the rho-tilde sampler, step 2): stated by the run in the
-    // recipe, recorded on the mesh's sampling slot, where its consumer (the XC term) derives the one tolerance tau from it.
-    if (q.GetMesh()) q.GetMesh()->FourierTarget()->accuracy=mp.sampling;
-    return q;
-}
 
 // The periodic (dcmplx) Vxc fit basis.  THE ONE SITE THAT CHOOSES A REPRESENTATION (2026-08-22):
-//   Delta -- the delta basis over this run's XC quadrature, which the caller built (MakeXCQuadrature: the mesh work --
+//   Delta -- the delta basis over this run's XC quadrature, which the caller built (the run point's mesh maker: the mesh work --
 //            grid build, invariance under the imposed ops, fold + Shubnikov tags -- is the imposition's, V-BS-SYMMETRY S2)
 //            and hands in.  Gamma Bloch irrep: the mesh is cell-periodic and carries no crystal momentum of its own.
 //   else  -- the lineage's own fitted representation, from the first periodic DFT block's factory (an
 //            unresolved Auto lands here, the historical pairing).
-template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp,
-                                                                       VxcFit fit,
-                                                                       const FitQuadrature* quad,
+template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const Structure* cl, VxcFit fit, const FitQuadrature* quad,
+                                                                       double fitCutoffFactor,
                                                                        const PhiChooser& phiTables) const
 {
     if (fit==VxcFit::Auxiliary)
@@ -122,12 +109,12 @@ template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const St
                                "open gap of the Vxc product space (pin 30); use Delta or PlaneWave");
     if (fit==VxcFit::Delta)
     {
-        // ONE quadrature, built ONCE by the caller (MakeXCQuadrature), INJECTED into both collaborators that need it (user,
+        // ONE quadrature, built ONCE by the caller (the run point's mesh maker), INJECTED into both collaborators that need it (user,
         // 2026-08-23): the delta basis (for which it is constitutive) and the XC term, which needs the ATOMIC PARTITION the mesh
         // carries and the ORBIT FOLD and the Shubnikov tags for the rho star-average.  Both hold the same immutable Mesh through
         // the same shared_ptr, so their orderings agree by construction rather than by convention.
         if (!quad) throw std::invalid_argument("tBasisSet<dcmplx>::CreateVxcFitBasisSet: VxcFit::Delta is built over a quadrature, and "
-                                               "none was handed in (MakeXCQuadrature)");
+                                               "none was handed in");
         FitQuadrature q;
         {
             // A full COPY of the quadrature -- mesh handle (cheap), but also the orbit fold, the σ tags and the flip-fixed flags
@@ -152,7 +139,7 @@ template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const St
         d->ChoosePhiRealization(cblocks, rblocks, phiTables);
         return d;
     }
-    return FirstPeriodicDFT(*this, [&](const auto* dft){return dft->CreateVxcFitBasisSet(cl,mp);});
+    return FirstPeriodicDFT(*this, [&](const auto* dft){return dft->CreateVxcFitBasisSet(cl,quad,fitCutoffFactor);});
 }
 
 // THE WHOLE-BASIS RESOLUTION: every block, the cross-scalar real children included (a TRIM block inside a complex set answers through

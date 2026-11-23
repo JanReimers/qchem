@@ -1623,13 +1623,13 @@ TEST(GPW, OverlapDiagonalPerRepresentation)
     qcMesh::MeshParams mp;
 
     // (1) The PLANE-WAVE fit representation: ones, one per {G}.
-    std::unique_ptr<const BasisSet::cFIT_SF_ABS> pwFit(gpw.CreateVxcFitBasisSet(&cell, mp));
+    std::unique_ptr<const BasisSet::cFIT_SF_ABS> pwFit(gpw.CreateVxcFitBasisSet(&cell, nullptr, mp.relCutoff));
     const vec_t<dcmplx> dPW=pwFit->OverlapDiagonal();
     ASSERT_EQ(dPW.size(), pwFit->GetNumFunctions()) << "one metric diagonal entry per fit function";
     for (size_t g=0; g<dPW.size(); g++) EXPECT_EQ(dPW[g], dcmplx(1.0)) << "plane waves are orthoNORMAL";
 
     // (2) The DELTA representation: the weights themselves, over this cell's own XC quadrature.
-    BasisSet::FitQuadrature q=BasisSet::MakeXCQuadrature(cell, mp, nullptr);   // a bare block: no imposition, the plain mesh
+    BasisSet::FitQuadrature q=MakeMeshMaker(cell)->Make(mp, qcMesh::NoSymmetry());   // a bare block: no imposition, the plain mesh
     BasisSet::DeltaFit_IBS<dcmplx> dfit(std::make_shared<::qchem::BasisSet::BasisCache>(), q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     const vec_t<dcmplx> dD=dfit.OverlapDiagonal();
     ASSERT_EQ(dD.size(), q.GetMesh()->size()) << "a delta basis has one function per mesh point";
@@ -1686,7 +1686,7 @@ TEST(GPW, FitProjectionAndIntegralsPerRepresentation)
     CellField wave([&](const rvec3_t& r){return 2.0 + std::cos(twoPi*r.x/a)*std::sin(twoPi*r.y/a);});
 
     // (1) DELTA: <delta_g|f> = w_g f(r_g) and <delta_g|1> = w_g, both one entry per FUNCTION.
-    BasisSet::FitQuadrature q=BasisSet::MakeXCQuadrature(cell, mp, nullptr);   // a bare block: no imposition, the plain mesh
+    BasisSet::FitQuadrature q=MakeMeshMaker(cell)->Make(mp, qcMesh::NoSymmetry());   // a bare block: no imposition, the plain mesh
     BasisSet::DeltaFit_IBS<dcmplx> dfit(std::make_shared<::qchem::BasisSet::BasisCache>(), q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     ASSERT_EQ(dfit.GetNumFunctions(), q.GetMesh()->size()) << "one delta function per mesh point";
     const vec_t<dcmplx> pD=dfit.Overlap(wave), iD=dfit.Charge();
@@ -1706,7 +1706,7 @@ TEST(GPW, FitProjectionAndIntegralsPerRepresentation)
 
     // (2) PLANE WAVE: <e^{iG r}/sqrt(Omega)|1> = sqrt(Omega) delta_{G,0} -- a cell integral kills every
     // wave but the constant one.
-    std::unique_ptr<const BasisSet::cFIT_SF_ABS> pwFit(gpw.CreateVxcFitBasisSet(&cell, mp));
+    std::unique_ptr<const BasisSet::cFIT_SF_ABS> pwFit(gpw.CreateVxcFitBasisSet(&cell, nullptr, mp.relCutoff));
     const vec_t<dcmplx> iPW=pwFit->Charge();
     ASSERT_EQ(iPW.size(), pwFit->GetNumFunctions());
     size_t nNonZero=0;
@@ -2356,7 +2356,7 @@ TEST(GPW, TransitionPair_B2_ExactAdjointsAndQ0Reduction)
     const rvec3_t q(1.0/3.0, 0.0, 0.0);
     qcMesh::MeshParams mp;
     std::unique_ptr<const BasisSet::cFIT_CD_ABS> cd(ket.CreateCDFitBasisSet(&cell));
-    std::unique_ptr<const BasisSet::cFIT_SF_ABS> sf(ket.CreateVxcFitBasisSet(&cell, mp));
+    std::unique_ptr<const BasisSet::cFIT_SF_ABS> sf(ket.CreateVxcFitBasisSet(&cell, nullptr, mp.relCutoff));
     const auto& grid=dynamic_cast<const BasisSet::PlaneWave::PW_Grid_Evaluator&>(*cd);   // tests may cheat
     const double Omega=grid.Volume();
     const size_t n=ket.GetNumFunctions();
@@ -2395,7 +2395,7 @@ TEST(GPW, TransitionPair_B2_ExactAdjointsAndQ0Reduction)
     EXPECT_LT(std::abs(lhsR-rhsR), 1e-11*std::abs(rhsR)) << "raw pair: forward/adjoint not exact at q != 0";
 
     // (1c) the δ basis's point pair (on this cell's own XC quadrature)
-    BasisSet::FitQuadrature fq=BasisSet::MakeXCQuadrature(cell, mp, nullptr);
+    BasisSet::FitQuadrature fq=MakeMeshMaker(cell)->Make(mp, qcMesh::NoSymmetry());
     BasisSet::DeltaFit_IBS<dcmplx> dfit(std::make_shared<::qchem::BasisSet::BasisCache>(), fq, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     const cvec_t d=dfit.TransitionForward(bra, ket, dD);
     const mat_t<dcmplx> vd=RandomComplex(d.size(), 1, 17);

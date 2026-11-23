@@ -20,6 +20,7 @@ import qchem.Mesh;
 import qchem.Structure;
 import qchem.Parallel;                         // ScopedWorkerThreads (the serial-vs-threaded bit gate)
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker: the quadrature an A1 Vxc fit projects on (V-MESH-FACTORY step 4)
 
 using namespace qchem;
 using namespace qchem::BasisSet::Gaussian;
@@ -38,14 +39,15 @@ void GroupedIsElementwise(const char* what, const std::string& file, bool expect
     std::shared_ptr<const BasisSet::Real_BS> bs(file.empty() ? Factory(BasisSetData::DZVP, &mol, Engine::MnD, Angular::Cartesian)
                                                              : FactoryFromFile(file, &mol, Engine::MnD, Angular::Cartesian));
     const qcMesh::MeshParams mesh{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0,
-                                  .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3};   // the Vxc fit takes one (and ignores it); the Coulomb fit owns no grid (pin 33)
+                                  .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3};   // the Vxc fit projects on it; the Coulomb fit owns no grid (pin 33)
+    const BasisSet::FitQuadrature quad=MakeMeshMaker(mol)->Make(mesh, qcMesh::NoSymmetry());
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*bs).Iterate<BasisSet::Real_DFT_OIBS>())
     {
         const auto* e=dynamic_cast<const MnD*>(ibs);   // a test may cheat: the block IS its evaluator
         ASSERT_TRUE(e) << what;
         if (expectGroups) EXPECT_LT(e->ShellGroups().size(), e->ShellRanges().size()) << what << ": no general contraction to group";
         std::unique_ptr<BasisSet::FIT_CD_ABS<double>> cd(ibs->CreateCDFitBasisSet (&mol));
-        std::unique_ptr<BasisSet::FIT_SF_ABS<double>> sf(ibs->CreateVxcFitBasisSet(&mol, mesh));
+        std::unique_ptr<BasisSet::FIT_SF_ABS<double>> sf(ibs->CreateVxcFitBasisSet(&mol, &quad, 1.0));
         const auto* ecd=dynamic_cast<const MnD*>(cd.get());
         const auto* esf=dynamic_cast<const MnD*>(sf.get());
         ASSERT_TRUE(ecd && esf) << what;
@@ -82,7 +84,8 @@ void ThreadedIsSerial(const char* what, const std::string& file, int workers)
     std::shared_ptr<const BasisSet::Real_BS> bs(file.empty() ? Factory(BasisSetData::DZVP, &mol, Engine::MnD, Angular::Cartesian)
                                                              : FactoryFromFile(file, &mol, Engine::MnD, Angular::Cartesian));
     const qcMesh::MeshParams mesh{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0,
-                                  .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3};   // the Vxc fit takes one (and ignores it)
+                                  .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3};   // the Vxc fit projects on it
+    const BasisSet::FitQuadrature quad=MakeMeshMaker(mol)->Make(mesh, qcMesh::NoSymmetry());
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*bs).Iterate<BasisSet::Real_DFT_OIBS>())
     {
         auto build=[&](int n, double& sec)
@@ -90,7 +93,7 @@ void ThreadedIsSerial(const char* what, const std::string& file, int workers)
             qchem::ScopedWorkerThreads scope(n);
             EXPECT_EQ(MnD::GroupBlockThreads(), n) << what << ": the fill would not run at " << n << " workers (a vacuous gate)";
             std::unique_ptr<BasisSet::FIT_CD_ABS<double>> cd(ibs->CreateCDFitBasisSet (&mol));   // fresh instances: a MISS, built in this scope
-            std::unique_ptr<BasisSet::FIT_SF_ABS<double>> sf(ibs->CreateVxcFitBasisSet(&mol, mesh));
+            std::unique_ptr<BasisSet::FIT_SF_ABS<double>> sf(ibs->CreateVxcFitBasisSet(&mol, &quad, 1.0));
             const auto t0=std::chrono::steady_clock::now();
             std::pair<std::vector<rsmat_t>,std::vector<rsmat_t>> RO{ibs->Repulsion3C(*cd).dense, ibs->Overlap3C(*sf).dense};   // copies
             sec=std::chrono::duration<double>(std::chrono::steady_clock::now()-t0).count();

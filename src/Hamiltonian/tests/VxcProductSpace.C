@@ -103,10 +103,11 @@ std::shared_ptr<const Structure> TheAtom()     {return std::make_shared<Atom>(7,
 //! about the structure's first site.  \a G is what the structure's kind carries: T on the solid, O(3) on the atom, neither on a molecule.
 enum class Kind {Solid, Molecule, Atom};
 const char* Name(Kind k) {return k==Kind::Solid ? "solid" : k==Kind::Molecule ? "molecule" : "atom";}
-//! The mesh maker a molecule or atom facade hands the factory, over the point (a test may name the concrete type).
+//! The mesh maker a facade hands the factory, over the point (a test may name the concrete type).
 std::shared_ptr<const qcMesh::MeshMaker> MeshMakerFor(const Structure& st)
 {
     if (const auto* a=dynamic_cast<const Atom*>(&st)) return MakeMeshMaker(*a);
+    if (const auto* c=dynamic_cast<const UnitCell*>(&st)) return MakeMeshMaker(*c);
     return MakeMeshMaker(dynamic_cast<const Molecule&>(st));
 }
 std::shared_ptr<const Structure> StructureOf(Kind k) {return k==Kind::Solid ? TheSolid() : k==Kind::Molecule ? TheMolecule() : TheAtom();}
@@ -207,21 +208,21 @@ std::optional<Symmetry::GroupPtr> BuiltFitForces(Kind k, const std::shared_ptr<c
             if (f==VxcFit::Auxiliary) return Symmetry::TranslationGroup(cell->GetCellMatrix(), Symmetry::kExactTolerance);
             if (f==VxcFit::Delta)
             {
-                const BasisSet::FitQuadrature q=BasisSet::MakeXCQuadrature(*st, becke, nullptr);
+                const BasisSet::FitQuadrature q=MeshMakerFor(*st)->Make(becke, qcMesh::NoSymmetry());
                 return BasisSet::DeltaFit_IBS<dcmplx>(std::make_shared<::qchem::BasisSet::BasisCache>(), q,
                                                       Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0))).Forces();
             }
             Lattice_3D lat(*cell, ivec3_t(1,1,1));
             std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, 4.0));
-            std::unique_ptr<const BasisSet::cFIT_SF_ABS> fit(bs->CreateVxcFitBasisSet(st.get(), PointsFor(Points::Uniform), f));
+            std::unique_ptr<const BasisSet::cFIT_SF_ABS> fit(bs->CreateVxcFitBasisSet(st.get(), f, nullptr));
             return fit->Forces();
         }
         std::shared_ptr<const BasisSet::Real_BS> bs(k==Kind::Atom
             ? BasisSet::Radial::Factory(BasisSet::Radial::BasisSetAccuracy::Low, BasisSet::Radial::Type::Gaussian, 7)
             : BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(), BasisSet::Gaussian::Engine::MnD,
                                           BasisSet::Gaussian::Angular::Cartesian));
-        const BasisSet::FitQuadrature q=BasisSet::MakeXCQuadrature(*st, becke, nullptr);
-        std::unique_ptr<const BasisSet::rFIT_SF_ABS> fit(bs->CreateVxcFitBasisSet(st.get(), becke, f, &q));
+        const BasisSet::FitQuadrature q=MeshMakerFor(*st)->Make(becke, qcMesh::NoSymmetry());
+        std::unique_ptr<const BasisSet::rFIT_SF_ABS> fit(bs->CreateVxcFitBasisSet(st.get(), f, &q));
         return fit->Forces();
     }
     catch (const std::logic_error&) {return std::nullopt;}   // "no realization on this lineage": the library cannot build it here
@@ -369,7 +370,8 @@ TEST(VxcProductSpace, EveryFitClassForcesTheGroupItImposesInItsOwnFrame)
         const auto st=TheMolecule();
         std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(),
                                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-        std::unique_ptr<const BasisSet::rFIT_SF_ABS> a1(bs->CreateVxcFitBasisSet(st.get(), becke, VxcFit::Auxiliary));
+        const BasisSet::FitQuadrature q=MeshMakerFor(*st)->Make(becke, qcMesh::NoSymmetry());   // an A1 fit projects on the run's quadrature
+        std::unique_ptr<const BasisSet::rFIT_SF_ABS> a1(bs->CreateVxcFitBasisSet(st.get(), VxcFit::Auxiliary, &q));
         EXPECT_TRUE(trivial->Contains(*a1->Forces())) << a1->Forces()->Describe();
     }
     {
@@ -377,7 +379,8 @@ TEST(VxcProductSpace, EveryFitClassForcesTheGroupItImposesInItsOwnFrame)
         const auto st=std::make_shared<Atom>(7, 0.0, R);
         std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Radial::Factory(BasisSet::Radial::BasisSetAccuracy::Low,
                                                                               BasisSet::Radial::Type::Gaussian, 7));
-        std::unique_ptr<const BasisSet::rFIT_SF_ABS> a1(bs->CreateVxcFitBasisSet(st.get(), becke, VxcFit::Auxiliary));
+        const BasisSet::FitQuadrature q=MeshMakerFor(*st)->Make(becke, qcMesh::NoSymmetry());   // an A1 fit projects on the run's quadrature
+        std::unique_ptr<const BasisSet::rFIT_SF_ABS> a1(bs->CreateVxcFitBasisSet(st.get(), VxcFit::Auxiliary, &q));
         const auto H=a1->Forces();
         EXPECT_TRUE (H->Contains(Generator::FullRotations(R)))               << "O(3) about the atom's site";
         EXPECT_FALSE(H->Contains(Generator::FullRotations(rvec3_t(0,0,0)))) << "not about the origin: the set is pinned at the nucleus";
@@ -388,7 +391,7 @@ TEST(VxcProductSpace, EveryFitClassForcesTheGroupItImposesInItsOwnFrame)
         UnitCell cell(a); cell.AddAtom(14, {0.5,0.5,0.5});
         Lattice_3D lat(cell, ivec3_t(1,1,1));
         std::unique_ptr<BasisSet::Complex_BS> bs(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, 4.0));
-        std::unique_ptr<const BasisSet::cFIT_SF_ABS> pw(bs->CreateVxcFitBasisSet(&cell, PointsFor(Points::Uniform), VxcFit::PlaneWave));
+        std::unique_ptr<const BasisSet::cFIT_SF_ABS> pw(bs->CreateVxcFitBasisSet(&cell, VxcFit::PlaneWave, nullptr));
         const auto H=pw->Forces();
         EXPECT_TRUE (H->Contains(Generator::Translations(cell.GetCellMatrix())));
         EXPECT_FALSE(H->Contains(Generator::Translations(0.5*cell.GetCellMatrix()))) << "half the cell is not my lattice";
@@ -454,7 +457,7 @@ SamplerPair SampleBoth(double densityEcut, double rasterX)
     cd->Insert(std::unique_ptr<tDM_CD<dcmplx>>(new PeriodicIrrepCD<dcmplx>(D, &cx, cx.GetIrrep(Spin::None))), cx.GetIrrep(Spin::None));
 
     // PAIR: the plane-wave fit's raster, through the production factory
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> pw(cx.CreateVxcFitBasisSet(st.get(), qcMesh::MeshParams{}));
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> pw(cx.CreateVxcFitBasisSet(st.get(), nullptr, 1.0));
     auto pair=MakeDensitySampler(pw, {});
     const auto* r=dynamic_cast<const BasisSet::G_RasterTransform*>(pw.get());
     EXPECT_NE(r, nullptr) << "the plane-wave fit is the raster's face";
@@ -462,7 +465,7 @@ SamplerPair SampleBoth(double densityEcut, double rasterX)
     EXPECT_EQ(size_t(N)*N*N, r->RasterSize()) << "a cubic cell has a cubic raster";
 
     // SINGLES: the δ basis over a uniform cell mesh with the same N per axis, through the production factory
-    BasisSet::FitQuadrature q=BasisSet::MakeXCQuadrature(*st, qcMesh::MeshParams{.nUniform=N, .cellKind=UnitCellKind::Uniform}, nullptr);   // a bare block: the plain mesh
+    BasisSet::FitQuadrature q=MeshMakerFor(*st)->Make(qcMesh::MeshParams{.nUniform=N, .cellKind=UnitCellKind::Uniform}, qcMesh::NoSymmetry());   // a bare block: the plain mesh
     auto delta=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     auto singles=MakeDensitySampler(delta, q);
     EXPECT_EQ(pair->NumPoints(), singles->NumPoints()) << "one point count, two point sets (corners vs midpoints)";
@@ -513,8 +516,8 @@ TEST(VxcProductSpace, ThePlaneWaveBallAtBeckePointsOverGPWOrbitalsIsRefused)
     BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(1,1,1), ivec3_t(0,0,0), mol, 12.0,
                                             BasisSet::Gaussian::CellImages::Periodic, 2.0, 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, {});
     const qcMesh::MeshParams becke=qcMesh::BeckeXCParams(30, -1.0, 11);
-    BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*st, becke, nullptr);
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> pw(cx.CreateVxcFitBasisSet(st.get(), becke));
+    BasisSet::FitQuadrature quad=MeshMakerFor(*st)->Make(becke, qcMesh::NoSymmetry());
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> pw(cx.CreateVxcFitBasisSet(st.get(), nullptr, becke.relCutoff));
     try { (void)MakeDensitySampler(pw, quad); FAIL() << "the GPW ball at Becke points was built"; }
     catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find("pin 28"), std::string::npos) << e.what(); }
     EXPECT_NO_THROW((void)MakeDensitySampler(pw, {})) << "on its raster the pair route collocates rho[D]";
@@ -567,9 +570,9 @@ TEST(VxcProductSpace, EverySamplersPin28CertificateMatchesItsMeasuredDistanceFro
         std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(),
                                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
         const qcMesh::MeshParams mesh=PointsFor(Points::Becke);
-        BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*st, mesh, bs->GetImposition());
-        std::shared_ptr<const BasisSet::rFIT_SF_ABS> delta(bs->CreateVxcFitBasisSet(st.get(), mesh, VxcFit::Delta, &quad));
-        std::shared_ptr<const BasisSet::rFIT_SF_ABS> a1(bs->CreateVxcFitBasisSet(st.get(), mesh, VxcFit::Auxiliary, &quad));
+        BasisSet::FitQuadrature quad=MeshMakerFor(*st)->Make(mesh, qcMesh::NoSymmetry());
+        std::shared_ptr<const BasisSet::rFIT_SF_ABS> delta(bs->CreateVxcFitBasisSet(st.get(), VxcFit::Delta, &quad));
+        std::shared_ptr<const BasisSet::rFIT_SF_ABS> a1(bs->CreateVxcFitBasisSet(st.get(), VxcFit::Auxiliary, &quad));
         const BasisSet::Orbital_1E_IBS<double>* orb=nullptr;
         for (auto ibs : const_cast<BasisSet::Real_BS&>(*bs).Iterate<BasisSet::Real_OIBS>()) {orb=ibs; break;}
         ASSERT_TRUE(orb);
@@ -606,18 +609,18 @@ TEST(VxcProductSpace, EverySamplersPin28CertificateMatchesItsMeasuredDistanceFro
                                                       BasisSet::Gaussian::CellImages::Periodic, 2.0, 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, {});
             auto cdFine=std::make_unique<tComposite_CD<dcmplx>>();
             cdFine->Insert(std::unique_ptr<tDM_CD<dcmplx>>(new PeriodicIrrepCD<dcmplx>(D, &fine, fine.GetIrrep(Spin::None))), fine.GetIrrep(Spin::None));
-            std::shared_ptr<const BasisSet::cFIT_SF_ABS> pwRaster(fine.CreateVxcFitBasisSet(st.get(), qcMesh::MeshParams{}));
+            std::shared_ptr<const BasisSet::cFIT_SF_ABS> pwRaster(fine.CreateVxcFitBasisSet(st.get(), nullptr, 1.0));
             add("GPW: pair raster (densityEcut 48)", *MakeDensitySampler(pwRaster, {}), cdFine.get(),
                 dynamic_cast<const BasisSet::G_RasterTransform&>(*pwRaster).Sample(*cdFine));
         }
 
         const qcMesh::MeshParams becke=qcMesh::BeckeXCParams(30, -1.0, 11);
-        BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*st, becke, nullptr);
+        BasisSet::FitQuadrature quad=MeshMakerFor(*st)->Make(becke, qcMesh::NoSymmetry());
         const rvec_t ref=RhoDAt(*cd, quad);
         auto delta=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), quad,
                                                                           Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
         add("GPW: delta singles at Becke",        *MakeDensitySampler(delta, quad), cd.get(), ref);
-        std::shared_ptr<const BasisSet::cFIT_SF_ABS> pwBecke(cx.CreateVxcFitBasisSet(st.get(), becke));
+        std::shared_ptr<const BasisSet::cFIT_SF_ABS> pwBecke(cx.CreateVxcFitBasisSet(st.get(), nullptr, becke.relCutoff));
         EXPECT_THROW((void)MakeDensitySampler(pwBecke, quad), std::invalid_argument) << "the GPW ball at Becke points is not built (pin 28)";
         add("GPW: periodic A1 fitted potential",  *MakeAuxiliaryFitSampler(delta, quad, {a1, Symmetry::TranslationGroup(cell.GetCellMatrix(), Symmetry::kExactTolerance)}), cd.get(), ref);
     }
@@ -632,12 +635,12 @@ TEST(VxcProductSpace, EverySamplersPin28CertificateMatchesItsMeasuredDistanceFro
         const Irrep irr=pw.GetIrrep(Spin::None);
         auto cd=std::make_unique<tComposite_CD<dcmplx>>();
         cd->Insert(std::unique_ptr<tDM_CD<dcmplx>>(new PeriodicIrrepCD<dcmplx>(D, &pw, irr)), irr);
-        std::shared_ptr<const BasisSet::cFIT_SF_ABS> ball(pw.CreateVxcFitBasisSet(st.get(), qcMesh::MeshParams{}));
+        std::shared_ptr<const BasisSet::cFIT_SF_ABS> ball(pw.CreateVxcFitBasisSet(st.get(), nullptr, 1.0));
         add("PW orbitals: ball raster", *MakeDensitySampler(ball, {}), cd.get(),
             dynamic_cast<const BasisSet::G_RasterTransform&>(*ball).Sample(*cd));
         const qcMesh::MeshParams becke=qcMesh::BeckeXCParams(30, -1.0, 11);
-        BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*st, becke, nullptr);
-        std::shared_ptr<const BasisSet::cFIT_SF_ABS> ballBecke(pw.CreateVxcFitBasisSet(st.get(), becke));
+        BasisSet::FitQuadrature quad=MeshMakerFor(*st)->Make(becke, qcMesh::NoSymmetry());
+        std::shared_ptr<const BasisSet::cFIT_SF_ABS> ballBecke(pw.CreateVxcFitBasisSet(st.get(), nullptr, becke.relCutoff));
         add("PW orbitals: ball at Becke", *MakeDensitySampler(ballBecke, quad), cd.get(), RhoDAt(*cd, quad));
     }
 
@@ -722,8 +725,8 @@ TEST(VxcProductSpace, DeltaSinglesAreTheirEnergysDerivativeOnEveryGridKind)
         std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, st.get(),
                                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
         const qcMesh::MeshParams mesh=PointsFor(Points::Becke);
-        BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*st, mesh, bs->GetImposition());
-        std::shared_ptr<const BasisSet::rFIT_SF_ABS> delta(bs->CreateVxcFitBasisSet(st.get(), mesh, VxcFit::Delta, &quad));
+        BasisSet::FitQuadrature quad=MeshMakerFor(*st)->Make(mesh, qcMesh::NoSymmetry());
+        std::shared_ptr<const BasisSet::rFIT_SF_ABS> delta(bs->CreateVxcFitBasisSet(st.get(), VxcFit::Delta, &quad));
         const auto* orb=FirstBlock(*bs);
         ASSERT_TRUE(orb);
         const auto [D, Delta]=TestDAndDelta<double>(orb->GetNumFunctions(), 14.0);
@@ -736,7 +739,7 @@ TEST(VxcProductSpace, DeltaSinglesAreTheirEnergysDerivativeOnEveryGridKind)
             BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
         BasisSet::Gaussian::tGPW_IBS<dcmplx> cx(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(1,1,1), ivec3_t(0,0,0), mol, 12.0,
                                                 BasisSet::Gaussian::CellImages::Periodic, 2.0, 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, {});
-        BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(cell, qcMesh::MeshParams{.nUniform=16, .cellKind=UnitCellKind::Uniform}, nullptr);
+        BasisSet::FitQuadrature quad=MakeMeshMaker(cell)->Make(qcMesh::MeshParams{.nUniform=16, .cellKind=UnitCellKind::Uniform}, qcMesh::NoSymmetry());
         auto delta=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), quad,
                                                                           Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
         const auto [D, Delta]=TestDAndDelta<dcmplx>(cx.GetNumFunctions(), 4.0);
@@ -748,8 +751,8 @@ TEST(VxcProductSpace, DeltaSinglesAreTheirEnergysDerivativeOnEveryGridKind)
         const auto st=TheAtom();
         std::shared_ptr<const BasisSet::Real_BS> bs(BasisSet::Radial::Factory(BasisSet::Radial::BasisSetAccuracy::Low, BasisSet::Radial::Type::Gaussian, 7));
         const qcMesh::MeshParams mesh=PointsFor(Points::Radial);
-        BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*st, mesh, bs->GetImposition());
-        std::shared_ptr<const BasisSet::rFIT_SF_ABS> delta(bs->CreateVxcFitBasisSet(st.get(), mesh, VxcFit::Delta, &quad));
+        BasisSet::FitQuadrature quad=MeshMakerFor(*st)->Make(mesh, qcMesh::NoSymmetry());
+        std::shared_ptr<const BasisSet::rFIT_SF_ABS> delta(bs->CreateVxcFitBasisSet(st.get(), VxcFit::Delta, &quad));
         const auto* orb=FirstBlock(*bs);
         ASSERT_TRUE(orb);
         const auto [D, Delta]=TestDAndDelta<double>(orb->GetNumFunctions(), 4.0);

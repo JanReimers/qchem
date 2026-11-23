@@ -12,7 +12,6 @@ export module qchem.Lattice_3D.Imposition;
 export import qchem.Lattice_3D;
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // SymmetryPolicy, ReciprocalOp, DirectOp, SymOp
 export import qchem.Symmetry.Imposition;              // SymmetryImposition: the face its consumers ask (S3)
-export import qchem.Mesh.Folded;                      // qcMesh::FoldedMesh, MeshParams: what XCMeshSource makes
 export import qchem.Mesh.Maker;                       // qcMesh::SymmetrySource: the face a mesh maker asks for the ops
 import qchem.Types;
 
@@ -46,33 +45,18 @@ struct ImpositionOptions
 //!  - \c meshInvariance: FREE run only, the detected spatial group the XC mesh is built invariant under (no density average).
 //!  - \c spinPairOps: the Shubnikov group again, but only where every op maps every orbital block onto ITSELF -- a magnetic
 //!    imposition of a single Γ block with no k shift -- so the (D↑, D↓) pair projection is defined; {} otherwise.
-//! \brief An imposition that BUILDS the run's XC integration mesh under its own ops (V-BS-SYMMETRY S2, controller 2026-11-03).
-//! A BEHAVIOUR face, not a data one: the XC quadrature builder asks for the finished mesh, and no op set or cell matrix leaves
-//! the imposition.  The builder reaches it by a cross-cast from \c Symmetry::SymmetryImposition; an imposition that does not
-//! realize it (none yet, a molecule's point group later) leaves the builder on the Structure's own plain mesh.
-class XCMeshSource
-{
-public:
-    virtual ~XCMeshSource() = default;
-    //! The XC integration mesh at \a mp: invariant under the imposed ops and orbit-folded (plus the Shubnikov σ tags and the
-    //! flip-fixed flags on a magnetic imposition) when the run imposes; invariant but UNFOLDED on a free run with mesh
-    //! invariance (the density is never averaged); the cell's plain mesh otherwise.
-    virtual qcMesh::FoldedMesh MakeXCMesh(const qcMesh::MeshParams& mp) const=0;
-};
-
 //! For a SYMMORPHIC crystal every τ=0 and the density faces collapse to the W-only ops.
 //! It REALIZES \c Symmetry::SymmetryImposition, the face the composite density and wave function ask (V-BS-SYMMETRY S3), and
-//! \c XCMeshSource, the face the XC quadrature builder asks (S2; TRANSITIONAL, step 4 retires it), and \c qcMesh::SymmetrySource, the ops a
-//! mesh maker builds the run's meshes invariant under (V-MESH-FACTORY §4.1 as built): the imposition supplies OPS only, never geometry.
-//! All three faces are public; a non-public base would go BEFORE them (CLAUDE.md, the cross-cast trap).
-class CrystalImposition : public virtual Symmetry::SymmetryImposition, public virtual XCMeshSource, public virtual qcMesh::SymmetrySource
+//! \c qcMesh::SymmetrySource, the ops a mesh maker builds the run's meshes invariant under (V-MESH-FACTORY §4.1 as built): the imposition
+//! supplies OPS only, never geometry -- the maker owns the cell (step 4 retired \c XCMeshSource, which built the mesh over a cell copy held
+//! here).  Both faces are public; a non-public base would go BEFORE them (CLAUDE.md, the cross-cast trap).
+class CrystalImposition : public virtual Symmetry::SymmetryImposition, public virtual qcMesh::SymmetrySource
 {
 public:
     std::vector<Symmetry::SymOp> MeshOps() const override;
     bool AveragesDensityOverOrbits() const override;
     const std::vector<Symmetry::SymOp>&               SpinPairOps   () const override {return spinPairOps;}
     std::shared_ptr<const Symmetry::StarGroup> DensityGroup() const override {return densityGroup;}
-    qcMesh::FoldedMesh MakeXCMesh(const qcMesh::MeshParams& mp) const override;
 
     ImpositionOptions                                    options;        //!< what this was resolved from (a consumer handed both checks they agree)
     Symmetry::Lattice_3D::SymmetryPolicy                 policy;         //!< the ONE run-level imposition decision (§3)
@@ -82,9 +66,6 @@ public:
     std::vector<Symmetry::Lattice_3D::SymOp>             magneticDirect; //!< the Shubnikov group of a magnetic imposition ({} = grey or free)
     std::vector<Symmetry::Lattice_3D::SymOp>             meshInvariance; //!< free run: the XC mesh's invariance group ({} when imposing)
     std::vector<Symmetry::SymOp>                         spinPairOps;    //!< magneticDirect on a single unshifted Γ block, else {}
-    //! The cell the ops were resolved on, which \c MakeXCMesh builds the mesh over.  A COPY, held so the imposition owns its
-    //! own lifetime: it outlives the \c Lattice_3D it was resolved from inside every basis that holds it.
-    std::shared_ptr<const UnitCell>                      cell;
 };
 
 //! \brief THE ONE PLACE a crystal run decides what it imposes (doc/SymmetryUpgradePlan.md §3).  Detection always runs (it is

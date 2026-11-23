@@ -254,7 +254,7 @@ TEST(PlaneWaveFields, BasisIntegralPotentialConstAndCosine)
 TEST(PlaneWaveFields, TheRasterAndGMapImagesOfAnOpAgree)
 {
     PWFixture F;
-    std::unique_ptr<const BasisSet::cFIT_SF_ABS> fit(F.pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}));
+    std::unique_ptr<const BasisSet::cFIT_SF_ABS> fit(F.pw.CreateVxcFitBasisSet(nullptr, nullptr, 1.0));
     const auto& rt=dynamic_cast<const BasisSet::G_RasterTransform&>(*fit);
     const auto& rs=dynamic_cast<const BasisSet::G_RasterStarField&>(*fit);
     // A random Hermitian ρ̃ over the fit ball (so ρ(r) is real and band-limited on the raster).

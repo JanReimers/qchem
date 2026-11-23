@@ -35,6 +35,7 @@ export import qchem.BasisSet.PointSetPullback;   // the δ quadrature derivative
 import qchem.BasisSet.Internal.CachedIntegrals;   // the Cached* mixins the family lists beside its Make* (D-BASISCACHE-FANIN)
 import qchem.Structure;
 import qchem.Types;
+import qchem.BasisSet.Fit_Types;   // FitQuadrature: the Vxc fit factory's quadrature argument (V-MESH-FACTORY §5)
 
 export namespace qchem::BasisSet
 {
@@ -140,7 +141,7 @@ public:
     // and shared by every irrep.  Fit bases are atom-centred (geometry, not symmetry), so creation
     // delegates to the raw DFT basis.
     virtual rFIT_CD_ABS* CreateCDFitBasisSet (const Structure*) const override;
-    virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const override;
+    virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const FitQuadrature* quad, double fitCutoffFactor) const override;
 protected:
     virtual PairProjection<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const override;
     virtual PairProjection<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const override;

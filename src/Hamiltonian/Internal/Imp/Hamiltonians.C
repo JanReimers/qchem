@@ -125,7 +125,7 @@ static void ReportMeshClients(bool ppQuadrature, const char* xcClient="Vxc_DFT")
 
 //! \brief The run's nonlinear-integral quadrature at \a mp: the mesh \a meshMaker builds over the point, made what \a symmetry asks (invariant,
 //! and orbit-folded when the run averages the density; V-MESH-FACTORY §4.1 as built: the setup injects the MAKER and the SOURCE, so the
-//! route still decides whether and at which recipe a quadrature is built), under the scope MakeXCQuadrature named.
+//! route still decides whether and at which recipe a quadrature is built), under the "nonlinearMesh" scope.
 //! The accuracy a Fourier series sampled on THIS quadrature must meet (the rho-tilde sampler, step 2): stated by the run in the recipe,
 //! recorded on the mesh's sampling slot, where its consumer (the XC term) derives the one tolerance tau from it.
 static BasisSet::FitQuadrature BuildMeshQuadrature(const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const qcMesh::MeshParams& mp)
@@ -159,7 +159,7 @@ public:
     std::shared_ptr<const BasisSet::rFIT_SF_ABS> Delta(bool& built)
     {
         built=!itsDelta;
-        if (built) itsDelta.reset(itsBs->CreateVxcFitBasisSet(itsSt.get(), itsMp, VxcFit::Delta, &Quadrature()));
+        if (built) itsDelta.reset(itsBs->CreateVxcFitBasisSet(itsSt.get(), VxcFit::Delta, &Quadrature(), itsMp.relCutoff));
         return itsDelta;
     }
 private:
@@ -214,7 +214,7 @@ static rmesh_t MolecularNonlinearMesh(const st_t& st, const rbs_t* bs, XCMeshSha
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]() -> std::shared_ptr<const BasisSet::rFIT_SF_ABS>
     {
         if (resolved==VxcFit::Delta) return makeDelta();
-        return std::shared_ptr<const BasisSet::rFIT_SF_ABS>(bs->CreateVxcFitBasisSet(st.get(), mp, resolved, &quad));
+        return std::shared_ptr<const BasisSet::rFIT_SF_ABS>(bs->CreateVxcFitBasisSet(st.get(), resolved, &quad, mp.relCutoff));
     });
     const auto points=quad.GetMesh();   // held past the move: the point set answers for itself
     if (fb->isOrtho())
@@ -296,7 +296,7 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, XCMesh
             return d;
         }
         quad=BuildMeshQuadrature(share.MeshMaker(), share.Symmetry(), hmp);
-        return std::shared_ptr<const BasisSet::rFIT_SF_ABS>(bs->CreateVxcFitBasisSet(st.get(), hmp, VxcFit::Delta, &quad));
+        return std::shared_ptr<const BasisSet::rFIT_SF_ABS>(bs->CreateVxcFitBasisSet(st.get(), VxcFit::Delta, &quad, hmp.relCutoff));
     });
     const qcMesh::Mesh& mesh=*quad.GetMesh();
     // The δ basis carries its Coulomb integrals (V-ONE-OF-N 3b-ii, ruling (f)): the operator is the BASIS's physics, chosen here.
@@ -541,8 +541,8 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
         qchem::report::Set("kind", becke ? "Becke" : delta ? "DeltaUniform" : "PlaneWave");
     }
     // ONE factory call still makes every representation decision.  On the δ route the run's XC QUADRATURE (mesh + atomic
-    // partition + orbit fold + Shubnikov tags) is built FIRST, by the imposition the basis was built under (MakeXCQuadrature,
-    // V-BS-SYMMETRY S2), and goes IN to the factory -- it is constitutive of a δ basis -- and then down to the terms.  This
+    // partition + orbit fold + Shubnikov tags) is built FIRST, by the point's mesh maker under the run's symmetry source
+    // (V-MESH-FACTORY §4.1), and goes IN to the factory -- it is constitutive of a δ basis -- and then down to the terms.  This
     // builder does not read it, does not know what is in it, and pays for no mesh on the raster route.
     BasisSet::FitQuadrature quadrature;
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> XFitBasis;
@@ -559,7 +559,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
         // factory returns a complex fit, and a real one there would change a tier-1 hub): XFitBasis is then the delta basis on the XC points,
         // through which its strategy samples rho[D], and the A1 set comes from the caller and is held by the strategy.
         const VxcFit asFitBasis = resolved==VxcFit::Auxiliary ? VxcFit::Delta : resolved;
-        XFitBasis=BuildTermFit<BasisSet::cFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]{return bs->CreateVxcFitBasisSet(st.get(), xc, asFitBasis, &quadrature, route.phiTables);});
+        XFitBasis=BuildTermFit<BasisSet::cFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]{return bs->CreateVxcFitBasisSet(st.get(), asFitBasis, &quadrature, xc.relCutoff, route.phiTables);});
     }
     // THE RHO AXIS ON THE PLANE-WAVE FIT (the solid door's, since step 4).  A ball that holds every orbital pair has P rho = rho[D]: both
     // values of xc.rho are one cell.  Any other ball (GPW) splits them, and a cell with no realization is REFUSED (invalid_argument: the

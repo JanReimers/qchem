@@ -22,7 +22,7 @@ import qchem.BasisSet.Lattice.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, n
 import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
 import qchem.Mesh;                           // qcMesh::MeshParams (the Hartree fit basis factory arg; ignored)
 import qchem.Mesh.XCPolicy;                  // BeckeXCParams (the I3 gate)
-import qchem.BasisSet;                       // MakeXCQuadrature, FitQuadrature (the I3 gate)
+import qchem.BasisSet;                       // FitQuadrature (the I3 gate)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
 import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
@@ -49,6 +49,7 @@ import qchem.Symmetry.Irrep;                        // Irrep
 import qchem.LASolver;                              // complex Hermitian eigensolver
 import qchem.Structure;                             // Molecule, Atom (the Si diamond basis)
 import qchem.Matrix3D;                              // Matrix3D<double> (the FCC cell matrix)
+import qchem.Structure.MeshFactory;   // MakeMeshMaker: the quadrature a delta fit is built over (V-MESH-FACTORY step 4)
 
 using namespace qchem;
 using namespace qchem::tests::pw;
@@ -75,7 +76,7 @@ qchem::Hamiltonian::Vee_Fit<dcmplx>* NewPWHartree(const PlaneWave_IBS& pw)
 qchem::Hamiltonian::cVxc_DFT* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamiltonian::cVxc_DFT::xc_t& xc)
 {
     return new qchem::Hamiltonian::cVxc_DFT(xc, qchem::ChargeDensity::MakeDensitySampler(
-        qchem::ChargeDensity::fitbasis_t(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}))), SpinGroup::UnPolarized);
+        qchem::ChargeDensity::fitbasis_t(pw.CreateVxcFitBasisSet(nullptr, nullptr, 1.0))), SpinGroup::UnPolarized);
 }
 
 
@@ -236,7 +237,7 @@ TEST(PW_Terms, ItemK_RelCutoffDensifiesAndConvergesVxc)
     auto vxcAt=[&](double relCutoff, size_t& nGfit)
     {
         qcMesh::MeshParams mp; mp.relCutoff=relCutoff;
-        auto fb=qchem::ChargeDensity::fitbasis_t(F.pw.CreateVxcFitBasisSet(nullptr, mp));
+        auto fb=qchem::ChargeDensity::fitbasis_t(F.pw.CreateVxcFitBasisSet(nullptr, nullptr, mp.relCutoff));
         nGfit=fb->GetNumFunctions();
         std::unique_ptr<qchem::Hamiltonian::cVxc_DFT> xc(
             new qchem::Hamiltonian::cVxc_DFT(dirac, qchem::ChargeDensity::MakeDensitySampler(fb), SpinGroup::UnPolarized));
@@ -483,8 +484,8 @@ TEST(PW_Terms, TheBallAtBeckePointsIsItsEnergysDerivative)
         Delta(i,j)= i==j ? dcmplx(0.01*((5*i)%7)-0.03,0.0) : dcmplx(0.01*((2*i+7*j)%5)-0.02, 0.01*((4*i+j)%3)-0.01);
     }
     const qcMesh::MeshParams becke=qcMesh::BeckeXCParams(30, -1.0, 11);
-    BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(*cell, becke, nullptr);
-    const qchem::ChargeDensity::fitbasis_t fb(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}));
+    BasisSet::FitQuadrature quad=MakeMeshMaker(*cell)->Make(becke, qcMesh::NoSymmetry());
+    const qchem::ChargeDensity::fitbasis_t fb(pw.CreateVxcFitBasisSet(nullptr, nullptr, 1.0));
     const auto s=qchem::ChargeDensity::MakeDensitySampler(fb, quad);
     auto energy=[&](double t)
     {

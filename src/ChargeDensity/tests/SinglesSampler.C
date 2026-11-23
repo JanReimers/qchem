@@ -14,7 +14,7 @@
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.DensitySampler;      // MakeDensitySampler (the real overload)
 import qchem.ChargeDensity.Factory;             // IrrepCD_Factory<double>
-import qchem.BasisSet;                          // Real_BS, MakeXCQuadrature, VxcFit, rFIT_SF_ABS
+import qchem.BasisSet;                          // Real_BS, VxcFit, rFIT_SF_ABS
 import qchem.BasisSet.Gaussian.Point.Factory;   // Gaussian::Factory
 import qchem.Fitting.FunctionFitter;            // MakeDeltaScalarFitter, FieldProjector, PairProjector
 import qchem.Mesh;                              // qcMesh::MeshParams
@@ -22,6 +22,7 @@ import qchem.Structure;
 import qchem.Symmetry.Irrep;
 import qchem.Types;
 import qchem.Blaze;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker: the quadrature a delta fit is built over (V-MESH-FACTORY step 4)
 using namespace qchem;
 using namespace qchem::ChargeDensity;
 
@@ -65,8 +66,8 @@ struct Rig
         block=dynamic_cast<const BasisSet::Orbital_1E_IBS<double>*>((*bs)[0]);
         const qcMesh::MeshParams mp{.radial=qcMesh::RadialKind::MHL, .nRadial=40, .mhl_m=3, .mhl_alpha=2.0,
                                     .angular=qcMesh::AngularKind::Lebedev, .angularDegree=17, .beckeOrder=2};
-        quad=BasisSet::MakeXCQuadrature(mol, mp, nullptr);
-        fb.reset(bs->CreateVxcFitBasisSet(&mol, mp, BasisSet::VxcFit::Delta, &quad));
+        quad=MakeMeshMaker(mol)->Make(mp, qcMesh::NoSymmetry());
+        fb.reset(bs->CreateVxcFitBasisSet(&mol, BasisSet::VxcFit::Delta, &quad));
         cd.reset(IrrepCD_Factory<double>(SomePSD_D(block->GetNumFunctions()), block, bs->GetIrreps(Spin::None)[0]));
     }
     //! The route the sampler used before: the fitter's FIELD projection of the density, point by point.

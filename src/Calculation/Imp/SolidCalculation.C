@@ -516,7 +516,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         {
             qchem::report::Log("the grid ladder");
             qchem::report::Section grids("grids");   // the point's grids: the ladder and the lattice sums report one level in
-            L3::EmitGpwGrids(*itsImp->ladder, *itsImp->mol, *itsImp->imposition);
+            L3::EmitGpwGrids(*itsImp->ladder, *itsImp->mol, *itsImp->imposition, lat.GetUnitCell());
             qchem::report::Set("rasterSource", RasterSourceName(S.rasterSource));   // the ladder runs the demands; the setup knows who set them
         }
     }
@@ -2442,7 +2442,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
         if (rpt::Depth()>0)   // the reference's grids + verdicts, as setup files the run's
         {
             rpt::Section grids("grids");
-            L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition);
+            L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition, latRef.GetUnitCell());
         }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
         hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, double(S.opts.Nelec), *S.pp, xcMesh ? *xcMesh : S.xcMesh, *makerRef, *p.imposition, {opts.vxcFit, opts.xcRho}, itsImp->hubbard,

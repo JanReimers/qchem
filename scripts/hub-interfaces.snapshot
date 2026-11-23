@@ -20,7 +20,7 @@ namespace qchem::BasisSet {
         virtual size_t GetNumFunctions() const=0;
         virtual irrepv_t GetIrreps(const Spin& ms) const=0;
         virtual FIT_CD_ABS<T>* CreateCDFitBasisSet(const Structure* cl) const;
-        virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&, VxcFit fit=VxcFit::Auto, const FitQuadrature* quad=nullptr, const PhiChooser& phiTables={}) const;
+        virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, VxcFit fit, const FitQuadrature* quad, double fitCutoffFactor=1.0, const PhiChooser& phiTables={}) const;
         virtual const Symmetry::SymmetryImposition* GetImposition() const=0;
         Resolution MakeResolution(double eps) const;
         auto Iterate() const;
@@ -33,7 +33,6 @@ namespace qchem::BasisSet {
     };
     typedef tBasisSet<double> Real_BS;
     typedef tBasisSet<dcmplx> Complex_BS;
-    FitQuadrature MakeXCQuadrature(const Structure& cl, const qcMesh::MeshParams& mp, const Symmetry::SymmetryImposition* imp);
 }
 
 ### qchem.BasisSet.Orbital_DFT_IBS   (src/BasisSet/Orbital_DFT_IBS.C)
@@ -49,7 +48,7 @@ namespace qchem::BasisSet {
         virtual bool CanPullbackRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
         virtual Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsion3CPullback(const FIT_CD_ABS<TFit>& c, const hmat_t<T>& D, const vec_t<TFit>& a, const Structure* st) const=0;
         virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*) const=0;
-        virtual FIT_SF_ABS<TFit>* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const=0;
+        virtual FIT_SF_ABS<TFit>* CreateVxcFitBasisSet(const Structure*, const FitQuadrature* quad, double fitCutoffFactor) const=0;
     protected:
         virtual PairProjection<TFit> MakeOverlap3C (const FIT_SF_ABS<TFit>& c) const=0;
         virtual PairProjection<TFit> MakeRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
@@ -63,7 +62,6 @@ namespace qchem::BasisSet {
 ### qchem.BasisSet.Orbital_DFT_IBS:Fit_IBS   (src/BasisSet/Fit_IBS.C)
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
-export import qchem.Mesh;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.PairProjection;
 namespace qchem::BasisSet {

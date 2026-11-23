@@ -17,7 +17,7 @@ import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;            // tGPW_IBS<T>: the B
 import qchem.BasisSet.Gaussian.Point.Factory;              // the molecular Gaussian basis over the cell's atoms
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (the GPW_SPHERICAL block)
 import qchem.BasisSet.DeltaFit_IBS;                        // the δ fit on both realizations
-import qchem.BasisSet;                                     // MakeXCQuadrature
+import qchem.BasisSet;                                     // FitQuadrature
 import qchem.Mesh;
 import qchem.Symmetry.Factory;                             // BlochFactory (the δ fit's Γ irrep)
 import qchem.UnitCell;
@@ -120,7 +120,7 @@ void ContractionsAgree(bool spherical)
     const tGPW_IBS<dcmplx> k1(cache, cell, MakeMeshMaker(cell), ivec3_t(4,4,4), ivec3_t(1,0,0), mol, 0.0);
     const tGPW_IBS<dcmplx> k2(cache, cell, MakeMeshMaker(cell), ivec3_t(4,4,4), ivec3_t(1,2,3), mol, 0.0);
     const tGPW_IBS<double> kr(cache, cell, MakeMeshMaker(cell), ivec3_t(4,4,4), ivec3_t(2,0,0), mol, 0.0);
-    const FitQuadrature q=MakeXCQuadrature(*st, qcMesh::MeshParams{.nUniform=14, .cellKind=qcMesh::UnitCellKind::Uniform}, nullptr);
+    const FitQuadrature q=MakeMeshMaker(cell)->Make(qcMesh::MeshParams{.nUniform=14, .cellKind=qcMesh::UnitCellKind::Uniform}, qcMesh::NoSymmetry());
     const auto sym=Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0));
     auto sourceOf=[](const IrrepBasisSet_IDs& b){return dynamic_cast<const BlochImageSource*>(&b);};
     DeltaFit_IBS<dcmplx> dense (std::make_shared<BasisCache>(), q, sym, {}, sourceOf);

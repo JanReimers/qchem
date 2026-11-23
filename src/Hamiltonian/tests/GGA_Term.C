@@ -27,6 +27,7 @@ import qchem.Structure;
 import qchem.Symmetry.Irrep;
 import qchem.Types;
 import qchem.Blaze;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker: the quadrature a delta fit is built over (V-MESH-FACTORY step 4)
 using namespace qchem;
 using namespace qchem::Hamiltonian;
 
@@ -68,8 +69,8 @@ struct Rig
         block=dynamic_cast<const BasisSet::Orbital_1E_IBS<double>*>((*bs)[0]);
         const qcMesh::MeshParams mp{.radial=qcMesh::RadialKind::MHL, .nRadial=40, .mhl_m=3, .mhl_alpha=2.0,
                                     .angular=qcMesh::AngularKind::Lebedev, .angularDegree=17, .beckeOrder=2};
-        BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(mol, mp, nullptr);
-        fb.reset(bs->CreateVxcFitBasisSet(&mol, mp, BasisSet::VxcFit::Delta, &quad));
+        BasisSet::FitQuadrature quad=MakeMeshMaker(mol)->Make(mp, qcMesh::NoSymmetry());
+        fb.reset(bs->CreateVxcFitBasisSet(&mol, BasisSet::VxcFit::Delta, &quad));
         sampler=ChargeDensity::MakeDensityGradientSampler(fb, quad);
         auto pbe=std::make_shared<const CompositeGGAFunctional>(std::vector<std::shared_ptr<const GGAFunctional>>{
             std::make_shared<const Libxc_GGA>(101), std::make_shared<const Libxc_GGA>(130)});   // GGA_X_PBE + GGA_C_PBE

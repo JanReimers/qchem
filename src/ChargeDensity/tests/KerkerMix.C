@@ -222,7 +222,7 @@ struct MnBox
             , st(lat.GetStructure())
             , bs(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, /*Ecut*/4.0))
             , fitCD(bs->CreateCDFitBasisSet (st.get()))
-            , fitSF(bs->CreateVxcFitBasisSet(st.get(), qcMesh::MeshParams{}))
+            , fitSF(bs->CreateVxcFitBasisSet(st.get(), BasisSet::VxcFit::Auto, nullptr))
     {}
 };
 

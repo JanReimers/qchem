@@ -29,6 +29,7 @@ import qchem.Symmetry;                                        // SymmetryOrder: 
 import qchem.BasisSet.Internal.PrimitiveStore;                // S5: the parent's primitive store
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;        // NR_Evaluator::Primitives (tests may cheat)
 import qchem.BasisSet.Orbital_1E_IBS;                         // Real_OIBS::Overlap
+import qchem.Structure.MeshFactory;   // MakeMeshMaker: the quadrature a delta fit is built over (V-MESH-FACTORY step 4)
 using namespace qchem;
 using namespace qchem::BasisSet::Gaussian;
 
@@ -124,9 +125,9 @@ TEST(M_BasisCache, TwoBlocksOfEqualSymmetryAskedOfOneDeltaFitGetTheirOwnTables)
 
     const qcMesh::MeshParams mesh{.radial=qcMesh::RadialKind::MHL, .nRadial=40, .mhl_m=3, .mhl_alpha=2.0,
                                   .angular=qcMesh::AngularKind::Lebedev, .angularDegree=17, .beckeOrder=2};
-    BasisSet::FitQuadrature quad=BasisSet::MakeXCQuadrature(mol1, mesh, nullptr);
-    std::unique_ptr<const BasisSet::rFIT_SF_ABS> delta(bs1->CreateVxcFitBasisSet(&mol1, mesh, BasisSet::VxcFit::Delta, &quad));
-    std::unique_ptr<const BasisSet::rFIT_SF_ABS> fresh(bs1->CreateVxcFitBasisSet(&mol1, mesh, BasisSet::VxcFit::Delta, &quad));
+    BasisSet::FitQuadrature quad=MakeMeshMaker(mol1)->Make(mesh, qcMesh::NoSymmetry());
+    std::unique_ptr<const BasisSet::rFIT_SF_ABS> delta(bs1->CreateVxcFitBasisSet(&mol1, BasisSet::VxcFit::Delta, &quad));
+    std::unique_ptr<const BasisSet::rFIT_SF_ABS> fresh(bs1->CreateVxcFitBasisSet(&mol1, BasisSet::VxcFit::Delta, &quad));
 
     const PairProjection<double>& r1=delta->Overlap3C(*b1);
     const PairProjection<double>& r2=delta->Overlap3C(*b2);
