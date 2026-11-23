@@ -4005,3 +4005,61 @@ Done, 2026-11-21 (controller's assignment: reader / BasisFiles only, no hub).
   `UTCalculation BasisMenu.ACrystalAddsThePlaneWaves` (dzvp greyed, admitted = pp-valence AND covers), `BasisMenu.EveryPPValenceFilesSetShipsAndCoversItsElements`.
 - Residual: a RUN does not judge the KIND yet, and the menu lists by enum handle -- open row "The basis KIND is read by the menu only".
 
+
+## ✅ `Structure::ID()` ends in a trailing space (closed 2026-11-22, lane A, 621627854)
+
+| **`Structure::ID()` ends in a trailing space** (lane S, 2026-11-02) | `src/Structure/Imp/Structure.C:30` appends `' '` after EVERY atom, the last included (a lone Atom's ID has none), so a molecule's report run reads `"<ID>  build"` (two spaces) and every key built on it carries the stray byte.  The ID is also an integrals-cache key axis (`Orbital_1E_IBS.C:22`, `GPW_IBS.C:186-201`), so fixing it changes keys | join with a separator BETWEEN atoms; then check the persistent cache (`DBCacheClient`) for keys that embed it (a one-time miss is harmless), the report run names the GUI keys on (`qviz/gridinfo.py` matches `endswith(" build")`, unaffected) and any test that spells an ID literally · `Structure.C` |
+
+Done: `Structure::ID` joins its sites with ONE space between them, none trailing (`src/Structure/Imp/Structure.C`).  Checked: the integral cache (`DBCacheClient`) is in memory only (no writer to disk), so a changed key costs nothing across runs; the GUI's `qviz/gridinfo.py` matches `endswith(" build")`, unaffected; every test builds its run names from `ID()` itself (none spells one literally); `Atom::ID` never had the byte.  Gate: the sweep (no mover from it).
+
+## ✅ `A_HF_dfPin.SelfPin` parameter names are raw bytes (found DONE 2026-11-22, lane A; fixed in 9d9aa58f4)
+
+| [G9] **`A_HF_dfPin.SelfPin` parameter names are raw bytes** (lane G, 2026-10-30) | gtest prints the 32-byte parameter struct as bytes, padding included, so its 10 instance names differ build to build and `scripts/anchordiff` can never pair them (always "in one log only") | give the parameter a `PrintTo` or a name generator · the `A_HF_dfPin` test file |
+
+Found DONE in the tree: 9d9aa58f4 (D-TEST-NAME-BYTES) gave `PinCase` a `PrintTo` that prints its case name (`IntegrationTests/A_HF_dfPin.C`), so the instance names are stable and `scripts/anchordiff` pairs them.  The row was never closed.
+
+## ✅ After the MOLECULE's grid pilot re-converges, its iters= count only the last SCF (closed 2026-11-22, lane A, 0431ba120)
+
+| **After the MOLECULE's grid pilot re-converges, its `iters=` / `IterationCount()` / StateSummary count only the last SCF** (lane B 2026-11-17, the atom row's twin) | `MoleculeCalculation` rebuilds `itsScf` in `BuildGraph()` per raised mesh, so lines 266, 280, 752 and 1087 of `src/Calculation/Imp/MoleculeCalculation.C` read the last iterator, while `itsPilotCost.reconvergeIterations` already holds the pilot's share | keep the run's total as the atom does (00dcde5b0) · after lane S's parity review of the setups |
+
+Done, the atom's twin (00dcde5b0): `MoleculeCalculation::Converge` keeps the run's total (`itsIterations` = the entry SCF + the pilot's re-convergences), read by `IterationCount()`, `ProofIterations`, the `SCFFailure`, the `StateSummary` and the result row, which files `pilotIterations`.  Energies cannot move; piloted molecules' iteration counts do.  Gate: `MeshPilot.AGeometryRunRaisesAMeshThatMissesEpsOnMatrixElements` asserts `IterationCount()` > the pilot's re-convergence iterations (F2 GTH, raised mesh).  The "after lane S's parity review" condition: V-FACADE-PARITY P0-P4 have landed.
+
+## ✅ `state.save` into a missing directory silently does not save (the library remainder) (closed 2026-11-22, lane A, d0712d769)
+
+| [G4] **`state.save` into a missing directory silently does not save, and the run reads CONVERGED** (lane H, 2026-11-18) | the DECK case is fixed (917b350fd: `deck::Run` creates the save directory).  Still open at the library: `Calculation::Checkpoint` (`Imp/Calculation.C`) catches a failed `SaveState` and only WARNS, so a facade run that asked for a state still reads CONVERGED without it.  Full row in `Records/OpenWork_History5.md` | refuse before the SCF, or fail the run, when a requested save cannot happen; it must not read green · `src/Calculation/Imp/Calculation.C` |
+
+Done: `Calculation::Checkpoint` returns why a save failed, `tCalculation` keeps it, and `Result` answers the new `SCFFailure::Why::StateNotSaved` (details name the path and the writer's reason) until a later save of that run succeeds; the deck prints "converged, STATE NOT SAVED: ...".  So the run fails rather than refusing before the SCF (a full disk can only be seen at the write).  Gate: `CalculationFacade.ARunWhoseStateCannotBeSavedIsNotGreen`.  FLAGGED for the binding owner: `pybind/qchem_bridge.cpp` `why_name()` has no case for `StateNotSaved` (compiles; returns "unknown SCF failure").
+
+## ✅ A capped molecular SCF reports residual 0.00e+00 (found DONE 2026-11-22, lane A; fixed by 27773897f)
+
+· **A capped molecular SCF reports residual 0.00e+00** (lane G survey 2026-11-07).  `MoleculeCalculation::Outcome_` never fills `SCFFailure::residual`, so the failure message states a false number.  Next action: fill it from the iterator's last [F,D]/Δρ as the solid path does; a unit test on a deliberately capped molecule.
+
+Found DONE in the tree: `SCFFailure` no longer has a `residual` field, and `MoleculeCalculation::MakeFailure` appends the last iterate's gates (`IterationRow::GatesText`, 27773897f), so a capped molecule states real numbers.  The row was never closed.
+
+## ✅ libxc functionals' f_xc is a finite difference (closed 2026-11-22, lane A, 3bb0f13f8)
+
+| [G8] **libxc functionals' f_xc is a finite difference: call `xc_lda_fxc`** (user 2026-11-15, from the DFPT hand-derivative survey) | Our LDA functionals' f_xc is Enzyme's (Slater, VWN; lane B 6a95ce87f), but `Libxc_LDA` inherits the base `ExFunctional::GetFxc` four-point FD of its own `GetVxc` (`src/Hamiltonian/Internal/ExchangeFunctional.C:80`).  Enzyme cannot help (it differentiates only bodies it can see, and libxc is external); libxc provides the analytic kernel.  Next action: override `Libxc_LDA::GetFxc` with `xc_lda_fxc` (spin-native, 3 components ↑↑/↑↓/↓↓ under XC_POLARIZED), gate it against the FD default and against our Enzyme VWN on the same functional ID; then the base FD default has no production user and moves to the test tree (LinearResponsePlan D6's rule).  Matters only for a response run on a libxc functional.  (`FermiOccupancy::ResponseWeight`'s hand f′ = −f(1−f)/kT stays as is: exact for Fermi-Dirac, user 2026-11-15.)  Record: `doc/Records/LinearResponsePlan.md` (H3, §5d).  The user's 2026-11-19 ruling (GGA row) confirms the direction: libxc's own derivatives, each checked by a short FD unit test. |
+
+Done: `Libxc_LDA::GetFxc` (`src/Hamiltonian/Internal/Imp/Libxc_LDA.C`) is libxc's analytic kernel, split as `GetVxc` is: an exchange id is
+channel-separable, f^σσ = 2 v_x'(2ρ_σ) from the scalar `xc_lda_fxc` and no cross term; any other id reads the XC_POLARIZED `v2rho2`
+(↑↑, ↑↓, ↓↓), at ζ = 0 too (the scalar call gives only (f^↑↑ + f^↑↓)/2).  A clamped (negative) channel and a vanishing density answer 0.
+With that, the base class's four-point difference had no production user (Slater and VWN are Enzyme's, the composite sums its parts), so
+`ExFunctional::GetFxc` is PURE: a new functional states its kernel, and the finite difference lives in the test tree as each kernel's gate
+(LinearResponsePlan D6's rule).  Gates (`UTHamiltonian XCKernel`): `Libxc_FxcIsTheDerivativeAndSymmetric` (ids 1, 7, 12, 20 against a
+six-point FD of the wrapper's own v, 1e-6 relative), `Libxc_FxcEqualsTheEnzymeKernelOfTheSameFunctional` (libxc VWN5 = our VWN5 to 1e-7,
+libxc Dirac = Slater 2/3 to 1e-12), `Libxc_ZetaZeroCollapseAndClamps`.  libxc is built with FXC (`DISABLE_FXC OFF` in both the tree's and
+the shared prefix's cache).  No production run moves: only a response run on a libxc functional reads this kernel.
+
+## ✅ A deck run's report drops its setup's policy rows (closed 2026-11-22, lane A, 296c58092)
+
+| [G5] **A deck run's report drops its setup's policy rows** (lane H, 2026-11-19, found writing the forceComplex retirement's FD gate) | A Γ Si deck (`GPW_Si.Γ_U_FiniteDifferencePlansComplexBlocks`) prints `[policy] every Bloch block COMPLEX ...` (Ansatz) and the coarse-k WARN (KSampling) on the console, but neither row is in `report::GlobalReport()` nor in the deck's revision record: the filed run (`Si_diamond.r001@...`) holds only DegenerateLevelFill, SCFRecipe and hamiltonian/PPFittedFunctional.  Suspected, not yet traced: the setup is resolved outside the run's `report::Begin(stem)` scope (`Imp/Deck.C` has a `"<structure> resolve"` Begin and the run's own), so its rows land in a report that is not filed with the run.  Breaks "every policy reports itself" for every setup-time policy of a deck run (Ansatz, KSampling, XCRhoPolicy, BasisCoverage, ...); `SolidSetup.APlannedResponseBuildsEveryBlockComplexAndSaysWhy` passes only because it opens its own `report::Run`. | resolve the deck's setup INSIDE the run's report scope (the run sequence decides the nesting, never the path), then assert the Ansatz row in the FD gate above · `src/Calculation/Imp/Deck.C` (Begin at ~1564 and ~1602, `SetupOf`) |
+
+Done: the suspicion (the setup resolved outside the run's report scope) was wrong: `deck::Run` resolves the setup inside `report::Begin(stem)`,
+and a probe showed the Ansatz row written into `Si_diamond.r001`'s `policy` array at depth 1.  It was ERASED later: `ResolveGpwPoint`
+(`src/Calculation/Imp/SolidCalculation.C`) opened `report::Scope("policy")` > `"symmetry"` for the imposition, and `Scope` re-typed the
+existing `policy` ARRAY to an empty object; the next `policy::Report`'s `Row` re-typed it back to an array, erasing the symmetry object in
+turn.  So EVERY solid run (deck or facade; `SolidSetup.APlannedResponse...` passed only because it opens its own run) lost its setup-time
+rows (Ansatz, KSampling, XCRhoPolicy, BasisCoverage, ...) from the report while the console printed them, and the GUI's `policyinfo` never
+listed them.  Fix: the imposition reports under `symmetry` at the run level, and `report::Row` / `report::Scope` THROW (`std::logic_error`)
+when the key already holds the other type instead of re-typing it silently.  Gates: `GPW_Si.Γ_U_FiniteDifferencePlansComplexBlocks` now
+asserts the Ansatz row; `UTCommon Reporting.ARowAndAScopeCannotShareAKey`.

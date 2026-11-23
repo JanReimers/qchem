@@ -274,14 +274,19 @@ bool MoleculeCalculation::RunStage(const SCFParams& asked)
     itsLastkT=params.SmearingkT;
     AttachObserver();
     (void)itsScf->Iterate(ExactResumeMixing(params, itsScf->ResolveMixing(params)));   // the outcome is the iterator's Converged(), minted below
+    itsIterations=itsScf->GetIterationCount();
     RebuildSampling();
+    // The pilot builds a fresh iterator per raised mesh, so its re-convergences are counted here (OpenWork row, the atom's twin 00dcde5b0).
+    const size_t pilotBefore=itsPilotCost.reconvergeIterations;
     if (!itsPiloted && HasXCMesh() && !itsSetup->meshResolved && itsScf->Converged()) PilotMesh(params);
+    const size_t pilotIterations=itsPilotCost.reconvergeIterations-pilotBefore;
+    itsIterations+=pilotIterations;
     if (!itsFitConfirmed && itsScf->Converged()) { itsFitConfirmed=true; CheckCoulombFit(itsDensity.get(), "converged"); }   // the seed's estimate, confirmed
 
     // (No end-of-run cache snapshot since S6: each owner-held table reported its own bytes under `cache` where it was filled.)
 
-    ReportResult(Tag(), itsScf->Converged(), itsScf->GetIterationCount(), itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
-                 itsSetup->opts.accuracy.Target(Consumes(), itsStructure->GetNumAtoms()));
+    ReportResult(Tag(), itsScf->Converged(), itsIterations, itsDensity->GetTotalCharge(), itsScf->GetEnergy(),
+                 itsSetup->opts.accuracy.Target(Consumes(), itsStructure->GetNumAtoms()), pilotIterations);
     return true;
 }
 
@@ -291,7 +296,7 @@ std::optional<SCFFailure> MoleculeCalculation::MakeFailure() const
     SCFFailure f;   // the molecular facade's detectors: the iterator's own refusal, else a run out of iterations
     const bool refused=!itsScf->UnphysicalStop().empty();
     f.why        = refused ? SCFFailure::Why::UnphysicalEnergy : SCFFailure::Why::NotConverged;
-    f.iterations = itsScf->GetIterationCount();
+    f.iterations = itsIterations;
     f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
     f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
     if (!refused && itsLastRow) f.details += "; the last iterate: "+itsLastRow->GatesText();
@@ -300,7 +305,7 @@ std::optional<SCFFailure> MoleculeCalculation::MakeFailure() const
 
 EnergyBreakdown MoleculeCalculation::ProofEnergyTerms() const {return itsScf->GetEnergy();}
 double          MoleculeCalculation::ProofCharge()      const {assert(itsDensity); return itsDensity->GetTotalCharge();}
-size_t          MoleculeCalculation::ProofIterations()  const {return itsScf->GetIterationCount();}
+size_t          MoleculeCalculation::ProofIterations()  const {return itsIterations;}
 const ChargeDensity::tDM_CD<double>& MoleculeCalculation::ProofDensity() const {assert(itsDensity); return *itsDensity;}
 const ScalarFunction<double>&        MoleculeCalculation::ProofSpinDensity() const {return GetSpinDensity();}
 
@@ -838,7 +843,7 @@ std::vector<StateBlock> MoleculeCalculation::StateBlocks(bool withOrbitals) cons
 StateSummary MoleculeCalculation::MakeStateSummary() const
 {
     if (!itsScf || !itsScf->GetWaveFunction()) throw std::logic_error("qchem::MoleculeCalculation: no wave function yet");
-    StateSummary s{.label=Tag(), .converged=itsScf->Converged(), .iterations=itsScf->GetIterationCount(),
+    StateSummary s{.label=Tag(), .converged=itsScf->Converged(), .iterations=itsIterations,
                    .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0};
     s.recipe="model "+MoleculeModelName(*itsSetup)+", basis "+itsSetup->opts.molecule.basis+", accelerator "+std::string(NameOf(itsSetup->accelerator));
     if (itsLastRow)
@@ -1182,7 +1187,7 @@ const MoleculeCalculation::orbitals_t* MoleculeCalculation::Orbitals(const Irrep
     return itsScf->GetWaveFunction()->GetOrbitals(qns);
 }
 
-size_t MoleculeCalculation::IterationCount() const {return itsScf->GetIterationCount();}
+size_t MoleculeCalculation::IterationCount() const {return itsIterations;}
 bool   MoleculeCalculation::IsConverged()    const {return itsScf->Converged();}
 
 } // namespace qchem

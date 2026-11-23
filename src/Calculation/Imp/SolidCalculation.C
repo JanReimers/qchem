@@ -416,9 +416,9 @@ void ResolveGpwPoint(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real
     const std::shared_ptr<const Structure> held=lat.GetStructure();   // held: GetStructure may hand back a fresh object
     const Structure& st=*held;
     {
-        // The imposition is a POLICY (what the run symmetrizes, and the R1.0r intersection with the k mesh), so it reports one level
-        // into the run report's `policy` scope.
-        qchem::report::Scope policy("policy"), sym("symmetry");
+        // The imposition reports one level into a `symmetry` scope (the R1.0r intersection with the k mesh).  NOT under `policy`: that
+        // key is the array of policy ROWS, and a Scope over it erased every row the setup had filed (OpenWork G5, 2026-11-22).
+        qchem::report::Scope sym("symmetry");
         p.imposition=std::make_shared<const CrystalImposition>(ResolveImposition(lat, ImpositionOptions{
             .imposeSymmetry=p.imposeSymmetry, .siteSpins=p.siteSpins, .freeMeshInvariant=p.freeMeshInvariant, .kShift=p.kShift}));
     }

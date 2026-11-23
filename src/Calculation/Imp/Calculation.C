@@ -116,13 +116,15 @@ void Calculation::SaveState(const std::string& path) const
               << (r.summary.converged ? "" : "  (NOT converged -- a restart will say so)") << std::endl;
 }
 
-void Calculation::Checkpoint(const std::string& path, const std::string& label) const
+std::string Calculation::Checkpoint(const std::string& path, const std::string& label) const
 {
-    if (path.empty()) return;
-    try { SaveState(path); }
-    catch (const std::exception& e)
+    if (path.empty()) return "";
+    try { SaveState(path); return ""; }
+    catch (const std::exception& e)   // the run asked for a state: it FAILS without one (tCalculation::Result), never only a warning
     {
-        std::cout << "["<<label<<"] WARNING: state NOT saved to "<<path<<": "<<e.what()<<std::endl;
+        const std::string why="the state was NOT saved to "+path+": "+e.what();
+        std::cout << "["<<label<<"] ERROR: "<<why<<std::endl;
+        return why;
     }
 }
 
@@ -328,12 +330,17 @@ template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCal
 {
     using O=Outcome<Converged, SCFFailure>;
     if (std::optional<SCFFailure> f=MakeFailure()) return O::Fail(std::move(*f));
+    if (!itsSaveFailure.empty())
+    {
+        SCFFailure f; f.why=SCFFailure::Why::StateNotSaved; f.iterations=ProofIterations(); f.details=itsSaveFailure;
+        return O::Fail(std::move(f));
+    }
     return O::Ok(Converged(this));
 }
 
 template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCalculation<T>::ConvergeStage(const SCFParams& params)
 {
-    if (RunStage(params)) Checkpoint(Options().saveStateTo, Tag());
+    if (RunStage(params)) itsSaveFailure=Checkpoint(Options().saveStateTo, Tag());
     return Result();
 }
 

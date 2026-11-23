@@ -171,6 +171,9 @@ TEST(MeshPilot, AGeometryRunRaisesAMeshThatMissesEpsOnMatrixElements)
     const bool raised = sized->xcMesh.nRadial>setup->xcMesh.nRadial || sized->xcMesh.angularDegree>setup->xcMesh.angularDegree;
     EXPECT_TRUE(raised) << "F2 GTH misses max|ΔH| <= eps at the entry rung";
     EXPECT_GT(cost.reconvergeIterations, 0u) << "a raise re-converges once from the carried D";
+    // The run's iteration count is its WHOLE run (OpenWork row, the atom's twin 00dcde5b0): the pilot rebuilds the iterator per raised
+    // mesh, so the last iterator alone counted only the last re-convergence (equal to or below the pilot's share).
+    EXPECT_GT(c.IterationCount(), cost.reconvergeIterations) << "the entry SCF's iterations are part of the run";
     const GridAuditResult R=c.MeshAudit(Finer(sized->xcMesh));
     EXPECT_LT(R.maxAbsΔH, setup->opts.accuracy.Target(ClientConsumes::MatrixElements, 2));
 }

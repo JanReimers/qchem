@@ -20,6 +20,7 @@ module;
 #include <cassert>
 #include <atomic>     // TimingWindow: the count of open driver windows
 #include <optional>
+#include <stdexcept>  // Row / Scope: a key re-typed between an array and an object is a broken invariant
 #include <mutex>      // the ledger is written from OUTER-loop worker threads (doc/KAxisPlan.md P1)
 #include <nlohmann/json.hpp>
 #include "tabulate/table.hpp"
@@ -511,7 +512,12 @@ Row::Row(const std::string& key) : itsDepth(g_cursor.size())
 {
     if (g_stack.empty()) return;                           // inert outside a run
     json& arr = (*cursorNode())[key];
-    if (!arr.is_array()) arr = json::array();
+    // A key is EITHER an array of rows OR an object scope, never both: silently re-typing it erased whatever was there (the setup's
+    // `policy` rows were wiped by a Scope("policy") and its object by the next Row, OpenWork G5 2026-11-22).  A broken invariant: throw.
+    if (!arr.is_null() && !arr.is_array())
+        throw std::logic_error("report::Row(\""+key+"\"): the key already holds a "+arr.type_name()+" here, not an array of rows -- "
+                               "a Scope and a Row share one key at one level");
+    if (arr.is_null()) arr = json::array();
     arr.push_back(json::object());
     g_cursor.push_back(PathSeg::Key(key));
     g_cursor.push_back(PathSeg::Index(arr.size() - 1));
@@ -523,7 +529,10 @@ Scope::Scope(const std::string& key) : itsDepth(g_cursor.size()), itsT0(RunElaps
 {
     if (g_stack.empty()) return;                           // inert outside a run
     json& node = (*cursorNode())[key];
-    if (!node.is_object()) node = json::object();
+    if (!node.is_null() && !node.is_object())   // see Row: re-typing the key erased it
+        throw std::logic_error("report::Scope(\""+key+"\"): the key already holds a "+std::string(node.type_name())+" here, not an object -- "
+                               "a Scope and a Row (or a Set) share one key at one level");
+    if (node.is_null()) node = json::object();
     itsBefore = node;                                      // a COPY: the doc may reallocate before we close
     g_cursor.push_back(PathSeg::Key(key));
 }

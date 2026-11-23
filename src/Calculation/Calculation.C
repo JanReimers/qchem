@@ -211,7 +211,9 @@ protected:
     void CheckPPFunctional(const Structure& run) const;
     //! The kind's own name for an unlabelled run: "atom O", "molecule", the solid's default label.
     virtual std::string KindTag() const = 0;
-    void Checkpoint(const std::string& path, const std::string& label) const;
+    //! Saves the state to \a path (nothing when it is empty).  Returns "" on success (or no path), else why the save failed: the
+    //! caller remembers it and \c Result answers \c StateNotSaved, so a run that asked for a state never reads green without it.
+    [[nodiscard]] std::string Checkpoint(const std::string& path, const std::string& label) const;
     //! A schedule stage's setup edit this kind cannot apply: REFUSED naming the edit (the policy row \c StageSetup, doc/OpenWork.md
     //! "Setup-changing schedule stage").  THROWS \c policy::Refused, which \c Converge answers as an \c SCFFailure.
     [[noreturn]] void RefuseSetupEdit(const SetupEdit& edit, size_t index) const;
@@ -333,6 +335,7 @@ protected:
     //!@}
 private:
     bool itsExactResumePending=false;   //!< see \c SeededIterator
+    std::string itsSaveFailure;          //!< the last \c Checkpoint's failure ("" after a save that succeeded); see \c Checkpoint
     //! \brief THE RUN'S TIMING BREAKDOWN (user 2026-11-22: "we used to have exactly this breakdown at end of every run"): opened when the
     //! calculation is constructed, reported at the end of each \c Converge (its share of the ledger since construction or the previous
     //! \c Converge, and its SCF iterations), unless a driver window (a geometry point, a geometry run, a deck) is open around it.

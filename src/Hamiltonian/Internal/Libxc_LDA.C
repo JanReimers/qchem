@@ -38,6 +38,14 @@ public:
     //! (band-limited \f$\tilde\rho\f$ ringing) is clamped to 0 on its own (libxc's rule, and SlaterExchange's).
     virtual double  GetVxc  (double up, double dn, const Spin& s) const override;
     virtual double  GetEpsXc(double up, double dn, const Spin& s) const override;
+    //! The kernel \f$f^{\sigma\sigma'}=\partial v^\sigma/\partial\rho_{\sigma'}\f$ is LIBXC'S OWN analytic second derivative
+    //! (\c xc_lda_fxc), not the base class's finite difference of \c GetVxc (user 2026-11-15/19: libxc's own derivatives, each
+    //! checked by a short FD unit test, \c UTHamiltonian XCKernel.Libxc*).  It follows the same split as the face above: an
+    //! EXCHANGE id is channel-separable, \f$f^{\sigma\sigma}=2\,v_x'(2\rho_\sigma)\f$ from the scalar call and \f$f^{\uparrow\downarrow}=0\f$;
+    //! any other id reads libxc's XC_POLARIZED \c v2rho2 \f$(\uparrow\uparrow,\uparrow\downarrow,\downarrow\downarrow)\f$, at \f$\zeta=0\f$ too
+    //! (the scalar call gives only \f$(f^{\uparrow\uparrow}+f^{\uparrow\downarrow})/2\f$).  A negative channel is clamped to 0 as in
+    //! \c GetVxc, so the derivative along it is 0; a vanishing density (\f$\rho\le\f$ 1e-12) answers 0, the base class's guard.
+    virtual double  GetFxc  (double up, double dn, const Spin& s, const Spin& t) const override;
 
     virtual std::ostream& Write(std::ostream&) const override;
     //! Is this id a WHOLE exchange-correlation functional (libxc kind XC_EXCHANGE_CORRELATION: PADE / LDA_XC_TETER93), rather than an
