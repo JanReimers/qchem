@@ -27,6 +27,7 @@ import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
 import qchem.SCFIterator;            // SCFParams
 import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
+import qchem.Mesh.Radial;   // MakeRadial (V-MESH-FACTORY step 5: qchem.Mesh.Quadrature no longer re-exports the radial factory)
 using namespace qchem;
 using namespace qchem::Pseudopotential;
 using enum BasisSetAccuracy;

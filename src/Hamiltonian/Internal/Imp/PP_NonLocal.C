@@ -15,6 +15,8 @@ import qchem.Energy;
 import qchem.Mesh.Quadrature;           // qcMesh::Overlap(mesh, VectorFunction, ScalarFunction) -> projection vector
 import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction (passed direct)
 import qchem.Math.SolidHarmonics;       // RealYlm
+import qchem.Mesh.Recipe;   // MeshParams and the mesh kinds (V-MESH-FACTORY step 5: qchem.Mesh no longer re-exports it)
+import qchem.Mesh.Radial;   // MakeRadial (V-MESH-FACTORY step 5: qchem.Mesh.Quadrature no longer re-exports the radial factory)
 
 namespace qchem::Hamiltonian
 {

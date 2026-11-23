@@ -24,6 +24,7 @@ module;
 #include <vector>
 export module qchem.Mesh.BeckeClimb;
 export import qchem.Mesh.XCPolicy;   // MeshParams, BeckeLadderCalibration, BeckeAngularRungAbove / BeckeRadialRungAbove
+import qchem.Mesh.Recipe;   // MeshParams and the mesh kinds (V-MESH-FACTORY step 5: qchem.Mesh no longer re-exports it)
 
 export namespace qchem::qcMesh
 {

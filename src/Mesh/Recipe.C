@@ -2,8 +2,8 @@
 //
 // V-MESH-FACTORY step 1 (user ruling 2026-11-21, "Please proceed with the plan"; lane H design note §3): a RECIPE churns -- a new
 // radial kind, a partition kind, a Becke knob -- while the built Mesh every hub holds rarely changes.  Sharing one module made every
-// recipe edit rebuild the ~500 transitive importers of qchem.Mesh.  The split is the first step; until step 5 qchem.Mesh still
-// re-exports this module, so no importer changes yet.
+// recipe edit rebuild the ~500 transitive importers of qchem.Mesh.  Step 1 split it out; step 5 ended qchem.Mesh's re-export, so
+// every importer states it (507 -> 214 transitive importers of a recipe edit, doc/MeshFactoryPlan.md §6).
 module;
 #include <string>
 export module qchem.Mesh.Recipe;

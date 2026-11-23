@@ -20,6 +20,7 @@ import qchem.Hamiltonian.Types;
 import qchem.BasisSet.Orbital_PP_IBS;          // SpeciesRadialField / SpeciesProjectorSet_R (the real-space views the molecular PP terms quadrature)
 import qchem.Mesh;                             // qcMesh::MeshParams (the quadrature mesh spec)
 import qchem.BasisSet.ImplicitAngular_IBS;      // the radial/implicit-Y_lm capability (atomic KB route)
+import qchem.Mesh.Recipe;   // MeshParams and the mesh kinds (V-MESH-FACTORY step 5: qchem.Mesh no longer re-exports it)
 
 
 export namespace qchem::Hamiltonian

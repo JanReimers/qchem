@@ -14,7 +14,6 @@ export module qchem.Mesh.Quadrature;
 export import qchem.Mesh;
 export import qchem.ScalarFunction;   // qcMath field interfaces (ScalarField/BasisField retired in favour of these)
 export import qchem.VectorFunction;
-export import qchem.Mesh.Radial;   // RadialMesh (the 1-D radial quadrature)
 import qchem.Blaze;
 
 namespace qchem::qcMesh

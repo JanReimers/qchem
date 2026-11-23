@@ -14,6 +14,7 @@ import qchem.Hamiltonian.Factory;
 import qchem.Blaze;
 import qchem.Mesh;
 import qchem.Mesh.Radial;
+import qchem.Mesh.Angular;
 import qchem.Structure;
 import qchem.StructureData;
 import qchem.Types;
@@ -32,7 +33,7 @@ qcMesh::Mesh OneAtomMesh(const qcMesh::MeshParams& mp=theMesh)
 }
 std::shared_ptr<const qcMesh::SiteMultipoles> Sites(const qcMesh::Mesh& mesh, const qcMesh::MeshParams& mp, int lMax, const rvec3vec_t& centres={rvec3_t(0,0,0)})
 {
-    return std::make_shared<const qcMesh::SiteMultipoles>(mesh, centres, mp, lMax);
+    return std::make_shared<const qcMesh::SiteMultipoles>(mesh, centres, qcMesh::MakeRadial(mp), qcMesh::MakeAngular(mp), lMax);
 }
 double Rho(double a, double r2) {return std::pow(a/std::numbers::pi,1.5)*std::exp(-a*r2);}   // unit charge
 }

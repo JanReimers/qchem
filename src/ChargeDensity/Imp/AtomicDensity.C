@@ -13,6 +13,8 @@ module;
 #include <nlohmann/json.hpp>
 
 module qchem.ChargeDensity.AtomicDensity;
+import qchem.Mesh.Recipe;   // MeshParams and the mesh kinds (V-MESH-FACTORY step 5: qchem.Mesh no longer re-exports it)
+import qchem.Mesh.Radial;   // MakeRadial (V-MESH-FACTORY step 5: qchem.Mesh.Quadrature no longer re-exports the radial factory)
 
 #ifndef CHARGEDENSITY_DATA_PATH
 #error "CHARGEDENSITY_DATA_PATH must be defined by CMake"

@@ -8,23 +8,12 @@ module;
 #include <vector>
 export module qchem.Mesh.Angular;
 export import qchem.Types;
-export import qchem.Mesh;            // AngularKind, MeshParams
+export import qchem.Mesh;            // AngularMesh (the built value type lives there, V-MESH-FACTORY step 5)
+import qchem.Mesh.Recipe;            // MeshParams, AngularKind: this module is the recipe-side FACTORY of an AngularMesh
 
 export namespace qchem::qcMesh
 {
 
-class AngularMesh
-{
-public:
-    AngularMesh() = default;
-    AngularMesh(rvec3vec_t d, rvec_t w) : itsD(std::move(d)), itsW(std::move(w)) {}
-    const rvec3vec_t& Dirs() const {return itsD;}   //!< unit directions Omega_i
-    const rvec_t&     W   () const {return itsW;}   //!< weights, sum = 4*pi
-    size_t          size  () const {return itsD.size();}
-private:
-    rvec3vec_t itsD;
-    rvec_t     itsW;
-};
 
 //! \brief Build an angular mesh of the requested kind from the typed parameters.
 AngularMesh MakeAngular(const MeshParams&);

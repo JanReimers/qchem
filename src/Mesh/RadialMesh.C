@@ -1,4 +1,4 @@
-// File: RadialMesh.C  Radial quadrature mesh (concrete value type) + typed factory.
+// File: RadialMesh.C  The radial quadrature mesh's typed factory (the value type RadialMesh is in qchem.Mesh).
 //
 // A 1D radial mesh: nodes r_i and weights w_i with the r^2 jacobian ALREADY folded into w_i, so
 // that  sum_i w_i f(r_i) ~ integral_0^inf r^2 f(r) dr.  The schemes (MHL/Log/Linear/DE2) are plain
@@ -8,22 +8,12 @@ module;
 #include <utility>
 export module qchem.Mesh.Radial;
 export import qchem.Types;
-export import qchem.Mesh;            // RadialKind, MeshParams
+export import qchem.Mesh;            // RadialMesh (the built value type lives there, V-MESH-FACTORY step 5)
+import qchem.Mesh.Recipe;            // MeshParams, RadialKind: this module is the recipe-side FACTORY of a RadialMesh
 
 export namespace qchem::qcMesh
 {
 
-class RadialMesh
-{
-public:
-    RadialMesh() = default;
-    RadialMesh(rvec_t r, rvec_t w) : itsR(std::move(r)), itsW(std::move(w)) {}
-    const rvec_t& R() const {return itsR;}   //!< r_i
-    const rvec_t& W() const {return itsW;}   //!< w_i  (includes the r^2 jacobian)
-    size_t      size() const {return itsR.size();}
-private:
-    rvec_t itsR, itsW;
-};
 
 //! \brief Build a radial mesh of the requested kind from the typed parameters.
 RadialMesh MakeRadial(const MeshParams&);

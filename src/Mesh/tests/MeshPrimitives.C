@@ -7,6 +7,7 @@
 import qchem.Mesh.Product;       // Mesh, ProductMesh, MakeRadial/MakeAngular, MeshParams, enums
 import qchem.Mesh.Quadrature;    // free functions (over qcMath Scalar/VectorFunction)
 import qchem.Mesh.GaussLegendre;
+import qchem.Mesh.Recipe;   // MeshParams and the mesh kinds (V-MESH-FACTORY step 5: qchem.Mesh no longer re-exports it)
 using namespace qchem;
 
 using namespace qchem::qcMesh;          // Mesh, MakeRadial/MakeAngular, quadrature, ...

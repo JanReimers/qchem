@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <string>
 import qchem.Mesh.XCPolicy;
+import qchem.Mesh.Recipe;   // MeshParams and the mesh kinds (V-MESH-FACTORY step 5: qchem.Mesh no longer re-exports it)
 
 using namespace qchem;
 using namespace qchem::qcMesh;

@@ -55,6 +55,7 @@ module;
 export module qchem.Mesh.XCPolicy;
 export import qchem.Mesh;
 export import qchem.Mesh.Angular;   // LebedevMenu (the degree -> direction-count table)
+export import qchem.Mesh.Recipe;   // MeshParams and the mesh kinds (V-MESH-FACTORY step 5: qchem.Mesh no longer re-exports it)
 
 export namespace qchem::qcMesh
 {

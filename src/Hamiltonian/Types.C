@@ -11,7 +11,6 @@ export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Orbital_DHF_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.Types;   // dcmplx (for cobs_t)
-export import qchem.Mesh; // qcMesh::MeshParams
 
 
 export namespace qchem::Hamiltonian

@@ -22,9 +22,6 @@ export module qchem.Mesh;
 export import qchem.Types;
 export import qchem.PointSampling;   // the face a Mesh implements (MakeFourierSampler)
 import qchem.Symmetry.Group;        // Symmetry::GroupPtr: what a point set FORCES on the field it samples (Group face step 3b)
-//! TRANSITIONAL (V-MESH-FACTORY step 1 -> step 5): the recipe moved to qchem.Mesh.Recipe; re-exported here until every importer
-//! states what it uses, so step 1 changes no importer.
-export import qchem.Mesh.Recipe;
 
 export namespace qchem::qcMesh
 {
@@ -160,5 +157,35 @@ inline double BeckeCutoff(double mu, int k)
     for (int i=k; i>=0; i--) mu=0.5*(3*mu - mu*mu*mu);
     return 0.5*(1.0-mu);
 }
+
+//! \brief The BUILT 1-D radial quadrature: nodes \f$r_i\f$ and weights \f$w_i\f$ with the \f$r^2\f$ jacobian ALREADY folded in, so
+//! \f$\sum_i w_i f(r_i)\approx\int_0^\infty r^2 f(r)\,dr\f$.  A value type beside \c Mesh (V-MESH-FACTORY step 5): its recipe-typed factory
+//! \c MakeRadial(const MeshParams&) is in \c qchem.Mesh.Radial, so a client that only integrates on one never sees the recipe.
+class RadialMesh
+{
+public:
+    RadialMesh() = default;
+    RadialMesh(rvec_t r, rvec_t w) : itsR(std::move(r)), itsW(std::move(w)) {}
+    const rvec_t& R() const {return itsR;}   //!< r_i
+    const rvec_t& W() const {return itsW;}   //!< w_i  (includes the r^2 jacobian)
+    size_t      size() const {return itsR.size();}
+private:
+    rvec_t itsR, itsW;
+};
+
+//! \brief The BUILT angular quadrature: unit directions \f$\Omega_i\f$ and weights summing to \f$4\pi\f$.  Its factory
+//! \c MakeAngular(const MeshParams&) and the Lebedev menu are in \c qchem.Mesh.Angular (V-MESH-FACTORY step 5).
+class AngularMesh
+{
+public:
+    AngularMesh() = default;
+    AngularMesh(rvec3vec_t d, rvec_t w) : itsD(std::move(d)), itsW(std::move(w)) {}
+    const rvec3vec_t& Dirs() const {return itsD;}   //!< unit directions Omega_i
+    const rvec_t&     W   () const {return itsW;}   //!< weights, sum = 4*pi
+    size_t          size  () const {return itsD.size();}
+private:
+    rvec3vec_t itsD;
+    rvec_t     itsW;
+};
 
 } //export namespace qchem::qcMesh
