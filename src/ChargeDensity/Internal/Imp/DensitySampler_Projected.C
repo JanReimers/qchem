@@ -29,7 +29,6 @@ namespace qchem::ChargeDensity
 {
 
 // Shared with the other two strategies (defined in the Singles / Pair units of this module).
-bool HasExactSource(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd);
 bool HasXCCorrection(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd);
 void ReportNegativeRho(const DensitySamplerBase& q, const rvec_t& rho, const char* route);
 bool BallHoldsPairs(const BasisSet::cFIT_SF_ABS& fit);
@@ -113,11 +112,7 @@ void ProjectedDensitySampler::RefreshPol(const cChargeDensity* cd) const
         ReportNegativeRho(*this, itsRhoUp, "half-density seed");
         return;
     }
-    // policy.xcFromDM (the wholesale retained-D repair) is wired only on the singles route; refused here as on the pair route.
-    if ((HasExactSource(up) && !HasXCCorrection(up)) || (HasExactSource(dn) && !HasXCCorrection(dn)))
-        throw std::logic_error("ProjectedDensitySampler: policy.xcFromDM is not wired on the projected route -- its rho comes from "
-            "the density's projection onto the fit, not from a point projector, so the retained-D repair needs its own design.  Use "
-            "the delta/singles quadrature for it.");
+    // policy.xcFromDM (the wholesale retained-D repair) is wired only on the singles route: MakeDensitySampler refuses it for this one.
     itsRhoUp=SampleOne(up);
     itsRhoDn=SampleOne(dn);
     ReportNegativeRho(*this, itsRhoUp, "projected(up)");

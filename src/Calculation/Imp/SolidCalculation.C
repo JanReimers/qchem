@@ -660,6 +660,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         // The XC route carries the δ fit's orbital-table door: the user's stated xcOrbitalTables, judged at the fit factory on both
         // realizations' footprints (qchem.PhiTablesPolicy; user ruling 2026-11-19, option (a)).
         qchem::Hamiltonian::XCRoute route(opts.vxcFit, opts.xcRho);
+        route.xcSource=itsImp->setup->policy.XCSource();   // policy.xcFromDM and its controls, as the setup resolved them
         const bool gga=qchem::Hamiltonian::IsDFT(*opts.model) && qchem::Hamiltonian::ConsumesDensityGradient(qchem::Hamiltonian::ModelToXC(*opts.model));
         route.phiTables= gga ? qchem::policy::MakeGGAOrbitalTablesChooser()   // the image tables have no gradient yet (GGA stage 3)
                              : qchem::policy::MakeXCOrbitalTablesChooser(opts.solid.xcOrbitalTables);
@@ -2446,7 +2447,9 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition, latRef.GetUnitCell());
         }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
-        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, double(S.opts.Nelec), *S.pp, xcMesh ? *xcMesh : S.xcMesh, *makerRef, *p.imposition, {opts.vxcFit, opts.xcRho}, itsImp->hubbard,
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, double(S.opts.Nelec), *S.pp, xcMesh ? *xcMesh : S.xcMesh, *makerRef, *p.imposition,
+                                                 [&]{qchem::Hamiltonian::XCRoute r(opts.vxcFit, opts.xcRho); r.xcSource=S.policy.XCSource(); return r;}(),
+                                                 itsImp->hubbard,
                                                  qchem::Hamiltonian::ModelToXC(*opts.model), PeriodicA1Set(opts, *stRef)));
     }
     auto cdRun=RestoreDensity(st, *itsImp->bs, g);

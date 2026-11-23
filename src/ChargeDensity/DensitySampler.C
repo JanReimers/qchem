@@ -46,6 +46,7 @@ import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quad
 import qchem.Mesh.SiteMultipoles;           // the multipole fitted-potential cell's channels
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Types;
+import qchem.RunPolicy;                      // XCSourceRoute: the XC-from-D route the singles strategy is handed
 import qchem.Symmetry.Group;                 // Symmetry::GroupPtr: what a fit FORCES (Forces, Group face step 3a)
 import qchem.PointSampling;                  // SamplingTarget (FourierTarget's slot)
 
@@ -419,7 +420,7 @@ public:
 typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fitbasis_t;
 
 std::shared_ptr<const DensitySampler>
-MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad={});
+MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad={}, const XCSourceRoute& source={});
 
 //! \brief The REAL path's strategy (V-XC-ONE-TERM, 2026-10-31): a molecule's or an atom's δ basis -- points and nothing else,
 //! so SINGLES.  A non-orthogonal (A1 Gaussian) fit THROWS \c invalid_argument: its projection \f$P\rho\f$ is not \f$\rho[D]\f$ and never
@@ -436,7 +437,7 @@ MakeDensityGradientSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& f
 //! \brief THE PERIODIC DENSITY-GRADIENT STRATEGY (GGA stage 3): Singles on the periodic δ basis, over its dense Φ tables.  THROWS
 //! \c invalid_argument as the molecular one does (not δ, no gradient face, a FOLDED quadrature).
 std::shared_ptr<const DensityGradientSampler>
-MakeDensityGradientSampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad={});
+MakeDensityGradientSampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad={}, const XCSourceRoute& source={});
 
 //! \brief THE PERIODIC A1 VXC FIT's strategies (V-XC-ONE-TERM step 6, lane S 2026-11-15), over \a a1: the REAL Gamma block of the A1 set on
 //! the cell's sites, built by the Hamiltonian's caller and held by the strategy (a real fit cannot pass the complex lineage's fit-basis
@@ -454,7 +455,7 @@ struct LatticeSummedSet
 };
 
 std::shared_ptr<const DensitySampler>
-MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points, const LatticeSummedSet& a1);
+MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points, const LatticeSummedSet& a1, const XCSourceRoute& source={});
 
 //! \brief THE MOLECULAR / ATOM FITTED-POTENTIAL CELLS (target W; FittedVxc's retirement, lane S 2026-11-15): XC of rho[D] on \a points through
 //! \a delta (the delta basis on them: singles, E = sum_g w_g e(rho[D]) exactly), its v FITTED for H onto
