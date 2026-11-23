@@ -61,12 +61,12 @@ TEST(MolecularMesh, CoincidentDimerEqualsAtom)
     rvec3_t o(0,0,0);
 
     Atom a(1,o);
-    auto m1=a.CreateIntegrationMesh(mp);
+    auto m1=MakeMesh(a, mp);
 
     Molecule dimer;
     dimer.Insert(Site{1, o});
     dimer.Insert(Site{1, o});          // right on top of each other (R_ab = 0)
-    auto m2=dimer.CreateIntegrationMesh(mp);
+    auto m2=MakeMesh(dimer, mp);
 
     GaussAt g(o);
     double I1=qcMesh::Integrate(m1,g);
@@ -84,7 +84,7 @@ TEST(MolecularMesh, SeparatedDimerIsAdditive)
     Molecule dimer;
     dimer.Insert(Site{1, RA});
     dimer.Insert(Site{1, RB});
-    auto m=dimer.CreateIntegrationMesh(mp);
+    auto m=MakeMesh(dimer, mp);
 
     TwoGauss f(RA,RB);
     EXPECT_NEAR(qcMesh::Integrate(m,f),2*Pi32,1e-3);
@@ -99,7 +99,7 @@ TEST(MolecularMesh, FarAtomDoesNotCorrupt)
     Molecule dimer;
     dimer.Insert(Site{1, RA});
     dimer.Insert(Site{1, RB});
-    auto m=dimer.CreateIntegrationMesh(mp);
+    auto m=MakeMesh(dimer, mp);
 
     GaussAt g(RA);                        // localised on atom A only
     EXPECT_NEAR(qcMesh::Integrate(m,g),Pi32,1e-3);
@@ -137,7 +137,7 @@ TEST(LatticeMesh, UniformCellIntegratesConstantToVolume)
     const double a=5.0;
     UnitCell cell(a);
     qcMesh::MeshParams mp; mp.nUniform=8;
-    auto m=cell.CreateIntegrationMesh(mp);
+    auto m=MakeMesh(cell, mp);
 
     EXPECT_EQ(m.size(), size_t(8*8*8));
     EXPECT_NEAR(qcMesh::Integrate(m,One()), a*a*a, 1e-9);   // sum of weights = Omega
@@ -149,7 +149,7 @@ TEST(LatticeMesh, UniformCellIntegratesPeriodicCosine)
     const double a=5.0;
     UnitCell cell(a);
     qcMesh::MeshParams mp; mp.nUniform=6;
-    auto m=cell.CreateIntegrationMesh(mp);
+    auto m=MakeMesh(cell, mp);
 
     EXPECT_NEAR(qcMesh::Integrate(m,CosSqX(a)), 0.5*a*a*a, 1e-9);
 }
@@ -162,7 +162,7 @@ TEST(LatticeMesh, ECutDerivesNyquistDivisions)
     const double a=6.0, eCut=8.0;
     UnitCell cell(a);
     qcMesh::MeshParams mp; mp.nUniform=3; mp.eCut=eCut;   // nUniform deliberately too small -> must be ignored
-    auto m=cell.CreateIntegrationMesh(mp);
+    auto m=MakeMesh(cell, mp);
 
     const int nExpect=int(std::ceil(2.0*a*std::sqrt(2.0*eCut)/Pi));
     EXPECT_EQ(m.size(), size_t(nExpect)*nExpect*nExpect);
@@ -178,7 +178,7 @@ TEST(LatticeMesh, ECutGridIsAliasFreeForDensityBandwidth)
     const double a=6.0, eCut=8.0;
     UnitCell cell(a);
     qcMesh::MeshParams mp; mp.eCut=eCut;
-    auto m=cell.CreateIntegrationMesh(mp);
+    auto m=MakeMesh(cell, mp);
 
     EXPECT_NEAR(qcMesh::Integrate(m,CosSqX(a)), 0.5*a*a*a, 1e-9);
 }
@@ -244,7 +244,7 @@ struct FCCBecke
     {
         cell.AddAtom(14, rvec3_t(0,0,0));
         cell.AddAtom(14, rvec3_t(0.25,0.25,0.25));
-        mesh=cell.CreateIntegrationMesh(BeckeParams());
+        mesh=MakeMesh(cell, BeckeParams());
     }
     static const FCCBecke& Get() {static FCCBecke f; return f;}
 };
@@ -258,7 +258,7 @@ TEST(LatticeMesh, BeckeCellIntegratesConstantToVolume)
     const double a=6.0;
     UnitCell cell(a);
     cell.AddAtom(1, rvec3_t(0,0,0));
-    auto m=cell.CreateIntegrationMesh(BeckeParams());
+    auto m=MakeMesh(cell, BeckeParams());
 
     EXPECT_NEAR(qcMesh::Integrate(m,One())/(a*a*a), 1.0, 1e-3);
 }
@@ -282,7 +282,7 @@ TEST(LatticeMesh, BeckeCapturesSharpCoreField)
     EXPECT_NEAR(qcMesh::Integrate(f.mesh,sharp)/exact, 1.0, 1e-4);
 
     qcMesh::MeshParams um; um.nUniform=int(std::ceil(std::cbrt(double(f.mesh.size()))));
-    auto u=f.cell.CreateIntegrationMesh(um);         // uniform grid at the SAME total point count
+    auto u=MakeMesh(f.cell, um);         // uniform grid at the SAME total point count
     EXPECT_GT(std::fabs(qcMesh::Integrate(u,sharp)/exact-1.0), 1e-2);
 }
 
@@ -368,9 +368,9 @@ TEST(MolecularMesh, TheMeshFilesItsFieldsOneLevelIntoTheCallersScope)
     n2.Insert(Site{7, rvec3_t( 1.04,0,0)});
     namespace rpt=qchem::report;
     rpt::Begin("MolecularMeshReport", "2026-11-02T00:00:00");
-    const qcMesh::Mesh a=[&]{ rpt::Scope s("callerA"); return n2.CreateIntegrationMesh(qcMesh::MeshParams{.nRadial=20, .angularDegree=5}); }();
+    const qcMesh::Mesh a=[&]{ rpt::Scope s("callerA"); return MakeMesh(n2, qcMesh::MeshParams{.nRadial=20, .angularDegree=5}); }();
     const qcMesh::Mesh b=[&]{ rpt::Scope o("outer"); rpt::Scope s("callerB");
-                              return n2.CreateIntegrationMesh(qcMesh::MeshParams{.nRadial=30, .angularDegree=11}); }();
+                              return MakeMesh(n2, qcMesh::MeshParams{.nRadial=30, .angularDegree=11}); }();
     const auto doc=rpt::CurrentRunReport();       // COPY before End (End moves the doc out)
     rpt::End();
     EXPECT_EQ(doc["callerA"]["points"].get<long>(), long(a.size()));
@@ -389,7 +389,7 @@ TEST(MolecularMesh, TheWeightResponseIsTheFiniteDifferenceOfTheRebuiltMesh)
     qcMesh::MeshParams mp=Params();
     const std::vector<int>     Z{8, 1, 1};
     const std::vector<rvec3_t> R0{rvec3_t(0.0, 0.0, 0.2214), rvec3_t(0.0, 1.4309, -0.8857), rvec3_t(0.0, -1.4309, -0.8857)};
-    auto build=[&](const std::vector<rvec3_t>& R){ Molecule m; for (size_t a=0;a<R.size();a++) m.Insert(Site{Z[a], R[a]}); return m.CreateIntegrationMesh(mp); };
+    auto build=[&](const std::vector<rvec3_t>& R){ Molecule m; for (size_t a=0;a<R.size();a++) m.Insert(Site{Z[a], R[a]}); return MakeMesh(m, mp); };
     const qcMesh::Mesh m0=build(R0);
     ASSERT_NE(m0.WeightResponse(), nullptr) << "the molecular mesh installs its weight response";
     ASSERT_EQ(m0.OwnerOffsets().size(), m0.size()) << "every point records its owner offset";

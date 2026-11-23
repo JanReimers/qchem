@@ -14,6 +14,7 @@ import qchem.Mesh.Quadrature;           // qcMesh quadrature + ScalarField/Basis
 import qchem.VectorFunction;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.Blaze;
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
 using namespace qchem;
 
 namespace
@@ -25,7 +26,7 @@ struct OneOverR  : ScalarFunction<double>
 };
 qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha, int angularDegree)
 {
-    return st.CreateIntegrationMesh({.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
+    return MakeMesh(dynamic_cast<const Atom&>(st), /* a test may name the concrete geometry */ {.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
                                   .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=angularDegree});
 }
 } //anon

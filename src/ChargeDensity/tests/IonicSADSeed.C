@@ -364,7 +364,7 @@ TEST(SADSeed, ItsGridIsItsOwnAndGoneOnceItHasProjected)
         std::weak_ptr<const qcMesh::Mesh> own;
         rvec_t p;
         {
-            auto mesh=std::make_shared<const qcMesh::Mesh>(h2o.CreateIntegrationMesh(kSeedMesh));
+            auto mesh=std::make_shared<const qcMesh::Mesh>(MakeMesh(h2o, kSeedMesh));
             own=mesh;
             NumericCD seed(h2o.GetNumElectrons(), std::move(mesh));
             h2o.ForEachSite([&seed](int Z, const rvec3_t& R, bool)

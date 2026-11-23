@@ -17,6 +17,7 @@ import qchem.Mesh.Radial;
 import qchem.Structure;
 import qchem.StructureData;
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
 
 using namespace qchem;
 
@@ -27,7 +28,7 @@ qcMesh::Mesh OneAtomMesh(const qcMesh::MeshParams& mp=theMesh)
 {
     Molecule m;
     m.Insert(Site{8, Vector3D<double>(0,0,0)});
-    return m.CreateIntegrationMesh(mp);
+    return MakeMesh(m, mp);
 }
 std::shared_ptr<const qcMesh::SiteMultipoles> Sites(const qcMesh::Mesh& mesh, const qcMesh::MeshParams& mp, int lMax, const rvec3vec_t& centres={rvec3_t(0,0,0)})
 {
@@ -154,7 +155,7 @@ TEST(SiteMultipoles, ProjectionThenSynthesisReturnsTheField)
     const rvec3_t A(0,0,0), B(0,0,2.0);
     m.Insert(Site{8, Vector3D<double>(0,0,0)});
     m.Insert(Site{1, Vector3D<double>(0,0,2.0)});
-    const qcMesh::Mesh mesh=m.CreateIntegrationMesh(theMesh);
+    const qcMesh::Mesh mesh=MakeMesh(m, theMesh);
     rvec_t f(mesh.size()), q(mesh.size());
     for (size_t g=0; g<mesh.size(); g++)
     {
@@ -191,7 +192,7 @@ TEST(SiteMultipoles, OwnShellSelfEnergyMatchesTheClosedForm)
     const rvec3_t A(0,0,0), B(0,0,R);
     m.Insert(Site{8, Vector3D<double>(0,0,0)});
     m.Insert(Site{1, Vector3D<double>(0,0,R)});
-    const qcMesh::Mesh mesh=m.CreateIntegrationMesh(theMesh);
+    const qcMesh::Mesh mesh=MakeMesh(m, theMesh);
     rvec_t q(mesh.size());
     for (size_t g=0; g<mesh.size(); g++)
     {
@@ -229,7 +230,7 @@ TwoChargeSets ChargesOn(const std::vector<std::pair<int,rvec3_t>>& atoms, const 
         m.Insert(Site{atoms[a].first, Vector3D<double>(atoms[a].second.x,atoms[a].second.y,atoms[a].second.z)});
         centres[a]=atoms[a].second;
     }
-    qcMesh::Mesh mesh=m.CreateIntegrationMesh(mp);
+    qcMesh::Mesh mesh=MakeMesh(m, mp);
     rvec_t q(mesh.size()), p(mesh.size());
     for (size_t g=0; g<mesh.size(); g++)
     {

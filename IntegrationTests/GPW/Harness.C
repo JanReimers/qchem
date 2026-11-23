@@ -50,6 +50,7 @@ import qchem.ChargeDensity.Seed;                  // SeedStrategy
 import qchem.SCFAccelerator.Factory;              // SCFAccelerators::Type
 import qchem.Symmetry.Factory;                    // BlochFactory
 import qchem.LASolver;                            // qchem::Ortho
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
 
 export namespace qchem::tests::gpw
 {
@@ -427,7 +428,7 @@ XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>
 {
     auto exch=std::make_shared<Hamiltonian::SlaterExchange>(2.0/3.0);
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
-    auto mesh=std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB));
+    auto mesh=std::make_shared<const qcMesh::Mesh>(MakeMesh(dynamic_cast<const UnitCell&>(*st), mpB));
     auto engine=SinglesEngineOver({mesh, {}});      // ONE quadrature, shared by the pair; free probe: no fold
     Hamiltonian::cVxc_DFT x(exch,engine,SpinGroup::UnPolarized), c(corr,engine,SpinGroup::UnPolarized);
     EnergyBreakdown e; x.GetEnergy(e,h.cd); c.GetEnergy(e,h.cd);

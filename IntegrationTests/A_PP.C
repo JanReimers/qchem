@@ -26,6 +26,7 @@ import qchem.SCFCap;                 // BoundedSCF (the Si2 routing check reads 
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
 import qchem.SCFIterator;            // SCFParams
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
 using namespace qchem;
 using namespace qchem::Pseudopotential;
 using enum BasisSetAccuracy;
@@ -217,7 +218,7 @@ TEST(A_PP, PerLKleinmanBylanderOracle)
     {
         auto sep=std::make_shared<const HGH_SeparablePotential>(onechannel(lProj));
         const double D=sep->Weight(Z,0);
-        Hamiltonian::PP_NonLocal term(st, sep, mp, std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mp)));   // the radial route ignores the 3-D mesh
+        Hamiltonian::PP_NonLocal term(st, sep, mp, std::make_shared<const qcMesh::Mesh>(MakeMesh(*st, mp)));   // the radial route ignores the 3-D mesh
 
         for (auto* blk : const_cast<BasisSet::Real_BS&>(*bs).Iterate<BasisSet::Real_OIBS>())
         {

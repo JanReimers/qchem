@@ -19,6 +19,7 @@ import qchem.VectorFunction;
 import qchem.Symmetry.Factory;
 import qchem.Symmetry.Atom.Spherical;
 import qchem.Blaze;
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
 using namespace qchem;
 
 using std::cout;
@@ -38,7 +39,7 @@ struct OneOverR2 : ScalarFunction<double>
 };
 qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha, int angularDegree)
 {
-    return st.CreateIntegrationMesh({.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
+    return MakeMesh(dynamic_cast<const Atom&>(st), /* a test may name the concrete geometry */ {.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
                                   .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=angularDegree});
 }
 } //anon

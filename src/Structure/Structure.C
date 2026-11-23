@@ -8,7 +8,6 @@ module;
 export module qchem.Structure;
 import qchem.Types;
 import qchem.Streamable;
-import qchem.Mesh;        // qcMesh::Mesh / MeshParams -- the real-space integration mesh a geometry produces
 import qchem.Symmetry.Group;   // Symmetry::GroupPtr / GroupTolerance (MakeSymmetry); a client that asks the group imports it itself
 
 namespace qchem {
@@ -124,14 +123,6 @@ public:
     //! existing callers (V1.19; user ruling Q2).  Sites are visited in atom-index order.
     void ForEachSite(const std::function<void(int Z, const rvec3_t& R, bool spinFlip)>& f) const;
 
-    //! \brief The real-space integration mesh natural to this geometry, at resolution \a mp.  The mesh TYPE
-    //! is the STRUCTURE's responsibility, not the basis's: an Atom builds its single-centre (radial x angular)
-    //! grid, a Molecule the multi-centre Becke grid, a periodic lattice a uniform / unit-cell-Becke grid.
-    //! Pure virtual -- each geometry owns its most efficient mesh (no central dispatch).  A real-space
-    //! orbital basis integrates a field on this via qcMesh::MatrixOverlap; plane waves own their G-grid and
-    //! do not use it.
-    virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const=0;
-
     virtual size_t GetAtomIndex(const rvec3_t&, double tol=0.0) const;
 
     //=== Mutators on a NON-const structure (clone-and-mutate); they act on the stored Sites ==========
@@ -168,9 +159,6 @@ public:
     //! O(3) about the site: the atom path imposes it (its open shell is spherically averaged, so its density is spherical).
     virtual Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const override;
 
-    //! A single atom's integration mesh: the atom-centred radial x angular grid (no Becke partitioning).
-    virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
-
     virtual std::string   ID     () const override;
     virtual std::ostream& Write  (std::ostream&) const override;
 
@@ -195,9 +183,6 @@ public:
     //! The abelian subgroup of the point group, about the centroid (see the base's declaration).  THROWS for an empty site set,
     //! whose group would be every isometry: there is no finite group to issue.
     virtual Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const override;
-
-    //! A molecule's integration mesh: the multi-centre Becke-partitioned grid.
-    virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
 
     virtual std::ostream& Write(std::ostream&) const override;
 

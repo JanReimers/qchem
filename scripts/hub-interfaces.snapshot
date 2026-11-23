@@ -715,7 +715,6 @@ namespace qchem {
         virtual Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const=0;
         SiteRange Sites() const;
         void ForEachSite(const std::function<void(int Z, const rvec3_t& R, bool spinFlip)>& f) const;
-        virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const=0;
         virtual size_t GetAtomIndex(const rvec3_t&, double tol=0.0) const;
         void MoveSites(const std::vector<rvec3_t>& R);
         void AddNetCharges(const std::function<double(int Z)>& extraChargeOf);
@@ -734,7 +733,6 @@ namespace qchem {
         virtual std::shared_ptr<Structure> Clone() const override;
         virtual size_t GetNumAtoms () const override;
         virtual Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const override;
-        virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
         virtual std::string ID () const override;
         virtual std::ostream& Write (std::ostream&) const override;
     protected:
@@ -751,7 +749,6 @@ namespace qchem {
         virtual void Insert (const Site& s);
         virtual size_t GetNumAtoms() const override;
         virtual Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const override;
-        virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
         virtual std::ostream& Write(std::ostream&) const override;
     protected:
         virtual const Site& GetSite(size_t i) const override;

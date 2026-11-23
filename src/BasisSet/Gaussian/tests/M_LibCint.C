@@ -124,7 +124,7 @@ TEST(M_LibCint, spherical_grid_eval_matches_matrices)
     const size_t n=lc.size();
     ASSERT_EQ(n, (1+3+5+7)*exps.size());
 
-    const qcMesh::Mesh m=o->CreateIntegrationMesh(qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=120, .mhl_m=2,
+    const qcMesh::Mesh m=MakeMesh(*o, qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=120, .mhl_m=2,
                                      .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=35, .beckeOrder=3});
     rmat_t S(n,n,0.0), K(n,n,0.0);
     for (size_t g=0; g<m.size(); ++g)

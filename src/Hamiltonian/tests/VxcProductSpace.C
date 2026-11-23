@@ -167,28 +167,29 @@ TEST(VxcProductSpace, EveryPointSetForcesWhatThePreflightAssumes)
     const auto* cell=dynamic_cast<const UnitCell*>(solid.get());
     ASSERT_NE(cell, nullptr);
     {
-        const auto H=solid->CreateIntegrationMesh(PointsFor(Points::Uniform)).Forces();
+        const auto H=MakeMesh(*cell, PointsFor(Points::Uniform)).Forces();
         EXPECT_TRUE (H->Contains(Generator::Translations(cell->GetCellMatrix()))) << H->Describe();
         EXPECT_FALSE(H->Contains(Generator::Translations(0.5*cell->GetCellMatrix()))) << "half the cell is not the raster's lattice";
         EXPECT_TRUE (GroupOf(*solid)->Contains(*H));
     }
-    EXPECT_TRUE(Symmetry::TrivialGroup()->Contains(*solid->CreateIntegrationMesh(PointsFor(Points::Becke)).Forces())) << "a cell's Becke mesh: {e}";
-    EXPECT_THROW(solid->CreateIntegrationMesh(PointsFor(Points::Radial)), std::invalid_argument) << "a cell has no one centre for the radial-only set";
+    EXPECT_TRUE(Symmetry::TrivialGroup()->Contains(*MakeMesh(*cell, PointsFor(Points::Becke)).Forces())) << "a cell's Becke mesh: {e}";
+    EXPECT_THROW(MakeMesh(*cell, PointsFor(Points::Radial)), std::invalid_argument) << "a cell has no one centre for the radial-only set";
     {
         const rvec3_t R(0.3,-0.2,0.7);
         const auto atom=std::make_shared<Atom>(7, 0.0, R);
-        const auto H=atom->CreateIntegrationMesh(PointsFor(Points::Radial)).Forces();
+        const auto H=MakeMesh(*atom, PointsFor(Points::Radial)).Forces();
         EXPECT_TRUE (H->Contains(Generator::FullRotations(R)))               << "O(3) about the atom's site";
         EXPECT_FALSE(H->Contains(Generator::FullRotations(rvec3_t(0,0,0)))) << "not about the origin";
         EXPECT_TRUE (GroupOf(*atom)->Contains(*H));
-        EXPECT_TRUE (Symmetry::TrivialGroup()->Contains(*atom->CreateIntegrationMesh(PointsFor(Points::Becke)).Forces())) << "the atom's Lebedev mesh: {e}";
+        EXPECT_TRUE (Symmetry::TrivialGroup()->Contains(*MakeMesh(*atom, PointsFor(Points::Becke)).Forces())) << "the atom's Lebedev mesh: {e}";
     }
     const auto mol=TheMolecule();
-    EXPECT_TRUE (Symmetry::TrivialGroup()->Contains(*mol->CreateIntegrationMesh(PointsFor(Points::Becke)).Forces())) << "a molecule's Becke mesh: {e}";
-    EXPECT_THROW(mol->CreateIntegrationMesh(PointsFor(Points::Radial)),  std::invalid_argument) << "two sites: no one centre";
-    EXPECT_THROW(mol->CreateIntegrationMesh(PointsFor(Points::Uniform)), std::invalid_argument) << "no lattice: no uniform cell mesh";
+    const auto& molecule=dynamic_cast<const Molecule&>(*mol);   // a test may name the concrete geometry
+    EXPECT_TRUE (Symmetry::TrivialGroup()->Contains(*MakeMesh(molecule, PointsFor(Points::Becke)).Forces())) << "a molecule's Becke mesh: {e}";
+    EXPECT_THROW(MakeMesh(molecule, PointsFor(Points::Radial)),  std::invalid_argument) << "two sites: no one centre";
+    EXPECT_THROW(MakeMesh(molecule, PointsFor(Points::Uniform)), std::invalid_argument) << "no lattice: no uniform cell mesh";
     Molecule one; one.Insert(Site{7, rvec3_t(0.3,0,0)});
-    EXPECT_THROW(one.CreateIntegrationMesh(PointsFor(Points::Radial)), std::invalid_argument) << "one site, but a molecule's G holds no O(3)";
+    EXPECT_THROW(MakeMesh(one, PointsFor(Points::Radial)), std::invalid_argument) << "one site, but a molecule's G holds no O(3)";
 }
 
 namespace
@@ -246,7 +247,7 @@ TEST(VxcProductSpace, EveryBuiltObjectForcesWhatItsDescriptorSaysOnEveryCell)
         {
             const bool preflight=bool(Hamiltonian::AdmitVxc(*st, VxcFit::Delta, PointsFor(p)));
             std::optional<Symmetry::GroupPtr> H;
-            try {H=st->CreateIntegrationMesh(PointsFor(p)).Forces();} catch (const std::invalid_argument&) {}
+            try {H=MeshMakerFor(*st)->Make(PointsFor(p)).Forces();} catch (const std::invalid_argument&) {}
             EXPECT_EQ(preflight, H && G->Contains(**H)) << Name(k) << " x " << Name(p) << " points"
                                                         << (H ? ": built, forcing "+(*H)->Describe() : ": not built");
         }

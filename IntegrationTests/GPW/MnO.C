@@ -229,7 +229,7 @@ TEST(GPW_MnO, Γ_Becke_Pol_SeedVxcMirror)
 
     // The run's Becke recipe, shrunk (nR=20, GL-11) -- wrapping is generic, it needs no production density.
     qcMesh::MeshParams mp=qcMesh::BeckeXCParams(20, -1.0, 11);
-    auto mesh=std::make_shared<const qcMesh::Mesh>(cell.CreateIntegrationMesh(mp));
+    auto mesh=std::make_shared<const qcMesh::Mesh>(MakeMesh(cell, mp));
     const rvec3vec_t& P=mesh->Points();
     const size_t N=P.size();
     ASSERT_GT(N, 0u);
