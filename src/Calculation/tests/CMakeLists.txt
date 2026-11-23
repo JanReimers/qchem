@@ -29,6 +29,7 @@ add_executable(UTCalculation ../../Common/tests/gtestmain.C
     PPFittedFunctional.C # PADE as a stated functional; the PP / functional match policy (user ruling 2026-11-12)
     SCFRecipe.C         # the SCF recipe policy: Auto == the pre-B5 policy cell for cell, the named regimes, the deck key (B5)
     BasisMenu.C         # the orbital-basis menu a structure offers (qchem.BasisMenu, lane G 2026-11-21)
+    RunPolicyLeak.C     # a run's density route is its own, not the last solid's (D-MUTABLE-STATICS-RUNPOLICY; knownRed until group E)
     FacadeMatrix.C      # the facade PARITY MATRIX: {atom, molecule, solid} x every capability, expected failures named (V-FACADE-MATRIX)
 )
 
