@@ -307,6 +307,42 @@ TEST(RealComplexTerms, FactoredLeafMatchesDirectLeafBothScalars)
     arm(dcmplx(0.0), kb, "FactoredRho<PeriodicIrrepCD<dcmplx>> (Bloch at k=(1/4,0,0) -- Phi complex)");
 }
 
+// THE NOT-PSD CANARY IS PER BLOCK (D-MUTABLE-STATICS, 2026-11-23).  An indefinite D makes FactoredRho fall back to the full-rank
+// route and print one warning.  It was a process-wide cap of 5 warnings, so a test binary or a geometry series went SILENT after its
+// fifth non-PSD block.  Now a block warns once when it leaves the cone (not again for a later serial that is still outside), and
+// every other block keeps its own canary.
+TEST(RealComplexTerms, TheNotPSDCanaryWarnsOncePerBlockNotOncePerProcess)
+{
+    using namespace qchem::ChargeDensity;
+    rvec3vec_t pts(2);
+    pts[0]=rig_pt(0.3,0.4,0.7); pts[1]=rig_pt(0.5,0.5,0.5);
+    Rig rig;
+    for (size_t g=0; g<pts.size(); g++) pts[g]=rig.cell.ToCartesian(pts[g]);
+    DeltaProjector dp(BasisSet::FitQuadrature{std::make_shared<const qcMesh::Mesh>(pts, rvec_t(pts.size(),1.0)), {}});
+    const auto& orb=*rig.re;
+    const size_t n=orb.GetNumFunctions(), r=3;
+    ASSERT_GT(n, r+1);
+    hmat_t<double> D(n);   // rank 3 PSD, minus a small negative weight on the last function: outside the cone
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+    { double s=0.0; for (size_t m=0;m<r;m++) s+=FactorEntry<double>(i,m)*FactorEntry<double>(j,m); D(i,j)=s; }
+    D(n-1,n-1)-=1e-3;
+    const std::string what="D is not positive semi-definite";
+    auto count=[&](const std::string& s){ size_t c=0; for (size_t p=s.find(what); p!=std::string::npos; p=s.find(what,p+1)) c++; return c; };
+
+    FactoredRho<PeriodicIrrepCD<double>> one(D, &orb, orb.GetIrrep(Spin::None));
+    testing::internal::CaptureStdout();
+    (void)one.Project(dp());
+    one.ReScale(2.0);              // a new serial of the same block (1.0 is an exact no-op), still outside the cone
+    (void)one.Project(dp());
+    for (int b=0; b<6; b++)        // six more blocks: the old process-wide cap (5) would have silenced the last ones
+    {
+        FactoredRho<PeriodicIrrepCD<double>> other(D, &orb, orb.GetIrrep(Spin::None));
+        (void)other.Project(dp());
+    }
+    const std::string out=testing::internal::GetCapturedStdout();
+    EXPECT_EQ(count(out), 7u) << "one warning for the first block over its two serials, one for each of the six others:\n" << out;
+}
+
 // The STATIC set: kinetic + the three PP terms.  One capability cross-cast each, then bitwise equality.
 TEST(RealComplexTerms, StaticTermsServeTheRealBlockBitwise)
 {

@@ -125,6 +125,12 @@ protected:
     Spin             itsSpin;
     Irrep            itsIrrep;
     size_t           itsVersion;   //!< TRANSIENT freshness serial (NextDensityVersion); never serialize.
+    //! The \c [DM subspace] census's memory (\c QCHEM_DIAGNOSTICS=dm_rank only; empty otherwise): this block's kept eigenvectors of D
+    //! and the serial they were taken at, so the census compares one SERIAL with the previous one of the SAME block.  It was a
+    //! process-wide static keyed by irrep (D-MUTABLE-STATICS): it outlived a run, and a second projection of one serial compared D
+    //! with itself.  Diagnostic state, not a cache: nothing but the printed line reads it.
+    mutable size_t   itsModesVersion = size_t(-1);
+    mutable mat_t<T> itsModes;
 };
 
 //! \brief THE FINITE LEAF (molecules/atoms): the core plus the finite-only capabilities -- the AO
@@ -239,6 +245,10 @@ private:
     mutable size_t   itsRank          = 0;
     mutable size_t   itsFactorVersion = size_t(-1);   //!< the IrrepCD_Core::Version() this factor was built from
     mutable bool     itsFactorable    = false;        //!< false => the fallback is in force for this serial
+    //! true while this block's D stays outside the PSD cone after its warning was printed: the canary prints once when a block LEAVES
+    //! the cone and again only after it has come back (D-MUTABLE-STATICS: it was a process-wide cap of 5 warnings, silent for every
+    //! later run in the process).
+    mutable bool     itsNotPSDWarned  = false;
     //! Tr(D) at factorisation time.  A STALE MEMO IS A SILENTLY WRONG rho -- the failure mode with no
     //! symptom -- so the version key is not trusted alone: this O(n) trace is re-checked on every memo hit.
     mutable double   itsFactorTrace   = 0.0;

@@ -9,7 +9,6 @@ module;
 #include <stdlib.h>
 #include <type_traits>
 #include <vector>
-#include <atomic>
 #include <map>
 #include <string>
 
@@ -240,7 +239,9 @@ template <class T> double IrrepCD_Core<T>::DM_ContractBlocks(const std::map<Irre
 //     Today only LinearMixer touches D and its alpha is clamped <= 1, so this should read >= 0 -- and if
 //     it ever does not, that IS the canary, not a surprise.
 //   * the rank at a ladder of tolerances is the achievable n/r.
-template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir)
+//! \a version is D's serial; \a prevVersion / \a prevModes are the block's own memory of the last serial it censused (the
+//! \c [DM subspace] line compares the two).
+template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir, size_t version, size_t& prevVersion, mat_t<T>& prevModes)
 {
     static const bool on=qchem::Diagnostics::Enabled("dm_rank");
     if (!on || D.rows()==0) return;
@@ -306,14 +307,14 @@ template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir)
         // O(npts n^2) with no D in it).  A subspace that barely moves would let Phi be projected to
         // npts x d ONCE, making the per-iteration H build O(npts d^2) -- the one cost the rank cannot touch.
         {
-            static std::map<Irrep, mat_t<T>> prevU;      // diagnostic only; outer call is serial
+            // The previous serial OF THIS BLOCK (its own memory, D-MUTABLE-STATICS).  A second projection of the same serial
+            // (Hartree, then XC) is not an iteration: it neither compares nor overwrites.
             size_t rk=0; for (size_t i=0;i<n;i++) if (w[i]>keep) rk++;
             mat_t<T> Uk(n, rk);
             { size_t c=0; for (size_t k=n; k-- > 0; ) if (w[k]>keep) { for (size_t i=0;i<n;i++) Uk(i,c)=U(i,k); c++; } }
-            auto it=prevU.find(ir);
-            if (it!=prevU.end() && it->second.columns()==rk)
+            if (version!=prevVersion && prevModes.rows()==n && prevModes.columns()==rk)
             {
-                const mat_t<T>& Up=it->second;
+                const mat_t<T>& Up=prevModes;
                 double f2=0.0;
                 for (size_t a=0;a<rk;a++) for (size_t b=0;b<rk;b++)
                 {
@@ -324,7 +325,7 @@ template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir)
                 std::cout<<"[DM subspace] r="<<rk<<"  overlap with previous iteration = "<<f2/double(rk)
                          <<"  (1 = unchanged)   dims that MOVED = "<<double(rk)-f2<<std::endl;
             }
-            prevU[ir]=std::move(Uk);
+            if (version!=prevVersion) { prevModes=std::move(Uk); prevVersion=version; }
         }
         std::cout<<"[DM lambda-vs-IPR]";
             for (size_t k=n; k-- > 0; )
@@ -346,8 +347,13 @@ template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir)
     }
 }
 
+//! What \c LowRankFactor made of D: the factor, nothing (an empty or degenerate D: the full-rank path, silently), or D outside
+//! the PSD cone (the full-rank path, and the caller's canary: pin 21).
+enum class FactorOutcome {Factored, Declined, NotPSD};
+
 //! \brief LOW-RANK FACTOR of a density matrix: \f$D=LL^\dagger\f$ with \a L (n x rank), by PIVOTED
-//! Cholesky.  Returns false -- leaving the caller on the full-rank path -- if D is not PSD.
+//! Cholesky.  Anything but \c Factored leaves the caller on the full-rank path; \a warn prints the
+//! not-PSD canary (the caller owns WHEN: once per episode of its block).
 //!
 //! WHY THIS PAYS (doc/OpenWork.md Step 3).  \f$\rho_g=\Phi_g^\dagger D\,\Phi_g\f$ costs O(npts n^2); with
 //! \f$D=LL^\dagger\f$ it is \f$\lVert L^\dagger\Phi_g\rVert^2\f$, i.e. O(npts n r).  D is a density matrix,
@@ -364,14 +370,14 @@ template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir)
 //!
 //! EXACT, NOT AN APPROXIMATION: the pivot floor is LAPACK's own default (tol<0 => ~n*eps*max diag), so the
 //! discarded residual sits AT ROUNDOFF.  This is not an accuracy trade like the Becke eps.
-template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& rank)
+template <class T> FactorOutcome LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& rank, bool warn)
 {
     const size_t n=D.rows();
-    if (n==0) return false;
+    if (n==0) return FactorOutcome::Declined;
     mat_t<T> Um(D);                                   // pstrf needs a plain (non-adaptor) matrix
     std::vector<blazem::blas_int_t> piv(n);
     const size_t m=(size_t)blazem::pstrf(Um, 'U', piv.data(), -1.0);   // P^T D P = U^H U, LAPACK default floor
-    if (m==0 || m>n) return false;
+    if (m==0 || m>n) return FactorOutcome::Declined;
 
     // L = P U^H, i.e. L(piv[a],k) = conj(U(k,a)) -- U is m x n upper TRAPEZOIDAL, so k<=a only, and pstrf
     // leaves the strict-lower part undefined (never read here).  Then L L^H = P U^H U P^T = D.
@@ -396,13 +402,12 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
     {
         // LOUD, NOT SILENT (doc/Pins.md pin 21: a failing Cholesky is the canary).  The caller falls back to the
         // exact full-rank route, so the NUMBER is right -- but D has left the PSD cone, which no mixer is supposed
-        // to allow, and the run should say so.  Capped so a persistent violation does not spam every iteration.
-        static std::atomic<int> nWarned{0};
-        if (nWarned++ < 5)
+        // to allow, and the run should say so.  The caller decides when (\a warn): once each time its block leaves the cone.
+        if (warn)
             std::cout<<"[DM factor] WARNING: D is not positive semi-definite (n="<<n<<", pivoted rank "<<m
                      <<", Tr(LL^H)="<<trL<<" vs Tr(D)="<<trD<<") -- low-rank rho route stands down, using the exact "
                      <<"full-rank route.  A mixer or occupation scheme is producing a D outside the PSD cone."<<std::endl;
-        return false;
+        return FactorOutcome::NotPSD;
     }
     rank=m;
 
@@ -459,7 +464,7 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
                  <<"  t=3:"<<ladder[2]/double(m)<<"  t=4:"<<ladder[3]/double(m)
                  <<"  t=5:"<<ladder[4]/double(m)<<std::endl;
     }
-    return true;
+    return FactorOutcome::Factored;
 }
 
 template <class T> bool IrrepCD_Core<T>::JoinFold(const BasisSet::PairProjector<dcmplx>&, std::vector<BasisSet::FoldBlockRef>& blocks,
@@ -498,7 +503,7 @@ template <class T> Projections IrrepCD_Core<T>::Project(const BasisSet::PairProj
     // class owns -- and what stays inside is the basis's own Phi table and weights.  The GEMM itself, its
     // BLAS-dispatch constraints and its output-block threading moved with the integral, into
     // BasisSet::DeltaFit_IBS, where they sit beside the adjoint contraction that must match them.
-    ReportDMRank<T>(itsDensityMatrix, itsIrrep);   // hmat_t<T> is a conditional_t: T is non-deduced
+    ReportDMRank<T>(itsDensityMatrix, itsIrrep, itsVersion, itsModesVersion, itsModes);   // hmat_t<T> is a conditional_t: T is non-deduced
     // The projector takes the DFT block (2026-08-24), so this density -- which asserted its basis is
     // DFT-capable by being fitted at all -- makes the cross-cast.  By reference: it throws rather than
     // being release-mode UB.  TFit is dcmplx (the periodic fit axis) for BOTH block scalars; T==double is
@@ -722,9 +727,13 @@ template <class Leaf> Projections FactoredRho<Leaf>::Project(const BasisSet::Pai
         // The census rides the memo MISS, which is the right cadence for it: once per density serial, not
         // once per call.  (It lives in the Leaf too, for the Direct route -- the factored route never
         // reaches that body, so without this line GPW_DM_RANK=1 would go dark exactly here.)
-        ReportDMRank<T>(this->itsDensityMatrix, this->itsIrrep);
+        ReportDMRank<T>(this->itsDensityMatrix, this->itsIrrep, this->Version(), this->itsModesVersion, this->itsModes);
         itsL.clear(); itsRank=0;
-        itsFactorable    = LowRankFactor<T>(this->itsDensityMatrix, itsL, itsRank);
+        // The not-PSD canary prints when THIS block leaves the cone, and re-arms when it is back (itsNotPSDWarned).
+        const FactorOutcome made = LowRankFactor<T>(this->itsDensityMatrix, itsL, itsRank, /*warn*/ !itsNotPSDWarned);
+        itsFactorable    = made==FactorOutcome::Factored;
+        if (made==FactorOutcome::NotPSD) itsNotPSDWarned=true;
+        else if (itsFactorable)          itsNotPSDWarned=false;
         itsFactorVersion = this->Version();
         itsFactorTrace   = trD;
     }
