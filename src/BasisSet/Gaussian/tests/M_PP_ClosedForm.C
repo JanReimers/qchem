@@ -22,6 +22,7 @@ import qchem.ScalarFunction;
 import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
 
 using namespace qchem;
 using BasisSet::FieldRange;
@@ -122,7 +123,7 @@ template <class IBS> void CheckAgainstMesh()
 {
     const auto st=TwoSpecies();
     const IBS bs(std::make_shared<::qchem::BasisSet::BasisCache>(), rvec_t{0.45,1.6}, 2, st.get());
-    const qcMesh::Mesh mesh=st->CreateIntegrationMesh(qcMesh::BeckeXCParams(200,-1.0,41));
+    const qcMesh::Mesh mesh=MakeMesh(*st, qcMesh::BeckeXCParams(200,-1.0,41));
     const TestField field;
     ASSERT_TRUE(bs.CanAssembleField(field));
     for (FieldRange range : {FieldRange::Short, FieldRange::Long, FieldRange::Full})

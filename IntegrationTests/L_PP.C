@@ -30,6 +30,7 @@ import qchem.Pseudopotential.GTH_Potentials;     // GetGTH
 import qchem.Symmetry.Spin;                      // Spin
 import qchem.Mesh;                               // qcMesh::MeshParams
 import qchem.Symmetry.Group;                     // HasLattice, kAdmissionTolerance (is the structure periodic?)
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
 using namespace qchem;
 using Real_OIBS = qchem::BasisSet::Real_OIBS;
 using qchem::BasisSet::Gaussian::BasisSetData;
@@ -96,8 +97,8 @@ TEST(L_PP, LocalMatrixLatticeMatchesFinite)
     auto bCell = MakeBasis(*cell);
     qcMesh::MeshParams mpCell; mpCell.nUniform=72;   // h = a/n = 0.28 a.u.
 
-    Hamiltonian::PP_Local termFin (Ptr(fin ), vloc, std::make_shared<const qcMesh::Mesh>(fin ->CreateIntegrationMesh(mpFin )));
-    Hamiltonian::PP_Local termCell(Ptr(cell), vloc, std::make_shared<const qcMesh::Mesh>(cell->CreateIntegrationMesh(mpCell)));
+    Hamiltonian::PP_Local termFin (Ptr(fin ), vloc, std::make_shared<const qcMesh::Mesh>(MakeMesh(*fin, mpFin )));
+    Hamiltonian::PP_Local termCell(Ptr(cell), vloc, std::make_shared<const qcMesh::Mesh>(MakeMesh(*cell, mpCell)));
 
     const auto& Mfin  = StaticMatrix(termFin , OrbitalBlock(*bFin ));
     const auto& Mcell = StaticMatrix(termCell, OrbitalBlock(*bCell));
@@ -123,8 +124,8 @@ TEST(L_PP, NonLocalMatrixLatticeMatchesFinite)
     auto bCell = MakeBasis(*cell);
     qcMesh::MeshParams mpCell; mpCell.nUniform=72;
 
-    Hamiltonian::PP_NonLocal termFin (Ptr(fin ), sep, mpFin , std::make_shared<const qcMesh::Mesh>(fin ->CreateIntegrationMesh(mpFin )));
-    Hamiltonian::PP_NonLocal termCell(Ptr(cell), sep, mpCell, std::make_shared<const qcMesh::Mesh>(cell->CreateIntegrationMesh(mpCell)));
+    Hamiltonian::PP_NonLocal termFin (Ptr(fin ), sep, mpFin , std::make_shared<const qcMesh::Mesh>(MakeMesh(*fin, mpFin )));
+    Hamiltonian::PP_NonLocal termCell(Ptr(cell), sep, mpCell, std::make_shared<const qcMesh::Mesh>(MakeMesh(*cell, mpCell)));
 
     const auto& Mfin  = StaticMatrix(termFin , OrbitalBlock(*bFin ));
     const auto& Mcell = StaticMatrix(termCell, OrbitalBlock(*bCell));

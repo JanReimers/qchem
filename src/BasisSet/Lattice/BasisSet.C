@@ -149,8 +149,9 @@ std::shared_ptr<const Gaussian::GpwRasterLadder> MakeRasterLadder(const ::qchem:
 //! \brief The GPW `grids` facts of one geometry point, written CURSOR-RELATIVE into the caller's open scope (the facade opens "grids"):
 //! the \a ladder's own (its levels, settings and audit rows, the {G}-star column under \a imp's density ops) and then \a mol's
 //! lattice-sum economy.  Each piece is asked of its owner -- no basis block is consulted.  Call it AFTER the conditioning pre-flight,
-//! so a singular basis aborts first.  No-op if a run is not open.
-void EmitGpwGrids(const Gaussian::GpwRasterLadder& ladder, const BasisSet::Real_BS& mol, const CrystalImposition& imp);
+//! so a singular basis aborts first.  No-op if a run is not open.  \a cell is the point's cell, which the lattice sums are reported over
+//! (it rode in the imposition until V-MESH-FACTORY step 4: an imposition supplies ops, never geometry).
+void EmitGpwGrids(const Gaussian::GpwRasterLadder& ladder, const BasisSet::Real_BS& mol, const CrystalImposition& imp, const UnitCell& cell);
 
 //! \brief THE VET-STAGE TRIM (doc/Pins.md pin 22): the cell basis with its near-dependent diffuse shells
 //! removed ONCE, per element, BEFORE anything downstream is built -- so that the ortho step at \a orthoTol has

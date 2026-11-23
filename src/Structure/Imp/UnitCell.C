@@ -19,7 +19,6 @@ import qchem.Vector3D;       // norm(rvec3_t)
 import qchem.Ewald;          // EwaldEnergy (IonIonEnergy: a periodic cell's ion-ion sum)
 import qchem.Symmetry.Lattice_3D.SpaceGroup;   // SpaceGroup::Detect (MakeSymmetry)
 import qchem.Reporting;      // the uniform grid's fields, one level into the caller's report scope (inert when no run is open)
-import qchem.Structure.MeshFactory;   // MakeMesh (TRANSITIONAL: CreateIntegrationMesh delegates until V-MESH-FACTORY §8 step 4 deletes it)
 
 namespace qchem {
 
@@ -53,10 +52,6 @@ void CellGeometry::SetUniformGridFields(const vec3_t<int>& N, double eCut) const
     const qchem::report::json fields=UniformGridFields(*this, N, eCut);
     for (auto it=fields.begin(); it!=fields.end(); ++it) qchem::report::Set(it.key(), it.value());
 }
-
-// A periodic cell's integration meshes, built by the structure mesh factory (Imp/MeshFactory.C, V-MESH-FACTORY §8 step 2).
-qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const {return MakeMesh(*this, mp);}
-qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops) const {return MakeMesh(*this, mp, ops);}
 
 //  Build the cell matrix A (columns = lattice vectors a₁,a₂,a₃) from the cell
 //  lengths a,b,c and angles α,β,γ (radians), in the standard orientation

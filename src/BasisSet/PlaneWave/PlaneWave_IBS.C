@@ -32,6 +32,7 @@ export import qchem.BasisSet.AtomCentredSet;             // the +U projector fun
 import qchem.Structure;
 import qchem.Symmetry;                             // sym_t (the Bloch irrep handed to the ctor)
 import qchem.Types;
+import qchem.BasisSet.Fit_Types;   // FitQuadrature: the Vxc fit factory's quadrature argument (V-MESH-FACTORY §5)
 
 export namespace qchem::BasisSet::PlaneWave
 {
@@ -152,7 +153,7 @@ public:
     virtual BasisSet::cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl) const override;
     //! \brief Create this basis's auxiliary plane-wave potential (Vxc) fit basis (the overlap-metric sibling):
     //! a distinct PlaneWaveFit_IBS the XC term obtains its scalar fitter through.
-    virtual BasisSet::cFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
+    virtual BasisSet::cFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const BasisSet::FitQuadrature* quad, double fitCutoffFactor) const override;
 
     virtual std::string Name      () const override {return "PlaneWave";}
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + k, Ecut, nG)

@@ -1,8 +1,7 @@
 // File: Structure/Lattice_3D/Imp/Imposition.C  ResolveImposition: the run's symmetry policy, moved verbatim from the GPW
 // basis factory's DetectPointOps (V-BS-SYMMETRY S1).
 module;
-#include <cassert>
-#include <iostream>   // the [symmetry] imposition line; the [XC mesh] / [Becke grid] lines
+#include <iostream>   // the [symmetry] imposition line
 #include <format>     // the k shift on that line, independent of the stream's precision
 #include <memory>
 #include <vector>
@@ -10,7 +9,6 @@ module qchem.Lattice_3D.Imposition;
 import qchem.Symmetry.Lattice_3D.Fold;   // RequireClosedGroup (the imposition gate), MapsMeshOntoItself
 import qchem.Matrix3D;                   // Transpose (the G-index scatter U = W^T)
 import qchem.Reporting;                  // report::Timed -- the XC-mesh buckets (ParallelAndOraclePlan 1.1(b))
-import qchem.Structure.MeshFactory;      // MakeMesh(UnitCell[, ops]): the cell's plain and invariant meshes (V-MESH-FACTORY §4.6)
 
 namespace qchem
 {
@@ -33,7 +31,6 @@ CrystalImposition ResolveImposition(const Lattice_3D& lat, const ImpositionOptio
 
     CrystalImposition ops;
     ops.options = o;
-    ops.cell    = std::make_shared<const UnitCell>(lat.GetUnitCell());
     ops.policy.impose = o.imposeSymmetry ? SL::SymmetryPolicy::Impose::FullGroup
                                          : SL::SymmetryPolicy::Impose::None;
     if (!ops.policy.Imposes())
@@ -132,13 +129,5 @@ std::vector<Symmetry::SymOp> CrystalImposition::MeshOps() const
     return ops;
 }
 bool CrystalImposition::AveragesDensityOverOrbits() const {return !directDensity.empty();}
-
-// TRANSITIONAL (V-MESH-FACTORY step 4 deletes it with XCMeshSource, this->cell and its last client, BasisSet::MakeXCQuadrature): the
-// same build through the cell's maker.  The CALLER opens the report scope ("nonlinearMesh").
-qcMesh::FoldedMesh CrystalImposition::MakeXCMesh(const qcMesh::MeshParams& mp) const
-{
-    assert(cell && "CrystalImposition::MakeXCMesh: an imposition not made by ResolveImposition has no cell");
-    return StructureMeshMaker<UnitCell>(cell).Make(mp, *this);
-}
 
 } // namespace qchem

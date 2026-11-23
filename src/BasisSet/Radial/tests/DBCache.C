@@ -10,6 +10,7 @@ using std::endl;
 import qchem.BasisSet.Radial.Factory;
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;  // tests may cheat: the ERI4 substrate face
 import qchem.BasisSet.Orbital_DFT_IBS;
+import qchem.Structure.MeshFactory;   // MakeMeshMaker: the quadrature an A1 Vxc fit projects on (V-MESH-FACTORY step 4)
 using namespace qchem;
 
 using namespace qchem::BasisSet::Radial;
@@ -94,7 +95,8 @@ public:
         auto ibs2=bs2->Iterate<Real_DFT_OIBS>().begin();
         for (auto ibs1:bs1->Iterate<Real_DFT_OIBS>())
         {
-            auto ff=ibs1->CreateVxcFitBasisSet(cl_hydrogen,qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3});
+            const BasisSet::FitQuadrature quad=MakeMeshMaker(dynamic_cast<const Atom&>(*cl_hydrogen))->Make(qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3}, qcMesh::NoSymmetry());
+            auto ff=ibs1->CreateVxcFitBasisSet(cl_hydrogen, &quad, 1.0);
             const PairProjection<double>& E1=ibs1->Overlap3C(*ff);
             const PairProjection<double>& E2=(*ibs2)->Overlap3C(*ff);
             EXPECT_EQ(&E1,&ibs1->Overlap3C(*ff));

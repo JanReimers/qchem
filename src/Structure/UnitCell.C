@@ -10,8 +10,6 @@ export module qchem.UnitCell;
 export import qchem.Types;
 import qchem.Structure;
 import qchem.Matrix3D;
-import qchem.Mesh;        // qcMesh::Mesh / MeshParams (the CreateIntegrationMesh override)
-import qchem.Symmetry.SymOp;              // Symmetry::SymOp {W|τ} (the site-adapted Becke mesh's imposed ops)
 import qchem.Symmetry.Group;              // GroupPtr (MakeSymmetry)
 
 namespace qchem {
@@ -123,40 +121,6 @@ public:
 
     //! The space group \c SpaceGroup::Detect finds, every coset translation included (a centred cell's centring joins the lattice).
     Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const override;
-
-    //! A periodic cell's real-space integration mesh; \c mp.cellKind selects the quadrature.
-    //! \c UnitCellKind::Uniform -- a UNIFORM grid of \c mp.nUniform points per axis at cell-fractional
-    //! midpoints (weight \f$\Omega/n^3\f$ each): the working lattice mesh for real-space PP quadrature.
-    //! (Plane-wave DFT integrates in G-space on the basis's own grid, so it never asks for this.)
-    //! \c UnitCellKind::Becke -- the atom-centred periodic Becke fuzzy-Voronoi quadrature (dense radial
-    //! near each nucleus, negligible-cost diffuse tails): the near-ideal grid for pointwise-nonlinear,
-    //! sharp-at-the-core fields (XC).  The image series is \f$\varepsilon\f$-converged by magnitude
-    //! screening; no radius parameter exists.  See doc/GPWPlan1.md "Becke XC grid".
-    qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
-
-    //! \brief The same integration mesh, made INVARIANT under \a ops (doc/SymmetryUpgradePlan.md §6a) --
-    //! the §3-imposed-symmetry sibling of the overload above.  Invariance is the T2 precondition for
-    //! pointwise star-averaging and folding.
-    //!
-    //! HOW it is achieved is this class's business, not the caller's, and it follows \c mp.cellKind:
-    //!  - \c Becke -- SITE-ADAPTED (W2b), invariant BY CONSTRUCTION: per atom ORBIT the representative
-    //!    carries a site-group-invariant angular set (\c MakeInvariantAngularMesh under its Cartesian
-    //!    stabilizer) and each symmetry partner the op-rotated copy.  No group-average growth pass.
-    //!  - \c Uniform -- the generic mesh group-averaged onto the op orbits (W1's \c MakeInvariant; a
-    //!    no-op dedup when the grid is already commensurate).
-    //!
-    //! It is NOT called \c CreateSiteAdaptedBeckeMesh any more (user, 2026-08-07): "Becke" merely repeated
-    //! what \c mp.cellKind already says -- and the old body ASSERTED that value, i.e. the name was carrying
-    //! a preconditon the parameter should carry -- while "SiteAdapted" named one of the two strategies,
-    //! which is an implementation detail the caller should not have to choose.  \a ops present is what
-    //! distinguishes this from the plain overload; that is what the signature should say.
-    //! \note \a ops is the STRUCTURE-NEUTRAL \c Symmetry::SymOp (R2.17.3): a site-adapted mesh is
-    //! equally meaningful for a molecule, whose point-group ops are just the \f$\tau=0\f$ case, so the
-    //! argument type must not be crystal-specific.  The METHOD stays on \c UnitCell for now -- there is
-    //! no molecular implementation yet and inventing one unused would be speculative; when one is
-    //! wanted, this signature is already the neutral one to hoist onto \c Structure.
-    qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&,
-                                       const std::vector<Symmetry::SymOp>& ops) const;
 
     //! \brief Add an atom of nuclear charge \a Z at FRACTIONAL cell coordinates \a f (\f$r=Af\f$).
     //! Convenience over Insert(Site{Z, ToCartesian(f)}) so a crystal basis can be specified in

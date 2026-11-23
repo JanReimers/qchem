@@ -26,8 +26,8 @@ export namespace qchem::BasisSet
 //! \brief A FINISHED real-space XC quadrature (doc/SymmetryUpgradePlan.md §6a): the mesh, plus its orbit
 //! \c fold when the run imposes symmetry (empty = free run).  This is what the DELTA-fit XC route consumes
 //! -- a pure quadrature, deliberately NOT a fit basis.
-//! Produced by \c MakeXCQuadrature: the low-level mesh work (grid build, invariance under the imposed ops, fold preparation)
-//! is the run's IMPOSITION's (\c XCMeshSource, V-BS-SYMMETRY S2) -- it holds the cell and the ops -- not the basis's, and not
+//! Produced by the run point's \c qcMesh::MeshMaker (V-MESH-FACTORY §4.1): the low-level mesh work (grid build, invariance under the
+//! imposed ops, fold preparation) is the maker's, over the geometry it owns, with the ops from the run's \c qcMesh::SymmetrySource -- not the basis's, and not
 //! the Hamiltonian assembly's, which only hands the result to the δ basis and the XC term.
 //!
 //! ★ **IT IS NOW `qcMesh::FoldedMesh` (2026-09-08), and the alias is the point.**  This was four loose

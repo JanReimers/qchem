@@ -96,13 +96,16 @@ template <class T> BasisSet::cFIT_CD_ABS* tGPW_IBS<T>::CreateCDFitBasisSet(const
     return new PlaneWave::PlaneWaveFit_IBS(std::make_shared<BasisSet::BasisCache>(),   // a fit basis gets its OWN cache from its factory (S3a)
                                 GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "densityFit");
 }
-template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
+template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(const Structure*, const BasisSet::FitQuadrature*, [[maybe_unused]] double fitCutoffFactor) const
 {
     // A BLOCK builds only its OWN fitted representation -- here the plane-wave {G} one.  Choosing BETWEEN
     // representations (delta vs fitted) is the WHOLE-SET factory's job, one level up in tBasisSet, since
     // the delta basis is a property of the run's quadrature and not of any one Bloch block.
     // {G}_vxc = relCutoff * {G}_rho.  LDA relCutoff==1 => == DensityGrid(); a GGA's denser grid is not wired yet.
-    assert(mp.relCutoff<=1.0 && "GPW: relCutoff>1 (GGA denser Vxc grid) not wired -- the LDA Vxc grid = the CD grid");
+    // INTERNAL invariant, not a user choice (checked 2026-11-22): no functional returns GridCutoffFactor() > 1 (the base answers 1, a
+    // composite the max of its parts), and a GGA on GPW is refused off the delta Vxc fit (SolidSetup, policy GGARoute), so no deck or
+    // facade reaches this G-grid factory with a factor above 1.  A functional that raises it must wire the denser grid here first.
+    assert(fitCutoffFactor<=1.0 && "GPW: relCutoff>1 (GGA denser Vxc grid) not wired -- the LDA Vxc grid = the CD grid");
     // The SAME basis as CreateCDFitBasisSet's (same {G} ball, same BasisSetID): since 2026-11-09 it stores no crystal ops -- the
     // run's group star-averages the raster through G_RasterStarField -- so the two instances are identical.
     // ROLE = "vxcFitGrid", NOT "xcQuadrature" (2026-08-20).  This object is the PLANE-WAVE Vxc fit grid;

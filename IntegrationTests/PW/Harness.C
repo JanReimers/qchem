@@ -74,7 +74,7 @@ qchem::Hamiltonian::Vee_Fit<dcmplx>* NewPWHartree(const PlaneWave_IBS& pw)
 qchem::Hamiltonian::cVxc_DFT* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamiltonian::cVxc_DFT::xc_t& xc)
 {
     return new qchem::Hamiltonian::cVxc_DFT(xc, qchem::ChargeDensity::MakeDensitySampler(
-        qchem::ChargeDensity::fitbasis_t(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}))), SpinGroup::UnPolarized);
+        qchem::ChargeDensity::fitbasis_t(pw.CreateVxcFitBasisSet(nullptr, nullptr, 1.0))), SpinGroup::UnPolarized);
 }
 
 //! Evaluate v_xc(rho(r)) on the uniform grid (returns the field + its coordinates \a rf), and by

@@ -36,6 +36,7 @@ import qchem.Mesh.Radial;     // MakeRadial  -- the radial nodes a site block mu
 import qchem.Mesh.Angular;    // MakeAngular -- the shared directions of the FREE build
 import qchem.Mesh.XCPolicy;   // BeckeXCParams: ask for the RECIPE, never for cellKind alone
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
 
 using namespace qchem;
 using qcMesh::Mesh;
@@ -182,7 +183,7 @@ TEST(BeckeMesh, FreeSiteBlockIsItsOwnAtomsProductGridWrappedIntoTheCell)
 {
     const UnitCell cell=SiPrimitive();
     const qcMesh::MeshParams mp=Recipe();
-    const Mesh m=cell.CreateIntegrationMesh(mp);
+    const Mesh m=MakeMesh(cell, mp);
     const rvec_t     nodes=qcMesh::MakeRadial(mp).R();
     const rvec3vec_t dirs =qcMesh::MakeAngular(mp).Dirs();
     const std::vector<rvec3_t> L=LatticeBox(cell);
@@ -219,7 +220,7 @@ TEST(BeckeMesh, SiteBlockPointsDecomposeAboutTheirOwnAtomAndNoOther)
 {
     const UnitCell cell=SiPrimitive();
     const qcMesh::MeshParams mp=Recipe();
-    const Mesh m=cell.CreateIntegrationMesh(mp);
+    const Mesh m=MakeMesh(cell, mp);
     const rvec_t nodes=qcMesh::MakeRadial(mp).R();
     const std::vector<rvec3_t> L=LatticeBox(cell);
     std::vector<rvec3_t> R; for (const Site& a : cell.Sites()) R.push_back(a.R);
@@ -244,7 +245,7 @@ TEST(BeckeMesh, ImposedSiteBlockDecomposesOntoTheRadialNodesOfItsOwnAtom)
 {
     const UnitCell cell=SiPrimitive();
     const qcMesh::MeshParams mp=Recipe();
-    const Mesh m=cell.CreateIntegrationMesh(mp, Ops(cell));
+    const Mesh m=MakeMesh(cell, mp, Ops(cell));
     const rvec_t nodes=qcMesh::MakeRadial(mp).R();
     const std::vector<rvec3_t> L=LatticeBox(cell);
     std::vector<rvec3_t> R; for (const Site& a : cell.Sites()) R.push_back(a.R);
@@ -357,8 +358,8 @@ TEST(BeckeMesh, FreeSupercellMeshIsThePrimitiveMeshReplicated)
     const UnitCell sup =Supercell(prim, ivec3_t(2,2,2));
     const qcMesh::MeshParams mp=Recipe();
 
-    const Mesh mP=prim.CreateIntegrationMesh(mp);
-    const Mesh mS=sup .CreateIntegrationMesh(mp);
+    const Mesh mP=MakeMesh(prim, mp);
+    const Mesh mS=MakeMesh(sup, mp);
     ASSERT_EQ(mS.size(), 8*mP.size()) << "the supercell grid is not the primitive grid replicated";
 
     const CellCompare c=CompareSupercell(prim, sup, mP, mS);
@@ -384,8 +385,8 @@ TEST(BeckeMesh, ImposedSupercellMeshIsThePrimitiveMeshReplicated)
     const UnitCell sup =Supercell(prim, ivec3_t(2,2,2));
     const qcMesh::MeshParams mp=Recipe();
 
-    const Mesh mP=prim.CreateIntegrationMesh(mp, Ops(prim));
-    const Mesh mS=sup .CreateIntegrationMesh(mp, Ops(sup));
+    const Mesh mP=MakeMesh(prim, mp, Ops(prim));
+    const Mesh mS=MakeMesh(sup, mp, Ops(sup));
     EXPECT_EQ(mS.size(), 8*mP.size()) << "the supercell grid is not the primitive grid replicated";
 
     const CellCompare c=CompareSupercell(prim, sup, mP, mS);
@@ -410,7 +411,7 @@ TEST(BeckeMesh, SupercellSiteBlocksCarryTheRightAtom)
     const UnitCell prim=SiPrimitive();
     const UnitCell sup =Supercell(prim, ivec3_t(2,2,2));
     const qcMesh::MeshParams mp=Recipe();
-    const Mesh m=sup.CreateIntegrationMesh(mp, Ops(sup));
+    const Mesh m=MakeMesh(sup, mp, Ops(sup));
     const rvec_t nodes=qcMesh::MakeRadial(mp).R();
     // N=5 over the SUPERCELL lattice reaches ~59 a.u., past any surviving offset (10.9) plus the cell
     // diameter -- the own-atom assertion below is what proves the reach is enough.

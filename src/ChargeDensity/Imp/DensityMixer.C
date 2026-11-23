@@ -71,7 +71,7 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
     // The WHOLE-SET fit factory (mixed-aware since doc/RealComplexPlan.md 3c-3): serves from the first block
     // of either scalar; a non-periodic basis still fails loudly (the factory throws when no block carries the face).
     auto fit=[&]{ qchem::report::Scope here("densityMixer");   // the mixer's own fit grid reports one level in
-                  return std::shared_ptr<const BasisSet::cFIT_SF_ABS>(basis->CreateVxcFitBasisSet(&cell, qcMesh::MeshParams{})); }();
+                  return std::shared_ptr<const BasisSet::cFIT_SF_ABS>(basis->CreateVxcFitBasisSet(&cell, BasisSet::VxcFit::Auto, nullptr)); }();
     ReciprocalLattice recip(cell.MakeReciprocal());
     const auto proj=BasisSet::MakeGSpaceDensityProjector(fit, kMixerStarAverageBucket);   // the seed's ρ̃ (V-ONE-OF-N 3c)
     const rproj_t raster=HasRawRasterRoute(*basis) ? rproj_t(BasisSet::MakeRasterDensityProjector(fit)) : rproj_t{};

@@ -376,9 +376,13 @@ TEST(CalculationFacade, EachAuxiliaryFitFilesInItsOwnTerm)
         EXPECT_EQ(ham[term]["fitbasis"].front()["name"].get<std::string>(), name) << term;
         EXPECT_GT(ham[term]["fitbasis"].front()["nFunctions"].get<long>(), 0) << term;
     }
-    // The Vxc fit projects v_xc on its own mesh; the Coulomb fit is analytic and files none (doc/Pins.md, user 2026-11-11).
-    EXPECT_GT(ham["Vxc_DFT"]["auxiliaryFit"]["points"].get<long>(), 0);
-    EXPECT_FALSE(ham["Hartree"].contains("auxiliaryFit")) << ham["Hartree"].dump(1);
+    // The Vxc fit projects v_xc on the run's nonlinear mesh, SHARED (V-MESH-FACTORY §4.2: it used to build a private copy at the same
+    // recipe, filed as "auxiliaryFit"); the Coulomb fit is analytic and files none (doc/Pins.md, user 2026-11-11).  So exactly one
+    // mesh is filed, and neither term builds a second.
+    ASSERT_TRUE(ham.contains("nonlinearMesh")) << ham.dump(1);
+    EXPECT_GT(ham["nonlinearMesh"]["points"].get<long>(), 0) << ham["nonlinearMesh"].dump(1);
+    for (const char* term : {"Vxc_DFT", "Hartree"})
+        EXPECT_FALSE(ham[term].contains("auxiliaryFit") || ham[term].contains("nonlinearMesh")) << term << ": a second mesh\n" << ham[term].dump(1);
 }
 
 //! A run that ASKED for a state and could not write it must not read green (doc/OpenWork.md "state.save into a missing directory",

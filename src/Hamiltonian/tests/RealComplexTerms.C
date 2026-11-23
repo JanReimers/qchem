@@ -351,7 +351,7 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
         ExpectBitwiseEqual(Vr, Vc, "Vee_Fit<dcmplx>");
     }
 
-    auto q = BasisSet::MakeXCQuadrature(*rig.st, qcMesh::MeshParams{}, nullptr);   // a bare block: no imposition, the plain mesh
+    auto q = MakeMeshMaker(rig.cell)->Make(qcMesh::MeshParams{}, qcMesh::NoSymmetry());   // a bare block: no imposition, the plain mesh
     auto dfb=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     // Through the FACTORY: a delta fit basis can only resolve to SINGLES, so naming the strategy bought
     // nothing but an Internal import (user, 2026-09-10).
@@ -425,7 +425,7 @@ TEST(RealComplexTerms, SeedDensityTrioMatches_FccDiamond)
     PeriodicIrrepCD<dcmplx> cdc(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None));
     EXPECT_NEAR(cdr.GetTotalCharge(), cdc.GetTotalCharge(), 1e-13);
 
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf(rig.cx->CreateVxcFitBasisSet(rig.st.get(), nullptr, 1.0));
     // ρ̃(dm) through the one projection face (V-ONE-OF-N 3c; V_H = k·ρ̃ is the Hartree fitter's, so this was the V_H claim too).
     const auto proj=BasisSet::MakeGSpaceDensityProjector(sf);
     const ΔG_Map rr=cdr.Project(*proj).GMap(), rc=cdc.Project(*proj).GMap();
@@ -464,7 +464,7 @@ TEST(RealComplexTerms, TheRasterProjectorIsTheBlocksRawCollocationBitForBit)
     rsmat_t Dr(n); chmat_t Dc(n);
     for (size_t i=0;i<n;i++) { Dr(i,i)=8.0/double(n); Dc(i,i)=8.0/double(n); }
     Dr(0,1)=Dr(1,0)=0.25; Dc(0,1)=Dc(1,0)=0.25;   // an off-diagonal pair, so the collocation sums pairs
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf(rig.cx->CreateVxcFitBasisSet(rig.st.get(), nullptr, 1.0));
     const auto raster=BasisSet::MakeRasterDensityProjector(sf);
     EXPECT_NE(dynamic_cast<const BasisSet::RasterPairCollocation*>(rig.cx.get()), nullptr) << "a GPW block has the raw route";
 
@@ -498,7 +498,7 @@ TEST(RealComplexTerms, RawRouteXcServesTheRealBlockBitwise)
     Rig rig;
     auto cd  = rig.MakeDensity();       // the complex arm's density
     auto cdr = rig.MakeRealDensity();   // the real arm's twin (screen-consistent pairing; file header)
-    ChargeDensity::fitbasis_t fb(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    ChargeDensity::fitbasis_t fb(rig.cx->CreateVxcFitBasisSet(rig.st.get(), nullptr, 1.0));
     cVxc_DFT vxc(std::make_shared<SlaterExchange>(2.0/3.0), ChargeDensity::MakeDensitySampler(fb), SpinGroup::UnPolarized);
     auto* rb=dynamic_cast<const tDynamic_CC<double>*>(&vxc);
     ASSERT_NE(rb,nullptr) << "cVxc_DFT must carry the real-block capability (Step 3c)";
@@ -560,7 +560,7 @@ TEST(RealComplexTerms, RealPeriodicLeafFourierTrioMatchesComplexBitwise)
     // NEITHER leaf carries the finite (HF) faces -- the honest probe.
     EXPECT_EQ(dynamic_cast<const tHF_Pair_CD<double>*>(&cdr), nullptr);
 
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf(rig.cx->CreateVxcFitBasisSet(rig.st.get(), nullptr, 1.0));
     // ρ̃(dm) through the one projection face (V-ONE-OF-N 3c; V_H = k·ρ̃ is the Hartree fitter's, so this was the V_H claim too).
     const auto proj=BasisSet::MakeGSpaceDensityProjector(sf);
     const ΔG_Map rr=cdr.Project(*proj).GMap(), rc=cdc.Project(*proj).GMap();
@@ -623,7 +623,7 @@ TEST(RealComplexTerms, MixedCompositeEnergyAndRhoMatchComplex)
     for (size_t g=0; g<pts.size(); g++) EXPECT_EQ(rm[g], rc[g]) << "rho mismatch at point "<<g;
 
     // And the composite's ρ̃ (the generic visit, through the one projection face) reaches the REAL child too.
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf2(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf2(rig.cx->CreateVxcFitBasisSet(rig.st.get(), nullptr, 1.0));
     const auto proj2=BasisSet::MakeGSpaceDensityProjector(sf2);
     const ΔG_Map vm=mixed.Project(*proj2).GMap(), vc=cplx.Project(*proj2).GMap();
     ASSERT_EQ(vm.size(), vc.size());
@@ -902,7 +902,7 @@ TEST(RealComplexTerms, TheBeckeXcPullbackFoldsTheKBlocksOfOneLatticeBasisToThePe
         D1(j,i)=dcmplx(0.8*d, i==j ? 0.0 : 0.3*std::cos(0.5+i+j)/(1.0+i+j));
         D2(j,i)=dcmplx(1.1*d, i==j ? 0.0 : -0.2*std::sin(2.0+i-j)/(1.0+i+j));
     }
-    auto q = BasisSet::MakeXCQuadrature(*st, qcMesh::BeckeXCParams(30, -1.0, 11), nullptr);   // a small atom-centred mesh: owners and a weight response
+    auto q = MakeMeshMaker(cell)->Make(qcMesh::BeckeXCParams(30, -1.0, 11), qcMesh::NoSymmetry());   // a small atom-centred mesh: owners and a weight response
     auto dfb=std::make_shared<const BasisSet::DeltaFit_IBS<dcmplx>>(std::make_shared<::qchem::BasisSet::BasisCache>(), q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     auto engine=ChargeDensity::MakeDensitySampler(dfb, q);
     {

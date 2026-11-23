@@ -181,9 +181,9 @@ public:
     //! The Coulomb fit: analytic, no mesh.
     EFit_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const Evaluator& e)
         : Fit_IBS(), IrrepBasisSetImp<Evaluator>(cache, Symmetry::YFactory()), Evaluator(e) {};
-    //! The Vxc fit: its projection mesh, built from \a st and \a mp.
-    EFit_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const Evaluator& e, const Structure& st, const qcMesh::MeshParams& mp)
-        : Fit_IBS(st,mp), IrrepBasisSetImp<Evaluator>(cache, Symmetry::YFactory()), Evaluator(e), itsCentre(OneSite(st)) {};
+    //! The Vxc fit: the run's quadrature mesh \a projectionMesh, shared; \a st names its one centre.
+    EFit_IBS(const std::shared_ptr<BasisSet::BasisCache>& cache, const Evaluator& e, const Structure& st, std::shared_ptr<const qcMesh::Mesh> projectionMesh)
+        : Fit_IBS(std::move(projectionMesh)), IrrepBasisSetImp<Evaluator>(cache, Symmetry::YFactory()), Evaluator(e), itsCentre(OneSite(st)) {};
     //! \brief What this set forces (doc/Pins.md pin 30; Group face step 3): at l = 0 every function is spherical about the atom, so it is
     //! the atom path's A1 Vxc fit and forces what that family forces about its centre (\c BasisSet::Forces: O(3) about the SITE); any other
     //! l carries no group ({e}).  The functions are pinned at the nucleus, so the centre is the structure's one site; the Coulomb fit

@@ -19,6 +19,7 @@ import qchem.Mesh;                  // qcMesh::Mesh / MeshParams
 import qchem.Symmetry.Atom.Spherical;    // Symmetry::Atom::Getκ (pick p1/2 vs p3/2)
 import qchem.Symmetry.Spin;         // Spin
 import qchem.Types;                 // Vector3D
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
 using namespace qchem;
 
 using std::cout;
@@ -137,7 +138,7 @@ using qchem::Orbitals::TOrbital;
 std::tuple<double,double,double> Integrate(const qchem::Orbitals::Orbital* o, const Structure& cl, double alpha)
 {
     const TOrbital<double>* to=dynamic_cast<const TOrbital<double>*>(o);
-    qcMesh::Mesh m = cl.CreateIntegrationMesh({.radial=qcMesh::RadialKind::MHL, .nRadial=200, .mhl_m=3,
+    qcMesh::Mesh m = MakeMesh(dynamic_cast<const Atom&>(cl), /* a test may name the concrete geometry */ {.radial=qcMesh::RadialKind::MHL, .nRadial=200, .mhl_m=3,
                                             .mhl_alpha=2.0, .angular=qcMesh::AngularKind::None});   // the radial-only set
     const rvec3vec_t& R=m.Points();
     const rvec_t&     W=m.Weights();

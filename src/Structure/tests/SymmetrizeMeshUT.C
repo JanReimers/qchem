@@ -15,6 +15,7 @@ import qchem.Lattice_3D;       // Lattice_3D::GetSpaceGroup + FCCUnitCell/UnitCe
 import qchem.Mesh.Angular;
 import qchem.Mesh.XCPolicy;   // BeckeXCParams -- ask for the RECIPE, never for cellKind alone     // MakeAngular (the GL direction-count baseline for the growth measure)
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
 
 using namespace qchem;
 using qchem::qcMesh::Mesh;
@@ -248,7 +249,7 @@ TEST(SiteAdaptedBeckeMesh, DiamondInvariantByConstruction)
     mp.radial=qcMesh::RadialKind::MHL; mp.nRadial=6; mp.mhl_m=2; mp.mhl_alpha=2.0;
     mp.angular=qcMesh::AngularKind::GaussLegendre; mp.angularDegree=5;
 
-    Mesh adapted = cell.CreateIntegrationMesh(mp, ops);
+    Mesh adapted = MakeMesh(cell, mp, ops);
     ASSERT_GT(adapted.size(), 0u);
 
     // THE gate: every op maps every mesh point onto a mesh point -- zero unmatched (the T2
@@ -256,7 +257,7 @@ TEST(SiteAdaptedBeckeMesh, DiamondInvariantByConstruction)
     for (int bad : UnmatchedCounts(adapted, sg))
         EXPECT_EQ(bad, 0);
     int nBadPlain = 0;                            // ...and the plain mesh really does fail it
-    Mesh plain = cell.CreateIntegrationMesh(mp);
+    Mesh plain = MakeMesh(cell, mp);
     for (int bad : UnmatchedCounts(plain, sg)) if (bad > 0) ++nBadPlain;
     EXPECT_GT(nBadPlain, 30);
 
@@ -398,7 +399,7 @@ TEST(SiteAdaptedBeckeMesh, ProductionAngularRecipeInvariantAfterTailDrop)
     mp.radial=qcMesh::RadialKind::MHL; mp.nRadial=15; mp.mhl_m=2; mp.mhl_alpha=2.0;
     mp.angular=qcMesh::AngularKind::GaussLegendre; mp.angularDegree=29;
 
-    Mesh adapted = cell.CreateIntegrationMesh(mp, ops);
+    Mesh adapted = MakeMesh(cell, mp, ops);
     ASSERT_GT(adapted.size(), 10000u);
     for (int bad : UnmatchedCounts(adapted, sg)) EXPECT_EQ(bad, 0);
 }
@@ -522,7 +523,7 @@ TEST(InvariantAngularMesh, SupercellBeckeGridIsThePrimitiveGridReplicated)
         const SL::SpaceGroup& sg = lat.GetSpaceGroup();
         std::vector<SL::SymOp> ops;
         for (const auto& op : sg.DirectOps()) ops.push_back({op.W, op.tau});
-        return std::make_pair(cell.CreateIntegrationMesh(qcMesh::BeckeXCParams(10, 2.0, 11), ops), ops.size());
+        return std::make_pair(MakeMesh(cell, qcMesh::BeckeXCParams(10, 2.0, 11), ops), ops.size());
     };
 
     FCCUnitCell prim(10.26);

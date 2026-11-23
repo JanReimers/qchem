@@ -466,14 +466,14 @@ BasisSet::cFIT_CD_ABS* PlaneWave_IBS::CreateCDFitBasisSet(const Structure*) cons
 // The overlap-metric (Vxc) sibling: a DISTINCT fit-basis instance (same k=0 Gamma grid as the CD one when
 // relCutoff matches; a GGA's denser Vxc grid diverges them via a larger GridCutoffFactor()).
 // PlaneWaveFit_IBS IS-A cFIT_SF_ABS.
-BasisSet::cFIT_SF_ABS* PlaneWave_IBS::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
+BasisSet::cFIT_SF_ABS* PlaneWave_IBS::CreateVxcFitBasisSet(const Structure*, const BasisSet::FitQuadrature*, double fitCutoffFactor) const
 {
     // A BLOCK builds only its OWN fitted representation (see the GPW sibling): delta-vs-fitted is the
     // whole-set tBasisSet factory's decision.
     // THE 4x FLOOR (pin 28, 2026-10-26): XC must see rho[D], and rho[D] of a plane-wave basis reaches |G_i - G_j| <= 2 G_max, i.e.
     // Ecut_fit = 4 Ecut -- the density ball, as the CD fit above and QE's density grid.  At relCutoff 1 (every LDA) this ball was
     // the WAVEFUNCTION ball: XC saw rho[D] with its G_max..2 G_max shell cut off (the PW harness anchors; RequirePin28 caught it).
-    PW_Grid_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut()*std::max(4.0, mp.relCutoff));
+    PW_Grid_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut()*std::max(4.0, fitCutoffFactor));
     return new PlaneWaveFit_IBS(std::make_shared<BasisSet::BasisCache>(), gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "vxcFitGrid", /*holdsOrbitalPairs*/true);
 }
 

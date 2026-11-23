@@ -8,7 +8,6 @@ module;
 export module qchem.BasisSet.Orbital_DFT_IBS:Fit_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
-export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
 import qchem.Structure;               // Structure (the ctor builds the quadrature mesh from it)
 import qchem.Symmetry.Group;          // Symmetry::GroupPtr -- what a fit FORCES (Forces, Group face step 3)
 export import qchem.BasisSet.Orbital_1E_IBS;  // Orbital_1E_IBS<U> -- the block Integrals_Overlap3C takes

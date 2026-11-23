@@ -1,9 +1,10 @@
 // File: BasisSet/Internal/Imp/Fit_IBS.C  Implement a Gaussian-family fit basis's cached metric accessors and a Vxc fit's projection.
 //
 // Every integral here is ANALYTIC except a Vxc fit's projection of a pointwise field, Overlap(f), which runs over the projection mesh
-// that fit owns (built from its Structure at construction).  A Coulomb fit owns no mesh (user 2026-11-11).
+// that fit shares (the run's quadrature mesh, handed in at construction).  A Coulomb fit owns no mesh (user 2026-11-11).
 module;
 #include <string>
+#include <memory>
 #include <utility>
 #include <cassert>
 #include <cmath>
@@ -11,25 +12,20 @@ module;
 module qchem.BasisSet.Internal.Fit_IBS;
 import qchem.Mesh.Quadrature;          // qcMesh::Mesh, Overlap (over qcMath Vector/ScalarFunction)
 import qchem.Blaze;
-import qchem.Reporting;   // report::Scope (FitMesh)
+import qchem.Reporting;   // report::Accumulate (the cache counters)
 
 namespace qchem::BasisSet
 {
 
-//! A Vxc fit's projection mesh, built under a report scope naming the fit (the builder reports one level in).
-static qcMesh::Mesh FitMesh(const Structure& st, const qcMesh::MeshParams& mp)
-{
-    qchem::report::Scope here("auxiliaryFit");
-    return st.CreateIntegrationMesh(mp);
-}
-
 Fit_IBS::Fit_IBS() = default;   // a Coulomb fit: no mesh
 
-Fit_IBS::Fit_IBS(const Structure& st, const qcMesh::MeshParams& mp)
-    : itsProjectionMesh(FitMesh(st,mp))         // the geometry's own mesh
+Fit_IBS::Fit_IBS(std::shared_ptr<const qcMesh::Mesh> projectionMesh)
+    : itsProjectionMesh(std::move(projectionMesh))   // the run's quadrature mesh, shared
 {
-    // Established ONCE, here, instead of re-asserted in every numerical accessor (R2.10).
-    assert(itsProjectionMesh->size()>0 && "Fit_IBS: the structure produced an empty quadrature mesh");
+    // Established ONCE, here, instead of re-asserted in every numerical accessor (R2.10).  A user-reachable route (a deck stating an
+    // Auxiliary Vxc fit), so it throws rather than asserts.
+    if (!itsProjectionMesh || itsProjectionMesh->size()==0)
+        throw std::invalid_argument("Fit_IBS: a Vxc fit projects on a quadrature mesh, and a null or empty one was handed in");
 }
 
 // THE REPORT (S6): each fill of this basis's own slots adds its bytes and a count under `cache` at the caller's cursor, as it runs.

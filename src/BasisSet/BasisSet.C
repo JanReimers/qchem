@@ -388,8 +388,8 @@ public:
     //! quadrature, anything else the lineage's fitted one.  A molecular caller passes \c Auto and gets its Gaussian
     //! auxiliary basis, as always.
     //! \param quad the real-space QUADRATURE a \c VxcFit::Delta basis is built over -- REQUIRED for Delta, ignored otherwise.
-    //! It comes IN (V-BS-SYMMETRY S2, 2026-11-03): it is constitutive of a δ basis, the way \a mp is, and the CALLER builds it
-    //! (\c MakeXCQuadrature, from the structure and the run's imposition) -- this factory used to build it and hand a copy
+    //! It comes IN (V-BS-SYMMETRY S2, 2026-11-03): it is constitutive of a δ basis, and the CALLER builds it (through the run point's
+    //! mesh maker and symmetry source, V-MESH-FACTORY §4.1) -- this factory used to build it and hand a copy
     //! back out, because the basis held the ops it is built under.  The caller hands the same quadrature to the XC term.
     //!
     //! The WHOLE bundle since 2026-08-24, not just its mesh.  Two of its fields were reaching consumers by
@@ -402,9 +402,11 @@ public:
     //! \a phiTables (user ruling 2026-11-19, "Yes a all the way.  Good call."): the POLICY layer's door for HOW a δ fit holds its per-k
     //! orbital tables (dense, or one shared image record -- a memory-vs-speed choice, \c PhiChooser).  Injected at creation so the factory
     //! that gathers the blocks decides with them; empty = dense (every lineage without lattice images, and every caller that states none).
-    virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&,
-                                                VxcFit fit=VxcFit::Auto,
-                                                const FitQuadrature* quad=nullptr,
+    //! \a fitCutoffFactor (V-MESH-FACTORY §5, user ruling 2026-11-21): the fit-grid multiplier a G-grid fit reads (CP2K REL_CUTOFF), which
+    //! rode in \c MeshParams::relCutoff until then; a quadrature fit reads \a quad instead.  Neither realization reads a mesh RECIPE: the
+    //! caller builds the quadrature once and every fit that projects on points shares it.
+    virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, VxcFit fit, const FitQuadrature* quad,
+                                                double fitCutoffFactor=1.0,
                                                 const PhiChooser& phiTables={}) const;
 
     //! \brief The symmetry IMPOSITION this basis was built under (user ruling B, V-BS-SYMMETRY 2026-11-03), or nullptr.
@@ -448,11 +450,5 @@ protected:
 typedef tBasisSet<double>    Real_BS;
 typedef tBasisSet<dcmplx> Complex_BS;
 
-//! \brief The run's real-space XC QUADRATURE (V-BS-SYMMETRY S2, 2026-11-03): what a \c VxcFit::Delta basis is built over and
-//! the δ XC term integrates on.  A free builder, because neither job of a basis set is to build it: the IMPOSITION builds the
-//! mesh under its own ops when it can (\c XCMeshSource -- the invariant, orbit-folded mesh of an imposed crystal run, the
-//! invariant unfolded one of a free run), and otherwise (no imposition, or one that builds no mesh) it is \a cl's own plain
-//! integration mesh, no fold.  \a imp is the basis's \c GetImposition().  Reports one level into a "nonlinearMesh" scope.
-FitQuadrature MakeXCQuadrature(const Structure& cl, const qcMesh::MeshParams& mp, const Symmetry::SymmetryImposition* imp);
 
 }//namespace

@@ -15,6 +15,14 @@ import qchem.Mesh.Quadrature;           // qcMesh::Overlap + BasisField
 import qchem.VectorFunction;
 import qchem.Symmetry;
 import qchem.Blaze;
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
+
+//! The fixture holds an atom or a molecule behind the abstract face; a test may name the concrete geometry (MakeMesh picks by type).
+static qchem::qcMesh::Mesh MeshOf(const qchem::Structure& st, const qchem::qcMesh::MeshParams& mp)
+{
+    if (const auto* a=dynamic_cast<const qchem::Atom*>(&st)) return qchem::MakeMesh(*a, mp);
+    return qchem::MakeMesh(dynamic_cast<const qchem::Molecule&>(st), mp);
+}
 using namespace qchem;
 
 using namespace qchem::BasisSet::Gaussian;
@@ -83,7 +91,7 @@ TEST_F(MeshIntegralsTests, PolGaussianOverlap)
         for (int aMHL=1;aMHL<=50;aMHL++)
         {
             double alpha=af*aMHL;
-            qcMesh::Mesh mesh = cl->CreateIntegrationMesh(
+            qcMesh::Mesh mesh = MeshOf(*cl, 
                 {.radial=qcMesh::RadialKind::MHL, .nRadial=int(Nradial), .mhl_m=int(mMHL),
                  .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=5});
             for (auto ibs:bs->Iterate<Real_OIBS>())

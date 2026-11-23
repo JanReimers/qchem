@@ -173,7 +173,7 @@ TEST(PW_Cosine, Γ_Prototype_VxcFitConverges)
     for (double rc : {4.0, 8.0, 16.0})   // 4 = the floor (the density ball, pin 28); below it is the same grid
     {
         qcMesh::MeshParams mp; mp.relCutoff=rc;
-        auto fb=qchem::ChargeDensity::fitbasis_t(pw.CreateVxcFitBasisSet(nullptr, mp));
+        auto fb=qchem::ChargeDensity::fitbasis_t(pw.CreateVxcFitBasisSet(nullptr, nullptr, mp.relCutoff));
         // The fit BASIS counts its own {G} FUNCTIONS; the RASTER counts voxels and owns the uniform
         // quadrature rule over them.  Two different numbers, asked of the two different faces
         // (2026-08-23: NumPoints/Integrate came off the fit face, which is about functions).

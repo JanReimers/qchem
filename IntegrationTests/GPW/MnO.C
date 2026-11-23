@@ -229,7 +229,7 @@ TEST(GPW_MnO, Γ_Becke_Pol_SeedVxcMirror)
 
     // The run's Becke recipe, shrunk (nR=20, GL-11) -- wrapping is generic, it needs no production density.
     qcMesh::MeshParams mp=qcMesh::BeckeXCParams(20, -1.0, 11);
-    auto mesh=std::make_shared<const qcMesh::Mesh>(cell.CreateIntegrationMesh(mp));
+    auto mesh=std::make_shared<const qcMesh::Mesh>(MakeMesh(cell, mp));
     const rvec3vec_t& P=mesh->Points();
     const size_t N=P.size();
     ASSERT_GT(N, 0u);
@@ -358,7 +358,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
     // The magnetically IMPOSED GPW basis (coarse everything: this gate tests symmetry, not accuracy).
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), MakeMeshMaker(lat.GetUnitCell()),
         L3::GPWParams{.densityEcut=8.0, .imposeSymmetry=true, .siteSpins=spins}));
-    BasisSet::FitQuadrature q = BasisSet::MakeXCQuadrature(*st, qcMesh::BeckeXCParams(20, -1.0, 11), bs->GetImposition());
+    BasisSet::FitQuadrature q = MakeMeshMaker(lat.GetUnitCell())->Make(qcMesh::BeckeXCParams(20, -1.0, 11), dynamic_cast<const qcMesh::SymmetrySource&>(*bs->GetImposition()));
     ASSERT_EQ(q.NumSpinOps(), 24u) << "the Shubnikov group of the AFM-II cell has 24 ops (12+12)";
     size_t nFlip=0; for (auto s : q.GetSpinOps()) if (s==Symmetry::SpinAction::Flip) nFlip++;
     EXPECT_EQ(nFlip, 12u);
@@ -431,7 +431,7 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedReadsTheStatedOrdering)
     auto st=lat.GetStructure();
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisLowQ(spinless, BasisSetData::VALENCE_LOWQ_SR), MakeMeshMaker(lat.GetUnitCell()),
         L3::GPWParams{.densityEcut=8.0, .imposeSymmetry=true, .siteSpins=stated}));
-    BasisSet::FitQuadrature q = BasisSet::MakeXCQuadrature(*st, qcMesh::BeckeXCParams(20, -1.0, 11), bs->GetImposition());
+    BasisSet::FitQuadrature q = MakeMeshMaker(lat.GetUnitCell())->Make(qcMesh::BeckeXCParams(20, -1.0, 11), dynamic_cast<const qcMesh::SymmetrySource&>(*bs->GetImposition()));
     ASSERT_EQ(q.NumSpinOps(), 24u) << "the stated ordering imposes the Shubnikov group whatever the cell's own spins";
 
     qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(std::make_shared<::qchem::BasisSet::BasisCache>(), lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);

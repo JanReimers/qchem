@@ -2,7 +2,7 @@
 
 **APPROVED as a whole: USER RULING 2026-11-21, "Please proceed with the plan"** (§8's steps, §4.4 (ii), §5's hub diffs as written;
 a hub diff that departs from §5 goes back to the user first).  Born as lane H's design note in the session notes; moved here when its
-execution began, per the doc/ rule that a plan lives at the top of doc/ only while it is executed.  Progress: §8 steps 1 and 2 landed; step 3 in flight.
+execution began, per the doc/ rule that a plan lives at the top of doc/ only while it is executed.  Progress: §8 steps 1 and 2 landed; step 3 READY (landing); step 4 built (4a, 4b), sweeps in flight.
 
 This note is design only: no code. It surveys main at 8952f826c (lane-h-group3b, which contains main 41581b896; landed as main 360fee3ff, so the line numbers hold there).
 The row is the controller's, carrying the user's framing ("big compile time when we extend (OCP), as a hint there is a design flaw hiding
@@ -381,6 +381,16 @@ src/, IntegrationTests/ and CLIapps/.
      stay green), then the SCFIterator bootstrap.
 4. **The hub diffs of §5**, with their ruling. The snapshot is regenerated, and the diff is deletions (with the `Fit_IBS` re-export trim) plus the two
    `CreateVxcFitBasisSet` lines.  `Orbital_1E_IBS`'s snapshot section does not move.
+   - **AS BUILT (two commits, 2026-11-22).**  4a: the fit factories take `(quad, fitCutoffFactor)`; the A1 / radial fits SHARE the
+     handed-in mesh (`Fit_IBS(shared_ptr<const Mesh>)`, throws on null), so the duplicate molecular A1 mesh and its `auxiliaryFit` scope
+     are gone; `MakeXCQuadrature`, `XCMeshSource`, `CrystalImposition::MakeXCMesh` and `CrystalImposition::cell` are deleted, and
+     `EmitGpwGrids` takes the point's cell for the lattice-sum report instead of reading it off the imposition.  `Fit_Types` is a PLAIN
+     import of `Orbital_DFT_IBS` (no new hub re-export).  4b: `CreateIntegrationMesh` leaves `Structure` / `Atom` / `Molecule` /
+     `UnitCell`, and `qchem.Structure` stops importing `qchem.Mesh`.
+   - **A guard the plan did not foresee:** `Molecule` has an IMPLICIT `Molecule(const Structure&)`, so `MakeMesh(*abstract, mp)` compiled
+     as a molecule mesh (16 test calls on the first port, cells among them).  `MakeMesh(const Structure&, ...)` is now DELETED in the
+     factory, so an abstract argument is a compile error; a caller holding only the face takes a `MeshMaker`.  Making that constructor
+     `explicit` is a hub change left to the user (noted in doc/OpenWork.md).
 5. **`Hamiltonian/Types.C` stops re-exporting `qchem.Mesh` for `MeshParams`.**
    - Re-measure §6: touching `qchem.Mesh.Recipe` should rebuild only the mesh library, the factory, the policy layer, the Hamiltonian
      factory and the PP/GPW sites.

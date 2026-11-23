@@ -31,6 +31,7 @@ import qchem.Types;
 import qchem.PeriodicTable;                      // the element of each header line
 import qchem.Mesh;                               // qcMesh::MeshParams (the Vxc fit's factory takes one)
 import qchem.Reporting;                          // the basis.elements rows ReadShells files inside a "basis" section
+import qchem.Structure.MeshFactory;   // MakeMeshMaker: the quadrature an A1 Vxc fit projects on (V-MESH-FACTORY step 4)
 
 using namespace qchem;
 using namespace qchem::BasisSet::Gaussian;
@@ -120,7 +121,8 @@ TEST(Gaussian94Reader, TheFitBasesCarryEveryShellOfTheirFile)
     std::unique_ptr<BasisSet::Real_BS> bs(Factory(BasisSetData::DZVP, &n2));
     const qcMesh::MeshParams mp{};
     std::unique_ptr<BasisSet::rFIT_CD_ABS> cd(bs->CreateCDFitBasisSet(&n2));
-    std::unique_ptr<BasisSet::rFIT_SF_ABS> sf(bs->CreateVxcFitBasisSet(&n2, mp));
+    const BasisSet::FitQuadrature quad=MakeMeshMaker(n2)->Make(mp, qcMesh::NoSymmetry());
+    std::unique_ptr<BasisSet::rFIT_SF_ABS> sf(bs->CreateVxcFitBasisSet(&n2, BasisSet::VxcFit::Auto, &quad));
     EXPECT_EQ(cd->GetNumFunctions(), cartesianCount("A1_coul.bsd")) << "the Coulomb fit basis dropped shells of its file";
     EXPECT_EQ(sf->GetNumFunctions(), cartesianCount("A1_exch.bsd")) << "the Vxc fit basis dropped shells of its file";
     // ...and the d shells are really there: a d shell on a shared exponent adds 6 Cartesian functions per atom
@@ -158,7 +160,8 @@ TEST(Gaussian94Reader, TheCoulombFitIsAnalyticAndOwnsNoMesh)
     EXPECT_THROW((void)asSF.OverlapDiagonal(), std::logic_error) << "R1.0: a non-orthogonal fit refuses a diagonal-only metric";
     const qcMesh::MeshParams mesh{.radial=qcMesh::RadialKind::MHL, .nRadial=80, .mhl_m=3, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev,
                                  .angularDegree=29, .beckeOrder=2};   // the molecular entry rung
-    std::unique_ptr<BasisSet::rFIT_SF_ABS> sf(bs->CreateVxcFitBasisSet(&n2, mesh));
+    const BasisSet::FitQuadrature quad=MakeMeshMaker(n2)->Make(mesh, qcMesh::NoSymmetry());
+    std::unique_ptr<BasisSet::rFIT_SF_ABS> sf(bs->CreateVxcFitBasisSet(&n2, BasisSet::VxcFit::Auto, &quad));
     const rvec_t p=sf->Overlap(one);   // the Vxc fit projects on its own mesh: <f_a|1> by quadrature, against the analytic Charge
     ASSERT_EQ(p.size(), sf->GetNumFunctions());
     const rvec_t q=sf->Charge();

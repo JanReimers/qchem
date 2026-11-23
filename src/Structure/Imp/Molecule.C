@@ -10,15 +10,8 @@ module;
 module qchem.Structure;
 import qchem.Streamable;
 import qchem.Symmetry.Molecule.AbelianGroup;   // BuildAbelianGroup, Centroid (MakeSymmetry)
-import qchem.Structure.MeshFactory;   // MakeMesh (TRANSITIONAL: CreateIntegrationMesh delegates until V-MESH-FACTORY §8 step 4 deletes it)
 
 namespace qchem {
-
-// A molecule's integration mesh is the multi-centre Becke-partitioned grid, built by the structure mesh factory (Imp/MeshFactory.C).
-qcMesh::Mesh Molecule::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
-{
-    return MakeMesh(*this, mp);
-}
 
 Molecule::Molecule(const Structure& atoms)
 {

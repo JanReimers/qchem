@@ -25,6 +25,7 @@ import qchem.Symmetry.Factory;
 import qchem.ElectronConfiguration.AtomNR;
 import qchem.Blaze;
 import qchem.Reporting;   // the announced basis.exponents rows (the heat-map gate)
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
 using namespace qchem;
 
 namespace
@@ -41,7 +42,7 @@ struct OneOverR2 : ScalarFunction<double>
 };
 qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha, int angularDegree)
 {
-    return st.CreateIntegrationMesh({.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
+    return MakeMesh(dynamic_cast<const Atom&>(st), /* a test may name the concrete geometry */ {.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
                                   .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=angularDegree});
 }
 } //anon

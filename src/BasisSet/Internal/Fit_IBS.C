@@ -23,8 +23,7 @@ module;
 #include <string>
 export module qchem.BasisSet.Internal.Fit_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;   // FIT_CD_NonOrtho / FIT_SF_NonOrtho -- the faces it implements
-export import qchem.Mesh;                       // qcMesh::Mesh / MeshParams -- a Vxc fit's projection mesh
-import qchem.Structure;                         // Structure (the ctor builds that mesh from it)
+export import qchem.Mesh;                       // qcMesh::Mesh -- a Vxc fit's projection mesh
 import qchem.SlotMap;                           // OnceSlot: this basis's own integrals (cache-ownership S2)
 
 export namespace qchem::BasisSet
@@ -62,10 +61,11 @@ protected:
     //! an analytic answer or belong to the field: a field that is only a function on space integrates itself on points it owns
     //! (\c SelfIntegratingField; the SAD seed).
     Fit_IBS();
-    //! \brief A Vxc fit: build and OWN its PROJECTION mesh (from the structure) at construction, for \c Overlap(f) -- the
-    //! one integral here that is a quadrature, \f$\langle f_a|v\rangle\f$ of a pointwise field (R2.10: the creator holds
-    //! the Structure and the MeshParams and passes them down).
-    Fit_IBS(const Structure&, const qcMesh::MeshParams&);
+    //! \brief A Vxc fit: SHARE the run's quadrature mesh as its PROJECTION mesh, for \c Overlap(f) -- the one integral here that is a
+    //! quadrature, \f$\langle f_a|v\rangle\f$ of a pointwise field.  It built a private copy from the Structure and the MeshParams until
+    //! V-MESH-FACTORY step 4 (doc/MeshFactoryPlan.md §4.2): the same points in the same order as the XC quadrature the caller already
+    //! holds, so the fit takes that one instead of a duplicate build.  A null or empty mesh THROWS (it is a quadrature fit).
+    explicit Fit_IBS(std::shared_ptr<const qcMesh::Mesh> projectionMesh);
 
 public:
     //! \f$1/\sqrt{\langle f_a|f_a\rangle}\f$ of the functions as \c op(r) evaluates them: ANALYTIC, from the metric's
@@ -98,7 +98,7 @@ protected:
     virtual  rvec_t MakeNorm   () const; //!< analytic: 1/sqrt(diag of the overlap metric)
 
 private:
-    std::optional<qcMesh::Mesh> itsProjectionMesh;   //!< a Vxc fit's projection mesh; EMPTY on a Coulomb fit
+    std::shared_ptr<const qcMesh::Mesh> itsProjectionMesh;   //!< a Vxc fit's projection mesh (the run's quadrature's); null on a Coulomb fit
 
     //! THIS BASIS'S OWN INTEGRALS (doc/IntegralCacheOwnershipPlan.md S2): a function of the fit basis alone, so the basis holds
     //! them, built once on first ask and freed with it.  No key: an owner never keys itself.

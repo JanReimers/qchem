@@ -7,19 +7,8 @@ module;
 module qchem.Structure;
 import qchem.Reporting;   // FormatGuard
 import qchem.Vector3D;
-import qchem.Structure.MeshFactory;   // MakeMesh (TRANSITIONAL: CreateIntegrationMesh delegates until V-MESH-FACTORY §8 step 4 deletes it)
 
 namespace qchem {
-
-// A single atom's integration mesh is its atom-centred radial x angular grid.  The factory's atom-centred builder
-// (Imp/MeshFactory.C) over a one-atom structure yields exactly that -- the Becke cell weight is identically 1
-// with no other centres, so there is no multi-centre overhead.  (A dedicated pure-radial quadrature that
-// exploits spherically-symmetric integrands would be more efficient still, but needs the AO's (l,m) exposed
-// -- a later specialization.)
-qcMesh::Mesh Atom::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
-{
-    return MakeMesh(*this, mp);
-}
 
 Atom::Atom(int Z)
     : Atom(Z,0.0,{0,0,0})

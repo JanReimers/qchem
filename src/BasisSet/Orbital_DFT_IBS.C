@@ -5,6 +5,7 @@ export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import :Fit_IBS;   // the fit-basis faces: a PARTITION of this module since 2026-08-24
 export import qchem.BasisSet.PairProjection;
+import qchem.BasisSet.Fit_Types;          // FitQuadrature -- what CreateVxcFitBasisSet's quadrature fit projects on (V-MESH-FACTORY §5)
 import qchem.Structure;  // Structure (the fit factories' argument)
 
 export namespace qchem::BasisSet
@@ -55,7 +56,11 @@ public:
     //! matrix-free field (the SAD seed).  Any Coulomb fit has no INTEGRATION grid (doc/Pins.md): a field that is only a function on space
     //! integrates itself on points it owns (\c SelfIntegratingField) and releases them once it has projected.
     virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*) const=0;
-    virtual FIT_SF_ABS<TFit>* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const=0;
+    //! The Vxc fit basis of THIS block's own lineage (V-MESH-FACTORY §5, user ruling 2026-11-21): a QUADRATURE fit (the A1 Gaussians,
+    //! the radial set) projects on \a quad, the run's quadrature, and THROWS when it is null; a G-grid fit (plane waves, GPW) reads only
+    //! \a fitCutoffFactor, the fit-grid multiplier (CP2K REL_CUTOFF; was \c MeshParams::relCutoff).  One face, not two: the whole-set
+    //! factory already chooses between realizations, and splitting it would move that choice into every caller.
+    virtual FIT_SF_ABS<TFit>* CreateVxcFitBasisSet(const Structure*, const FitQuadrature* quad, double fitCutoffFactor) const=0;
 
     // NB: there is deliberately NO Repulsion3C(D,c)/Overlap3C(D,c) here -- the density-matrix contraction
     // <rho|c> = Sum_ab D_ab <ab|c> is a DENSITY operation (it lives in the charge density, which owns D),

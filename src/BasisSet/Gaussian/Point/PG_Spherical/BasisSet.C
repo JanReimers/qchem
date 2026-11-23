@@ -76,7 +76,7 @@ public:
     Orbital_IBS(const std::shared_ptr<BasisCache>& cache, const rvec_t& exponents, size_t L, const Structure*);
 
     virtual rFIT_CD_ABS* CreateCDFitBasisSet (const Structure*) const override;
-    virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const override;
+    virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const FitQuadrature* quad, double fitCutoffFactor) const override;
 
     //! This basis's AO shells in real-solid-harmonic form (delegates to ExtractAoShells on its own SphData).
     virtual std::vector<Symmetry::Molecule::AoShell> GetAoShells() const override;   // Gaussian::Orbital_1E_IBS
@@ -93,7 +93,7 @@ public:
     // A fit set has no matrix-image client: its representation is the identity at E only, refusing any other op (S3).
     //! \a name = the auxiliary set this was read from ("A1_coul"), a fact only the creating factory knows.
     EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader*, const Structure*, const std::string& name);                            //!< the Coulomb fit: no mesh
-    EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader*, const Structure*, const qcMesh::MeshParams&, const std::string& name); //!< the Vxc fit: its projection mesh
+    EFit_IBS(const std::shared_ptr<BasisCache>& cache, Reader*, const Structure*, std::shared_ptr<const qcMesh::Mesh> projectionMesh, const std::string& name); //!< the Vxc fit: the run's quadrature mesh
 
     //! The run report's name for this fit.  Not the cache identity: \c BasisSetID stays the shells' own.
     virtual std::string Name() const override {return itsName;}

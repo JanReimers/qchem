@@ -28,6 +28,7 @@ import qchem.ReciprocalLattice;             // ReciprocalLattice, GetReciprocalL
 import qchem.Mesh;                          // qcMesh::MeshParams (the fit factories' argument)
 import qchem.Types;                         // dcmplx, ivec3_t, rvec3_t
 import qchem.BasisSet.Orbital_DFT_IBS;      // Orbital_DFT_IBS<dcmplx> (the PW block the accepted-lineage leaves sit on)
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
 
 using namespace qchem;
 using namespace qchem::ChargeDensity;
@@ -80,7 +81,7 @@ TEST(KerkerMix, BatchedSamplerEqualsTheDirectSeries)
     const rvec_t batched=cd(r);
     for (size_t p=0; p<r.size(); p++) EXPECT_NEAR(batched[p], cd(r[p]), 1.7e-13*l1) << "point " << p;
     // ...and ON A POINT SET the set chooses: the cell's uniform raster answers with the exact inverse FFT (round-off).
-    const qcMesh::Mesh raster=cell.CreateIntegrationMesh({.nUniform=8, .cellKind=qcMesh::UnitCellKind::Uniform});
+    const qcMesh::Mesh raster=MakeMesh(cell, {.nUniform=8, .cellKind=qcMesh::UnitCellKind::Uniform});
     const rvec_t onRaster=cd.SampleOn(raster);
     for (size_t p=0; p<raster.size(); p+=5) EXPECT_NEAR(onRaster[p], cd(raster.Points()[p]), 1.7e-14*l1) << "raster point " << p;
 }
@@ -222,7 +223,7 @@ struct MnBox
             , st(lat.GetStructure())
             , bs(BasisSet::Lattice::Factory(BasisSet::Lattice::Type::PW, lat, /*Ecut*/4.0))
             , fitCD(bs->CreateCDFitBasisSet (st.get()))
-            , fitSF(bs->CreateVxcFitBasisSet(st.get(), qcMesh::MeshParams{}))
+            , fitSF(bs->CreateVxcFitBasisSet(st.get(), BasisSet::VxcFit::Auto, nullptr))
     {}
 };
 

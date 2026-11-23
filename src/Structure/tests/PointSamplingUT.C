@@ -15,6 +15,7 @@ import qchem.Mesh.XCPolicy;   // BeckeXCParams
 import qchem.PointSampling;
 import qchem.ScalarFunction;
 import qchem.Types;
+import qchem.Structure.MeshFactory;   // MakeMesh: the geometry's mesh, by overload on its concrete type (V-MESH-FACTORY step 4)
 using namespace qchem;
 
 namespace
@@ -75,7 +76,7 @@ struct Plain : ScalarFunction<double>   //!< a field that is not a Fourier serie
 TEST(PointSampling, ABeckeMeshSamplesTheSeriesByNUFFT)
 {
     const UnitCell cell=SiPrimitive();
-    const qcMesh::Mesh m=cell.CreateIntegrationMesh(qcMesh::BeckeXCParams(10, 2.0, 11));
+    const qcMesh::Mesh m=MakeMesh(cell, qcMesh::BeckeXCParams(10, 2.0, 11));
     const Series s=Ball(cell, 6);
     const auto [e, how]=Deviation(m, s);
     EXPECT_EQ(how.rfind("NUFFT",0), 0u) << how;
@@ -87,7 +88,7 @@ TEST(PointSampling, ABeckeMeshSamplesTheSeriesByNUFFT)
 TEST(PointSampling, TheUniformRasterSamplesTheSeriesByAnExactInverseFFT)
 {
     const UnitCell cell=SiPrimitive();
-    const qcMesh::Mesh m=cell.CreateIntegrationMesh({.nUniform=9, .cellKind=qcMesh::UnitCellKind::Uniform});
+    const qcMesh::Mesh m=MakeMesh(cell, {.nUniform=9, .cellKind=qcMesh::UnitCellKind::Uniform});
     for (int ball : {3, 7})   // 7: |dm| up to 7 on a 9-point raster
     {
         const Series s=Ball(cell, ball);
@@ -104,7 +105,7 @@ TEST(PointSampling, TheUniformRasterSamplesTheSeriesByAnExactInverseFFT)
 TEST(PointSampling, TheRasterStrategyGuardsItsOwnPointsAndLattice)
 {
     const UnitCell cell=SiPrimitive();
-    qcMesh::Mesh m=cell.CreateIntegrationMesh({.nUniform=6, .cellKind=qcMesh::UnitCellKind::Uniform});
+    qcMesh::Mesh m=MakeMesh(cell, {.nUniform=6, .cellKind=qcMesh::UnitCellKind::Uniform});
     Series other=Ball(cell, 2);
     other.box.b1=0.5*other.box.b1;   // a supercell's reciprocal vector
     EXPECT_THROW(m.MakeFourierSampler(other.box), std::logic_error);
@@ -117,8 +118,8 @@ TEST(PointSampling, ANonFourierFieldIsSampledBitwiseAsBefore)
 {
     const UnitCell cell=SiPrimitive();
     const Plain f;
-    for (const qcMesh::Mesh& m : {cell.CreateIntegrationMesh({.nUniform=6, .cellKind=qcMesh::UnitCellKind::Uniform}),
-                                  cell.CreateIntegrationMesh(qcMesh::BeckeXCParams(6, 2.0, 7))})
+    for (const qcMesh::Mesh& m : {MakeMesh(cell, {.nUniform=6, .cellKind=qcMesh::UnitCellKind::Uniform}),
+                                  MakeMesh(cell, qcMesh::BeckeXCParams(6, 2.0, 7))})
     {
         const rvec_t a=f.SampleOn(m), b=f(m.Points());
         ASSERT_EQ(a.size(), b.size());
@@ -134,7 +135,7 @@ TEST(PointSampling, ASizedNUFFTMeetsItsTauWithTheSmallestWidth)
     const UnitCell cell=SiPrimitive();
     const Series s=Ball(cell, 6);
     {
-        const qcMesh::Mesh m=cell.CreateIntegrationMesh(qcMesh::BeckeXCParams(10, 2.0, 11));
+        const qcMesh::Mesh m=MakeMesh(cell, qcMesh::BeckeXCParams(10, 2.0, 11));
         auto smp=m.MakeFourierSampler(s.box);   // the slot is unset: step 1
         smp->Load(s.t);
         EXPECT_EQ(smp->Method().rfind("NUFFT (w 14",0), 0u) << smp->Method();
@@ -143,7 +144,7 @@ TEST(PointSampling, ASizedNUFFTMeetsItsTauWithTheSmallestWidth)
     int wPrev=0;
     for (double tau : {1e-4, 1e-6, 1e-8})
     {
-        const qcMesh::Mesh m=cell.CreateIntegrationMesh(qcMesh::BeckeXCParams(10, 2.0, 11));   // a fresh slot per tau
+        const qcMesh::Mesh m=MakeMesh(cell, qcMesh::BeckeXCParams(10, 2.0, 11));   // a fresh slot per tau
         SamplingTarget& T=*m.FourierTarget();
         T.tau=tau;   // accuracy.eta defaults to 1: rigorous
         for (int call=0; call<2; call++)
@@ -173,7 +174,7 @@ TEST(PointSampling, AnOverTargetIsReportedNotActedOn)
 {
     const UnitCell cell=SiPrimitive();
     const Series s=Ball(cell, 6);
-    const qcMesh::Mesh m=cell.CreateIntegrationMesh(qcMesh::BeckeXCParams(10, 2.0, 11));
+    const qcMesh::Mesh m=MakeMesh(cell, qcMesh::BeckeXCParams(10, 2.0, 11));
     SamplingTarget& T=*m.FourierTarget();
     T.tau=1e-8; T.accuracy.eta=1e-9;   // absurdly optimistic: the narrowest kernel
     for (int call=0; call<3; call++) {auto smp=m.MakeFourierSampler(s.box); smp->Load(s.t);}

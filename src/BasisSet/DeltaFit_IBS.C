@@ -149,7 +149,7 @@ public:
     //! 2026-11-19): the periodic factory hands a closure answering a block's \c BlochImageSource face, or null for a block without one.
     //! Concrete wiring in the factory, never a capability cast here.  Empty (every non-periodic lineage): no images, dense tables.
     using ImageSourceOf=std::function<const BlochImageSource*(const IrrepBasisSet_IDs&)>;
-    //! \a q is the FINISHED quadrature (mesh + fold + Shubnikov tags) from \c MakeXCQuadrature, and \a sym the irrep the caller's lineage gives a fit block (see the class note).
+    //! \a q is the FINISHED quadrature (mesh + fold + Shubnikov tags) from the run point's mesh maker, and \a sym the irrep the caller's lineage gives a fit block (see the class note).
     //! \a realValues: see \c RealPointValues (empty = each block's \c op(r)).  \a imageSourceOf: see \c ImageSourceOf.
     DeltaFit_IBS(const std::shared_ptr<BasisCache>& cache, FitQuadrature q, const sym_t& sym, RealPointValues realValues={},
                  ImageSourceOf imageSourceOf={})

@@ -52,7 +52,7 @@ using Pseudopotential::GTH_PP;
 // orbital-intrinsic).  Mirrors IrrepCD::GetFourierDensity(cFIT_SF_ABS).
 ΔG_Map RhoTilde(const PlaneWave_IBS& pw, const chmat_t& D)
 {
-    std::unique_ptr<const qchem::BasisSet::cFIT_SF_ABS> vxcfb(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}));
+    std::unique_ptr<const qchem::BasisSet::cFIT_SF_ABS> vxcfb(pw.CreateVxcFitBasisSet(nullptr, nullptr, 1.0));
     return Contract(pw.Overlap3C(*vxcfb), D);
 }
 // Hartree matrix from a rho-tilde: <i|V_H|j> = 4pi/|G_i-G_j|^2 rho-tilde(G_i-G_j) (dm=0 dropped).  This is
