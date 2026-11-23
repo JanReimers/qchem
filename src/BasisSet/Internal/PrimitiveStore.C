@@ -68,7 +68,7 @@ public:
     //! A never-reused serial for a primitive or a pair: the key component of every entry above (process-wide, so no two owners collide).
     static size_t NextSerial()
     {
-        static std::atomic<size_t> theSerial{0};
+        static std::atomic<size_t> theSerial{0};   // an atomic monotonic ID: thread-safe, never reused (CLAUDE.md, mutable statics)
         return ++theSerial;
     }
 

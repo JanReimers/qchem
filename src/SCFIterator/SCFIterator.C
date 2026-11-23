@@ -33,15 +33,6 @@ using qchem::ChargeDensity::tChargeDensity;
 export namespace qchem::SCFIterator
 {
 
-//! Process-wide diagnostic toggle (default OFF), mirroring \c qchem::Hamiltonian::ReportGridCharge.  When
-//! true, the verbose per-iteration SCF line appends the
-//! frontier spectrum -- ε_HOMO, ε_LUMO and the gap ε_LUMO−ε_HOMO (Ha) -- from the current orbital energy
-//! levels.  The band-gap instrument for the NaF Γ-instability (doc/GPWPlan §0b″): a near-degenerate
-//! HOMO/LUMO (gap → 0) is the giant-response hypothesis; watching the gap per iteration lets the spurious
-//! level be seen diving across the Fermi edge one step before each energy spike.  Flip it around
-//! \c Iterate and reset it (it is a static, so it leaks between tests otherwise).
-bool& ReportBandGap();
-
 //! R2.7 (doc/SCFRobustnessPlan.md P2): NO DEAD GATE.  At the iteration that declares convergence, a LIVE [F,D] gate (MinFD set,
 //! not off) reading EXACTLY 0.0 was never computed -- [F,D] arrives from the accelerator's GetError(), and a commutator
 //! FDS-SDF is never exactly zero in floating point -- so the pass is the gate's absence, not its verdict (evidence G3: the Null
@@ -124,7 +115,7 @@ struct IterationTrace
                              //!< (a direct-min iteration that fell back to a mixed step is false: it mixed)
     double gridLostRel;      //!< signed grid-charge leak per electron, (∫ρ̃ − Tr(DS))/N (solids; 0 with no grid)
     bool   gFilter;          //!< the mixer's step applies a G-dependent filter (tDensityMixer::HasGFilter; the XC ρ column)
-    // Frontier spectrum -- the gap column (solids show it always; molecules only under ReportBandGap()):
+    // Frontier spectrum -- the gap column (solids show it always; molecules only under QCHEM_DIAGNOSTICS=frontier):
     double eHomo=0, eLumo=0, gap=0;
     bool   haveHomo=false, haveLumo=false, metallic=false, hole=false;
     // The ORDER PARAMETER column (the signed max-|μ| integrated site moment): shown on every polarized run; "----" when the
@@ -297,7 +288,7 @@ protected:
     // --- PER-SYSTEM iteration display (doc/GPWPlan1.md item 2) -------------------------------------------
     //! The verbose per-iteration trace, virtual so each system type presents the honest column set.  The
     //! base default is the MOLECULAR layout ({#, Etotal, [F,D], ΔE/E, [Δ[F,D]], Δρ, 2+V/K, ρ_mix, accel, cfg}, plus
-    //! the optional ReportBandGap() gap block); \c SolidSCFIterator overrides both for the solid/PP layout
+    //! the optional QCHEM_DIAGNOSTICS=frontier gap block); \c SolidSCFIterator overrides both for the solid/PP layout
     //! ({#, Etotal, [F,D], ΔE/E, Δρ, ρ_lost/N, XC ρ, ρ_mix, accel, cfg, gap} -- gap always on).  \c Iterate calls
     //! these; the subclass never touches iterator internals (it reads only the \c IterationTrace / SCFParams).
     //! Build this layout's VARIABLE columns, in display order.  The base contributes ΔE/E, Δ[F,D] only when MinΔFD gates,
@@ -316,7 +307,7 @@ protected:
     IterationRow MakeRow(const SCFParams&, const IterationTrace&) const;
     virtual void DisplayColumnHeaders(std::ostream&, const SCFParams&, size_t idealVirial) const;
     virtual void DisplayColumns      (std::ostream&, const SCFParams&, const IterationTrace&) const;
-    //! Is the frontier gap a PERMANENT column, or an optional diagnostic behind ReportBandGap()?
+    //! Is the frontier gap a PERMANENT column, or an optional diagnostic behind QCHEM_DIAGNOSTICS=frontier?
     //! PERIODIC-driven, not PP-driven: near-gapless flapping is a solid pathology.  (It travels with the
     //! grid columns today only because every gridded run here is also periodic -- see AccumulateColumns.)
     virtual bool GapIsPermanent() const {return false;}
@@ -326,7 +317,7 @@ protected:
     //! R = 0.1 bohr is +7 Ha) -- so a first iterate above 0 is refused.
     virtual std::string FirstEnergyRefusal(const EnergyBreakdown& eb, double nElectrons) const;
     // The frame cells are ColumnData now (RowColumns); the gap writer stays a member because the OPTIONAL frontier block
-    // (ReportBandGap / QCHEM_DIAGNOSTICS=frontier) appends it after the row on a molecular layout, where it is not a column.
+    // (QCHEM_DIAGNOSTICS=frontier) appends it after the row on a molecular layout, where it is not a column.
     void WriteGapColumn   (std::ostream&, const IterationTrace&) const; //!< row:    the frontier gap (+flags)
     //! Header cell for the order-parameter column ("m_site" on a polarized run, nothing otherwise), so
     //! both layouts announce the extra column the same way.

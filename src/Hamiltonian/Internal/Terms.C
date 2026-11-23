@@ -423,6 +423,11 @@ public:
     {return PullbackBlock<T>(bs, s, D, st);}
     //! ONE pullback body for both block scalars (the native block, and on <dcmplx> the real TRIM block): the fitter's.  Public for the mixin.
     template <class U> rvec3vec_t PullbackBlock(const tobs_t<U>* bs, const Spin&, const hmat_t<U>& D, const Structure* st) const;
+    //! The whole density's orbital side at once (user ruling 2026-11-22 "yes"): the fitter's \c MakeRepulsionPullbackBlocks /
+    //! \c MakeRepulsionVirialBlocks, which fold the k-blocks of one lattice basis into one jet walk.  A molecular fit has no blocks face:
+    //! the per-block default.
+    virtual rvec3vec_t  PullbackBlocks(const ChargeDensity::DensityBlocks<T>& b, const Structure* st) const override;
+    virtual rmat3d_t    VirialBlocks  (const ChargeDensity::DensityBlocks<T>& b, const Structure* st) const override;
     using FitPtr = std::unique_ptr<Fitting::FirstOrderDensityFit<T>>;
     //! \a responseFit: the CD fit basis the periodic response half projects δρ on (unused, and may be null, on a molecule).
     Vee_Fit(FitPtr fit, double numElectrons, std::shared_ptr<const BasisSet::FIT_CD_ABS<T>> responseFit=nullptr);

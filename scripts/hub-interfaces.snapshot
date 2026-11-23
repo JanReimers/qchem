@@ -234,16 +234,29 @@ namespace qchem::ChargeDensity {
     public:
         virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&) const=0;
     };
+    template <class T> struct BlockDensity {
+        const tobs_t<T>* bs=nullptr;
+        Spin s =Spin::None;
+        const hmat_t<T>* D =nullptr;
+    };
+    template <class T> struct DensityBlocks {
+        std::vector<BlockDensity<T>> blocks;
+        std::vector<BlockDensity<double>> real;
+    };
     template <class T> class tStatic_PC {
     public:
         virtual ~tStatic_PC() = default;
         virtual rvec3vec_t Pullback(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const=0;
+        virtual rvec3vec_t PullbackBlocks(const DensityBlocks<T>& b, const Structure* st) const;
     };
     template <class T> class tStatic_VC {
     public:
         virtual ~tStatic_VC() = default;
         virtual rmat3d_t Virial(const tobs_t<T>* bs, const Spin& s, const hmat_t<T>& D, const Structure* st) const=0;
+        virtual rmat3d_t VirialBlocks(const DensityBlocks<T>& b, const Structure* st) const;
     };
+    template <class T> rvec3vec_t tStatic_PC<T>::PullbackBlocks(const DensityBlocks<T>& b, const Structure* st) const;
+    template <class T> rmat3d_t tStatic_VC<T>::VirialBlocks(const DensityBlocks<T>& b, const Structure* st) const;
     template <class T> class tDynamic_CC {
     public:
         virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>*,const Spin&,DensityID) const=0;

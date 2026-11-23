@@ -23,6 +23,8 @@ namespace
 //! The plan's rigorous bound (NUFFT::Type2::Bound), cached: it depends only on the width and the box, which a run repeats.
 double CachedBound(const ivec3_t& lo, const ivec3_t& hi, int w)
 {
+    // A cache of a pure function of fixed inputs (CLAUDE.md, mutable statics): per process is right, and the mutex guards the map
+    // (the bound itself is computed outside the lock; two threads may both compute one key, and they write the same value).
     static std::mutex m;
     static std::map<std::array<int,7>,double> cache;
     const std::array<int,7> key{w, lo.x,lo.y,lo.z, hi.x,hi.y,hi.z};

@@ -54,7 +54,7 @@ export namespace qchem::ChargeDensity
 // exists to break -- so it states for itself what it takes.  This list IS the engine's coupling to
 // qcChargeDensity, and it is what makes qcFitting an illegal home (see the header).
 
-// NB `ReportGridCharge()` and the `using ChargeDensity::...` pulls live in the PUBLIC module -- this unit
+// NB the `using ChargeDensity::...` pulls live in the PUBLIC module -- this unit
 // re-exports it, so they are in scope here without being declared twice.
 
 //! \brief THE XC QUADRATURE: ONE OBJECT WITH TWO ADJOINT-PAIRED FACES -- \f$\rho\f$ at the points from
@@ -159,6 +159,11 @@ public:
     Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullback(const tobs_t<T>* bs, const rvec_t& v, const hmat_t<T>& D, const Structure* st) const override;
     bool CanVirialMatrix(const tobs_t<T>* bs) const override;
     Outcome<rmat3d_t,AD::NoGradient> MakeMatrixVirial(const tobs_t<T>* bs, const rvec_t& v, const hmat_t<T>& D, const Structure* st) const override;
+    //! \brief THE k-FOLD of the two above (user ruling 2026-11-22 "yes"): blocks of one lattice basis (\c BasisSet::KFoldable, equal domains)
+    //! that see the SAME field go through the first one's \c MakePointSetPullbackFolded together -- the functions evaluated once per point
+    //! for all of them -- and the per-point terms ride their owners once.  Every other block goes alone, as \c MakeMatrixPullback.
+    Outcome<rvec3vec_t,AD::NoGradient> MakeMatrixPullbackBlocks(const SampledBlocks<T>& b, const Structure* st) const override;
+    Outcome<rmat3d_t,AD::NoGradient>   MakeMatrixVirialBlocks  (const SampledBlocks<T>& b, const Structure* st) const override;
     //! My weights' response: the mesh builder's (\c qcMesh::Mesh::WeightResponse), on a free mesh.
     bool HasQuadratureResponse() const override;
     Outcome<typename tDensitySampler<T>::QuadraturePullback,AD::NoGradient> MakeQuadraturePullback(const rvec_t& f, const Structure* st) const override;
@@ -178,6 +183,12 @@ protected:   // the periodic subclass contracts through the same fitter and tabl
     template <class U> Outcome<rvec3vec_t,AD::NoGradient> PullbackT(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const;
     template <class U> Outcome<rmat3d_t,AD::NoGradient>   VirialT  (const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const;
     template <class U> bool CanT(const tobs_t<U>* bs) const;
+    //! The two finishes of a point-set result: the points ride their owners (pullback), or the moment less perPoint (x) u (virial).
+    template <class P> rvec3vec_t FinishPullback(const P& p) const;
+    template <class P> rmat3d_t   FinishVirial  (const P& p) const;
+    //! The fold of the whole-density calls: \a finish turns each group's or block's point-set result into the answer (summed by \a add).
+    template <class Res, class Finish, class Add> Outcome<Res,AD::NoGradient>
+        FoldedBlocksT(const SampledBlocks<T>& b, const Structure* st, Res zero, Finish finish, Add add) const;
     // ⛔ Symmetrize / SymmetrizeSpin ARE GONE FROM THIS CLASS (2026-09-09, user).  They were two members
     // on the FITTING interface until 2026-08-24, moved here, then became one-line forwards when
     // qcMesh::FoldedMesh grew them as members (R1.0k).  A forwarder that adds nothing is not a

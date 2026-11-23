@@ -4050,3 +4050,30 @@ VERDICT (lane B 2026-11-22): CP2K free CELL_OPT at k444 (Γ-centred 4x4x4, 36 po
 - low-q `valence_lowq_aln.bsd` (no d): a 3.0772 Å, c 4.9179 Å, c/a 1.5982, u 0.3838, E -24.2529451 (43 steps);
 - DZVP-MOLOPT-SR: a 3.0820 Å, c 4.9324 Å, c/a 1.6004, u 0.3822, E -24.3224853 (24 steps).
 So the low-q basis's c/a 1.505 at k222 was the k MESH (the run WARNS k mesh COARSE), not the missing d: at a converged mesh the low-q basis is within 6e-4 Å / 2e-4 in c/a / 1.3e-3 in u of the plane-wave answer, DZVP within 0.2 % in a.  Both sit in the LDA literature band (c/a 1.60-1.62, u 0.380-0.381).  No basis regeneration is needed; the Cui et al. ABINIT re-run is not needed to separate basis from model.  Remainder (OpenWork §3, the AlN k444 row): the cold relaxation gate at k444 after the geometry hold, and the user's U-on-N/Al question.
+## ✅ libxc functionals' f_xc is a finite difference (closed 2026-11-22, lane A, 3bb0f13f8)
+
+| [G8] **libxc functionals' f_xc is a finite difference: call `xc_lda_fxc`** (user 2026-11-15, from the DFPT hand-derivative survey) | Our LDA functionals' f_xc is Enzyme's (Slater, VWN; lane B 6a95ce87f), but `Libxc_LDA` inherits the base `ExFunctional::GetFxc` four-point FD of its own `GetVxc` (`src/Hamiltonian/Internal/ExchangeFunctional.C:80`).  Enzyme cannot help (it differentiates only bodies it can see, and libxc is external); libxc provides the analytic kernel.  Next action: override `Libxc_LDA::GetFxc` with `xc_lda_fxc` (spin-native, 3 components ↑↑/↑↓/↓↓ under XC_POLARIZED), gate it against the FD default and against our Enzyme VWN on the same functional ID; then the base FD default has no production user and moves to the test tree (LinearResponsePlan D6's rule).  Matters only for a response run on a libxc functional.  (`FermiOccupancy::ResponseWeight`'s hand f′ = −f(1−f)/kT stays as is: exact for Fermi-Dirac, user 2026-11-15.)  Record: `doc/Records/LinearResponsePlan.md` (H3, §5d).  The user's 2026-11-19 ruling (GGA row) confirms the direction: libxc's own derivatives, each checked by a short FD unit test. |
+
+Done: `Libxc_LDA::GetFxc` (`src/Hamiltonian/Internal/Imp/Libxc_LDA.C`) is libxc's analytic kernel, split as `GetVxc` is: an exchange id is
+channel-separable, f^σσ = 2 v_x'(2ρ_σ) from the scalar `xc_lda_fxc` and no cross term; any other id reads the XC_POLARIZED `v2rho2`
+(↑↑, ↑↓, ↓↓), at ζ = 0 too (the scalar call gives only (f^↑↑ + f^↑↓)/2).  A clamped (negative) channel and a vanishing density answer 0.
+With that, the base class's four-point difference had no production user (Slater and VWN are Enzyme's, the composite sums its parts), so
+`ExFunctional::GetFxc` is PURE: a new functional states its kernel, and the finite difference lives in the test tree as each kernel's gate
+(LinearResponsePlan D6's rule).  Gates (`UTHamiltonian XCKernel`): `Libxc_FxcIsTheDerivativeAndSymmetric` (ids 1, 7, 12, 20 against a
+six-point FD of the wrapper's own v, 1e-6 relative), `Libxc_FxcEqualsTheEnzymeKernelOfTheSameFunctional` (libxc VWN5 = our VWN5 to 1e-7,
+libxc Dirac = Slater 2/3 to 1e-12), `Libxc_ZetaZeroCollapseAndClamps`.  libxc is built with FXC (`DISABLE_FXC OFF` in both the tree's and
+the shared prefix's cache).  No production run moves: only a response run on a libxc functional reads this kernel.
+
+## ✅ A deck run's report drops its setup's policy rows (closed 2026-11-22, lane A, 296c58092)
+
+| [G5] **A deck run's report drops its setup's policy rows** (lane H, 2026-11-19, found writing the forceComplex retirement's FD gate) | A Γ Si deck (`GPW_Si.Γ_U_FiniteDifferencePlansComplexBlocks`) prints `[policy] every Bloch block COMPLEX ...` (Ansatz) and the coarse-k WARN (KSampling) on the console, but neither row is in `report::GlobalReport()` nor in the deck's revision record: the filed run (`Si_diamond.r001@...`) holds only DegenerateLevelFill, SCFRecipe and hamiltonian/PPFittedFunctional.  Suspected, not yet traced: the setup is resolved outside the run's `report::Begin(stem)` scope (`Imp/Deck.C` has a `"<structure> resolve"` Begin and the run's own), so its rows land in a report that is not filed with the run.  Breaks "every policy reports itself" for every setup-time policy of a deck run (Ansatz, KSampling, XCRhoPolicy, BasisCoverage, ...); `SolidSetup.APlannedResponseBuildsEveryBlockComplexAndSaysWhy` passes only because it opens its own `report::Run`. | resolve the deck's setup INSIDE the run's report scope (the run sequence decides the nesting, never the path), then assert the Ansatz row in the FD gate above · `src/Calculation/Imp/Deck.C` (Begin at ~1564 and ~1602, `SetupOf`) |
+
+Done: the suspicion (the setup resolved outside the run's report scope) was wrong: `deck::Run` resolves the setup inside `report::Begin(stem)`,
+and a probe showed the Ansatz row written into `Si_diamond.r001`'s `policy` array at depth 1.  It was ERASED later: `ResolveGpwPoint`
+(`src/Calculation/Imp/SolidCalculation.C`) opened `report::Scope("policy")` > `"symmetry"` for the imposition, and `Scope` re-typed the
+existing `policy` ARRAY to an empty object; the next `policy::Report`'s `Row` re-typed it back to an array, erasing the symmetry object in
+turn.  So EVERY solid run (deck or facade; `SolidSetup.APlannedResponse...` passed only because it opens its own run) lost its setup-time
+rows (Ansatz, KSampling, XCRhoPolicy, BasisCoverage, ...) from the report while the console printed them, and the GUI's `policyinfo` never
+listed them.  Fix: the imposition reports under `symmetry` at the run level, and `report::Row` / `report::Scope` THROW (`std::logic_error`)
+when the key already holds the other type instead of re-typing it silently.  Gates: `GPW_Si.Γ_U_FiniteDifferencePlansComplexBlocks` now
+asserts the Ansatz row; `UTCommon Reporting.ARowAndAScopeCannotShareAKey`.

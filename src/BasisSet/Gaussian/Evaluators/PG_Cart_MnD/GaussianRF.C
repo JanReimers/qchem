@@ -171,9 +171,8 @@ struct Ω : public Cacheable2
     double   Eij;          // scale factor
     Hermite2 H2;           // Hermite coefficients
 
-    static const std::vector<Polarization>& GetNMLs(int LMax) {return theNMLs[LMax];}
-    static void MakeNMLs();
-    static std::vector<std::vector<Polarization>> theNMLs;     // all NMLs per LMax
+    //! All (n,l,m) with n+l+m <= LMax, for LMax 0..10: a FIXED table, built once on first use (thread-safe) and const after.
+    static const std::vector<Polarization>& GetNMLs(int LMax);
 private:
     mutable RNLM* itsSelfRNLM=nullptr;  // lazily built by SelfRNLM()
 };

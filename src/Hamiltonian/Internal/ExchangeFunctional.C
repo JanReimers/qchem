@@ -92,20 +92,12 @@ public:
     //! \f$(\rho_\uparrow,\rho_\downarrow)\f$ -- the second derivative of \f$E_{xc}\f$ a LINEAR RESPONSE needs
     //! (doc/LinearResponsePlan.md row H3).  Spin-native from the first line, like the face above (pin 5).
     //!
-    //! THE DEFAULT IS A CENTRAL DIFFERENCE OF THIS FUNCTIONAL'S OWN spin-native \c GetVxc, pointwise, with a
-    //! step relative to the local density -- so every functional answers, correlation included, with no
-    //! second hand-derived formula to disagree with the first (VWN5's spin-polarised second derivatives are
-    //! pages of algebra).  Its error is \f$O(h^2)\f$ in a smooth local function, ~1e-8 relative at the step
-    //! used; an ANALYTIC override is the upgrade where one is short (Slater exchange has one).  Vanishing
-    //! density (\f$\rho\le\f$ 1e-12) answers 0, the same guard every functional's \c GetVxc applies.
-    virtual double GetFxc(double up, double dn, const Spin& s, const Spin& t) const
-    {
-        const double rho=up+dn;
-        if (!(rho>1e-12)) return 0.0;
-        const double h=1e-3*(t==Spin::Down ? dn : up)+1e-10*rho;   // relative to the channel being varied
-        auto v=[&](double k){return t==Spin::Down ? GetVxc(up,dn+k*h,s) : GetVxc(up+k*h,dn,s);};
-        return (8.0*(v(1)-v(-1))-(v(2)-v(-2)))/(12.0*h);           // four-point, O(h^4)
-    }
+    //! EVERY FUNCTIONAL ANSWERS WITH AN ANALYTIC KERNEL (2026-11-22): Slater and VWN differentiate their own energy with
+    //! Enzyme, \c Libxc_LDA calls libxc's \c xc_lda_fxc.  There is no default: the four-point difference of \c GetVxc that
+    //! stood here lost its last production user when libxc's kernel landed, and a finite difference lives only in the test
+    //! tree, as the gate each analytic kernel keeps (\c UTHamiltonian \c XCKernel.*; LinearResponsePlan D6's rule).  A new
+    //! functional states its kernel.  Vanishing density (\f$\rho\le\f$ 1e-12) answers 0, the guard every \c GetVxc applies.
+    virtual double GetFxc(double up, double dn, const Spin& s, const Spin& t) const=0;
 
     //! \brief How much denser the \f$v_{xc}\f$-fit grid must be than the wavefunction bandwidth, as a
     //! multiplier on the fit-basis energy cutoff (the CP2K \c REL_CUTOFF idea).

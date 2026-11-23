@@ -18,6 +18,9 @@ module;
 #include <chrono>
 #include <ctime>
 #include <cassert>
+#include <atomic>     // TimingWindow: the count of open driver windows
+#include <optional>
+#include <stdexcept>  // Row / Scope: a key re-typed between an array and an object is a broken invariant
 #include <mutex>      // the ledger is written from OUTER-loop worker threads (doc/KAxisPlan.md P1)
 #include <nlohmann/json.hpp>
 #include "tabulate/table.hpp"
@@ -55,6 +58,11 @@ struct RunContext
     long long            t0ns = 0;               // steady_clock ns at Begin -- the run's own zero (RunElapsed)
 };
 
+// THE RUN REPORT IS A PROCESS GLOBAL BY DESIGN (CLAUDE.md "THE RUN REPORT"; user 2026-09-11: the current report is a global, so
+// the callee writes one level in with no report object threaded through).  Per process is right: Begin/End bracket one run and NEST,
+// so a geometry series or a test binary files one report per run into g_global instead of leaking state between runs.  Thread
+// safety: the cursor and the run stack are written by the run's own thread (setup is serial; OMP parallelises pair loops, which
+// do not write sections); the calls that outer-loop workers may make take their own mutex (Accumulate below, the timing ledger).
 std::vector<RunContext> g_stack;                 // the run-nesting stack (empty == no run)
 std::vector<PathSeg>    g_cursor;                // WHERE the next Set lands within the current run
 json                    g_global = json::object();
@@ -509,7 +517,12 @@ Row::Row(const std::string& key) : itsDepth(g_cursor.size())
 {
     if (g_stack.empty()) return;                           // inert outside a run
     json& arr = (*cursorNode())[key];
-    if (!arr.is_array()) arr = json::array();
+    // A key is EITHER an array of rows OR an object scope, never both: silently re-typing it erased whatever was there (the setup's
+    // `policy` rows were wiped by a Scope("policy") and its object by the next Row, OpenWork G5 2026-11-22).  A broken invariant: throw.
+    if (!arr.is_null() && !arr.is_array())
+        throw std::logic_error("report::Row(\""+key+"\"): the key already holds a "+arr.type_name()+" here, not an array of rows -- "
+                               "a Scope and a Row share one key at one level");
+    if (arr.is_null()) arr = json::array();
     arr.push_back(json::object());
     g_cursor.push_back(PathSeg::Key(key));
     g_cursor.push_back(PathSeg::Index(arr.size() - 1));
@@ -521,7 +534,10 @@ Scope::Scope(const std::string& key) : itsDepth(g_cursor.size()), itsT0(RunElaps
 {
     if (g_stack.empty()) return;                           // inert outside a run
     json& node = (*cursorNode())[key];
-    if (!node.is_object()) node = json::object();
+    if (!node.is_null() && !node.is_object())   // see Row: re-typing the key erased it
+        throw std::logic_error("report::Scope(\""+key+"\"): the key already holds a "+std::string(node.type_name())+" here, not an object -- "
+                               "a Scope and a Row (or a Set) share one key at one level");
+    if (node.is_null()) node = json::object();
     itsBefore = node;                                      // a COPY: the doc may reallocate before we close
     g_cursor.push_back(PathSeg::Key(key));
 }
@@ -572,12 +588,16 @@ FormatHint HintFor(const std::string& field)
 // Timing ledger (see the interface doc).  Until 2026-10-27 every Timed ran on the master thread (OMP lived INSIDE
 // timed regions).  An OUTER loop over k-blocks (doc/KAxisPlan.md P1, qchem::OuterFor) runs timed per-block work on
 // worker threads, so the ledger is MUTEX-guarded and the nesting stack is per THREAD.  Consequence, stated where
-// it is read (EmitTimings' footer): a bucket filled by outer-loop workers is THREAD-seconds, summed over workers,
+// it is read (TimingWindow's table): a bucket filled by outer-loop workers is THREAD-seconds, summed over workers,
 // and the master's enclosing bucket charges the loop's wall as its own exclusive time.  Insertion order is
-// irrelevant; EmitTimings sorts by cost.
+// irrelevant; the table sorts by cost.
 //============================================================================
 namespace
 {
+//! THE LEDGER (a mutable static, justified per CLAUDE.md 2026-11-22).  It holds accumulated wall seconds per bucket name, for the whole
+//! process.  Per-process is the DESIGN: any layer charges a bucket (report::Timed) with no plumbing, as the report cursor is reached.
+//! It never leaks a run's numbers into another's report: nothing reads the totals, only a TimingWindow's DIFFERENCE over its own scope
+//! (since 2026-11-22; before, deck::Run cleared it and every other run read nothing).  Thread-safe: every access holds g_timesMutex.
 std::map<std::string,double> g_times;
 // CALL COUNTS beside the seconds.  A bucket's TOTAL is only comparable against another bucket's total
 // when the two fire at the same CADENCE, and the ledger gave no way to know: "rho sampling 3.3 s" vs
@@ -624,29 +644,33 @@ Timed::~Timed()
     if (!g_tchildren.empty()) g_tchildren.back()+=elapsed; // I am my parent's child, whole
 }
 
-void EmitTimings(const std::string& name, size_t nIterations)
+namespace
 {
-    std::lock_guard<std::mutex> lock(g_timesMutex);   // a ledger dump never races a late worker's AddTime
-    if (g_times.empty()) return;
-    // The two PERFORMANCE numbers, computed before the ledger is cleared (see the declaration).  The split
-    // is by bucket PREFIX, which is why every bucket in the tree is named "setup: …" or "scf: …" -- that
-    // convention is load-bearing here, not cosmetic.
-    double setupTotal=0.0, scfTotal=0.0;
-    for (const auto& [k,v] : g_times)
+long long NowNs()
+{
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+//! THE TABLE from a share of the ledger (\a times, \a calls: what was charged in a window), sorted by cost.  The split into SETUP and SCF is
+//! by bucket PREFIX, which is why every bucket in the tree is named "setup: ..." or "scf: ..." -- that convention is load-bearing here.
+json LedgerTable(const std::map<std::string,double>& times, const std::map<std::string,size_t>& calls, size_t nIterations,
+                 std::optional<double> wall)
+{
+    double setupTotal=0.0, scfTotal=0.0, all=0.0;
+    for (const auto& [k,v] : times)
     {
         if      (k.rfind("setup:",0)==0) setupTotal+=v;
         else if (k.rfind("scf:"  ,0)==0) scfTotal  +=v;
+        all+=v;
     }
-    std::vector<std::pair<std::string,double>> rows(g_times.begin(), g_times.end());
+    std::vector<std::pair<std::string,double>> rows(times.begin(), times.end());
     std::sort(rows.begin(), rows.end(), [](const auto& a, const auto& b){return a.second>b.second;});
-    json j;
-    // The per-call price rides in the LABEL, not as a nested object: a sub-object per bucket would turn
-    // the flat sorted-by-cost table into a tree (renderNode heads any container member), and the flat
-    // table is the whole readability of this report.  Suffix only when the bucket fired more than once --
-    // a one-shot setup bucket has no cadence to report and the noise would cost more than it tells.
+    json j=json::object();
+    // The per-call price rides in the LABEL, not as a nested object: a sub-object per bucket would turn the flat sorted-by-cost table
+    // into a tree (renderNode heads any container member), and the flat table is the whole readability of this report.  Suffix only
+    // when the bucket fired more than once -- a one-shot setup bucket has no cadence to report.
     for (const auto& [k,s] : rows)
     {
-        const size_t n=g_calls.count(k) ? g_calls.at(k) : 0;
+        const size_t n=calls.count(k) ? calls.at(k) : 0;
         if (n>1)
         {
             std::ostringstream lbl;
@@ -655,19 +679,73 @@ void EmitTimings(const std::string& name, size_t nIterations)
         }
         else j[k]=s;                            // ordered_json keeps the sorted-by-cost order
     }
-    g_times.clear();
-    g_calls.clear();
-    // PEAK RAM beside the time buckets: the two halves of "what did this run cost" belong in one place,
-    // and until now the report answered only one of them (doc/OpenWork.md Step 1).  VmHWM is the
-    // process-wide high-water mark, so on a multi-run process it is monotone -- it reports the
-    // WATERMARK SO FAR, which is the honest reading for a benchmark row run one config per process.
+    // PEAK RAM beside the time buckets.  VmHWM is the process-wide high-water mark, so on a multi-run process it is the WATERMARK SO FAR.
     if (const double mb=PeakRSS_MB(); mb>0.0) j["PEAK RSS (MB, process high-water)"]=mb;
-    // Emitted LAST so they sit at the foot of the sorted-by-cost table, where a reader looking for the
-    // comparison numbers finds them without hunting through the buckets.
+    // LAST, so they sit at the foot of the table where a reader looking for the comparison numbers finds them.
     j["SETUP TOTAL (pre-SCF, s)"]=setupTotal;
     j["SCF TOTAL (s)"]=scfTotal;
     if (nIterations>0) j["SCF s/ITERATION"]=scfTotal/double(nIterations);
-    EmitSection(name, std::move(j));
+    if (wall)
+    {
+        j["WALL (s)"]=*wall;
+        j["UNBUCKETED (wall - buckets, s)"]=*wall-all;   // what no bucket names: where to add one next
+    }
+    return j;
+}
+//! The ledger as it stands, and the difference from a snapshot (a bucket that did not move is left out).
+void Snapshot(std::map<std::string,double>& times, std::map<std::string,size_t>& calls)
+{
+    std::lock_guard<std::mutex> lock(g_timesMutex);
+    times=g_times; calls=g_calls;
+}
+void Since(const std::map<std::string,double>& t0, const std::map<std::string,size_t>& c0,
+           std::map<std::string,double>& dt, std::map<std::string,size_t>& dc)
+{
+    std::lock_guard<std::mutex> lock(g_timesMutex);
+    for (const auto& [k,v] : g_times)
+    {
+        const auto it=t0.find(k);
+        const double d=v-(it==t0.end() ? 0.0 : it->second);
+        const auto ic=c0.find(k);
+        const size_t n=g_calls.count(k) ? g_calls.at(k) : 0;
+        const size_t dn=n-(ic==c0.end() ? 0 : ic->second);
+        if (d>1e-9 || dn>0) { dt[k]=d; dc[k]=dn; }
+    }
+}
+//! THE OPEN DRIVER WINDOWS (a mutable static, justified per CLAUDE.md 2026-11-22): how many \c TimingWindow(driver=true) scopes are open
+//! right now.  It is one more piece of the report SINK's scope state, beside the run stack and the cursor above, and process-wide for the
+//! same reason they are: the ledger it qualifies is process-global by design (any layer charges a bucket with no plumbing), so "is a
+//! point or a run total measuring around me?" is a process-wide question.  It is not previous-run state: every window decrements it on
+//! close (RAII), so it is 0 between runs and cannot leak across a test binary or a geometry series.  Thread-safe: atomic.
+std::atomic<int>             g_driversOpen{0};
+}
+
+TimingWindow::TimingWindow(std::string label, bool driver) : itsLabel(std::move(label)), itsDriver(driver), itsT0(NowNs())
+{
+    Snapshot(itsTimes, itsCalls);
+    if (itsDriver) ++g_driversOpen;
+}
+TimingWindow::~TimingWindow() { if (itsDriver) --g_driversOpen; }
+
+bool TimingWindow::DriverOpen() { return g_driversOpen.load()>0; }
+
+void TimingWindow::Restart() { Snapshot(itsTimes, itsCalls); itsT0=NowNs(); }
+
+json TimingWindow::Breakdown(size_t nIterations) const
+{
+    std::map<std::string,double> dt; std::map<std::string,size_t> dc;
+    Since(itsTimes, itsCalls, dt, dc);
+    return LedgerTable(dt, dc, nIterations, double(NowNs()-itsT0)*1e-9);
+}
+
+void TimingWindow::Report(size_t nIterations, const std::string& key, const std::string& label)
+{
+    const json j=Breakdown(nIterations);
+    Restart();
+    if (!g_stack.empty()) Set(key, j);                   // one level in, where the caller stands
+    std::cout << "\n[timing] " << (label.empty() ? itsLabel : label) << "\n";      // ALWAYS: a facade run driven from a test or a session has no console attached
+    RenderConsole(j, std::cout, Detail::Normal);
+    std::cout << std::flush;
 }
 
 } // namespace qchem::report

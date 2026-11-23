@@ -62,6 +62,13 @@ template <class T> template <class U> rmat3d_t tVxc_DFT<T>::VirialBlock(const to
     return *r;
 }
 
+template <class T> rmat3d_t tVxc_DFT<T>::VirialBlocks(const ChargeDensity::DensityBlocks<T>& b, const Structure* st) const
+{
+    const auto r=itsSampler->MakeMatrixVirialBlocks(this->Sampled(b, "VirialBlocks"), st);
+    if (!r) throw std::logic_error("tVxc_DFT::VirialBlocks: "+r.Error().why+" (MissingVirials() names it before a stress is asked)");
+    return *r;
+}
+
 template <class T> void tVxc_DFT<T>::AddVirial(rmat3d_t& V, const tDM_CD<T>* D, const Structure* st) const
 {
     if (!(DensityID(D)==itsRefreshed.id))
@@ -103,6 +110,8 @@ template <class T> rvec_t tVxc_DFT<T>::EnergyDensityAt(const tChargeDensity<T>* 
 template std::string tVxc_DFT<double>::MissingVirial(const tbs_t<double>*, const Structure*) const;
 template std::string tVxc_DFT<dcmplx>::MissingVirial(const tbs_t<dcmplx>*, const Structure*) const;
 template void tVxc_DFT<double>::AddVirial(rmat3d_t&, const tDM_CD<double>*, const Structure*) const;
+template rmat3d_t tVxc_DFT<double>::VirialBlocks(const ChargeDensity::DensityBlocks<double>&, const Structure*) const;
+template rmat3d_t tVxc_DFT<dcmplx>::VirialBlocks(const ChargeDensity::DensityBlocks<dcmplx>&, const Structure*) const;
 template rvec_t tVxc_DFT<double>::EnergyDensityAt(const tChargeDensity<double>*) const;
 template rvec_t tVxc_DFT<dcmplx>::EnergyDensityAt(const tChargeDensity<dcmplx>*) const;
 template void tVxc_DFT<dcmplx>::AddVirial(rmat3d_t&, const tDM_CD<dcmplx>*, const Structure*) const;

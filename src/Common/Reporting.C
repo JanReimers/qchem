@@ -11,6 +11,7 @@
 module;
 #include <string>
 #include <cstddef>
+#include <map>       // TimingWindow: its snapshot of the ledger
 #include <ios>
 #include <ostream>
 #include <nlohmann/json.hpp>
@@ -129,7 +130,7 @@ void ClearConsole();
 //! Accumulate \a seconds of wall time under \a key (creates the bucket on first use), and COUNT the call.
 //! The count is what makes two buckets comparable: a total is only meaningful against another total when
 //! both fire at the same cadence, and a per-iteration bucket beside a once-per-run one reads as a win that
-//! is not there.  \c EmitTimings prints the per-call price for any bucket that fired more than once.
+//! is not there.  \c TimingWindow prints the per-call price for any bucket that fired more than once.
 //! \note Entries charging no time (a scope whose body delegated entirely to a nested \c Timed) are NOT
 //! counted -- the time is exclusive, so counting them would divide real work by inflated entries.
 void AddTime(const std::string& key, double seconds);
@@ -151,19 +152,52 @@ private:
     long long   itsT0;   //!< steady_clock ns at construction (opaque here; <chrono> stays in the impl)
 };
 
-//! Emit the ledger as top-level section \a name (labels sorted by cost, seconds) and CLEAR it.
-//! A bucket entered more than once carries \c [xN, s/call] in its label -- the per-call price, which is
-//! the number an optimisation decision needs (see \c AddTime).  No-op when the ledger is empty.
-//! Call once at run end (after the SCF), when the lazy builds are done.
-//! \param nIterations  SCF iterations this run took.  >0 adds the two rows a PERFORMANCE comparison needs
-//! and a bucket list cannot give: the pre-SCF SETUP total, and the per-iteration cost of the SCF itself.
-//! ⚠ WHY THEY ARE MANDATORY FOR PERF WORK (user, 2026-09-07): *"for performance work we always need to
-//! report pre-SCF startup time and then average seconds/iteration so that #iterations does not muck up the
-//! interpretation."*  MEASURED CASE: on the Si supercell ladder the 8-atom rung came out FASTER than the
-//! 4-atom one (3.57 s against 6.09 s) purely because it converged in 8 iterations against 12 — a wall-time
-//! reading of that pair says the code gets faster with size, which is nonsense.  Setup and s/iteration are
-//! the two numbers that do not move when the iteration count does.
-void EmitTimings(const std::string& name="timing", size_t nIterations=0);
+
+//! \brief ONE RUN'S SHARE of the ledger: the buckets charged since this window opened (or since its last \c Report), never the process's
+//! total (user 2026-11-22: "we used to have exactly this breakdown at end of every run").  The ledger is process-global, so a test, a
+//! session or a GUI that runs several calculations would otherwise read one merged total; a window snapshots it at open and reports
+//! the DIFFERENCE, so windows nest and overlap freely and nothing clears the ledger under another reader.
+//!
+//! WHO OPENS ONE.  Every \c Calculation holds one from its construction and reports at the end of each \c Converge -- unless a DRIVER
+//! window is open around it: a geometry point (\c SolidSession / \c MoleculeSession \c ConvergeAt: build + SCF + forces + stress), a
+//! geometry run's total, a deck run.  The driver's report then covers the calculation's, and the point is not printed twice.
+//!
+//! WHERE IT GOES (the report rules: the caller sets the context, the callee writes one level in).  \c Report writes the table
+//! cursor-relative as \a key when a run is open, so a point's breakdown sits in the row its caller opened; and it prints the table on
+//! the console ALWAYS, headed "[timing] <label>", because a facade run driven from a test or a session has no report run open and was
+//! silent (the breakdown went missing exactly there).  Rows: the buckets by cost (with \c [xN, s/call] when a bucket fired more than
+//! once), peak RSS, SETUP TOTAL ("setup:" buckets), SCF TOTAL ("scf:" buckets), SCF s/ITERATION when \a nIterations > 0, the window's
+//! WALL and the UNBUCKETED remainder (wall minus every bucket: what nothing names).  Bucket seconds are wall seconds of the charging
+//! thread; a bucket filled by outer-loop workers sums THREAD-seconds (see the ledger note), so the remainder can be negative there.
+class TimingWindow
+{
+public:
+    //! \param label   what the window measures ("NaF twin point 1", "geometry run total"); heads the console table.
+    //! \param driver  true for a point / a run total / a deck: while one is open, a calculation's own window stays quiet.
+    explicit TimingWindow(std::string label, bool driver=true);
+    ~TimingWindow();
+    TimingWindow(const TimingWindow&)            = delete;
+    TimingWindow& operator=(const TimingWindow&) = delete;
+    //! The buckets charged since the window opened (or since the last \c Report / \c Restart), as the table described above.
+    //! \param nIterations  SCF iterations in the window.  >0 adds SCF s/ITERATION beside the SETUP total.  ⚠ WHY BOTH ARE MANDATORY FOR PERF
+    //! WORK (user, 2026-09-07): *"for performance work we always need to report pre-SCF startup time and then average seconds/iteration so
+    //! that #iterations does not muck up the interpretation."*  MEASURED CASE: on the Si supercell ladder the 8-atom rung came out FASTER
+    //! than the 4-atom one (3.57 s against 6.09 s) purely because it converged in 8 iterations against 12.
+    json Breakdown(size_t nIterations=0) const;
+    //! Write \c Breakdown as \a key at the cursor (when a run is open) and on the console, headed by \a label (the window's own when
+    //! empty: a calculation knows its name only after it is built); then restart the window.
+    void Report(size_t nIterations=0, const std::string& key="timing", const std::string& label="");
+    //! Start the window again from now, reporting nothing (what a quiet calculation does, so its next report is its own).
+    void Restart();
+    //! Is a DRIVER window open on any thread?  A calculation's window reports only when none is.
+    static bool DriverOpen();
+private:
+    std::string                   itsLabel;
+    bool                          itsDriver;
+    std::map<std::string,double>  itsTimes;   //!< the ledger at open (or at the last Report / Restart)
+    std::map<std::string,size_t>  itsCalls;
+    long long                     itsT0;      //!< steady_clock ns at open (or at the last Report / Restart)
+};
 
 //============================================================================
 // Emit -- append a COMPLETED section to the current run AND (at depth 1, if a

@@ -134,6 +134,9 @@ public:
     //! Drops every tolerance-dependent cache.  THROWS if the values change after collocation work was built (a basis computes
     //! at ONE setting).
     virtual void BindTolerances(const GPWTolerances& t) = 0;
+    //! The collocation kernel (\c CollocationRoute: production defaults; a unit test binds the reference route on its own basis).
+    //! Same contract as \c BindTolerances: idempotent for an equal route, THROWS if it changes after collocation work was built.
+    virtual void BindRoute(const CollocationRoute& r) = 0;
 };
 
 
@@ -155,6 +158,12 @@ public:
     //! "what is the phase of offset \f$n\f$" for the offsets it enumerates internally (a pre-built
     //! \c (Rs,phases) pair cannot work: the offsets are magnitude-screened per pair, never a fixed
     //! caller-visible set).  \f$\Gamma\f$ = the constant 1.
+    //! CALLED ONCE PER OFFSET, NOT PER (pair, offset) (lane A 2026-11-22): the closure stays the interface, but the kernel tabulates it
+    //! itself on the bounding box of the offsets its own task list (or memo) actually touches, and the sweep reads the table.  The table
+    //! is \c PhaseTable in the MnD evaluator (\c PG_Cart_MnD/Evaluator.C, beside the integrate-back memo); its users are the collocation
+    //! (\c CollocateDensityFolded, one table per k-term), the memo replay of \c IntegratePotential, and the folded jet walks
+    //! (\c IntegratePotentialPullbackFolded / \c VirialFolded, via \c TermPhases).  The closure is an exp per call, so asking it per
+    //! (pair, offset) was ~0.6 s a gather replay on NaF q9 k222.
     using cellphase_t = std::function<dcmplx(const ivec3_t& n)>;
 
     //! \f$S_{ij}=\sum_R e^{ik\cdot R}\langle\chi_i|\chi_j(\cdot-R)\rangle\f$ (normalised), summed to
@@ -293,6 +302,12 @@ public:
     struct PointPullback { rvec3vec_t gradient; rmat3d_t moment; rvec3vec_t perPoint; };
     virtual PointPullback BlochPointPullback(const rvec3vec_t& pts, const rvec_t& c, const chmat_t& D, const cellphase_t& phase,
                                              const UnitCell& A, const Structure* st) const = 0;
+    //! \brief THE k-FOLD of \c BlochPointPullback (user ruling 2026-11-22 "yes"): the SUM over several blocks of this basis, each its own
+    //! (D, phase), with the functions' values and gradients at each (point, image) evaluated ONCE for all of them.  One term is
+    //! \c BlochPointPullback exactly.
+    virtual PointPullback BlochPointPullbackFolded(const rvec3vec_t& pts, const rvec_t& c,
+                                                   const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                                   const UnitCell& A, const Structure* st) const = 0;
 
     //! \brief ANALYTIC per-pair density collocation on a MULTI-GRID ladder (CP2K GPW / Quickstep): the grid
     //! density \f$\rho(r)=\sum_{ij}\sum_{R}\,\mathrm{Re}[D_{ij}e^{-ik\cdot R}]\,\chi_i(r)\chi_j(r-R)\f$ --
@@ -326,6 +341,15 @@ public:
                                                  const std::vector<double>& ecut_L,
                                                  const LatticeScreener& screener,
                                                  double relFieldSharp=-1.0) const = 0;
+    //! \brief The SAME collocation for the SUM of several Bloch blocks of this basis, in ONE box walk (the k-FOLD, lane A 2026-11-22):
+    //! \f$\sum_b\rho[D^b,k_b]\f$, with the blocks' coefficients summed per (pair, offset) into the real-space density matrix
+    //! \f$P_{ij}(R)=\sum_b\mathrm{Re}[D^b_{ij}e^{-ik_b\cdot R}]\f$ before the walk, so its cost is one block's whatever the k mesh.
+    //! \a terms: each block's D (BZ weight included) and its offset phase.  One term IS \c CollocateDensity, bit for bit.
+    virtual std::vector<rvec_t> CollocateDensityFolded(const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms, const UnitCell& A,
+                                                       const std::vector<ivec3_t>& N_L,
+                                                       const std::vector<double>& ecut_L,
+                                                       const LatticeScreener& screener,
+                                                       double relFieldSharp=-1.0) const = 0;
 
     //! \brief The collocation ADJOINT (integrate-back): the KS block \f$h_{ij}=\langle\chi_i^k|V|\chi_j^k\rangle
     //! =\sum_R e^{ik\cdot R}\,w_L\sum_{\text{box}}\chi_i(r)\chi_j(r-R)V(r)\f$, per (pair, offset) on the SAME
@@ -408,6 +432,17 @@ public:
                                               const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                               const std::vector<double>& ecut_L, const LatticeScreener& screener,
                                               double relFieldSharp, const std::vector<size_t>* pairLevels=nullptr) const = 0;
+    //! \brief THE k-FOLDS of the two above (user ruling 2026-11-22 "yes"): the SUM over several blocks of this basis, each its own
+    //! (D, phase), in ONE jet walk (the k-dependence is only in the pair's weight).  One term is the single-block call exactly.
+    virtual rvec3vec_t IntegratePotentialPullbackFolded(const std::vector<rvec_t>& V_L, const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                                        const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                        const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                                        double relFieldSharp, const Structure* st,
+                                                        const std::vector<size_t>* pairLevels=nullptr) const = 0;
+    virtual rmat3d_t IntegratePotentialVirialFolded(const std::vector<rvec_t>& V_L, const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                                    const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                    const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                                    double relFieldSharp, const std::vector<size_t>* pairLevels=nullptr) const = 0;
 
     //! \brief Per-pair level assignment for integrating a STATIC EXTERNAL G-space field of effective Gaussian
     //! exponent \a beta (its spectrum decays as \f$e^{-G^2/4\beta}\f$; the erf-Coulomb local-PP long tail has

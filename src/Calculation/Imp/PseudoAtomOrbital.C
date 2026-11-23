@@ -6,6 +6,7 @@ module;
 #include <optional>   // std::nullopt: an OFF SCF gate
 #include <cmath>
 #include <map>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -112,7 +113,12 @@ PseudoAtomOrbital Build(const std::string& element, int Zion, int l, int lmax)
 const PseudoAtomOrbital& PseudoAtomOrbitalOf(const std::string& element, int Zion, int l, int lmaxPool)
 {
     if (lmaxPool<0) lmaxPool=std::max(l, thePeriodicTable().GetZ(element)>=57 ? 3 : 2);
+    // A cache of a pure function of fixed inputs (element, Zion, l, pool: the pseudo-atom solve is deterministic): per process
+    // is right.  The mutex is held across Build, so two threads asking for one key build it once; Build never re-enters this
+    // function.  std::map nodes are stable, so the returned reference outlives the lock.
+    static std::mutex mu;
     static std::map<std::tuple<std::string,int,int,int>, PseudoAtomOrbital> cache;
+    std::lock_guard<std::mutex> lk(mu);
     const auto key=std::make_tuple(element, Zion, l, lmaxPool);
     auto it=cache.find(key);
     if (it==cache.end()) it=cache.emplace(key, Build(element, Zion, l, lmaxPool)).first;

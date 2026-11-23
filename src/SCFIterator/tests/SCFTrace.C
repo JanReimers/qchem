@@ -208,8 +208,11 @@ std::string TraceBlock(const std::string& trace)
     for (std::string line; std::getline(is, line); )
     {
         if (!in && line.find("Etotal")!=std::string::npos) in=true;
+        // The run's timing breakdown closes it (restored 2026-11-22): wall seconds, never byte-reproducible, so the golden ends before it.
+        if (in && line.rfind("[timing]",0)==0) break;
         if (in && line.find("[t=")==std::string::npos) out+=line+"\n";
     }
+    while (out.size()>=2 && out.compare(out.size()-2, 2, "\n\n")==0) out.pop_back();   // ...and the blank line the breakdown opens with
     return out;
 }
 // RE-BANKED 2026-11-11 (lane A, the molecular DIIS prune scale-free + no downward mixer move while DIIS extrapolates; user ruling "Yes,
@@ -280,6 +283,7 @@ Virial               V/K  :  -2.63127218787  Eee/Exc:  -0.35418694654
 |    6/6    |  0.32414685 | 3(0,0,0) |
 +-----------+-------------+----------+
 [gpw] NOT converged iters=4 charge=8.00000000000 Eelec=1.58030313499 Etot=-7.1150544170  (Ekin=4.36165985660 Een=-1.13823278927 Eee=0.90114785581 Exc=-2.54427178815 Enn=-8.40046478619 E_alphaZ=-0.29489276580)
+[gpw] Hartree mesh charge error=-4.875e-09 energy=-1.098e-09
 [gpw raster pilot] SKIPPED: the SCF did not converge, so there is no D to audit -- the rasters stay the ball's own
 )G";
 }

@@ -28,6 +28,7 @@ void RNLM::Build(int Max, double α, const rvec3_t& dR)
     // The recursion's layers R_j, j = 0..MAX: a per-THREAD scratch.  It was function-static, shared by every caller, so two RNLMs built
     // concurrently overwrote each other's layers (M_BoysTable.RNLMsBuiltConcurrentlyAreTheSerialOnes: ~half of 4000 differed at 4 workers).
     // No production path builds one in a parallel region today (OpenWork §3); this keeps it that way by construction, not by convention.
+    // (CLAUDE.md, mutable statics: per-thread scratch plus a fixed per-thread table; nothing carries from one RNLM to the next.)
     thread_local Triangle3D theRjs[MAX+1];
     thread_local bool       theRjsInitialized = false;
     if(!theRjsInitialized)

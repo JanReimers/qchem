@@ -256,7 +256,7 @@ TEST_F(LDA_XC, SpinNativeCollapsesToScalarFace)
 //  Slater and VWN write only their energy; v = de/drho_sigma is Enzyme's reverse mode, f = dv/drho_sigma'
 //  forward mode over it.  These are the finite-difference gates every Enzyme derivative keeps (EnzymeAD/
 //  Enzyme#3747, a SILENTLY wrong reverse-mode gradient, was fixed only at the cdd0d1c2 pin): v against the FD of e, f against
-//  the FD of v.  (The base class's own default kernel is a four-point difference of v, for libxc.)
+//  the FD of v.  (libxc's kernel, xc_lda_fxc, keeps the same gate: XCKernel.Libxc*.)
 //=====================================================================================================
 namespace {
 double Dv(const qchem::Hamiltonian::ExFunctional& f, double up, double dn, Spin s, Spin t, double h)
@@ -383,4 +383,72 @@ TEST(XCKernel, Slater_FxcIsTheDerivative)
                     EXPECT_NEAR(f, ref, 1e-7*std::fabs(ref)+1e-12) << "rho=" << rho << " z=" << z << " s,t=" << int(s) << int(t);
                 }
         }
+}
+
+//! libxc's analytic kernel (xc_lda_fxc, 2026-11-22) is the derivative of the wrapper's OWN GetVxc, symmetric, for an exchange id
+//! (channel-separable: no cross term), a correlation id (XC_POLARIZED) and a whole-XC id, at a spread of densities and polarisations.
+TEST(XCKernel, Libxc_FxcIsTheDerivativeAndSymmetric)
+{
+    for (int id : {1, 7, 12, 20})   // Dirac exchange, VWN5, PW92 correlation, Teter93 (exchange-correlation)
+    {
+        qchem::Hamiltonian::Libxc_LDA f(id);
+        for (double rho : {1e-3, 0.05, 1.0, 20.0})
+            for (double z : {0.0, 1e-3, 0.3, -0.7})
+            {
+                const double up=0.5*rho*(1+z), dn=0.5*rho*(1-z);
+                for (Spin s : {Spin::Up, Spin::Down})
+                    for (Spin t : {Spin::Up, Spin::Down})
+                    {
+                        const double k=f.GetFxc(up,dn,s,t), ref=Dv(f,up,dn,s,t,1e-4*(t==Spin::Down?dn:up));
+                        EXPECT_NEAR(k, ref, 1e-6*std::fabs(ref)+1e-10) << "id=" << id << " rho=" << rho << " z=" << z << " s,t=" << int(s) << int(t);
+                    }
+                const double fud=f.GetFxc(up,dn,Spin::Up,Spin::Down), fdu=f.GetFxc(up,dn,Spin::Down,Spin::Up);
+                EXPECT_NEAR(fud, fdu, 1e-12*std::fabs(fud)+1e-14) << "id=" << id << " rho=" << rho << " z=" << z << ": f^ud != f^du";
+                if (id==1) EXPECT_EQ(fud, 0.0) << "exchange is channel-separable: no cross-spin kernel";
+            }
+    }
+}
+
+//! The same functional twice: libxc's VWN5 kernel equals the in-house VWN5's (Enzyme's), and libxc's Dirac exchange equals Slater
+//! exchange at alpha 2/3 (Enzyme's), so two independent analytic routes agree, not just each with its own FD.
+TEST(XCKernel, Libxc_FxcEqualsTheEnzymeKernelOfTheSameFunctional)
+{
+    qchem::Hamiltonian::Libxc_LDA lc(7), lx(1);
+    qchem::Hamiltonian::VWN_Correlation vwn;
+    qchem::Hamiltonian::SlaterExchange  x(2.0/3.0);
+    for (double rho : {1e-3, 0.05, 1.0, 20.0})
+        for (double z : {0.0, 0.3, -0.7})
+        {
+            const double up=0.5*rho*(1+z), dn=0.5*rho*(1-z);
+            for (Spin s : {Spin::Up, Spin::Down})
+                for (Spin t : {Spin::Up, Spin::Down})
+                {
+                    const double c=vwn.GetFxc(up,dn,s,t), e=x.GetFxc(up,dn,s,t);
+                    EXPECT_NEAR(lc.GetFxc(up,dn,s,t), c, 1e-7*std::fabs(c)+1e-10) << "VWN5 rho=" << rho << " z=" << z << " s,t=" << int(s) << int(t);
+                    EXPECT_NEAR(lx.GetFxc(up,dn,s,t), e, 1e-12*std::fabs(e)+1e-14) << "Dirac rho=" << rho << " z=" << z << " s,t=" << int(s) << int(t);
+                }
+        }
+}
+
+//! The zeta = 0 collapse ties libxc's spin kernel to its scalar contract: (f^uu + f^ud)/2 = dv/drho from XC_UNPOLARIZED xc_lda_fxc.
+//! A negative channel is clamped (GetVxc does not move along it), and a vanishing density answers 0, finite everywhere.
+TEST(XCKernel, Libxc_ZetaZeroCollapseAndClamps)
+{
+    for (int id : {1, 7, 12})
+    {
+        qchem::Hamiltonian::Libxc_LDA f(id);
+        xc_func_type raw; ASSERT_EQ(xc_func_init(&raw, id, XC_UNPOLARIZED), 0);
+        for (double rho : {1e-3, 0.05, 1.0, 20.0})
+        {
+            double dv; xc_lda_fxc(&raw, 1, &rho, &dv);
+            const double collapse=0.5*(f.GetFxc(rho/2,rho/2,Spin::Up,Spin::Up)+f.GetFxc(rho/2,rho/2,Spin::Up,Spin::Down));
+            EXPECT_NEAR(collapse, dv, 1e-10*std::fabs(dv)) << "id=" << id << " rho=" << rho;
+        }
+        xc_func_end(&raw);
+        EXPECT_EQ(f.GetFxc(1.0,-0.1,Spin::Up,Spin::Down), 0.0) << "id=" << id << ": v does not move along a clamped channel";
+        EXPECT_EQ(f.GetFxc(0.0,0.0,Spin::Up,Spin::Up), 0.0)    << "id=" << id << ": vanishing density";
+        for (Spin s : {Spin::Up, Spin::Down})
+            for (Spin t : {Spin::Up, Spin::Down})
+                EXPECT_TRUE(std::isfinite(f.GetFxc(1.0,0.0,s,t))) << "id=" << id << " full polarization s,t=" << int(s) << int(t);
+    }
 }

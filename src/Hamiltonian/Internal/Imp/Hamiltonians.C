@@ -476,9 +476,9 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
     if (nl) Add(new Ven_PP_NonLocal(st, nl));                  // KB projectors -- omitted for a local-only PP
     // electron-electron Hartree V_H[rho]: the first-order fitted term on the plane-wave density fitter (V-ONE-OF-N 3b); the
     // fit basis also carries the response half's δV_H(G+q)
-    // numElectrons 0: no charge diagnostic here -- a pseudopotential cell's electron count is the valence count, which this
-    // builder does not hold, and a wrong N would report a fake charge error (the molecular routes pass N).
-    Add(new Vee_Fit<dcmplx>(Fitting::MakeGSpaceDensityFitter(CFitBasis), 0.0, CFitBasis));
+    // The cell's VALENCE count (the run's resolved Nelec, the same N the two Ven_PP_* G=0 terms fix): the fit's Ω ρ̃(0) against it is
+    // the Hartree charge diagnostic (D-PW-HARTREE-N; it was 0, off, before every constructor took N).
+    Add(new Vee_Fit<dcmplx>(Fitting::MakeGSpaceDensityFitter(CFitBasis), numElectrons, CFitBasis));
     // The FIT/GRID separation (doc/SymmetryUpgradePlan.md §6a, user 2026-08-01): WHICH fit basis
     // represents v_xc (VxcFit) and WHICH real-space grid quadratures it (xcMesh.cellKind) are
     // ORTHOGONAL choices.  Auto = the historical pairing (Delta on Becke, PlaneWave on the raster).

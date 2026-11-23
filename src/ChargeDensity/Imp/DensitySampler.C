@@ -22,11 +22,6 @@ namespace qchem::ChargeDensity
 // The grid-charge toggle lives WITH its declaration (module linkage): declared in the public interface
 // unit, defined here.  It used to sit in the Pair strategy's impl, which is where it is USED -- but that
 // unit now belongs to the Internal module, and a definition cannot cross modules.
-// The grid-charge diagnostic's process-wide toggle.  It lives with the PAIR route because that is the only
-// route that collocates rho onto a raster and can therefore report what the raster lost.
-// ⚠ Process-wide MUTABLE state in a library -- flagged in doc/CleanupCandidates.md R1.0e as something the
-// run report should own instead (theRunPolicy() already carries every other run-scoped switch).
-bool& ReportGridCharge() { static bool on = false; return on; }
 
 // CAPABILITY DECIDES (doc/OpenWork.md): a delta basis carries points and nothing else -> singles; a
 // raster-backed one carries the FFT transforms and keys the 3-centre tensor -> pair.  One decision, taken

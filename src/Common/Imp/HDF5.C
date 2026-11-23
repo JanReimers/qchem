@@ -22,6 +22,8 @@ namespace
 {
 // HDF5 prints its whole error stack to stderr on every failed call -- including the EXPECTED ones (probing a
 // file that is not there).  Silence it once; every failure below throws with its own message instead.
+// A one-time, idempotent configuration of the HDF5 library (process-wide state OF THAT LIBRARY, so per process is the only
+// granularity there is); the function-local static makes the first call thread-safe and every later one free.
 struct Silence { Silence() {H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);} };
 void Quiet() {static Silence s;}
 

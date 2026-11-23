@@ -205,7 +205,7 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     series, a test binary, the GUI session), races under threads, and can route around an interface.  The comment says what it holds, why
     per-process is right, and how it is thread-safe.  Acceptable so far: an atomic monotonic ID counter; a cache of a pure function of fixed
     inputs (a file read, a fixed table).  Not acceptable: warn-once flags, tuning knobs, test overrides, previous-iteration state.  A constant
-    is `constexpr`, not `static`.  The controller's landing scan flags every new one.
+    is `constexpr`, not `static`.  The controller's landing scan flags every new one.  Code that can never change a number (a diagnostic, a trace) is held to a lighter standard (user, 2026-11-23, keeping `Diagnostics::Scoped`: "For something like Diagnostics which is not part of production code, we can probably be far less disciplined than we are for the production code that needs to generate correct numbers to many decimal places.").
 
 ## Design
 

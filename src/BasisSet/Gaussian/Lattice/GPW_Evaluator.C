@@ -24,7 +24,10 @@ module;
 #include <memory>
 #include <string>
 #include <vector>
+#include <array>      // FoldDomain
+#include <cstdint>
 export module qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;
+export import qchem.BasisSet.KFoldable;   // KFoldTerm (the k-fold of the pullbacks)
 export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // the typed tolerances (D-ENV step 5)
 export import qchem.BasisSet.Gaussian.Lattice.RasterLadder;    // GpwRasterLadder: the density grid + its levels, shared by every block (V-BS-RASTER)
 export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::PW_Grid_Evaluator + RasterFields
@@ -123,6 +126,14 @@ public:
     bool CanOneElectronPullback() const {return !itsHomeOnly;}
     //! \c LatticeCollocation::BlochPointPullback at this block's phase and cell (the δ XC quadrature's derivative; READY 4).
     Gaussian::LatticeCollocation::PointPullback PointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const chmat_t& D, const Structure* st) const;
+    //! The k-fold domain (PairProjection::foldDomain, BasisSet::KFoldable): my lattice basis's and my ladder's instance serials.
+    std::array<uint64_t,2> FoldDomain() const;
+    //! My Bloch phase on \a n (\c CellPhase's value): what a fold lead applies to my D (BasisSet::KFoldable::FoldPhase).
+    dcmplx FoldPhase(const ivec3_t& n) const;
+    //! \c PointSetPullback for SEVERAL blocks of my fold domain at once (\c LatticeCollocation::BlochPointPullbackFolded, each term's
+    //! own phase).  THROWS if a term is outside my domain: the caller groups by domain.
+    Gaussian::LatticeCollocation::PointPullback PointSetPullbackFolded(const rvec3vec_t& pts, const rvec_t& c,
+                                                                       const std::vector<BasisSet::KFoldTerm>& terms, const Structure* st) const;
     Outcome<Gaussian::LatticeSum1E::GeometryPullback,AD::NoGradient> OneElectronPullback(int which, const chmat_t& Abar, const Structure* st) const;
 
     // --- isLattice_DFT_Evaluator surface: the DFT tier by COLLOCATION on the density grid (the genuinely-new GPW
@@ -373,6 +384,27 @@ private:
         static size_t Depth();                   //!< GPW_COLLOC_MEMO extra entries (default 4)
     };
     mutable std::shared_ptr<CollocMemo> itsCollocMemo;    //!< shared so both framework-cached closures see it
+    //! \brief The k-FOLD's collocation memo: the level densities of the last few FOLDED densities (the list of block D's, exact), shared
+    //! by this block's ball and raw folded closures -- so when this block leads a fold, the Hartree ρ̃ and the raw XC raster collocate
+    //! the summed density ONCE between them (as \c CollocMemo dedups the per-block calls).  Keyed on every term's D and the ladder.
+    struct FoldMemo
+    {
+        struct Entry { std::vector<chmat_t> D; std::vector<double> ecut; std::vector<rvec_t> rho; };
+        std::vector<Entry> entries;   //!< most recent first, at most CollocMemo::Depth()
+        bool Lookup(const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>& terms, const std::vector<double>& ecut,
+                    std::vector<rvec_t>& rhoOut);
+        void Store (const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>& terms, const std::vector<double>& ecut,
+                    const std::vector<rvec_t>& rho);
+    };
+    mutable std::shared_ptr<FoldMemo> itsFoldMemo;
+    //! The summed blocks' level densities: \a memo's replay, or ONE \c CollocateDensityFolded on \a lat (every term in \a domain).
+    static std::vector<rvec_t> FoldedLevels(const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>& terms,
+                                            const std::array<uint64_t,2>& domain, const Gaussian::Periodic_Gaussian_IBS* lat, const UnitCell& A,
+                                            const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
+                                            const Gaussian::LatticeScreener& screen, double relFS, FoldMemo& memo);
+    //! The raw-raster twin of \c MakeFoldedCollocator (PairProjection::applyRawFolded).
+    std::function<rvec_t(const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>&)>
+        MakeFoldedRawCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
 
     //! \brief The GATHER's sibling: an exact \f$(V_L,\ \text{screen})\to h\f$ replay cache, per k-block.
     //!
@@ -431,6 +463,10 @@ private:
     //! The collocator over an EXPLICIT fit grid: the ladder derives from \a grid (the tensor's requested
     //! \f$\{G\}\f$), NOT the block's own \c itsFFT_R_G_Grids -- the closure captures its own ladder built from \a grid.
     std::function<ΔG_Map(const chmat_t&)> MakeCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    //! \brief The k-FOLDED forward (PairProjection::applyFolded): \c MakeCollocator for the SUM of several blocks' densities, every
+    //! block in this block's fold domain (the same lattice basis and ladder), in ONE collocation (LatticeSum1E::CollocateDensityFolded).
+    std::function<ΔG_Map(const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>&)>
+        MakeFoldedCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     //! The BACKWARD adjoint of \c MakeCollocator: a self-contained field->matrix integrate-back over \a grid's
     //! ladder -- the \c PairProjection<dcmplx>::applyAdjoint the Overlap3C/Repulsion3C(grid) tensors carry (doc/GPWPlan §0e step2).
     std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)>
@@ -445,6 +481,17 @@ private:
     //! (held per G index, so per raster index), then \c LatticeCollocation::IntegratePotentialVirial at fixed D.
     std::function<rmat3d_t(const std::function<dcmplx(const ivec3_t&)>&, const chmat_t&, const Structure*)>
         MakeIntegratorVirial(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    //! The k-folds of the two above (PairProjection::applyAdjointPullbackFolded / applyAdjointVirialFolded): the same restriction of
+    //! the field, then one jet walk over the summed blocks (\c LatticeCollocation::IntegratePotentialPullbackFolded / VirialFolded).
+    std::function<rvec3vec_t(const std::function<dcmplx(const ivec3_t&)>&,
+                             const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>&, const Structure*)>
+        MakeIntegratorPullbackFolded(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    std::function<rmat3d_t(const std::function<dcmplx(const ivec3_t&)>&,
+                           const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>&, const Structure*)>
+        MakeIntegratorVirialFolded(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    //! Each term's D with its block's phase (\c PairProjection::foldPhase), THROWING when a block is outside \a domain.
+    static std::vector<std::pair<const chmat_t*, const Gaussian::LatticeSum1E::cellphase_t*>>
+        PhasedTerms(const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>& terms, const std::array<uint64_t,2>& domain);
     //! \brief The RAW-RASTER pair (doc/GPWPlan 0.5(f2)) -- \c PairProjection<dcmplx>::applyRaw / \c applyRawAdjoint.
     //! \c MakeRawCollocator: \f$D\to\rho_{DM}(r)\f$ on \a grid's raster -- the finest ladder level kept RAW
     //! (its analytic samples are pointwise \f$\ge 0\f$ to screening-\f$\varepsilon\f$ for PSD \f$D\f$), every

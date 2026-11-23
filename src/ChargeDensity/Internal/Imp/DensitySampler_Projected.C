@@ -82,7 +82,7 @@ void ProjectedDensitySampler::Refresh(const cChargeDensity* cd) const
                   << "  rho grid=[" << std::scientific << std::setprecision(2) << rmin << ", " << rmax << "]"
                   << " npts=" << itsRho.size() << std::defaultfloat << std::endl;
     }
-    if (ReportGridCharge())
+    if (qchem::Diagnostics::Enabled("grid_charge"))
     {
         const double qGrid=Integrate(itsRho);
         const double qDM  =cd->GetTotalCharge();

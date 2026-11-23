@@ -43,7 +43,7 @@ Ylm::Ylm(size_t l, const ivec_t& _mls)
 
 size_t Ylm::SequenceIndex() const //Used for op<
 {
-    static size_t start=LMax+1;  //Start after all the Yl Sequence Indexes
+    constexpr size_t start=LMax+1;  //Start after all the Yl Sequence Indexes
 
     // Sort mls to get canonical ordering (lexicographic)
     auto sorted_mls = mls;

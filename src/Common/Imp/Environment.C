@@ -3,28 +3,12 @@ module;
 #include <cstdlib>
 #include <iostream>
 #include <mutex>
-#include <set>
 #include <vector>
 #include <string>
 module qchem.Environment;
 
 namespace qchem
 {
-const char* Env(const char* name, const char* legacy)
-{
-    if (const char* v=std::getenv(name)) return v;
-    if (!legacy) return nullptr;
-    const char* v=std::getenv(legacy);
-    if (v)
-    {
-        static std::mutex mu; static std::set<std::string> told;
-        std::lock_guard<std::mutex> lk(mu);
-        if (told.insert(legacy).second)
-            std::cerr<<"[env] "<<legacy<<" is DEPRECATED (it is not specific to the Gaussian-plane-wave basis); use "<<name<<std::endl;
-    }
-    return v;
-}
-
 std::vector<RetiredVariable> RetiredEnvironmentSet()
 {
     // name -> the deck key that replaces it.  D-ENV step 6a: the GPW tolerances and the Becke XC recipe.  Each Becke name also had a
@@ -56,6 +40,9 @@ std::vector<RetiredVariable> RetiredEnvironmentSet()
 
 void WarnRetiredEnvironment()
 {
+    // A once-per-PROCESS notice (CLAUDE.md, mutable statics; controller ruling 2026-11-22): the environment it reports is per process,
+    // and every run's entry point calls this (rundeck, SolidCalculation), so a geometry series or a test binary would otherwise repeat
+    // it per run.  std::call_once makes it thread-safe.  It changes no number: it only names ignored variables.
     static std::once_flag once;
     std::call_once(once, []
     {

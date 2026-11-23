@@ -6,8 +6,10 @@ module;
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 module qchem.BasisSet.RasterDensityProjector;
 import qchem.BasisSet.PairProjection;      // PairProjection<dcmplx>::applyRaw (the block's raw collocation)
+import qchem.BasisSet.Internal.FoldedForward;   // the k-fold (Route::Raw)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform (the raster's size)
 import qchem.BasisSet.G_RasterStarField;   // the real-space star field over a raster array
 import qchem.Symmetry;                     // StarGroup, StarField
@@ -57,6 +59,8 @@ public:
                                "has no RAW rho_DM on the raster of '"+itsSF->Name()+"'");
     }
     size_t NumCoefficients() const override {return itsRT->RasterSize();}
+    //! THE k-FOLD: blocks whose overlap tensors share a fold domain collocate their summed density ONCE (\c applyRawFolded).
+    std::unique_ptr<MultiBlockForward> ForwardBlocks(std::vector<FoldBlockRef> blocks) const override;
     //! The IBZ star-average IN REAL SPACE: my raster says how its voxels transform under one op (a permutation plus an FFT glide), the
     //! composite's group iterates the ops.  Exactly the average the k-composite applied to its summed raster before 2026-11-19.
     void StarAverage(Projections& p, const Symmetry::StarGroup& group) const override
@@ -95,6 +99,11 @@ private:
     mutable InstanceSlotMap<RawRasterForward<dcmplx>> itsRawC;   //!< Bloch blocks
     qchem::LazyLock itsCacheLock;
 };
+
+std::unique_ptr<MultiBlockForward> RasterDensityProjector::ForwardBlocks(std::vector<FoldBlockRef> blocks) const
+{
+    return Internal_Fold::MakeFoldedForward(*this, *itsSF, Internal_Fold::Route::Raw, std::move(blocks));
+}
 
 } //anon
 

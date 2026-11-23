@@ -16,10 +16,13 @@
 module;
 #include <stdexcept>
 #include <string>
+#include <type_traits>
+#include <vector>
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
 import qchem.Structure;
 import qchem.BasisSet.Orbital_DFT_IBS;   // the block's DFT face (what the fitter's pullback takes)
+import qchem.BasisSet.PairProjector;     // FoldBlockRef / FoldBlockD (the whole-density pullback's list)
 
 namespace qchem::Hamiltonian
 {
@@ -54,6 +57,56 @@ template <class T> template <class U> rvec3vec_t Vee_Fit<T>::PullbackBlock(const
     return *r;
 }
 
+// The fitter's view of a whole density: each block's DFT face and its D, on the face its scalar has.
+namespace
+{
+template <class T> void FitBlocks(const ChargeDensity::DensityBlocks<T>& b, std::vector<BasisSet::FoldBlockRef>& refs,
+                                  std::vector<BasisSet::FoldBlockD>& Ds, const char* who)
+{
+    for (const auto& x : b.blocks)
+    {
+        const auto* dft=DFTof<T>(x.bs);
+        if (!dft) throw std::logic_error(std::string(who)+": the block has no DFT tier (MissingGradients() names it before a force is asked)");
+        BasisSet::FoldBlockRef r; BasisSet::FoldBlockD d;
+        if constexpr (std::is_same_v<T,dcmplx>) { r.bloch=dft; d.bloch=x.D; } else { r.real=nullptr; }
+        refs.push_back(r); Ds.push_back(d);
+    }
+    for (const auto& x : b.real)
+    {
+        const auto* dft=DFTof<T>(x.bs);
+        if (!dft) throw std::logic_error(std::string(who)+": the block has no DFT tier (MissingGradients() names it before a force is asked)");
+        BasisSet::FoldBlockRef r; BasisSet::FoldBlockD d;
+        r.real=dft; d.real=x.D;
+        refs.push_back(r); Ds.push_back(d);
+    }
+}
+} // namespace
+
+template <class T> rvec3vec_t Vee_Fit<T>::PullbackBlocks(const ChargeDensity::DensityBlocks<T>& b, const Structure* st) const
+{
+    if constexpr (!std::is_same_v<T,dcmplx>) return tStatic_PC<T>::PullbackBlocks(b, st);
+    else
+    {
+        std::vector<BasisSet::FoldBlockRef> refs; std::vector<BasisSet::FoldBlockD> Ds;
+        FitBlocks(b, refs, Ds, "Vee_Fit::PullbackBlocks");
+        const auto r=itsFit->MakeRepulsionPullbackBlocks(refs, Ds, st);
+        if (!r) throw std::logic_error("Vee_Fit::PullbackBlocks: "+r.Error().why+" (MissingGradients() names it before a force is asked)");
+        return *r;
+    }
+}
+template <class T> rmat3d_t Vee_Fit<T>::VirialBlocks(const ChargeDensity::DensityBlocks<T>& b, const Structure* st) const
+{
+    if constexpr (!std::is_same_v<T,dcmplx>) return tStatic_VC<T>::VirialBlocks(b, st);
+    else
+    {
+        std::vector<BasisSet::FoldBlockRef> refs; std::vector<BasisSet::FoldBlockD> Ds;
+        FitBlocks(b, refs, Ds, "Vee_Fit::VirialBlocks");
+        const auto r=itsFit->MakeRepulsionVirialBlocks(refs, Ds, st);
+        if (!r) throw std::logic_error("Vee_Fit::VirialBlocks: "+r.Error().why+" (MissingVirials() names it before a stress is asked)");
+        return *r;
+    }
+}
+
 template <class T> void Vee_Fit<T>::AddForces(rvec3vec_t& F, const tDM_CD<T>* D, const Structure* st) const
 {
     this->RequireFitFor(DensityID(D));   // a READ: ρ̃ is the fit the refresh made of this D (tHamiltonianAt ran it)
@@ -74,5 +127,9 @@ template void Vee_Fit<dcmplx>::AddForces(rvec3vec_t&, const tDM_CD<dcmplx>*, con
 template rvec3vec_t Vee_Fit<double>::PullbackBlock<double>(const tobs_t<double>*, const Spin&, const hmat_t<double>&, const Structure*) const;
 template rvec3vec_t Vee_Fit<dcmplx>::PullbackBlock<dcmplx>(const tobs_t<dcmplx>*, const Spin&, const hmat_t<dcmplx>&, const Structure*) const;
 template rvec3vec_t Vee_Fit<dcmplx>::PullbackBlock<double>(const tobs_t<double>*, const Spin&, const hmat_t<double>&, const Structure*) const;
+template rvec3vec_t Vee_Fit<double>::PullbackBlocks(const ChargeDensity::DensityBlocks<double>&, const Structure*) const;
+template rvec3vec_t Vee_Fit<dcmplx>::PullbackBlocks(const ChargeDensity::DensityBlocks<dcmplx>&, const Structure*) const;
+template rmat3d_t   Vee_Fit<double>::VirialBlocks  (const ChargeDensity::DensityBlocks<double>&, const Structure*) const;
+template rmat3d_t   Vee_Fit<dcmplx>::VirialBlocks  (const ChargeDensity::DensityBlocks<dcmplx>&, const Structure*) const;
 
 } // namespace qchem::Hamiltonian

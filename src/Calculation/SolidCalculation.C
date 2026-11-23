@@ -761,6 +761,7 @@ private:
     SolidCalculation::Observer        itsObserver;
     Carry                             itsCarry;
     std::unique_ptr<Point>            itsPoint;
+    size_t                            itsPointsRun=0;   //!< points this session converged: the timing breakdown's point index
 };
 
 //! \brief A SOLID GEOMETRY RUN: the surface a geometry driver samples and the coordinate map it steps through, built from ONE group.

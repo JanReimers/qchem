@@ -560,7 +560,11 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long)
     // -61.3031131432 -> -61.3031134482 (-305 nHa).  Pin 10's independent route: the same run with ONLY the S / T / <chi|g> series
     // screened at screenEps x 1e-6 (every other screen unchanged) gives -61.3031134481, 1e-10 from the new value; the old one carried
     // the prefactor screen's dropped kinetic images (the -61.303112 reference above was computed under the same old screen).
-    EXPECT_NEAR(R->Energy(), -61.3031134482, 1e-7) << "the SAD anchor's state (measured 2026-11-02, re-judged 2026-11-10)";
+    // RE-JUDGED 2026-11-22 (lane A, the k-fold: one collocation for both spin blocks, the D-aware screen ruling on |P_up+P_dn|, the
+    // quantity summed): -61.3031134482 -> -61.3031140146 (-566 nHa); the SAD anchor lands on the same value (-61.30311401, 18 iterations),
+    // so the twin claim stands.  Pin 10's independent route: the same run with the collocation screen 100x tighter (densityEps 1e-12,
+    // through a recipe) gives -61.3031139546 -- 60 nHa from the new value, 506 nHa from the old (~/Code/qchem6-runs/MnO/lanea_foldk).
+    EXPECT_NEAR(R->Energy(), -61.3031140146, 1e-7) << "the SAD anchor's state (measured 2026-11-02, re-judged 2026-11-10, 2026-11-22)";
     ASSERT_FALSE(trace.rows.empty());
     EXPECT_GT(std::abs(trace.rows.back().order), 4.0) << "the AFM order survives the ionic seed (measured 4.459, = SAD's)";
 }

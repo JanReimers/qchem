@@ -1668,7 +1668,7 @@ TEST(GPW_Si, Γ_U_FiniteDifferencePlansComplexBlocks)
     std::ifstream in(out.revision);
     const nlohmann::json rec=nlohmann::json::parse(in);
     fs::remove_all(dir);
-    std::vector<qchem::report::json> split;
+    std::vector<qchem::report::json> split, ansatz;
     std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& j)
     {
         if (j.is_object())
@@ -1678,14 +1678,17 @@ TEST(GPW_Si, Γ_U_FiniteDifferencePlansComplexBlocks)
                     for (const auto& row : it.value())
                     {
                         if (row.value("name","")=="ResponseSplit") split.push_back(row);
+                        if (row.value("name","")=="Ansatz")        ansatz.push_back(row);
                     }
                 walk(it.value());
             }
         else if (j.is_array()) for (const auto& e : j) walk(e);
     };
     walk(qchem::report::GlobalReport());
-    // (The setup's Ansatz row is not asserted here: a deck run's report does not carry the setup's policy rows -- OpenWork row "A deck
-    //  run's report drops its setup's policy rows".  The proof the plan worked is that the probe ran: on REAL blocks it throws.)
+    // The setup files its decision: one Ansatz row, every block complex.  (Until 2026-11-22 a Scope("policy") in the GPW point build erased
+    // the setup's rows from the deck's report; the probe running -- on REAL blocks it throws -- was then the only proof the plan worked.)
+    ASSERT_EQ(ansatz.size(), 1u) << "the setup's Ansatz row is not in the deck run's report";
+    EXPECT_NE(ansatz[0].value("decided","").find("COMPLEX"), std::string::npos) << ansatz[0].dump();
     for (const auto& row : split) EXPECT_EQ(row.value("decided","").find("TWO runs"), std::string::npos) << "the +-alpha SCFs cannot be adopted: " << row.dump();
     const auto& fd=rec.at("results").at("postSCF").at(0);
     EXPECT_TRUE(fd.at("ok").get<bool>()) << fd.dump();

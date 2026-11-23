@@ -287,6 +287,7 @@ template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCal
     if (edit) edit(params);
     (void)ConvergeStage(params);
     FinishSchedule(params);   // a single Converge is a one-stage schedule: the kind's pilot runs after it too (the solid's rasters)
+    ReportTiming();
     return Result();
 }
 
@@ -312,7 +313,17 @@ template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCal
         LeaveStage(s, schedule.size(), stage.params);
     }
     FinishSchedule(schedule.back().params);
+    ReportTiming();
     return Result();
+}
+
+template <class T> void tCalculation<T>::ReportTiming()
+{
+    const size_t it=ProofIterations();
+    const size_t n = it>=itsTimedIterations ? it-itsTimedIterations : it;   // a rebuilt iterator restarts its count
+    itsTimedIterations=it;
+    if (report::TimingWindow::DriverOpen()) { itsTiming.Restart(); return; }   // the driver's report covers this one
+    itsTiming.Report(n, "timing", Tag());
 }
 
 template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCalculation<T>::Result() const

@@ -264,7 +264,7 @@ void PairDensitySampler::Refresh(const cChargeDensity* cd) const
                   << "  rho grid=[" << std::scientific << std::setprecision(2) << rmin << ", " << rmax << "]"
                   << " npts=" << itsRho.size() << std::defaultfloat << std::endl;
     }
-    if (ReportGridCharge())
+    if (qchem::Diagnostics::Enabled("grid_charge"))
     {
         // Grid charge vs analytic charge: the electrons LOST to grid truncation (high-G aliasing of rho).
         // == CP2K's "Electronic density on regular grids: <int rho> <error>" -- a controlled cutoff metric.

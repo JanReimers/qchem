@@ -19,9 +19,9 @@
 #include <vector>
 
 import qchem.BasisSet.Gaussian.Point.Factory;     // Factory(BasisSetData, cell, engine, angular)
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator::ContractCubeOverride (D-CUBE0)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;     // LatticeCollocation, TransitionCollocation
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;  // the image clones' kernels and their PrimitiveStore
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator (SeriesEqualsPerK: unit tests may cast to the concrete evaluator)
 import qchem.BasisSet.Internal.PrimitiveStore;   // S5: the store the kernels take (an Internal module: imported directly, never re-exported)
 import qchem.LatticePoints;   // LatticePointsInSphere (the bound gate walks images past the reach)
 import qchem.BasisSet.Gaussian.Lattice.LatticeScreener;  // GeometryOnlyScreener, CollocationEps
@@ -47,11 +47,14 @@ struct Periodic
     size_t n=0;
 };
 //! \a spherical: the SPHERICAL LATTICE VIEW over the Cartesian block (what a GPW_SPHERICAL run uses -- the NiO
-//! recipe), made the way M_Spherical makes it; the Factory's own Spherical angular is the molecular family.
-Periodic Make(BasisSetData data, const UnitCell& cell, bool spherical)
+//! recipe), made the way M_Spherical makes it; the Factory's own Spherical angular is the molecular family.  \a route: the collocation
+//! kernel, bound on the Cartesian basis before any integral (and before a view wraps it: a view does not offer the binding).
+Periodic Make(BasisSetData data, const UnitCell& cell, bool spherical, const ::qchem::BasisSet::Gaussian::CollocationRoute& route={})
 {
     Periodic p;
     std::shared_ptr<const BasisSet::Real_BS> cart(Factory(data, &cell, Engine::MnD, Angular::Cartesian));
+    if (!(route==::qchem::BasisSet::Gaussian::CollocationRoute{}))
+        dynamic_cast<::qchem::BasisSet::Gaussian::ToleranceBinding&>(const_cast<BasisSet::Real_BS&>(*cart)).BindRoute(route);
     p.bs = spherical ? std::shared_ptr<const BasisSet::Real_BS>(PG_Spherical::MakeSphericalLatticeView(cart)) : cart;
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*p.bs).Iterate<BasisSet::Real_OIBS>())
     {
@@ -235,7 +238,6 @@ TEST(M_TransitionCollocation, PeriodicPart_EqualsExplicitBlochSums)
 // CH4 MOLOPT crawl, 2026-11-02).
 static void WalkAndContractionAgree(const UnitCell& cell, BasisSetData data, const char* what)
 {
-    using Evaluators::PG_Cart_MnD::NR_Evaluator;
     const Ladder L=Two();
     const rvec3_t k(0.25,0.0,0.125);
     const GeometryOnlyScreener screen(CollocationEps());
@@ -243,8 +245,7 @@ static void WalkAndContractionAgree(const UnitCell& cell, BasisSetData data, con
     std::vector<rvec_t> rho[2]; chmat_t h[2]; size_t n=0;
     for (int route=0; route<2; route++)                       // 0 = contraction (default), 1 = reference walk
     {
-        NR_Evaluator::ContractCubeOverride()=(route==0);
-        const Periodic p=Make(data, cell, false);                   // a FRESH evaluator per route: no memo can leak across
+        const Periodic p=Make(data, cell, false, {.contractCube=(route==0)});   // a FRESH basis per route, bound before any integral
         ASSERT_TRUE(p.lc);
         n=p.n;
         const mat_t<dcmplx> Dm=RandomMatrix(n, 88172645463325252ULL, true);
@@ -255,7 +256,6 @@ static void WalkAndContractionAgree(const UnitCell& cell, BasisSetData data, con
         for (size_t l=0;l<V.size();l++) V[l]=rho[route][l];
         h[route]=p.lc->IntegratePotential(V, PhaseOf(k), cell, L.N, L.ecut, screen);
     }
-    NR_Evaluator::ContractCubeOverride()=std::nullopt;
 
     double dRho=0, sRho=0;
     for (size_t l=0;l<rho[0].size();l++)
@@ -369,9 +369,9 @@ TEST(GPWTolerances, BindTolerancesThrowsIfChangedAfterCollocationWork)
     EXPECT_THROW(bind->BindTolerances(GPWTolerances{}), std::runtime_error);
 }
 
-// D-ENV 6c: the retired A/B switches survive as unit-test hooks.  The exp recurrence is ulp-level against direct evaluation, and the
-// hooks reset cleanly (a leaked override would silently change every later test).
-TEST(GPWTolerances, TheRouteHooksAreUlpLevelAndReset)
+// D-ENV 6c: the retired A/B switches survive as a per-basis CollocationRoute.  The exp recurrence is ulp-level against direct evaluation,
+// and the route belongs to the basis it was bound on (until 2026-11-23 it was a process-wide static that a test had to reset).
+TEST(GPWTolerances, TheExpRecurrenceIsUlpLevelAndTheRouteIsPerBasis)
 {
     const UnitCell cell=SiCell();
     const Periodic p=Make(BasisSetData::SIPP_SR, cell, false);
@@ -381,19 +381,19 @@ TEST(GPWTolerances, TheRouteHooksAreUlpLevelAndReset)
     const GeometryOnlyScreener screen(CollocationEps());
     auto rho=[&](bool recurrence)
     {
-        NR_Evaluator::ExpRecurrenceOverride()=recurrence;
-        const Periodic q=Make(BasisSetData::SIPP_SR, cell, false);     // a FRESH evaluator: no cached box tasks across the two arms
-        auto r=q.lc->CollocateDensity(D, PhaseOf(rvec3_t(0,0,0)), cell, L.N, L.ecut, screen);
-        NR_Evaluator::ExpRecurrenceOverride()=std::nullopt;
-        return r;
+        const Periodic q=Make(BasisSetData::SIPP_SR, cell, false, {.expRecurrence=recurrence});   // a FRESH basis per arm
+        return q.lc->CollocateDensity(D, PhaseOf(rvec3_t(0,0,0)), cell, L.N, L.ecut, screen);
     };
     const auto a=rho(true), b=rho(false);
     double d=0, sc=0;
     for (size_t l=0;l<a.size();l++) for (size_t g=0;g<a[l].size();g++) { d=std::max(d,std::abs(a[l][g]-b[l][g])); sc=std::max(sc,std::abs(a[l][g])); }
     EXPECT_GT(sc,1e-6);
     EXPECT_LT(d, 1e-12*sc) << "the exp recurrence is a ~n*eps accurate rebuild of the same tables";
-    EXPECT_FALSE(NR_Evaluator::ExpRecurrenceOverride().has_value());
-    EXPECT_FALSE(NR_Evaluator::SphereScreenOverride().has_value());
+    // Per basis: binding a route after this basis built collocation work is refused (it would mix two kernels in one memo).
+    (void)p.lc->CollocateDensity(D, PhaseOf(rvec3_t(0,0,0)), cell, L.N, L.ecut, screen);
+    auto& bind=dynamic_cast<::qchem::BasisSet::Gaussian::ToleranceBinding&>(const_cast<BasisSet::Real_BS&>(*p.bs));
+    EXPECT_NO_THROW(bind.BindRoute({})) << "an equal route is a no-op";
+    EXPECT_THROW(bind.BindRoute({.expRecurrence=false}), std::runtime_error);
 }
 
 // ---- THE R-RESOLVED 1E SERIES (short-PP lever 2, lane A 2026-11-07) -------------------------------------------------------------

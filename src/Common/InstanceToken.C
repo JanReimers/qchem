@@ -34,6 +34,8 @@ public:
 private:
     static uint64_t Next()
     {
+        // An atomic monotonic ID (CLAUDE.md, mutable statics): process-wide by design (no two live objects may share a serial,
+        // whichever run made them), never reused, thread-safe by the atomic increment.
         static std::atomic<uint64_t> theSerial{0};
         return ++theSerial;
     }

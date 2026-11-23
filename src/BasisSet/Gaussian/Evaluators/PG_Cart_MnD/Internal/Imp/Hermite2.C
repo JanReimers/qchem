@@ -67,7 +67,7 @@ using std::endl;
 
 inline bool near(double a, double b) 
 {
-    static double eps=1e-13;
+    constexpr double eps=1e-13;
     double err=fabs(a)<1 ? fabs(a-b) : fabs(a-b)/fabs(a) ;
     if (err>=eps)
     {

@@ -80,6 +80,8 @@ inline int WorkerThreads()
 //  serially.  So an outer-threaded loop is BIT-IDENTICAL to the serial one -- unlike an inner region that partitions a
 //  reduction (per-thread buffers combined in arrival order), which is not.
 //--------------------------------------------------------------------------------------------------------------------
+// The outer-loop nesting depth of THIS thread (a thread_local RAII counter, so per-thread by construction and never shared; the
+// marker below increments it on entry and decrements it on exit).  CLAUDE.md, mutable statics.
 namespace detail { inline thread_local int g_outerDepth=0; }
 //! Is this thread running an item of an outer loop?
 inline bool InOuterLoop() {return detail::g_outerDepth>0;}

@@ -121,6 +121,9 @@ public:
     //! The MOLECULAR twin (BasisSet::PointSetPullback): the same jets with no images, the functions at their own centres.
     virtual Outcome<::qchem::BasisSet::PointSetPullback<double>::Result,AD::NoGradient>
             MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const hmat_t<double>& D, const Structure* st) const override;
+    virtual PointPullback BlochPointPullbackFolded(const rvec3vec_t& pts, const rvec_t& c,
+                                                   const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                                   const UnitCell& A, const Structure* st) const override;
     virtual chmat_t MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
                                       const std::function<Gaussian::LatticeSum1E::GaussianFunction(int)>& opForZ) const override;
     virtual chmat_t MakeLocalGaussian(const Structure* cl,
@@ -135,12 +138,18 @@ public:
     virtual double  MinExponent() const override;   // coarsest exponent -> the multi-grid coarsest level
     virtual const GPWTolerances& Tolerances() const override;
     virtual void    BindTolerances(const GPWTolerances& t) override;   // ToleranceBinding (the builder's door)
+    virtual void    BindRoute(const CollocationRoute& r) override;      // ToleranceBinding (a unit test's reference route)
     // CP2K analytic multi-grid collocation + its exact adjoint (the GPW density/KS bridge).
     virtual std::vector<rvec_t> CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                                  const std::vector<ivec3_t>& N_L,
                                                  const std::vector<double>& ecut_L,
                                                  const LatticeScreener& screener,
                                                  double relFieldSharp=-1.0) const override;
+    virtual std::vector<rvec_t> CollocateDensityFolded(const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms, const UnitCell& A,
+                                                       const std::vector<ivec3_t>& N_L,
+                                                       const std::vector<double>& ecut_L,
+                                                       const LatticeScreener& screener,
+                                                       double relFieldSharp=-1.0) const override;
     virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                        const std::vector<ivec3_t>& N_L,
                                        const std::vector<double>& ecut_L,
@@ -157,6 +166,15 @@ public:
                                               const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                               const std::vector<double>& ecut_L, const LatticeScreener& screener,
                                               double relFieldSharp, const std::vector<size_t>* pairLevels=nullptr) const override;
+    virtual rvec3vec_t IntegratePotentialPullbackFolded(const std::vector<rvec_t>& V_L, const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                                        const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                        const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                                        double relFieldSharp, const Structure* st,
+                                                        const std::vector<size_t>* pairLevels=nullptr) const override;
+    virtual rmat3d_t IntegratePotentialVirialFolded(const std::vector<rvec_t>& V_L, const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                                    const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                    const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                                    double relFieldSharp, const std::vector<size_t>* pairLevels=nullptr) const override;
     virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                       double beta, double lnEps) const override;
     virtual void EmitLatticeSumReport(const UnitCell& A) const override;             // lattice-sum economy readout
@@ -212,6 +230,7 @@ public:
     BasisSet( Reader*, const Structure*);
     virtual void Insert(obs_t* bs);
     virtual void BindTolerances(const GPWTolerances& t) override;   //!< each block that can take them
+    virtual void BindRoute(const CollocationRoute& r) override;      //!< each block that can take it
 
 };
 

@@ -25,7 +25,6 @@
 #include <vector>
 
 import qchem.BasisSet.Gaussian.Point.Factory;     // Factory(BasisSetData, cell, engine, angular)
-import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator::ContractCubeOverride (the cube-vs-walk gate)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;     // LatticeCollocation
 import qchem.BasisSet.Gaussian.Lattice.LatticeScreener;  // GeometryOnlyScreener, CollocationEps
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView
@@ -58,10 +57,13 @@ UnitCell CellOf(const Fixture& x, size_t moved=size_t(-1), const rvec3_t& dr=rve
     return c;
 }
 struct Block { std::shared_ptr<const BasisSet::Real_BS> bs; const LatticeCollocation* lc=nullptr; size_t n=0; };
-Block Make(const Fixture& x, const UnitCell& cell)
+//! \a route: the collocation kernel, bound on the Cartesian basis before any integral and before a view wraps it.
+Block Make(const Fixture& x, const UnitCell& cell, const ::qchem::BasisSet::Gaussian::CollocationRoute& route={})
 {
     Block b;
     std::shared_ptr<const BasisSet::Real_BS> cart(Factory(x.data, &cell, Engine::MnD, Angular::Cartesian));
+    if (!(route==::qchem::BasisSet::Gaussian::CollocationRoute{}))
+        dynamic_cast<::qchem::BasisSet::Gaussian::ToleranceBinding&>(const_cast<BasisSet::Real_BS&>(*cart)).BindRoute(route);
     b.bs = x.spherical ? std::shared_ptr<const BasisSet::Real_BS>(PG_Spherical::MakeSphericalLatticeView(cart)) : cart;
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*b.bs).Iterate<BasisSet::Real_OIBS>())
     {
@@ -247,27 +249,25 @@ TEST(M_CollocationPullback, RefusesAMisSizedDensityAndAMissingStructure)
 }
 
 //! THE FAST PATH IS THE REFERENCE WALK (lane H 2026-11-11): the contracted-cube jets (\c CubeJets, the production gather's policy) against
-//! the jet walk they stand in for, forced through the unit-test hook \c ContractCubeOverride, on the three fixtures: the pullback and the
+//! the jet walk they stand in for, bound per basis through \c CollocationRoute::contractCube, on the three fixtures: the pullback and the
 //! virial agree to the walk-vs-cube tier of the gather itself (M_TransitionCollocation.WalkAndContractionRoutesAgree: 1e-10 relative), and
 //! the cube is the faster (timed, printed; the FD gates above run on the cube, the default).
 void CubeIsTheWalk(const Fixture& x)
 {
-    using NR=Evaluators::PG_Cart_MnD::NR_Evaluator;
     const Ladder L=Two();
     const GeometryOnlyScreener screen(CollocationEps());
     const std::vector<rvec_t> V=Field(L,false);
     const UnitCell cell=CellOf(x);
-    const Block b=Make(x, cell);
-    ASSERT_TRUE(b.lc);
-    const chmat_t D=RandomHermitian(b.n, 0x9E3779B97F4A7C15ULL);
+    const size_t n=Make(x, cell).n;
+    ASSERT_GT(n, 0u);
+    const chmat_t D=RandomHermitian(n, 0x9E3779B97F4A7C15ULL);
     auto run=[&](bool cube, double& ms)
     {
-        NR::ContractCubeOverride()=cube;
+        const Block b=Make(x, cell, {.contractCube=cube});   // a FRESH basis per route, bound before any integral
         const auto t0=std::chrono::steady_clock::now();
         const rvec3vec_t G=b.lc->IntegratePotentialPullback(V, D, PhaseOf(kNonTRIM), cell, L.N, L.ecut, screen, -1.0, &cell);
         const rmat3d_t   W=b.lc->IntegratePotentialVirial  (V, D, PhaseOf(kNonTRIM), cell, L.N, L.ecut, screen, -1.0);
         ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count();
-        NR::ContractCubeOverride().reset();
         return std::make_pair(G, W);
     };
     double msWalk=0.0, msCube=0.0;

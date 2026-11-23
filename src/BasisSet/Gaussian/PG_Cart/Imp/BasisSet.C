@@ -26,6 +26,12 @@ void BasisSet::BindTolerances(const GPWTolerances& t)
         std::visit([&](auto& b){ if (auto* tb=dynamic_cast<Gaussian::ToleranceBinding*>(b.get())) tb->BindTolerances(t); }, c);
 }
 
+void BasisSet::BindRoute(const CollocationRoute& r)
+{
+    for (auto& c : itsBasisSets)
+        std::visit([&](auto& b){ if (auto* tb=dynamic_cast<Gaussian::ToleranceBinding*>(b.get())) tb->BindRoute(r); }, c);
+}
+
 void BasisSet::Insert(obs_t* bs)
 {
     ::qchem::BasisSet::BasisSetImp<double>::Insert(bs);

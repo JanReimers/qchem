@@ -16,6 +16,8 @@ module;
 #include <chrono>    // std::chrono (timing the MakeLocalPP integrate-back at different kappa)
 #include <format>    // the short-PP cache key's screenEps
 #include <cstdlib>   // std::getenv/std::atof (GPW_LOCALPP_RELCUTOFF / QCHEM_OPENMP_THREADS knobs)
+#include <array>
+#include <cstdint>
 module qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;
 import qchem.BasisSet.AoShellSource;  // the shell table: each centre's own most diffuse exponent (D12)
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
@@ -46,6 +48,7 @@ namespace
 // Symmetry::IsReal() -- exact integer arithmetic on the BZ grid (doc/RealComplexPlan.md Step 1).  The phase itself is
 // Symmetry::Lattice_3D::BlochPhase, exact ±1 there (V-SYM-TRIM-PHASE: one definition, shared with the op rep).
 using Symmetry::Lattice_3D::BlochPhase;
+using FoldTerms=std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>;   // the k-fold's terms: (D, its block's projection)
 
 // Build a lattice-translation set {R} (Cartesian, origin first) and its matching Bloch phases {e^{ik.R}} for
 // a cutoff radius -- the {R}+{phase} weighted point set (future: one qcMesh cMesh).  phase = exp(2 pi i k.n)
@@ -286,6 +289,8 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(std::shared
         return out;
     };
 }
+std::array<uint64_t,2> GPW_Evaluator::FoldDomain() const {return {itsOrb->Instance().Serial(), itsLadder->Instance().Serial()};}
+
 // Coulomb 3-centre tensor, ADJOINT ONLY (V-ONE-OF-N 3c): the integrate-back with the Poisson kernel applied, over the REQUESTED
 // fit grid.  No forward: a density projects through Overlap3C, and the kernel is the physics round's, never a projection's.
 // The no-arg overloads below are the block's-own-grid convenience (Repulsion3CTensor(itsFFT_R_G_Grids)).
@@ -304,6 +309,15 @@ PairProjection<dcmplx> GPW_Evaluator::Repulsion3CTensor(std::shared_ptr<const Pl
     g.applyAdjointVirial=[vir=MakeIntegratorVirial(grid), recip=grid->Recip()]
         (const std::function<dcmplx(const ivec3_t&)>& f, const chmat_t& D, const Structure* st) -> rmat3d_t
         {return vir([&](const ivec3_t& dm){return recip.CoulombKernel(dm)*f(dm);}, D, st);};
+    // ... and their k-folds (lane A 2026-11-22): the blocks of my fold domain pulled back in one walk, the same kernel applied
+    g.foldDomain=FoldDomain();
+    g.foldPhase =CellPhase();
+    g.applyAdjointPullbackFolded=[pull=MakeIntegratorPullbackFolded(grid), recip=grid->Recip()]
+        (const std::function<dcmplx(const ivec3_t&)>& f, const FoldTerms& terms, const Structure* st) -> rvec3vec_t
+        {return pull([&](const ivec3_t& dm){return recip.CoulombKernel(dm)*f(dm);}, terms, st);};
+    g.applyAdjointVirialFolded=[vir=MakeIntegratorVirialFolded(grid), recip=grid->Recip()]
+        (const std::function<dcmplx(const ivec3_t&)>& f, const FoldTerms& terms, const Structure* st) -> rmat3d_t
+        {return vir([&](const ivec3_t& dm){return recip.CoulombKernel(dm)*f(dm);}, terms, st);};
     return g;
 }
 // Overlap 3-centre tensor: the same analytic map, no kernel (the density's own rho-tilde).
@@ -313,10 +327,16 @@ PairProjection<dcmplx> GPW_Evaluator::Overlap3CTensor(std::shared_ptr<const Plan
     g.volume=grid->Volume();
     for (const ivec3_t& dm : grid->Gs()) g.columns.push_back({dm,{}});
     g.apply       =MakeCollocator(grid);                    // forward: D -> rho-tilde
+    g.foldDomain  =FoldDomain();                            // ... and the k-fold: blocks of one lattice basis + ladder collocate together
+    g.foldPhase   =CellPhase();
+    g.applyFolded =MakeFoldedCollocator(grid);
     g.applyAdjoint=MakeIntegrator(grid);                    // backward: v_xc-tilde -> <i|v_xc|j>
     g.applyAdjointPullback=MakeIntegratorPullback(grid);    //           ... its derivative at fixed D (§13.2)
     g.applyAdjointVirial  =MakeIntegratorVirial(grid);      //           ... its strain derivative at fixed D (the orbital side)
+    g.applyAdjointPullbackFolded=MakeIntegratorPullbackFolded(grid);   //    ... and their k-folds
+    g.applyAdjointVirialFolded  =MakeIntegratorVirialFolded(grid);
     g.applyRaw       =MakeRawCollocator(grid);              // 0.5(f2): D -> rho_DM(r) raw (XC feed)
+    g.applyRawFolded =MakeFoldedRawCollocator(grid);        //          ... and its k-fold
     g.applyRawAdjoint=MakeRawIntegrator(grid);              //          v(r) -> <i|v|j> (exact transpose)
     g.applyRawAdjointPullback=MakeRawIntegratorPullback(grid);   //     ... its derivative at fixed v and D (§13.2)
     g.applyRawAdjointVirial  =MakeRawIntegratorVirial(grid);     //     ... its strain derivative (moment + the weight's dilation)
@@ -353,7 +373,13 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator
         for (size_t L=0;L<K;L++)
         {
             ΔG_Map vmapL;
-            for (const ivec3_t& dm : levels[L]->Gs()) vmapL[dm]=Vtilde(dm);   // restrict to level L's {G}
+            {
+                qchem::report::Timed t("scf: h ball: sample + restrict to the level's {G}");
+                // restrict to level L's {G}.  An end hint: O(1) per insert when the level lists its {G} in the map's order, the
+                // ordinary insert otherwise -- the same map either way.
+                for (const ivec3_t& dm : levels[L]->Gs()) vmapL.emplace_hint(vmapL.end(), dm, Vtilde(dm));
+            }
+            qchem::report::Timed t("scf: h ball: level inverse FFT");
             V_L[L]=levels[L]->RhoOnGrid(vmapL);
         }
         // ⛔ THE GATHER IS NO LONGER D-SCREENED (2026-09-04).  Passing the density here was a qchem-only
@@ -438,6 +464,45 @@ GPW_Evaluator::MakeIntegratorVirial(std::shared_ptr<const PlaneWave::PW_Grid_Eva
         return lat->IntegratePotentialVirial(V_L, D, phase, A, N_L, ecut_L, *screen, relFS);
     };
 }
+// The k-folds of the two closures above (lane A 2026-11-22): the SAME restriction of the field, then one jet walk for every block of my
+// fold domain, each at its own phase (its projection's foldPhase).
+namespace
+{
+std::vector<rvec_t> RestrictToLevels(const std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>>& levels,
+                                     const std::function<dcmplx(const ivec3_t&)>& Vtilde)
+{
+    std::vector<rvec_t> V_L(levels.size());
+    for (size_t L=0;L<levels.size();L++)
+    {
+        ΔG_Map vmapL;
+        for (const ivec3_t& dm : levels[L]->Gs()) vmapL.emplace_hint(vmapL.end(), dm, Vtilde(dm));   // as MakeIntegrator restricts
+        V_L[L]=levels[L]->RhoOnGrid(vmapL);
+    }
+    return V_L;
+}
+}
+std::function<rvec3vec_t(const std::function<dcmplx(const ivec3_t&)>&, const FoldTerms&, const Structure*)>
+GPW_Evaluator::MakeIntegratorPullbackFolded(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
+{
+    RasterLevels lad=itsLadder->MakeLevels(grid);
+    return [A=itsCell, levels=std::move(lad.levels), N_L=std::move(lad.N), ecut_L=std::move(lad.ecut), mol=itsMol, lat=itsLat,
+            domain=FoldDomain(), screen=itsScreener, relFS=itsRelFieldSharp]
+        (const std::function<dcmplx(const ivec3_t&)>& Vtilde, const FoldTerms& terms, const Structure* st) -> rvec3vec_t
+    {
+        return lat->IntegratePotentialPullbackFolded(RestrictToLevels(levels, Vtilde), PhasedTerms(terms, domain), A, N_L, ecut_L, *screen, relFS, st);
+    };
+}
+std::function<rmat3d_t(const std::function<dcmplx(const ivec3_t&)>&, const FoldTerms&, const Structure*)>
+GPW_Evaluator::MakeIntegratorVirialFolded(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
+{
+    RasterLevels lad=itsLadder->MakeLevels(grid);
+    return [A=itsCell, levels=std::move(lad.levels), N_L=std::move(lad.N), ecut_L=std::move(lad.ecut), mol=itsMol, lat=itsLat,
+            domain=FoldDomain(), screen=itsScreener, relFS=itsRelFieldSharp]
+        (const std::function<dcmplx(const ivec3_t&)>& Vtilde, const FoldTerms& terms, const Structure*) -> rmat3d_t
+    {
+        return lat->IntegratePotentialVirialFolded(RestrictToLevels(levels, Vtilde), PhasedTerms(terms, domain), A, N_L, ecut_L, *screen, relFS);
+    };
+}
 
 // doc/GPWPlan 0.5(f2): spectral transfer between two FFT rasters, in ForwardFFT coefficient layout.
 // Copies every mode in the ALIAS-FREE band of BOTH boxes (2|m| < N per axis on each side -- the same strict
@@ -511,6 +576,106 @@ void GPW_Evaluator::CollocMemo::Store(const chmat_t& d, const std::vector<rvec_t
     if (valid) past.insert(past.begin(), Entry{D, rho, ecut});   // retire the previous most-recent
     if (past.size()>Depth()) past.resize(Depth());
     D=d; rho=r; ecut=ec; valid=true;
+}
+
+// THE k-FOLD (lane A 2026-11-22): MakeCollocator's / MakeRawCollocator's post-processing over ONE collocation of the summed blocks.  The
+// blocks' own phases come from their projections (foldPhase); each must be in MY fold domain, or the box walk would run their D on the
+// wrong basis -- a THROW.  The level densities go through MY fold memo, which the ball and raw closures share.
+bool GPW_Evaluator::FoldMemo::Lookup(const FoldTerms& terms, const std::vector<double>& ecut, std::vector<rvec_t>& rhoOut)
+{
+    for (size_t e=0;e<entries.size();e++)
+    {
+        const Entry& x=entries[e];
+        if (x.ecut!=ecut || x.D.size()!=terms.size()) continue;
+        bool same=true;
+        for (size_t t=0;t<terms.size() && same;t++) same=SameDensity(x.D[t], *terms[t].first);
+        if (!same) continue;
+        rhoOut=x.rho;
+        if (e>0) { Entry hit=std::move(entries[e]); entries.erase(entries.begin()+long(e)); entries.insert(entries.begin(), std::move(hit)); }
+        return true;
+    }
+    return false;
+}
+void GPW_Evaluator::FoldMemo::Store(const FoldTerms& terms, const std::vector<double>& ecut, const std::vector<rvec_t>& rho)
+{
+    Entry x; x.ecut=ecut; x.rho=rho;
+    for (const auto& t : terms) x.D.push_back(*t.first);
+    entries.insert(entries.begin(), std::move(x));
+    if (entries.size()>CollocMemo::Depth()) entries.resize(CollocMemo::Depth());
+}
+std::vector<std::pair<const chmat_t*, const Gaussian::LatticeSum1E::cellphase_t*>>
+GPW_Evaluator::PhasedTerms(const FoldTerms& terms, const std::array<uint64_t,2>& domain)
+{
+    std::vector<std::pair<const chmat_t*, const Gaussian::LatticeSum1E::cellphase_t*>> phased;
+    phased.reserve(terms.size());
+    for (const auto& [D,b] : terms)
+    {
+        if (!b || domain[0]==0 || b->foldDomain!=domain || !b->foldPhase)
+            throw std::logic_error("GPW_Evaluator: a block outside this fold domain (another lattice basis or ladder) cannot join the fold");
+        phased.push_back({D, &b->foldPhase});
+    }
+    return phased;
+}
+std::vector<rvec_t> GPW_Evaluator::FoldedLevels(const FoldTerms& terms, const std::array<uint64_t,2>& domain, const Gaussian::Periodic_Gaussian_IBS* lat,
+                                                const UnitCell& A, const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
+                                                const Gaussian::LatticeScreener& screen, double relFS, FoldMemo& memo)
+{
+    std::vector<rvec_t> rho;
+    if (memo.Lookup(terms, ecut_L, rho)) { qchem::report::Timed t("scf: rho memo replay (D seen before)"); return rho; }
+    rho=lat->CollocateDensityFolded(PhasedTerms(terms, domain), A, N_L, ecut_L, screen, relFS);
+    memo.Store(terms, ecut_L, rho);
+    return rho;
+}
+std::function<ΔG_Map(const FoldTerms&)> GPW_Evaluator::MakeFoldedCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
+{
+    RasterLevels lad=itsLadder->MakeLevels(grid);
+    auto levels=std::move(lad.levels);
+    auto N_L=std::move(lad.N);
+    auto ecut_L=std::move(lad.ecut);
+    const UnitCell A = itsCell;
+    auto mol    = itsMol;
+    const Gaussian::Periodic_Gaussian_IBS* lat = itsLat;
+    auto screen = itsScreener;
+    if (!itsFoldMemo) itsFoldMemo=std::make_shared<FoldMemo>();
+    auto memo   = itsFoldMemo;
+    const std::array<uint64_t,2> domain=FoldDomain();
+    return [A,levels,N_L,ecut_L,mol,lat,screen,memo,domain,relFS=itsRelFieldSharp](const FoldTerms& terms) -> ΔG_Map
+    {
+        qchem::report::Timed timer("scf: rho ball closure (FFT + G-combine)");
+        const std::vector<rvec_t> rho=FoldedLevels(terms, domain, lat, A, N_L, ecut_L, *screen, relFS, *memo);
+        ΔG_Map out;
+        for (size_t l=0; l<levels.size(); l++)
+        {
+            cvec_t rhoTilde = levels[l]->ForwardFFT(rho[l]);
+            for (const ivec3_t& dm : levels[l]->Gs()) out[dm] += levels[l]->GridCoeff(rhoTilde, dm);
+        }
+        return out;
+    };
+}
+std::function<rvec_t(const FoldTerms&)> GPW_Evaluator::MakeFoldedRawCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
+{
+    RasterLevels lad=itsLadder->MakeLevels(grid);
+    auto levels=std::move(lad.levels);
+    auto N_L=std::move(lad.N);
+    auto ecut_L=std::move(lad.ecut);
+    const UnitCell A = itsCell;
+    auto mol    = itsMol;
+    const Gaussian::Periodic_Gaussian_IBS* lat = itsLat;
+    auto screen = itsScreener;
+    if (!itsFoldMemo) itsFoldMemo=std::make_shared<FoldMemo>();
+    auto memo   = itsFoldMemo;
+    const std::array<uint64_t,2> domain=FoldDomain();
+    return [A,levels,N_L,ecut_L,mol,lat,screen,memo,domain,relFS=itsRelFieldSharp](const FoldTerms& terms) -> rvec_t
+    {
+        qchem::report::Timed timer("scf: rho raw closure (spectral transfer)");
+        const std::vector<rvec_t> rho=FoldedLevels(terms, domain, lat, A, N_L, ecut_L, *screen, relFS, *memo);
+        const ivec3_t NT=N_L[0];                            // the integration raster (level 0 == grid), as MakeRawCollocator
+        cvec_t acc(size_t(NT.x)*NT.y*NT.z, dcmplx(0.0));
+        for (size_t l=1; l<levels.size(); l++) TransferBand(levels[l]->ForwardFFT(rho[l]), N_L[l], acc, NT);
+        rvec_t out=levels[0]->BackwardFFT(acc);
+        out+=rho[0];
+        return out;
+    };
 }
 
 bool GPW_Evaluator::GatherMemo::Lookup(const std::vector<rvec_t>& V_L, const chmat_t* screen,
@@ -930,6 +1095,25 @@ Gaussian::LatticeCollocation::PointPullback GPW_Evaluator::PointSetPullback(cons
                                                                            const Structure* st) const
 {
     return itsLat->BlochPointPullback(pts, c, D, CellPhase(), itsCell, st);
+}
+dcmplx GPW_Evaluator::FoldPhase(const ivec3_t& n) const {return CellPhase()(n);}
+Gaussian::LatticeCollocation::PointPullback GPW_Evaluator::PointSetPullbackFolded(const rvec3vec_t& pts, const rvec_t& c,
+                                                                                 const std::vector<BasisSet::KFoldTerm>& terms, const Structure* st) const
+{
+    const auto dom=FoldDomain();
+    std::vector<Gaussian::LatticeSum1E::cellphase_t> phases; phases.reserve(terms.size());   // reserved: the pointers below stay valid
+    std::vector<std::pair<const chmat_t*, const Gaussian::LatticeSum1E::cellphase_t*>> folded;
+    for (size_t b=0;b<terms.size();b++)
+    {
+        const BasisSet::KFoldTerm& t=terms[b];
+        if (!t.block || !t.D) throw std::logic_error("GPW_Evaluator::PointSetPullbackFolded: term "+std::to_string(b)+" names no block or no D");
+        if (dom[0]==0 || t.block->FoldDomain()!=dom)
+            throw std::logic_error("GPW_Evaluator::PointSetPullbackFolded: term "+std::to_string(b)+" is not in my fold domain");
+        const BasisSet::KFoldable* blk=t.block;
+        phases.push_back([blk](const ivec3_t& n){return blk->FoldPhase(n);});
+        folded.push_back({t.D, &phases.back()});
+    }
+    return itsLat->BlochPointPullbackFolded(pts, c, folded, itsCell, st);
 }
 chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const
 {   qchem::report::Timed t("setup: analytic 1E lattice sums (S,T,V)");

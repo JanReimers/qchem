@@ -81,6 +81,25 @@ double Libxc_LDA::GetEpsXc(double up, double dn, const Spin& s) const
     return eps;                                         // per particle of the TOTAL: the same for both channels
 }
 
+// libxc's analytic kernel; see the header for the split (it mirrors GetVxc's: separable exchange, XC_POLARIZED otherwise).
+double Libxc_LDA::GetFxc(double up, double dn, const Spin& s, const Spin& t) const
+{
+    if (!(up+dn>1e-12)) return 0.0;                     // the base class's vanishing-density guard
+    const double rt = t==Spin::Down ? dn : up;
+    if (rt<0.0) return 0.0;                             // GetVxc clamps this channel: v does not move along it
+    if (itsSeparable)
+    {
+        if (s!=t || rt==0.0) return 0.0;                // exchange: no cross-channel term; an empty channel has no v
+        const double r2=2.0*rt;
+        double f; xc_lda_fxc(&itsFunc, 1, &r2, &f);     // dv_x/drho at the doubled density
+        return 2.0*f;                                   // chain rule: v^s = v_x(2 rho_s)
+    }
+    const double r[2]={up>0.0 ? up : 0.0, dn>0.0 ? dn : 0.0};
+    double f[3]; xc_lda_fxc(&itsPol, 1, r, f);           // (uu, ud, dd)
+    if (s!=t) return f[1];
+    return s==Spin::Down ? f[2] : f[0];
+}
+
 std::ostream& Libxc_LDA::Write(std::ostream& os) const
 {
     return os << itsFunc.info->name;
