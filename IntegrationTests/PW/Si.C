@@ -302,6 +302,12 @@ TEST(PW_Si, Γ_Anchor)
 
     EXPECT_TRUE(sad.conv);
     EXPECT_NEAR(sad.charge,                  8.0,    1e-6);   // 8 valence electrons
+    // The Hartree charge diagnostic (D-PW-HARTREE-N): Vee_Fit now holds the cell's N, so it is REPORTED, and on a plane-wave orbital
+    // basis the G-space fit's Ω ρ̃(0) is the density's own G=0 coefficient, so it carries the cell charge to roundoff.
+    const auto& diag=sad.E.Diagnostics();
+    EXPECT_TRUE(std::any_of(diag.begin(), diag.end(), [](const auto& d){return d.first=="HartreeChargeError";}))
+        << "a periodic run reports its Hartree charge error";
+    EXPECT_LT(std::fabs(sad.E.Diagnostic("HartreeChargeError")), 1e-10);
     EXPECT_NEAR(sad.E.GetElectronicEnergy(), 1.468,  5e-3);   // band energy matches the standalone prototype
     // Physical total: electronic + ion-ion Ewald (Enn) + dropped-G=0 alignment (E_alphaZ) -- now NEGATIVE.
     // (Underconverged at Ecut=4 / Gamma-only; the converged Si total is ~-7.9 Ha/cell.)
