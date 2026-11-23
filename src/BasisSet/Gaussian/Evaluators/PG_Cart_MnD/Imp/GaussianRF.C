@@ -106,8 +106,6 @@ const RNLM& Ω::SelfRNLM() const
     return *itsSelfRNLM;
 }
 
-std::vector<std::vector<Polarization>> Ω::theNMLs;
-
 static std::vector<Polarization> MakeAllPolarizations(int Lmax)
 {
     std::vector<Polarization> list;
@@ -118,9 +116,19 @@ static std::vector<Polarization> MakeAllPolarizations(int Lmax)
     return list;
 }
 
-void Ω::MakeNMLs()
+const std::vector<Polarization>& Ω::GetNMLs(int LMax)
 {
-    for (int L=0; L<=10; L++) theNMLs.push_back(MakeAllPolarizations(L));
+    // A cache of a pure function of fixed inputs (CLAUDE.md, mutable statics): const, and built by a C++11 thread-safe static
+    // initialisation.  It was a mutable static member filled lazily by "size()==0 then push_back" in the Ω ctor and the AD routes,
+    // so two threads making their first Ω together both filled it (D-MUTABLE-STATICS, 2026-11-23).
+    static const std::vector<std::vector<Polarization>> theNMLs=[]
+    {
+        std::vector<std::vector<Polarization>> t;
+        for (int L=0; L<=10; L++) t.push_back(MakeAllPolarizations(L));
+        return t;
+    }();
+    assert(LMax>=0 && size_t(LMax)<theNMLs.size());
+    return theNMLs[LMax];
 }
 
 // The (a,b,ab,p,AB,P,Eij) block is the GAUSSIAN PRODUCT THEOREM and now has exactly one definition --
@@ -142,7 +150,6 @@ void Ω::MakeNMLs()
     , Eij   (gp.Eij)
     , H2    (αₚ, gp.PA, gp.PB, g1.L+1, g2.L+1)
 {
-    if (theNMLs.size()==0) MakeNMLs();
 }
 
 // sizeof(Ω) + the Hermite2 block's heap vectors + the lazily-built 2-centre self-RNLM if present.

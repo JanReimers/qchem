@@ -7,6 +7,7 @@ module;
 #include <complex>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <vector>
 #include <algorithm>
 #include <functional>
@@ -49,12 +50,19 @@ template <class T> tIrrepWF<T>::~tIrrepWF()
 // footnote 1), where every INPUT matrix is provably smooth in k while the SCF's spectrum jumps: the
 // question "is the H the SCF diagonalises the sum of the pieces I can check?" had no readout at all.
 // Deliberately a fingerprint and not the matrix: three numbers per call diff cleanly across two runs.
-template <class M> static void DumpH(const M& F)   // on the MATRIX type: hmat_t<T> is an alias template, so
-                                                   // T is not deducible through it
+static bool DumpHOn()
 {
+    // A cache of the environment (QCHEM_DIAGNOSTICS, a fixed input of the process): const after its thread-safe first-use init.
     static const bool on=qchem::Diagnostics::Enabled("dump_h");
-    if (!on) return;
-    static std::mutex lock; std::lock_guard<std::mutex> g(lock);   // a diagnostic with static state; the Fock blocks may be concurrent
+    return on;
+}
+//! \a Fprev: this BLOCK's previous F (its own itsF before the rebuild), null on the first build.
+template <class M> static void DumpH(const M& F, const M* Fprev)   // on the MATRIX type: hmat_t<T> is an alias template, so
+                                                                   // T is not deducible through it
+{
+    // The Fock blocks may be built concurrently: one block's three-number line must not interleave with another's.  A mutex is
+    // stateless serialisation, per process by nature (std::cout is).
+    static std::mutex lock; std::lock_guard<std::mutex> g(lock);
     double fro=0.0, maxIm=0.0; dcmplx tr(0.0);
     for (size_t i=0;i<F.rows();i++)
     {
@@ -62,26 +70,23 @@ template <class M> static void DumpH(const M& F)   // on the MATRIX type: hmat_t
         for (size_t j=0;j<F.columns();j++)
         { fro+=std::norm(dcmplx(F(i,j))); maxIm=std::max(maxIm,std::abs(std::imag(dcmplx(F(i,j))))); }
     }
-    // ALSO the DELTA against the previous call on a block of this size: F(iter n) - F(iter n-1) is the
+    // ALSO the DELTA against this block's previous F: F(iter n) - F(iter n-1) is the
     // density-dependent part (Hartree+XC), which is the piece the 1E gates cannot see.  Its imaginary part
     // is the quantity of interest at complex k: a potential matrix that comes out REAL there has dropped
     // every pair whose Bloch phase is purely imaginary.
-    static std::vector<dcmplx> prev; static size_t prevN=0;
-    double dFro=0.0, dMaxIm=0.0; const bool havePrev = (prevN==F.rows() && prev.size()==F.rows()*F.columns());
-    std::vector<dcmplx> cur; cur.reserve(F.rows()*F.columns());
-    for (size_t i=0;i<F.rows();i++)
-        for (size_t j=0;j<F.columns();j++)
-        {
-            const dcmplx z(F(i,j)); cur.push_back(z);
-            if (havePrev) { const dcmplx d=z-prev[i*F.columns()+j];
-                            dFro+=std::norm(d); dMaxIm=std::max(dMaxIm,std::abs(std::imag(d))); }
-        }
+    // (Until 2026-11-23 the previous F was a function-local static keyed by SIZE alone, so at several k it diffed one k-block
+    // against another; D-MUTABLE-STATICS.)
+    double dFro=0.0, dMaxIm=0.0; const bool havePrev = Fprev && Fprev->rows()==F.rows() && Fprev->columns()==F.columns();
+    if (havePrev)
+        for (size_t i=0;i<F.rows();i++)
+            for (size_t j=0;j<F.columns();j++)
+            { const dcmplx d=dcmplx(F(i,j))-dcmplx((*Fprev)(i,j));
+              dFro+=std::norm(d); dMaxIm=std::max(dMaxIm,std::abs(std::imag(d))); }
     report::FormatGuard keep(std::cout);
     std::cout << "[H dump] n=" << F.rows() << "  ||F||=" << std::setprecision(12) << std::sqrt(fro)
               << "  Tr=" << std::real(tr) << "  maxIm=" << maxIm;
     if (havePrev) std::cout << "   | dV=F-Fprev: ||dV||=" << std::sqrt(dFro) << "  maxIm(dV)=" << dMaxIm;
     std::cout << std::endl;
-    prev.swap(cur); prevN=F.rows();
 }
 
 template <class T> template <class TRun> void tIrrepWF<T>::CalculateH(const qchem::Hamiltonian::tHamiltonianAt<TRun>& H)
@@ -89,8 +94,10 @@ template <class T> template <class TRun> void tIrrepWF<T>::CalculateH(const qche
     assert(itsOrbitals);
     if constexpr (std::is_same_v<T,TRun>)
     {
+        const bool dump=DumpHOn();
+        const auto Fprev = dump && itsF.rows()>0 ? std::optional<std::remove_cvref_t<decltype(itsF)>>(itsF) : std::nullopt;   // a copy only under dump_h
         itsF=H.GetMatrix(itsBasisSet,itsIrrep.ms); //Hamiltonian or Fock matrix in the non-orthogonal basis.
-        DumpH(itsF);
+        if (dump) DumpH(itsF, Fprev ? &*Fprev : nullptr);
     }
     else
     {

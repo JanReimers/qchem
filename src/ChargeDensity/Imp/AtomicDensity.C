@@ -8,6 +8,7 @@ module;
 #include <vector>
 #include <memory>
 #include <map>
+#include <mutex>
 #include <utility>
 #include <nlohmann/json.hpp>
 
@@ -24,7 +25,11 @@ namespace qchem::ChargeDensity
 //! (one cache entry per file name; construct-on-first-use, no static-init-order issue).
 static const nlohmann::json& database(const std::string& dbfile)
 {
+    // A cache of a pure function of fixed inputs (a shipped data file): per process is right; the mutex makes the first parse
+    // thread-safe, and std::map nodes are stable, so the returned reference outlives the lock.
+    static std::mutex mu;
     static std::map<std::string, nlohmann::json> cache;
+    std::lock_guard<std::mutex> lk(mu);
     auto it = cache.find(dbfile);
     if (it!=cache.end()) return it->second;
     std::ifstream f(std::filesystem::path(CHARGEDENSITY_DATA_PATH) / dbfile);

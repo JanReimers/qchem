@@ -16,7 +16,7 @@ int Polarization::GetMaximumL() const
 
 std::ostream& operator<<(std::ostream& os, const Polarization& p)
 {
-    static char SPDF[]="SPDFGHIJ";
+    constexpr char SPDF[]="SPDFGHIJ";
     int n=1;
     os << SPDF[p.GetTotalL()];
     for (int i=0; i<p.n; i++,n++) os << "x";

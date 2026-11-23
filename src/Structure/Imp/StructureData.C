@@ -4,6 +4,7 @@ module;
 #include <fstream>
 #include <filesystem>
 #include <map>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -23,8 +24,12 @@ using json = nlohmann::ordered_json;   // ORDERED: file order is the pick-list o
 
 const json& Database(const char* file)
 {
-    // One parse per file per process; the files are small and read-only.
+    // One parse per file per process; the files are small and read-only.  A cache of a pure function of fixed inputs (the
+    // shipped data files): per process is right, and the mutex makes the first parse thread-safe (a GUI may ask from two
+    // threads).  std::map nodes are stable, so a returned reference stays valid after the lock is released.
+    static std::mutex mu;
     static std::map<std::string, json> dbs;
+    std::lock_guard<std::mutex> lk(mu);
     auto it=dbs.find(file);
     if (it!=dbs.end()) return it->second;
     std::ifstream f(std::filesystem::path(STRUCTURE_DATA_PATH) / file);
@@ -186,11 +191,16 @@ std::vector<std::string> CellNames() { return EntryNames(Database("materials.jso
 // ---------------------------------------------------------------------------------------------- THE LAYERS (OpenWork §2, 2026-11-09)
 namespace
 {
-//! A library file (materials.json schema), re-read when it changed on disk; a missing file is an empty layer.
-const json& Library(const std::string& path)
+//! A library file (materials.json schema), re-read when it changed on disk; a missing file is an empty layer.  Returned BY VALUE:
+//! the cache entry is replaced when the file changes and erased when it goes, which a reference handed out earlier would not survive.
+json Library(const std::string& path)
 {
+    // A cache keyed by (path, mtime), i.e. a pure function of the file's content, re-read when it changes: per process is right.
+    // The mutex serialises the read-modify of the map; the caller gets a copy, so a later re-read cannot change it under it.
+    static std::mutex mu;
     static std::map<std::string, std::pair<std::filesystem::file_time_type, json>> cache;
-    static const json none=json::object();
+    std::lock_guard<std::mutex> lk(mu);
+    const json none=json::object();
     std::error_code ec;
     const auto t=std::filesystem::last_write_time(path, ec);
     if (ec) { cache.erase(path); return none; }

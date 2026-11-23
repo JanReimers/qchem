@@ -26,6 +26,7 @@ const std::vector<Entry>& Registry()
         {"energy_taylor",    "",                      "per D-mixing iteration, the exact E_KS[D_out] beside the trace's first-order E_T, their gap and the Taylor step |D_out-D_in|_F (one extra density refresh per iteration)"},
         {"field_spectrum",   "GPW_FIELD_SPECTRUM",    "cumulative |c|^2 spectrum of a fitted field"},
         {"gdm_trace",        "GPW_GDMTRACE",          "GDM line-search energy trace"},
+        {"grid_charge",      "",                      "each density collocation: the raster charge vs Tr(DS) and the charge lost to the grid (CP2K's 'Electronic density on regular grids'), plus the pair route's negative-rho census (was the never-set ReportGridCharge toggle)"},
         {"frontier",         "",                      "the frontier level window e(occ/degen) on every SCF trace row; value = levels each side (default 4) (was test-only ReportBandGap)"},
         {"integrate_census", "GPW_INTEGRATE_CENSUS",  "NEW / REPEAT census of integrate-back calls"},
         {"kerker_spectrum",  "GPW_KERKER_SPECTRUM",   "Kerker residual power binned by G/G0"},
@@ -77,10 +78,12 @@ void Describe(std::ostream& os)
 
 namespace
 {
-std::mutex& Mu() { static std::mutex m; return m; }
+std::mutex& Mu() { static std::mutex m; return m; }   // guards the maps below: a mutex is stateless serialisation (CLAUDE.md, mutable statics)
 std::map<std::string,std::string>& Overrides() { static std::map<std::string,std::string> o; return o; }   // Scoped (tests)
 std::map<std::string,std::string>& FromEnv()
 {
+    // A cache of a pure function of a fixed input (QCHEM_DIAGNOSTICS, read once per process: the environment does not change under a
+    // run).  Built by a thread-safe static initialisation and only read after (CLAUDE.md, mutable statics).
     static std::map<std::string,std::string> m=[]
     {
         std::vector<std::string> unknown;

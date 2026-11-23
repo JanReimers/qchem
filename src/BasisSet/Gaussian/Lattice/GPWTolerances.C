@@ -36,6 +36,19 @@ inline constexpr double kRungGateC = 8.0;
 //! two agree by construction; moved off the basis to the ladder's tolerances by V-BS-RASTER step 2 (2026-11-07).
 inline constexpr double kRelCutoffSafety = 2.0;
 
+//! \brief WHICH collocation kernel the MnD evaluator runs: two exact routes to one sum, so this is NOT a run input (D-ENV 6c: an
+//! accuracy-of-route A/B is not in the deck).  The defaults are production; a unit test binds the reference route on its OWN basis
+//! (\c ToleranceBinding::BindRoute) to compare the two.  It was three process-wide static overrides on the evaluator until
+//! D-MUTABLE-STATICS (2026-11-23): a test that forgot to reset one changed every later test in the process.
+struct CollocationRoute
+{
+    //! The separable-contraction cube kernel (default, since 2026-08-27); false = the reference box walk \c ForShellPairBox.
+    bool contractCube  = true;
+    //! The exp recurrence in the cube's Mathieu tables (default); false = a direct exp per entry (ulp-level apart).
+    bool expRecurrence = true;
+    bool operator==(const CollocationRoute&) const = default;
+};
+
 //! \brief The GPW evaluator's tolerances.  Every default is today's behaviour; none of them is a convenience knob.
 struct GPWTolerances
 {

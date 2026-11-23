@@ -134,6 +134,9 @@ public:
     //! Drops every tolerance-dependent cache.  THROWS if the values change after collocation work was built (a basis computes
     //! at ONE setting).
     virtual void BindTolerances(const GPWTolerances& t) = 0;
+    //! The collocation kernel (\c CollocationRoute: production defaults; a unit test binds the reference route on its own basis).
+    //! Same contract as \c BindTolerances: idempotent for an equal route, THROWS if it changes after collocation work was built.
+    virtual void BindRoute(const CollocationRoute& r) = 0;
 };
 
 

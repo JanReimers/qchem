@@ -60,14 +60,6 @@ using ChargeDensity::cChargeDensity;
 using ChargeDensity::cDM_CD;
 using ChargeDensity::tChargeDensity;
 
-//! Process-wide diagnostic toggle (default OFF).  When true,
-//! \c PairDensitySampler::Refresh emits a one-line report each time it (re)collocates the density: the grid-integrated
-//! charge \f$\int\rho_{\text{grid}}\f$, the analytic charge \f$\mathrm{Tr}(DS)\f$, and their difference -- the
-//! CHARGE LOST TO GRID TRUNCATION (== CP2K's "Electronic density on regular grids: <int> <error>" readout).
-//! A cheap, controlled number for "is the density cutoff high enough" (see doc/GPWPlan.md \S0).  Flip in place:
-//! `qchem::ChargeDensity::ReportGridCharge() = true;`.
-bool& ReportGridCharge();
-
 //! \brief WHICH \f$\rho\f$ a sampled raster came from -- the pin-28 audit (doc/Pins.md pin 28: XC sees \f$\rho[D]\f$,
 //! never a fitted \f$\rho\f$).  One value per sampling; the XC term records the one its \f$V_{xc}\f$ build saw.
 enum class XCRhoSource

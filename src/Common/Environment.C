@@ -1,9 +1,8 @@
 //! \file Common/Environment.C
-//! \brief Environment reads with a deprecated alias (D-ENV step 4, 2026-10-03).
+//! \brief The RETIRED environment variables (D-ENV step 6): set in a shell, they are ignored and reported.
 //!
-//! A setting that is not about the Gaussian-plane-wave basis must not carry the GPW_ prefix (user ruling).  Renaming a
-//! knob that banked recipes and run scripts already set must not break them, so every renamed knob is read through
-//! \c Env(name, legacy): the new name wins; the old name still works and says ONCE, on stderr, what to use instead.
+//! (D-ENV step 4's \c Env(name, legacy) -- a renamed knob read with its old name as a deprecated alias, warning once -- had no caller
+//! left once step 6 moved every number into the deck; it was deleted with its warn-once static, D-MUTABLE-STATICS 2026-11-23.)
 module;
 #include <string>
 #include <vector>
@@ -11,10 +10,6 @@ export module qchem.Environment;
 
 export namespace qchem
 {
-//! \brief The value of environment variable \a name, else of its DEPRECATED alias \a legacy (with a one-time stderr notice naming
-//! the replacement); nullptr if neither is set.  \a legacy may be null (no alias).
-const char* Env(const char* name, const char* legacy=nullptr);
-
 //! \brief A RETIRED environment variable (D-ENV step 6): it once set a tier-1/2 value and is now IGNORED -- the deck is the only way to
 //! set one.  \c deckKey is the replacement (a dotted deck path, also the \c --set path); EMPTY = removed with no replacement (an A/B switch
 //! that is not a run input).

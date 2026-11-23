@@ -58,6 +58,11 @@ struct RunContext
     long long            t0ns = 0;               // steady_clock ns at Begin -- the run's own zero (RunElapsed)
 };
 
+// THE RUN REPORT IS A PROCESS GLOBAL BY DESIGN (CLAUDE.md "THE RUN REPORT"; user 2026-09-11: the current report is a global, so
+// the callee writes one level in with no report object threaded through).  Per process is right: Begin/End bracket one run and NEST,
+// so a geometry series or a test binary files one report per run into g_global instead of leaking state between runs.  Thread
+// safety: the cursor and the run stack are written by the run's own thread (setup is serial; OMP parallelises pair loops, which
+// do not write sections); the calls that outer-loop workers may make take their own mutex (Accumulate below, the timing ledger).
 std::vector<RunContext> g_stack;                 // the run-nesting stack (empty == no run)
 std::vector<PathSeg>    g_cursor;                // WHERE the next Set lands within the current run
 json                    g_global = json::object();

@@ -166,7 +166,6 @@ rvec3_t GaussianRF::KetGradient(TwoCentre K, rf_t& rb, const rvec3_t& B, const P
         table(*this, pa, na);
         table(rb, pb, nb);
         const Internal::Boys::AuxillaryFJ Fj(itsL+rb.itsL);   // throws past the Boys table, before the AD call
-        if (Ω::theNMLs.size()==0) Ω::MakeNMLs();
         const KetCoulombCtx c{ea.data(), itsCoeff.data(), ea.size(), itsL, A, eb.data(), rb.itsCoeff.data(), eb.size(), rb.itsL,
                               pa, na, pb, nb, W, &Ω::GetNMLs(itsL), &Fj, h.data(), hOff.data()};
         __enzyme_autodiff<void>(reinterpret_cast<void*>(KetCoulombAt), enzyme_dup, x, g, enzyme_const, &c);
@@ -241,7 +240,6 @@ void GaussianRF::NuclearGradient(rf_t& rb, const Polarization* pa, size_t na, co
     for (size_t i=0;i<ea.size();i++) ea[i]=itsPrims[i]->GetExponent();
     for (size_t j=0;j<eb.size();j++) eb[j]=rb.itsPrims[j]->GetExponent();
     const int Ltot=itsL+rb.itsL;
-    if (Ω::theNMLs.size()==0) Ω::MakeNMLs();
     const Internal::Boys::AuxillaryFJ Fj(Ltot);   // throws past the Boys table, before the AD call
     const NucPairCtx c{ea.data(), itsCoeff.data(), ea.size(), itsL, eb.data(), rb.itsCoeff.data(), eb.size(), rb.itsL,
                        pa, na, pb, nb, W, Z.data(), Z.size(), &Ω::GetNMLs(Ltot), &Fj};
@@ -357,9 +355,7 @@ void GaussianRF::ThreeCentreGradient(ThreeCentre K, rf_t& ra, rf_t& rb, const Po
             }
         }
         Fj=std::make_unique<Internal::Boys::AuxillaryFJ>(ra.itsL+rb.itsL+itsL);   // throws past the Boys table, before the AD call
-        if (Ω::theNMLs.size()==0) Ω::MakeNMLs();
     }
-    else if (Ω::theNMLs.size()==0) Ω::MakeNMLs();
     const ThreeCCtx c{K, ea.data(), ra.itsCoeff.data(), ea.size(), ra.itsL, eb.data(), rb.itsCoeff.data(), eb.size(), rb.itsL,
                       ec.data(), itsCoeff.data(), ec.size(), itsL, pa, na, pb, nb, pt, ct, nt, W,
                       &Ω::GetNMLs(ra.itsL+rb.itsL), Fj.get(), hc.data(), hcOff.data()};

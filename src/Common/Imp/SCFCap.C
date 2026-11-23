@@ -11,6 +11,10 @@ namespace qchem
 {
 
 namespace {
+// The process's cap reporter (CLAUDE.md, mutable statics): what an SCF that hit NMaxIter tells the PROCESS -- a gtest main installs
+// ADD_FAILURE once at startup, before any test runs, and nothing re-installs it, so it is a property of the executable, not of a run;
+// read-only after that, so concurrent SCFs only read it.  The three counters below are thread_local RAII scope depths: per thread by
+// construction, incremented and decremented by their scope objects.
 SCFCapHook& Hook() {static SCFCapHook h; return h;}
 thread_local int g_bounded=0;   //!< live BoundedSCF scopes on this thread (the SCF and its test share the thread)
 thread_local IterationBudget* g_budget=nullptr;   //!< the innermost live IterationBudget on this thread

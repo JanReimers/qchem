@@ -54,7 +54,7 @@ export namespace qchem::ChargeDensity
 // exists to break -- so it states for itself what it takes.  This list IS the engine's coupling to
 // qcChargeDensity, and it is what makes qcFitting an illegal home (see the header).
 
-// NB `ReportGridCharge()` and the `using ChargeDensity::...` pulls live in the PUBLIC module -- this unit
+// NB the `using ChargeDensity::...` pulls live in the PUBLIC module -- this unit
 // re-exports it, so they are in scope here without being declared twice.
 
 //! \brief THE XC QUADRATURE: ONE OBJECT WITH TWO ADJOINT-PAIRED FACES -- \f$\rho\f$ at the points from

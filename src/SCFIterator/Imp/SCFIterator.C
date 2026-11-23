@@ -55,9 +55,6 @@ using std::ios;
 namespace qchem::SCFIterator
 {
 
-// The band-gap instrument (doc/GPWPlan §0b″).  Default OFF; the NaF Γ test flips it around Iterate.
-bool& ReportBandGap() { static bool on = false; return on; }
-
 // Frontier spectrum of the current orbitals.  The energy levels are energy-ordered (multimap key), so
 // ε_HOMO is the highest-energy level still carrying occupation and ε_LUMO the LOWEST empty level -- over
 // ALL unoccupied levels, NOT just those above ε_HOMO (doc/GPWPlan 0h: the old above-the-HOMO-index scan
@@ -1139,7 +1136,7 @@ template <class T> std::optional<EnergyBreakdown> tSCFIterator<T>::TaylorEnergy(
 //  PER-SYSTEM ITERATION DISPLAY (doc/GPWPlan1.md item 2)
 //
 //  The base layout is MOLECULAR ({#, Etotal, [F,D], Δ[F,D], Δρ, 2+V/K, ρ_mix, accel, cfg} + the optional
-//  ReportBandGap() frontier block); SolidSCFIterator overrides both virtuals for the solid/PP layout.  The
+//  QCHEM_DIAGNOSTICS=frontier block); SolidSCFIterator overrides both virtuals for the solid/PP layout.  The
 //  shared column WRITERS below (WriteRowPrefix / WriteMixAccelCfg / WriteGapColumn) are reused by both, so
 //  the two layouts differ only in the physics columns they insert (virial vs ΔE+gap).
 //====================================================================================================
@@ -1474,7 +1471,7 @@ template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const 
     os.setf(ios::fixed,ios::floatfield);
     os << setw(W_ITER) << tr.iteration << " ";            // "#" -- the row's key, not a cell
     for (const auto& c : RowColumns(ipar, tr.idealVirial)) c.value(os,tr);   // the ONE list the observer's row is built from
-    // The frontier block is an OPTIONAL diagnostic behind ReportBandGap() -- for SOLIDS TOO.  It used to be
+    // The frontier block is an OPTIONAL diagnostic (QCHEM_DIAGNOSTICS=frontier) -- for SOLIDS TOO.  It used to be
     // molecular-only (the condition was !GapIsPermanent() && ReportBandGap()), which left a solid printing a
     // gap NUMBER with no way to see the levels behind it: when that number is wrong -- the k=1/4 defect,
     // where the frontier reads 'm' with a gap of 0.06 against a static spectrum whose gap is a smooth 0.13
@@ -1485,7 +1482,7 @@ template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const 
     // each spatial level once per spin, so 4 is only two distinct levels; 16 reaches ~8 bands either side).
     static const int frontierN=[]{ auto v=qchem::Diagnostics::Value("frontier");
                                    if (!v) return 0; const int n=std::atoi(v->c_str()); return n>1 ? n : 4; }();
-    if (ReportBandGap() || frontierN>0)
+    if (frontierN>0)
     {
         if (!GapIsPermanent()) WriteGapColumn(os, tr);
         const int nw = frontierN>0 ? frontierN : 4;

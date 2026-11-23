@@ -15,7 +15,6 @@
 module;
 #include <mutex>
 #include <cassert>
-#include <optional>   // ContractCubeOverride (the unit-test route switch)
 #include <stdexcept> // the transition collocation's refusals
 #include <complex>   // std::real (Hermitian-diagonal projection of the Bloch lattice sum)
 #include <string>
@@ -136,6 +135,17 @@ public:
                                      "(old: "+itsPGTol.Describe()+" ; new: "+t.Describe()+") -- one molecular basis cannot serve two tolerance settings");
         itsPGTol=t;
         itsBoxTasks.clear(); itsBoxTaskOrder.clear(); itsIntegrateMemos.clear(); itsFieldHistory.clear(); itsSeries.clear(); itsReach.clear();
+    }
+    //! \brief The collocation kernel (\c CollocationRoute), per basis.  Same contract as \c BindTolerances: a no-op for an equal route,
+    //! THROWS once collocation work was built (the integrate-back memo would mix the two kernels), and drops the collocation caches.
+    void BindRoute(const CollocationRoute& r)
+    {
+        if (r==itsRoute) return;
+        if (!itsBoxTasks.empty() || !itsIntegrateMemos.empty())
+            throw std::runtime_error("NR_Evaluator::BindRoute: the collocation route changed after this basis computed collocation work "
+                                     "-- bind it on a fresh basis, before any integral");
+        itsRoute=r;
+        itsBoxTasks.clear(); itsBoxTaskOrder.clear(); itsIntegrateMemos.clear(); itsFieldHistory.clear();
     }
     //! \brief ⛔ THE TOLERANCE POLICY IS NOT DECIDED HERE ANY MORE (doc/OldPlans/ScreeningPlan.md, 2026-09-04).
     //!
@@ -1409,8 +1419,7 @@ public:
         g.hw[2]=int(std::ceil(g.reach*rbz*N.z))+1;
         g.c0[0]=std::lround(fP.x*N.x); g.c0[1]=std::lround(fP.y*N.y); g.c0[2]=std::lround(fP.z*N.z);
         g.fc[0]=fP.x*N.x;              g.fc[1]=fP.y*N.y;              g.fc[2]=fP.z*N.z;
-        const bool kSphere=SphereScreenOverride().value_or(true);   // spherical vs rectangular-hull log-cut; the override is a unit-test A/B hook
-        g.lnCut = kSphere ? std::min(lnE+12.0, g.pMin*g.reach*g.reach+g.pfExp) : lnE+12.0;
+        g.lnCut = std::min(lnE+12.0, g.pMin*g.reach*g.reach+g.pfExp);   // the spherical log-cut (its rectangular-hull A/B, never set, went 2026-11-23)
         g.sx=A.ToCartesian(rvec3_t(1.0/N.x,0,0));
         g.sy=A.ToCartesian(rvec3_t(0,1.0/N.y,0));
         g.sz=A.ToCartesian(rvec3_t(0,0,1.0/N.z));
@@ -1616,7 +1625,7 @@ public:
         }
     }
     //! Build the Mathieu tables by \c ExpRow instead of \f$3n^2\f$ \c std::exp calls.  **DEFAULT ON**
-    //! (\c ExpRecurrenceOverride() opts out, tests only -- the env var is retired, D-ENV 6c); NOT a CP2K deviation — it is what CP2K does.
+    //! (\c CollocationRoute::expRecurrence false opts out, a unit test's route -- the env var is retired, D-ENV 6c); NOT a CP2K deviation — it is what CP2K does.
     //!
     //! ⚠ IT IS NOT BIT-IDENTICAL — a product of \f$n\f$ rounded factors is not the rounded product — so it
     //! was built default-OFF and defaulted ON only on measurement.  What the measurement said:
@@ -1626,13 +1635,9 @@ public:
     //!   - `ctest -j8` is **793/793 on BOTH settings**;
     //!   - and all three benchmark anchors are unchanged **to all 10 printed s.f.** — Si Γ −7.115067844,
     //!     NaF SR2 Γ −24.4303364755, MnO AFM-II −61.40297551.
-    //! ⇒ It is anchor-moving in principle and moved nothing anybody pins.  Keep the A/B (a unit-test hook): it is the first
-    //! thing to try if a system ever disagrees.
-    static bool UseExpRecurrence() { return ExpRecurrenceOverride().value_or(true); }
-    //! UNIT-TEST HOOKS (D-ENV 6c; the GPW_EXP_RECURRENCE / GPW_SPHERE_SCREEN variables are retired -- an accuracy-of-route A/B is not a
-    //! run input, so it is not in the deck).  Same contract as \c ContractCubeOverride: set from one thread before the work, reset after.
-    static std::optional<bool>& ExpRecurrenceOverride() { static std::optional<bool> o; return o; }
-    static std::optional<bool>& SphereScreenOverride()  { static std::optional<bool> o; return o; }
+    //! ⇒ It is anchor-moving in principle and moved nothing anybody pins.  Keep the A/B (a unit test's route, bound per basis): it is
+    //! the first thing to try if a system ever disagrees.
+    bool UseExpRecurrence() const { return itsRoute.expRecurrence; }
 
     //! \brief Build the three 2-D Mathieu tables and the \f$e_1\f$ power table for one cube.
     //! ONE definition, shared by \c ContractCubeN and \c GatherCubeN — they held two verbatim copies, and a
@@ -1688,7 +1693,7 @@ public:
         for (int a=0;a<3;a++)
             for (int b=0;b<3;b++) h[a][b]=sv[a].x*sv[b].x+sv[a].y*sv[b].y+sv[a].z*sv[b].z;
         auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
-        static thread_local rvec_t T12,T23,T31,E1;
+        static thread_local rvec_t T12,T23,T31,E1;              // per-thread scratch, resized and fully rewritten per cube (CLAUDE.md, mutable statics)
         BuildCubeTables(g,q.p,LP,n,h,T12,T23,T31,E1);            // ONE definition -- see BuildCubeTables
         // ⚠ THE O(n^2) COST IS THE PER-LINE WORK, NOT THE TABLES -- measured, and it refuted a fit
         // (M_PG_BoxWalk.WhereTheContractionSpendsItsTime, 2026-08-28).  A raster-scaling fit attributed 56%
@@ -1703,7 +1708,7 @@ public:
         //   (2) CHORD BEFORE FOLD.  ~21% of (j,k) lines miss the sphere entirely (pi/4 of a square), and
         //       the e2 fold used to run BEFORE the test that discovers it.  Test first, fold only if the
         //       line has points.
-        static thread_local std::vector<size_t> wrapX, wrapY, wrapZ;
+        static thread_local std::vector<size_t> wrapX, wrapY, wrapZ;   // per-thread scratch, rewritten per box
         auto wrapAxis=[&](int a, long N_a, std::vector<size_t>& w)
         {
             w.resize(size_t(n[a]));
@@ -1791,13 +1796,13 @@ public:
         for (int a=0;a<3;a++)
             for (int b=0;b<3;b++) h[a][b]=sv[a].x*sv[b].x+sv[a].y*sv[b].y+sv[a].z*sv[b].z;
         auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
-        static thread_local rvec_t T12,T23,T31,E1;
+        static thread_local rvec_t T12,T23,T31,E1;              // per-thread scratch, resized and fully rewritten per cube (CLAUDE.md, mutable statics)
         BuildCubeTables(g,q.p,LP,n,h,T12,T23,T31,E1);            // ONE definition -- see BuildCubeTables
         W.Zero(LP);
         const double inv=0.5/h[0][0];                      // hoisted -- see ContractCubeN
         // Wrap tables, exactly as in ContractCubeN (see the note there): the per-line integer modulos are
         // O(n^2) hardware divides for an O(n) fact.  The gather already tests the chord before its fold.
-        static thread_local std::vector<size_t> wrapX, wrapY, wrapZ;
+        static thread_local std::vector<size_t> wrapX, wrapY, wrapZ;   // per-thread scratch, rewritten per box
         auto wrapAxis=[&](int a, long N_a, std::vector<size_t>& w)
         {
             w.resize(size_t(n[a]));
@@ -1939,7 +1944,7 @@ public:
     void MomentsToPairs(const BoxGeom& g, const PairPoly& q, const GridPoly& W,
                         size_t i0, size_t nI, size_t j0, size_t nJ, double* bOut) const
     {
-        static thread_local MomentCube M;
+        static thread_local MomentCube M;   // per-thread scratch, rebuilt per cube (CLAUDE.md, mutable statics)
         MomentTable(g,q,W,q.lp,M);
         const rvec3_t PA=q.PA, PB=q.PB;                       // carried on the PairPoly, image offset included
         double ax[kMaxPoly], ay[kMaxPoly], az[kMaxPoly];
@@ -2050,7 +2055,7 @@ public:
         const rvec3_t Ri=radials[i0]->GetCenter(), Rj=radials[j0]->GetCenter()+Roff;
         const bool contracted=IsContracted(i0,j0);
         const size_t stride = virial ? 10 : 6;
-        static thread_local MomentCube M;
+        static thread_local MomentCube M;   // per-thread scratch, rebuilt per cube (CLAUDE.md, mutable statics)
         for (size_t ip=0;ip<ei.size();ip++)
             for (size_t jp=0;jp<ej.size();jp++)
             {
@@ -2101,17 +2106,9 @@ public:
     //! since 2026-08-27: the separable contraction is 3.6-5.0x faster than the walk AND measurably more
     //! accurate (it carries no per-component screen -- doc/CollocationRewritePlan.md steps 5+6), and step 7
     //! deleted the value cache that used to hide the walk's cost, so the walk is no longer an affordable
-    //! default.  \c ContractCubeOverride()=false (a unit-test hook; the env var is retired, D-ENV 6c) is the opt-OUT, back onto \c ForShellPairBox -- kept because that
+    //! default.  \c CollocationRoute::contractCube false (a unit test's route, bound per basis; the env var is retired, D-ENV 6c) is the opt-OUT, back onto \c ForShellPairBox -- kept because that
     //! walk is the REFERENCE implementation the unit oracle in \c M_PG_BoxWalk.C checks the kernel against.
-    static bool UseContractCube()
-    {
-        if (const auto& o=ContractCubeOverride()) return *o;
-        return true;
-    }
-    //! UNIT-TEST HOOK (D-CUBE0): force the route without the environment, so one test process can run BOTH and
-    //! compare the numbers (M_TransitionCollocation.WalkAndContractionRoutesAgree).  Production never sets it;
-    //! set it only from a single thread BEFORE the collocation runs, and reset it (nullopt) afterwards.
-    static std::optional<bool>& ContractCubeOverride() { static std::optional<bool> o; return o; }
+    bool UseContractCube() const { return itsRoute.contractCube; }
 
     //! \param f called \c f(rasterIndex, fI, fJ) at each point surviving the ellipsoid pre-screen.
     template <class F>
@@ -2386,7 +2383,7 @@ public:
         // than from the run banner, so there is no second copy of the default rule to drift (it is NOT a
         // CP2K deviation -- CP2K collocates exactly this way -- so it does not belong on that table).
         std::cout<<"[collocation] kernel="<<(UseContractCube() ? "separable contraction"
-                                                              : "reference box walk (ContractCubeOverride)")
+                                                              : "reference box walk (CollocationRoute::contractCube false)")
                  <<";  task list: "<<itsBoxTasks.size()<<" shell pairs, "<<nTasks<<" (pair, offset) tasks, "
                  <<(double(nTasks*sizeof(BoxTask))/1048576.0)<<" MB"<<std::endl;
         if (qchem::report::Depth() > 0)
@@ -3743,9 +3740,9 @@ public:
         double h[3][3];
         for (int a=0;a<3;a++) for (int b=0;b<3;b++) h[a][b]=sv[a].x*sv[b].x+sv[a].y*sv[b].y+sv[a].z*sv[b].z;
         auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
-        static thread_local rvec_t T12,T23,T31,E1;
+        static thread_local rvec_t T12,T23,T31,E1;              // per-thread scratch, resized and fully rewritten per cube (CLAUDE.md, mutable statics)
         BuildCubeTables(g,qr.p,LP,n,h,T12,T23,T31,E1);
-        static thread_local std::vector<size_t> wrapX, wrapY, wrapZ;
+        static thread_local std::vector<size_t> wrapX, wrapY, wrapZ;   // per-thread scratch, rewritten per box
         auto wrapAxis=[&](int a, long N_a, std::vector<size_t>& w)
         { w.resize(size_t(n[a])); for (int t=0;t<n[a];t++) w[size_t(t)]=size_t((((g.c0[a]-g.hw[a]+t)%N_a)+N_a)%N_a); };
         wrapAxis(0,N.x,wrapX); wrapAxis(1,N.y,wrapY); wrapAxis(2,N.z,wrapZ);
@@ -3807,11 +3804,11 @@ public:
         double h[3][3];
         for (int a=0;a<3;a++) for (int b=0;b<3;b++) h[a][b]=sv[a].x*sv[b].x+sv[a].y*sv[b].y+sv[a].z*sv[b].z;
         auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
-        static thread_local rvec_t T12,T23,T31,E1;
+        static thread_local rvec_t T12,T23,T31,E1;              // per-thread scratch, resized and fully rewritten per cube (CLAUDE.md, mutable statics)
         BuildCubeTables(g,q.p,LP,n,h,T12,T23,T31,E1);
         Wr.Zero(LP); Wi.Zero(LP);
         const double inv=0.5/h[0][0];
-        static thread_local std::vector<size_t> wrapX, wrapY, wrapZ;
+        static thread_local std::vector<size_t> wrapX, wrapY, wrapZ;   // per-thread scratch, rewritten per box
         auto wrapAxis=[&](int a, long N_a, std::vector<size_t>& w)
         { w.resize(size_t(n[a])); for (int t=0;t<n[a];t++) w[size_t(t)]=size_t((((g.c0[a]-g.hw[a]+t)%N_a)+N_a)%N_a); };
         wrapAxis(0,N.x,wrapX); wrapAxis(1,N.y,wrapY); wrapAxis(2,N.z,wrapZ);
@@ -4321,6 +4318,7 @@ private:
     }
 
     GPWTolerances                      itsPGTol;           //!< the pair-loop tolerances (BindTolerances, by the builder); defaults = historical
+    CollocationRoute                   itsRoute;           //!< the collocation kernel (BindRoute: a unit test's reference route); defaults = production
     mutable std::vector<Shell>         itsShells;          //!< the shell partition (lazy; geometry-fixed)
     mutable std::vector<std::pair<size_t,size_t>> itsGroups;   //!< the general-contraction groups (lazy; geometry-fixed)
     qchem::LazyLock                    itsGroupsLock;
