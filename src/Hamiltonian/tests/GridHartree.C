@@ -343,7 +343,7 @@ TEST(RadialPoissonCoulomb, TheSelfRepulsionPullbackIsTheFiniteDifferenceOfTheReb
     {
         Molecule m;
         for (size_t a=0;a<R.size();a++) m.Insert(Site{Z[a], Vector3D<double>(R[a].x,R[a].y,R[a].z)});
-        return m.CreateIntegrationMesh(theMesh);
+        return MakeMesh(m, theMesh);
     };
     const qcMesh::Mesh m0=build(R0);
     rvec3vec_t c0(R0.size()); for (size_t a=0;a<R0.size();a++) c0[a]=R0[a];
