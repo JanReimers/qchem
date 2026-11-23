@@ -302,6 +302,16 @@ public:
     virtual PointPullback BlochPointPullback(const rvec3vec_t& pts, const rvec_t& c, const chmat_t& D, const cellphase_t& phase,
                                              const UnitCell& A, const Structure* st) const override
     { return itsLat->BlochPointPullback(pts,c,Expand(D),phase,A,st); }
+    virtual PointPullback BlochPointPullbackFolded(const rvec3vec_t& pts, const rvec_t& c,
+                                                   const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                                   const UnitCell& A, const Structure* st) const override
+    {
+        std::vector<chmat_t> expanded; expanded.reserve(terms.size());   // reserved: the pointers below stay valid
+        for (const auto& t : terms) expanded.push_back(Expand(*t.first));
+        std::vector<std::pair<const chmat_t*, const cellphase_t*>> cart;
+        for (size_t b=0;b<terms.size();b++) cart.push_back({&expanded[b], terms[b].second});
+        return itsLat->BlochPointPullbackFolded(pts,c,cart,A,st);
+    }
     //! Through T, as IntegratePotentialPullback: Re Tr(Ā_sph† TᵀMT) = Re Tr((TĀTᵀ)† M), and T is geometry-free.
     virtual GeometryPullback MakeLatticeOverlapPullback(const chmat_t& Abar, const cellphase_t& phase, const UnitCell& A, const Structure* st) const override
     { return itsLat->MakeLatticeOverlapPullback(Expand(Abar),phase,A,st); }
@@ -332,6 +342,18 @@ public:
                                                  const LatticeScreener& screener,
                                                  double relFieldSharp=-1.0) const override
     { return itsLat->CollocateDensity(Expand(D),phase,A,N_L,ecut_L,screener,relFieldSharp); }
+    virtual std::vector<rvec_t> CollocateDensityFolded(const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms, const UnitCell& A,
+                                                       const std::vector<ivec3_t>& N_L,
+                                                       const std::vector<double>& ecut_L,
+                                                       const LatticeScreener& screener,
+                                                       double relFieldSharp=-1.0) const override
+    {
+        std::vector<chmat_t> expanded; expanded.reserve(terms.size());   // reserved: the pointers below stay valid
+        for (const auto& t : terms) expanded.push_back(Expand(*t.first));
+        std::vector<std::pair<const chmat_t*, const cellphase_t*>> cart;
+        for (size_t b=0;b<terms.size();b++) cart.push_back({&expanded[b], terms[b].second});
+        return itsLat->CollocateDensityFolded(cart,A,N_L,ecut_L,screener,relFieldSharp);
+    }
     virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                        const std::vector<ivec3_t>& N_L,
                                        const std::vector<double>& ecut_L,
@@ -362,6 +384,30 @@ public:
                                               const std::vector<double>& ecut_L, const LatticeScreener& screener,
                                               double relFieldSharp, const std::vector<size_t>* pairLevels=nullptr) const override
     { return itsLat->IntegratePotentialVirial(V_L,Expand(D),phase,A,N_L,ecut_L,screener,relFieldSharp,pairLevels); }
+    //! The k-folds through T: each term's D expanded, the phases passed through.
+    virtual rvec3vec_t IntegratePotentialPullbackFolded(const std::vector<rvec_t>& V_L, const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                                        const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                        const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                                        double relFieldSharp, const Structure* st,
+                                                        const std::vector<size_t>* pairLevels=nullptr) const override
+    {
+        std::vector<chmat_t> expanded; expanded.reserve(terms.size());   // reserved: the pointers below stay valid
+        for (const auto& t : terms) expanded.push_back(Expand(*t.first));
+        std::vector<std::pair<const chmat_t*, const cellphase_t*>> cart;
+        for (size_t b=0;b<terms.size();b++) cart.push_back({&expanded[b], terms[b].second});
+        return itsLat->IntegratePotentialPullbackFolded(V_L,cart,A,N_L,ecut_L,screener,relFieldSharp,st,pairLevels);
+    }
+    virtual rmat3d_t IntegratePotentialVirialFolded(const std::vector<rvec_t>& V_L, const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                                    const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                    const std::vector<double>& ecut_L, const LatticeScreener& screener,
+                                                    double relFieldSharp, const std::vector<size_t>* pairLevels=nullptr) const override
+    {
+        std::vector<chmat_t> expanded; expanded.reserve(terms.size());
+        for (const auto& t : terms) expanded.push_back(Expand(*t.first));
+        std::vector<std::pair<const chmat_t*, const cellphase_t*>> cart;
+        for (size_t b=0;b<terms.size();b++) cart.push_back({&expanded[b], terms[b].second});
+        return itsLat->IntegratePotentialVirialFolded(V_L,cart,A,N_L,ecut_L,screener,relFieldSharp,pairLevels);
+    }
     virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                       double beta, double lnEps) const override
     { return itsLat->StaticFieldPairLevels(ecut_L,beta,lnEps); }

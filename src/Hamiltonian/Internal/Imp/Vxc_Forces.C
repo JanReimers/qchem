@@ -67,6 +67,26 @@ template <class T> template <class U> rvec3vec_t tVxc_DFT<T>::PullbackBlock(cons
     return *r;
 }
 
+template <class T> const rvec_t& tVxc_DFT<T>::FieldFor(const Spin& s, const char* who) const
+{
+    const rvec_t& v=itsRefreshed.v[s==Spin::Down ? 1 : 0];   // a folded doublet (Spin::None) is the field either channel sees: Up (as MakeMatrix)
+    if (v.size()==0) throw std::logic_error(std::string("tVxc_DFT::")+who+": the refresh built no v_xc for spin "+std::to_string(int(s)));
+    return v;
+}
+template <class T> ChargeDensity::SampledBlocks<T> tVxc_DFT<T>::Sampled(const ChargeDensity::DensityBlocks<T>& b, const char* who) const
+{
+    ChargeDensity::SampledBlocks<T> s;
+    for (const auto& x : b.blocks) s.blocks.push_back({x.bs, &FieldFor(x.s, who), x.D});
+    for (const auto& x : b.real)   s.real  .push_back({x.bs, &FieldFor(x.s, who), x.D});
+    return s;
+}
+template <class T> rvec3vec_t tVxc_DFT<T>::PullbackBlocks(const ChargeDensity::DensityBlocks<T>& b, const Structure* st) const
+{
+    const auto r=itsSampler->MakeMatrixPullbackBlocks(Sampled(b, "PullbackBlocks"), st);
+    if (!r) throw std::logic_error("tVxc_DFT::PullbackBlocks: "+r.Error().why+" (MissingGradients() names it before a force is asked)");
+    return *r;
+}
+
 template <class T> void tVxc_DFT<T>::AddForces(rvec3vec_t& F, const tDM_CD<T>* D, const Structure* st) const
 {
     // A READ of what the refresh built: v^σ at THIS density (RefreshForDensity(bs, D) ran BuildBlocks), so the field is the derivative
@@ -92,6 +112,12 @@ template std::string tVxc_DFT<double>::MissingGradient(const tbs_t<double>*, con
 template std::string tVxc_DFT<dcmplx>::MissingGradient(const tbs_t<dcmplx>*, const Structure*) const;
 template void tVxc_DFT<double>::AddForces(rvec3vec_t&, const tDM_CD<double>*, const Structure*) const;
 template void tVxc_DFT<dcmplx>::AddForces(rvec3vec_t&, const tDM_CD<dcmplx>*, const Structure*) const;
+template const rvec_t& tVxc_DFT<double>::FieldFor(const Spin&, const char*) const;
+template const rvec_t& tVxc_DFT<dcmplx>::FieldFor(const Spin&, const char*) const;
+template ChargeDensity::SampledBlocks<double> tVxc_DFT<double>::Sampled(const ChargeDensity::DensityBlocks<double>&, const char*) const;
+template ChargeDensity::SampledBlocks<dcmplx> tVxc_DFT<dcmplx>::Sampled(const ChargeDensity::DensityBlocks<dcmplx>&, const char*) const;
+template rvec3vec_t tVxc_DFT<double>::PullbackBlocks(const ChargeDensity::DensityBlocks<double>&, const Structure*) const;
+template rvec3vec_t tVxc_DFT<dcmplx>::PullbackBlocks(const ChargeDensity::DensityBlocks<dcmplx>&, const Structure*) const;
 template rvec3vec_t tVxc_DFT<double>::PullbackBlock<double>(const tobs_t<double>*, const Spin&, const hmat_t<double>&, const Structure*) const;
 template rvec3vec_t tVxc_DFT<dcmplx>::PullbackBlock<dcmplx>(const tobs_t<dcmplx>*, const Spin&, const hmat_t<dcmplx>&, const Structure*) const;
 template rvec3vec_t tVxc_DFT<dcmplx>::PullbackBlock<double>(const tobs_t<double>*, const Spin&, const hmat_t<double>&, const Structure*) const;

@@ -2768,6 +2768,21 @@ public:
                                          const LatticeScreener& screener,
                                          double relFieldSharp=-1.0) const
     {
+        return CollocateDensityFolded({{&D,&phase}}, A, N_L, ecut_L, screener, relFieldSharp);
+    }
+    //! \brief THE k-FOLDED COLLOCATION (lane A 2026-11-22; user ruling "I agree A"): the SUM of several Bloch blocks' densities of
+    //! THIS lattice basis, \f$\rho=\sum_b\sum_{ij}\sum_R\mathrm{Re}[D^b_{ij}e^{-ik_b\cdot R}]\chi_i\chi_j(\cdot-R)\f$, in ONE box walk.
+    //! The product \f$\chi_i\chi_j(\cdot-R)\f$ on a box is k-independent; only its coefficient depends on the block, so the blocks are
+    //! summed into the real-space density matrix \f$P_{ij}(R)=\sum_b\mathrm{Re}[D^b_{ij}e^{-ik_b\cdot R}]\f$ PER TASK and scattered once
+    //! (CP2K's route: one collocation per SCF step whatever the k mesh).  The screener rules on \f$|P_{ij}(R)|\f$, so the terms it drops
+    //! differ from the per-block route's at the screening tolerance.  ONE term is the single-block collocation, bit for bit.
+    //! \a terms: each block's D (its BZ weight already in it) and its offset phase; every D on this basis's functions.
+    std::vector<rvec_t> CollocateDensityFolded(const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms, const UnitCell& A,
+                                               const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
+                                               const LatticeScreener& screener,
+                                               double relFieldSharp=-1.0) const
+    {
+        if (terms.empty()) throw std::logic_error("CollocateDensityFolded: no density to collocate");
         const size_t K=N_L.size();
         assert(K>0 && ecut_L.size()==K);
         // THE SUPERSET INVARIANT (see BoxTasks): the task list is screened once at kDensityEps, and a
@@ -2790,8 +2805,15 @@ public:
         // T3.5: the reduced scatter reads the ORBIT-PROJECTED D at each representative, never the
         // representative's own element -- see FoldProjectedD.  O(n^2) per call beside an O(pairs x points)
         // scatter, and it is what makes the folded density equal the unfolded imposed one for ANY iterate.
-        const std::vector<dcmplx> Dsym=FoldProjectedD(D);
+        std::vector<std::vector<dcmplx>> Dsym;                  // per term
+        for (const auto& t : terms) Dsym.push_back(FoldProjectedD(*t.first));
+        const size_t nT=terms.size();
         const std::vector<ShellPairTasks>& tl=BoxTasks(A);
+        // Each term's conjugated phase, tabulated once on the task list's offset box (PhaseTable): the walk below asks it per task.
+        ivec3_t nLo{0,0,0}, nHi{-1,-1,-1}; bool anyTask=false;
+        for (const ShellPairTasks& spt : tl) for (const BoxTask& task : spt.tasks) Cover(nLo, nHi, task.n, anyTask);
+        std::vector<PhaseTable> phT; phT.reserve(nT);
+        for (const auto& t : terms) phT.emplace_back(*t.second, nLo, nHi, true);
         // THE SHELL-BLOCKED SCATTER -- now the ONLY route.  Every component pair of ONE shell pair shares
         // its box walk: offsets, level, geometry, ellipsoid pre-screen and wrap are all shell properties.
         //
@@ -2816,7 +2838,9 @@ public:
                 {
                     if (sf) { const PairEdge& pe=sf->pairs[i*nn+j];
                               if (pe.dead || pe.rep!=int(i*nn+j)) continue; }
-                    if ((sf ? Dsym[i*nn+j] : dcmplx(D(i,j)))==dcmplx(0.0)) continue;
+                    bool live=false;                                    // a pair any term carries
+                    for (size_t t=0;t<nT && !live;t++) live=(sf ? Dsym[t][i*nn+j] : dcmplx((*terms[t].first)(i,j)))!=dcmplx(0.0);
+                    if (!live) continue;
                     want.push_back(i*nn+j);
                 }
             if (want.empty()) return;
@@ -2841,6 +2865,7 @@ public:
             // accumulates \c cw = c*wm.  Allocated ONCE per shell pair and reset per offset, so a task costs
             // no allocation; the ScreenPlan's mask likewise reuses its buffer (see ScreenPlan).
             rmat_t cij(nIs,nJs,0.0), cw(nIs,nJs,0.0);
+            std::vector<dcmplx> phs(nT);                                // each term's offset phase at the task, filled per task
             ScreenPlan plan;
             for (const BoxTask& task : tl[sp].tasks)                     // the hoisted geometry (see BoxTasks)
             {
@@ -2850,7 +2875,7 @@ public:
                 // ONE phase query per TASK, not per component pair: the offset phase is a property of n and
                 // every component of this shell pair asked for the same one.  Bit-identical (same value, same
                 // multiplication order), and it pays for the block fill below.
-                const dcmplx ph=std::conj(phase(n));
+                for (size_t t=0;t<nT;t++) phs[t]=phT[t](n);
                 for (size_t key : want)
                 {
                     const size_t i=key/nn, j=key%nn;
@@ -2863,8 +2888,12 @@ public:
                         if (it==mm.end() || it->second==0) continue;    // member offset: its rep carries it
                         wm=double(sf->pairs[key].pairMult)*double(it->second);
                     }
-                    const dcmplx Dij = sf ? Dsym[key] : dcmplx(D(i,j));        // T3.5: the orbit-projected D
-                    const double c=((i==j)?1.0:2.0)*std::real(Dij*ph);
+                    double c=0.0;                                       // P_ij(R): the blocks' coefficients summed
+                    for (size_t t=0;t<nT;t++)
+                    {
+                        const dcmplx Dij = sf ? Dsym[t][key] : dcmplx((*terms[t].first)(i,j));   // T3.5: the orbit-projected D
+                        c+=((i==j)?1.0:2.0)*std::real(Dij*phs[t]);
+                    }
                     // MEMBER rule: the SCREEN sees |c|, never |c*wm|, so the reduced box matches every orbit
                     // member's.  The scatter still gets c*wm.  (c==0 leaves the slot at 0 = "absent", which
                     // is what every screener reads it as.)
@@ -2981,6 +3010,43 @@ public:
         for (size_t sp=0;sp<sprs.size();sp++) scatterShell(sp,rho);       // serial (byte-identical default)
         return rho;
     }
+    //! \brief A k-phase TABULATED on a bounding box of lattice offsets (lane A 2026-11-22).  The phase is a std::function (an exp per call), and a
+    //! sweep asks it for the same few thousand offsets over and over (every task of every shell pair; every pair of a memo replay), and under
+    //! the k-fold once per block.  Same values, same order of use: a sweep through the table is bit-identical to calling the phase.
+    struct PhaseTable
+    {
+        ivec3_t lo{0,0,0}; int ny=0, nz=0;
+        std::vector<dcmplx> v;
+        PhaseTable(const cellphase_t& phase, const ivec3_t& nLo, const ivec3_t& nHi, bool conjugate) : lo(nLo)
+        {
+            const int nx=nHi.x-nLo.x+1; ny=nHi.y-nLo.y+1; nz=nHi.z-nLo.z+1;
+            if (nx<=0 || ny<=0 || nz<=0) { ny=nz=0; return; }
+            v.resize(size_t(nx)*ny*nz);
+            for (int a=0;a<nx;a++) for (int b=0;b<ny;b++) for (int c=0;c<nz;c++)
+            {
+                const dcmplx p=phase(ivec3_t(nLo.x+a, nLo.y+b, nLo.z+c));
+                v[(size_t(a)*ny+b)*nz+c]= conjugate ? std::conj(p) : p;
+            }
+        }
+        dcmplx operator()(const ivec3_t& n) const {return v[(size_t(n.x-lo.x)*ny+(n.y-lo.y))*nz+(n.z-lo.z)];}
+    };
+    //! Widen [\a lo, \a hi] to cover \a n (\a any false: start the box at \a n).
+    static void Cover(ivec3_t& lo, ivec3_t& hi, const ivec3_t& n, bool& any)
+    {
+        if (!any) { lo=n; hi=n; any=true; return; }
+        lo=ivec3_t(std::min(lo.x,n.x), std::min(lo.y,n.y), std::min(lo.z,n.z));
+        hi=ivec3_t(std::max(hi.x,n.x), std::max(hi.y,n.y), std::max(hi.z,n.z));
+    }
+    //! Each term's phase tabulated on the task list's offset box (\c PhaseTable): what a folded walk asks per task.
+    std::vector<PhaseTable> TermPhases(const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                       const std::vector<ShellPairTasks>& tl) const
+    {
+        ivec3_t lo{0,0,0}, hi{-1,-1,-1}; bool any=false;
+        for (const ShellPairTasks& spt : tl) for (const BoxTask& task : spt.tasks) Cover(lo, hi, task.n, any);
+        std::vector<PhaseTable> out; out.reserve(terms.size());
+        for (const auto& t : terms) out.emplace_back(*t.second, lo, hi, false);
+        return out;
+    }
     // --- Phase-independent integrate-back memo ---------------------------------------------------------------
     // h_ij(k) = w_l Sum_n e^{+ik.R_n} B_ij(n), with B_ij(n) = Sum_box chi_i chi_j^n V.  The expensive per-offset
     // reductions B are k-INDEPENDENT (the Bloch phase enters only the final contraction), and the SAME field V
@@ -2999,6 +3065,7 @@ public:
         double relFieldSharp=-1.0;                              //   + the relative rule's beta floor (level-assignment identity)
         std::vector<rvec_t>  V_L;                               //   + the integrated field itself (exact)
         std::vector<PairB>   B;                                 // indexed [i*n+j], j>=i only
+        ivec3_t nLo{0,0,0}, nHi{-1,-1,-1};                      // the offsets' bounding box (a hit tabulates phase(n) on it once)
     };
     static constexpr size_t kMaxIntegrateMemos=4;               // static PP + the iteration's KS fields
     bool SameShape(const IntegrateMemo& m, const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
@@ -3128,19 +3195,24 @@ public:
                 if (SameShape(*m,N_L,ecut_L,absRelCutoff,relFieldSharp) && SameField(m->V_L,V_L)) {hit=m; break;}
         }
         if (hit)
-                {
-                    const IntegrateMemo& m=*hit;
-                    for (auto i:indices()) for (auto j:indices(i))
-                    {
-                        const PairB& pb=m.B[i*nn+j];
-                        const double w=A.GetCellVolume()/double(V_L[pb.level].size());
-                        dcmplx s(0.0);
-                        for (const auto& [n,b] : pb.nb) s+=phase(n)*b;
-                        s*=w;
-                        h(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;
-                    }
-                    return h;
-                }
+        {
+            // Contract phases only.  The phase is a k-dependent std::function (an exp per call); a pair's offsets repeat across
+            // every pair, so tabulate it ONCE on the offsets' bounding box (lane A 2026-11-22: per (pair, offset) it cost ~0.6 s a
+            // hit on NaF q9 k222, x7 per field).  Same phase values, same summation order: still bit-identical to recomputation.
+            qchem::report::Timed replay("scf: integrate-back memo replay (phase contraction)");
+            const IntegrateMemo& m=*hit;
+            const PhaseTable at(phase, m.nLo, m.nHi, false);
+            for (auto i:indices()) for (auto j:indices(i))
+            {
+                const PairB& pb=m.B[i*nn+j];
+                const double w=A.GetCellVolume()/double(V_L[pb.level].size());
+                dcmplx s(0.0);
+                for (const auto& [n,b] : pb.nb) s+=at(n)*b;
+                s*=w;
+                h(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;
+            }
+            return h;
+        }
         // Miss: evaluate every (shell pair, offset) task live, recording B for the next caller.  There is
         // no value cache any more (plan step 7) -- the TASK LIST supplies the geometry and the contraction
         // kernel supplies the arithmetic, in both directions.
@@ -3154,6 +3226,8 @@ public:
         auto publish=[&]()
         {
             if (!built) return;
+            bool any=false;                                  // the offsets' bounding box, for the hit's phase table
+            for (const PairB& pb : built->B) for (const auto& nb : pb.nb) Cover(built->nLo, built->nHi, nb.first, any);
             std::lock_guard<std::mutex> lock(itsIntegrateMemosLock.m);
             if (itsIntegrateMemos.size()>=kMaxIntegrateMemos) itsIntegrateMemos.erase(itsIntegrateMemos.begin());
             itsIntegrateMemos.push_back(std::move(built));
@@ -3385,18 +3459,32 @@ public:
                                           const LatticeScreener& screener, double relFieldSharp, const Structure* st,
                                           const std::vector<size_t>* pairLevels=nullptr) const
     {
+        return IntegratePotentialPullbackFolded(V_L, {{&D,&phase}}, A, N_L, ecut_L, screener, relFieldSharp, st, pairLevels);
+    }
+    //! \brief THE k-FOLD of \c IntegratePotentialPullback (user ruling 2026-11-22 "yes"): the SUM over several blocks of this basis, each
+    //! its own (D, phase), in ONE jet walk -- the pair's weight is \f$\sum_b\mathrm{Re}[\bar D^b_{ij}e^{ik_b\cdot R}]\f$, the walk k-free.  One
+    //! term is \c IntegratePotentialPullback bit for bit.
+    rvec3vec_t IntegratePotentialPullbackFolded(const std::vector<rvec_t>& V_L, const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                                const UnitCell& A, const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
+                                                const LatticeScreener& screener, double relFieldSharp, const Structure* st,
+                                                const std::vector<size_t>* pairLevels=nullptr) const
+    {
         const size_t K=N_L.size(), nn=size();
         if (K==0 || ecut_L.size()!=K || V_L.size()!=K)
             throw std::invalid_argument("IntegratePotentialPullback: the level fields, grids and cutoffs disagree in count");
         if (pairLevels && pairLevels->size()!=nn*nn)
             throw std::invalid_argument("IntegratePotentialPullback: the explicit pair levels are not n x n");
-        if (D.rows()!=nn)
-            throw std::invalid_argument("IntegratePotentialPullback: D is "+std::to_string(D.rows())+" square for "+std::to_string(nn)+" functions");
+        if (terms.empty()) throw std::invalid_argument("IntegratePotentialPullback: no density to pull back");
+        for (const auto& t : terms)
+            if (t.first->rows()!=nn)
+                throw std::invalid_argument("IntegratePotentialPullback: D is "+std::to_string(t.first->rows())+" square for "+std::to_string(nn)+" functions");
         if (!st) throw std::invalid_argument("IntegratePotentialPullback: the pullback needs the structure (the atoms the functions sit on)");
         const std::vector<size_t> atom=ComponentSites(st, "IntegratePotentialPullback");
         size_t nSites=0; st->ForEachSite([&](int, const rvec3_t&, bool){ nSites++; });   // as ComponentSites counts them
         qchem::report::Timed timer("force: gather pullback (jet walk)");
         const std::vector<ShellPairTasks>& tl=BoxTasks(A);
+        const std::vector<PhaseTable> phT=TermPhases(terms, tl);   // each term's phase, once per offset
+        const size_t nT=terms.size();
         const std::vector<Shell>& shells=Shells();
         std::vector<std::pair<size_t,size_t>> sprs;   // enumerated exactly as BoxTasks and IntegratePotential do
         for (size_t a=0;a<shells.size();a++) for (size_t b=a;b<shells.size();b++) sprs.push_back({a,b});
@@ -3412,18 +3500,21 @@ public:
             for (size_t a=0;a<nIs;a++) for (size_t b=0;b<nJs;b++) if (sj.begin+b>=si.begin+a) cij(a,b)=1.0;
             ScreenPlan plan;
             std::vector<size_t> ia, jb; std::vector<double> c, acc;
+            std::vector<dcmplx> ph(nT);
             for (const BoxTask& task : tl[sp].tasks)
             {
                 screener.Screen(task.n,task.pf,cij,plan);
                 if (plan.Dead()) continue;
                 ia.clear(); jb.clear(); c.clear();
-                const dcmplx ph=phase(task.n);
+                for (size_t t=0;t<nT;t++) ph[t]=phT[t](task.n);
                 for (size_t a=0;a<nIs;a++)
                     for (size_t b=0;b<nJs;b++)
                     {
                         if (cij(a,b)==0.0 || !plan.Keeps(a,b)) continue;
                         const size_t i=si.begin+a, j=sj.begin+b;
-                        const double cw=(i==j ? 1.0 : 2.0)*w*std::real(std::conj(dcmplx(D(i,j)))*ph);
+                        double re=0.0;                               // Σ_b Re[conj(D^b_ij) e^{ik_b.R}]: the k-free walk's weight
+                        for (size_t t=0;t<nT;t++) re+=std::real(std::conj(dcmplx((*terms[t].first)(i,j)))*ph[t]);
+                        const double cw=(i==j ? 1.0 : 2.0)*w*re;
                         if (cw==0.0) continue;
                         ia.push_back(a); jb.push_back(b); c.push_back(cw);
                     }
@@ -3495,15 +3586,28 @@ public:
                                       const LatticeScreener& screener, double relFieldSharp,
                                       const std::vector<size_t>* pairLevels=nullptr) const
     {
+        return IntegratePotentialVirialFolded(V_L, {{&D,&phase}}, A, N_L, ecut_L, screener, relFieldSharp, pairLevels);
+    }
+    //! \brief THE k-FOLD of \c IntegratePotentialVirial, as \c IntegratePotentialPullbackFolded is of the pullback: one jet walk for the sum
+    //! over several (D, phase) blocks.  One term is \c IntegratePotentialVirial bit for bit.
+    rmat3d_t IntegratePotentialVirialFolded(const std::vector<rvec_t>& V_L, const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
+                                            const UnitCell& A, const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
+                                            const LatticeScreener& screener, double relFieldSharp,
+                                            const std::vector<size_t>* pairLevels=nullptr) const
+    {
         const size_t K=N_L.size(), nn=size();
         if (K==0 || ecut_L.size()!=K || V_L.size()!=K)
             throw std::invalid_argument("IntegratePotentialVirial: the level fields, grids and cutoffs disagree in count");
         if (pairLevels && pairLevels->size()!=nn*nn)
             throw std::invalid_argument("IntegratePotentialVirial: the explicit pair levels are not n x n");
-        if (D.rows()!=nn)
-            throw std::invalid_argument("IntegratePotentialVirial: D is "+std::to_string(D.rows())+" square for "+std::to_string(nn)+" functions");
+        if (terms.empty()) throw std::invalid_argument("IntegratePotentialVirial: no density to differentiate");
+        for (const auto& t : terms)
+            if (t.first->rows()!=nn)
+                throw std::invalid_argument("IntegratePotentialVirial: D is "+std::to_string(t.first->rows())+" square for "+std::to_string(nn)+" functions");
         qchem::report::Timed timer("stress: gather virial (jet walk)");
         const std::vector<ShellPairTasks>& tl=BoxTasks(A);
+        const std::vector<PhaseTable> phT=TermPhases(terms, tl);
+        const size_t nT=terms.size();
         const std::vector<Shell>& shells=Shells();
         std::vector<std::pair<size_t,size_t>> sprs;   // enumerated exactly as BoxTasks and IntegratePotential do
         for (size_t a=0;a<shells.size();a++) for (size_t b=a;b<shells.size();b++) sprs.push_back({a,b});
@@ -3520,18 +3624,21 @@ public:
             for (size_t a=0;a<nIs;a++) for (size_t b=0;b<nJs;b++) if (sj.begin+b>=si.begin+a) cij(a,b)=1.0;
             ScreenPlan plan;
             std::vector<size_t> ia, jb; std::vector<double> c, acc;
+            std::vector<dcmplx> ph(nT);
             for (const BoxTask& task : tl[sp].tasks)
             {
                 screener.Screen(task.n,task.pf,cij,plan);
                 if (plan.Dead()) continue;
                 ia.clear(); jb.clear(); c.clear();
-                const dcmplx ph=phase(task.n);
+                for (size_t t=0;t<nT;t++) ph[t]=phT[t](task.n);
                 for (size_t a=0;a<nIs;a++)
                     for (size_t b=0;b<nJs;b++)
                     {
                         if (cij(a,b)==0.0 || !plan.Keeps(a,b)) continue;
                         const size_t i=si.begin+a, j=sj.begin+b;
-                        const double cw=(i==j ? 1.0 : 2.0)*w*std::real(std::conj(dcmplx(D(i,j)))*ph);
+                        double re=0.0;                               // Σ_b Re[conj(D^b_ij) e^{ik_b.R}]: the k-free walk's weight
+                        for (size_t t=0;t<nT;t++) re+=std::real(std::conj(dcmplx((*terms[t].first)(i,j)))*ph[t]);
+                        const double cw=(i==j ? 1.0 : 2.0)*w*re;
                         if (cw==0.0) continue;
                         ia.push_back(a); jb.push_back(b); c.push_back(cw);
                     }

@@ -1,6 +1,7 @@
 // File: Fitting/Imp/CoulombOperator.C  The factories of the grid density route.
 module;
 #include <memory>
+#include <vector>
 #include <stdexcept>
 #include <string>
 module qchem.Fitting.CoulombOperator;
@@ -13,6 +14,42 @@ import qchem.BasisSet.CoulombDeltaFit_IBS;   // PointCoulombIntegrals   // the p
 
 namespace qchem::Fitting
 {
+
+// The whole-density defaults (the k-fold's per-block fallback): each block through its own derivative, summed.
+Outcome<rvec3vec_t,AD::NoGradient> FirstOrderDensityFit<dcmplx>::MakeRepulsionPullbackBlocks(const std::vector<BasisSet::FoldBlockRef>& blocks,
+                                                                                            const std::vector<BasisSet::FoldBlockD>& Ds, const Structure* st) const
+{
+    using R=Outcome<rvec3vec_t,AD::NoGradient>;
+    if (blocks.size()!=Ds.size()) throw std::logic_error("MakeRepulsionPullbackBlocks: "+std::to_string(Ds.size())+" density matrices for "+std::to_string(blocks.size())+" blocks");
+    rvec3vec_t F;
+    for (size_t b=0;b<blocks.size();b++)
+    {
+        const R r= (blocks[b].real && Ds[b].real)   ? MakeRepulsionPullback(*blocks[b].real,  *Ds[b].real,  st)
+                 : (blocks[b].bloch && Ds[b].bloch) ? MakeRepulsionPullback(*blocks[b].bloch, *Ds[b].bloch, st)
+                 : throw std::logic_error("MakeRepulsionPullbackBlocks: block "+std::to_string(b)+"'s density matrix is not on the block's own face");
+        if (!r) return r;
+        if (F.size()==0) { F=*r; continue; }
+        if (r->size()!=F.size()) throw std::logic_error("MakeRepulsionPullbackBlocks: two blocks answered for different atom counts");
+        for (size_t A=0;A<F.size();A++) F[A]+=(*r)[A];
+    }
+    return R::Ok(std::move(F));
+}
+Outcome<rmat3d_t,AD::NoGradient> FirstOrderDensityFit<dcmplx>::MakeRepulsionVirialBlocks(const std::vector<BasisSet::FoldBlockRef>& blocks,
+                                                                                        const std::vector<BasisSet::FoldBlockD>& Ds, const Structure* st) const
+{
+    using R=Outcome<rmat3d_t,AD::NoGradient>;
+    if (blocks.size()!=Ds.size()) throw std::logic_error("MakeRepulsionVirialBlocks: "+std::to_string(Ds.size())+" density matrices for "+std::to_string(blocks.size())+" blocks");
+    rmat3d_t V(0,0,0, 0,0,0, 0,0,0);
+    for (size_t b=0;b<blocks.size();b++)
+    {
+        const R r= (blocks[b].real && Ds[b].real)   ? MakeRepulsionVirial(*blocks[b].real,  *Ds[b].real,  st)
+                 : (blocks[b].bloch && Ds[b].bloch) ? MakeRepulsionVirial(*blocks[b].bloch, *Ds[b].bloch, st)
+                 : throw std::logic_error("MakeRepulsionVirialBlocks: block "+std::to_string(b)+"'s density matrix is not on the block's own face");
+        if (!r) return r;
+        V+=*r;
+    }
+    return R::Ok(V);
+}
 
 std::unique_ptr<FirstOrderDensityFit<double>>
 MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis)

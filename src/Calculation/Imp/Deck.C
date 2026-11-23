@@ -1579,7 +1579,8 @@ static DisplaceResult Displace(const RunSpec& specIn, const std::vector<RunSpec:
     const PESGeometry ref=S.Reference();
     DisplaceResult out;
     std::cout<<"[displace] reference: the deck's positions ("<<ref.R.size()<<" atoms), one SolidSession for "<<moves.size()<<" point(s)"<<std::endl;
-    auto p0=S.ConvergeAt(ref.cell, ref.R);
+    // Each point in a row of its own: the point writes its timing breakdown (and anything else it reports) one level in.
+    auto p0=[&]{ const qchem::report::Row row("displacePoints"); return S.ConvergeAt(ref.cell, ref.R); }();
     if (!p0) { out.failure0=p0.Error().details; return out; }
     out.E0=p0->energy; out.it0=p0->iterations;
     bool ok=true;
@@ -1588,7 +1589,7 @@ static DisplaceResult Displace(const RunSpec& specIn, const std::vector<RunSpec:
         std::vector<rvec3_t> R=ref.R;
         if (moves[k].atoms.empty()) for (auto& r : R) r+=moves[k].delta;
         else                        for (size_t a : moves[k].atoms) R[a]+=moves[k].delta;
-        auto p=S.ConvergeAt(ref.cell, R);
+        auto p=[&]{ const qchem::report::Row row("displacePoints"); return S.ConvergeAt(ref.cell, R); }();
         DisplaceResult::Point q;
         if (p) { q.energy=p->energy; q.iterations=p->iterations; }
         else   { q.failure=p.Error().details; ok=false; }
@@ -1651,6 +1652,9 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     qchem::report::Begin(stem);
     qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
     const Close close;
+    // A DRIVER timing window for the whole deck run: its calculations stay quiet (the deck emits ONE `timing` section at its end, below,
+    // what scripts/bench greps); a displaced point or a geometry step still reports its own.
+    qchem::report::TimingWindow deckTiming(stem);
     // THE TWO-RUN SPLIT (SplitsAtResponse): run #1 is the ground state on a setup with no response planned (real TRIM blocks); the
     // responses run on run #2, which adopts run #1's state (below, at the first linear response).
     const bool split=SplitsAtResponse(spec);
@@ -1891,7 +1895,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         rj["ok"]=pr.ok; rj["summary"]=pr.summary; results.push_back(rj);
         out.postSCF.push_back(pr);
     }
-    qchem::report::EmitTimings();   // sorted by cost + PEAK RSS, inside the report bracket (what scripts/bench greps)
+    deckTiming.Report();   // the run's `timing`, at its root: sorted by cost + PEAK RSS + SETUP / SCF TOTAL (what scripts/retake5a greps)
     if (!results.empty() || refused)
     {   // fold the results into the record (the revision written before the run keeps the deck; `results` is what the run produced)
         std::ifstream in(out.revision); json rec=json::parse(in); in.close();

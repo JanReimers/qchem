@@ -208,8 +208,11 @@ std::string TraceBlock(const std::string& trace)
     for (std::string line; std::getline(is, line); )
     {
         if (!in && line.find("Etotal")!=std::string::npos) in=true;
+        // The run's timing breakdown closes it (restored 2026-11-22): wall seconds, never byte-reproducible, so the golden ends before it.
+        if (in && line.rfind("[timing]",0)==0) break;
         if (in && line.find("[t=")==std::string::npos) out+=line+"\n";
     }
+    while (out.size()>=2 && out.compare(out.size()-2, 2, "\n\n")==0) out.pop_back();   // ...and the blank line the breakdown opens with
     return out;
 }
 // RE-BANKED 2026-11-11 (lane A, the molecular DIIS prune scale-free + no downward mixer move while DIIS extrapolates; user ruling "Yes,

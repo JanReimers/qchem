@@ -16,6 +16,8 @@ module;
 #include <memory>
 #include <string>
 #include <vector>
+#include <array>     // KFoldable::FoldDomain
+#include <cstdint>
 
 export module qchem.BasisSet.Gaussian.Lattice.GPW_IBS;
 export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
@@ -83,6 +85,7 @@ template <class T> class tGPW_IBS
     , public virtual BasisSet::Transition_DFT_IBS   // the (k+q, k) transition density, this block the ket (LinearResponsePlan B2)
     , public Symmetry::DenseRepresentation<T>       // M_g on this block (S3): the Bloch op rep, for g in the little group of k
     , public virtual BasisSet::PointSetPullback<T>  // the δ XC quadrature's derivative (the Becke mesh force; lane B 2026-11-19)
+    , public virtual BasisSet::KFoldable            // the k-fold: my lattice basis's other k-blocks share my real-space walks (lane A 2026-11-22)
 {
 protected:
     //! \f$M_g\f$ = \c OrbitalImage(g) -- the shell permutation × angular rep × Bloch phase -- when \a g maps k onto itself
@@ -201,6 +204,14 @@ public:
     //! home-only mode refuses (its functions are the finite molecule's).
     virtual Outcome<typename BasisSet::PointSetPullback<T>::Result,AD::NoGradient>
         MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const hmat_t<T>& D, const Structure* st) const override;
+    //! \copydoc BasisSet::PointSetPullback::MakePointSetPullbackFolded -- \c GPW_Evaluator::PointSetPullbackFolded.
+    virtual Outcome<typename BasisSet::PointSetPullback<T>::Result,AD::NoGradient>
+        MakePointSetPullbackFolded(const rvec3vec_t& pts, const rvec_t& c, const std::vector<BasisSet::KFoldTerm>& terms,
+                                   const Structure* st) const override;
+    //! \copydoc BasisSet::KFoldable::FoldDomain
+    virtual std::array<uint64_t,2> FoldDomain() const override {return GPW_Evaluator::FoldDomain();}
+    //! \copydoc BasisSet::KFoldable::FoldPhase
+    virtual dcmplx FoldPhase(const ivec3_t& n) const override {return GPW_Evaluator::FoldPhase(n);}
 
     virtual std::string Name      () const override {return "GPW";}
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + molecular ID + k + nR)

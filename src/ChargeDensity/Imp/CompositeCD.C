@@ -12,6 +12,7 @@ module qchem.CompositeCD;
 import qchem.BasisSet.G_RasterStarField; // the raster as a field my group star-averages
 import qchem.Blaze;
 import qchem.ChargeDensity.Types;
+import qchem.ChargeDensity.Internal.FoldableBlock;   // the k-fold: which blocks join one forward
 
 namespace qchem::ChargeDensity
 {
@@ -245,8 +246,18 @@ template <class T> Projections tComposite_CD<T>::Project(const BasisSet::PairPro
 }
 template <class T> Projections tComposite_CD<T>::Project(const BasisSet::PairProjector<dcmplx>& p) const
 {
+    // THE WHOLE DENSITY PROJECTS ITSELF (the k-FOLD, user ruling 2026-11-22 "I agree A"): the blocks that can join hand the projector
+    // their orbital blocks, it vends ONE forward for them, and I apply it to their D's -- so a basis whose k-blocks collocate the same
+    // pair products (GPW) sums them before the grid, once.  A block that declines (zero, factored, not a D block) projects itself.
     Projections ro;
-    for (const Block& b:itsBlocks) std::visit([&](const auto* c){ ro+=c->Project(p); }, b.cd);
+    std::vector<BasisSet::FoldBlockRef> fold;
+    std::vector<BasisSet::FoldBlockD>   foldD;
+    for (const Block& b:itsBlocks) std::visit([&](const auto* c)
+    {
+        const auto* f=dynamic_cast<const FoldableBlock*>(c);   // a cross-cast between abstract faces of one library's family
+        if (!f || !f->JoinFold(p, fold, foldD)) ro+=c->Project(p);
+    }, b.cd);
+    if (!fold.empty()) ro+=p.ForwardBlocks(std::move(fold))->Forward(foldD);
     // THE IBZ STAR-AVERAGE, ONCE, ON THE SUM (as GetFourierDensity always did).  I hold the group; the BASIS owns how its
     // functions transform under one op, so the projector wraps ro as a field the group averages (a no-op on a delta /
     // occupation axis: today's behaviour).
@@ -278,54 +289,60 @@ template <class T> double tComposite_CD<T>::DM_Contract(const tStatic_CC<T>* v) 
     return ret;
 }
 
-// THE FORCE TWIN of the static contraction (GeometryOptimizationPlan §13.2): every block's pullback summed.  MIXED-AWARE as DM_Contract
-// is: a REAL child inside a complex run (a TRIM block) is walked through the term's real-block pullback client, tStatic_PC<double>.
+// THE FORCE TWIN of the static contraction (GeometryOptimizationPlan §13.2): every block's pullback summed -- now asked ONCE (user ruling
+// 2026-11-22 "yes"): the blocks that join (FoldableBlock::JoinPullback, a leaf's (basis, spin, D)) go to the term's PullbackBlocks in one
+// list, so a term whose blocks share one real-space walk does it once; a block that declines answers through its own DM_Pullback.  MIXED-AWARE
+// as DM_Contract is: a REAL child inside a complex run joins the list's real part (the term's tStatic_PC<double> face, in its default).
 template <class T> rvec3vec_t tComposite_CD<T>::DM_Pullback(const tStatic_PC<T>* v, const Structure* st) const
 {
     rvec3vec_t F;
-    for (const Block& blk:itsBlocks)
+    auto add=[&](const rvec3vec_t& f)
     {
-        const rvec3vec_t f=std::visit([&](const auto* b)->rvec3vec_t
+        if (F.size()==0) { F=f; return; }
+        if (f.size()!=F.size()) throw std::logic_error("tComposite_CD::DM_Pullback: two blocks answered for different atom counts");
+        for (size_t A=0;A<F.size();A++) F[A]+=f[A];
+    };
+    DensityBlocks<T> joined;
+    for (const Block& blk:itsBlocks)
+        std::visit([&](const auto* b)
         {
             using BT=std::remove_const_t<std::remove_pointer_t<std::decay_t<decltype(b)>>>;
-            if constexpr (std::is_same_v<BT,tDM_CD<T>>) return b->DM_Pullback(v, st);
+            if (const auto* fb=dynamic_cast<const FoldableBlock*>(b); fb && fb->JoinPullback(joined)) return;
+            if constexpr (std::is_same_v<BT,tDM_CD<T>>) add(b->DM_Pullback(v, st));
             else if constexpr (std::is_same_v<T,dcmplx>)
             {
                 auto* rv=dynamic_cast<const tStatic_PC<double>*>(v);
                 if (!rv) throw std::logic_error("tComposite_CD::DM_Pullback: a real child needs the term's real-block pullback client "
                                                 "(tStatic_PC<double>, GeometryOptimizationPlan §13.2)");
-                return b->DM_Pullback(rv, st);
+                add(b->DM_Pullback(rv, st));
             }
             else throw std::logic_error("tComposite_CD::DM_Pullback: a complex child inside a real-faced run is impossible");
         }, blk.cd);
-        if (F.size()==0) F=f;
-        else
-        {
-            if (f.size()!=F.size()) throw std::logic_error("tComposite_CD::DM_Pullback: two blocks answered for different atom counts");
-            for (size_t A=0;A<F.size();A++) F[A]+=f[A];
-        }
-    }
+    if (!joined.blocks.empty() || !joined.real.empty()) add(v->PullbackBlocks(joined, st));
     return F;
 }
 
-// THE VIRIAL TWIN (CellHalf_Design §5): every block's virial summed, mixed-aware as DM_Pullback (a real TRIM child through tStatic_VC<double>).
+// THE VIRIAL TWIN (CellHalf_Design §5): the blocks' virial, asked once through VirialBlocks as DM_Pullback asks PullbackBlocks.
 template <class T> rmat3d_t tComposite_CD<T>::DM_Virial(const tStatic_VC<T>* v, const Structure* st) const
 {
     rmat3d_t V(0,0,0, 0,0,0, 0,0,0);
+    DensityBlocks<T> joined;
     for (const Block& blk:itsBlocks)
-        V+=std::visit([&](const auto* b)->rmat3d_t
+        std::visit([&](const auto* b)
         {
             using BT=std::remove_const_t<std::remove_pointer_t<std::decay_t<decltype(b)>>>;
-            if constexpr (std::is_same_v<BT,tDM_CD<T>>) return b->DM_Virial(v, st);
+            if (const auto* fb=dynamic_cast<const FoldableBlock*>(b); fb && fb->JoinPullback(joined)) return;
+            if constexpr (std::is_same_v<BT,tDM_CD<T>>) V+=b->DM_Virial(v, st);
             else if constexpr (std::is_same_v<T,dcmplx>)
             {
                 auto* rv=dynamic_cast<const tStatic_VC<double>*>(v);
                 if (!rv) throw std::logic_error("tComposite_CD::DM_Virial: a real child needs the term's real-block virial client "
                                                 "(tStatic_VC<double>, CellHalf_Design §5)");
-                return b->DM_Virial(rv, st);
+                V+=b->DM_Virial(rv, st);
             }
             else throw std::logic_error("tComposite_CD::DM_Virial: a complex child inside a real-faced run is impossible");
         }, blk.cd);
+    if (!joined.blocks.empty() || !joined.real.empty()) V+=v->VirialBlocks(joined, st);
     return V;
 }
 

@@ -422,9 +422,9 @@ void ResolveGpwPoint(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real
     const std::shared_ptr<const Structure> held=lat.GetStructure();   // held: GetStructure may hand back a fresh object
     const Structure& st=*held;
     {
-        // The imposition is a POLICY (what the run symmetrizes, and the R1.0r intersection with the k mesh), so it reports one level
-        // into the run report's `policy` scope.
-        qchem::report::Scope policy("policy"), sym("symmetry");
+        // The imposition reports one level into a `symmetry` scope (the R1.0r intersection with the k mesh).  NOT under `policy`: that
+        // key is the array of policy ROWS, and a Scope over it erased every row the setup had filed (OpenWork G5, 2026-11-22).
+        qchem::report::Scope sym("symmetry");
         p.imposition=std::make_shared<const CrystalImposition>(ResolveImposition(lat, ImpositionOptions{
             .imposeSymmetry=p.imposeSymmetry, .siteSpins=p.siteSpins, .freeMeshInvariant=p.freeMeshInvariant, .kShift=p.kShift}));
     }
@@ -3391,6 +3391,14 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     using O=Outcome<PESPoint, PESFailure>;
     using Why=PESFailure::Why;
     const SolidSetup& S=*itsSetup;
+    // THE POINT'S TIMING BREAKDOWN (user 2026-11-22): build + SCF + forces + stress of THIS point, written one level into the row the
+    // caller opened for it and printed, however the point ends.  A driver window: the point's calculation does not print its own.
+    size_t pointIterations=0;
+    struct PointTiming
+    {
+        report::TimingWindow w; const size_t& it;
+        ~PointTiming() { w.Report(it); }
+    } timing{report::TimingWindow((S.opts.label.empty() ? std::string("solid") : S.opts.label)+" point "+std::to_string(++itsPointsRun)), pointIterations};
     const UnitCell&   ref=S.lattice.GetUnitCell();
     const size_t      nAtoms=ref.GetNumAtoms();
     if (R.size()!=nAtoms)
@@ -3493,6 +3501,7 @@ Outcome<PESPoint, PESFailure> SolidSession::ConvergeAt(const std::optional<rmat3
     // as it runs on the basis the setup froze -- a raster re-sized per point would make the surface jump.
     if (!itsSetup->rastersResolved) itsSetup=itsPoint->calc->SizedSetup();
     PESPoint p{.energy=out->Energy(), .forces={}, .iterations=out->IterationCount()};
+    pointIterations=p.iterations;
     // THE DERIVATIVES at the converged D and its energy-weighted W (SolidCalculation::MakeEnergyWeightedDensity, any solid basis).
     if (want.forces)
     {
