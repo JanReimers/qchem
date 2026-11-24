@@ -25,7 +25,7 @@ export namespace qchem::qcMesh
 //! \brief WHAT A MESH MUST RESPECT: the ops it is built invariant under, and whether the run averages the density over their orbits
 //! (controller + user rulings 2026-11-22, doc/MeshFactoryPlan.md §4.1 as built).  DATA-FREE and geometry-free: a source supplies OPS only,
 //! the \c MeshMaker owns the geometry they act on, so a source resolved at one cell can never move a mesh built over another.  Realized by
-//! \c CrystalImposition (a crystal run), \c NoSymmetry (nothing asked), and later a molecular point group (OOD-SOLID V-FOLD-NEUTRAL).
+//! \c CrystalImposition (a crystal run), \c NoSymmetry (nothing asked), and \c MolecularPointGroupSource (a symmetric molecule: its D2h-type subgroup, OOD-SOLID V-FOLD-NEUTRAL).
 class SymmetrySource
 {
 public:
