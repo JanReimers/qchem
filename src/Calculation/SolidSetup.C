@@ -179,6 +179,9 @@ struct SolidSetup : Setup
     //! How \c mol was made, the trim FROZEN; empty when the caller handed a pre-built basis (that setup cannot follow moved atoms).
     std::optional<GaussianBasisRecipe>       recipe;
     bool planeWave = false;   //!< \c opts.solid.orbitalBasis is PlaneWave
+    //! \brief THE RUN'S POLICY, resolved ONCE from \c opts.solid.policy (D-MUTABLE-STATICS-RUNPOLICY group A): every decision the setup and
+    //! its facade make from a CP2K deviation reads THIS, never the process-wide \c theRunPolicy(), so a run states the policy it holds.
+    RunPolicy policy;
     bool ggaChoseBecke = false;   //!< a GGA with the XC mesh unstated: the setup chose the Becke delta route (policy GGARoute, GGA stage 3)
     //! \brief THE ANSATZ, decided ONCE from k and q (user ruling 2026-11-18): a TRIM block may run REAL (\c GPWParams::hamPreservesReal;
     //! a non-TRIM block is complex regardless).  False exactly when \c opts.solid.responseQMeshes plans a response.  The run's ONE source

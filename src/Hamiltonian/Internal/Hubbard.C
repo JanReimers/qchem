@@ -365,7 +365,7 @@ private:
     std::vector<rvec3_t>             itsSites;          //!< the cell's site positions, ForEachSite order
     std::vector<int>                 itsSiteZ;          //!< their species (EquivalentManifolds)
     SpinGroup                        itsGroup;
-    bool                             itsEigenForm;      //!< RunPolicy::HubbardEigen at construction (false = CP2K's populations)
+    bool                             itsEigenForm;      //!< the manifolds' one \c eigenForm (false = CP2K's populations)
     mutable size_t                   itsNCoeff = 0;     //!< \f$\sum_M m_M^2\f$, fixed by the first block seen
     //! A write (U, alpha) to a FROZEN term: rebuild W and E_U from the HELD occupations now -- the frozen
     //! refresh never runs Analyse, so without this the write would never reach the Fock matrix.  No-op before

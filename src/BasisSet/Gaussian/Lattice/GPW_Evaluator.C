@@ -94,7 +94,8 @@ public:
                   std::shared_ptr<const GpwRasterLadder> ladder, const rvec3_t& kFrac, bool kIsReal,
                   bool homeCellOnly,
                   std::shared_ptr<const Symmetry::StarGroup> group,   // NO default: a forgotten one must not build a free evaluator
-                  const GPWTolerances& tol = {});     //!< the typed numerical tolerances (D-ENV step 5; was env reads inside)
+                  const GPWTolerances& tol,           //!< the typed numerical tolerances (D-ENV step 5; was env reads inside)
+                  bool dAwareScreen);                 //!< the collocation screener: D-aware, or CP2K's geometry-only (policy.dAwareScreen)
     //! Polymorphic (reached by the Lattice::*_IBS mixins' Cast() cross-cast); out of line as the key function.
     virtual ~GPW_Evaluator();
 
@@ -282,8 +283,8 @@ private:
     std::shared_ptr<const BasisSet::Real_BS> itsMol;   //!< owns the molecular Gaussian basis (lifetime)
     const BasisSet::Real_OIBS*          itsOrb = nullptr; //!< its single orbital block (op()/Gradient/size)
     const Gaussian::Periodic_Gaussian_IBS* itsLat = nullptr; //!< the same block's periodic-1E capability (cross-cast)
-    //! \brief THE COLLOCATION TOLERANCE POLICY (doc/OldPlans/ScreeningPlan.md), chosen ONCE in the constructor from
-    //! \c qchem::theRunPolicy() beside the other declared CP2K deviations, and handed to every
+    //! \brief THE COLLOCATION TOLERANCE POLICY (doc/OldPlans/ScreeningPlan.md), chosen ONCE in the constructor from the
+    //! run's \c dAwareScreen (its setup's policy, a declared CP2K deviation), and handed to every
     //! \c CollocateDensity / \c IntegratePotential call this evaluator makes -- so the box walk never
     //! branches on which rule answers.  Stateless and immutable, hence safe to share with the cached
     //! closures and with every OpenMP worker inside the walk.

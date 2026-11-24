@@ -232,6 +232,28 @@ TEST(M_Calculation, WaterLDA)
     EXPECT_GT(calc->IterationCount(), 0u);
 }
 
+// THE DECK'S ORIENTATION DOES NOT REACH THE ANSWER (OOD-SOLID V-FOLD-NEUTRAL, policy MeshSymmetry; user ruling 2026-11-23): the XC mesh
+// is rotated into the point group's frame, so water turned through an arbitrary rotation (and moved off the origin) converges to the
+// unrotated run's energy.  Before, each orientation carried its own lab-frame mesh error.  The twin agrees to the SCF's stop, not to
+// roundoff: the two runs start from SAD seeds sampled on the plain (lab-frame) seed mesh, so their iterates differ before convergence.
+TEST(M_Calculation, WaterLDA_eqRotated)
+{
+    const Molecule water=qchem::StructureData::GetMolecule("H2O");
+    const double c=std::cos(0.9), sn=std::sin(0.9);
+    const rvec3_t n=rvec3_t(0.3,-0.7,0.5)/norm(rvec3_t(0.3,-0.7,0.5));
+    auto rotate=[&](const rvec3_t& r)   // Rodrigues: about n by 0.9 rad, then moved by (0.4, -1.1, 2.3)
+    {
+        return r*c+Cross(n,r)*sn+n*((n*r)*(1.0-c))+rvec3_t(0.4,-1.1,2.3);
+    };
+    std::vector<rvec3_t> R;
+    water.ForEachSite([&](int, const rvec3_t& r, bool){ R.push_back(rotate(r)); });
+    Molecule turned=water; turned.MoveSites(R);
+    const RunOptions o{.model=qchem::Model::LDA, .molecule={.basis="dzvp"}};
+    auto a=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(water,  o)).TakeValue(); (void)a->Converge();
+    auto b=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(turned, o)).TakeValue(); (void)b->Converge();
+    EXPECT_NEAR(b->Energy(), a->Energy(), 1e-8);
+}
+
 // {.imposeSymmetry=true} SALC-blocks the (Cartesian PG) basis + does global aufbau across irreps.  The
 // converged total energy must match the un-blocked run -- the M_Sym invariant, now through the facade.
 TEST(M_Calculation, WaterSymmetry)

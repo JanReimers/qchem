@@ -22,3 +22,7 @@ class GeometryCacheTests;       // src/Calculation/tests/GeometryCache.C -- a ge
 class PointJetsTests;           // src/BasisSet/Gaussian/tests/M_GeometryDerivatives.C -- fills a PointJets with analytic functions to check its
                                 // jets, ρ's jet and the density pullback against finite differences, before any family's JetsOn exists
                                 // (GeometryOptimizationPlan §13.2: JetsOn's gradient source awaits the user's ruling).
+class CollocationRouteTests;    // src/BasisSet/Gaussian/tests/M_TransitionCollocation.C + M_CollocationPullback.C -- the collocation
+                                // KERNEL A/B (separable cube vs box walk, exp recurrence vs direct exp) sets the MnD evaluator's private route.
+class CompositeDensityTests;    // src/Calculation/tests/RunPolicyLeak.C -- WHICH ρ route built a converged composite's blocks (factored or
+                                // direct): the composite's face never names its blocks' realization (D-MUTABLE-STATICS-RUNPOLICY leak).

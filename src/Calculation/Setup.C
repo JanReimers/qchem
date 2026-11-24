@@ -20,6 +20,7 @@ export import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type, Accelera
 export import qchem.Pseudopotential.Set;      // PseudopotentialSet
 export import qchem.Structure;                // Structure
 export import qchem.ChargeDensity.AtomicDensity;   // SeedKey
+export import qchem.ChargeDensity.Factory;         // DensityMaker
 export import qchem.Mesh;                     // qcMesh::MeshParams
 export import qchem.Symmetry.Spin;            // SpinGroup
 export import qchem.SetupRefusal;             // SetupRefusal + Outcome: every Admit door's failure half
@@ -50,6 +51,11 @@ struct Setup
     std::shared_ptr<const Structure> structure;
     int Ne    = 0;            //!< the electrons the SCF carries (the VALENCE count under a pseudopotential)
     int nUp   = 0, nDown = 0; //!< per spin channel, from \c opts.multiplicity (\c ResolveSpinChannels, the rule every structure shares)
+    //! \brief THE RUN'S DENSITY MAKER (D-MUTABLE-STATICS-RUNPOLICY group E, the user's ruling 2026-11-23, E2'): the rho route every block
+    //! density of this run is made on, handed to the wave function, the seed and a restart.  A molecule and an atom take the qchem default
+    //! (the factored route: they have no policy block); a solid's setup resolves it from its policy (stated, cp2kCompat, or the default)
+    //! and reports the decision (policy DensityRoute).
+    ChargeDensity::DensityMaker densityMaker{ChargeDensity::RhoRoute::PivotedCholesky};
     ChargeDensity::SeedKey seedKey;   //!< the seed library's key: the run's own pseudo-atoms (\c SeedKeyOf), unkeyed all-electron
     qcMesh::MeshParams     xcMesh;    //!< THE RUN'S XC MESH, every unstated axis resolved (an entry rung, \c Auto, the radial-only set)
     //! The run IMPOSES its symmetry: the caller asked AND the policy allowed it (a solid's run policy can veto it).  Nothing reads

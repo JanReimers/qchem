@@ -152,7 +152,8 @@ public:
             std::shared_ptr<const BasisSet::Real_BS> mol, std::shared_ptr<const GpwRasterLadder> ladder,
             CellImages images = CellImages::Periodic,
             std::shared_ptr<const Symmetry::StarGroup> group = nullptr,   //!< the imposed density group the T1 {G}-star fold asks (null = {E})
-            const GPWTolerances& tol = {});                               //!< the typed numerical tolerances (D-ENV step 5)
+            const GPWTolerances& tol = {},                                //!< the typed numerical tolerances (D-ENV step 5)
+            bool dAwareScreen = true);                                    //!< the run's screener choice (\c GPWParams::dAwareScreen)
 
     //! \brief A block built BARE (the unit tests): its OWN ladder from \a densityEcut (\f$<0\f$ AUTO floor
     //! \a cutoffFactor\f$\cdot\alpha_{\max}\f$, \f$0\f$ DFT tier off, \f$>0\f$ explicit Ha) and the other grid settings, by the same

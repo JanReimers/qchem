@@ -303,6 +303,7 @@ private:
     std::shared_ptr<const MoleculeSetup> itsSetup;
     std::shared_ptr<const Structure>     itsStructure;  //!< the point's structure (valence-charged under a PP); the Hamiltonian shares it
     std::shared_ptr<const qcMesh::MeshMaker> itsMeshMaker;  //!< builds meshes over \c itsStructure (StructureMeshMaker of its concrete type)
+    std::shared_ptr<const qcMesh::SymmetrySource> itsMeshSymmetry;  //!< what \c itsStructure's meshes respect (the point's, policy MeshSymmetry)
     ElectronConfiguration*               itsEC    = nullptr;  //!< owned
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
     //! The run's ONE Coulomb (Dunlap) fit on \c itsBasis (doc/IntegralCacheOwnershipPlan.md S2b): the Hartree term of the first Hamiltonian

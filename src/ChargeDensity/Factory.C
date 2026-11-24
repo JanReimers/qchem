@@ -23,14 +23,32 @@ export namespace qchem::ChargeDensity
         EigenTrim,        //!< NOT WIRED -- throws.  The minimal-rank factor; the route for a D that has left
                           //!< the PSD cone, where Cholesky is inapplicable.  Listed so the gap is visible.
     };
-    //! The route used when a caller does not name one.  \c PivotedCholesky, unless \c QCHEM_DM_LOWRANK=0
-    //! forces \c Direct -- the A/B valve, and the escape hatch if a future density ever needs it.
-    RhoRoute DefaultRhoRoute();
-
-    //! \a route defaults (via \c DefaultRhoRoute) to the factored \f$\rho\f$; \c Direct is the plain leaf.
+    //! A block density from \a DM (Hermitian; BY VALUE: pass an rvalue and it is moved in, not copied) on \a route: \c PivotedCholesky is
+    //! the factored \f$\rho\f$, \c Direct the plain leaf.  Every caller STATES its route; a run's blocks are made by its \c DensityMaker.
     template <class T> tDM_CD<T>* IrrepCD_Factory(hmat_t<T> DM,const tobs_t<T>* bs, Irrep,
                                                   RhoRoute route);
-    //! Same, taking the default route -- so every existing call site is untouched.
-    template <class T> tDM_CD<T>* IrrepCD_Factory(hmat_t<T> DM,const tobs_t<T>* bs, Irrep); // DM Hermitian; BY VALUE: pass an rvalue and it is moved in, not copied
+
+    //! \brief THE RUN'S DENSITY MAKER (D-MUTABLE-STATICS-RUNPOLICY group E, the user's ruling 2026-11-23, E2'): every block density a run
+    //! builds from a D -- each iteration's (the orbitals'), the seed's, a restart's -- is made here, on the ONE \c RhoRoute the run's SETUP
+    //! resolved (a stated policy.dmLowRank, cp2kCompat, or the qchem default) and handed down at construction.
+    //!
+    //! It DECIDES NOTHING (the user: "the decision could be pre determined and passed into the Density maker at construction time"): it
+    //! never switches route, and the policy that chooses one lives in the setup, which reports it.  A concrete value, not an interface --
+    //! one policy, one enum (the user: an interface per policy "is overkill if there just a single policy defined by one enum RhoRoute").
+    //! It replaced \c DefaultRhoRoute(), which read the process-wide run policy, so a molecule after a cp2kCompat solid took the solid's
+    //! route (OpenWork §3 D-RUNPOLICY-LEAK).
+    class DensityMaker
+    {
+    public:
+        explicit DensityMaker(RhoRoute route) : itsRoute(route) {}
+        //! The block density of \a DM on \a bs, irrep \a qns, on this run's route.
+        template <class T> std::unique_ptr<tDM_CD<T>> Make(hmat_t<T> DM, const tobs_t<T>* bs, Irrep qns) const
+        {
+            return std::unique_ptr<tDM_CD<T>>(IrrepCD_Factory<T>(std::move(DM), bs, std::move(qns), itsRoute));
+        }
+        bool operator==(const DensityMaker&) const = default;
+    private:
+        RhoRoute itsRoute;
+    };
 
 } //namespace

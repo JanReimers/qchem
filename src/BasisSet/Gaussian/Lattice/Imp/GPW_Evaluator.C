@@ -31,7 +31,6 @@ import qchem.Math.Angular;    // Monomial/CartTerm/SphericalShell (the analytic 
 import qchem.Structure;       // Structure / Atom (the PP centres + Z)
 import qchem.UnitCell;        // UnitCell (the direct cell for CollocateDensity / IntegratePotential grid<->cell)
 import qchem.Reporting;       // the run report -- EmitGridsReport builds the `grids` section
-import qchem.RunPolicy;       // theRunPolicy().DAwareScreen() -- WHICH LatticeScreener this evaluator builds (N5)
 import qchem.Symmetry.Lattice_3D.BlochOperationRep;  // BlochPhase (exact ±1 at TRIM)
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 import qchem.BasisSet.GMap;   // EvaluateSymmetricGMap
@@ -121,7 +120,7 @@ double BetaSupportRadius(const SpeciesProjectorSet_R& sep, int Z, size_t p)
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                              std::shared_ptr<const qcMesh::MeshMaker> meshMaker, std::shared_ptr<const GpwRasterLadder> ladder, const rvec3_t& kFrac, bool kIsReal, bool homeCellOnly,
-                             std::shared_ptr<const Symmetry::StarGroup> group, const GPWTolerances& tol)
+                             std::shared_ptr<const Symmetry::StarGroup> group, const GPWTolerances& tol, bool dAwareScreen)
     : itsGroup(group ? std::move(group) : std::make_shared<const Symmetry::StarGroup>())
     , itsMol(std::move(mol))
     , itsTol(tol)
@@ -145,10 +144,10 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     itsN  =itsOrb->GetNumFunctions();
 
     // THE COLLOCATION TOLERANCE POLICY, resolved ONCE (doc/OldPlans/ScreeningPlan.md §7): D-aware by default,
-    // geometry-only (CP2K's rule) under CP2K_COMPAT or GPW_DAWARE_SCREEN=0.  Built at the molecular side's
+    // geometry-only (CP2K's rule) when the run's policy says so (cp2kCompat, or policy.dAwareScreen=false).  Built at the molecular side's
     // own collocation floor, which is also what the box task list is enumerated at -- both walks assert
     // the two agree, because a screener below the floor would want boxes the list never built.
-    itsScreener = theRunPolicy().DAwareScreen()
+    itsScreener = dAwareScreen
                 ? std::shared_ptr<const Gaussian::LatticeScreener>(
                       std::make_shared<Gaussian::DAwareScreener>(itsTol.densityEps))
                 : std::shared_ptr<const Gaussian::LatticeScreener>(

@@ -143,67 +143,26 @@
     "**/build/Release/**/*.cmake": true,
     "**/build/Release/CMakeFiles/**": true
     },
-    "testMate.cpp.test.executables": "build/Release/**/{UT*,ITMain}",
-    "testMate.cpp.test.parallelExecutionLimit": 16,
-    "testMate.cpp.test.parallelExecutionOfExecutableLimit": 16,
+    // TestMate: one entry per set of test exes.  It replaces the old "testMate.cpp.test.executables" line, and its
+    // parallelizationLimit replaces the deprecated "parallelExecutionOfExecutableLimit".  The --gtest_filter below HIDES the
+    // known-red cases (CMakeLists.txt QCHEM_PANEL_RED + QCHEM_KNOWN_RED, which ctest inverts); keep the two lists in step.
+    "testMate.cpp.test.advancedExecutables": [
+      {
+        "pattern": "build/Release/**/{UT*,ITMain}",
+        "parallelizationLimit": 4,
+        "gtest": {
+          "prependTestListingArgs": [
+//            "--gtest_filter=-ResponsePolarizability.GPW_Si_*_OneSpinAlpha_KeepsZeroMoment_Panel:GPW_Na2Box.*_SpinSeed_Converges_Panel:GPW_MnOBox.*_M6_GDM_Converges_Panel_Long:GPW_MnO2.*_Kerker_Pulay_Converges_Panel_Long:GPW_MnO2.*_Kerker_ConvergesAtU2eV_Panel_Long:GPW_MnO.*_Shub_Pol_Smear_Ordering_Long"
+            "--gtest_filter=-*_Panel:*_Long"
+          ]
+        }
+      }
+    ],
+    "testMate.cpp.test.parallelExecutionLimit": 4,
     "cmake.ctest.testExplorerIntegrationEnabled": false,
     // "C_Cpp.default.intelliSenseMode": "linux-clang-x64"
     "C_Cpp.intelliSenseEngine": "disabled",
     // "clangd.path": "/path/to/clangd",
     // "clangd.arguments": ["--log=verbose", "--background-index"]
-  // "testMate.cpp.test.advancedExecutables": [
-  // {
-  //   "pattern": "build/Debug/**/UT*",
-  //   "cwd": "${workspaceFolder}/build/Debug",
-  //   "gtest": {
-  //     "testGrouping": {
-  //       "groupByLabel": {
-  //         "label": "Debug Tests",
-  //         "groupByExecutable": {
-  //           "label": "${filename}",
-  //           "description": "${relDirpath}"
-  //         }
-  //       }
-  //     }
-  //   },
-  //   "catch2": {
-  //     "testGrouping": {
-  //       "groupByLabel": {
-  //         "label": "Debug Tests",
-  //         "groupByExecutable": {
-  //           "label": "${filename}",
-  //           "description": "${relDirpath}"
-  //         }
-  //       }
-  //     }
-  //   }
-  // },
-//   {
-//     "pattern": "build/Release/**/UT*",
-//     "cwd": "${workspaceFolder}/build/Release",
-//     "gtest": {
-//       "testGrouping": {
-//         "groupByLabel": {
-//           "label": "Release Tests",
-//           "groupByExecutable": {
-//             "label": "${filename}",
-//             "description": "${relDirpath}"
-//           }
-//         }
-//       }
-//     },
-//     "catch2": {
-//       "testGrouping": {
-//         "groupByLabel": {
-//           "label": "Release Tests",
-//           "groupByExecutable": {
-//             "label": "${filename}",
-//             "description": "${relDirpath}"
-//           }
-//         }
-//       }
-//     }
-//   }
-// ]   
-
+  
 }

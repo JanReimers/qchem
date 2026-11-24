@@ -124,6 +124,18 @@ static void ReportMeshClients(bool ppQuadrature, const char* xcClient="Vxc_DFT")
                                          "MeshParams; ruling 2(a): not in this change)");
 }
 
+//! \brief \a s's ops WITHOUT the density averaging: a mesh that must be invariant (no deck orientation in the answer) but that no density is
+//! averaged on (the PP quadrature).  The factory's wiring, so it lives here.
+class InvariantOnly : public qcMesh::SymmetrySource
+{
+public:
+    explicit InvariantOnly(const qcMesh::SymmetrySource& s) : itsS(s) {}
+    std::vector<Symmetry::SymOp> MeshOps() const override {return itsS.MeshOps();}
+    bool AveragesDensityOverOrbits() const override {return false;}
+private:
+    const qcMesh::SymmetrySource& itsS;
+};
+
 //! \brief The run's nonlinear-integral quadrature at \a mp: the mesh \a meshMaker builds over the point, made what \a symmetry asks (invariant,
 //! and orbit-folded when the run averages the density; V-MESH-FACTORY §4.1 as built: the setup injects the MAKER and the SOURCE, so the
 //! route still decides whether and at which recipe a quadrature is built), under the "nonlinearMesh" scope.
@@ -395,7 +407,9 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     {
         if (!NeedsPPQuadrature(bs, *vloc, sep.get())) return nullptr;
         qchem::report::Scope here("ppQuadrature");
-        return std::make_shared<const qcMesh::Mesh>(meshMaker.Make(mp));
+        // INVARIANT under the run's ops, never folded: the PP terms' integrands are linear in the density, nothing averages on this
+        // mesh -- but a molecule's mesh must not carry the deck's orientation into the answer (policy MeshSymmetry, V-FOLD-NEUTRAL).
+        return meshMaker.Make(mp, InvariantOnly(symmetry)).GetMesh();
     }();
     Add(new PP_Local(st, vloc, ppMesh));             // pseudized replacement for Ven (combined model -> _R view)
     if (sep) Add(new PP_NonLocal(st, std::move(sep), mp, ppMesh));   // KB separable projectors (null => local-only)
@@ -581,7 +595,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
                                         "XC must see rho[D] (doc/Pins.md pin 28; the rho axis retired 2026-11-15)");
         std::cout<<"[Vxc fit] the periodic A1 Gaussian set ("<<a1.set->GetNumFunctions()<<" functions, lattice-summed at Gamma), "
                  <<"v(rho[D]) fitted for H"<<std::endl;
-        a1Sampler=ChargeDensity::MakeAuxiliaryFitSampler(XFitBasis, std::move(quadrature), a1);
+        a1Sampler=ChargeDensity::MakeAuxiliaryFitSampler(XFitBasis, std::move(quadrature), a1, route.xcSource);
     }
     else if (resolved==VxcFit::PlaneWave)
     {
@@ -607,7 +621,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
             if (resolved!=VxcFit::Delta)
                 throw std::invalid_argument("Ham_PW_DFT: a GGA samples the density gradient on the delta Vxc fit only (GGA stage 3) -- the "
                                             "setup should have refused this fit (policy GGARoute)");
-            auto gsampler=ChargeDensity::MakeDensityGradientSampler(XFitBasis, std::move(quadrature));
+            auto gsampler=ChargeDensity::MakeDensityGradientSampler(XFitBasis, std::move(quadrature), route.xcSource);
             RequireForcedWithinG(*gsampler, xcPoints.get(), *st);
             HoldNonlinearMesh(gsampler);
             ReportMeshClients(false, "Vxc_DFT_GGA");
@@ -616,7 +630,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlo
         else
         {
         std::shared_ptr<const ChargeDensity::DensitySampler> sampler=a1Sampler ? a1Sampler
-                                                                    : ChargeDensity::MakeDensitySampler(XFitBasis, std::move(quadrature));
+                                                                    : ChargeDensity::MakeDensitySampler(XFitBasis, std::move(quadrature), route.xcSource);
         RequireForcedWithinG(*sampler, xcPoints.get(), *st);
         HoldNonlinearMesh(sampler);   // the Hamiltonian's nonlinear mesh (V-NONLINEAR-MESH): the XC term is one client of it
         ReportMeshClients(false);

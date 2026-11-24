@@ -114,6 +114,7 @@ MoleculeCalculation::MoleculeCalculation(BuildOnly, std::shared_ptr<const Molecu
     // structure the basis and the EC both read.
     , itsStructure(std::move(point.structure))
     , itsMeshMaker(std::move(point.meshMaker))
+    , itsMeshSymmetry(std::move(point.meshSymmetry))
     , itsCarry(std::move(carry))
     , itsObserver(std::move(onIteration))
 {
@@ -207,7 +208,8 @@ void MoleculeCalculation::BuildGraph()
         SeededIterator(itsCarry && itsCarryExact);   // the exact-resume Pulay policy's first-stage bit
         if (!itsCarry)
         {
-            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), itsSetup->xcMesh, itsMeshMaker, itsSetup->seedKey);   // an HF SAD seed's sibling: the run's mesh
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<double>>(qchem::WaveFunction::Factory(itsHam.get(), itsBasis, itsEC, itsAccel.get(), itsSetup->densityMaker, qchem::Auto, 0.0, 0)), itsSetup->densityMaker,
+                                 seed, itsStructure.get(), itsSetup->xcMesh, itsMeshMaker, itsSetup->seedKey);   // an HF SAD seed's sibling: the run's mesh
             // The fit's error BEFORE the SCF (warn and run): on D0, the seed's first matrix density (the iteration-0 Fock's fill).
             const auto D0=itsScf->GetWaveFunction()->GetChargeDensity();
             CheckCoulombFit(D0.get(), "seed");
@@ -216,8 +218,9 @@ void MoleculeCalculation::BuildGraph()
         {
             // THE CARRY (a MoleculeSession step, or a restored state): the D, block for block, onto THIS point's basis -- a
             // WorkingDensity of the moved Hamiltonian, or an EXACT RESUME of a state saved by this very run, consumed here once.
-            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), MakeCarriedDensity(*itsCarry).release(), itsStructure.get(),
-                                 qchem::Auto, 0.0, itsCarryExact ? qchem::SCFIterator::SeedRole::ExactResume
+            itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<double>>(qchem::WaveFunction::Factory(itsHam.get(), itsBasis, itsEC, itsAccel.get(), itsSetup->densityMaker, qchem::Auto, 0.0, 0)),
+                                 MakeCarriedDensity(*itsCarry).release(), itsStructure.get(),
+                                 itsCarryExact ? qchem::SCFIterator::SeedRole::ExactResume
                                                                  : qchem::SCFIterator::SeedRole::WorkingDensity);
             itsCarry.reset();
             itsCarryExact=false;
@@ -461,7 +464,7 @@ std::unique_ptr<qchem::ChargeDensity::rDM_CD> MoleculeCalculation::MakeCarriedDe
             if (b>=carry.D.size() || carry.D[b].rows()!=ibs->GetNumFunctions())
                 throw std::logic_error("qchem::MoleculeCalculation: the carried density's blocks do not match this point's basis");
             const Irrep irr=ibs->GetIrrep(s);
-            cd->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(carry.D[b++], ibs, irr)), irr);
+            cd->Insert(itsSetup->densityMaker.Make<double>(carry.D[b++], ibs, irr), irr);
         }
     if (b!=carry.D.size())
         throw std::logic_error("qchem::MoleculeCalculation: the carried density has more blocks than this point's basis");
@@ -541,9 +544,9 @@ qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const q
 {
     const RunOptions& opts=itsSetup->opts;
     return itsSetup->pp
-        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, *itsMeshMaker, *itsSetup->meshSymmetry, itsBasis, fit, {opts.vxcFit, opts.xcRho},
+        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, *itsMeshMaker, *itsMeshSymmetry, itsBasis, fit, {opts.vxcFit, opts.xcRho},
                                       coulomb, qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha))
-        : qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, *itsMeshMaker, *itsSetup->meshSymmetry, itsBasis, fit, opts.xalpha,
+        : qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, *itsMeshMaker, *itsMeshSymmetry, itsBasis, fit, opts.xalpha,
                                       {opts.vxcFit, opts.xcRho}, coulomb);
 }
 

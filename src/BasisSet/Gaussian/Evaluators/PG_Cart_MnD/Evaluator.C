@@ -24,6 +24,7 @@ module;
 #include <vector>
 #include <cmath>      // std::sqrt/std::log (the lattice-sum magnitude-screening reach radius)
 #include <algorithm>  // std::min (alpha_min per radial)
+#include "forward.H"    // CollocationRouteTests: the kernel A/B tests' friend (itsRoute)
 #include <functional> // cellphase_t (the caller-supplied Bloch phase of a cross-cell offset)
 #include <utility>    // std::pair (the flattened (i,j) pair list for the OpenMP loop)
 #include <map>        // the stream fold's offset -> orbit-multiplicity tables (T3 route (b))
@@ -135,17 +136,6 @@ public:
                                      "(old: "+itsPGTol.Describe()+" ; new: "+t.Describe()+") -- one molecular basis cannot serve two tolerance settings");
         itsPGTol=t;
         itsBoxTasks.clear(); itsBoxTaskOrder.clear(); itsIntegrateMemos.clear(); itsFieldHistory.clear(); itsSeries.clear(); itsReach.clear();
-    }
-    //! \brief The collocation kernel (\c CollocationRoute), per basis.  Same contract as \c BindTolerances: a no-op for an equal route,
-    //! THROWS once collocation work was built (the integrate-back memo would mix the two kernels), and drops the collocation caches.
-    void BindRoute(const CollocationRoute& r)
-    {
-        if (r==itsRoute) return;
-        if (!itsBoxTasks.empty() || !itsIntegrateMemos.empty())
-            throw std::runtime_error("NR_Evaluator::BindRoute: the collocation route changed after this basis computed collocation work "
-                                     "-- bind it on a fresh basis, before any integral");
-        itsRoute=r;
-        itsBoxTasks.clear(); itsBoxTaskOrder.clear(); itsIntegrateMemos.clear(); itsFieldHistory.clear();
     }
     //! \brief ⛔ THE TOLERANCE POLICY IS NOT DECIDED HERE ANY MORE (doc/OldPlans/ScreeningPlan.md, 2026-09-04).
     //!
@@ -4318,7 +4308,14 @@ private:
     }
 
     GPWTolerances                      itsPGTol;           //!< the pair-loop tolerances (BindTolerances, by the builder); defaults = historical
-    CollocationRoute                   itsRoute;           //!< the collocation kernel (BindRoute: a unit test's reference route); defaults = production
+    //! \brief The collocation KERNEL: two exact algorithms for the SAME integral tables (the separable cube or the reference box walk; the
+    //! exp recurrence or a direct exp), so the choice is this evaluator's own implementation detail -- face 2, like an ERI algorithm -- and
+    //! not a run input.  PRIVATE and FIXED at production: no public setter (the user, 2026-11-23: a basis describes functions through
+    //! op(r)/grad(r), its integral tables and symmetry, and the old \c ToleranceBinding::BindRoute served a test outside those), and
+    //! fixed because the box tasks and the integrate-back memos are built with it -- a second kernel in one memo would mix the two.  The
+    //! kernel A/B tests set it through their friend (\c CollocationRouteTests, src/forward.H) on a fresh basis, before any work.
+    CollocationRoute                   itsRoute;
+    friend class ::CollocationRouteTests;
     mutable std::vector<Shell>         itsShells;          //!< the shell partition (lazy; geometry-fixed)
     mutable std::vector<std::pair<size_t,size_t>> itsGroups;   //!< the general-contraction groups (lazy; geometry-fixed)
     qchem::LazyLock                    itsGroupsLock;

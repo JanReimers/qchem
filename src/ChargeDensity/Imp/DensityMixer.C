@@ -14,7 +14,6 @@ import qchem.BasisSet.RasterDensityProjector;   // the raw ρ_DM projector facto
 import qchem.ChargeDensity.Internal.KerkerMixer;
 import qchem.ChargeDensity.Internal.PulayMixer;
 import qchem.ChargeDensity.Internal.PolarizedDensityMixer;
-import qchem.RunPolicy;                            // theRunPolicy().MixRhoM() -- the declared channel-basis deviation (N5)
 import qchem.BasisSet.Orbital_DFT_IBS;             // Orbital_DFT_IBS<dcmplx>::CreateVxcFitBasisSet
 import qchem.ReciprocalLattice;
 import qchem.Mesh;                                 // qcMesh::MeshParams
@@ -89,12 +88,12 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
     if (up && dn)
     {
         // CHANNEL BASIS.  Default (ρ↑,ρ↓) reproduces CP2K's Kerker exactly -- which is why the choice is one of
-        // the declared CP2K deviations (qchem::theRunPolicy(), doc/OpenWork.md N5).  QCHEM_MIX_RHO_M=1 selects
+        // the declared CP2K deviations (policy.mixRhoM, handed in as KerkerParams::mixRhoM; doc/OpenWork.md N5).  It selects
         // (ρ,m): the recipe on ρ, PLAIN LINEAR on m (G0=0 -- the filter is identically 1), the construction the
         // G₀ sweep could NOT test, because a uniform filter on (ρ↑,ρ↓) is algebraically the same operator as
         // that filter on (ρ,m).  Physics: Kerker models the Hartree restoring force against long-wavelength
         // CHARGE fluctuations; m has none.
-        if (theRunPolicy().MixRhoM())
+        if (p.mixRhoM)
         {
             // N4 x (ρ,m): the correction is per SPIN channel, rho_sigma,mix - rho_sigma,out, and both terms are linear in
             // (ρ,m) -- so the polarized mixer forms it from the rebuilt channels and the latest outputs; the ρ and m

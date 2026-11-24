@@ -266,7 +266,8 @@ TEST(SADSeed, ItsChargeIsTheElectronCountTheDunlapFitIsConstrainedTo)
                                                 BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     const Molecule_EC ec(10);
     const std::unique_ptr<tChargeDensity<double>> seed(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &oh, &ec, kSeedMesh,
-                                                                       StructureMeshMaker<Molecule>(std::make_shared<const Molecule>(oh)), SeedKey{}));
+                                                                       StructureMeshMaker<Molecule>(std::make_shared<const Molecule>(oh)), SeedKey{},
+                                                                       DensityMaker(RhoRoute::PivotedCholesky)));
     ASSERT_TRUE(seed);
     EXPECT_EQ(seed->GetTotalCharge(), oh.GetNumElectrons());   // bit-equal: the same double the Dunlap term holds
 }
@@ -292,7 +293,8 @@ TEST(SADSeed, APolarizedRunPlantsItsHundPairsAtItsStatedMoment)
                                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
         const Molecule_EC ec(nUp, nDn);
         return std::unique_ptr<tChargeDensity<double>>(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &m, &ec, kSeedMesh,
-                                                                       StructureMeshMaker<Molecule>(std::make_shared<const Molecule>(m)), SeedKey{}, polarized));
+                                                                       StructureMeshMaker<Molecule>(std::make_shared<const Molecule>(m)), SeedKey{},
+                                                                       DensityMaker(RhoRoute::PivotedCholesky), polarized));
     };
     ASSERT_TRUE(HasAtomicSpinPair(11, "LDA", "atomic_densities.json"));
     const auto [maj, min]=GetAtomicSpinPair(11, "LDA", "atomic_densities.json");
@@ -334,6 +336,40 @@ TEST(SADSeed, APolarizedRunPlantsItsHundPairsAtItsStatedMoment)
     const rvec3_t a(6.0,0,0), b(-6.0,0,0), d(0.3,0.2,-0.1);
     EXPECT_GT((*up)(a+d)-(*dn)(a+d), 0.0) << "the unflipped site is up-majority";
     EXPECT_NEAR((*up)(b-d)-(*dn)(b-d), -((*up)(a+d)-(*dn)(a+d)), 1e-9) << "the flipped site is its mirror (inversion: b - d)";
+}
+
+// AN EMPTY CHANNEL IS A DENSITY (D-SEED-EMPTY-CHANNEL, 2026-11-23).  A one-electron doublet (H here; Na q1 in GPW_NaBox.Γ_Imp_M2_eqFinite's
+// molecular twin) plants its whole pair in the up channel: the minority channel's COUNT is exactly 0 (the fit's charge constraint), its
+// shape only the pair's normalization residue, and the total is the spin-agnostic seed's.  It aborted on NumericCD's assert(totalCharge>0) in every asserts-live build from 2026-11-16 to 2026-11-23.
+TEST(SADSeed, AOneElectronDoubletSeedsAnEmptyMinorityChannel)
+{
+    Molecule h; h.Insert(Site{1, rvec3_t(0,0,0)});
+    ASSERT_TRUE(HasAtomicSpinPair(1, "LDA", "atomic_densities.json"));
+    const std::unique_ptr<BasisSet::Real_BS> bs(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::DZVP, &h,
+                                                BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    const auto seedOf=[&](bool polarized)
+    {
+        const Molecule_EC ec(1, 0);
+        return std::unique_ptr<tChargeDensity<double>>(MakeSeedDensity(SeedStrategy::SAD, bs.get(), &h, &ec, kSeedMesh,
+                                                                       StructureMeshMaker<Molecule>(std::make_shared<const Molecule>(h)), SeedKey{},
+                                                                       DensityMaker(RhoRoute::PivotedCholesky), polarized));
+    };
+    const auto plain=seedOf(false);
+    const auto seed=seedOf(true);
+    const auto* up=ChannelOf(seed.get(), Spin::Up);
+    const auto* dn=ChannelOf(seed.get(), Spin::Down);
+    ASSERT_TRUE(up && dn) << "the polarized seed answers both channels, the empty one included";
+    EXPECT_EQ(up->GetTotalCharge(), 1.0) << "the up channel holds the electron";
+    EXPECT_EQ(dn->GetTotalCharge(), 0.0) << "the minority channel is EXACTLY empty: the stated moment, not f*planted to an ulp";
+    EXPECT_EQ(seed->GetTotalCharge(), 1.0);
+    for (const rvec3_t& r : {rvec3_t(0.3,-0.2,0.1), rvec3_t(1.5,0.4,-0.7)})
+    {
+        // Its SHAPE is the pair's normalization residue: the library's pair integrates to m1 = 1.00035 on its own grid, so f = 1/m1 and
+        // the minority shape is (1-f)/2 maj, about 2e-4 of the up channel; the fit constrains it to the stated count, 0.
+        EXPECT_GE((*dn)(r), 0.0);
+        EXPECT_LT((*dn)(r), 1e-3*(*up)(r)) << "the minority shape is only the pair's normalization residue";
+        EXPECT_NEAR((*seed)(r), (*plain)(r), 1e-12*(*plain)(r)) << "the total is the spin-agnostic seed's";
+    }
 }
 
 // A COULOMB FIT HAS NO INTEGRATION GRID (user 2026-11-11, doc/Pins.md); THE SAD SEED BRINGS ITS OWN, AND IT IS GONE ONCE THE SEED HAS

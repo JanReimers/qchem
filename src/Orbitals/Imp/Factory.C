@@ -4,13 +4,13 @@ import qchem.Orbitals.Internal.OrbitalsImp;
 
 namespace qchem::Orbitals
 {
-    TOrbitals<double>* Factory(const robs_t* bs, Spin ms)
+    TOrbitals<double>* Factory(const robs_t* bs, Spin ms, const ChargeDensity::DensityMaker& maker)
     {
-        return new  TOrbitalsImp<double>(bs,ms);
+        return new  TOrbitalsImp<double>(bs,ms,maker);
     }
-    TOrbitals<dcmplx>* Factory(const tobs_t<dcmplx>* bs, Spin ms)
+    TOrbitals<dcmplx>* Factory(const tobs_t<dcmplx>* bs, Spin ms, const ChargeDensity::DensityMaker& maker)
     {
-        return new  TOrbitalsImp<dcmplx>(bs,ms);
+        return new  TOrbitalsImp<dcmplx>(bs,ms,maker);
     }
 }
 
