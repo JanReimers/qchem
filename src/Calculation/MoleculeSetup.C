@@ -80,10 +80,6 @@ struct MoleculeSetup : Setup
     //! Every Hamiltonian of a point is built on \c xcMesh, never on \c opts.xcMesh.
     bool meshStated   = false;   //!< the caller stated \c *opts.xcMesh (either number): audited against eps, never raised (pin 31 rule 3)
     bool meshResolved = false;   //!< a pilot settled \c xcMesh already (a session's later points): no climb, no audit
-    //! The symmetry source the run's meshes respect (V-MESH-FACTORY §4.1; policy MeshFoldNotBuilt): a molecule HAS a point group, but a
-    //! point-group mesh is not built yet (OOD-SOLID V-FOLD-NEUTRAL; the library's molecular hooks refuse non-trivial ops by name), so the
-    //! policy chooses the unfolded mesh, \c qcMesh::NoSymmetry, and reports the group it left on the table.
-    std::shared_ptr<const qcMesh::SymmetrySource> meshSymmetry;
 
     //! \brief ONE GEOMETRY POINT: the structure it is built over and the mesh maker over THAT structure (V-MESH-FACTORY §8 step 2).
     //! The structure is the reference's atoms (moved, for \c MakePoint(R)), each ADDING its core charge Z - Zion to the net charge it
@@ -95,6 +91,12 @@ struct MoleculeSetup : Setup
     {
         std::shared_ptr<const Structure>         structure;
         std::shared_ptr<const qcMesh::MeshMaker> meshMaker;   //!< builds meshes over \c structure, never over the reference
+        //! \brief What the point's meshes respect (policy MeshSymmetry; OOD-SOLID V-FOLD-NEUTRAL, user ruling 2026-11-23): the D2h-type
+        //! subgroup H of the point's OWN point group (the abelian subgroup the SALC blocking uses), so a step that breaks a mirror gets the
+        //! smaller group at that point; the density averaged over H's orbits only when the run imposes symmetry.  \c NoSymmetry for a run
+        //! that builds no XC mesh, a C1 molecule (it stays in the lab frame, D3), a recipe whose angular rule cannot carry H, or a geometry
+        //! that carries H only to the detection tolerance, not to \c kMolecularMeshGeometryTol.  Never null.
+        std::shared_ptr<const qcMesh::SymmetrySource> meshSymmetry;
     };
     Point MakePoint() const;                                //!< at the reference geometry
     Point MakePoint(const std::vector<rvec3_t>& R) const;   //!< the reference's sites moved to \a R (one position per atom, atom order)
@@ -108,6 +110,10 @@ private:
     //! core charges (\a pp non-null), and pairs it with \c StructureMeshMaker of that type.
     using PointBuilder=std::function<Point(const std::vector<rvec3_t>* R, const Pseudopotential::PseudopotentialSet* pp)>;
     PointBuilder itsPointBuilder;
+    //! The policy MeshSymmetry at one point (see \c Point::meshSymmetry); \a report files the policy row (the reference point; a later
+    //! point reports only when its group differs from the reference's).
+    std::shared_ptr<const qcMesh::SymmetrySource> MeshSymmetryAt(const Structure& point, bool report) const;
+    std::string itsMeshGroup;   //!< the reference point's mesh group, as MeshSymmetryAt last reported it (a later point's comparison)
     //! The structure-neutral body of \c Resolve, once the typed door has stored \c structure and \c itsPointBuilder in \a s.
     static std::shared_ptr<const MoleculeSetup> Decide(std::shared_ptr<MoleculeSetup> s, const RunOptions& asked, const AcceleratorOptions& acc);
 };

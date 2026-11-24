@@ -37,12 +37,22 @@ qcMesh::Mesh MakeMesh(const UnitCell&, const qcMesh::MeshParams&, const std::vec
 //! An atom's mesh invariant under \a ops: the radial-only set (\c AngularKind::None), whose angular part is analytic, so ANY rotation about
 //! the atom leaves it invariant.  An angular recipe THROWS: its finite direction set would claim a symmetry it does not carry.
 qcMesh::Mesh MakeMesh(const Atom&,     const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops);
+//! How exactly a molecule's geometry must carry its point-group ops for an INVARIANT mesh (bohr): each atom-orbit member's grid is its
+//! representative's carried by the op and centred on the member's own nucleus, so a member displaced by d from the op's image puts its
+//! points d off the images the fold matches (within kMeshMatchTol = 1e-8).  A tenth of that.  The policy layer reads it to decide whether a
+//! deck's geometry, symmetric to the DETECTION tolerance (1e-4), can have an oriented mesh at all.
+inline constexpr double kMolecularMeshGeometryTol = 1e-9;
 //! A molecule's mesh invariant under its point group's ops of D2h TYPE (OOD-SOLID V-FOLD-NEUTRAL; the abelian subgroup the SALC blocking
 //! uses): \a ops Cartesian, tau = 0, acting about the molecule's centroid.  The one shared angular set is rotated into the group's frame
 //! (Lebedev is octahedrally invariant there), and each atom-orbit member carries its representative's points and weights.  THROWS by name
 //! for an op outside D2h type (a C3), an angular rule the frame's reflections do not map onto itself, or a geometry that does not carry
 //! the ops to the mesh match tolerance.
 qcMesh::Mesh MakeMesh(const Molecule&, const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops);
+//! How far (bohr) a molecule's sites are from carrying its point-group \a ops (D2h type, {W | 0} about the centroid) once the maker has
+//! POLISHED them against the sites: the ops a detector hands over are exact only to its tolerance, and the maker re-derives the group's
+//! axes from the atoms.  The policy layer compares it with kMolecularMeshGeometryTol to decide whether the oriented mesh can be built;
+//! +infinity for ops outside D2h type.
+double PointGroupGeometryError(const Structure&, const std::vector<Symmetry::SymOp>& ops);
 
 //! The ORBIT FOLD of a cell mesh invariant under \a ops: the orbit partition (fractional, torus-metric point matching), and on a
 //! Shubnikov op set the per-op spin actions and the flip-fixed points (m = 0 there exactly).

@@ -13,7 +13,7 @@ import qchem.ChargeDensity.Seed;   // SeedStrategy, SeedLibrary (via AtomicDensi
 import qchem.SeedPolicy;           // SeedLibraryCovers: the Auto rule's coverage
 import qchem.Vector3D;             // norm(rvec3_t)
 import qchem.Structure.MeshFactory; // MakeMesh: what a point's maker must build (V-MESH-FACTORY)
-import qchem.Reporting;             // report::Run / GlobalReport: the MeshFoldNotBuilt row
+import qchem.Reporting;             // report::Run / GlobalReport: the MeshSymmetry rows
 
 using namespace qchem;
 
@@ -221,44 +221,96 @@ TEST(MoleculeSetup, APointsMeshMakerBuildsOverThePointNotTheReference)
     EXPECT_GT(norm(got.Points()[0]-atRef.Points()[0]), 0.05) << "not the reference's mesh";
 }
 
-// POLICY MeshFoldNotBuilt (user 2026-11-22: "molecules have a point group"): the molecule's group is detected, but its orbit fold is not
-// built yet (OOD-SOLID V-FOLD-NEUTRAL), so the setup chooses the unfolded mesh -- a source with no ops -- and reports the group it left on
-// the table.  A mesh-free run (HF, all-electron) files no such row.
-TEST(MoleculeSetup, ASymmetricMoleculesUnfoldedMeshIsAReportedPolicy)
+// POLICY MeshSymmetry (OOD-SOLID V-FOLD-NEUTRAL; user ruling 2026-11-23, D1-D3): a molecule's XC mesh is made invariant under the
+// D2h-type subgroup of its point group (rotated into the group's frame), folded only when the run imposes symmetry; a C1 molecule, an
+// angular rule that cannot carry the frame, and a geometry symmetric only to the detection tolerance keep the lab frame, each REPORTED.
+// The source is per geometry POINT: a step that breaks a mirror gets the smaller group there, and says so.
+namespace
+{
+std::vector<report::json> PolicyRows(const std::string& run, const std::string& name)
+{
+    std::vector<report::json> out;
+    const auto& G=report::GlobalReport();
+    const report::json* filed=nullptr;
+    for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind(run+"@",0)==0) filed=&it.value();
+    if (!filed) throw std::logic_error(run+" was not filed");
+    std::function<void(const report::json&)> walk=[&](const report::json& x)
+    {
+        if (x.is_object())
+            for (auto it=x.begin(); it!=x.end(); ++it)
+            {
+                if (it.key()=="policy" && it.value().is_array())
+                    for (const auto& r : it.value()) if (r.value("name","")==name) out.push_back(r);
+                walk(it.value());
+            }
+        else if (x.is_array()) for (const auto& y : x) walk(y);
+    };
+    walk(*filed);
+    return out;
+}
+Molecule Water(double dy=0.0)
 {
     Molecule h2o;
     h2o.Insert(Site{8, rvec3_t(0,0,0)});
-    h2o.Insert(Site{1, rvec3_t(0, 1.43,1.11)});
+    h2o.Insert(Site{1, rvec3_t(0, 1.43+dy,1.11)});
     h2o.Insert(Site{1, rvec3_t(0,-1.43,1.11)});
-    auto rows=[](const std::string& tag)
-    {
-        std::vector<report::json> out;
-        const auto& G=report::GlobalReport();
-        const report::json* filed=nullptr;
-        for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind(tag+"@",0)==0) filed=&it.value();
-        if (!filed) throw std::logic_error(tag+" was not filed");
-        std::function<void(const report::json&)> walk=[&](const report::json& x)
-        {
-            if (x.is_object())
-                for (auto it=x.begin(); it!=x.end(); ++it)
-                {
-                    if (it.key()=="policy" && it.value().is_array())
-                        for (const auto& r : it.value()) if (r.value("name","")=="MeshFoldNotBuilt") out.push_back(r);
-                    walk(it.value());
-                }
-            else if (x.is_array()) for (const auto& y : x) walk(y);
-        };
-        walk(*filed);
-        return out;
-    };
-    std::shared_ptr<const MoleculeSetup> lda, hf;
-    { report::Run run("MeshFoldNotBuilt LDA"); lda=MoleculeSetup::Resolve(h2o, {.model=Model::LDA, .molecule={.basis="dzvp"}}); }
-    { report::Run run("MeshFoldNotBuilt HF");  hf =MoleculeSetup::Resolve(h2o, {.model=Model::HF,  .molecule={.basis="dzvp"}}); }
-    ASSERT_TRUE(lda->meshSymmetry);
-    EXPECT_TRUE(lda->meshSymmetry->MeshOps().empty()) << "the policy chose the unfolded mesh";
-    const auto r=rows("MeshFoldNotBuilt LDA");
+    return h2o;
+}
+} //anon
+
+TEST(MoleculeSetup, AMoleculesMeshIsInvariantUnderItsD2hTypeSubgroupAndSaysSo)
+{
+    std::shared_ptr<const MoleculeSetup> lda, imposed, hf;
+    { report::Run run("MeshSymmetry LDA");     lda    =MoleculeSetup::Resolve(Water(), {.model=Model::LDA, .molecule={.basis="dzvp"}}); }
+    { report::Run run("MeshSymmetry imposed"); imposed=MoleculeSetup::Resolve(Water(), {.model=Model::LDA, .imposeSymmetry=true, .molecule={.basis="dzvp"}}); }
+    { report::Run run("MeshSymmetry HF");      hf     =MoleculeSetup::Resolve(Water(), {.model=Model::HF,  .molecule={.basis="dzvp"}}); }
+    const MoleculeSetup::Point p=lda->MakePoint(), q=imposed->MakePoint();
+    ASSERT_TRUE(p.meshSymmetry && q.meshSymmetry && hf->MakePoint().meshSymmetry);
+    EXPECT_EQ(p.meshSymmetry->MeshOps().size(), size_t(4)) << "C2v";
+    EXPECT_FALSE(p.meshSymmetry->AveragesDensityOverOrbits()) << "a free run: invariant, not folded (D2)";
+    EXPECT_EQ(q.meshSymmetry->MeshOps().size(), size_t(4)) << "an imposed run: the same invariant mesh";
+    for (const auto& op : p.meshSymmetry->MeshOps()) EXPECT_EQ(norm(op.tau), 0.0) << "point-group ops act about the centroid the maker supplies";
+    const auto r=PolicyRows("MeshSymmetry LDA", "MeshSymmetry");
     ASSERT_EQ(r.size(), size_t(1));
     EXPECT_NE(r[0].dump().find("C2v"), std::string::npos) << r[0].dump();
-    EXPECT_NE(r[0].dump().find("V-FOLD-NEUTRAL"), std::string::npos) << r[0].dump();
-    EXPECT_TRUE(rows("MeshFoldNotBuilt HF").empty()) << "an all-electron HF run builds no XC mesh";
+    EXPECT_NE(r[0].dump().find("not folded"), std::string::npos) << r[0].dump();
+    EXPECT_NE(PolicyRows("MeshSymmetry imposed", "MeshSymmetry")[0].dump().find("NOT folded"), std::string::npos)
+        << "the fold is built but not engaged: it has no geometry gradient and no GGA gradient rotation yet";
+    EXPECT_FALSE(imposed->MakePoint().meshSymmetry->AveragesDensityOverOrbits());
+    EXPECT_TRUE(PolicyRows("MeshSymmetry HF", "MeshSymmetry").empty()) << "an all-electron HF run builds no XC mesh";
+    EXPECT_TRUE(hf->MakePoint().meshSymmetry->MeshOps().empty());
+}
+
+TEST(MoleculeSetup, AMoleculesMeshKeepsTheLabFrameWhereItMustAndSaysWhy)
+{
+    std::shared_ptr<const MoleculeSetup> rough, coarse;
+    { report::Run run("MeshSymmetry rough"); rough=MoleculeSetup::Resolve(Water(1e-6), {.model=Model::LDA, .molecule={.basis="dzvp"}}); }
+    EXPECT_TRUE(rough->MakePoint().meshSymmetry->MeshOps().empty()) << "symmetric to the detection tolerance only";
+    const auto r=PolicyRows("MeshSymmetry rough", "MeshSymmetry");
+    ASSERT_EQ(r.size(), size_t(1));
+    EXPECT_NE(r[0].dump().find("lab frame"), std::string::npos) << r[0].dump();
+    EXPECT_NE(r[0].dump().find("symmetric to more digits"), std::string::npos) << r[0].dump();
+
+    RunOptions o{.model=Model::LDA, .molecule={.basis="dzvp"}};
+    o.xcMesh=qcMesh::MeshParams{}; o.xcMesh->nRadial=40; o.xcMesh->angular=qcMesh::AngularKind::Lebedev; o.xcMesh->angularDegree=7;
+    { report::Run run("MeshSymmetry coarse"); coarse=MoleculeSetup::Resolve(Water(), o); }
+    EXPECT_TRUE(coarse->MakePoint().meshSymmetry->MeshOps().empty()) << "the 24-direction rule cannot carry the frame";
+    EXPECT_NE(PolicyRows("MeshSymmetry coarse", "MeshSymmetry")[0].dump().find("degree 9"), std::string::npos);
+
+    // A ROTATED rule (BeckeXCParams() carries the cubic-site calibration's angRot) is a stated orientation: kept, in the lab frame.
+    std::shared_ptr<const MoleculeSetup> rotated;
+    o.xcMesh=qcMesh::BeckeXCParams(); o.xcMesh->angularDegree=41;
+    ASSERT_NE(o.xcMesh->angRot, 0.0) << "this case needs the calibrated rotation";
+    { report::Run run("MeshSymmetry rotated"); rotated=MoleculeSetup::Resolve(Water(), o); }
+    EXPECT_TRUE(rotated->MakePoint().meshSymmetry->MeshOps().empty()) << "a rotated rule cannot carry the frame";
+    EXPECT_NE(PolicyRows("MeshSymmetry rotated", "MeshSymmetry")[0].dump().find("angRot"), std::string::npos);
+
+    // A geometry step that breaks C2v's mirrors (one H moved off) keeps only the molecular plane: Cs, reported as a change of group.
+    std::shared_ptr<const MoleculeSetup> lda;
+    { report::Run run("MeshSymmetry step"); lda=MoleculeSetup::Resolve(Water(), {.model=Model::LDA, .molecule={.basis="dzvp"}});
+      const MoleculeSetup::Point moved=lda->MakePoint({rvec3_t(0,0,0), rvec3_t(0,1.60,1.11), rvec3_t(0,-1.43,1.11)});
+      EXPECT_EQ(moved.meshSymmetry->MeshOps().size(), size_t(2)) << "Cs"; }
+    const auto s=PolicyRows("MeshSymmetry step", "MeshSymmetry");
+    ASSERT_EQ(s.size(), size_t(2)) << "the reference's row, and the step's change of group";
+    EXPECT_NE(s[1].dump().find("this geometry point"), std::string::npos) << s[1].dump();
 }
