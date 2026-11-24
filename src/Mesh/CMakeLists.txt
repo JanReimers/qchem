@@ -3,6 +3,7 @@ add_library(qcMesh)
 target_sources(qcMesh PRIVATE
     Imp/Mesh.C
     Imp/Recipe.C
+    Imp/SiteMultipoles.C
     Internal/MHLRadialMesh.C
     Internal/LogRadialMesh.C
     Internal/LinearRadialMesh.C
@@ -13,6 +14,7 @@ target_sources(qcMesh PRIVATE
     Internal/AngularFactory.C
     Internal/FoldedMesh.C
     Internal/CoulombOperatorFactory.C
+    Internal/Imp/RadialPoissonCoulomb.C
     )
 # Module interface units (export the BMI .gcm files other modules import).
 target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
