@@ -16,6 +16,8 @@ module;
 #include <algorithm> // std::any_of (is the fold's op set magnetic?)
 #include <sstream>   // the molecular frame's report string
 #include <cmath>
+#include <limits>    // PointGroupGeometryError: an op set outside D2h type is infinitely far
+#include <utility>
 #include <memory>    // the scoped-but-early-stopped Timed on the site-adapted angular build (1.1(b))
 module qchem.Structure.MeshFactory;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
@@ -915,13 +917,6 @@ static std::vector<Symmetry::SymOp> AboutCentre(const std::vector<Symmetry::SymO
     return out;
 }
 
-static rvec3_t Centroid(const Molecule& mol)
-{
-    rvec3_t c(0,0,0);
-    for (const Site& s : mol.Sites()) c+=s.R;
-    return c/double(mol.GetNumAtoms());
-}
-
 //! THROWS unless every op is a point-group op this build handles: tau = 0, no spin action, W orthogonal.
 static void RequirePointGroupOps(const std::vector<Symmetry::SymOp>& ops, const char* who)
 {
@@ -1048,6 +1043,138 @@ private:
     std::vector<size_t> itsByX;
 };
 
+//! The sites of a structure, as the polish and the geometry checks read them.
+struct SitePoints
+{
+    std::vector<rvec3_t> R;
+    std::vector<int>     Z;
+    rvec3_t              c=rvec3_t(0,0,0);   //!< the unweighted centroid: the point the ops act about
+};
+static SitePoints SitesOf(const Structure& s)
+{
+    SitePoints p;
+    s.ForEachSite([&p](int Z, const rvec3_t& r, bool){ p.R.push_back(r); p.Z.push_back(Z); });
+    for (const rvec3_t& r : p.R) p.c+=r;
+    if (!p.R.empty()) p.c=p.c/double(p.R.size());
+    return p;
+}
+
+//! The nearest site of species \a Z to \a r (no tolerance: the caller judges the distance).
+static size_t NearestSite(const SitePoints& p, int Z, const rvec3_t& r)
+{
+    size_t best=0; double bd=1e300;
+    for (size_t j=0; j<p.R.size(); j++)
+        if (p.Z[j]==Z && norm(p.R[j]-r)<bd) { bd=norm(p.R[j]-r); best=j; }
+    return best;
+}
+
+//! \brief The D2h-type ops POLISHED against the geometry: the same group, exact to roundoff for a geometry that carries it to roundoff.
+//! The ops a source hands over are DETECTED: built from axes found to the detection tolerance, so on a deck turned off the lab axes they
+//! are exact only to that axis search, and a mesh carried by them would inherit its error as an orientation dependence.  So the maker
+//! re-derives each frame axis from the ATOMS (the geometry it owns, V-MESH-FACTORY's rule), through an
+//! op that has that axis as its one-dimensional eigenspace (eigenvalue s: a C2 axis, s = +1; a mirror normal, s = -1).  With x = R_i - c
+//! and y = W x its image site's offset, x + s y = 2 (x.v) v exactly: the axis is the largest such vector.  When every such vector
+//! vanishes (all atoms in the plane perpendicular to v) the axis is that plane's normal, the largest cross product of two offsets; when
+//! that vanishes too (a linear molecule's free axes) nothing fixes it, and the detected axis is kept.  The axes are re-orthonormalized
+//! (the fixed ones first), and the ops rebuilt as W = F D F^T from the frame's sign matrices D.  Pure: ops in, ops out, no tolerance.
+static std::vector<Symmetry::SymOp> PolishedOps(const SitePoints& p, const std::vector<Symmetry::SymOp>& ops, const Matrix3D<double>& F)
+{
+    std::vector<Matrix3D<double>> D(ops.size());
+    for (size_t k=0; k<ops.size(); k++)
+    {
+        const Matrix3D<double> M=Transpose(F)*ops[k].W*F;
+        D[k]=Matrix3D<double>(M(1,1)>0 ? 1 : -1,0,0, 0,M(2,2)>0 ? 1 : -1,0, 0,0,M(3,3)>0 ? 1 : -1);
+    }
+    rvec3_t axis[3];
+    bool    fixed[3]={false, false, false};
+    double  scale=0.0;
+    for (const rvec3_t& r : p.R) scale=std::max(scale, norm(r-p.c));
+    const double zero=1e-6*std::max(scale, 1.0);   // "vanishes": far below any bond, far above roundoff
+    for (int j=0; j<3; j++)
+    {
+        const rvec3_t approx(F(1,j+1), F(2,j+1), F(3,j+1));
+        axis[j]=approx;
+        for (size_t k=0; k<ops.size() && !fixed[j]; k++)
+        {
+            const double s=D[k](j+1,j+1);
+            if (D[k]((j+1)%3+1,(j+1)%3+1)!=-s || D[k]((j+2)%3+1,(j+2)%3+1)!=-s) continue;   // axis j is not this op's 1-D eigenspace
+            rvec3_t best(0,0,0);
+            for (size_t i=0; i<p.R.size(); i++)
+            {
+                const rvec3_t x=p.R[i]-p.c;
+                const rvec3_t y=p.R[NearestSite(p, p.Z[i], ops[k].W*x+p.c)]-p.c;
+                const rvec3_t v=x+s*y;
+                if (norm(v)>norm(best)) best=v;
+            }
+            if (norm(best)<=zero)   // every atom in the plane perpendicular to the axis: its normal
+                for (size_t a=0; a<p.R.size(); a++)
+                    for (size_t b=a+1; b<p.R.size(); b++)
+                    {
+                        const rvec3_t v=Cross(p.R[a]-p.c, p.R[b]-p.c);
+                        if (norm(v)>norm(best)) best=v;
+                    }
+            if (norm(best)>zero*zero) { axis[j]=(best*approx<0.0 ? -1.0 : 1.0)*best/norm(best); fixed[j]=true; }
+        }
+    }
+    // Gram-Schmidt, the atom-fixed axes first (they are orthogonal to roundoff already; this only removes the roundoff).
+    int order[3], n=0;
+    for (int j=0; j<3; j++) if ( fixed[j]) order[n++]=j;
+    for (int j=0; j<3; j++) if (!fixed[j]) order[n++]=j;
+    for (int a=0; a<3; a++)
+    {
+        rvec3_t v=axis[order[a]];
+        for (int b=0; b<a; b++) v-=(axis[order[b]]*v)*axis[order[b]];
+        axis[order[a]]=v/norm(v);
+    }
+    Matrix3D<double> P;
+    for (int j=0; j<3; j++) { P(1,j+1)=axis[j].x; P(2,j+1)=axis[j].y; P(3,j+1)=axis[j].z; }
+    std::vector<Symmetry::SymOp> out;
+    out.reserve(ops.size());
+    for (size_t k=0; k<ops.size(); k++) out.push_back({P*D[k]*Transpose(P), ops[k].tau, ops[k].sigma});
+    return out;
+}
+
+//! How far the sites are from carrying \a ops about their centroid (bohr): the largest distance from an op's image of a site to the
+//! nearest site of its species.
+static double GeometryError(const SitePoints& p, const std::vector<Symmetry::SymOp>& ops)
+{
+    double d=0.0;
+    for (const Symmetry::SymOp& op : ops)
+        for (size_t i=0; i<p.R.size(); i++)
+        {
+            const rvec3_t img=op.W*(p.R[i]-p.c)+p.c;
+            d=std::max(d, norm(p.R[NearestSite(p, p.Z[i], img)]-img));
+        }
+    return d;
+}
+
+//! The frame of \a ops and the ops polished against \a s; THROWS by name outside D2h type.
+static std::pair<Matrix3D<double>, std::vector<Symmetry::SymOp>> FrameAndPolishedOps(const SitePoints& p,
+                                                                                     const std::vector<Symmetry::SymOp>& ops, const char* who)
+{
+    std::string why;
+    const Matrix3D<double> F0=D2hFrame(ops, why);
+    if (!why.empty())
+        throw std::invalid_argument(std::string(who)+"(Molecule, "+std::to_string(ops.size())+" ops): a mesh invariant under this group is not "
+                                    "built: "+why+".  The molecular mesh is built for groups of D2h type, the abelian subgroup the SALC blocking "
+                                    "uses (OOD-SOLID V-FOLD-NEUTRAL; the full point group is its follow-up)");
+    std::vector<Symmetry::SymOp> polished=PolishedOps(p, ops, F0);
+    std::string why2;
+    const Matrix3D<double> F=D2hFrame(polished, why2);   // the polished axes, matched to the lab axes as before
+    assert(why2.empty());
+    return {F, std::move(polished)};
+}
+
+double PointGroupGeometryError(const Structure& s, const std::vector<Symmetry::SymOp>& ops)
+{
+    RequirePointGroupOps(ops, "PointGroupGeometryError");
+    const SitePoints p=SitesOf(s);
+    std::string why;
+    (void)D2hFrame(ops, why);
+    if (!why.empty()) return std::numeric_limits<double>::infinity();
+    return GeometryError(p, FrameAndPolishedOps(p, ops, "PointGroupGeometryError").second);
+}
+
 qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops)
 {
     assert(!ops.empty());
@@ -1056,13 +1183,10 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
     if (mp.angular==qcMesh::AngularKind::None)
         throw std::invalid_argument("MakeMesh(Molecule, ops): the radial-only set exists only on an atom (doc/Pins.md pin 30)");
 
-    std::string why;
+    const SitePoints sites=SitesOf(mol);
     MolecularOrbitBuild sym;
-    sym.frame=D2hFrame(ops, why);
-    if (!why.empty())
-        throw std::invalid_argument("MakeMesh(Molecule, "+std::to_string(ops.size())+" ops): a mesh invariant under this group is not built: "
-                                    +why+".  The molecular mesh is built for groups of D2h type, the abelian subgroup the SALC blocking uses "
-                                    "(OOD-SOLID V-FOLD-NEUTRAL; the full point group is its follow-up)");
+    auto [frame, polished]=FrameAndPolishedOps(sites, ops, "MakeMesh");
+    sym.frame=frame;
 
     // The angular set, oriented, must carry every op (as the frame's sign matrix).  Lebedev always does; a GaussLegendre product set
     // carries a frame reflection only when its azimuthal nodes are symmetric -- REFUSED by name, before any point is built.
@@ -1088,14 +1212,12 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
     // The ATOM ORBITS and the edge op onto each member.  The geometry must carry the ops to the mesh match tolerance (a tenth of it, so the
     // carried points stay within it): a deck symmetric only to the detection tolerance (1e-4) cannot have an invariant mesh.
     const size_t natom=mol.GetNumAtoms();
-    const rvec3_t c=Centroid(mol);
-    const std::vector<Symmetry::SymOp> opsC=AboutCentre(ops, c);
-    std::vector<rvec3_t> Rv;
-    std::vector<int>     Z;
-    for (const Site& s : mol.Sites()) { Rv.push_back(s.R); Z.push_back(s.Z); }
+    const std::vector<Symmetry::SymOp> opsC=AboutCentre(polished, sites.c);
+    const std::vector<rvec3_t>& Rv=sites.R;
+    const std::vector<int>&     Z =sites.Z;
     rvec3vec_t R(natom);
     for (size_t i=0; i<natom; i++) R[i]=Rv[i];
-    const double atomTol=0.1*kMeshMatchTol;
+    const double atomTol=kMolecularMeshGeometryTol;
     {
         EuclideanIndex index(R, atomTol);
         for (size_t k=0; k<opsC.size(); k++)
@@ -1116,7 +1238,7 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
         {
             if (oi<0) throw std::logic_error("MakeMesh(Molecule, ops): an atom orbit member with no edge op in a closed group");
             sym.repOf[size_t(mi)]=size_t(af.repRaw[o]);
-            sym.edge [size_t(mi)]=ops[size_t(oi)].W;
+            sym.edge [size_t(mi)]=polished[size_t(oi)].W;
         }
 
     qcMesh::Mesh m=AtomCentredMesh(mol, mp, &sym);
@@ -1124,8 +1246,16 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
 
     // VERIFIED, not assumed: every op maps the mesh onto itself, weight for weight.  The members are carried copies (bit-equal); what this
     // checks is each representative's own stabilizer (an atom on a mirror, at the centre), whose image points carry INDEPENDENTLY computed
-    // partition weights: those agree to roundoff, measured at most ~3e-14 relative (MolecularPointGroupMesh tests, 2026-11-23).  The spread
-    // is reported; past 1e-10 it is a broken invariant, not roundoff.
+    // partition weights.  Those agree to ROUNDOFF, and roundoff here grows with the distance: the Becke cell variable is a difference of two
+    // distances to the point over the atoms' separation, so at distance r from the nuclei it carries ~eps r / R_min, and the cell polynomial
+    // amplifies that.  Measured: ~3e-14 relative near the nuclei (MolecularPointGroupMesh tests), 9e-9 on water's outermost radial shell
+    // at r = 1e6 bohr (M_Calculation.WaterLDA_eqRotated, 2026-11-23), i.e. ~1.7e-14 per unit of r / R_min.  So the spread is NORMALIZED
+    // by max(1, r / R_min) before it is judged: a wrong frame or a mismatched edge op gives O(1) spreads at every r; past 1e-10 normalized
+    // it is a broken invariant, not roundoff.  The normalized spread is reported.
+    double rMin=std::numeric_limits<double>::infinity();
+    for (size_t a=0; a<natom; a++)
+        for (size_t b=a+1; b<natom; b++) rMin=std::min(rMin, norm(Rv[a]-Rv[b]));
+    if (!std::isfinite(rMin)) rMin=1.0;
     double spread=0.0;
     {
         EuclideanIndex index(m.Points(), kMeshMatchTol);
@@ -1137,13 +1267,16 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
                 if (j<0)
                     throw std::logic_error("MakeMesh(Molecule, ops): the built mesh is not invariant under op "+std::to_string(k)
                                            +": point "+std::to_string(i)+" has no image point");
-                if (w[i]!=0.0) spread=std::max(spread, std::abs(w[size_t(j)]-w[i])/std::abs(w[i]));
+                if (w[i]==0.0) continue;
+                const double reach=std::max(1.0, norm(m.Points()[i]-sites.c)/rMin);
+                spread=std::max(spread, std::abs(w[size_t(j)]-w[i])/std::abs(w[i])/reach);
             }
     }
     if (spread>1e-10)
     {
         std::ostringstream o; o << std::scientific << spread;
-        throw std::logic_error("MakeMesh(Molecule, ops): the weights differ across an orbit by "+o.str()+" relative -- not roundoff");
+        throw std::logic_error("MakeMesh(Molecule, ops): the weights differ across an orbit by "+o.str()+" relative (per unit of r / R_min) "
+                               "-- not roundoff");
     }
     qchem::report::Set("orbitWeightSpread", spread);
     {
@@ -1162,7 +1295,9 @@ qcMesh::FoldedMesh FoldOrbits(const Molecule& mol, qcMesh::Mesh mesh, const std:
     auto fold=[&]{ qchem::report::Timed timed("setup: XC mesh orbit fold (FoldMesh)");
                    std::vector<rvec3_t> pts(mesh.size());
                    for (size_t i=0; i<mesh.size(); i++) pts[i]=mesh.Points()[i];
-                   return Symmetry::Lattice_3D::FoldPoints(pts, AboutCentre(ops, Centroid(mol)), kMeshMatchTol); }();
+                   const SitePoints sites=SitesOf(mol);   // the ops the mesh was built under: polished against the same geometry
+                   return Symmetry::Lattice_3D::FoldPoints(pts, AboutCentre(FrameAndPolishedOps(sites, ops, "FoldOrbits").second, sites.c),
+                                                           kMeshMatchTol); }();
     std::cout << "[Becke grid] molecular point group (" << ops.size() << " ops): invariant mesh " << mesh.size() << " points in "
               << fold.Reps() << " orbits; rho star-averaged each iteration" << std::endl;
     return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold)};
