@@ -1,8 +1,8 @@
 // File: Hamiltonian/Internal/Imp/PP_Local.C  Local-pseudopotential term.
 //
 // The term owns only the MODEL (V_loc as a real-space field).  A basis that can assemble the field
-// (Orbital_PP_IBS, a capability cross-cast) answers in closed form.  Otherwise the term asks the STRUCTURE for its integration
-// mesh -- CreateIntegrationMesh is a polymorphic geometry capability (Atom -> radial x angular, Molecule ->
+// (Orbital_PP_IBS, a capability cross-cast) answers in closed form.  Otherwise the term is HANDED its integration mesh,
+// built by the Hamiltonian factory through the point's MeshMaker (V-MESH-FACTORY: Atom -> radial x angular, Molecule ->
 // Becke, lattice -> uniform), so the mesh TYPE follows the geometry, not this term -- and quadratures
 // <i|V_loc|j> with the generic qcMesh::MatrixOverlap (the same routine the XC path uses).  The term is
 // thus geometry-neutral without any basis-specific dispatch.

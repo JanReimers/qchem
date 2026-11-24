@@ -8,6 +8,7 @@ module;
 #include <string>
 #include <vector>
 module qchem.Mesh.Angular;
+import qchem.Mesh.Recipe;   // MeshParams and the mesh kinds (V-MESH-FACTORY step 5: qchem.Mesh no longer re-exports it)
 
 namespace qchem::qcMesh
 {

@@ -9,6 +9,7 @@ target_sources(qcStructure PRIVATE
     Imp/CrystalFiles.C
     Lattice_3D/Imp/Lattice_3D.C
     Lattice_3D/Imp/Imposition.C
+    Lattice_3D/Imp/SymmetrizeMesh.C
     )
 target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Structure.C

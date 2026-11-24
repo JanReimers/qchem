@@ -29,6 +29,7 @@ import qchem.Types;                       // rvec3_t
 import qchem.ScalarFunction;              // ScalarFunction<double> (density / orbital evaluation)
 import qchem.Mesh.Quadrature;             // qcMesh::RadialMesh, MakeRadial, Integrate (radial quadrature)
 import qchem.ChargeDensity;               // rSpinResolved_CD, rChargeDensity: a polarized atom's Up/Down channels
+import qchem.Mesh.Radial;   // MakeRadial (V-MESH-FACTORY step 5: qchem.Mesh.Quadrature no longer re-exports the radial factory)
 using namespace qchem;
 
 using std::cout;

@@ -1,7 +1,7 @@
 // File: Hamiltonian/Internal/Imp/PP_NonLocal.C  Separable (Kleinman-Bylander) non-local pseudopotential term.
 //
-// Like PP_Local, the term owns only the MODEL (the KB projectors) and asks the STRUCTURE for its integration
-// mesh (CreateIntegrationMesh -- the polymorphic geometry capability), then builds each projector's overlap
+// Like PP_Local, the term owns only the MODEL (the KB projectors) and is HANDED its integration mesh (the Hamiltonian factory
+// builds it through the point's MeshMaker, V-MESH-FACTORY; was CreateIntegrationMesh, deleted step 4b), then builds each projector's overlap
 // vector b_p = <chi_i | beta_p(|r-R|) Y_lm> with the generic qcMesh::Overlap and accumulates the rank-1
 // D|b><b|.  Geometry-neutral: no basis-specific dispatch, mesh type follows the geometry.
 module;
@@ -15,6 +15,8 @@ import qchem.Energy;
 import qchem.Mesh.Quadrature;           // qcMesh::Overlap(mesh, VectorFunction, ScalarFunction) -> projection vector
 import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction (passed direct)
 import qchem.Math.SolidHarmonics;       // RealYlm
+import qchem.Mesh.Recipe;   // MeshParams and the mesh kinds (V-MESH-FACTORY step 5: qchem.Mesh no longer re-exports it)
+import qchem.Mesh.Radial;   // MakeRadial (V-MESH-FACTORY step 5: qchem.Mesh.Quadrature no longer re-exports the radial factory)
 
 namespace qchem::Hamiltonian
 {

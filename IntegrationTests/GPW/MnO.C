@@ -336,7 +336,7 @@ TEST(GPW_MnO, Γ_Becke_Pol_SeedVxcMirror)
 // imposed MnO basis must star-average the channel pair under the Shubnikov group -- keeping the AFM
 // staggering EXACTLY mirror-symmetric -- where the grey average would erase it.  Chain under test:
 // MagneticDecoration (the seed's own species rule) -> GPWParams::siteSpins -> the factory's Shubnikov
-// resolution -> MakeXCQuadrature (the imposition's site-adapted invariant mesh + fold + sigma tags + flip-fixed zero
+// resolution -> the cell's MeshMaker under the imposition as SymmetrySource (was MakeXCQuadrature: the imposition's site-adapted invariant mesh + fold + sigma tags + flip-fixed zero
 // flags) -> SinglesDensitySampler::RhoPol's (rho,m) split.
 TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
 {

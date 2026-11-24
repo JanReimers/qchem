@@ -41,12 +41,6 @@ qcMesh::Mesh MakeMesh(const Atom&,     const qcMesh::MeshParams&, const std::vec
 //! ever handed \c qcMesh::NoSymmetry, whose empty op set never reaches this.
 qcMesh::Mesh MakeMesh(const Molecule&, const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops);
 
-//! DELETED on purpose: a mesh is chosen by the CONCRETE structure type, and an abstract \c Structure would otherwise convert silently through
-//! \c Molecule's implicit \c Molecule(const Structure&) -- a cell meshed as a molecule.  The exact-match deleted overload makes that a
-//! compile error (CLAUDE.md, compile-time over runtime); a caller holding only the abstract face takes a \c qcMesh::MeshMaker instead.
-qcMesh::Mesh MakeMesh(const Structure&, const qcMesh::MeshParams&) = delete;
-qcMesh::Mesh MakeMesh(const Structure&, const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops) = delete;
-
 //! The ORBIT FOLD of a cell mesh invariant under \a ops: the orbit partition (fractional, torus-metric point matching), and on a
 //! Shubnikov op set the per-op spin actions and the flip-fixed points (m = 0 there exactly).
 qcMesh::FoldedMesh FoldOrbits(const UnitCell&, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops);

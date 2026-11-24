@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <string>
 import qchem.Mesh.XCPolicy;
+import qchem.Mesh.Recipe;   // MeshParams and the mesh kinds (V-MESH-FACTORY step 5: qchem.Mesh no longer re-exports it)
 
 using namespace qchem;
 using namespace qchem::qcMesh;
@@ -21,7 +22,7 @@ using namespace qchem::qcMesh;
 //  The Nyquist bridge
 //================================================================================================
 
-// The formula this replaced was a literal inside UnitCell::CreateIntegrationMesh; pin it so the extraction
+// The formula this replaced was a literal inside UnitCell::CreateIntegrationMesh (deleted step 4b; the uniform build is MakeMesh(cell, mp)); pin it so the extraction
 // is provably behaviour-preserving rather than merely plausible.
 TEST(XCPolicy, UniformDivisionsMatchesTheNyquistFormula)
 {

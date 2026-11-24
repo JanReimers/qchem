@@ -16,9 +16,7 @@ module;
 #include <string>
 #include <vector>
 export module qchem.Mesh.SiteMultipoles;
-export import qchem.Mesh;
-export import qchem.Mesh.Radial;
-export import qchem.Mesh.Angular;
+export import qchem.Mesh;   // Mesh, RadialMesh, AngularMesh: the built meshes the transforms read
 import qchem.Parallel;   // OuterFor: every item writes only its own slots
 import qchem.Types;
 
@@ -138,10 +136,9 @@ class SiteMultipoles
 public:
     typedef std::vector<std::vector<double>> channels_t;   //!< per site, (radial node x lm) node-major, lm at index \f$l^2+l+m\f$
 
-    //! \a centres are the mesh's site centres in block order, and \a mp the rules every site was built from.  THROWS when the mesh
-    //! has no site blocks, or a point sits on no shell: the transforms mean nothing on such a mesh.
-    SiteMultipoles(const Mesh& mesh, const rvec3vec_t& centres, const MeshParams& mp, int lMax)
-        : SiteMultipoles(mesh, centres, MakeRadial(mp), MakeAngular(mp), lMax) {}
+    //! \a centres are the mesh's site centres in block order, and \a radial / \a angular the rules every site was built from (a caller
+    //! holding the recipe builds them with \c MakeRadial / \c MakeAngular: this class sees BUILT meshes only, V-MESH-FACTORY step 5).
+    //! THROWS when the mesh has no site blocks, or a point sits on no shell: the transforms mean nothing on such a mesh.
     SiteMultipoles(const Mesh& mesh, const rvec3vec_t& centres, const RadialMesh& radial, const AngularMesh& angular, int lMax)
         : itsPoints(mesh.Points()), itsCentres(centres), itsR(Positive(radial.R(),radial.R())), itsW(Positive(radial.R(),radial.W()))
         , itsDirs(angular.Dirs()), itsDirW(angular.W()), itsLMax(lMax), itsNLM((lMax+1)*(lMax+1)), itsLogR(MakeLog(itsR))

@@ -3,7 +3,7 @@
 // Promoted out of Symmetry/Lattice_3D/Fold.C (R2.17.3, user 2026-08-07).  The struct was always
 // generic -- its own doc comment said so -- but its ADDRESS was not: living in the Lattice_3D folder
 // made every signature that took one crystal-specific, even where the operation itself is not.  The
-// trigger was UnitCell's ops-taking CreateIntegrationMesh: a SITE-ADAPTED quadrature mesh is equally
+// trigger was UnitCell's ops-taking CreateIntegrationMesh (now MakeMesh(cell, mp, ops)): a SITE-ADAPTED quadrature mesh is equally
 // meaningful for a molecule, and only the argument's namespace said otherwise.
 //
 // Placement note (the qcSymmetry taxonomy): this file sits at the ROOT, above the Atom/ Molecule/

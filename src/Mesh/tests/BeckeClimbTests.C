@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <utility>
 import qchem.Mesh.BeckeClimb;
+import qchem.Mesh.Recipe;   // MeshParams and the mesh kinds (V-MESH-FACTORY step 5: qchem.Mesh no longer re-exports it)
 
 using namespace qchem;
 using qcMesh::MeshParams;

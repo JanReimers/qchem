@@ -57,7 +57,7 @@ UnitCell SiPrimitive()
     return c;
 }
 
-// The imposed op set of a cell: what CreateIntegrationMesh's site-adapted (W2b) overload takes.
+// The imposed op set of a cell: what the site-adapted (W2b) MakeMesh(cell, mp, ops) takes.
 std::vector<SL::SymOp> Ops(const UnitCell& cell)
 {
     Lattice_3D lat(cell, ivec3_t(1,1,1));
@@ -239,7 +239,7 @@ TEST(BeckeMesh, SiteBlockPointsDecomposeAboutTheirOwnAtomAndNoOther)
 
 //---------------------------------------------------------------------------------------------------
 // The same, on the IMPOSED (site-adapted, W2b) build.  Its angular sets are built per orbit inside
-// CreateIntegrationMesh and are not reproducible from outside, so only the RADIAL axis is asserted --
+// MakeMesh(cell, mp, ops) and are not reproducible from outside, so only the RADIAL axis is asserted --
 // which is enough: the radii are what the wrapped coordinate destroyed.
 TEST(BeckeMesh, ImposedSiteBlockDecomposesOntoTheRadialNodesOfItsOwnAtom)
 {

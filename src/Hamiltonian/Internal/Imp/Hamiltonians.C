@@ -25,6 +25,7 @@ import qchem.Hamiltonian.Types;
 import qchem.Fitting.CoulombOperator;            // the grid Hartree route: the fitter (the operators are qcMesh's, re-exported)
 import qchem.BasisSet.CoulombDeltaFit_IBS;       // a δ basis with its Coulomb integrals
 import qchem.Mesh.Radial;                         // MakeRadial: the radial rule the Poisson operator shares with the mesh
+import qchem.Mesh.Angular;                        // MakeAngular: the site multipoles' angular rule, from the same recipe
 import qchem.Structure;
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
 import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
@@ -107,7 +108,7 @@ static std::shared_ptr<const qcMesh::SiteMultipoles> MakeSiteMultipoles(const st
 {
     rvec3vec_t centres(st->GetNumAtoms());
     for (size_t a=0; a<centres.size(); a++) centres[a]=st->Sites()[a].R;
-    return std::make_shared<const qcMesh::SiteMultipoles>(mesh, centres, mp, lMax);
+    return std::make_shared<const qcMesh::SiteMultipoles>(mesh, centres, qcMesh::MakeRadial(mp), qcMesh::MakeAngular(mp), lMax);
 }
 
 //! \brief THE NONLINEAR MESH'S CLIENTS, listed under its report scope (V-NONLINEAR-MESH, user rulings 2026-11-20 1(a), 2(a)): the XC
