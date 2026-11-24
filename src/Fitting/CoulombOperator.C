@@ -161,7 +161,7 @@ std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_pt
 //! carries no Coulomb integrals.
 //! \a mesh is the δ basis's own point set (its quadrature's mesh): the fixed-D force reads its points' owners and its weight response.
 std::unique_ptr<FirstOrderDensityFit<double>>
-MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::shared_ptr<const qcMesh::Mesh> mesh);
+MakeDeltaDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::shared_ptr<const qcMesh::Mesh> mesh);
 
 //! \brief A density fit on a PLANE-WAVE fit basis \a pw (orthonormal {G}): the fit is \f$\tilde\rho(G)\f$ itself, held privately;
 //! the physics is the basis's Coulomb integrals.  THROWS when \a pw is not orthonormal or lacks the G-space faces.

@@ -6,8 +6,9 @@
 // beside the meshes and site multipoles it runs over.
 //
 // A fit basis says what a function is; a CoulombOperator says how the potential of a density on it is found (user ruling
-// 2026-11-06, on lane S's design note).  The grid routes (a density sampled on a mesh) all end the same way -- v at the mesh's
-// points, then the same quadrature XC uses -- and differ only in how v is found, so that is the one thing that varies.
+// 2026-11-06, on lane S's design note).  The δ-fit routes (ρ fitted on a δ fit basis, whose points the XC mesh supplies) all end the
+// same way -- v at the δ points, then V_ij = Σ_g c_g (ij|δ_g), the fit's coefficients contracted with the δ basis's exact projection
+// integrals -- and differ only in how v is found, so that is the one thing that varies.
 //
 // MEASURED (lane S prototype, TeF₆ at a fixed density, doc/Records/ on the row): at a mesh's own rung the J error of any
 // route that forms v at points is floored by the final contraction, 4.7e-4 per element at 80/29.  Analytic (ij|a) has no

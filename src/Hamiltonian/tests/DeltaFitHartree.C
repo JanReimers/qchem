@@ -1,4 +1,4 @@
-// File: Hamiltonian/tests/GridHartree.C  The grid Hartree route: the direct Coulomb sum against a closed form.
+// File: Hamiltonian/tests/DeltaFitHartree.C  The δ-fit Hartree route: the direct Coulomb sum against a closed form.
 //
 // A Gaussian charge has a closed-form potential, q erf(sqrt(a) r)/r, so the sum over a mesh can be judged point by point
 // without an SCF.  Tolerances are measured: the sum is a coarse rule, and these pin what it delivers, not an ideal.

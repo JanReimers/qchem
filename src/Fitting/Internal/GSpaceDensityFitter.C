@@ -2,7 +2,7 @@
 //
 // V-ONE-OF-N 3b (user rulings 2026-11-08, doc/Records/VOneOfN_D2Design.md §1a, §2a row 7).  An orthonormal {G} basis is an
 // ordinary fit basis whose metric happens to be diagonal, so this is the plane-wave member of the same family as the δ-mesh
-// fitter (GridDensityFitter), reached through the same face (FirstOrderDensityFit) by the same term (Vee_Fit):
+// fitter (DeltaDensityFitter), reached through the same face (FirstOrderDensityFit) by the same term (Vee_Fit):
 //   - PROJECTION.  The density projects through the OVERLAP 3-centre tensor: ρ̃(G).  On an orthonormal basis that projection IS
 //     the fit (the fit metric is irrelevant, role 1 of §1a), so the coefficients are ρ̃ itself, held PRIVATELY as a ΔG_Map.
 //     No kernel anywhere in this class.

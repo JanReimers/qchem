@@ -533,7 +533,7 @@ S's step 4 (V1.41 option C).  `tHamiltonianAt::Forces` is the natural home once 
 - The tensors carry it as a realization: `PairProjection::applyAdjointPullback`, dispatched by `RealisesAdjointPullback` /
   `ContractAdjointPullback`.  GPW's Overlap3C and Repulsion3C set it (the ladder, the level restriction, the Coulomb kernel); the plane-
   wave tensors set an exact zero.  `GSpaceDensityFitter` answers `MakeRepulsionPullback` through it (a real TRIM block's D promoted);
-  `GridDensityFitter` refuses (its mesh moves with the atoms).  `Vee_Fit` gains the term face (`Imp/Vee_Fit_Forces.C`).
+  `DeltaDensityFitter` refuses (its mesh moves with the atoms).  `Vee_Fit` gains the term face (`Imp/Vee_Fit_Forces.C`).
 - Gates:
   - Kernel (`M_CollocationPullback`): Si (SIPP), H₃ (contracted DZVP) and MnO through the spherical view, a two-level ladder, a non-
     TRIM k, a fixed cosine field, random Hermitian D, against the Richardson FD of Re Tr(D h) with the basis rebuilt at displaced atoms:
