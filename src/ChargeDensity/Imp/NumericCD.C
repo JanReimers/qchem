@@ -5,6 +5,8 @@ module;
 #include <memory>
 #include <cstddef>
 #include <stdexcept>
+#include <string>     // std::to_string (the refused count)
+#include <limits>
 
 module qchem.ChargeDensity.NumericCD;
 import qchem.Blaze;                        // rvec3_t vector arithmetic (Gradient accumulation) + rvec_t
@@ -16,7 +18,10 @@ namespace qchem::ChargeDensity
 NumericCD::NumericCD(double totalCharge, std::shared_ptr<const qcMesh::Mesh> quadrature)
     : itsQuadrature(std::move(quadrature)), itsCharge(totalCharge), itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
 {
-    assert(totalCharge>0);
+    // An EMPTY channel is a density (a one-electron doublet's minority channel: H, Na q1); a negative or non-finite count is not, and no
+    // caller can act on one (the seed computed it), so it throws -- an assert would be dead in Release (D-SEED-EMPTY-CHANNEL, 2026-11-23).
+    if (!(totalCharge>=0.0) || totalCharge==std::numeric_limits<double>::infinity())
+        throw std::logic_error("NumericCD: a channel's electron count must be finite and >= 0, got "+std::to_string(totalCharge));
     if (!itsQuadrature || itsQuadrature->size()==0)
         throw std::logic_error("NumericCD: a matrix-free seed needs the quadrature it integrates itself on (it is only a function on space)");
 }

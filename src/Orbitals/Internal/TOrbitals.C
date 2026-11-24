@@ -10,6 +10,7 @@ export import qchem.Symmetry.Irrep;
 export import qchem.Types;
 
 import qchem.Orbitals.Types;
+import qchem.ChargeDensity.Factory;   // DensityMaker
 
 
 export namespace qchem::Orbitals
@@ -23,7 +24,7 @@ template <class T> class TOrbitalsImp
 {
     typedef typename TOrbitals<T>::FillResult ds_t; //named-field fill result (V1.11)
 public:
-    TOrbitalsImp(const tobs_t<T>*, Spin s);
+    TOrbitalsImp(const tobs_t<T>*, Spin s, const ChargeDensity::DensityMaker& maker);
     virtual ~TOrbitalsImp();
 
 
@@ -71,6 +72,7 @@ private:
     //! solve and the shared-reservoir fill pass through.  NaN until a Fermi fill runs (a cold fill has no μ).
     double            itsMu=std::numeric_limits<double>::quiet_NaN();
     const tobs_t<T>*  itsBasisSet;
+    ChargeDensity::DensityMaker itsMaker;   //!< the run's density maker: MakeChargeDensity's route (its setup's, group E)
     std::vector<std::unique_ptr<Orbital>> itsOrbitals;
     Irrep         itsQNs;
     hmat_t<T>         itsD; // density matrix D=C*Cd (outer product); Hermitian (= symmetric for real T)

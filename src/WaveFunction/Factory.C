@@ -7,6 +7,7 @@ export import qchem.WaveFunction.SCF;
 export import qchem.Hamiltonian;
 export import qchem.ElectronConfiguration;
 import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation, forwarded to the WF)
+export import qchem.ChargeDensity.Factory;   // DensityMaker: the facade builds the WF with its setup's maker
 
 export namespace qchem::WaveFunction
 {
@@ -19,6 +20,7 @@ export namespace qchem::WaveFunction
             const tbs_t<T>* bs,
             const ElectronConfiguration* ec,
             SCFAccelerators::SCFAccelerator* acc,
+            const ChargeDensity::DensityMaker& maker,   //!< the run's density maker (its setup's resolved rho route; group E)
             qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0, size_t numBands=0
         );
 }

@@ -52,6 +52,18 @@ struct RunPolicySpec
     bool operator==(const RunPolicySpec&) const = default;
 };
 
+//! \brief The XC-from-D SOURCE route, RESOLVED (D-MUTABLE-STATICS-RUNPOLICY group D): the setup reads it off its \c RunPolicy and the
+//! Hamiltonian hands it to the XC sampler that consumes it (\c XCRoute::xcSource).  \c fromDM: V_xc reads the wholesale rho[D] a mixed
+//! field retained (policy.xcFromDM); \c mix / \c boost: that route's damping controls (policy.xcDMMix / xcDMBoost), consulted only when
+//! \c fromDM is armed.  Default = the qchem default (off).
+struct XCSourceRoute
+{
+    bool   fromDM = false;
+    double mix    = -1.0;   //!< the alpha override; negative = none (the mix's own alpha)
+    double boost  = 1.0;    //!< the alpha scale
+    bool operator==(const XCSourceRoute&) const = default;
+};
+
 //! \brief ONE deviation: a named route or acceleration this tree runs and CP2K does not.
 //! Carried as data (not as prose in a comment) so the banner is generated from the SAME facts the
 //! factories consult -- there is no second list to keep in step.
@@ -145,6 +157,8 @@ public:
     //! The xcFromDM route's mixing controls (see \c RunPolicySpec): override alpha (negative = none) and boost factor.
     double XCDMMixOverride() const {return itsSpec.xcDMMix.value_or(-1.0);}
     double XCDMBoost()       const {return itsSpec.xcDMBoost;}
+    //! The three together, as the XC sampler consumes them.
+    XCSourceRoute XCSource() const {return {XCFromDM(), XCDMMixOverride(), XCDMBoost()};}
     bool CP2KCompat() const {return itsCP2KCompat;}   //!< the umbrella was asked for
     //! Every deviation, in one list, whatever its value -- the banner prints the WHOLE table, because a
     //! row that lists only what is ON cannot be read as evidence that the rest is OFF.

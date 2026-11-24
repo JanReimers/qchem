@@ -68,7 +68,7 @@ struct Rig
                                     .angular=qcMesh::AngularKind::Lebedev, .angularDegree=17, .beckeOrder=2};
         quad=MakeMeshMaker(mol)->Make(mp, qcMesh::NoSymmetry());
         fb.reset(bs->CreateVxcFitBasisSet(&mol, BasisSet::VxcFit::Delta, &quad));
-        cd.reset(IrrepCD_Factory<double>(SomePSD_D(block->GetNumFunctions()), block, bs->GetIrreps(Spin::None)[0]));
+        cd.reset(IrrepCD_Factory<double>(SomePSD_D(block->GetNumFunctions()), block, bs->GetIrreps(Spin::None)[0], qchem::ChargeDensity::RhoRoute::PivotedCholesky));
     }
     //! The route the sampler used before: the fitter's FIELD projection of the density, point by point.
     rvec_t PointwiseRho() const

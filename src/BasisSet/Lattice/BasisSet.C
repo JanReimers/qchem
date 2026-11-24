@@ -130,6 +130,12 @@ struct GPWParams
     //! every block -- and it must have been built from this struct's densityEcut / cutoffFactor / ladderFactor / rasterFields / tol,
     //! or the factory throws.
     std::shared_ptr<const Gaussian::GpwRasterLadder> ladder = {};
+    //! \brief The run policy's two COLLOCATION routes, handed in by the facade from its setup's \c RunPolicy (D-MUTABLE-STATICS-RUNPOLICY
+    //! group B; they were \c theRunPolicy() reads inside the factory).  \c dAwareScreen: each Bloch evaluator's \c LatticeScreener, D-aware
+    //! \f$\varepsilon/|c_{ij}|\f$ or CP2K's flat geometry-only \f$\varepsilon\f$.  \c streamFold: arm the T3.2 orbit fold of an imposed
+    //! Γ-only run.  Defaults = the qchem defaults (a bare factory call, the unit tests); both are declared CP2K deviations.
+    bool dAwareScreen = true;
+    bool streamFold   = true;
 };
 //! The struct-parameter factory (preferred surface; the positional overload above forwards here).
 //! \a meshMaker: the maker over \a lat's cell (the point's \c StructureMeshMaker<UnitCell>, V-MESH-FACTORY §4.4), shared by every k-block

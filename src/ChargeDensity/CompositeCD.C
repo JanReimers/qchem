@@ -6,6 +6,7 @@ module;
 #include <map>
 #include <string>
 #include <variant>
+#include "forward.H"   // CompositeDensityTests -- the run-policy leak test's friend
 export module qchem.CompositeCD;
 import qchem.Structure;   // DM_Pullback (GeometryOptimizationPlan §13.2)
 export import qchem.ChargeDensity;
@@ -150,6 +151,7 @@ public:
 
 private:
     friend class Composite_HFSystem<tComposite_CD<T>>;  // drives the canonical-pair sweep over the blocks
+    friend class ::CompositeDensityTests;               // which ρ route built each block (src/forward.H; the run-policy leak test)
     tComposite_CD(const tComposite_CD&);
 
     //! One block: its full label and the (non-owning) block density.

@@ -11,6 +11,7 @@ export import qchem.ChargeDensity.AtomicDensity;   // SeedKey (the functional + 
 import qchem.BasisSet;               // tBasisSet<T>, and (re-exported) Structure
 import qchem.ElectronConfiguration;
 import qchem.UnitCell;               // UnitCell (the plane-wave seeds' cell)
+export import qchem.ChargeDensity.Factory;   // DensityMaker: the run's rho route (the uniform seed's block density); its callers name one
 import qchem.Mesh.Maker;             // qcMesh::MeshParams + MeshMaker (the molecular SAD seed's own quadrature, built over the run's point)
 
 export namespace qchem::ChargeDensity
@@ -91,9 +92,9 @@ enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 //! that plants 0 itself (flipped sites, a broken-symmetry singlet) is kept as planted.
 tChargeDensity<double>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<double>* bs,
                                         const Structure* st, const ElectronConfiguration* ec, const qcMesh::MeshParams& quadrature,
-                                        const qcMesh::MeshMaker& meshMaker, const SeedKey& key, bool polarized=false);
+                                        const qcMesh::MeshMaker& meshMaker, const SeedKey& key, const DensityMaker& maker, bool polarized=false);
 tChargeDensity<dcmplx>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<dcmplx>* bs,
-                                        const UnitCell& cell, const ElectronConfiguration* ec,
+                                        const UnitCell& cell, const ElectronConfiguration* ec, const DensityMaker& maker,
                                         bool polarized=false, const SeedKey& key=SeedKey{});
 
 } //namespace

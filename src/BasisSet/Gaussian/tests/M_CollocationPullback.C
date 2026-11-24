@@ -23,6 +23,7 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <stdexcept>
 
 import qchem.BasisSet.Gaussian.Point.Factory;     // Factory(BasisSetData, cell, engine, angular)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;     // LatticeCollocation
@@ -34,9 +35,29 @@ import qchem.UnitCell;
 import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator (the route's friend reaches it)
 
 using namespace qchem;
 using namespace qchem::BasisSet::Gaussian;
+#include "forward.H"
+//! THE FRIEND of NR_Evaluator (src/forward.H): sets the collocation kernel on every block of a fresh Cartesian MnD basis, before any work.
+//! The route is the evaluator's private implementation detail (D-MUTABLE-STATICS-RUNPOLICY E-b); tests may cheat: abstract -> concrete.
+class CollocationRouteTests
+{
+public:
+    static void Bind(::qchem::BasisSet::Real_BS& bs, const ::qchem::BasisSet::Gaussian::CollocationRoute& r)
+    {
+        for (auto ibs : bs.Iterate<::qchem::BasisSet::Real_OIBS>())
+        {
+            using NR=::qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD::NR_Evaluator;
+            auto* ev=const_cast<NR*>(dynamic_cast<const NR*>(ibs));   // a fresh basis the test owns
+            if (!ev) throw std::logic_error("CollocationRouteTests: not a MnD block");
+            if (!ev->itsBoxTasks.empty() || !ev->itsIntegrateMemos.empty())
+                throw std::logic_error("CollocationRouteTests: the route changes only on a fresh basis, before any collocation work");
+            ev->itsRoute=r;
+        }
+    }
+};
 
 namespace {
 
@@ -63,7 +84,7 @@ Block Make(const Fixture& x, const UnitCell& cell, const ::qchem::BasisSet::Gaus
     Block b;
     std::shared_ptr<const BasisSet::Real_BS> cart(Factory(x.data, &cell, Engine::MnD, Angular::Cartesian));
     if (!(route==::qchem::BasisSet::Gaussian::CollocationRoute{}))
-        dynamic_cast<::qchem::BasisSet::Gaussian::ToleranceBinding&>(const_cast<BasisSet::Real_BS&>(*cart)).BindRoute(route);
+        CollocationRouteTests::Bind(const_cast<BasisSet::Real_BS&>(*cart), route);
     b.bs = x.spherical ? std::shared_ptr<const BasisSet::Real_BS>(PG_Spherical::MakeSphericalLatticeView(cart)) : cart;
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*b.bs).Iterate<BasisSet::Real_OIBS>())
     {

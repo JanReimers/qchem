@@ -112,9 +112,12 @@ double KetCoulombAt(const double* x, const KetCoulombCtx* c)
     std::vector<size_t> off(Lr+2,0);
     for (int j=0;j<=Lr;j++) off[j+1]=off[j]+tri(Lr-j);
     std::vector<double> store(off[Lr+1],0.0), Fj(Lr+1,0.0);
-    auto at=[&](int j, int N, int L, int M) -> double&
+    // The kernels' lambdas take their CONSTANTS (Lr, the table pointer h) BY VALUE: captured by reference, the closure stored a constant
+    // alloca's address beside the active store's, and Enzyme on clang 23 warned "Mismatched activity" (9 sites, derivative assumed zero:
+    // right, an int and the exponent-only hc table carry none; the FD gates held).  By value there is nothing to assume.
+    auto at=[&store,&off,Lr](int j, int N, int L, int M) -> double&
     {   const int n=Lr-j; return store[off[j]+Triangle3D::Layer(n-N)+Triangle3D::Row(n-N-L)+size_t(n-N-L-M)]; };
-    auto Rof=[&](const Polarization& m){ return store[Triangle3D::Layer(Lr-m.n)+Triangle3D::Row(Lr-m.n-m.l)+size_t(Lr-m.n-m.l-m.m)]; };
+    auto Rof=[&store,Lr](const Polarization& m){ return store[Triangle3D::Layer(Lr-m.n)+Triangle3D::Row(Lr-m.n-m.l)+size_t(Lr-m.n-m.l-m.m)]; };
     auto box=[](const double* t, const Polarization& P){ return [t,&P](const Polarization& n){ return t[(size_t(n.n)*(P.l+1)+n.l)*(P.m+1)+n.m]; }; };
     double s=0.0;
     for (size_t i=0;i<c->nA;i++)
@@ -201,7 +204,7 @@ double NucPairAt(const double* x, const NucPairCtx* c)
     std::vector<size_t> off(Ltot+2,0);
     for (int j=0;j<=Ltot;j++) off[j+1]=off[j]+tri(Ltot-j);
     std::vector<double> store(off[Ltot+1],0.0), Rsum(tri(Ltot),0.0), Fj(Ltot+1,0.0);
-    auto at=[&](int j, int N, int L, int M) -> double&
+    auto at=[&store,&off,Ltot](int j, int N, int L, int M) -> double&
     {   const int n=Ltot-j; return store[off[j]+Triangle3D::Layer(n-N)+Triangle3D::Row(n-N-L)+size_t(n-N-L-M)]; };
     double s=0.0;
     for (size_t i=0;i<c->nprimA;i++)
@@ -217,7 +220,7 @@ double NucPairAt(const double* x, const NucPairCtx* c)
                 Internal::MnD::HermiteCoulomb(Ltot, gp.p, dR, Fj, at);
                 for (size_t q=0;q<Rsum.size();q++) Rsum[q]+=store[q]*(-1.0*c->Z[k]);   // layer j = 0 is store[0 .. tri(Ltot))
             }
-            auto Rof=[&](const Polarization& m){ return Rsum[Triangle3D::Layer(Ltot-m.n)+Triangle3D::Row(Ltot-m.n-m.l)+size_t(Ltot-m.n-m.l-m.m)]; };
+            auto Rof=[&Rsum,Ltot](const Polarization& m){ return Rsum[Triangle3D::Layer(Ltot-m.n)+Triangle3D::Row(Ltot-m.n-m.l)+size_t(Ltot-m.n-m.l-m.m)]; };
             double t=0.0;
             for (size_t p=0;p<c->na;p++)
                 for (size_t q=0;q<c->nb;q++)
@@ -300,9 +303,9 @@ double ThreeCAt(const double* x, const ThreeCCtx* c)
     std::vector<size_t> off(Lr+2,0);
     for (int j=0;j<=Lr;j++) off[j+1]=off[j]+tri(Lr-j);
     std::vector<double> store(off[Lr+1],0.0), Fj(Lr+1,0.0);
-    auto at=[&](int j, int N, int L, int M) -> double&
+    auto at=[&store,&off,Lr](int j, int N, int L, int M) -> double&
     {   const int n=Lr-j; return store[off[j]+Triangle3D::Layer(n-N)+Triangle3D::Row(n-N-L)+size_t(n-N-L-M)]; };
-    auto Rof=[&](const Polarization& m){ return store[Triangle3D::Layer(Lr-m.n)+Triangle3D::Row(Lr-m.n-m.l)+size_t(Lr-m.n-m.l-m.m)]; };
+    auto Rof=[&store,Lr](const Polarization& m){ return store[Triangle3D::Layer(Lr-m.n)+Triangle3D::Row(Lr-m.n-m.l)+size_t(Lr-m.n-m.l-m.m)]; };
     for (size_t i=0;i<c->nA;i++)
         for (size_t j=0;j<c->nB;j++)
         {
@@ -324,7 +327,7 @@ double ThreeCAt(const double* x, const ThreeCCtx* c)
                         {
                             const Polarization& pu=c->pt[u];
                             const double* h=c->hc+c->hcOff[k*c->nt+u];
-                            auto Hc=[&](const Polarization& q3){ return h[(size_t(q3.n)*(pu.l+1)+q3.l)*(pu.m+1)+q3.m]; };
+                            auto Hc=[h,&pu](const Polarization& q3){ return h[(size_t(q3.n)*(pu.l+1)+q3.l)*(pu.m+1)+q3.m]; };
                             t += w*c->ct[u]*PairRepulsion3C(H2,gp.p,gp.Eij,c->ec[k],c->pa[p],c->pb[q],pu,*c->NLMs,Hc,Rof);
                         }
                     }
@@ -389,9 +392,9 @@ double FourCAt(const double* x, const FourCCtx* c)
     std::vector<size_t> off(Lr+2,0);
     for (int j=0;j<=Lr;j++) off[j+1]=off[j]+tri(Lr-j);
     std::vector<double> store(off[Lr+1],0.0), Fj(Lr+1,0.0);
-    auto at=[&](int j, int N, int L, int M) -> double&
+    auto at=[&store,&off,Lr](int j, int N, int L, int M) -> double&
     {   const int n=Lr-j; return store[off[j]+Triangle3D::Layer(n-N)+Triangle3D::Row(n-N-L)+size_t(n-N-L-M)]; };
-    auto R=[&](int N, int L, int M){ return store[Triangle3D::Layer(Lr-N)+Triangle3D::Row(Lr-N-L)+size_t(Lr-N-L-M)]; };
+    auto R=[&store,Lr](int N, int L, int M){ return store[Triangle3D::Layer(Lr-N)+Triangle3D::Row(Lr-N-L)+size_t(Lr-N-L-M)]; };
     const size_t na=c->n[0], nb=c->n[1], nc=c->n[2], nd=c->n[3];
     double s=0.0;
     for (size_t i=0;i<c->np[0];i++)

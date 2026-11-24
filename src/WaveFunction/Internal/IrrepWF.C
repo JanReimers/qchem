@@ -9,6 +9,7 @@ export import qchem.Orbitals;
 export import qchem.LASolver;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
+import qchem.ChargeDensity.Factory;   // DensityMaker (handed to the orbitals)
 export import qchem.Symmetry.Irrep;
 export import qchem.ElectronConfiguration.OccupationPolicy;  // the fills consult the iterator's policy (V1.11 inc 3)
 
@@ -31,7 +32,7 @@ using SCFAccelerators::tSCFIrrepAccelerator;
 template <class T> class tIrrepWF
 {
 public:
-    tIrrepWF(const tobs_t<T>*, LASolver<T>*, const Irrep& ,tSCFIrrepAccelerator<T>*);
+    tIrrepWF(const tobs_t<T>*, LASolver<T>*, const Irrep& ,tSCFIrrepAccelerator<T>*, const ChargeDensity::DensityMaker& maker);
     ~tIrrepWF();
 
     //! Read this block's Fock from the Hamiltonian AT the iteration's density (OOD V1.41) and feed (F, D') to the

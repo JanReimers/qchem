@@ -22,8 +22,9 @@ namespace qchem::Orbitals
 //  Construction zone
 //
 template <class T> TOrbitalsImp<T>::
-TOrbitalsImp(const tobs_t<T>* bs, Spin ms)
+TOrbitalsImp(const tobs_t<T>* bs, Spin ms, const ChargeDensity::DensityMaker& maker)
     : itsBasisSet(bs)
+    , itsMaker(maker)
     , itsQNs(bs->GetIrrep(ms))
     , itsD(blazem::zeroH<T>( bs->GetNumFunctions()))
     , itsM(bs->GetNumFunctions())   // default m=n (no truncation); UpdateOrbitals corrects it from U'
@@ -216,7 +217,7 @@ template <class T> std::unique_ptr<tDM_CD<T>> TOrbitalsImp<T>::MakeChargeDensity
     // accelerator works on the unscaled D'); only the charge-density object carries the weight.
     double w=GetQNs().sym->GetWeight();
     hmat_t<T> Dw = (w==1.0) ? D : hmat_t<T>(w*D);
-    return std::unique_ptr<tDM_CD<T>>(qchem::ChargeDensity::IrrepCD_Factory(std::move(Dw),itsBasisSet,GetQNs()));   // moved: one n×n copy, not two
+    return itsMaker.Make<T>(std::move(Dw),itsBasisSet,GetQNs());   // the run's route (its setup's maker); moved: one n×n copy, not two
 }
 
 

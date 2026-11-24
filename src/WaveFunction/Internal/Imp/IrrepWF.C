@@ -26,10 +26,11 @@ namespace qchem::WaveFunction
 using std::cout;
 using std::endl;
 
-template <class T> tIrrepWF<T>::tIrrepWF(const tobs_t<T>* bs, LASolver<T>* lasb,const Irrep& qns,tSCFIrrepAccelerator<T>* acc)
+template <class T> tIrrepWF<T>::tIrrepWF(const tobs_t<T>* bs, LASolver<T>* lasb,const Irrep& qns,tSCFIrrepAccelerator<T>* acc,
+                                         const ChargeDensity::DensityMaker& maker)
     : itsBasisSet   (bs)
     , itsLASolver   (lasb)
-    , itsOrbitals   (qchem::Orbitals::Factory(bs,qns.ms))
+    , itsOrbitals   (qchem::Orbitals::Factory(bs,qns.ms,maker))
     , itsIrrep      (qns)
     , itsAccelerator(acc)
     , itsDPrime     (blazem::zeroH<T>(lasb->GetOrthoDim()))   // ORTHONORMAL D': m=n-k after truncation, not n

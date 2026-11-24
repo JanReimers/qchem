@@ -11,6 +11,7 @@ export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Orbital_DHF_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.Types;   // dcmplx (for cobs_t)
+export import qchem.RunPolicy;   // XCSourceRoute (XCRoute::xcSource)
 
 
 export namespace qchem::Hamiltonian
@@ -67,6 +68,8 @@ struct XCRoute
     //! How a δ fit holds its per-k orbital tables: the POLICY layer's door (\c BasisSet::PhiChooser; the solid setup's \c xcOrbitalTables),
     //! handed to the fit factory at creation (user ruling 2026-11-19).  Empty = dense.
     BasisSet::PhiChooser phiTables = {};
+    //! The XC-from-D source route, the setup's resolved policy.xcFromDM (+ its controls): handed to the XC sampler.  Default = off.
+    XCSourceRoute xcSource = {};
     XCRoute() = default;
     XCRoute(VxcFit f, XCρ r=XCρ::Exact) : fit(f), rho(r) {}
 };

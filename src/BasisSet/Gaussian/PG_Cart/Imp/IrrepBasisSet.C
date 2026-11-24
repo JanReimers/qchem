@@ -556,7 +556,6 @@ double  Orbital_IBS::MaxExponent() const {return NR_Evaluator::MaxExponent();}
 double  Orbital_IBS::MinExponent() const {return NR_Evaluator::MinExponent();}
 const GPWTolerances& Orbital_IBS::Tolerances() const {return NR_Evaluator::Tolerances();}
 void    Orbital_IBS::BindTolerances(const GPWTolerances& t) {NR_Evaluator::BindTolerances(t);}
-void    Orbital_IBS::BindRoute(const CollocationRoute& r) {NR_Evaluator::BindRoute(r);}
 std::vector<rvec_t> Orbital_IBS::CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                                   const std::vector<ivec3_t>& N_L,
                                                   const std::vector<double>& ecut_L,

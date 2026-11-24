@@ -60,7 +60,6 @@ PairDensitySampler::~PairDensitySampler() = default;
 // Forward declarations: these two helpers are defined below, beside the singles route that shares them.
 // Declared rather than moved so the diff stays about the pair route (and so ONE definition still serves
 // both, which is the point).
-bool HasExactSource(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd);
 bool HasXCCorrection(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd);
 void ReportNegativeRho(const DensitySamplerBase& q, const rvec_t& rho, const char* route);
 
@@ -211,14 +210,9 @@ void PairDensitySampler::RefreshPol(const cChargeDensity* cd) const
         ReportNegativeRho(*this, itsRhoUp, "half-density seed");
         return;
     }
-    // ⚠ NOT WIRED HERE: the WHOLESALE DM-source repair (policy.xcFromDM), which the singles route applies per channel.
-    // Loud rather than silent, because silently sampling the MIXED field where the caller asked for the retained D would
-    // be a physics change wearing a performance change's clothes.  The N4 cusp deficit IS served (SampleOne: the raw
-    // shadow, pin 28).
-    if ((HasExactSource(up) && !HasXCCorrection(up)) || (HasExactSource(dn) && !HasXCCorrection(dn)))
-        throw std::logic_error("PairDensitySampler: policy.xcFromDM is not wired on the collocation (pair) route -- its rho "
-            "comes from applyRaw, not from a projector, so the retained-D repair needs its own design.  Use the delta/singles "
-            "quadrature for it.");
+    // NOT WIRED HERE: the WHOLESALE DM-source repair (policy.xcFromDM), which the singles route applies per channel -- refused by
+    // MakeDensitySampler when the strategy is chosen, so this sampler never meets it.  The N4 cusp deficit IS served (SampleOne:
+    // the raw shadow, pin 28).
     bool rawUp=false, rawDn=false;
     itsRhoUp=SampleOne(up, rawUp);
     itsRhoDn=SampleOne(dn, rawDn);
