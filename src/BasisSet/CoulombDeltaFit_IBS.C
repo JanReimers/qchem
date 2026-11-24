@@ -33,6 +33,10 @@ public:
     virtual double SelfRepulsion(const rvec_t& q, const rvec_t& v) const=0;              //!< \f$\langle\tilde\rho|\tilde\rho\rangle\f$
     virtual double HartreeEnergy(double trDV, const rvec_t& q, const rvec_t& v) const=0; //!< the first-order \f$E_H\f$
     virtual bool   UsesTrDV     () const=0;                                              //!< does \c HartreeEnergy read \a trDV?
+    //! \copydoc qcMesh::CoulombOperator::MakeSelfRepulsionPullback
+    virtual bool       CanPullbackSelfRepulsion() const {return false;}
+    virtual rvec3vec_t MakeSelfRepulsionPullback(const rvec_t&) const
+    {throw std::logic_error("PointCoulombIntegrals: these Coulomb integrals give no self-repulsion pullback (ask CanPullbackSelfRepulsion first)");}
 };
 
 //! \brief The δ basis \a delta with the Coulomb operator \a op over its points.
@@ -65,6 +69,8 @@ public:
     double SelfRepulsion(const rvec_t& q, const rvec_t& v) const override              {return itsOp->SelfRepulsion(q,v);}
     double HartreeEnergy(double trDV, const rvec_t& q, const rvec_t& v) const override {return itsOp->HartreeEnergy(trDV,q,v);}
     bool   UsesTrDV     () const override                                              {return itsOp->UsesTrDV();}
+    bool       CanPullbackSelfRepulsion() const override                 {return itsOp->CanPullbackSelfRepulsion();}
+    rvec3vec_t MakeSelfRepulsionPullback(const rvec_t& q) const override {return itsOp->MakeSelfRepulsionPullback(q);}
 
 private:
     std::shared_ptr<const rFIT_SF_ABS>       itsDelta;

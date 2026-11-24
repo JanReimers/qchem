@@ -100,6 +100,16 @@ public:
     Outcome<rvec3vec_t,AD::NoGradient> MakeRepulsionPullback(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb, const hmat_t<dcmplx>& D,
                                                              const Structure* st) const override
     {return RepulsionPullbackT(orb, D, st);}
+    //! The fit side is EXACTLY ZERO: plane waves have no centre and the kernel \f$4\pi/G^2\f$ does not move, so the blocks' pullbacks are the
+    //! whole fixed-D force.
+    bool CanPullbackHartree() const override {return true;}
+    Outcome<rvec3vec_t,AD::NoGradient> MakeHartreePullback(const Structure* st) const override
+    {
+        if (!st) return Outcome<rvec3vec_t,AD::NoGradient>::Fail({"a plane-wave fit's Hartree pullback needs the structure (its atom count)"});
+        rvec3vec_t g(st->GetNumAtoms());
+        for (size_t a=0;a<g.size();a++) g[a]=rvec3_t(0,0,0);
+        return Outcome<rvec3vec_t,AD::NoGradient>::Ok(std::move(g));
+    }
 
     //! THE FIT SIDE of the virial (CellHalf_Design §5): \f$E_H=\tfrac1{2\Omega}\sum_G k(G)|N_G|^2\f$ with the counts \f$N_G=\Omega\tilde\rho(G)\f$
     //! held, so \f$\partial E_H/\partial\varepsilon_{ab}=-\delta_{ab}E_H+\tfrac12\Omega\sum_G\partial_{ab}k(G)\,|\tilde\rho(G)|^2\f$.

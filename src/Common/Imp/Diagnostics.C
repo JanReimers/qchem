@@ -79,7 +79,15 @@ void Describe(std::ostream& os)
 namespace
 {
 std::mutex& Mu() { static std::mutex m; return m; }   // guards the maps below: a mutex is stateless serialisation (CLAUDE.md, mutable statics)
-std::map<std::string,std::string>& Overrides() { static std::map<std::string,std::string> o; return o; }   // Scoped (tests)
+// The ids a test's Scoped has switched (CLAUDE.md, mutable statics).  A test override, which the rule would refuse in production
+// code.  KEPT BY RULING (user, 2026-11-23: "keep it yes I agree.  For something like Diagnostics which is not part of production
+// code, we can probably be far less disciplined than we are for the production code that needs to generate correct numbers to many
+// decimal places."):
+//   - it is test-only (Scoped is set only in tests);
+//   - a diagnostic only prints, so it cannot change a number;
+//   - it is guarded by Mu();
+//   - each Scoped restores the previous value when it goes out of scope.
+std::map<std::string,std::string>& Overrides() { static std::map<std::string,std::string> o; return o; }
 std::map<std::string,std::string>& FromEnv()
 {
     // A cache of a pure function of a fixed input (QCHEM_DIAGNOSTICS, read once per process: the environment does not change under a

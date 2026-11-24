@@ -357,7 +357,7 @@ TEST(SADSeed, ItsGridIsItsOwnAndGoneOnceItHasProjected)
     const std::shared_ptr<const BasisSet::rFIT_SF_ABS> delta(bs->CreateVxcFitBasisSet(&h2o, BasisSet::VxcFit::Delta, &quad));
     const auto cdelta=std::make_shared<const BasisSet::CoulombDeltaFit_IBS>(std::make_shared<BasisSet::BasisCache>(), delta, qcMesh::MakeDirectSumCoulomb(*quad.GetMesh()), sym_t(new UnitQN));
     const auto dunlap=Fitting::MakeDunlapDensityFitter(fb);
-    const auto grid  =Fitting::MakeGridDensityFitter(cdelta);
+    const auto grid  =Fitting::MakeGridDensityFitter(cdelta, quad.GetMesh());
     for (const BasisSet::PairProjector<double>* fitter : {static_cast<const BasisSet::PairProjector<double>*>(dunlap.get()),
                                                           static_cast<const BasisSet::PairProjector<double>*>(grid.get())})
     {
