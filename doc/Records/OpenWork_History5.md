@@ -4094,3 +4094,29 @@ M_Calculation's moved-water restart), each a `Molecule` seen through the abstrac
 | **D-RUNPOLICY-LEAK: a molecule or atom run takes the density route the LAST SOLID installed** (lane B, 2026-11-23, found writing `doc/Records/RunPolicyOnTheRun.md`) | Only `SolidSetup::Resolve` installs a run policy (process-wide `SetRunPolicy`), and the orbitals build every iteration's density through `DefaultRhoRoute()`, which reads it.  So after a `cp2kCompat` solid in the same process (a GUI session, a test binary) a molecule runs the Direct ρ route where its own default is the factored one.  The route is `movesState`.  Gate: `RunPolicyLeak.AMoleculeAfterACP2KCompatSolidKeepsItsOwnDensityRoute`, on the root CMakeLists `QCHEM_KNOWN_RED` list | Group E of the run-policy design note, as the user ruled it (2026-11-23, E2′): each setup builds a `DensityMaker` holding its resolved `RhoRoute` and the orbitals call it; take the gate off the knownRed list when it goes green · `doc/Records/RunPolicyOnTheRun.md` §4 |
 
 Done: group E of `doc/Records/RunPolicyOnTheRun.md` (the user's ruling 2026-11-23, E2'): each setup builds a `ChargeDensity::DensityMaker` holding its resolved `RhoRoute` (a solid's from its policy, reported as policy `DensityRoute`; a molecule's and an atom's the factored default), the facade builds the wave function with it, and `TOrbitalsImp::MakeChargeDensity`, the seed and a restart make their block densities with it.  `DefaultRhoRoute()` and its process-wide read are gone.  Gate `RunPolicyLeak.AMoleculeAfterACP2KCompatSolidKeepsItsOwnDensityRoute` (H2 HF/DZVP before and after a cp2kCompat Si setup: every block factored) went green and left the knownRed list.
+
+## ✅ NiO restore panel anchor moved 1.28 μHa (closed 2026-11-24, lane S: the k-fold 3c973a2b8, re-pinned)
+
+| **NiO restore panel anchor moved 1.28 μHa** (controller 2026-11-24, from lane B's RunPolicy panel): `GPW_NiO.k222_…_Saved_RestoresOnItsOwnHistory_Panel_Long` first iterate −106.351421842746 vs pin −106.351423122 (1.28 μHa), E −106.351425491911 (1.24 μHa); main 2aa2c73e reproduces it to 1e-12 without lane B, 4 threads = serial.  Last green panel main-3b4e8112 (2026-11-20); 19 landings since ran no panel.  Listed in QCHEM_PANEL_RED; gate NOT loosened | lane S bisects 3b4e8112..main (first suspect 9a415ecf7, the δ Coulomb default) and re-judges per `doc/Pins.md` pin 10 against an independent route; then fix or re-pin, and take it off QCHEM_PANEL_RED · log `~/Code/qchem6-runs/anchors/main-2aa2c73e_nio4t.log` |
+
+Done (lane S 2026-11-24).  First-parent bisect of the one case over 3b4e8112..main (4 threads, heavy lock): every landing through
+b03c0efc5 gives first iterate −106.351423121668, E −106.351426728199 (the δ Coulomb default 9a415ecf7 among them, cleared); the
+first bad commit is **3c973a2b8, the merge of lane A's k-fold (72dca4b7a)**: −106.351421842746 / −106.351425491911, a move of
++1.279 / +1.236 μHa, still 11 iterations, Ni moment 1.376.  Mechanism: the k-fold collocates all k-blocks in one box walk, so the
+D-aware collocation screen (densityEps) rules on |Σ_b P^b(R)|, the quantity summed, not block by block -- a screening-tolerance move,
+the same kind lane A re-judged on MnO IonicSAD.
+
+Pin 10 independent route: the same deck at HEAD with the screen 100x tighter (`solid.tolerances.densityEps` 1e-12) gives first
+iterate −106.351421694882, E −106.3514253456 (11 iterations, AFM-II held).
+
+| | first iterate − tight | E − tight |
+|---|---|---|
+| new, k-fold at densityEps 1e-10 | 148 nHa | 146 nHa |
+| old pin, pre-k-fold | 1.427 μHa | 1.383 μHa |
+
+The new value is ~10x closer to the screen-converged answer: the old pin carried a 1.4 μHa screening error the k-fold removed (MnO
+showed the same, 60 vs 506 nHa).  Verdict: a correction, not a regression.  Re-pinned to −106.351421843 / −106.3514254919, gate
+±1e-8 kept (a did-it-move anchor inside the default screen's ~150 nHa residual); the test comment's old "independent route" (the cold
+run's −106.3514267289, computed at the old screening, so carrying the same bias) is replaced by the tight-screen route.  Off
+QCHEM_PANEL_RED.
+
