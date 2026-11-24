@@ -9,7 +9,9 @@
 // user's ruling 2026-11-23, E2': the setup builds a density maker and the orbitals call it), which makes the route the molecule setup's own.
 #include "gtest/gtest.h"
 #include "forward.H"
+#include <functional>
 #include <memory>
+#include <string>
 #include <variant>
 #include <vector>
 
@@ -26,6 +28,7 @@ import qchem.Mesh;
 import qchem.Types;
 import qchem.RunPolicy;                           // ScopedRunPolicy: the test leaves the process policy as it found it
 import qchem.CompositeCD;
+import qchem.Reporting;                           // report::Run / GlobalReport: the setup's DensityRoute row
 import qchem.ChargeDensity.Imp.IrrepCD;          // FactoredRho / FiniteIrrepCD (tests may cheat: abstract -> concrete)
 using namespace qchem;
 
@@ -64,6 +67,28 @@ std::pair<size_t,size_t> MoleculeBlocks()
     if (!proof) {ADD_FAILURE()<<"H2 HF/DZVP did not converge"; return {0,0};}
     return CompositeDensityTests::FactoredBlocks(proof.Value().Density());
 }
+//! The DensityRoute policy rows of the last filed run named \a runName (as GGARoute.C reads its own rows).
+std::vector<report::json> DensityRouteRows(const std::string& runName)
+{
+    const auto& G=report::GlobalReport();
+    const report::json* last=nullptr;
+    for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind(runName+"@",0)==0) last=&it.value();
+    if (!last) throw std::logic_error("no filed run "+runName);
+    std::vector<report::json> out;
+    std::function<void(const report::json&)> walk=[&](const report::json& x)
+    {
+        if (x.is_object())
+            for (auto it=x.begin(); it!=x.end(); ++it)
+            {
+                if (it.key()=="policy" && it.value().is_array())
+                    for (const auto& r : it.value()) if (r.contains("name") && r["name"]=="DensityRoute") out.push_back(r);
+                walk(it.value());
+            }
+        else if (x.is_array()) for (const auto& y : x) walk(y);
+    };
+    walk(*last);
+    return out;
+}
 } // namespace
 
 // THE CONTROL first (no solid has run): the molecule's own default is the factored route, on every block.  THEN a cp2kCompat solid setup
@@ -79,8 +104,18 @@ TEST(RunPolicyLeak, AMoleculeAfterACP2KCompatSolidKeepsItsOwnDensityRoute)
     RunOptions o; o.Nelec=8; o.solid.densityEcut=20.0; o.label="cp2kCompat solid"; o.accuracy.eps=0.0;
     SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
     o.solid.policy.cp2kCompat=true;
-    auto solid=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
-    ASSERT_TRUE(solid) << "the cp2kCompat solid setup resolves";
+    const std::string run="runpolicyleak cp2kCompat solid";
+    {
+        report::Run r(run);
+        auto solid=SolidSetup::Resolve(Lattice_3D(*mat.cell, ivec3_t(1,1,1)), GaussianBasisRecipe{.data=BasisSet::Gaussian::BasisSetData::SIPP_SR}, o);
+        ASSERT_TRUE(solid) << "the cp2kCompat solid setup resolves";
+    }
+    // THE SETUP SAYS WHICH ROUTE IT BUILT: one DensityRoute row in the filed run's policy scope, direct, for cp2kCompat's reason.
+    const auto rows=DensityRouteRows(run);
+    ASSERT_EQ(rows.size(), 1u) << "one DensityRoute policy row in the cp2kCompat solid's setup";
+    EXPECT_EQ(rows[0]["verdict"], "choose");
+    EXPECT_NE(std::string(rows[0]["decided"]).find("direct"), std::string::npos) << std::string(rows[0]["decided"]);
+    EXPECT_NE(std::string(rows[0]["reason"]).find("cp2kCompat"), std::string::npos) << std::string(rows[0]["reason"]);
 
     const auto [n1, f1]=MoleculeBlocks();
     ASSERT_EQ(n1, n0);
