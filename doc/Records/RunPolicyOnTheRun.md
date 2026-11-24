@@ -127,6 +127,13 @@ The groups are independent.  Each commit carries one group, with 0 movers and th
 
 Until step 5, `SetRunPolicy` stays.  Readers move off it one group at a time, and each group's commit removes its reads.
 
+**Step 5 DONE (lane B, 2026-11-24).**  `thePolicy()`, `theRunPolicy()`, `SetRunPolicy` and `ScopedRunPolicy` are deleted; `RunPolicy` is a
+plain value that each solid setup resolves from `RunOptions::solid.policy` and holds (`SolidSetup::policy`).  `SolidSetup::Resolve` no
+longer installs anything.  The `RunPolicy` unit tests resolve a local value (the resolution rule is what they gate); the scope-guard case
+went with the guard.  `GPW_Na2Box.Γ_Becke_Shub_Pol_OrderLostThrows_Panel` lost its skip: it states its own options, and no process policy
+can veto Becke under it.  The gate is `RunPolicyLeak` (a cp2kCompat solid, then a molecule, in one process: the molecule keeps its own
+route), with nothing left for the solid to install.  The A/B tests already stated their policy on `RunOptions` (group B onward).
+
 ## 4. Addendum: group E as E2′, the density maker (user ruling 2026-11-23)
 
 **The ruling.**
