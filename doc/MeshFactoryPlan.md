@@ -158,7 +158,7 @@ setup that knows its kind should DEMAND the concrete structure. Today `Setup::st
        molecular hooks refuse non-trivial ops by name) and the POLICY layer chooses: `MoleculeSetup` detects the group and, until the fold
        exists, picks the unfolded mesh (`MoleculeSetup::meshSymmetry`) and files policy row `MeshFoldNotBuilt` ("point group C2v (4 ops)
        detected; the XC mesh is not folded", citing V-FOLD-NEUTRAL) on every run that builds an XC mesh.  A molecular point-group source
-       realizes the face later (V-FOLD-NEUTRAL, lane H's next task) with no library change.  *(Done 2026-11-23: V-FOLD-NEUTRAL step 2 `9fb57e3e7`.  `MolecularPointGroupSource` realizes it, with no library face change, and policy row `MeshSymmetry` replaces `MeshFoldNotBuilt`.)*
+       realizes the face later (V-FOLD-NEUTRAL, lane H's next task) with no library change.  *(Done 2026-11-23: V-FOLD-NEUTRAL step 2 `9fb57e3e7`.  `MolecularPointGroupSource` realizes it, with no library face change, and policy row `MeshSymmetry` replaces `MeshFoldNotBuilt`.  Every run gets the oriented mesh.  The fold is built but not engaged: it has no force derivative and no GGA gradient rotation.)*
      - **No name carries the client's intended use** (the user: "MakeXCMesh should not have XC in the name"): the Hamiltonian's helper is
        `BuildMeshQuadrature`.  `CrystalImposition` no longer builds meshes: its `MakeXCMesh` is a one-line transitional forwarder for
        `XCMeshSource`'s last client, `MakeXCQuadrature` (a hub declaration with ~20 test callers); step 4 deletes the four together
