@@ -1,7 +1,28 @@
 cmake_minimum_required(VERSION 3.31.6)
 # set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "0e5b6991-d74f-4b3d-a41c-cf096e0b2508")
 # set(CMAKE_CXX_MODULE_STD cxx_std_23)
+# ONE INPUT: the C++ compiler (user, 2026-11-23: "external users who try and build, just need to provide a compiler path ... and our
+# cmake files handle the rest").  The C and Fortran compilers default to clang and flang BESIDE the stated clang++ (the dependencies
+# build C, and Fortran is enabled below), so a tree never mixes the stated LLVM with the system cc.  A stated CC / FC / CMAKE_*_COMPILER wins.
+set(_qchemCxx "${CMAKE_CXX_COMPILER}")
+if(NOT _qchemCxx)
+    set(_qchemCxx "$ENV{CXX}")
+endif()
+if(_qchemCxx MATCHES "clang\\+\\+(-[0-9]+)?$")
+    get_filename_component(_qchemLLVMBin "${_qchemCxx}" DIRECTORY)
+    if(NOT DEFINED CMAKE_C_COMPILER AND NOT DEFINED ENV{CC} AND EXISTS "${_qchemLLVMBin}/clang")
+        set(CMAKE_C_COMPILER "${_qchemLLVMBin}/clang" CACHE FILEPATH "C compiler: clang beside the stated clang++")
+    endif()
+    if(NOT DEFINED CMAKE_Fortran_COMPILER AND NOT DEFINED ENV{FC} AND EXISTS "${_qchemLLVMBin}/flang")
+        set(CMAKE_Fortran_COMPILER "${_qchemLLVMBin}/flang" CACHE FILEPATH "Fortran compiler: flang beside the stated clang++")
+    endif()
+endif()
 project(qchem VERSION 0.1.0 LANGUAGES CXX)
+# Release unless stated: the tests, the anchors and the timings are all Release numbers (RelChecked is Release + QCHEM_RELCHECKED).
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type (default Release)" FORCE)
+    message(STATUS "CMAKE_BUILD_TYPE not stated: Release")
+endif()
 
 if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(FATAL_ERROR
@@ -11,6 +32,23 @@ if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         "CC=/opt/LLVM-21.1.6-Linux-X64/bin/clang "
         "FC=/opt/LLVM-21.1.6-Linux-X64/bin/flang cmake -S . -B build/Release -G Ninja"
     )
+endif()
+# FULL BMIs.  Clang 23 writes REDUCED BMIs by default, and those do not merge the duplicate Blaze partial specializations that
+# qchem.Types and qchem.Blaze both include textually in their global-module fragments: MultTraitEval2, SolveTraitEval2 ... turn
+# ambiguous and 59 objects fail (lane G, 2026-11-23).  -fno-modules-reduced-bmi restores the full BMIs clang 21 writes by default;
+# clang 21 does not know the flag, so it is added only where the compiler accepts it.  A compile option (not CMAKE_CXX_FLAGS),
+# so it stays off the link line.
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag(-fno-modules-reduced-bmi QCHEM_CXX_HAS_NO_REDUCED_BMI)
+if(QCHEM_CXX_HAS_NO_REDUCED_BMI)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-modules-reduced-bmi>)
+endif()
+# The Python bindings are a shared module, so every object linked into it is position independent: QCHEM_PYBIND implies PIC
+# (without it the thread_local qchem::detail::g_outerDepth takes a local-exec TLS relocation no shared object can use).
+# Declared here, before the first target, because CMAKE_POSITION_INDEPENDENT_CODE is read when a target is created.
+option(QCHEM_PYBIND "Build the nanobind Python bindings (pybind/)" OFF)
+if(QCHEM_PYBIND)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
 # OpenMP: used ONLY for the GPW collocate/integrate pair-loop parallelism in qcGaussian_BS
@@ -30,12 +68,52 @@ if(OpenMP_CXX_FOUND)
     # add_compile_definitions (directory-inherited everywhere), and the runtime into link_libraries
     # (every target declared after this point).  QCHEM_OPENMP gates the (opt-in via GPW_OMP_THREADS,
     # serial-by-default) parallel code.
-    # On a toolchain whose clang lacks omp.h (the /opt tarball), point find_package at apt's libomp-dev:
+    # On a toolchain whose clang lacks omp.h (the /opt LLVM 21.1.6 tarball), point find_package at apt's libomp-dev:
     #   cmake -DOpenMP_CXX_FLAGS="-fopenmp -I/usr/lib/llvm-21/lib/clang/21/include" \
     #         -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=/usr/lib/x86_64-linux-gnu/libomp.so .
+    # The /opt LLVM 23.1.4 tarball ships its own omp.h and libomp, and find_package finds them unaided.
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     add_compile_definitions(QCHEM_OPENMP)
     link_libraries(${OpenMP_omp_LIBRARY})
+    # The libomp a binary LOADS must be the one it LINKS (2026-11-23, lane G, clang 23: the tree linked /opt's libomp by full path, CMake
+    # left that directory out of RUNPATH -- it is one of the /opt clang's implicit link dirs -- and every binary silently ran on apt's older
+    # /usr/lib libomp).  cmake/OpenMPRuntimeCheck.cpp is linked the tree's way and prints the libomp it loads at run time.  When the loader's
+    # default search already finds the linked one (apt's libomp in /usr/lib) nothing is added: a system dir at the head of RUNPATH would
+    # reorder every other library's lookup.  Otherwise the library's directory joins CMAKE_BUILD_RPATH, and the check must then pass.
+    separate_arguments(_qchemOmpFlags UNIX_COMMAND "${OpenMP_CXX_FLAGS}")
+    get_filename_component(_qchemOmpLinked "${OpenMP_omp_LIBRARY}" REALPATH)
+    get_filename_component(_qchemOmpDir "${OpenMP_omp_LIBRARY}" DIRECTORY)
+    function(qchem_omp_loaded out rpaths)
+        set(_rpathOpts "")
+        foreach(_d IN LISTS rpaths)
+            list(APPEND _rpathOpts "-Wl,-rpath,${_d}")
+        endforeach()
+        try_run(_run _compile
+                SOURCES "${PROJECT_SOURCE_DIR}/cmake/OpenMPRuntimeCheck.cpp" NO_CACHE
+                COMPILE_DEFINITIONS ${_qchemOmpFlags}
+                LINK_OPTIONS ${_qchemOmpFlags} ${_rpathOpts}
+                LINK_LIBRARIES "${OpenMP_omp_LIBRARY}"
+                COMPILE_OUTPUT_VARIABLE _compileOut RUN_OUTPUT_VARIABLE _loaded)
+        if(NOT _compile OR NOT _run EQUAL 0)
+            message(FATAL_ERROR "OpenMP: a program linked against ${OpenMP_omp_LIBRARY} with '${OpenMP_CXX_FLAGS}' does not build or run:\n"
+                "${_compileOut}\n-- To fix this, please state -DOpenMP_omp_LIBRARY=<the libomp.so of this clang> (and OpenMP_CXX_FLAGS) on a fresh tree.")
+        endif()
+        set(${out} "${_loaded}" PARENT_SCOPE)
+    endfunction()
+    qchem_omp_loaded(_qchemOmpLoaded "${CMAKE_BUILD_RPATH}")
+    set(_qchemOmpHow "by the loader's default search")
+    if(NOT _qchemOmpLoaded STREQUAL _qchemOmpLinked)
+        list(APPEND CMAKE_BUILD_RPATH "${_qchemOmpDir}")
+        qchem_omp_loaded(_qchemOmpLoaded "${CMAKE_BUILD_RPATH}")
+        set(_qchemOmpHow "through the build RPATH ${_qchemOmpDir}")
+    endif()
+    if(NOT _qchemOmpLoaded STREQUAL _qchemOmpLinked)
+        message(FATAL_ERROR "OpenMP: the tree links ${_qchemOmpLinked}, but a program built the same way LOADS ${_qchemOmpLoaded} at run time, "
+            "even with ${_qchemOmpDir} in its RPATH (LD_LIBRARY_PATH='$ENV{LD_LIBRARY_PATH}', which overrides RPATH).  Every binary would run "
+            "silently on another OpenMP runtime.\n-- To fix this, please unset LD_LIBRARY_PATH for the build, or state "
+            "-DOpenMP_omp_LIBRARY=<the libomp.so you mean to run on> on a fresh tree.")
+    endif()
+    message(STATUS "OpenMP runtime: ${_qchemOmpLoaded}, loaded as linked (${_qchemOmpHow})")
     # Blaze SMP must stay OFF: real -fopenmp defines _OPENMP in every TU, which flips Blaze's
     # shared-memory parallelization ON by default -- an unintended side effect of the global OpenMP
     # mode.  Blaze then wraps EVERY smpAssign (even tiny, below-threshold ones) in BLAZE_PARALLEL_SECTION,
@@ -246,7 +324,8 @@ option(QCHEM_RELCHECKED "Release codegen with asserts live + blaze bounds checks
 # functionality.").  Enzyme (an LLVM plugin) differentiates the IR of the TUs that ask for a derivative (src/AD, and the per-file
 # registrations below; doc/GeometryOptimizationPlan.md, the AD spike; doc/Records/EnzymeSpike.md).  There is no build without it:
 # configure STOPS with a reason when the plugin is missing, built against another LLVM, older than the pin, or does not differentiate.
-#   QCHEM_ENZYME_PLUGIN   ClangEnzyme-<LLVM major>.so, built against THIS clang (found under ~/Code/Enzyme-<pin>/build/Enzyme by default)
+#   QCHEM_ENZYME_PLUGIN   ClangEnzyme-<LLVM major>.so, built against THIS clang (found under ~/Code/Enzyme-<pin>/build/Enzyme or
+#                         ~/Code/Enzyme-<pin>/build-llvm<LLVM major>/Enzyme by default: one Enzyme checkout, one build dir per LLVM)
 #   QCHEM_ENZYME_INCLUDE  <Enzyme source>/enzyme/include (found under ~/Code/Enzyme-<pin> by default)
 # The default checkout is NAMED FOR THE PIN (controller ruling 2026-11-13): a pin move builds Enzyme in a new ~/Code/Enzyme-<pin> beside the
 # old one, so no tree ever compiles against a plugin swapped under it; a tree whose cache still names the old checkout fails the pin
@@ -271,7 +350,8 @@ foreach(_v QCHEM_ENZYME_PLUGIN QCHEM_ENZYME_INCLUDE)   # an empty cached value (
         unset(${_v} CACHE)
     endif()
 endforeach()
-find_file(QCHEM_ENZYME_PLUGIN ClangEnzyme-${_qchemLLVMMajor}.so HINTS "$ENV{HOME}/Code/Enzyme-${QCHEM_ENZYME_PIN}/build/Enzyme"
+find_file(QCHEM_ENZYME_PLUGIN ClangEnzyme-${_qchemLLVMMajor}.so
+          HINTS "$ENV{HOME}/Code/Enzyme-${QCHEM_ENZYME_PIN}/build/Enzyme" "$ENV{HOME}/Code/Enzyme-${QCHEM_ENZYME_PIN}/build-llvm${_qchemLLVMMajor}/Enzyme"
           DOC "Enzyme's clang plugin, ClangEnzyme-<LLVM major>.so, built against this clang (required)")
 find_path(QCHEM_ENZYME_INCLUDE enzyme/enzyme HINTS "$ENV{HOME}/Code/Enzyme-${QCHEM_ENZYME_PIN}/enzyme/include"
           DOC "Enzyme's C++ headers, <Enzyme source>/enzyme/include (required)")
@@ -463,8 +543,7 @@ Blaze_Import(
 )
 
 # Python bindings (pybind/qchem_py) -- OFF by default so the normal build is untouched.
-# Enable with: -DQCHEM_PYBIND=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DPython_EXECUTABLE=<venv python>
-option(QCHEM_PYBIND "Build the nanobind Python bindings (pybind/)" OFF)
+# Enable with: -DQCHEM_PYBIND=ON [-DPython_EXECUTABLE=<venv python>, to bind for that Python]; the option and its PIC sit near the top.
 if(QCHEM_PYBIND)
     add_subdirectory(pybind)
 endif()
