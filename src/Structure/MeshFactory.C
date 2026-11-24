@@ -37,8 +37,11 @@ qcMesh::Mesh MakeMesh(const UnitCell&, const qcMesh::MeshParams&, const std::vec
 //! An atom's mesh invariant under \a ops: the radial-only set (\c AngularKind::None), whose angular part is analytic, so ANY rotation about
 //! the atom leaves it invariant.  An angular recipe THROWS: its finite direction set would claim a symmetry it does not carry.
 qcMesh::Mesh MakeMesh(const Atom&,     const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops);
-//! A molecule's mesh invariant under a point group: NOT BUILT YET (OOD-SOLID V-FOLD-NEUTRAL) -- THROWS by name.  A molecule today is only
-//! ever handed \c qcMesh::NoSymmetry, whose empty op set never reaches this.
+//! A molecule's mesh invariant under its point group's ops of D2h TYPE (OOD-SOLID V-FOLD-NEUTRAL; the abelian subgroup the SALC blocking
+//! uses): \a ops Cartesian, tau = 0, acting about the molecule's centroid.  The one shared angular set is rotated into the group's frame
+//! (Lebedev is octahedrally invariant there), and each atom-orbit member carries its representative's points and weights.  THROWS by name
+//! for an op outside D2h type (a C3), an angular rule the frame's reflections do not map onto itself, or a geometry that does not carry
+//! the ops to the mesh match tolerance.
 qcMesh::Mesh MakeMesh(const Molecule&, const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops);
 
 //! The ORBIT FOLD of a cell mesh invariant under \a ops: the orbit partition (fractional, torus-metric point matching), and on a
@@ -46,7 +49,7 @@ qcMesh::Mesh MakeMesh(const Molecule&, const qcMesh::MeshParams&, const std::vec
 qcMesh::FoldedMesh FoldOrbits(const UnitCell&, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops);
 //! An atom's radial-only mesh: one direction per shell, so every orbit is a single point -- the trivial fold.
 qcMesh::FoldedMesh FoldOrbits(const Atom&,     qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops);
-//! A molecule's: NOT BUILT YET (OOD-SOLID V-FOLD-NEUTRAL) -- THROWS by name.
+//! A molecule's: the orbit partition under \a ops about its centroid (Euclidean point matching); no Shubnikov tags (a spin action throws).
 qcMesh::FoldedMesh FoldOrbits(const Molecule&, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops);
 
 //! \brief THE concrete \c qcMesh::MeshMaker: closes over one structure of concrete type \a S and builds through \c MakeMesh(const S&, mp).

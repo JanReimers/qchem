@@ -14,6 +14,8 @@ module;
 #include <functional>
 #include <exception> // std::exception_ptr (the threaded weight response)
 #include <algorithm> // std::any_of (is the fold's op set magnetic?)
+#include <sstream>   // the molecular frame's report string
+#include <cmath>
 #include <memory>    // the scoped-but-early-stopped Timed on the site-adapted angular build (1.1(b))
 module qchem.Structure.MeshFactory;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
@@ -741,7 +743,20 @@ MolecularBeckeResponse::Result MolecularBeckeResponse::Pullback(const qcMesh::Me
     return out;
 }
 
-static qcMesh::Mesh AtomCentredMesh(const Structure& atoms, const qcMesh::MeshParams& mp)
+//! \brief THE POINT-GROUP BUILD of the atom-centred mesh (V-FOLD-NEUTRAL step 1): what AtomCentredMesh needs to build a mesh invariant
+//! under a molecule's ops.  \c frame rotates the ONE shared angular set (its columns are the frame axes in Cartesian coordinates);
+//! \c repOf names each atom's orbit representative (an atom index <= its own) and \c edge the Cartesian op that maps the representative
+//! onto it.  A member's points are its representative's, carried by that op POINT FOR POINT with the weight copied: the Becke partition
+//! depends only on distances, so the op leaves it invariant, and copying makes the orbit's weights agree bit for bit (the solid's V1.22
+//! lesson, where an independently built member dropped eps-borderline points differently).
+struct MolecularOrbitBuild
+{
+    Matrix3D<double>              frame;
+    std::vector<size_t>           repOf;
+    std::vector<Matrix3D<double>> edge;
+};
+
+static qcMesh::Mesh AtomCentredMesh(const Structure& atoms, const qcMesh::MeshParams& mp, const MolecularOrbitBuild* sym=nullptr)
 {
     RefuseCellMesh(mp, "the atom-centred (molecule / atom) mesh");
     // WHAT THIS MESH FORCES, from the one descriptor (qcMesh::Forces; doc/Pins.md pin 30, Group face step 3b) in the structure's own frame
@@ -763,11 +778,29 @@ static qcMesh::Mesh AtomCentredMesh(const Structure& atoms, const qcMesh::MeshPa
 
     qcMesh::RadialMesh  rad=qcMesh::MakeRadial(mp);   // one single-center template reused (ShiftOrigin per atom)
     qcMesh::AngularMesh ang=qcMesh::MakeAngular(mp);
+    if (sym)   // the shared set, rotated into the point group's frame: invariant under every op of D2h type there (Lebedev is Oh-invariant)
+    {
+        rvec3vec_t d(ang.size());
+        for (size_t i=0; i<ang.size(); i++) d[i]=sym->frame*ang.Dirs()[i];
+        ang=qcMesh::AngularMesh(std::move(d), ang.W());
+    }
 
+    // The representatives' kept points (owner offset u, weight), for their orbit members to copy: filled only on the symmetric build.
+    std::vector<std::vector<std::pair<rvec3_t,double>>> kept(sym ? natom : 0);
     qcMesh::MeshBuilder out;
     for (size_t ia=0; ia<natom; ia++)
     {
         out.BeginSite();   // one block per atom, in atom order (SiteIntegrals, the radial Poisson operator)
+        if (sym && sym->repOf[ia]!=ia)   // an orbit member: its representative's points, carried by the edge op (the rep comes first)
+        {
+            const Matrix3D<double>& W=sym->edge[ia];
+            for (const auto& [u, w] : kept[sym->repOf[ia]])
+            {
+                const rvec3_t uu=W*u;
+                out.Append(R[ia]+uu, w, uu);
+            }
+            continue;
+        }
         qcMesh::Mesh am=qcMesh::ProductMesh(rad,ang);
         am.ShiftOrigin(R[ia]);
         const rvec3vec_t& pts=am.Points();
@@ -775,11 +808,16 @@ static qcMesh::Mesh AtomCentredMesh(const Structure& atoms, const qcMesh::MeshPa
         for (size_t q=0; q<am.size(); q++)
         {
             const rvec3_t& r=pts[q];
+            // The symmetric build drops ZERO-WEIGHT points: a radial node at r = 0 stacks one per direction on the nucleus, and coincident
+            // points make the orbit fold ambiguous (one point would join two orbits).  They integrate nothing, so nothing else changes.
+            if (sym && wts[q]==0.0) continue;
             if (natom==1) { out.Append(r, wts[q], r-R[ia]); continue; }
 
             // ONE home for the partition weight: the force's grid response differentiates exactly this (qchem.Mesh.BeckePartition)
             const double w=qcMesh::BeckePartitionWeight(R, ia, r, beckeOrder);
-            if (w>0.0) out.Append(r, wts[q]*w, r-R[ia]);   // the owner offset: the point rides its atom (the weight response)
+            if (w<=0.0) continue;
+            out.Append(r, wts[q]*w, r-R[ia]);   // the owner offset: the point rides its atom (the weight response)
+            if (sym) kept[ia].push_back({r-R[ia], wts[q]*w});
         }
     }
     qcMesh::Mesh mesh=out.take();
@@ -859,20 +897,275 @@ qcMesh::FoldedMesh FoldOrbits(const Atom&, qcMesh::Mesh mesh, const std::vector<
     return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), {}};   // one direction per shell: every orbit is one point
 }
 
-static void RefuseMolecularPointGroupMesh(const char* what, size_t nOps)
+// ---- The molecular point-group hooks (OOD-SOLID V-FOLD-NEUTRAL step 1; user ruling 2026-11-23, D1-D3 of lane H's design note) ----------
+// A molecule's ops are CARTESIAN with tau = 0 (the SymOp convention for a point group, Symmetry/SymOp.C): they act about the molecule's own
+// CENTROID, the unweighted mean of its sites, which the MAKER supplies -- so a source resolved at one geometry never places the ops of
+// another (V-MESH-FACTORY's rule: the source gives ops, the maker owns the geometry).  The group handled is of D2H TYPE: every op an
+// orthogonal involution diagonal in one common frame (the abelian subgroup the SALC blocking uses, Symmetry::Molecule::BuildAbelianGroup).
+// In that frame the one shared Lebedev set is invariant under every such op (a Lebedev rule is octahedrally invariant in its own frame),
+// so the mesh is invariant with NO new rule and no site adaptation; a group beyond D2h type (a C3, a C6) is refused by name -- the full
+// point group is the follow-up the design note lists, through the site-adapted builder the solid uses.
+
+//! The molecule's ops as they act on Cartesian points: {W | c - W c}, about the centroid \a c.
+static std::vector<Symmetry::SymOp> AboutCentre(const std::vector<Symmetry::SymOp>& ops, const rvec3_t& c)
 {
-    throw std::invalid_argument(std::string(what)+"(Molecule, "+std::to_string(nOps)+" ops): a molecular point-group mesh is not built yet "
-                                "(OOD-SOLID V-FOLD-NEUTRAL) -- a molecule's mesh is built with no symmetry source (qcMesh::NoSymmetry)");
+    std::vector<Symmetry::SymOp> out;
+    out.reserve(ops.size());
+    for (const Symmetry::SymOp& op : ops) out.push_back({op.W, c-op.W*c, op.sigma});
+    return out;
 }
-qcMesh::Mesh MakeMesh(const Molecule&, const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops)
+
+static rvec3_t Centroid(const Molecule& mol)
 {
-    RefuseMolecularPointGroupMesh("MakeMesh", ops.size());
-    return {};
+    rvec3_t c(0,0,0);
+    for (const Site& s : mol.Sites()) c+=s.R;
+    return c/double(mol.GetNumAtoms());
 }
-qcMesh::FoldedMesh FoldOrbits(const Molecule&, qcMesh::Mesh, const std::vector<Symmetry::SymOp>& ops)
+
+//! THROWS unless every op is a point-group op this build handles: tau = 0, no spin action, W orthogonal.
+static void RequirePointGroupOps(const std::vector<Symmetry::SymOp>& ops, const char* who)
 {
-    RefuseMolecularPointGroupMesh("FoldOrbits", ops.size());
-    return {};
+    for (size_t k=0; k<ops.size(); k++)
+    {
+        const Symmetry::SymOp& op=ops[k];
+        if (norm(op.tau)>0.0)
+            throw std::invalid_argument(std::string(who)+"(Molecule): op "+std::to_string(k)+" carries a translation; a point-group op is "
+                                        "{W | 0}, acting about the molecule's centroid (Symmetry/SymOp.C)");
+        if (op.sigma!=Symmetry::SpinAction::None)
+            throw std::invalid_argument(std::string(who)+"(Molecule): op "+std::to_string(k)+" carries a spin action; a molecule's magnetic "
+                                        "(Shubnikov) imposition is not built");
+        const Matrix3D<double> P=Transpose(op.W)*op.W;
+        for (size_t i=1; i<=3; i++)
+            for (size_t j=1; j<=3; j++)
+                if (std::abs(P(i,j)-(i==j ? 1.0 : 0.0))>1e-10)
+                    throw std::invalid_argument(std::string(who)+"(Molecule): op "+std::to_string(k)+" is not orthogonal");
+    }
+}
+
+//! \brief THE FRAME of a D2h-type op set, from the ops alone (no geometry).  Each op W != E is a symmetric involution, so (I+W)/2 and
+//! (I-W)/2 project onto its +1 and -1 eigenspaces; a rank-1 projector names an AXIS (a C2 axis, a mirror normal).  The axes of a D2h-type
+//! set are mutually orthogonal; completed to an orthonormal frame (the lab axes taken where they are free), they give the frame every
+//! op is diagonal (+-1) in.  The frame may be improper: the Lebedev set is invariant under the frame's reflections too.  The frame keeps the LAB axes wherever the ops allow (each frame axis is matched to the lab
+//! axis it lies closest to, sign positive), so a deck that already aligns its molecule with x, y, z gets the identity: the same mesh as
+//! the plain build.  Sets \a why (and returns the identity) when an op is not diagonal in the frame: a C3, C4 or C6, outside D2h type.
+static Matrix3D<double> D2hFrame(const std::vector<Symmetry::SymOp>& ops, std::string& why)
+{
+    std::vector<rvec3_t> axes;
+    auto addAxis=[&](const rvec3_t& a)
+    {
+        for (const rvec3_t& b : axes) if (std::abs(a*b)>1.0-1e-8) return;   // the same axis (either sign)
+        axes.push_back(a);
+    };
+    const Matrix3D<double> I(1,0,0, 0,1,0, 0,0,1);
+    for (const Symmetry::SymOp& op : ops)
+        for (double s : {+1.0, -1.0})
+        {
+            Matrix3D<double> Pr=I+op.W*s;   // 2x the projector onto the s eigenspace
+            const double tr=Pr(1,1)+Pr(2,2)+Pr(3,3);
+            if (std::abs(tr-2.0)>1e-8) continue;   // not rank 1 (an involution's projector has trace = rank, here doubled)
+            rvec3_t best(0,0,0);
+            for (size_t j=1; j<=3; j++)
+            {
+                const rvec3_t col(Pr(1,j), Pr(2,j), Pr(3,j));
+                if (norm(col)>norm(best)) best=col;
+            }
+            if (norm(best)>1e-8) addAxis(best/norm(best));
+        }
+    for (size_t i=0; i<axes.size(); i++)
+        for (size_t j=i+1; j<axes.size(); j++)
+            if (std::abs(axes[i]*axes[j])>1e-8)
+            {
+                why="two of its symmetry axes are not perpendicular (a C3 or C6 family, outside D2h type)";
+                return I;
+            }
+    if (axes.size()>3) { why="it has more than three symmetry axes (outside D2h type)"; return I; }
+    // Complete with the lab axes, least aligned with the span first (Gram-Schmidt).
+    const rvec3_t lab[3]={rvec3_t(1,0,0), rvec3_t(0,1,0), rvec3_t(0,0,1)};
+    while (axes.size()<3)
+    {
+        int pick=-1; double least=1e300;
+        for (int k=0; k<3; k++)
+        {
+            double proj=0.0; for (const rvec3_t& a : axes) proj+=(a*lab[k])*(a*lab[k]);
+            if (proj<least-1e-12) { least=proj; pick=k; }
+        }
+        rvec3_t v=lab[pick];
+        for (const rvec3_t& a : axes) v-=(a*v)*a;
+        axes.push_back(v/norm(v));
+    }
+    // Match each lab axis to the frame axis closest to it (greedy on |cos|), sign positive: the identity when the deck is aligned.
+    Matrix3D<double> F;
+    std::vector<bool> used(3, false);
+    for (int k=0; k<3; k++)
+    {
+        int best=-1; double bc=-1.0;
+        for (int a=0; a<3; a++) if (!used[a] && std::abs(axes[a]*lab[k])>bc+1e-12) { bc=std::abs(axes[a]*lab[k]); best=a; }
+        used[best]=true;
+        const rvec3_t v=(axes[best]*lab[k]<0.0) ? -1.0*axes[best] : axes[best];
+        F(1,k+1)=v.x; F(2,k+1)=v.y; F(3,k+1)=v.z;
+    }
+    for (size_t k=0; k<ops.size(); k++)
+    {
+        const Matrix3D<double> D=Transpose(F)*ops[k].W*F;
+        for (size_t i=1; i<=3; i++)
+            for (size_t j=1; j<=3; j++)
+            {
+                const double want = i!=j ? 0.0 : (D(i,i)>0.0 ? 1.0 : -1.0);
+                if (std::abs(D(i,j)-want)>1e-8)
+                {
+                    why="op "+std::to_string(k)+" is not a reflection of the frame axes (outside D2h type: a C3, C4 or C6)";
+                    return I;
+                }
+            }
+    }
+    return F;
+}
+
+//! The nearest point of \a pts within \a tol of \a r, or -1: a sorted-by-x window search (the Euclidean twin of the fold's matcher).
+class EuclideanIndex
+{
+public:
+    EuclideanIndex(const rvec3vec_t& pts, double tol) : itsPts(pts), itsTol(tol), itsByX(pts.size())
+    {
+        for (size_t i=0; i<pts.size(); i++) itsByX[i]=i;
+        std::sort(itsByX.begin(), itsByX.end(), [&](size_t a, size_t b){return itsPts[a].x<itsPts[b].x;});
+    }
+    long Find(const rvec3_t& r) const
+    {
+        auto lo=std::lower_bound(itsByX.begin(), itsByX.end(), r.x-itsTol, [&](size_t a, double v){return itsPts[a].x<v;});
+        long best=-1; double bestD2=itsTol*itsTol;
+        for (auto it=lo; it!=itsByX.end() && itsPts[*it].x<=r.x+itsTol; ++it)
+        {
+            const rvec3_t d=itsPts[*it]-r;
+            const double d2=d*d;
+            if (d2<=bestD2) { best=long(*it); bestD2=d2; }
+        }
+        return best;
+    }
+private:
+    const rvec3vec_t&   itsPts;
+    double              itsTol;
+    std::vector<size_t> itsByX;
+};
+
+qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops)
+{
+    assert(!ops.empty());
+    RequirePointGroupOps(ops, "MakeMesh");
+    Symmetry::Lattice_3D::RequireClosedGroup(ops, "MakeMesh(Molecule, ops)");
+    if (mp.angular==qcMesh::AngularKind::None)
+        throw std::invalid_argument("MakeMesh(Molecule, ops): the radial-only set exists only on an atom (doc/Pins.md pin 30)");
+
+    std::string why;
+    MolecularOrbitBuild sym;
+    sym.frame=D2hFrame(ops, why);
+    if (!why.empty())
+        throw std::invalid_argument("MakeMesh(Molecule, "+std::to_string(ops.size())+" ops): a mesh invariant under this group is not built: "
+                                    +why+".  The molecular mesh is built for groups of D2h type, the abelian subgroup the SALC blocking uses "
+                                    "(OOD-SOLID V-FOLD-NEUTRAL; the full point group is its follow-up)");
+
+    // The angular set, oriented, must carry every op (as the frame's sign matrix).  Lebedev always does; a GaussLegendre product set
+    // carries a frame reflection only when its azimuthal nodes are symmetric -- REFUSED by name, before any point is built.
+    {
+        const qcMesh::AngularMesh a=qcMesh::MakeAngular(mp);
+        EuclideanIndex index(a.Dirs(), 1e-10);
+        for (size_t k=0; k<ops.size(); k++)
+        {
+            const Matrix3D<double> D=Transpose(sym.frame)*ops[k].W*sym.frame;
+            for (size_t i=0; i<a.size(); i++)
+            {
+                const long j=index.Find(D*a.Dirs()[i]);
+                if (j<0 || std::abs(a.W()[size_t(j)]-a.W()[i])>1e-12*std::abs(a.W()[i]))
+                    throw std::invalid_argument(std::string("MakeMesh(Molecule, ops): the ")+AngularName(mp.angular)+" angular rule of degree "
+                                                +std::to_string(mp.angularDegree)+" ("+std::to_string(a.size())+" directions) does not carry the "
+                                                "molecule's point group (op "+std::to_string(k)+": a reflection of the group's frame) -- To fix "
+                                                "this, please state a Lebedev rule of degree 9 or more, each of which carries every op of D2h type "
+                                                "(the 24- and 30-direction rules, degrees 7 and 8, do not)");
+            }
+        }
+    }
+
+    // The ATOM ORBITS and the edge op onto each member.  The geometry must carry the ops to the mesh match tolerance (a tenth of it, so the
+    // carried points stay within it): a deck symmetric only to the detection tolerance (1e-4) cannot have an invariant mesh.
+    const size_t natom=mol.GetNumAtoms();
+    const rvec3_t c=Centroid(mol);
+    const std::vector<Symmetry::SymOp> opsC=AboutCentre(ops, c);
+    std::vector<rvec3_t> Rv;
+    std::vector<int>     Z;
+    for (const Site& s : mol.Sites()) { Rv.push_back(s.R); Z.push_back(s.Z); }
+    rvec3vec_t R(natom);
+    for (size_t i=0; i<natom; i++) R[i]=Rv[i];
+    const double atomTol=0.1*kMeshMatchTol;
+    {
+        EuclideanIndex index(R, atomTol);
+        for (size_t k=0; k<opsC.size(); k++)
+            for (size_t i=0; i<natom; i++)
+            {
+                const long j=index.Find(opsC[k].W*R[i]+opsC[k].tau);
+                if (j<0 || Z[size_t(j)]!=Z[i])
+                    throw std::invalid_argument("MakeMesh(Molecule, ops): op "+std::to_string(k)+" does not map atom "+std::to_string(i)
+                                                +" onto an atom of its element within "+std::to_string(atomTol)+" bohr -- the geometry does "
+                                                "not carry this point group to the precision an invariant mesh needs");
+            }
+    }
+    const Symmetry::Lattice_3D::Fold af=Symmetry::Lattice_3D::FoldPoints(Rv, opsC, atomTol);
+    sym.repOf.assign(natom, 0);
+    sym.edge.assign(natom, Matrix3D<double>(1,0,0, 0,1,0, 0,0,1));
+    for (size_t o=0; o<af.Reps(); o++)
+        for (auto [mi, oi] : af.members[o])
+        {
+            if (oi<0) throw std::logic_error("MakeMesh(Molecule, ops): an atom orbit member with no edge op in a closed group");
+            sym.repOf[size_t(mi)]=size_t(af.repRaw[o]);
+            sym.edge [size_t(mi)]=ops[size_t(oi)].W;
+        }
+
+    qcMesh::Mesh m=AtomCentredMesh(mol, mp, &sym);
+    RequireSiteBlocks(m, "MakeMesh(Molecule, ops)");
+
+    // VERIFIED, not assumed: every op maps the mesh onto itself, weight for weight.  The members are carried copies (bit-equal); what this
+    // checks is each representative's own stabilizer (an atom on a mirror, at the centre), whose image points carry INDEPENDENTLY computed
+    // partition weights: those agree to roundoff, measured at most ~3e-14 relative (MolecularPointGroupMesh tests, 2026-11-23).  The spread
+    // is reported; past 1e-10 it is a broken invariant, not roundoff.
+    double spread=0.0;
+    {
+        EuclideanIndex index(m.Points(), kMeshMatchTol);
+        const rvec_t& w=m.Weights();
+        for (size_t k=0; k<opsC.size(); k++)
+            for (size_t i=0; i<m.size(); i++)
+            {
+                const long j=index.Find(opsC[k].W*m.Points()[i]+opsC[k].tau);
+                if (j<0)
+                    throw std::logic_error("MakeMesh(Molecule, ops): the built mesh is not invariant under op "+std::to_string(k)
+                                           +": point "+std::to_string(i)+" has no image point");
+                if (w[i]!=0.0) spread=std::max(spread, std::abs(w[size_t(j)]-w[i])/std::abs(w[i]));
+            }
+    }
+    if (spread>1e-10)
+    {
+        std::ostringstream o; o << std::scientific << spread;
+        throw std::logic_error("MakeMesh(Molecule, ops): the weights differ across an orbit by "+o.str()+" relative -- not roundoff");
+    }
+    qchem::report::Set("orbitWeightSpread", spread);
+    {
+        std::ostringstream fs;
+        fs << std::setprecision(6);
+        for (size_t i=1; i<=3; i++) fs << (i>1 ? "; " : "") << sym.frame(i,1) << ' ' << sym.frame(i,2) << ' ' << sym.frame(i,3);
+        qchem::report::Set("pointGroupOps", (long)ops.size());
+        qchem::report::Set("frame", fs.str());   // rows of the matrix whose columns are the frame axes
+    }
+    return m;
+}
+
+qcMesh::FoldedMesh FoldOrbits(const Molecule& mol, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops)
+{
+    RequirePointGroupOps(ops, "FoldOrbits");
+    auto fold=[&]{ qchem::report::Timed timed("setup: XC mesh orbit fold (FoldMesh)");
+                   std::vector<rvec3_t> pts(mesh.size());
+                   for (size_t i=0; i<mesh.size(); i++) pts[i]=mesh.Points()[i];
+                   return Symmetry::Lattice_3D::FoldPoints(pts, AboutCentre(ops, Centroid(mol)), kMeshMatchTol); }();
+    std::cout << "[Becke grid] molecular point group (" << ops.size() << " ops): invariant mesh " << mesh.size() << " points in "
+              << fold.Reps() << " orbits; rho star-averaged each iteration" << std::endl;
+    return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold)};
 }
 
 } // namespace qchem
