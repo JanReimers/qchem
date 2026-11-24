@@ -56,6 +56,7 @@ import qchem.Fitting.FunctionFitter;               // DeltaScalarFit
 import qchem.BasisSet.GSpaceDensityProjector;      // ρ̃ through the one projection face (V-ONE-OF-N 3c)
 import qchem.BasisSet.RasterDensityProjector;      // raw ρ_DM through the same face (R1.0n/o)
 import qchem.Types;
+import qchem.Reporting;                            // the factored leaf's health record (E-c (b))
 import qchem.Structure.MeshFactory;   // MakeMeshMaker (the GPW block demands its cell's mesh maker, V-MESH-FACTORY §4.4)
 
 using namespace qchem;
@@ -286,8 +287,27 @@ TEST(RealComplexTerms, FactoredLeafMatchesDirectLeafBothScalars)
         }
         FactoredRho<PeriodicIrrepCD<U>> fac(D, &orb, orb.GetIrrep(Spin::None));
         PeriodicIrrepCD<U>              dir(D, &orb, orb.GetIrrep(Spin::None));
-        const rvec_t rf=fac.Project(dp()).Vector(), rd=dir.Project(dp()).Vector();
+        // The factored leaf reports its HEALTH where the caller's context is (E-c (b), 2026-11-24): one density, factored, rank r of n.
+        const std::string run=std::string("factored health ")+what;
+        rvec_t rf;
+        { qchem::report::Run filed(run); rf=fac.Project(dp()).Vector(); }
+        const rvec_t rd=dir.Project(dp()).Vector();
         ASSERT_EQ(rf.size(), rd.size()) << what;
+        {
+            const auto& G=qchem::report::GlobalReport();
+            const qchem::report::json* last=nullptr;
+            for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind(run+"@",0)==0) last=&it.value();
+            ASSERT_TRUE(last && last->contains("densityFactor")) << what << ": the factored leaf files a densityFactor record";
+            const auto& h=(*last)["densityFactor"];
+            EXPECT_EQ(h.value("densities", 0.0), 1.0)              << what;
+            EXPECT_EQ(h.value("factored", 0.0), 1.0)               << what << ": rank 3 of n pays";
+            EXPECT_EQ(h.value("fallbackRank", 0.0), 0.0)           << what;
+            // The ACHIEVED rank is D's true rank: the real arm's columns sin(x_i + 1.3m)/(1+0.1i) span only {sin x_i, cos x_i}/(1+0.1i)
+            // (sin(x+c) = sin x cos c + cos x sin c), so its D has rank 2; the complex arm's cos imaginary part lifts it to r = 3.
+            const double trueRank = std::is_same_v<U,double> ? 2.0 : double(r);
+            EXPECT_EQ(h.value("rankSum", 0.0), trueRank)           << what << ": the achieved pivoted-Cholesky rank";
+            EXPECT_EQ(h.value("functionSum", 0.0), double(n))      << what;
+        }
         double scale=0.0;
         for (size_t g=0; g<rd.size(); g++) scale=std::max(scale, std::fabs(rd[g]));
         EXPECT_GT(scale, 1e-6) << what << ": a vacuous rho would pass anything";
