@@ -216,7 +216,7 @@ export namespace qchem::Hamiltonian
     //! and silently build a second one.  A caller that builds one Hamiltonian (a test, a probe) holds a slot beside its basis.  Structure neutral: \a T is the fit's scalar (double for a
     //! molecule or an atom, dcmplx for a solid).
     template <class T> using CoulombFitSlot=OnceSlot<std::shared_ptr<const BasisSet::FIT_CD_ABS<T>>>;
-    //! Does \a coulomb's Hartree route use a Coulomb fit basis?  (Not the grid routes: a δ or multipole fit carries its own operator.)
+    //! Does \a coulomb's Hartree route use a Coulomb fit basis?  (Not the δ-fit routes: a δ or multipole fit carries its own operator.)
     bool UsesCoulombFitBasis(const CoulombRoute& coulomb);
 
     //=== The resolvers ===============================================================================

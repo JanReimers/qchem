@@ -22,7 +22,7 @@ import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Types;
-import qchem.Fitting.CoulombOperator;            // the grid Hartree route: the fitter (the operators are qcMesh's, re-exported)
+import qchem.Fitting.CoulombOperator;            // the δ-fit Hartree route: the fitter (the operators are qcMesh's, re-exported)
 import qchem.BasisSet.CoulombDeltaFit_IBS;       // a δ basis with its Coulomb integrals
 import qchem.Mesh.Radial;                         // MakeRadial: the radial rule the Poisson operator shares with the mesh
 import qchem.Mesh.Angular;                        // MakeAngular: the site multipoles' angular rule, from the same recipe
@@ -138,7 +138,7 @@ static BasisSet::FitQuadrature BuildMeshQuadrature(const qcMesh::MeshMaker& mesh
 }
 
 //! \brief THE XC QUADRATURE AND THE δ FIT BASIS ON IT, ONE PER HAMILTONIAN (lane H 2026-11-15, the basis-on-grid survey P2,
-//! controller ruling).  A molecular run whose Hartree term is a grid route (\c CoulombFit::Delta / \c Multipole) on the XC mesh's own
+//! controller ruling).  A molecular run whose Hartree term is a δ-fit route (\c CoulombFit::Delta / \c Multipole) on the XC mesh's own
 //! parameters used to build a SECOND quadrature and a second δ fit beside the Vxc term's, identical, so every orbital block's
 //! \f$\Phi_{gi}=\chi_i(r_g)\f$ table (npts x n, the largest grid holder) was held twice.  The factory now builds them once and hands
 //! the same objects to both terms: a pairing decided here, where the concrete wiring lives; neither term caches anything new.  Each is
@@ -191,14 +191,14 @@ static rmesh_t MolecularNonlinearMesh(const st_t& st, const rbs_t* bs, XCMeshSha
         throw std::invalid_argument(std::string("MolecularVxcTerm: xc.rho fit on the ")+(resolved==VxcFit::Multipole ? "multipole" : "A1")
                                     +" Vxc fit -- the fit is incomplete, so P rho is not rho[D], and XC must see rho[D] (doc/Pins.md pin 28; "
                                      "the rho axis retired 2026-11-15)");
-    BasisSet::FitQuadrature quad=share.Quadrature();   // shared with a grid Hartree term on the same mesh (P2)
+    BasisSet::FitQuadrature quad=share.Quadrature();   // shared with a δ-fit Hartree term on the same mesh (P2)
     // The δ basis on the XC points: the whole term on the δ cell, the inner strategy of a fitted-potential one.  It is the share's:
     // one Φ table per block for the whole Hamiltonian (P2).
     auto makeDelta=[&]
     {
         bool built=false;
         auto d=share.Delta(built);
-        if (!built) qchem::report::Set("sharedWith", "Hartree");   // the grid Hartree term built it on the same mesh
+        if (!built) qchem::report::Set("sharedWith", "Hartree");   // the δ-fit Hartree term built it on the same mesh
         return d;
     };
     if (resolved==VxcFit::Multipole)
@@ -260,7 +260,7 @@ template <class T, class Make> static std::shared_ptr<const BasisSet::FIT_CD_ABS
     return slot.GetOrFill([&]{return fit_t(make());});
 }
 
-//! THE MOLECULAR / ATOM HARTREE TERM.  This is where a grid route's fit basis and operator are paired, so nothing below knows
+//! THE MOLECULAR / ATOM HARTREE TERM.  This is where a δ-fit route's fit basis and operator are paired, so nothing below knows
 //! which it got.  An unresolved \c Auto is the Gaussian fit; the δ route is one stated choice away (\c CoulombFit::Delta).
 //! \a coulombFit: the run's Coulomb-fit slot (S2b): filled here on the first build, read on every later one.
 static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, XCMeshShare& share, const CoulombRoute& coulomb,
@@ -303,12 +303,12 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, XCMesh
     // The δ basis carries its Coulomb integrals (V-ONE-OF-N 3b-ii, ruling (f)): the operator is the BASIS's physics, chosen here.
     auto withCoulomb=[&](std::unique_ptr<qcMesh::CoulombOperator> op)
         {return std::make_shared<const BasisSet::CoulombDeltaFit_IBS>(std::make_shared<BasisSet::BasisCache>(), fb, std::move(op), sym_t(new UnitQN));};
-    if (direct) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(withCoulomb(qcMesh::MakeDirectSumCoulomb(mesh)), quad.GetMesh()), st->GetNumElectrons());
+    if (direct) return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(withCoulomb(qcMesh::MakeDirectSumCoulomb(mesh)), quad.GetMesh()), st->GetNumElectrons());
     const auto sites=MakeSiteMultipoles(st, mesh, hmp, lMax);
-    if (!multipole) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(withCoulomb(qcMesh::MakeRadialPoissonCoulomb(sites)), quad.GetMesh()), st->GetNumElectrons());
+    if (!multipole) return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(withCoulomb(qcMesh::MakeRadialPoissonCoulomb(sites)), quad.GetMesh()), st->GetNumElectrons());
     // A multipole fit basis owns its own solve (over its sites, in its own metric).
     const auto mfb=std::make_shared<const BasisSet::MultipoleFit_IBS>(std::make_shared<BasisSet::BasisCache>(), fb, sites, sym_t(new UnitQN));
-    return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(mfb, quad.GetMesh()), st->GetNumElectrons());
+    return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(mfb, quad.GetMesh()), st->GetNumElectrons());
 }
 
 Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit,

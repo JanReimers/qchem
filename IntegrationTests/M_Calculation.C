@@ -163,7 +163,7 @@ TEST(M_Calculation, CacheReportSchema)
     }
 }
 
-// THE δ FIT'S Φ IS HELD ONCE PER HAMILTONIAN (lane H 2026-11-15, the basis-on-grid survey P2, controller ruling).  A grid Hartree route
+// THE δ FIT'S Φ IS HELD ONCE PER HAMILTONIAN (lane H 2026-11-15, the basis-on-grid survey P2, controller ruling).  A δ-fit Hartree route
 // (CoulombFit::Delta) on the XC mesh's own parameters used to build a second quadrature and a second δ fit beside the Vxc term's, so
 // every orbital block's Φ (npts x n) was filled and held twice.  The factory now shares one: the run's deltaPhiBytes with BOTH terms on
 // δ equal the Vxc-only run's (Gaussian Hartree), and a Hartree mesh of its own (a different nRadial) still builds its own, more.
