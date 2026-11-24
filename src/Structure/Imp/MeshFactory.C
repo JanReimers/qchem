@@ -1256,6 +1256,10 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
     // at r = 1e6 bohr (M_Calculation.WaterLDA_eqRotated, 2026-11-23), i.e. ~1.7e-14 per unit of r / R_min.  So the spread is NORMALIZED
     // by max(1, r / R_min) before it is judged: a wrong frame or a mismatched edge op gives O(1) spreads at every r; past 1e-10 normalized
     // it is a broken invariant, not roundoff.  The normalized spread is reported.
+    // The spread is that of the PARTITION, |ΔP| = |Δw| / (w_q), not |Δw| / w (lane H 2026-11-24): P ∈ [0,1] is what carries absolute
+    // roundoff, and a point deep in another atom's cell has P down to 1e-26, whose RELATIVE roundoff is not bounded by anything.  Measured on
+    // SF₆'s pilot-raised meshes (to 726k points): |Δw|/w reached 1.2e-10 normalized at P ~ 1e-15 and threw on a correct mesh; at P ~ 1 it
+    // stays at the 1e-16..1e-14 above.  The template weight w_q = w / P, with P recomputed by the build's own qcMesh::BeckePartitionWeight.
     double rMin=std::numeric_limits<double>::infinity();
     for (size_t a=0; a<natom; a++)
         for (size_t b=a+1; b<natom; b++) rMin=std::min(rMin, norm(Rv[a]-Rv[b]));
@@ -1264,6 +1268,9 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
     {
         EuclideanIndex index(m.Points(), kMeshMatchTol);
         const rvec_t& w=m.Weights();
+        std::vector<size_t> siteOf(m.size(), 0);
+        for (size_t a=0; a<m.NSites(); a++) for (size_t i=m.SiteBegin(a); i<m.SiteEnd(a); i++) siteOf[i]=a;
+        const int beckeOrder=mp.beckeOrder;
         for (size_t k=0; k<opsC.size(); k++)
             for (size_t i=0; i<m.size(); i++)
             {
@@ -1272,8 +1279,10 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
                     throw std::logic_error("MakeMesh(Molecule, ops): the built mesh is not invariant under op "+std::to_string(k)
                                            +": point "+std::to_string(i)+" has no image point");
                 if (w[i]==0.0) continue;
+                const double P=qcMesh::BeckePartitionWeight(Rv, siteOf[i], m.Points()[i], beckeOrder);
+                if (P==0.0) continue;
                 const double reach=std::max(1.0, norm(m.Points()[i]-sites.c)/rMin);
-                spread=std::max(spread, std::abs(w[size_t(j)]-w[i])/std::abs(w[i])/reach);
+                spread=std::max(spread, std::abs(w[size_t(j)]-w[i])*P/std::abs(w[i])/reach);   // |ΔP| = |Δw| / w_q, w_q = w / P
             }
     }
     if (spread>1e-10)
