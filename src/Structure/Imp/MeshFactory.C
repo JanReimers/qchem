@@ -1188,6 +1188,10 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
     auto [frame, polished]=FrameAndPolishedOps(sites, ops, "MakeMesh");
     sym.frame=frame;
 
+    if (mp.angRot!=0.0)
+        throw std::invalid_argument("MakeMesh(Molecule, ops): the angular rule is stated ROTATED (angRot "+std::to_string(mp.angRot)+" rad), an "
+                                    "orientation of its own that the group's frame would undo -- an invariant mesh is built from an unrotated "
+                                    "rule (the molecule's setup keeps a rotated one in the lab frame, policy row MeshSymmetry)");
     // The angular set, oriented, must carry every op (as the frame's sign matrix).  Lebedev always does; a GaussLegendre product set
     // carries a frame reflection only when its azimuthal nodes are symmetric -- REFUSED by name, before any point is built.
     {

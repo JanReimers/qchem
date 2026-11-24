@@ -212,6 +212,16 @@ std::shared_ptr<const qcMesh::SymmetrySource> MoleculeSetup::MeshSymmetryAt(cons
             "degree 9 or more does -- the answer then depends on how the deck orients the molecule, at the mesh's orientation error");
         return none;
     }
+    // A ROTATED angular rule (angRot, the cubic-site calibration that steers Lebedev's special orbits off a crystal's bonds) is a stated
+    // orientation of its own: the group's frame would undo it, so it is kept, and the mesh with it in the lab frame.
+    if (xcMesh.angRot!=0.0)
+    {
+        std::ostringstream a; a << xcMesh.angRot;
+        row("point group "+group+" detected; the XC mesh stays in the lab frame",
+            "its angular rule is stated ROTATED (angRot "+a.str()+" rad), an orientation of its own that the group's frame would undo -- the "
+            "answer then depends on how the deck orients the molecule, at the mesh's orientation error.  To fix this, please state angRot 0");
+        return none;
+    }
     // The geometry must carry H to the mesh's precision, not just to the detection tolerance (measured after the maker's polish).
     std::vector<Symmetry::SymOp> ops;
     for (const auto& op : H.ops) ops.push_back({op.Matrix(), rvec3_t(0,0,0)});
@@ -226,10 +236,15 @@ std::shared_ptr<const qcMesh::SymmetrySource> MoleculeSetup::MeshSymmetryAt(cons
         return none;
     }
     row("point group "+group+" detected; the XC mesh is made invariant under "+pg.abelian+" ("+std::to_string(ops.size())+" ops)"
-        +(imposed ? ", folded: the density is averaged over its orbits" : ", not folded (a free run)"),
+        +(imposed ? ", NOT folded: the density is not averaged over its orbits on this imposed run" : ", not folded (a free run)"),
         "the one angular set is rotated into the group's frame (reported as nonlinearMesh.frame), so the deck's orientation does not reach "
-        "the answer"+std::string(pg.abelian==pg.symbol ? "" : "; invariance under the full group "+pg.symbol+" is the follow-up (OOD-SOLID V-FOLD-NEUTRAL)"));
-    return std::make_shared<const MolecularPointGroupSource>(std::move(ops), imposed);
+        "the answer"+std::string(pg.abelian==pg.symbol ? "" : "; invariance under the full group "+pg.symbol+" is the follow-up (OOD-SOLID V-FOLD-NEUTRAL)")
+        +(imposed ? std::string("; the fold is built but not engaged: a folded mesh has no geometry gradient (forces, so no geometry "
+                                "optimization) and cannot rotate a GGA's density gradient, and an imposed SALC run's density is already "
+                                "invariant under the group to roundoff, so averaging it would buy nothing until a per-orbit consumer "
+                                "exists (OpenWork §3)") : std::string()));
+    // Not folded on any run yet (lane H 2026-11-23; see the row): the source's averaging answer is false.
+    return std::make_shared<const MolecularPointGroupSource>(std::move(ops), /*averages*/false);
 }
 
 std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Molecule& st, const RunOptions& asked, const AcceleratorOptions& acc)

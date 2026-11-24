@@ -268,13 +268,15 @@ TEST(MoleculeSetup, AMoleculesMeshIsInvariantUnderItsD2hTypeSubgroupAndSaysSo)
     ASSERT_TRUE(p.meshSymmetry && q.meshSymmetry && hf->MakePoint().meshSymmetry);
     EXPECT_EQ(p.meshSymmetry->MeshOps().size(), size_t(4)) << "C2v";
     EXPECT_FALSE(p.meshSymmetry->AveragesDensityOverOrbits()) << "a free run: invariant, not folded (D2)";
-    EXPECT_TRUE (q.meshSymmetry->AveragesDensityOverOrbits()) << "an imposed run folds";
+    EXPECT_EQ(q.meshSymmetry->MeshOps().size(), size_t(4)) << "an imposed run: the same invariant mesh";
     for (const auto& op : p.meshSymmetry->MeshOps()) EXPECT_EQ(norm(op.tau), 0.0) << "point-group ops act about the centroid the maker supplies";
     const auto r=PolicyRows("MeshSymmetry LDA", "MeshSymmetry");
     ASSERT_EQ(r.size(), size_t(1));
     EXPECT_NE(r[0].dump().find("C2v"), std::string::npos) << r[0].dump();
     EXPECT_NE(r[0].dump().find("not folded"), std::string::npos) << r[0].dump();
-    EXPECT_NE(PolicyRows("MeshSymmetry imposed", "MeshSymmetry")[0].dump().find("folded: the density is averaged"), std::string::npos);
+    EXPECT_NE(PolicyRows("MeshSymmetry imposed", "MeshSymmetry")[0].dump().find("NOT folded"), std::string::npos)
+        << "the fold is built but not engaged: it has no geometry gradient and no GGA gradient rotation yet";
+    EXPECT_FALSE(imposed->MakePoint().meshSymmetry->AveragesDensityOverOrbits());
     EXPECT_TRUE(PolicyRows("MeshSymmetry HF", "MeshSymmetry").empty()) << "an all-electron HF run builds no XC mesh";
     EXPECT_TRUE(hf->MakePoint().meshSymmetry->MeshOps().empty());
 }
@@ -294,6 +296,14 @@ TEST(MoleculeSetup, AMoleculesMeshKeepsTheLabFrameWhereItMustAndSaysWhy)
     { report::Run run("MeshSymmetry coarse"); coarse=MoleculeSetup::Resolve(Water(), o); }
     EXPECT_TRUE(coarse->MakePoint().meshSymmetry->MeshOps().empty()) << "the 24-direction rule cannot carry the frame";
     EXPECT_NE(PolicyRows("MeshSymmetry coarse", "MeshSymmetry")[0].dump().find("degree 9"), std::string::npos);
+
+    // A ROTATED rule (BeckeXCParams() carries the cubic-site calibration's angRot) is a stated orientation: kept, in the lab frame.
+    std::shared_ptr<const MoleculeSetup> rotated;
+    o.xcMesh=qcMesh::BeckeXCParams(); o.xcMesh->angularDegree=41;
+    ASSERT_NE(o.xcMesh->angRot, 0.0) << "this case needs the calibrated rotation";
+    { report::Run run("MeshSymmetry rotated"); rotated=MoleculeSetup::Resolve(Water(), o); }
+    EXPECT_TRUE(rotated->MakePoint().meshSymmetry->MeshOps().empty()) << "a rotated rule cannot carry the frame";
+    EXPECT_NE(PolicyRows("MeshSymmetry rotated", "MeshSymmetry")[0].dump().find("angRot"), std::string::npos);
 
     // A geometry step that breaks C2v's mirrors (one H moved off) keeps only the molecular plane: Cs, reported as a change of group.
     std::shared_ptr<const MoleculeSetup> lda;
