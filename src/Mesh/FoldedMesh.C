@@ -54,6 +54,17 @@ public:
     FoldedMesh(std::shared_ptr<const Mesh> mesh, Fold fold,
                std::vector<SpinAction> sigmas={}, std::vector<char> flipFixed={});
 
+    //! \brief How each op of the fold's group acts on the mesh's SITE BLOCKS: \c image[k][A] is the site op \c k carries site \c A onto,
+    //! and \c W[k] its Cartesian rotation.  Plain indices, so qcMesh stays geometry-free: the BUILDER that knows which atom a site block
+    //! is supplies it (the molecular \c FoldOrbits).  What a per-orbit consumer's GEOMETRY GRADIENT needs (\c SymmetrizeSiteVectors).
+    struct SiteAction
+    {
+        std::vector<Matrix3D<double>>    W;       //!< one per op
+        std::vector<std::vector<size_t>> image;   //!< one site permutation per op, \c NSites() long
+    };
+    //! The checked constructor WITH the site action: every image must be a permutation of the mesh's \c NSites() site blocks, one per W.
+    FoldedMesh(std::shared_ptr<const Mesh> mesh, Fold fold, SiteAction sites);
+
     //! The mesh.  Null on a default-constructed (free-run) bundle -- ask before dereferencing.
     const std::shared_ptr<const Mesh>& GetMesh() const {return itsMesh;}
     bool   HasFold  () const {return !itsFold.owner.empty();}   //!< is a partition present at all?
@@ -88,6 +99,34 @@ public:
     //! filter).  Prefer the two members above: they are why this type exists.
     const Fold& GetFold() const {return itsFold;}
 
+    //! \name THE PER-ORBIT CONSUMER'S VIEW (OpenWork §3, the cost lever V-FOLD-NEUTRAL did not buy; lane H 2026-11-24)
+    //! On an invariant mesh, for an integrand \f$f\f$ that is itself INVARIANT under the fold's group,
+    //! \f$\sum_g w_g f(r_g)=\sum_o W_o\,f(r_o)\f$ exactly, with \f$W_o=\sum_{g\in o}w_g\f$ the orbit's summed weight and \f$r_o\f$ its
+    //! representative.  So such a consumer can sample on one point per orbit.  ⚠ ONLY for an invariant integrand: a single
+    //! non-invariant function (one Gaussian fit function on a non-axis site, a site multipole) integrates WRONG on this view, with no
+    //! error -- the consumer, not this type, must know its integrand is invariant (an orbital-pair product of one 1-D real irrep is).
+    //!@{
+    //! \brief The representatives as a mesh: one point per orbit, in increasing raw index (so site-contiguous, with the site blocks
+    //! of the full mesh restricted to their representatives -- a site may own none), weight \f$W_o\f$, owner offsets and the
+    //! builder's Forces stamp carried.  NO weight response: a representative's weight derivative is not the orbit sum's (step 3).
+    //! THROWS when there is no fold (a free run has no orbits to represent).
+    Mesh MakeRepresentativeMesh() const;
+    //! \brief Copy one value per representative (in \c MakeRepresentativeMesh order) out to every member of its orbit: the full-mesh
+    //! samples of an INVARIANT field, exactly.  With no fold, the identity.
+    rvec_t CopyOut(const rvec_t& repValues) const;
+    //! The full-mesh index of each representative, in \c MakeRepresentativeMesh order.
+    const std::vector<size_t>& RepresentativeIndices() const {return itsRepIndex;}
+    //!@}
+
+    //! Is a \c SiteAction present?
+    bool HasSiteAction() const {return !itsSites.image.empty();}
+    //! \brief The GROUP AVERAGE of one 3-vector per site: \f$g_A\leftarrow\tfrac1{|H|}\sum_k W_k^\top g_{\sigma_k(A)}\f$ -- the totally
+    //! symmetric projection \f$P\f$, under which the gradient of an invariant energy at a symmetric geometry is fixed.  It is also how a
+    //! per-orbit consumer gets that gradient: a member's contribution is the representative's carried by the edge op,
+    //! \f$\sum_{g\in o}c(r_g)=\tfrac{|o|}{|H|}\sum_k T_k\,c(r_o)\f$, so \f$g=P\,\tilde g\f$ with \f$\tilde g=\sum_o|o|\,c(r_o)\f$ -- the
+    //! representatives' contributions taken at the orbit weight \f$W_o\f$.  THROWS when no \c SiteAction was supplied, or on a size mismatch.
+    void SymmetrizeSiteVectors(rvec3vec_t& g) const;
+
 private:
     std::shared_ptr<const Mesh> itsMesh;
     Fold                        itsFold;      //!< its orbit partition ({} = no star-averaging)
@@ -96,6 +135,8 @@ private:
     //! themselves, where \f$m\f$ must vanish exactly).  Both empty = grey/free semantics.
     std::vector<SpinAction>     itsSigmas;
     std::vector<char>           itsFlipFixed;
+    SiteAction                  itsSites;      //!< {} = none supplied
+    std::vector<size_t>         itsRepIndex;   //!< the representatives' full-mesh indices, ascending (a pure function of the fold)
 };
 
 } // namespace

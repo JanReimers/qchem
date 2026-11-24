@@ -1,5 +1,6 @@
 // File: Mesh/Internal/FoldedMesh.C  FoldedMesh -- the checked pairing of a mesh with its orbit partition.
 module;
+#include <algorithm>
 #include <cassert>
 #include <memory>
 #include <vector>
@@ -47,6 +48,33 @@ FoldedMesh::FoldedMesh(std::shared_ptr<const Mesh> mesh, Fold fold,
     if (!itsFlipFixed.empty() && itsFlipFixed.size()!=n)
         fail("the flip-fixed flags cover "+std::to_string(itsFlipFixed.size())+" points, not "
              +std::to_string(n));
+    itsRepIndex.reserve(itsFold.Reps());
+    for (int r : itsFold.repRaw) itsRepIndex.push_back(size_t(r));
+    std::sort(itsRepIndex.begin(), itsRepIndex.end());
+}
+
+FoldedMesh::FoldedMesh(std::shared_ptr<const Mesh> mesh, Fold fold, SiteAction sites)
+    : FoldedMesh(std::move(mesh), std::move(fold))
+{
+    auto fail=[](const std::string& what)
+        {throw std::runtime_error("qcMesh::FoldedMesh: the site action "+what+" -- it must come from the construction that built the "
+                                  "mesh's site blocks and the fold's ops");};
+    if (!itsMesh) fail("was supplied without a mesh");
+    if (sites.W.size()!=sites.image.size())
+        fail("has "+std::to_string(sites.W.size())+" rotations but "+std::to_string(sites.image.size())+" site images");
+    const size_t ns=itsMesh->NSites();
+    for (size_t k=0; k<sites.image.size(); ++k)
+    {
+        if (sites.image[k].size()!=ns)
+            fail("of op "+std::to_string(k)+" maps "+std::to_string(sites.image[k].size())+" sites, but the mesh has "+std::to_string(ns));
+        std::vector<char> hit(ns, 0);
+        for (size_t a : sites.image[k])
+        {
+            if (a>=ns || hit[a]) fail("of op "+std::to_string(k)+" is not a permutation of the site blocks");
+            hit[a]=1;
+        }
+    }
+    itsSites=std::move(sites);
 }
 
 void FoldedMesh::Symmetrize(rvec_t& f) const
@@ -63,6 +91,71 @@ void FoldedMesh::SymmetrizeSpin(rvec_t& rho, rvec_t& m) const
     for (size_t g=0; g<itsFlipFixed.size(); ++g) if (itsFlipFixed[g]) m[g]=0.0;
     Symmetry::Lattice_3D::SymmetrizeValues      (itsFold, rho);
     Symmetry::Lattice_3D::SymmetrizeValuesSigned(itsFold, itsSigmas, m);
+}
+
+Mesh FoldedMesh::MakeRepresentativeMesh() const
+{
+    if (!HasFold()) throw std::logic_error("qcMesh::FoldedMesh::MakeRepresentativeMesh: no fold -- a free run has no orbits to represent");
+    const Mesh& m=*itsMesh;
+    const size_t nr=itsRepIndex.size();
+    rvec3vec_t r(nr);
+    rvec_t     w(nr);
+    for (size_t o=0; o<itsFold.Reps(); ++o)   // W_o: the orbit's summed weight, written at its representative's slot below
+    {
+        double W=0.0;
+        for (auto [g, k] : itsFold.members[o]) W+=m.Weights()[size_t(g)];
+        const size_t i=size_t(std::lower_bound(itsRepIndex.begin(), itsRepIndex.end(), size_t(itsFold.repRaw[o]))-itsRepIndex.begin());
+        w[i]=W;
+    }
+    for (size_t i=0; i<nr; ++i) r[i]=m.Points()[itsRepIndex[i]];
+    std::vector<size_t> siteStart;
+    if (m.NSites()>0)
+    {   // a site's block is the representatives inside its full block; the indices ascend, so the restriction stays contiguous
+        siteStart.resize(m.NSites());
+        for (size_t a=0; a<m.NSites(); ++a)
+            siteStart[a]=size_t(std::lower_bound(itsRepIndex.begin(), itsRepIndex.end(), m.SiteBegin(a))-itsRepIndex.begin());
+    }
+    rvec3vec_t u;
+    if (m.OwnerOffsets().size()>0)
+    {
+        u.resize(nr);
+        for (size_t i=0; i<nr; ++i) u[i]=m.OwnerOffsets()[itsRepIndex[i]];
+    }
+    Mesh out=siteStart.empty() ? Mesh(std::move(r), std::move(w)) : Mesh(std::move(r), std::move(w), std::move(siteStart), std::move(u));
+    out.InstallForces(m.Forces());   // a field sampled here is the invariant field's: the same group as the full set
+    return out;
+}
+
+rvec_t FoldedMesh::CopyOut(const rvec_t& repValues) const
+{
+    if (!HasFold()) return repValues;
+    if (repValues.size()!=itsRepIndex.size())
+        throw std::invalid_argument("qcMesh::FoldedMesh::CopyOut: "+std::to_string(repValues.size())+" values for "
+                                    +std::to_string(itsRepIndex.size())+" representatives");
+    rvec_t full(itsMesh->size());
+    for (size_t o=0; o<itsFold.Reps(); ++o)
+    {
+        const size_t i=size_t(std::lower_bound(itsRepIndex.begin(), itsRepIndex.end(), size_t(itsFold.repRaw[o]))-itsRepIndex.begin());
+        for (auto [g, k] : itsFold.members[o]) full[size_t(g)]=repValues[i];
+    }
+    return full;
+}
+
+void FoldedMesh::SymmetrizeSiteVectors(rvec3vec_t& g) const
+{
+    if (!HasSiteAction()) throw std::logic_error("qcMesh::FoldedMesh::SymmetrizeSiteVectors: no site action was supplied with this fold");
+    const size_t ns=itsSites.image.front().size();
+    if (g.size()!=ns)
+        throw std::invalid_argument("qcMesh::FoldedMesh::SymmetrizeSiteVectors: "+std::to_string(g.size())+" vectors for "
+                                    +std::to_string(ns)+" sites");
+    const double inv=1.0/double(itsSites.image.size());
+    rvec3vec_t out(ns, rvec3_t(0,0,0));
+    for (size_t k=0; k<itsSites.image.size(); ++k)
+    {
+        const Matrix3D<double> Wt=Transpose(itsSites.W[k]);
+        for (size_t a=0; a<ns; ++a) out[a]+=Wt*g[itsSites.image[k][a]];
+    }
+    for (size_t a=0; a<ns; ++a) g[a]=inv*out[a];
 }
 
 } // namespace
