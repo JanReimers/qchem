@@ -13,6 +13,7 @@ add_executable(UTCommon gtestmain.C
     SCFCap.C   # the convergence panel's IterationBudget / AuditSCF
     SlotMap.C   # qchem.SlotMap: the owner-held keyed cache (cache-ownership S1)
     PositionJet.C   # qchem.PositionJet (qcMath): the first-order jet in the atom positions
+    SpecialFunctions.C   # qchem.SpecialFunctions (qcMath): SphericalBessel against a hard-coded reference table
 )
 
 target_compile_definitions(UTCommon PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
