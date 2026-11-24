@@ -709,6 +709,9 @@ double FactoredRhoOpRatio(size_t n, size_t r) {return n ? double(r)/double(n) : 
 //! (Si k222, n=24, kT 0..2e-2), 1.01-1.08 at r/n 0.20-0.40 (Li k444, n=5); same Etot to 1e-10 on both routes in all 27 runs.  No block in
 //! any case reached r/n >= 1/2, so the margin is UNEXERCISED: the data say only that the factored forward was never slower below it.
 //! Move it only with a measurement at r/n in [0.5, 1).
+//! NO kT RULE (the user, 2026-11-24, on this record, asked "kT, item (c): do you accept no kT rule": "yes I am convinced."): this
+//! per-block test, on the rank each density ACHIEVES, is the whole decision.  No setup switches the route on kT before the SCF and no
+//! policy revises it between SCFs (doc/Records/RunPolicyOnTheRun.md §4.3).
 constexpr double kFactoredRhoMargin = 2.0;
 
 //! The ONE place the two combine: take the factored forward iff its operation count, times the margin, is below the direct one's.
