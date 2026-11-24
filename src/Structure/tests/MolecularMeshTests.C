@@ -668,6 +668,18 @@ TEST(MolecularPointGroupMesh, SF6UnderD2hInAnyOrientation)
     EXPECT_EQ(q.size(), nonzero);
 }
 
+// SF6 on a RAISED mesh (as the mesh pilot climbs an SF6 run to, 726k points): points deep in another atom's Becke cell carry partitions
+// down to 1e-26, whose RELATIVE roundoff is unbounded, so the orbit-weight check judges the partition's ABSOLUTE spread |ΔP| (lane H
+// 2026-11-24: |Δw|/w threw at 1.2e-10 on this correct mesh and stopped every SF6 DFT run).
+TEST(MolecularPointGroupMesh, SF6OnARaisedMeshPassesItsOrbitWeightCheck)
+{
+    qcMesh::MeshParams mp=Params(); mp.nRadial=160; mp.angularDegree=47;
+    auto mol=Placed(SF6(), kQ, rvec3_t(1.0,2.0,3.0));
+    Ops s; s.ops=PlacedOps(D2h(), kQ);
+    const qcMesh::FoldedMesh q=StructureMeshMaker<Molecule>(mol).Make(mp, s);   // the maker's own check (normalized by r / R_min) is the gate
+    EXPECT_LT(q.NumOrbits(), q.size()/5) << "D2h's 8 ops fold it";
+}
+
 // NH3 (C3v) under its D2h-type subgroup Cs, rotated; and the C3 it also carries is REFUSED by name (the full group is the follow-up).
 TEST(MolecularPointGroupMesh, NH3UnderCsAndItsC3Refused)
 {
