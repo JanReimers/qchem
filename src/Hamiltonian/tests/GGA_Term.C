@@ -78,7 +78,7 @@ struct Rig
     }
     std::unique_ptr<ChargeDensity::tDM_CD<double>> Density(const hmat_t<double>& D) const
     {
-        return std::unique_ptr<ChargeDensity::tDM_CD<double>>(ChargeDensity::IrrepCD_Factory<double>(D, block, bs->GetIrreps(Spin::None)[0]));
+        return std::unique_ptr<ChargeDensity::tDM_CD<double>>(ChargeDensity::IrrepCD_Factory<double>(D, block, bs->GetIrreps(Spin::None)[0], qchem::ChargeDensity::RhoRoute::PivotedCholesky));
     }
     double Exc(const hmat_t<double>& D) const
     {

@@ -206,7 +206,7 @@ Outcome<SavedState, RestartRefusal> ReadSolidState(const std::string& path)
 //  RESTORE
 //---------------------------------------------------------------------------------------------------
 Outcome<std::unique_ptr<ChargeDensity::cDM_CD>, RestartRefusal>
-RestoreDensity(const SavedState& st, const BasisSet::Complex_BS& bs, SpinGroup g)
+RestoreDensity(const SavedState& st, const BasisSet::Complex_BS& bs, SpinGroup g, const ChargeDensity::DensityMaker& maker)
 {
     using O=Outcome<std::unique_ptr<ChargeDensity::cDM_CD>, RestartRefusal>;
     using namespace ChargeDensity;
@@ -260,8 +260,8 @@ RestoreDensity(const SavedState& st, const BasisSet::Complex_BS& bs, SpinGroup g
     for (size_t b=0;b<refs.size();b++)
     {
         const StateBlock& r=refs[b];
-        if (r.real) cd->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(Dr[b], r.real, r.irrep)), r.irrep);
-        else        cd->Insert(std::unique_ptr<tDM_CD<dcmplx>>(IrrepCD_Factory<dcmplx>(Dc[b], r.cplx, r.irrep)), r.irrep);
+        if (r.real) cd->Insert(maker.Make<double>(Dr[b], r.real, r.irrep), r.irrep);
+        else        cd->Insert(maker.Make<dcmplx>(Dc[b], r.cplx, r.irrep), r.irrep);
     }
     return O::Ok(std::unique_ptr<cDM_CD>(std::move(cd)));
 }

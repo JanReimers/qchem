@@ -33,6 +33,7 @@ import qchem.ChargeDensity.Types;           // tobs_t/cobs_t/robs_t -- this libr
                                             // qcHamiltonian typedefs the engine used to borrow (R1.0e, 2026-09-10)
                                             // with no Hamiltonian dependency of its own; it moves with the engine
 import qchem.ChargeDensity;
+import qchem.RunPolicy;                      // XCSourceRoute (the singles strategy holds it)
 import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quadrature the engine integrates on)
 import qchem.Mesh.SiteMultipoles;           // MultipoleFitSpace: the site multipole transforms
 import qchem.Symmetry.Lattice_3D.Fold;      // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
@@ -122,7 +123,8 @@ public:
     //!    sibling fields the same way as the mesh removed both.
     //! Empty (default-constructed) => a free run with no partition: no star-average, and \c SiteIntegrals
     //! answers empty -- exactly as a raster quadrature does.
-    tSinglesDensitySampler(fit_t, BasisSet::FitQuadrature quad={});
+    //! \a source: the XC-from-D route (policy.xcFromDM + its controls), resolved by the run's setup.  Default = off.
+    tSinglesDensitySampler(fit_t, BasisSet::FitQuadrature quad={}, const XCSourceRoute& source={});
     double Integrate(const rvec_t& f) const override;
     size_t NumPoints() const override;
     //! My mesh's sampling slot (the δ basis samples a field ON that mesh: \c DeltaFit_IBS::Overlap -> \c SampleOn).
@@ -214,6 +216,7 @@ protected:   // the periodic subclass contracts through the same fitter and tabl
     // methods reached from const term methods through a non-const shared_ptr, which laundered the constness
     // without ever stating it.  itsFit is NOT mutable: it is construction-time and must not move.
     fit_t itsFit;                                 //!< the δ basis: my functions, their metric, their 3-centre overlap
+    XCSourceRoute itsXCSource;                    //!< the XC-from-D route (policy.xcFromDM): may XC read a mixed field's retained D
     //! The SAME quadrature bundle the \f$\delta\f$ basis was built over -- injected, immutable, possibly
     //! empty.  Its mesh's point order IS the fit basis's function order (one object, handed to both), which
     //! is what makes \c SiteIntegrals' indexing and the fold's orbit indexing correct by construction; the

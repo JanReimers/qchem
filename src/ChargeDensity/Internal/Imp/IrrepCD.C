@@ -14,6 +14,7 @@ module;
 
 module qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
+import qchem.Reporting;                       // report::Accumulate: the factored route's health (E-c)
 import qchem.Symmetry;
 import qchem.BasisSet.Orbital_DFT_IBS;  // Integrals_Overlap3C<T,TFit> -- this block's scalar arm of the fit basis's 3C
 import qchem.Blaze;
@@ -688,6 +689,53 @@ template class PeriodicIrrepCD_RealEnergy<PeriodicIrrepCD<double>>;
 // ProjectOnto, i.e. an O(n^3) pstrf on EVERY call -- and DensitySampler::RhoPol calls it twice per
 // iteration (one per spin channel).  Keyed on the density serial, the factor is now built once per D.
 //
+// THE PAY TEST of the factored rho forward (D-MUTABLE-STATICS-RUNPOLICY E-c, 2026-11-24; CLAUDE.md: a RIGOROUS formula and its EMPIRICAL
+// correction live apart, and combine in one visible place).
+namespace
+{
+//! \brief RIGOROUS: the operation count of the factored rho forward relative to the direct one, for one block of \a n functions whose D
+//! has pivoted-Cholesky rank \a r, on npts coefficients.
+//! Direct  \f$\rho_g=\Phi_g^\dagger D\Phi_g\f$: the (npts x n)(n x n) GEMM plus a row dot, npts(n^2+n) multiply-adds.
+//! Factored \f$\rho_g=\lVert L^\dagger\Phi_g\rVert^2\f$: the (npts x n)(n x r) GEMM plus a row norm, npts(nr+r).
+//! npts cancels, and the O(n^3/3) pstrf is SUNK here: it runs once per density serial before this question can be asked (the factor
+//! is what reveals r).  Ratio = r(n+1)/(n(n+1)) = r/n, so the factored forward does fewer operations whenever r < n.
+double FactoredRhoOpRatio(size_t n, size_t r) {return n ? double(r)/double(n) : 1.0;}
+
+//! \brief CALIBRATION (empirical): the factored forward is taken only when it is cheaper than the direct one by at least this FACTOR in
+//! operations.  A thin (n x r) GEMM runs at a lower rate per operation than the square one, and the route adds a row-norm pass.
+//! VALUE 2: set 2026-08 with the factored leaf (it was the literal in `2*itsRank >= n`), never measured AT its threshold.
+//! RECORD (E-c, lane B 2026-11-24; logs ~/Code/qchem6-runs/{Si,Li,MnO}/laneB_Ec/, doc/Records/RunPolicyOnTheRun.md §4.3): Becke-mesh rho
+//! sampling, direct/factored wall per call 1.20-2.15 at r/n 0.11-0.16 (MnO AFM-II Γ, n=122, kT 1e-3..2e-2), 1.33-1.55 at r/n 0.17-0.42
+//! (Si k222, n=24, kT 0..2e-2), 1.01-1.08 at r/n 0.20-0.40 (Li k444, n=5); same Etot to 1e-10 on both routes in all 27 runs.  No block in
+//! any case reached r/n >= 1/2, so the margin is UNEXERCISED: the data say only that the factored forward was never slower below it.
+//! Move it only with a measurement at r/n in [0.5, 1).
+//! NO kT RULE (the user, 2026-11-24, on this record, asked "kT, item (c): do you accept no kT rule": "yes I am convinced."): this
+//! per-block test, on the rank each density ACHIEVES, is the whole decision.  No setup switches the route on kT before the SCF and no
+//! policy revises it between SCFs (doc/Records/RunPolicyOnTheRun.md §4.3).
+constexpr double kFactoredRhoMargin = 2.0;
+
+//! The ONE place the two combine: take the factored forward iff its operation count, times the margin, is below the direct one's.
+bool FactoredForwardPays(size_t n, size_t r) {return kFactoredRhoMargin*FactoredRhoOpRatio(n, r) < 1.0;}
+
+//! The factored route's HEALTH, once per density serial of each block that asked: how many densities took the thin GEMM, how many fell
+//! back and why, and the achieved ranks (Σr / Σn is the run's mean r/n).  It goes where the caller's context is, one level in, and
+//! accumulates (thread-safe, a no-op outside a run), so a run that lives on the fallback -- a hot metal on a small basis -- says so.
+void ReportFactorHealth(FactorOutcome made, size_t n, size_t r)
+{
+    namespace rpt=qchem::report;
+    rpt::Accumulate("densityFactor", "densities", 1.0);
+    switch (made)
+    {
+    case FactorOutcome::Declined: rpt::Accumulate("densityFactor", "declined", 1.0); return;
+    case FactorOutcome::NotPSD:   rpt::Accumulate("densityFactor", "fallbackNotPSD", 1.0); return;
+    case FactorOutcome::Factored: break;
+    }
+    rpt::Accumulate("densityFactor", FactoredForwardPays(n, r) ? "factored" : "fallbackRank", 1.0);
+    rpt::Accumulate("densityFactor", "rankSum", double(r));
+    rpt::Accumulate("densityFactor", "functionSum", double(n));
+}
+} // namespace
+
 template <class Leaf> bool FactoredRho<Leaf>::JoinFold(const BasisSet::PairProjector<dcmplx>& p, std::vector<BasisSet::FoldBlockRef>& blocks,
                                                          std::vector<BasisSet::FoldBlockD>& Ds) const
 {
@@ -734,14 +782,13 @@ template <class Leaf> Projections FactoredRho<Leaf>::Project(const BasisSet::Pai
         itsFactorable    = made==FactorOutcome::Factored;
         if (made==FactorOutcome::NotPSD) itsNotPSDWarned=true;
         else if (itsFactorable)          itsNotPSDWarned=false;
+        ReportFactorHealth(made, this->itsBasisSet->GetNumFunctions(), itsRank);
         itsFactorVersion = this->Version();
         itsFactorTrace   = trD;
     }
-    // THE PAY-FOR-ITSELF TEST, and it is a property of this CALL, not of the factor: below 2r < n the thin
-    // GEMM plus the O(n^3) factorisation is not obviously cheaper than the square one.  A fat rank is not an
-    // error -- it is the answer for a metal at large smearing, where the thermal tail fills the spectrum --
-    // so it takes the fallback, not a throw.
-    if (!itsFactorable || 2*itsRank >= this->itsBasisSet->GetNumFunctions()) return Leaf::Project(p);
+    // THE PAY-FOR-ITSELF TEST (FactoredForwardPays: the rigorous r/n times the calibrated margin).  A fat rank is not an error -- it is
+    // the answer for a metal at large smearing, where the thermal tail fills the spectrum -- so it takes the fallback, not a throw.
+    if (!itsFactorable || !FactoredForwardPays(this->itsBasisSet->GetNumFunctions(), itsRank)) return Leaf::Project(p);
 
     // ONE integral, TWO representations of D (2026-08-23).  Which form this density holds -- and whether
     // the rank pays -- is decided HERE, where the factor and its memo live; the contraction against

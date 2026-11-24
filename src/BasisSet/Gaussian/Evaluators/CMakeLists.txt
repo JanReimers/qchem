@@ -41,6 +41,7 @@ target_sources(qcGaussian_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     PG_LibCint/Evaluator.C
 )
 target_include_directories(qcGaussian_BS PRIVATE ${QCHEM_BLAZE_DIR})
+target_include_directories(qcGaussian_BS PRIVATE ${PROJECT_SOURCE_DIR}/src)   # forward.H (the collocation-route tests' friend, E-b)
 # libcint: the PG_LibCint Imp includes cint_funcs.h (-> generated cint.h in the build tree) and links
 # the static cint target.  PUBLIC link so UTGaussian_BS resolves the libcint symbols transitively.
 target_include_directories(qcGaussian_BS PRIVATE

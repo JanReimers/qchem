@@ -368,6 +368,17 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
 {
     std::shared_ptr<SolidSetup> s(new SolidSetup(Pseudopotential::PseudopotentialSet::Get(*opts.pp).With(opts.species), lat));
     s->opts=opts;
+    s->policy=RunPolicy(opts.solid.policy);
+    {   // THE DENSITY ROUTE (group E): a stated policy.dmLowRank, else cp2kCompat's Direct (CP2K evaluates rho as the full quadratic form),
+        // else the factored route, O(npts n r) where D has rank r.  The maker only carries it out; nothing switches it during the run.
+        const bool factored=s->policy.DMLowRank();
+        s->densityMaker=ChargeDensity::DensityMaker(factored ? ChargeDensity::RhoRoute::PivotedCholesky : ChargeDensity::RhoRoute::Direct);
+        const std::string why=opts.solid.policy.dmLowRank ? "stated (policy.dmLowRank)"
+                             : s->policy.CP2KCompat()    ? "cp2kCompat: CP2K evaluates rho as the full quadratic form"
+                             :                             "the qchem default: rho = ||L^dag Phi||^2 from the pivoted-Cholesky factor of D";
+        policy::Report("DensityRoute", factored ? "rho from D: factored (pivoted Cholesky)" : "rho from D: direct (the full quadratic form)",
+                       policy::Verdict::Choose, why);
+    }
     s->acc      =acc;
     s->accParams=ResolveAcceleratorParams(acc, SCFAccelerators::AcceleratorParams{});   // the solid's defaults: the GPW production recipe
     s->accelerator=opts.accelerator;   // its one home: Auto lets each stage decide
@@ -429,7 +440,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
     // (see RunPolicy::SymmetryImposition for the evidence), and every banked recipe asks for it -- so the
     // veto has to live here rather than in each recipe.  ONE name from here on; nothing below reads
     // opts.imposeSymmetry again, or the two would drift.
-    s->imposed = opts.imposeSymmetry && theRunPolicy().SymmetryImposition();
+    s->imposed = opts.imposeSymmetry && s->policy.SymmetryImposition();
     // THE ANSATZ (OpenWork "LR on REAL TRIM blocks", option 1, user ruling 2026-11-18: "decide once based on k and q").  Every term of
     // the GPW stack preserves realness, so a TRIM block runs real unless the run plans a response.  No knob forces complex (user
     // 2026-11-19, OpenWork G4: "we can prove rigorously whether it is needed or not"; forceComplex retired).
@@ -522,7 +533,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
         qcMesh::MeshParams asked=*opts.xcMesh;
         const bool gga=Hamiltonian::IsDFT(*opts.model) && Hamiltonian::ConsumesDensityGradient(Hamiltonian::ModelToXC(*opts.model));
         if (gga && !s->planeWave && asked.cellKind==qcMesh::UnitCellKind::Auto) {asked.cellKind=qcMesh::CellKind::RecipeStated(qcMesh::UnitCellKind::Becke); s->ggaChoseBecke=true;}   // the default IS the Becke recipe under Auto
-        s->xcMesh = qcMesh::ResolveXCMesh(asked, GatherSharpness(lat, *s->mol, *s->pp, s->imposed), theRunPolicy().BeckeXC());
+        s->xcMesh = qcMesh::ResolveXCMesh(asked, GatherSharpness(lat, *s->mol, *s->pp, s->imposed), s->policy.BeckeXC());
         // ...AND SIZED FROM EPS (controller ruling 2026-11-21, pin 31): a pilot to come climbs this mesh as a geometry run's does, so it ENTERS at
         // the calibrated rung for the per-element target, not at the energy-calibrated (40, 29), which left NaF PBE 29 uHa short (L47 vs L65).
         if (s->ggaChoseBecke && !s->rastersResolved && opts.accuracy.eps>0.0 && s->xcMesh.cellKind==qcMesh::UnitCellKind::Becke)
@@ -604,7 +615,8 @@ std::unique_ptr<BasisSet::Lattice::ShellConditioning> SolidSetup::MakeShellCondi
 {
     const GaussianBasisRecipe bare=Untrimmed(recipe, planeWave, "SolidSetup::MakeShellConditioning");
     return std::make_unique<BasisSet::Lattice::ShellConditioning>(lattice, MakeMeshMaker(lattice.GetUnitCell()), bare.Make(*structure, *pp),
-                                                                  BasisSet::Lattice::GPWParams{.images=opts.solid.images, .kShift=opts.solid.kShift, .tol=bare.tolerances});
+                                                                  BasisSet::Lattice::GPWParams{.images=opts.solid.images, .kShift=opts.solid.kShift, .tol=bare.tolerances,
+                                                                                              .dAwareScreen=policy.DAwareScreen(), .streamFold=policy.StreamFold()});
 }
 
 BasisSet::Gaussian::ShellTrim SolidSetup::MakeVetTrim(double orthoTol) const

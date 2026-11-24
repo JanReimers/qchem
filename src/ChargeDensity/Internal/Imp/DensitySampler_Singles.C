@@ -25,7 +25,7 @@ module;
 #include <stdexcept>
 module qchem.ChargeDensity.Internal.DensitySampler;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
-import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
+import qchem.RunPolicy;   // XCSourceRoute -- the declared XC-feed deviation (N5), handed in by the setup
 import qchem.ChargeDensity;
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
@@ -55,8 +55,9 @@ double GroupResidualOf(const rvec_t& rho0, const rvec_t& rho, const rvec_t& m0, 
 
 // ---- SinglesDensitySampler: the pair-shared mesh + Phi tables + per-serial rho ----------------------------------
 
-template <class T> tSinglesDensitySampler<T>::tSinglesDensitySampler(fit_t fit, BasisSet::FitQuadrature quad)
+template <class T> tSinglesDensitySampler<T>::tSinglesDensitySampler(fit_t fit, BasisSet::FitQuadrature quad, const XCSourceRoute& source)
     : itsFit(std::move(fit))
+    , itsXCSource(source)
     , itsQuad(std::move(quad))
 {
     // A delta basis, so the delta fitter, by type (V1.34).  A named lvalue because the factory takes its argument by non-const
@@ -130,8 +131,8 @@ template <class T> size_t tSinglesDensitySampler<T>::NumPoints() const {return i
 // cross-cast away: 0.042 s and rho>=0 by construction.  Hartree keeps the preconditioned field -- Poisson
 // is LINEAR and diagonal in G -- while XC, a NONLINEAR POINTWISE functional, gets the cusp.  At the fixed
 // point they agree, so this changes the SCF TRAJECTORY, not the answer.
-// QCHEM_XC_DM_SOURCE=1 to arm it.  OPT-IN: a trajectory change must earn its place against banked recipes.
-bool UseDMSource() {return theRunPolicy().XCFromDM();}
+// policy.xcFromDM arms it (XCSourceRoute::fromDM, handed in by the setup).  OPT-IN: a trajectory change must earn its place against
+// banked recipes.
 //! The exact density behind a field-backed one + THE DAMPING THAT FIELD APPLIED -- always together, because
 //! taking the first without the second is the half-damped map (see cDM_Sourced_CD::EffectiveAlpha).
 template <class T> struct ExactSource
@@ -151,13 +152,13 @@ template <class T> struct ExactSource
 // BUILT (SCFParams::XCCuspDeficit -> KerkerMixerFactory), so CP2K parity is a property of the constructed
 // object and the plain Kerker mixer stays bit-identical.  This code just uses what it was handed: a
 // non-null XCCorrection() means the run asked for the correction route.
-template <class T> ExactSource<T> ExactSourceOf(const qchem::ChargeDensity::tChargeDensity<T>* cd)
+template <class T> ExactSource<T> ExactSourceOf(const qchem::ChargeDensity::tChargeDensity<T>* cd, bool fromDM)
 {
     if (!cd) return {};
     auto* src=dynamic_cast<const qchem::ChargeDensity::tDM_Sourced_CD<T>*>(cd);
     if (!src) return {};
     auto corr=src->XCCorrection();
-    if (!corr && !UseDMSource()) return {};      // neither route armed
+    if (!corr && !fromDM) return {};      // neither route armed
     return {src->DMSource().get(), src->EffectiveAlpha(), std::move(corr)};
 }
 // policy.xcDMMix overrides alpha_eff for CONTROLS only (=1 reproduces the undamped route); unset = use the
@@ -166,18 +167,16 @@ template <class T> ExactSource<T> ExactSourceOf(const qchem::ChargeDensity::tCha
 // forces alpha_eff<=alpha, so a boost >1/mean(f) puts XC ABOVE the mixer's own alpha -- defensible (XC's
 // response kernel is finite at G->0, unlike Hartree's 4pi/G^2) but outside the preconditioner's bracket,
 // hence a knob and not a default.  (Typed on RunPolicySpec since D-ENV 6c; the env variables are retired.)
-double DMSourceMixOverride() { return qchem::theRunPolicy().XCDMMixOverride(); }
-double DMSourceMixBoost()    { return qchem::theRunPolicy().XCDMBoost(); }
 //! Blend \a fresh into \a running at the mix's own alpha (outside (0,1) => passthrough, which is the right
 //! bootstrap AND the right answer for an unmixed or overshooting step).  Non-negativity survives: a convex
 //! combination of non-negative rasters is non-negative.
-void DampXCChannel(rvec_t& running, const rvec_t& fresh, double alphaEff)
+void DampXCChannel(rvec_t& running, const rvec_t& fresh, double alphaEff, const XCSourceRoute& source)
 {
-    const double ov=DMSourceMixOverride();
-    const double a =(ov>=0.0) ? ov : DMSourceMixBoost()*alphaEff;
+    const double ov=source.mix;
+    const double a =(ov>=0.0) ? ov : source.boost*alphaEff;
     static const bool trace=qchem::Diagnostics::Enabled("xc_alpha");
     if (trace) std::cout<<"[XC alpha] alpha_eff="<<alphaEff<<(ov>=0.0?"  (OVERRIDDEN by policy.xcDMMix)":"")
-                        <<"  boost="<<DMSourceMixBoost()
+                        <<"  boost="<<source.boost
                         <<"  applied="<<((a>0.0&&a<1.0)?a:1.0)<<std::endl;
     if (a<=0.0 || a>=1.0 || running.size()!=fresh.size()) { running=fresh; return; }
     for (size_t g=0; g<fresh.size(); ++g) running[g]=(1.0-a)*running[g]+a*fresh[g];
@@ -194,11 +193,9 @@ void DampXCChannel(rvec_t& running, const rvec_t& fresh, double alphaEff)
 // touches a weight -- which is what let the last Mesh() use out of this diagnostic.  It asks the STRATEGY
 // rather than the fit basis (2026-08-23): integrating an expansion is the quadrature's question, and the
 // basis now answers only the per-function pieces it is built from.
-//! Does \a cd carry a retained-D source (QCHEM_XC_DM_SOURCE / the N4 cusp deficit)?  A bool-returning
-//! wrapper so a caller declared ABOVE ExactSource's definition can still ask.
-bool HasExactSource(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd) {return bool(ExactSourceOf(cd));}
-//! ...and is it the N4 cusp-deficit route (a correction map), as opposed to the wholesale DM source?
-bool HasXCCorrection(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd) {return bool(ExactSourceOf(cd).corr);}
+//! Does \a cd carry the N4 cusp-deficit route (a correction map)?  A bool-returning wrapper so a caller declared ABOVE ExactSource's
+//! definition can still ask.  It does not depend on policy.xcFromDM (the raster routes refuse that at construction).
+bool HasXCCorrection(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd) {return bool(ExactSourceOf(cd, /*fromDM*/false).corr);}
 
 //! The engine notes which ρ source it served XC from (the free helper below reports the sign census).
 template <class T> void tSinglesDensitySampler<T>::NoteRoute(const char* route, XCRhoSource src) const
@@ -250,7 +247,7 @@ template <class T> const rvec_t& tSinglesDensitySampler<T>::Rho(const tChargeDen
         NoteRoute("DM", XCRhoSource::DM);
         ReportNegativeRho(*this, itsRho, "DM");
     }
-    else if (auto ex=ExactSourceOf(cd))
+    else if (auto ex=ExactSourceOf(cd, itsXCSource.fromDM))
     {   // THE REPAIR, unpolarized sibling of the RhoPol branch below: the field retains the D it was mixed
         // from, so XC samples that instead of inverse-transforming a truncated series.
         if (ex.cd->Version()==itsSrcVersion)
@@ -269,7 +266,7 @@ template <class T> const rvec_t& tSinglesDensitySampler<T>::Rho(const tChargeDen
         }
         else
         {
-            DampXCChannel(itsXCMix, ProjectDM(*ex.cd), ex.alpha);
+            DampXCChannel(itsXCMix, ProjectDM(*ex.cd), ex.alpha, itsXCSource);
             itsRho=itsXCMix;   // the running mix lives in its OWN buffer -- see the \warning on itsXCMix
             NoteRoute("DM-source", XCRhoSource::DMSource);
             ReportNegativeRho(*this, itsRho, "DM-source");
@@ -379,8 +376,8 @@ template <class T> const rvec_t& tSinglesDensitySampler<T>::RhoPol(const tCharge
             // mixed from, so ask for the exact one FIRST and fall back per CHANNEL -- the seed has no source
             // on either while a mixed density has one on both, so a pair-level test would be right today and
             // wrong the first time they differ.
-            const ExactSource<T> exUp=ExactSourceOf(up);
-            const ExactSource<T> exDn=ExactSourceOf(dn);
+            const ExactSource<T> exUp=ExactSourceOf(up, itsXCSource.fromDM);
+            const ExactSource<T> exDn=ExactSourceOf(dn, itsXCSource.fromDM);
             if (exUp && exDn)
             {
                 // STALENESS GUARD (see itsSrcVersion): the field's serial just advanced, so the SOURCE's
@@ -406,8 +403,8 @@ template <class T> const rvec_t& tSinglesDensitySampler<T>::RhoPol(const tCharge
                 }
                 else
                 {
-                    DampXCChannel(itsXCMixUp, up, exUp.alpha);   // match the damping Hartree gets, so the map
-                    DampXCChannel(itsXCMixDn, dn, exDn.alpha);   //   is not half-damped
+                    DampXCChannel(itsXCMixUp, up, exUp.alpha, itsXCSource);   // match the damping Hartree gets, so the map
+                    DampXCChannel(itsXCMixDn, dn, exDn.alpha, itsXCSource);   //   is not half-damped
                     itsRhoUp=itsXCMixUp; itsRhoDn=itsXCMixDn;
                     NoteRoute("DM-source(up)", XCRhoSource::DMSource);
                     ReportNegativeRho(*this, itsRhoUp, "DM-source(up)");
@@ -828,7 +825,7 @@ template <class T, class Base> const rvec3vec_t& tSinglesGradientSampler<T,Base>
         const tChargeDensity<T>* dn=ChannelOf(cd, Spin::Down);
         auto refuseMixed=[](const tChargeDensity<T>* c)
         {
-            if (ExactSourceOf(c))
+            if (ExactSourceOf(c, /*fromDM*/false))
                 throw std::logic_error("tSinglesGradientSampler: a density mixed as a field with its exact source retained (the cusp-deficit "
                                        "route) -- its correction is a G-series whose gradient no field gives yet, so a GGA on the point "
                                        "route needs rho[D] at the points (D-mixing); the policy layer should have chosen it");

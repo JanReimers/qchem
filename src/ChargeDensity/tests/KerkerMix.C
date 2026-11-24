@@ -17,7 +17,6 @@ import qchem.ChargeDensity.Internal.FieldMixer;  // KerkerStep (tests may import
 import qchem.ChargeDensity.Internal.PolarizedDensityMixer;   // the composed per-channel mixer (the factory's polarized product)
 import qchem.ChargeDensity.DensityMixer;         // KerkerMixerFactory, KerkerParams
 import qchem.BasisSet.GSpaceDensityProjector;    // ρ̃ through the one projection face
-import qchem.RunPolicy;                          // SetRunPolicy -- the tests pin the channel basis they contract
 import qchem.ChargeDensity.SeedCD;               // PolarizedSeedCD (the spin-SAD seed, no SCF)
 import qchem.CompositeCD;                   // tComposite_CD -- the SCF density (one composite over full Irreps, V1.37)
 import qchem.ChargeDensity.Imp.IrrepCD;     // FiniteIrrepCD -- a mixable density that is NOT a composite
@@ -234,14 +233,8 @@ struct ScopedEnv
     ScopedEnv(const char* n, const char* v) : name(n) { setenv(n, v, 1); }
     ~ScopedEnv() { unsetenv(name); }
 };
-//! The CHANNEL BASIS a test contracts, pinned for its scope: (up,dn) or (rho,m) -- since N3's promotion
-//! (2026-09-20) the default is (rho,m), and the per-channel-leaf contracts below are (up,dn) statements.
-struct ScopedChannelBasis
-{
-    static qchem::RunPolicySpec Spec(bool rhoM) { qchem::RunPolicySpec s; s.mixRhoM=rhoM; return s; }   // D-ENV 6b: a typed policy, not an env var
-    qchem::ScopedRunPolicy policy;
-    explicit ScopedChannelBasis(bool rhoM) : policy(Spec(rhoM)) {}
-};
+// The CHANNEL BASIS a test contracts is a stated KerkerParams::mixRhoM: (up,dn) = false, (rho,m) = true.  Since N3's promotion
+// (2026-09-20) the default is (rho,m), and the per-channel-leaf contracts below are (up,dn) statements.
 
 //! A channel density's ρ̃ on \a fit, through the one projection face (V-ONE-OF-N 3c; it was a FourierDensity cast).
 ΔG_Map RhoTildeOf(const cChargeDensity* cd, const BasisSet::cFIT_SF_ABS& fit)
@@ -297,12 +290,11 @@ private:
 // seed's channels -- same ρ̃ per channel, same charges, so the S=5/2 moment reaches v_xc intact.
 TEST(KerkerMix, PolarizedSeedComposesPerChannel)
 {
-    ScopedChannelBasis upDn(false);              // the (up,dn) leaf composition is what this contracts
     MnBox box;
     PolarizedSeedCD seed(box.fitCD, box.lat.GetUnitCell(), box.key);
     ASSERT_GT(seed.GetTotalSpin(), 4.0) << "the instrument itself: the Mn Hund pair must carry its 2S=5";
 
-    auto mixer=KerkerMixerFactory(KerkerParams{.relax=0.5, .G0=1.0}, box.bs.get(), box.lat.GetUnitCell(), &seed);
+    auto mixer=KerkerMixerFactory(KerkerParams{.relax=0.5, .G0=1.0, .mixRhoM=false}, box.bs.get(), box.lat.GetUnitCell(), &seed);
     ASSERT_NE(dynamic_cast<PolarizedDensityMixer*>(mixer.get()), nullptr)
         << "a polarized seed must compose the per-channel mixer, never a single-map one";
 
@@ -327,11 +319,10 @@ TEST(KerkerMix, PolarizedSeedComposesPerChannel)
 // spin-blind step would move the total's G=0 by nothing and the channels not at all.
 TEST(KerkerMix, PolarizedStepMovesEachChannelAtAlpha)
 {
-    ScopedChannelBasis upDn(false);              // (up,dn): each channel against its own output
     MnBox box;
     PolarizedSeedCD seed(box.fitCD, box.lat.GetUnitCell(), box.key);
     const double alpha=0.5, delta=0.4;
-    auto mixer=KerkerMixerFactory(KerkerParams{.relax=alpha, .G0=1.0}, box.bs.get(), box.lat.GetUnitCell(), &seed);
+    auto mixer=KerkerMixerFactory(KerkerParams{.relax=alpha, .G0=1.0, .mixRhoM=false}, box.bs.get(), box.lat.GetUnitCell(), &seed);
     ASSERT_NE(dynamic_cast<PolarizedDensityMixer*>(mixer.get()), nullptr);
 
     const ΔG_Map up0=RhoTildeOf(ChannelOf(&seed, Spin::Up  ), *box.fitSF);
@@ -367,11 +358,10 @@ TEST(KerkerMix, PolarizedStepMovesEachChannelAtAlpha)
 // bites -- which is the whole point of the basis.
 TEST(KerkerMix, PolarizedStepInRhoMBasisMovesTheMomentLinearly)
 {
-    ScopedChannelBasis rhoM(true);
     MnBox box;
     PolarizedSeedCD seed(box.fitCD, box.lat.GetUnitCell(), box.key);
     const double alpha=0.5, delta=0.4;
-    auto mixer=KerkerMixerFactory(KerkerParams{.relax=alpha, .G0=1.0}, box.bs.get(), box.lat.GetUnitCell(), &seed);
+    auto mixer=KerkerMixerFactory(KerkerParams{.relax=alpha, .G0=1.0, .mixRhoM=true}, box.bs.get(), box.lat.GetUnitCell(), &seed);
     ASSERT_NE(dynamic_cast<PolarizedDensityMixer*>(mixer.get()), nullptr);
 
     const ΔG_Map up0=RhoTildeOf(ChannelOf(&seed, Spin::Up  ), *box.fitSF);
@@ -431,10 +421,9 @@ TEST(KerkerMix, CuspDeficitIsPerSpinOnThePulayArmInEitherChannelBasis)
     for (bool rhoM : {false, true})
         for (bool cusp : {true, false})
         {
-            ScopedChannelBasis basis(rhoM);
             MnBox box;
             PolarizedSeedCD seed(box.fitCD, box.lat.GetUnitCell(), box.key);
-            PulayParams p; p.relax=0.5; p.G0=1.0; p.cuspDeficit=cusp; p.depth=8; p.start=3;   // step 1 primes: plain Kerker
+            PulayParams p; p.relax=0.5; p.G0=1.0; p.cuspDeficit=cusp; p.mixRhoM=rhoM; p.depth=8; p.start=3;   // step 1 primes: plain Kerker
             auto mixer=PulayMixerFactory(p, box.bs.get(), box.lat.GetUnitCell(), &seed);
             const ΔG_Map up0=RhoTildeOf(ChannelOf(&seed, Spin::Up  ), *box.fitSF);
             const ΔG_Map dn0=RhoTildeOf(ChannelOf(&seed, Spin::Down), *box.fitSF);

@@ -189,6 +189,11 @@ export namespace qchem::Hamiltonian
         std::vector<rmat3d_t> siteOps;    //!< the site group's Cartesian rotations; empty = C_1
         std::vector<rmat3d_t> greyOps;    //!< the PARENT group (the coordination's point group), for PARENTAGE
                                           //!< labels only (which parent irrep a site level descends from); empty = siteOps
+        //! \brief THE FORM of \f$E_U\f$: the Löwdin block's EIGENVALUES (Dudarev, rotationally invariant) when true, CP2K's DIAGONAL
+        //! populations when false.  One form per run, like \c projector: the term refuses a mixed list.  NOT a deck key: the solid facade
+        //! fills it from its setup's policy (policy.hubbardEigen, a declared CP2K deviation; D-MUTABLE-STATICS-RUNPOLICY group D, it was
+        //! a \c theRunPolicy() read in the term).  Default = the qchem default.
+        bool eigenForm = true;
         bool operator==(const HubbardManifold&) const = default;   //!< "is a stated option the default?" (RunOptions block refusals)
     };
 

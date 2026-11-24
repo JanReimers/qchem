@@ -206,3 +206,86 @@ that are near singular, decompose, truncate and look at residuals.  V*S*V_dagger
 - qcChargeDensity library:  Please make a list or table of all the classes that represent a charge density.  I think they break down into 3x2 categories {DM based,SEED,Fitted}x{Realspace,Gspace}.  There is also a COmposite and Irrep axis for some of them.  WHich axes need to be public and which ones can be hidden as implementation details (Gspace?).
 
 
+## GUI feedback.
+
+This looks great, very nice work.  A few items
+
+Looking for an update on
+1) SCF shows dashed lines for the convergence limit.  We are using 1e30 to indicate an "off" setting.
+  We really don't want those 1e30 dashed lines polluting the graph.  I think the real fix is to actually have a proper off flag for each rather than some huerstic guess.  This needs work from the library team.
+3) Other items we are waiting on from the library team.
+
+
+A few more observations from trying out the GUI app.
+5) Human users will instinctively want to see 3D plots while SCF iterations are underway.  This might even be informative if charge sloshing into the wrong places.  It does not have to automatic if it is very CPU intensive (your call), some osrt "Grab 3D plot data" button is good enough since nothing will visibly move close to convergence.
+6) I tried the stop button and it stopped.  But the output jumped to some other runs data. (I can provide more details if that helps)
+8) The agent made a methanol structure for me.  In Setup::Structure::Preset I see "draft:Methanol" but I don't see way to save this structure as an xyz file.  I did save the worksapce.
+
+
+16) Another future popout might a GUI wrapper for valgen which creates valance basis sets for PP calculations. I plan to go through the process by hand first to get the feel for it.
+17) Another large item is adding PySCF for the Run on list.  Maybe it just does molecules?
+
+
+
+26) Setup::How are Preset and Material drop downs are supposed to ineract.  Do we need both?
+
+28) It is very difficult for me see anything change with epsilon ... what should I looking for? We put a lot of work into the concept but I can't tell if it is really doing anything yet.
+
+29) I tried the "Snapshot rho" button.  I did see a iso-surface plot after the next iteration completed.  But then if I changed to a mesh or surface plot, the plot disapeared.
+
+30) The shells popout is very nice.  We need to explain the "near null share" column. All new users won't know what this is. 
+
+31) SPherical or polarized gaussians?  We need to show which, and give the user a choice.  Right now the only way I can tell is by looking at functions column (2x6 instead of 2x5) in the shells popout.
+
+32) Starting guess for rho.  SCF::Start from scratch (the code's own seed).  What does "the code's own seed" mean?  should be either 1) rho=SAD, 2) rho=ionic SAD, 3) rho=0 (first iter makes hydrogen like orbtials).  
+
+33) SCF::rho mixer::auto we need to show user what is auto selected for them. If auto=Linear then alpha {start,min,max} selectors should be visible.
+
+34) Please make the alpha_start default 0.2 rather 1.0.  I keep forgetting and run into trouble every time.
+
+35) The user should have the ability to select thread count for a run.
+
+36) During build I see "Warning: LASolverCholesky ignores TruncationTolerance (1e-06); Cholesky does not truncate.
+Warning: LASolverCholesky ignores TruncationTolerance (1e-06); Cholesky does not truncate." in the console output.  Is this a concern?
+
+On the work item analysis.  Very nice report.  It looks like our current mix of new features (geom. opt and GGA)  and clean ups is about right.  Maybe when geom. opt and GGA are mostly done (these things are never 100% done) we can try and focus A,B on getting the OpenWork list reduced, while lane H starts some DFT+U+GGA+Geom opt on some simple Li configs in the L_xMn2O4 series.  Or maybe Li_xCoO2  is an easier starting problem?
+
+##OOD
+
+There are a lot of controversial statements in here, that the main stream programming/OOP/OOD community will strongly disagree with.  I believe this is mainly because 1) main stream community misunderstands OOD, 2) Hiding in our favourite languages are major flaws (4. below) that the community does not acknowledge.
+
+Robert Martin and OOD in a nutshell:
+1. In structured programming both the run time and compile time dependency flow is top down.  Main calls high level functions, which call .... etc. etc.  High level code depends on the lowest level details.
+2. The top down compile time dependency is *precicely* backwards from the what we want for robust, anti-fragile code.  If we can find a way to turn this around, then we can decouple our code modules.
+3. What is OOP? a) Encapsulation, b) Inheritance, c) polymorphism
+  Encapsulation: C had perfect encupsulation. In a header file you could forward declare data structures and functions that manipulate those data structure.  C++ (and all of its decentents java, C# etc) broke this by forcing us to declare data members in the class interface.   We conclude modern language support for encapsulation is medicore at best.  So we soldier on.
+  Inheritance: If we want to take advantage of polymorphism most modern OO languages, we are forced to use inheritance.  So that's what we do.  There are languages the support polymorphism without inheritance. 
+  Polymorphism: This is the key to solving the The top down compile time dependency problem outlined in 1. and 2.  What we need from OOP is polymorphism.  Inheritance and Ecapsulation (private: protected:) are mostly side issues.  Polymorphism also allows us to restore encapsulation.  Many authors also  include (adding confusion) templates and function/operator overloading under the name Polymorpism by adding the "static" qualifier.  While static polymorphism is also useful for clean code it does preciesly nothing to help solve the dependency flow problem outlined in 2.
+4. C++ supports polymorphism but it has flaws: private: protected: are hacks. Polymorphism should not be coupled to inheritance.  Same for java and C# and they additionally disallow multiple inheritance which is a major design flaw in these languages.
+5. We can invert the compile time dependency problem in 2. using SOLID::DIP, the dependency inversion principle.  High level functions depend on abstract (C++ pure virtual) interfaces.  The low level details are hiding in the classes that implement these interfaces.  These classes are hidden from the high level functions. Yes, somewhere (main or a factory function) we need to construct instances of those classes.  But that build code is very contained and isolated.  Perhaps 1% of LOC!  99% of our LOC see only the interfaces.  Massive decoupling .... iff done correctly.
+
+Architecture is about intent, not about the tools.
+
+## Grid papers
+
+### Dasgupta & Herbert
+
+- Very nice Ar_2 data.  Should we try and reproduce those fig. 1 graphs?
+- Radial grid: 
+  - No mention of MHL
+  - They use the “MultiExp” quadrature (S. H. Chien, P. M. W. Gill, J. Comput. Chem. 2006, 27, 730.).  Requires solving a near singular linear system ... yuck!.
+  - “tanh-sinc” quadrature [30-33]. Maybe we should implement this. If we did our OOD correctly this just drop in and work, with a *very* tiny rebuild.
+
+[30] M. Mitani, Theor. Chem. Acc. 2011, 130, 645.
+[31] M. Mitani, Y. Yoshioka, Theor. Chem. Acc. 2012, 131, 1169.
+[32] H. Takahasi, M. Mori, Publ. RIMS Kyoto Univ. 1974, 9, 721.
+[33] M. Mori, Publ. RIMS Kyoto Univ. 2005, 41, 897.
+
+### Laqua,Kussmann, & Ochsenfeld
+
+- Absolute gold mine!
+- The Ar_2 uHa oscilations are completely gone!!!
+
+and its energy is 
+−16.5335492
+−16.5335496 Ha.

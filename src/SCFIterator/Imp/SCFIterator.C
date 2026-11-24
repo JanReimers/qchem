@@ -147,20 +147,20 @@ static const qcMesh::MeshMaker& DemandMaker(const std::shared_ptr<const qcMesh::
 // CoreGuess -- then DELEGATES to the shared construction body below.  \a st (the structure) is consumed only by
 // the SAD seed, which integrates itself on \a seedMesh (a Coulomb fit has no grid, doc/Pins.md); bs/st and \a seedMesh are also
 // forwarded for the HF/DHF bootstrap (its LDA sibling's mesh).
-template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,const qcMesh::MeshParams& seedMesh,std::shared_ptr<const qcMesh::MeshMaker> seedMeshMaker,const ChargeDensity::SeedKey& seedKey,qchem::Ortho basisOrtho,double basisOrthoTol,size_t numBands) requires std::is_same_v<T,double>
-    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity(seed,bs,st,ec,seedMesh,DemandMaker(seedMeshMaker),seedKey, H&&H->GetSpinGroup()==SpinGroup::Polarized), st, std::optional<qcMesh::MeshParams>(seedMesh), seedMeshMaker, basisOrtho, basisOrthoTol, SeedRole::Guess, numBands)
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,std::unique_ptr<scfwf_t> wf,const ChargeDensity::DensityMaker& seedMaker,ChargeDensity::SeedStrategy seed,const Structure* st,const qcMesh::MeshParams& seedMesh,std::shared_ptr<const qcMesh::MeshMaker> seedMeshMaker,const ChargeDensity::SeedKey& seedKey) requires std::is_same_v<T,double>
+    : tSCFIterator(bs,ec,H,acc, std::move(wf), ChargeDensity::MakeSeedDensity(seed,bs,st,ec,seedMesh,DemandMaker(seedMeshMaker),seedKey, seedMaker, H&&H->GetSpinGroup()==SpinGroup::Polarized), st, std::optional<qcMesh::MeshParams>(seedMesh), seedMeshMaker, SeedRole::Guess)
 {}
 
 // The explicit-seed ctor (grid-continuation): \a seedDensity is a pre-built density (owned; consumed in
 // Init) instead of a strategy enum.  It states no seed mesh: its seeds are matrix-backed (a carried D, a coarse-grid density).
-template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol,SeedRole role,size_t numBands)
-    : tSCFIterator(bs,ec,H,acc, seedDensity, st, std::nullopt, nullptr, basisOrtho, basisOrthoTol, role, numBands)
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,std::unique_ptr<scfwf_t> wf,tChargeDensity<T>* seedDensity,const Structure* st,SeedRole role)
+    : tSCFIterator(bs,ec,H,acc, std::move(wf), seedDensity, st, std::nullopt, nullptr, role)
 {}
 
-template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,std::optional<qcMesh::MeshParams> seedMesh,std::shared_ptr<const qcMesh::MeshMaker> seedMeshMaker,qchem::Ortho basisOrtho,double basisOrthoTol,SeedRole role,size_t numBands)
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,std::unique_ptr<scfwf_t> wf,tChargeDensity<T>* seedDensity,const Structure* st,std::optional<qcMesh::MeshParams> seedMesh,std::shared_ptr<const qcMesh::MeshMaker> seedMeshMaker,SeedRole role)
     : itsHamiltonian (H )
     , itsAccelerator (acc)
-    , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator,basisOrtho,basisOrthoTol,numBands) )
+    , itsWaveFunction(std::move(wf))   // built by the caller with the run's density maker (group E)
     , itsCD          (nullptr)
     , itsOldCD       (nullptr)
     , itsIterationCount(0)
@@ -1617,17 +1617,19 @@ void SolidSCFIterator::AccumulateColumns(std::vector<ColumnData>& cols, const SC
 }
 
 SolidSCFIterator::SolidSCFIterator(const tbs_t<dcmplx>* bs, const ElectronConfiguration* ec, qchem::Hamiltonian::tHamiltonian<dcmplx>* H,
-                                   qchem::SCFAccelerators::SCFAccelerator* acc, const UnitCell& cell, ChargeDensity::SeedStrategy seed,
-                                   qchem::Ortho basisOrtho, double basisOrthoTol, size_t numBands)
-    : SolidSCFIterator(bs,ec,H,acc,cell, ChargeDensity::MakeSeedDensity(seed,bs,cell,ec, H&&H->GetSpinGroup()==SpinGroup::Polarized),
-                       basisOrtho, basisOrthoTol, SeedRole::Guess, numBands)
+                                   qchem::SCFAccelerators::SCFAccelerator* acc, std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>> wf,
+                                   const ChargeDensity::DensityMaker& seedMaker,
+                                   const UnitCell& cell, bool mixRhoM, ChargeDensity::SeedStrategy seed)
+    : SolidSCFIterator(bs,ec,H,acc, std::move(wf), cell, mixRhoM,
+                       ChargeDensity::MakeSeedDensity(seed,bs,cell,ec, seedMaker, H&&H->GetSpinGroup()==SpinGroup::Polarized), SeedRole::Guess)
 {}
 
 SolidSCFIterator::SolidSCFIterator(const tbs_t<dcmplx>* bs, const ElectronConfiguration* ec, qchem::Hamiltonian::tHamiltonian<dcmplx>* H,
-                                   qchem::SCFAccelerators::SCFAccelerator* acc, const UnitCell& cell, tChargeDensity<dcmplx>* seedDensity,
-                                   qchem::Ortho basisOrtho, double basisOrthoTol, SeedRole role, size_t numBands)
-    : tSCFIterator<dcmplx>(bs,ec,H,acc,seedDensity,&cell,basisOrtho,basisOrthoTol,role,numBands)
+                                   qchem::SCFAccelerators::SCFAccelerator* acc, std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>> wf,
+                                   const UnitCell& cell, bool mixRhoM, tChargeDensity<dcmplx>* seedDensity, SeedRole role)
+    : tSCFIterator<dcmplx>(bs,ec,H,acc,std::move(wf),seedDensity,&cell,role)
     , itsCell(cell)
+    , itsMixRhoM(mixRhoM)
 {}
 
 // The solid mixer.  The branch here is on the KNOBS -- which RECIPE did the caller ask for? -- not on the
@@ -1653,11 +1655,12 @@ SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, co
         if (ipar.KerkerG0<=0.0) return CD::PulayDMixerFactory<dcmplx>(ipar.StartingRelaxRo, ipar.PulayDepth, ipar.PulayStart);
         CD::PulayParams p;
         p.relax=ipar.StartingRelaxRo; p.G0=ipar.KerkerG0; p.cuspDeficit=ipar.XCCuspDeficit;
-        p.depth=ipar.PulayDepth;      p.start=ipar.PulayStart;
+        p.depth=ipar.PulayDepth;      p.start=ipar.PulayStart;    p.mixRhoM=itsMixRhoM;
         return CD::PulayMixerFactory(p, bs, itsCell, seed);
     }
     case M::Kerker:
-        return CD::KerkerMixerFactory({ipar.StartingRelaxRo, ipar.KerkerG0, ipar.XCCuspDeficit}, bs, itsCell, seed);
+        return CD::KerkerMixerFactory({.relax=ipar.StartingRelaxRo, .G0=ipar.KerkerG0, .cuspDeficit=ipar.XCCuspDeficit, .mixRhoM=itsMixRhoM},
+                                      bs, itsCell, seed);
     case M::Linear:
     case M::Auto:
         break;

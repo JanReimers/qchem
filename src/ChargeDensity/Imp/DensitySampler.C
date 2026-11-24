@@ -27,7 +27,7 @@ namespace qchem::ChargeDensity
 // raster-backed one carries the FFT transforms and keys the 3-centre tensor -> pair.  One decision, taken
 // once, and latched for the run by the simple fact that the Hamiltonian builds this object once.
 std::shared_ptr<const DensitySampler>
-MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
+MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad, const XCSourceRoute& source)
 {
     assert(fb);
     // CAPABILITY decides.  A basis that carries the {r}<->{G} transforms is raster-backed, so its
@@ -42,6 +42,10 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
     {
         auto* ball=dynamic_cast<const BasisSet::G_OrbitalPairBall*>(fb.get());   // abstract -> abstract
         std::shared_ptr<const DensitySampler> raster;
+        // policy.xcFromDM is served by the SINGLES route only: refused HERE, when the strategy is chosen, not at the first mixed density.
+        if (source.fromDM)
+            throw std::invalid_argument("MakeDensitySampler: policy.xcFromDM is not wired on the raster (pair / projected) route -- its rho "
+                "comes from the ball, not from a projector, so the retained-D repair needs its own design.  Use the delta/singles quadrature for it.");
         if (ball && ball->HoldsEveryOrbitalPair()) raster=std::make_shared<const ProjectedDensitySampler>(fb);
         else                                       raster=std::make_shared<const PairDensitySampler>(fb);
         // A POINT SET handed in with a ball (a Becke mesh, I3): XC is evaluated there, on top of the raster strategy's exact pair -- ONLY where
@@ -56,16 +60,16 @@ MakeDensitySampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
         }
         return raster;
     }
-    return std::make_shared<const SinglesDensitySampler>(fb, std::move(quad));
+    return std::make_shared<const SinglesDensitySampler>(fb, std::move(quad), source);
 }
 
 std::shared_ptr<const DensitySampler>
-MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points, const LatticeSummedSet& a1)
+MakeAuxiliaryFitSampler(const fitbasis_t& delta, BasisSet::FitQuadrature points, const LatticeSummedSet& a1, const XCSourceRoute& source)
 {
     if (!points.GetMesh()) throw std::logic_error("MakeAuxiliaryFitSampler: the periodic A1 fit needs the XC point set");
     if (!delta) throw std::logic_error("MakeAuxiliaryFitSampler: the periodic A1 fit samples rho[D] through the delta basis on the XC points");
     auto fit=std::make_shared<const GaussianFitSpace>(a1, points);
-    auto inner=MakeDensitySampler(delta, points);
+    auto inner=MakeDensitySampler(delta, points, source);
     return std::make_shared<const FittedPotentialDensitySampler>(fit, inner);
 }
 
@@ -93,8 +97,11 @@ MakeDensityGradientSampler(const std::shared_ptr<const BasisSet::rFIT_SF_ABS>& f
 }
 
 std::shared_ptr<const DensityGradientSampler>
-MakeDensityGradientSampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad)
+MakeDensityGradientSampler(const fitbasis_t& fb, BasisSet::FitQuadrature quad, const XCSourceRoute& source)
 {
+    if (source.fromDM)
+        throw std::invalid_argument("MakeDensityGradientSampler: policy.xcFromDM is not wired on the density-gradient (GGA) route -- "
+                                    "no field gives the gradient of its retained-D repair yet");
     if (!fb) throw std::logic_error("MakeDensityGradientSampler: no fit basis");
     if (!fb->isOrtho())
         throw std::invalid_argument("MakeDensityGradientSampler: the fit "+fb->Name()+" is not a point (delta) basis, and only the delta "

@@ -37,8 +37,9 @@ inline constexpr double kRungGateC = 8.0;
 inline constexpr double kRelCutoffSafety = 2.0;
 
 //! \brief WHICH collocation kernel the MnD evaluator runs: two exact routes to one sum, so this is NOT a run input (D-ENV 6c: an
-//! accuracy-of-route A/B is not in the deck).  The defaults are production; a unit test binds the reference route on its OWN basis
-//! (\c ToleranceBinding::BindRoute) to compare the two.  It was three process-wide static overrides on the evaluator until
+//! accuracy-of-route A/B is not in the deck).  The defaults are production, PRIVATE to the MnD evaluator (D-MUTABLE-STATICS-RUNPOLICY E-b:
+//! no public setter on the basis); a unit test sets the reference route on its OWN basis through its friend (\c CollocationRouteTests,
+//! src/forward.H) to compare the two.  It was three process-wide static overrides on the evaluator until
 //! D-MUTABLE-STATICS (2026-11-23): a test that forgot to reset one changed every later test in the process.
 struct CollocationRoute
 {

@@ -19,7 +19,6 @@ module;
 module qchem.Hamiltonian.Internal.Hubbard;
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.Energy;
-import qchem.RunPolicy;                         // theRunPolicy().HubbardEigen() -- the form, read once here
 import qchem.ChargeDensity;                     // cDM_CD, ChannelOf, tDM_Sourced_CD (the DM-backed source)
 import qchem.BasisSet.AoShellSource;
 import qchem.BasisSet.BareCoulombSource;        // the bare integrals a manifold is built over (ACBN0)            // the shell layout a manifold is selected from
@@ -211,9 +210,12 @@ template class LowdinProjector<dcmplx>;
 //================================================================================================= Hubbard_U
 
 Hubbard_U::Hubbard_U(const std::shared_ptr<const Structure>& st, std::vector<HubbardManifold> manifolds, SpinGroup g)
-    : itsSt(st), itsManifolds(std::move(manifolds)), itsGroup(g), itsEigenForm(theRunPolicy().HubbardEigen())
+    : itsSt(st), itsManifolds(std::move(manifolds)), itsGroup(g), itsEigenForm(itsManifolds.empty() || itsManifolds.front().eigenForm)
 {
     if (itsManifolds.empty()) throw std::invalid_argument("Hubbard_U: no manifold -- a +U term with nothing to correct");
+    for (const HubbardManifold& M : itsManifolds)   // one form per run, as one projector kind per run
+        if (M.eigenForm!=itsEigenForm)
+            throw std::invalid_argument("Hubbard_U: every manifold of a run must use the same +U form (eigenvalues or diagonal populations)");
     itsSt->ForEachSite([this](int Z, const rvec3_t& R, bool){itsSites.push_back(R); itsSiteZ.push_back(Z);});
     for (const HubbardManifold& M : itsManifolds)
     {

@@ -258,7 +258,7 @@ static const char* RasterSourceName(SolidSetup::RasterSource r)
 
 static const char* AccelName(SCFAccelerators::Type t) {return qchem::NameOf(t);}   // qchem.SCFRecipe
 // WHAT THE RUN IS MADE OF: system, grids, symmetry, threads, deviations.  Emitted once, from the ctor.
-static void EmitRunBanner(const RunOptions& o, const qcMesh::MeshParams& xc, size_t nAtoms,
+static void EmitRunBanner(const RunOptions& o, const RunPolicy& policy, const qcMesh::MeshParams& xc, size_t nAtoms,
                           bool imposed, const std::vector<qchem::Hamiltonian::HubbardManifold>& hubbard)
 {
     const char* omp=std::getenv("OMP_NUM_THREADS");
@@ -292,7 +292,7 @@ static void EmitRunBanner(const RunOptions& o, const qcMesh::MeshParams& xc, siz
              // uninterpretable unless it says which policy produced it (see StopOmpThreadsBusyWaiting).
              <<";  OMP wait="<<[]{const char* b=std::getenv("KMP_BLOCKTIME"); return b?b:"?";}()
              <<" ms spin"<<std::endl;
-    std::cout<<"["<<o.label<<" run] "<<theRunPolicy().Banner()<<std::endl;
+    std::cout<<"["<<o.label<<" run] "<<policy.Banner()<<std::endl;
     // +U's manifolds are a RUN OPTION, so they are stated here beside the knob banner (the FORM --
     // eigenvalues vs CP2K's diagonal populations -- is the knob QCHEM_U_EIGEN on that banner).  What is
     // declared here beyond the manifolds is the one deviation that is neither: occupations from D_out, the
@@ -306,7 +306,7 @@ static void EmitRunBanner(const RunOptions& o, const qcMesh::MeshParams& xc, siz
         bool resolved=false; for (const auto& M : hubbard) resolved|=!M.Uirrep.empty();
         std::cout<<"["<<o.label<<" run] +U: LOWDIN (CP2K's all-l-shells manifold), "
                  <<(resolved ? "ORBITAL-RESOLVED* (one U per site-irrep slot, see the [+U] slot table)" : "shell-averaged")<<", "
-                 <<(theRunPolicy().HubbardEigen() ? "eigenvalue form (Dudarev)" : "DIAGONAL populations (CP2K's form)")
+                 <<(policy.HubbardEigen() ? "eigenvalue form (Dudarev)" : "DIAGONAL populations (CP2K's form)")
                  <<", occupations from D_out*;  manifolds:";
         for (const auto& M : hubbard)             // the list AS HANDED to the Hamiltonian (site groups filled)
         {
@@ -331,7 +331,7 @@ static void EmitRunBanner(const RunOptions& o, const qcMesh::MeshParams& xc, siz
 // WHAT THE SCF IS DOING: the mixer, the accelerator, the occupation machinery.  Emitted per Converge,
 // because that is where these take effect -- and an anneal changes them stage by stage.
 //! \a p is RESOLVED (\c tSCFIterator::ResolveMixing); \a autoMixer = the caller left \c Mixer at \c Auto.
-static void EmitSCFBanner(const std::string& label, const SCFParams& p, SCFAccelerators::Type acc, bool autoMixer, bool autoAccel)
+static void EmitSCFBanner(const std::string& label, const SCFParams& p, bool xcFromDM, SCFAccelerators::Type acc, bool autoMixer, bool autoAccel)
 {
     using M = SCFParams::Mixing;
     // ⚠ THE PRECONDITIONER AND THE HISTORY ARE INDEPENDENT, AND THE BANNER USED TO HIDE IT (2026-08-28).
@@ -358,7 +358,7 @@ static void EmitSCFBanner(const std::string& label, const SCFParams& p, SCFAccel
              <<(autoMixer ? " [mixer: Auto]" : "")
              <<" alpha="<<p.StartingRelaxRo
              <<";  XC rho source: "<<(dMixer                   ? "rho[D] (D-mixing)"
-                                     : theRunPolicy().XCFromDM() ? "rho[D] WHOLESALE"
+                                     : xcFromDM                 ? "rho[D] WHOLESALE"
                                      : p.XCCuspDeficit         ? "rho_mix + cusp deficit"
                                      :                           "rho_mix")
              <<";  accel: "<<AccelName(acc)<<(autoAccel ? " [accel: Auto]" : "")
@@ -481,7 +481,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
             .densityEcut = opts.solid.densityEcut, .cutoffFactor = opts.solid.cutoffFactor,
             .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
             .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = tol,
-            .hamPreservesReal = S.realTRIMBlocks};
+            .hamPreservesReal = S.realTRIMBlocks, .dAwareScreen = S.policy.DAwareScreen(), .streamFold = S.policy.StreamFold()};
         ResolveGpwPoint(lat, mol, *S.pp, p);
         itsImp->imposition=p.imposition;
         itsImp->ladder    =p.ladder;
@@ -618,6 +618,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
             // name nothing -- measured 2026-09-21).  Every site op is among these, so the slots are a
             // clean refinement.
             if (M.greyOps.empty()) M.greyOps=lat.SiteEnvironmentRotations(M.site);
+            M.eigenForm=itsImp->setup->policy.HubbardEigen();   // the FORM is the run's policy, never a manifold's own statement
         }
     }
     {
@@ -659,6 +660,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         // The XC route carries the δ fit's orbital-table door: the user's stated xcOrbitalTables, judged at the fit factory on both
         // realizations' footprints (qchem.PhiTablesPolicy; user ruling 2026-11-19, option (a)).
         qchem::Hamiltonian::XCRoute route(opts.vxcFit, opts.xcRho);
+        route.xcSource=itsImp->setup->policy.XCSource();   // policy.xcFromDM and its controls, as the setup resolved them
         const bool gga=qchem::Hamiltonian::IsDFT(*opts.model) && qchem::Hamiltonian::ConsumesDensityGradient(qchem::Hamiltonian::ModelToXC(*opts.model));
         route.phiTables= gga ? qchem::policy::MakeGGAOrbitalTablesChooser()   // the image tables have no gradient yet (GGA stage 3)
                              : qchem::policy::MakeXCOrbitalTablesChooser(opts.solid.xcOrbitalTables);
@@ -695,7 +697,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         qchem::report::Timed timed("setup: seed density (SAD/IonicSAD atomic solves)");
         qchem::SetupSCF setup;   // the atomic solves are setup, not the run's convergence (a panel budget does not count them)
         seed.reset(qchem::ChargeDensity::MakeSeedDensity(opts.seed, itsImp->bs.get(), itsImp->lat->GetUnitCell(),
-                                                         itsImp->ec.get(), polarizedHam,
+                                                         itsImp->ec.get(), itsImp->setup->densityMaker, polarizedHam,
                                                          itsImp->setup->seedKey));
     }
     // MEASURED ONLY WHERE IT CAN MEAN SOMETHING.  SiteMoments rasters BOTH spin channels before it can
@@ -716,7 +718,8 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         qchem::report::Timed timed("setup: seed + ortho (iterator ctor)");
         itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
             itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-            itsImp->lat->GetUnitCell(), seed.release(), *opts.ortho, opts.SolverTruncation(), seedRole, opts.solid.numBands);   // the iterator consumes it in Init
+            std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>>(qchem::WaveFunction::Factory(itsImp->ham.get(), itsImp->bs.get(), itsImp->ec.get(), itsImp->accel.get(), itsImp->setup->densityMaker, *opts.ortho, opts.SolverTruncation(), opts.solid.numBands)),   // the WF on the setup's density maker (group E)
+            itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), seed.release(), seedRole);   // the iterator consumes the seed in Init
     }
     SeededIterator(seedRole==qchem::SCFIterator::SeedRole::ExactResume);   // the exact-resume Pulay policy's first-stage bit
 
@@ -732,7 +735,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     // (T2's gate -- itsImp->setup->imposed -- was resolved by SolidSetup::Resolve: an imposition is an ASSERTION about the answer,
     // and only then is losing the order a contradiction rather than physics.)
 
-    EmitRunBanner(opts, itsImp->setup->xcMesh, itsImp->st->GetNumAtoms(), imposed, hubbard);
+    EmitRunBanner(opts, itsImp->setup->policy, itsImp->setup->xcMesh, itsImp->st->GetNumAtoms(), imposed, hubbard);
     itsImp->hubbard = hubbard;        // RESOLVED (groups, radials): what the Hamiltonian carries and a save records
 }
 
@@ -1020,11 +1023,12 @@ void SolidCalculation::BuildStage(const std::string& why, SCFAccelerators::Type 
     itsImp->scf = carried
         ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->lat->GetUnitCell(), carried.release(), *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(),
-              qchem::SCFIterator::SeedRole::WorkingDensity, itsImp->setup->opts.solid.numBands)
+              std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>>(qchem::WaveFunction::Factory(itsImp->ham.get(), itsImp->bs.get(), itsImp->ec.get(), itsImp->accel.get(), itsImp->setup->densityMaker, *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.solid.numBands)),
+              itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), carried.release(), qchem::SCFIterator::SeedRole::WorkingDensity)
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
-              itsImp->lat->GetUnitCell(), itsImp->setup->opts.seed, *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.solid.numBands);
+              std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>>(qchem::WaveFunction::Factory(itsImp->ham.get(), itsImp->bs.get(), itsImp->ec.get(), itsImp->accel.get(), itsImp->setup->densityMaker, *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.solid.numBands)), itsImp->setup->densityMaker,
+              itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), itsImp->setup->opts.seed);
     SeededIterator(false);   // a fresh stage is never an exact resume
     // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
     // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on
@@ -1262,7 +1266,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::IterateStage(
     ++itsImp->dGeneration;   // this stage moves D: no earlier audit measured the D it ends on
     // The banner and the recipe say what the iterator WILL build: SCFParams::Mixing::Auto resolved by the iterator itself.
     const SCFParams resolved=itsImp->scf->ResolveMixing(params);
-    EmitSCFBanner(Tag(), resolved, itsImp->stageAccel, params.Mixer==SCFParams::Mixing::Auto,
+    EmitSCFBanner(Tag(), resolved, itsImp->setup->policy.XCFromDM(), itsImp->stageAccel, params.Mixer==SCFParams::Mixing::Auto,
                   itsImp->stageAccelAsked==SCFAccelerators::Type::Auto);
     { qchem::report::Section scf("scf"); ReportSCFRecipe(resolved, AccelName(itsImp->stageAccel)); }
     ReportRecipe(Tag(), itsImp->stageRecipe, itsImp->stageKind, itsImp->stageAccelAsked, itsImp->stageAccel,
@@ -1508,7 +1512,7 @@ SolidCalculation::PrepareRestartAs(const std::string& path, std::shared_ptr<cons
     SavedState state=saved.TakeValue();
     auto judged=c->JudgeRestart(state, params.SmearingkT, tag);
     if (!judged) return O::Fail(judged.Error());
-    auto cd=RestoreDensity(state, *c->itsImp->bs, c->itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized);
+    auto cd=RestoreDensity(state, *c->itsImp->bs, c->itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized, c->itsImp->setup->densityMaker);
     if (!cd) return refuse(cd.Error());
     const bool exact=judged->exact;
     c->itsImp->restartedFrom=*judged;
@@ -1622,7 +1626,7 @@ SolidCalculation::ViewState(const std::string& path, std::shared_ptr<const Solid
     c->BuildPoint(std::move(setup), reference, std::move(mol));   // the basis the run used; BuildRun (the Hamiltonian) is never called
     auto judged=c->JudgeView(*saved);
     if (!judged) return O::Fail(judged.Error());
-    auto cd=RestoreDensity(*saved, *c->itsImp->bs, c->StateSpin());
+    auto cd=RestoreDensity(*saved, *c->itsImp->bs, c->StateSpin(), c->itsImp->setup->densityMaker);
     if (!cd) return O::Fail(cd.Error());
     std::unique_ptr<const qchem::ChargeDensity::cDM_CD> rho=cd.TakeValue();
     const auto* up  =qchem::ChargeDensity::ChannelOf<dcmplx>(rho.get(), Spin::Up);
@@ -1817,7 +1821,7 @@ AuditReferenceSize SolidCalculation::SizeReference(const std::string& name, cons
         .densityEcut = autoBall ? opts.solid.densityEcut : ballScale*opts.solid.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.solid.cutoffFactor : opts.solid.cutoffFactor,
         .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
         .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
-        .hamPreservesReal = S.realTRIMBlocks};
+        .hamPreservesReal = S.realTRIMBlocks, .dAwareScreen = S.policy.DAwareScreen(), .streamFold = S.policy.StreamFold()};
     const std::shared_ptr<const Structure> held=itsImp->lat->GetStructure();
     const double ppSharpness=BasisSet::Gaussian::LocalPPSharpness(*held, *Pseudopotential::MakeMultiSpeciesLocal(S.pp->Species(*held), S.pp->Functional()));
     const auto ladder=L3::MakeRasterLadder(*itsImp->lat, itsImp->mol, p, ppSharpness);
@@ -2291,7 +2295,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         itsImp->bs.reset();
         BuildPoint(std::move(sized), lat, mol);
         const SpinGroup g=itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
-        auto cd=RestoreDensity(st, *itsImp->bs, g);
+        auto cd=RestoreDensity(st, *itsImp->bs, g, itsImp->setup->densityMaker);
         if (!cd) throw std::logic_error("SolidCalculation::CalibrateRasters: the audited D does not restore onto the raised rasters: "+cd.Error().details);
         itsImp->accOpts.ladderStartOnGDM = params.SmearingkT==0.0;
         const bool pilotStated = asked!=itsImp->stageAccelAsked;   // the Ladder above is the pilot's, not the caller's (the recipe's report says so)
@@ -2434,7 +2438,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             .densityEcut = autoBall ? opts.solid.densityEcut : ballScale*opts.solid.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.solid.cutoffFactor : opts.solid.cutoffFactor,
             .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
             .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
-            .hamPreservesReal = S.realTRIMBlocks};
+            .hamPreservesReal = S.realTRIMBlocks, .dAwareScreen = S.policy.DAwareScreen(), .streamFold = S.policy.StreamFold()};
         ResolveGpwPoint(latRef, molRef, *S.pp, p);   // the reference's own ladder (its rasters / ball differ), sized for the same PP
         ladderRef=p.ladder;
         const auto makerRef=MakeMeshMaker(latRef.GetUnitCell());
@@ -2445,11 +2449,13 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             L3::EmitGpwGrids(*ladderRef, *molRef, *p.imposition, latRef.GetUnitCell());
         }
         rpt::Scope here(eggBox ? "eggBox" : "gridAudit");   // the REFERENCE Hamiltonian's meshes report one level into the audit, not over the run's grids
-        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, double(S.opts.Nelec), *S.pp, xcMesh ? *xcMesh : S.xcMesh, *makerRef, *p.imposition, {opts.vxcFit, opts.xcRho}, itsImp->hubbard,
+        hamRef.reset(qchem::Hamiltonian::Factory(g, stRef, bsRef.get(), coulombFitRef, double(S.opts.Nelec), *S.pp, xcMesh ? *xcMesh : S.xcMesh, *makerRef, *p.imposition,
+                                                 [&]{qchem::Hamiltonian::XCRoute r(opts.vxcFit, opts.xcRho); r.xcSource=S.policy.XCSource(); return r;}(),
+                                                 itsImp->hubbard,
                                                  qchem::Hamiltonian::ModelToXC(*opts.model), PeriodicA1Set(opts, *stRef)));
     }
-    auto cdRun=RestoreDensity(st, *itsImp->bs, g);
-    auto cdRef=RestoreDensity(st, *bsRef, g);
+    auto cdRun=RestoreDensity(st, *itsImp->bs, g, itsImp->setup->densityMaker);
+    auto cdRef=RestoreDensity(st, *bsRef, g, itsImp->setup->densityMaker);
     if (!cdRun || !cdRef) throw std::logic_error("GridAudit: the converged D does not restore onto "+std::string(cdRun ? "the reference" : "its own")+" basis");
     const qchem::ChargeDensity::cDM_CD* dRun=cdRun->get();
     const qchem::ChargeDensity::cDM_CD* dRef=cdRef->get();
@@ -3114,10 +3120,10 @@ std::vector<Hamiltonian::TermEnergy> SolidCalculation::FrozenTermEnergiesAt(cons
     std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
     c->BuildPoint(itsImp->setup, lat, mol);
     const SpinGroup g=c->itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
-    auto seed=RestoreDensity(D, *c->itsImp->bs, g);
+    auto seed=RestoreDensity(D, *c->itsImp->bs, g, c->itsImp->setup->densityMaker);
     if (!seed) throw std::logic_error("SolidCalculation::FrozenTermEnergiesAt: the density does not fit the point: "+seed.Error().details);
     c->BuildRun(seed.TakeValue(), SCFParams{}, SCFAccelerators::Type::Auto, SCFRecipe::Auto, /*restored*/false, /*exactResume*/false);   // the Hamiltonian
-    auto cd=RestoreDensity(D, *c->itsImp->bs, g);
+    auto cd=RestoreDensity(D, *c->itsImp->bs, g, c->itsImp->setup->densityMaker);
     if (!cd) throw std::logic_error("SolidCalculation::FrozenTermEnergiesAt: the density does not fit the point: "+cd.Error().details);
     c->itsImp->ham->RefreshForDensity(c->itsImp->bs.get(), cd->get());
     return c->itsImp->ham->MakeTermEnergies(cd->get());
@@ -3176,7 +3182,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
     // to come, and that audit stays the gate.  A later point keeps the mesh the first one settled.  What stays at (40, 29) is an ENERGY point, not a
     // geometry one: a deck's own run before its `displace` builds that mesh seven times on MnO, once for its SCF and the rest for its raster pilot's
     // rebuilds of the same mesh, and no ladder is involved there.
-    if (!setup->planeWave && setup->opts.xcMesh->cellKind==qcMesh::UnitCellKind::Auto && theRunPolicy().BeckeXC())
+    if (!setup->planeWave && setup->opts.xcMesh->cellKind==qcMesh::UnitCellKind::Auto && setup->policy.BeckeXC())
     {
         const bool toBecke=setup->xcMesh.cellKind!=qcMesh::UnitCellKind::Becke;
         if (toBecke || !setup->rastersResolved)
@@ -3214,7 +3220,7 @@ std::unique_ptr<SolidCalculation> SolidCalculation::AtGeometry(std::shared_ptr<c
             const SpinGroup g=c->itsImp->setup->Polarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
             std::optional<SavedState> moved;
             if (lowdin) { moved=*carry; LowdinCarry(*moved, *c->itsImp->bs, g); carry=&*moved; }
-            auto cd=RestoreDensity(*carry, *c->itsImp->bs, g);
+            auto cd=RestoreDensity(*carry, *c->itsImp->bs, g, c->itsImp->setup->densityMaker);
             if (!cd) throw std::logic_error("SolidCalculation::AtGeometry: the carried density does not fit the new point: "+cd.Error().details);
             const SCFStage& last=schedule.back();
             c->BuildRun(cd.TakeValue(), last.params, last.accelerator, last.recipe, /*restored*/false, /*exactResume*/false);
@@ -3237,7 +3243,7 @@ std::unique_ptr<ChargeDensity::cDM_CD> SolidCalculation::MakeEnergyWeightedDensi
 {
     const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
     if (!wf || !itsImp->cd) throw std::logic_error("SolidCalculation::MakeEnergyWeightedDensity: no converged run");
-    auto W=RestoreDensity(SnapshotState(*itsImp->bs, *wf, /*energyWeighted*/true), *itsImp->bs, wf->GetSpinGroup());
+    auto W=RestoreDensity(SnapshotState(*itsImp->bs, *wf, /*energyWeighted*/true), *itsImp->bs, wf->GetSpinGroup(), itsImp->setup->densityMaker);
     // The snapshot is of this run's own basis, so a refusal is a broken invariant, not a caller's choice.
     if (!W) throw std::logic_error("SolidCalculation::MakeEnergyWeightedDensity: W does not fit this run's basis: "+W.Error().details);
     return W.TakeValue();
