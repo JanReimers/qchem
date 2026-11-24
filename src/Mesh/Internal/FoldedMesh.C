@@ -126,6 +126,37 @@ Mesh FoldedMesh::MakeRepresentativeMesh() const
     return out;
 }
 
+FoldedMesh FoldedMesh::MakeRepresentatives() const
+{
+    FoldedMesh r(std::make_shared<const Mesh>(MakeRepresentativeMesh()), Fold{});
+    r.itsParent=std::make_shared<const FoldedMesh>(*this);
+    return r;
+}
+
+rvec_t FoldedMesh::ScatterToRepresentatives(const rvec_t& repValues) const
+{
+    if (!HasFold()) throw std::logic_error("qcMesh::FoldedMesh::ScatterToRepresentatives: no fold");
+    if (repValues.size()!=itsRepIndex.size())
+        throw std::invalid_argument("qcMesh::FoldedMesh::ScatterToRepresentatives: "+std::to_string(repValues.size())+" values for "
+                                    +std::to_string(itsRepIndex.size())+" representatives");
+    rvec_t full(itsMesh->size(), 0.0);
+    for (size_t o=0; o<itsFold.Reps(); ++o)
+    {
+        const size_t raw=size_t(itsFold.repRaw[o]);
+        const size_t i=size_t(std::lower_bound(itsRepIndex.begin(), itsRepIndex.end(), raw)-itsRepIndex.begin());
+        full[raw]=double(itsFold.members[o].size())*repValues[i];
+    }
+    return full;
+}
+
+void FoldedMesh::SymmetrizeTensor(rmat3d_t& V) const
+{
+    if (!HasSiteAction()) throw std::logic_error("qcMesh::FoldedMesh::SymmetrizeTensor: no site action was supplied with this fold");
+    rmat3d_t out(0,0,0, 0,0,0, 0,0,0);
+    for (const auto& W : itsSites.W) out+=W*V*Transpose(W);
+    V=(1.0/double(itsSites.W.size()))*out;
+}
+
 rvec_t FoldedMesh::CopyOut(const rvec_t& repValues) const
 {
     if (!HasFold()) return repValues;

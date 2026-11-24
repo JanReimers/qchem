@@ -116,6 +116,17 @@ public:
     rvec_t CopyOut(const rvec_t& repValues) const;
     //! The full-mesh index of each representative, in \c MakeRepresentativeMesh order.
     const std::vector<size_t>& RepresentativeIndices() const {return itsRepIndex;}
+    //! \brief The REPRESENTATIVES AS A QUADRATURE: \c MakeRepresentativeMesh with no fold (nothing is left to star-average), holding
+    //! THIS folded mesh as its \c Parent -- what a geometry derivative on it needs (the full mesh's weight response, the site action).
+    FoldedMesh MakeRepresentatives() const;
+    //! Is this the representatives of a folded mesh (\c MakeRepresentatives)?
+    bool IsRepresentatives() const {return bool(itsParent);}
+    //! The folded mesh these are the representatives of; null unless \c IsRepresentatives().
+    const FoldedMesh* Parent() const {return itsParent.get();}
+    //! \brief One value per representative scattered onto the FULL mesh at the orbit's multiplicity: \f$|o|\,f_o\f$ at the
+    //! representative's index, 0 at the other members.  A weight response contracted with it is \f$\tilde g=\sum_o|o|\,f_o\,\partial w_{r_o}\f$,
+    //! which \c SymmetrizeSiteVectors turns into the full mesh's gradient (see there).  THROWS without a fold or on a size mismatch.
+    rvec_t ScatterToRepresentatives(const rvec_t& repValues) const;
     //!@}
 
     //! Is a \c SiteAction present?
@@ -126,6 +137,9 @@ public:
     //! \f$\sum_{g\in o}c(r_g)=\tfrac{|o|}{|H|}\sum_k T_k\,c(r_o)\f$, so \f$g=P\,\tilde g\f$ with \f$\tilde g=\sum_o|o|\,c(r_o)\f$ -- the
     //! representatives' contributions taken at the orbit weight \f$W_o\f$.  THROWS when no \c SiteAction was supplied, or on a size mismatch.
     void SymmetrizeSiteVectors(rvec3vec_t& g) const;
+    //! \brief The same for a 3x3 tensor (the virial): \f$V\leftarrow\tfrac1{|H|}\sum_k W_k V W_k^\top\f$.  A member's contribution is the
+    //! representative's rotated, \f$t(Rr)=W\,t(r)\,W^\top\f$, so the full sum is this projection of \f$\sum_o|o|\,t(r_o)\f$.
+    void SymmetrizeTensor(rmat3d_t& V) const;
 
 private:
     std::shared_ptr<const Mesh> itsMesh;
@@ -137,6 +151,7 @@ private:
     std::vector<char>           itsFlipFixed;
     SiteAction                  itsSites;      //!< {} = none supplied
     std::vector<size_t>         itsRepIndex;   //!< the representatives' full-mesh indices, ascending (a pure function of the fold)
+    std::shared_ptr<const FoldedMesh> itsParent;   //!< the folded mesh these are the representatives of (null otherwise)
 };
 
 } // namespace

@@ -194,7 +194,7 @@ public:
         if (!itsRepQuad.GetMesh())
         {
             RequireInvariantPairProducts();
-            itsRepQuad=BasisSet::FitQuadrature(std::make_shared<const qcMesh::Mesh>(itsQuad.MakeRepresentativeMesh()), Symmetry::Lattice_3D::Fold{});
+            itsRepQuad=itsQuad.MakeRepresentatives();   // no fold left to average; the folded mesh rides along for the geometry derivative
             itsRepQuad.GetMesh()->FourierTarget()->accuracy=itsMp.sampling;
             qchem::report::Set("perOrbit", std::to_string(itsQuad.size())+" points in "+std::to_string(itsQuad.NumOrbits())
                                            +" orbits: the δ XC route samples one point per orbit");
