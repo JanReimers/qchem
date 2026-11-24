@@ -322,8 +322,8 @@ struct RunOptions
         //! override is named on the run banner.
         qchem::BasisSet::Gaussian::GPWTolerances tolerances = {};
         //! The declared CP2K deviations (routes and accelerations CP2K does not run) -- the deck's `policy` block (D-ENV step 6b).  Unstated
-        //! routes take the qchem default, or CP2K's value under \c cp2kCompat; a stated one wins over the umbrella.  The facade INSTALLS it
-        //! (\c SetRunPolicy) as the first act of construction; the resolved table is printed on the run banner.  No environment variable sets it.
+        //! routes take the qchem default, or CP2K's value under \c cp2kCompat; a stated one wins over the umbrella.  The solid setup resolves
+        //! it into its own \c RunPolicy (\c SolidSetup::policy); the resolved table is printed on the run banner.  No environment variable sets it.
         qchem::RunPolicySpec policy = {};
         //! \brief DFT+U manifolds (programme step 5; doc/Pins.md pin 23): one entry per (site, l, U) -- the
         //! manifold is an INPUT, never the transition metal's d shell by assumption.  \c U in HARTREE here as

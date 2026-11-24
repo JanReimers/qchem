@@ -1,12 +1,13 @@
 // File: Calculation/tests/RunPolicyLeak.C  A run's density route is ITS OWN, not the last solid's (D-MUTABLE-STATICS-RUNPOLICY, 2026-11-23).
 //
-// THE LEAK.  Only SolidSetup::Resolve installs a run policy (SetRunPolicy, process-wide), and the orbitals build every iteration's density
+// THE LEAK (as it was).  Only SolidSetup::Resolve installed a run policy (SetRunPolicy, process-wide), and the orbitals built every iteration's density
 // through ChargeDensity::DefaultRhoRoute(), which reads that process-wide policy.  So a molecule (or atom) run takes the density route the
 // last SOLID in the process installed: after a cp2kCompat solid, a molecule runs the Direct route where its own default is the factored
 // (pivoted-Cholesky) one.  A GUI session or a test binary that runs a CP2K-parity solid and then a molecule is exposed.
 //
-// KNOWN RED (root CMakeLists QCHEM_KNOWN_RED, OpenWork §3 "D-RUNPOLICY-LEAK") until group E of doc/Records/RunPolicyOnTheRun.md lands (the
-// user's ruling 2026-11-23, E2': the setup builds a density maker and the orbitals call it), which makes the route the molecule setup's own.
+// CLOSED BY CONSTRUCTION.  Group E (E2', user ruling 2026-11-23) made the density route the setup's own DensityMaker, and the retire step
+// (2026-11-24) deleted the process-wide policy itself: there is nothing left for a solid to install.  This gate stays, so a future global
+// that routes a choice around the setup again shows up here.
 #include "gtest/gtest.h"
 #include "forward.H"
 #include <functional>
@@ -26,7 +27,6 @@ import qchem.BasisSet.Gaussian.Point.Factory;     // BasisSetData
 import qchem.SCFParams;
 import qchem.Mesh;
 import qchem.Types;
-import qchem.RunPolicy;                           // ScopedRunPolicy: the test leaves the process policy as it found it
 import qchem.CompositeCD;
 import qchem.Reporting;                           // report::Run / GlobalReport: the setup's DensityRoute row
 import qchem.ChargeDensity.Imp.IrrepCD;          // FactoredRho / FiniteIrrepCD (tests may cheat: abstract -> concrete)
@@ -92,10 +92,9 @@ std::vector<report::json> DensityRouteRows(const std::string& runName)
 } // namespace
 
 // THE CONTROL first (no solid has run): the molecule's own default is the factored route, on every block.  THEN a cp2kCompat solid setup
-// (its Resolve is what installs the policy -- no SCF needed), and the SAME molecule again: its route must not have changed.
+// (its Resolve once installed the policy -- no SCF needed), and the SAME molecule again: its route must not have changed.
 TEST(RunPolicyLeak, AMoleculeAfterACP2KCompatSolidKeepsItsOwnDensityRoute)
 {
-    ScopedRunPolicy restore(RunPolicySpec{});   // whatever this test leaves installed, the next test in the process starts from the default
     const auto [n0, f0]=MoleculeBlocks();
     ASSERT_GT(n0, 0u);
     ASSERT_EQ(f0, n0) << "the control: with no solid run before it, every block of the molecule's density is the factored route";
