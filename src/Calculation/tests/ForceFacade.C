@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <regex>
 #include <string>
 #include <memory>
 #include <vector>
@@ -41,6 +42,9 @@ using namespace qchem;
 using StructureData::GetMolecule;
 using LibCintEval = BasisSet::Gaussian::Evaluators::PG_LibCint::NR_Evaluator;
 using PGData      = BasisSet::Gaussian::Evaluators::PG_Cart_MnD::PGData;
+//! A term's label with its point count masked: a mesh term states how many points it samples, and the imposed run's folded XC term
+//! samples one per orbit (OpenWork §3, the per-orbit consumer), so two runs' terms are matched by what they are, not by that count.
+static std::string WithoutPointCount(const std::string& label) {return std::regex_replace(label, std::regex(R"(\(\d+ points\))"), "(N points)");}
 
 //! The friend (forward.H): reaches the facade's basis, Hamiltonian and carry -- what a TEST of one term needs, never a client.
 class ForceFacadeTests
@@ -1522,7 +1526,7 @@ TEST(HamiltonianForces, ASymmetryBlockedRunsForceIsTheUnblockedRunsForce)
         double largest=0.0; size_t compared=0;
         for (size_t t=0;t<Ff.size();t++)
         {
-            ASSERT_EQ(Fb[t].label, Ff[t].label) << what;
+            ASSERT_EQ(WithoutPointCount(Fb[t].label), WithoutPointCount(Ff[t].label)) << what;   // the folded XC term states its own count
             EXPECT_EQ(Fb[t].missing.empty(), Ff[t].missing.empty()) << what << ", " << Ff[t].label << ": " << Fb[t].missing;
             if (!Fb[t].missing.empty() || !Ff[t].missing.empty()) continue;
             ++compared;

@@ -235,16 +235,35 @@ std::shared_ptr<const qcMesh::SymmetrySource> MoleculeSetup::MeshSymmetryAt(cons
             "molecule, at the mesh's orientation error.  To fix this, please state the coordinates symmetric to more digits");
         return none;
     }
-    row("point group "+group+" detected; the XC mesh is made invariant under "+pg.abelian+" ("+std::to_string(ops.size())+" ops)"
-        +(imposed ? ", NOT folded: the density is not averaged over its orbits on this imposed run" : ", not folded (a free run)"),
-        "the one angular set is rotated into the group's frame (reported as nonlinearMesh.frame), so the deck's orientation does not reach "
-        "the answer"+std::string(pg.abelian==pg.symbol ? "" : "; invariance under the full group "+pg.symbol+" is the follow-up (OOD-SOLID V-FOLD-NEUTRAL)")
-        +(imposed ? std::string("; the fold is built but not engaged: a folded mesh has no geometry gradient (forces, so no geometry "
-                                "optimization) and cannot rotate a GGA's density gradient, and an imposed SALC run's density is already "
-                                "invariant under the group to roundoff, so averaging it would buy nothing until a per-orbit consumer "
-                                "exists (OpenWork §3)") : std::string()));
-    // Not folded on any run yet (lane H 2026-11-23; see the row): the source's averaging answer is false.
-    return std::make_shared<const MolecularPointGroupSource>(std::move(ops), /*averages*/false);
+    // THE FOLD (OpenWork §3, the per-orbit consumer, lane H 2026-11-24): engaged on an IMPOSED DFT run whose Vxc fit is δ.  There the basis is
+    // SALC-blocked into 1-D real irreps, so every XC integrand (ρ, v χ_iχ_j, |∇ρ|², ∇ρ·∇(χ_iχ_j)) is invariant pointwise and the XC term
+    // samples ONE point per orbit at the orbit's summed weight -- exact, not an approximation (FoldAudit, to 1e-12), with the force through
+    // the A1 projection (HamiltonianForces.TheFoldedXCForceIsTheUnfoldedOne).  A free run's ρ is not invariant; a Gaussian (A1) or multipole
+    // Vxc fit's functions are not invariant (their projection needs the orbit-summed table, a follow-up), and HF has no XC term to fold.
+    const bool deltaFit=opts.vxcFit==Hamiltonian::VxcFit::Auto || opts.vxcFit==Hamiltonian::VxcFit::Delta;
+    const bool fold=imposed && dft && deltaFit;
+    const std::string frame="the one angular set is rotated into the group's frame (reported as nonlinearMesh.frame), so the deck's orientation "
+        "does not reach the answer"+std::string(pg.abelian==pg.symbol ? "" : "; invariance under the full group "+pg.symbol+" is the follow-up "
+        "(OOD-SOLID V-FOLD-NEUTRAL)");
+    std::string what="point group "+group+" detected; the XC mesh is made invariant under "+pg.abelian+" ("+std::to_string(ops.size())+" ops)";
+    std::string why=frame;
+    if (fold)
+    {
+        what+=", FOLDED: the XC term samples one point per orbit (counted as perOrbit in the XC mesh's report)";
+        why+="; on an imposed run every XC integrand is invariant under the group (a SALC basis of 1-D real irreps), so one point per orbit at "
+             "the orbit's summed weight gives the same energy, matrix and force as the whole mesh, at about 1/|group| of the collocation";
+    }
+    else if (!imposed) what+=", not folded (a free run: its density is not invariant under the group)";
+    else
+    {
+        what+=", NOT folded on this imposed run";
+        why+=!dft ? std::string("; HF has no XC term to sample per orbit")
+                  : std::string("; its Vxc fit is not the delta fit, and a Gaussian or multipole fit function is not invariant under the group, so "
+                                "one point per orbit would mis-project it (the orbit-summed fit table is a follow-up, OpenWork §3) -- state the delta "
+                                "Vxc fit (the default) for the per-orbit XC");
+    }
+    row(what, why);
+    return std::make_shared<const MolecularPointGroupSource>(std::move(ops), /*averages*/fold);
 }
 
 std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Molecule& st, const RunOptions& asked, const AcceleratorOptions& acc)
