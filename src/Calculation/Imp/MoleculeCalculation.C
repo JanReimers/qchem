@@ -471,20 +471,52 @@ std::unique_ptr<qchem::ChargeDensity::rDM_CD> MoleculeCalculation::MakeCarriedDe
 
 GridAuditResult MoleculeCalculation::MeshAudit(const qcMesh::MeshParams& reference) const
 {
+    return AuditAgainst(reference, *itsMeshSymmetry,
+                        "Becke mesh ("+std::to_string(reference.nRadial)+", "+std::to_string(reference.angularDegree)+")", "[mesh audit]");
+}
+
+namespace {
+//! The run's mesh source with the FOLD CHOICE flipped: the same ops, the other answer to "average over orbits?" (the fold audit's reference).
+class FlippedFold : public qcMesh::SymmetrySource
+{
+public:
+    explicit FlippedFold(const qcMesh::SymmetrySource& s) : itsSource(s) {}
+    std::vector<Symmetry::SymOp> MeshOps() const override {return itsSource.MeshOps();}
+    bool AveragesDensityOverOrbits() const override {return !itsSource.AveragesDensityOverOrbits();}
+private:
+    const qcMesh::SymmetrySource& itsSource;
+};
+} //anon
+
+GridAuditResult MoleculeCalculation::FoldAudit() const
+{
+    if (!itsSetup->imposed)
+        throw std::invalid_argument("qchem::MoleculeCalculation::FoldAudit: a FREE run's density is not invariant under the mesh's ops, so a folded "
+                                    "mesh would compute a different (wrong) answer, not the same one cheaper -- the fold audit needs an imposed run");
+    if (itsMeshSymmetry->MeshOps().size()<2)
+        throw std::invalid_argument("qchem::MoleculeCalculation::FoldAudit: this run's mesh has no point group to fold under (C1, or the lab frame kept)");
+    const bool folded=itsMeshSymmetry->AveragesDensityOverOrbits();
+    return AuditAgainst(itsSetup->xcMesh, FlippedFold(*itsMeshSymmetry),
+                        std::string("the same mesh ")+(folded ? "unfolded" : "folded"), "[fold audit]");
+}
+
+GridAuditResult MoleculeCalculation::AuditAgainst(const qcMesh::MeshParams& reference, const qcMesh::SymmetrySource& symmetry,
+                                                  const std::string& referenceName, const char* title) const
+{
     namespace rpt = qchem::report;
     const auto* wf = itsScf ? itsScf->GetWaveFunction() : nullptr;
-    if (!wf || !itsDensity) throw std::logic_error("qchem::MoleculeCalculation::MeshAudit: no converged density yet (the audit runs at a fixed D)");
+    if (!wf || !itsDensity) throw std::logic_error(std::string("qchem::MoleculeCalculation: ")+title+" before a converged density (the audit runs at a fixed D)");
     const RunOptions& opts=itsSetup->opts;
     const qchem::ChargeDensity::rDM_CD* d=itsDensity.get();
     const std::vector<hmat_t<double>> D=BlockDensities(false);
     GridAuditResult R;
     std::vector<std::vector<Symmetry::Molecule::AoShell>> shellsOf;   // per basis block: its AO shells, empty for a SALC block
-    R.reference = "Becke mesh ("+std::to_string(reference.nRadial)+", "+std::to_string(reference.angularDegree)+")";
+    R.reference = referenceName;
     {
         // FENCED: the reference Hamiltonian files its meshes and fit bases as it builds and first evaluates; a nested run keeps them out
         // of this run's `hamiltonian` section.  RAII: an exception mid-audit must not leave the report nested.
-        struct Fence { explicit Fence(const std::string& n) {rpt::Begin(n);} ~Fence() {rpt::End();} } fence("meshAudit reference ("+R.reference+")");
-        std::unique_ptr<qchem::Hamiltonian::rHamiltonian> hamRef(MakeHamiltonianOn(reference));
+        struct Fence { explicit Fence(const std::string& n) {rpt::Begin(n);} ~Fence() {rpt::End();} } fence(std::string(title)+" reference ("+R.reference+")");
+        std::unique_ptr<qchem::Hamiltonian::rHamiltonian> hamRef(MakeHamiltonianOn(reference, symmetry));
         itsHam->RefreshForDensity(itsBasis, d);
         hamRef->RefreshForDensity(itsBasis, d);
         const std::vector<qchem::Hamiltonian::TermEnergy> eRun=itsHam->MakeTermEnergies(d), eRef=hamRef->MakeTermEnergies(d);
@@ -527,7 +559,7 @@ GridAuditResult MoleculeCalculation::MeshAudit(const qcMesh::MeshParams& referen
         if (t.entries=="Exc" && t.maxAbsΔH>0.0) t.etaOn="measured";   // the XC mesh has no rigorous bound
     }
     const ClientConsumes c=Consumes();
-    ReportGridAudit(R, "[mesh audit]", "Becke mesh ("+std::to_string(itsSetup->xcMesh.nRadial)+", "+std::to_string(itsSetup->xcMesh.angularDegree)+")",
+    ReportGridAudit(R, title, "Becke mesh ("+std::to_string(itsSetup->xcMesh.nRadial)+", "+std::to_string(itsSetup->xcMesh.angularDegree)+")",
                     c==ClientConsumes::Energy ? 'E' : 'H', opts.accuracy.Target(c, itsStructure->GetNumAtoms()));
     return R;
 }
@@ -537,14 +569,20 @@ qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const q
     // Every Hamiltonian of this point shares ONE Coulomb fit (S2b): BuildGraph fills the slot from the setup's choice (policy CoulombFit).
     return MakeHamiltonianOn(mesh, itsSetup->opts.coulomb, itsCoulombFit);
 }
+qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const qcMesh::MeshParams& mesh, const qcMesh::SymmetrySource& symmetry) const
+{
+    return MakeHamiltonianOn(mesh, itsSetup->opts.coulomb, itsCoulombFit, &symmetry);
+}
 qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const qcMesh::MeshParams& mesh, const qchem::Hamiltonian::CoulombRoute& coulomb,
-                                                                         const qchem::Hamiltonian::CoulombFitSlot<double>& fit) const
+                                                                         const qchem::Hamiltonian::CoulombFitSlot<double>& fit,
+                                                                         const qcMesh::SymmetrySource* symmetry) const
 {
     const RunOptions& opts=itsSetup->opts;
+    const qcMesh::SymmetrySource& sym = symmetry ? *symmetry : *itsMeshSymmetry;
     return itsSetup->pp
-        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, *itsMeshMaker, *itsMeshSymmetry, itsBasis, fit, {opts.vxcFit, opts.xcRho},
+        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, *itsMeshMaker, sym, itsBasis, fit, {opts.vxcFit, opts.xcRho},
                                       coulomb, qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha))
-        : qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, *itsMeshMaker, *itsMeshSymmetry, itsBasis, fit, opts.xalpha,
+        : qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, *itsMeshMaker, sym, itsBasis, fit, opts.xalpha,
                                       {opts.vxcFit, opts.xcRho}, coulomb);
 }
 
