@@ -153,7 +153,7 @@ every run kind has one.
 - `SolidSetup` resolves the route:
   1. a stated `policy.dmLowRank` wins;
   2. otherwise `cp2kCompat` gives `Direct`;
-  3. otherwise the qchem default (`PivotedCholesky`), until the kT rule exists (§4.3).
+  3. otherwise the qchem default (`PivotedCholesky`), at every kT: there is no kT rule (§4.3, the user 2026-11-24).
 - `MoleculeSetup` and `AtomSetup` take the qchem default; they have no policy block today.
 - Each writes its decision and the reason under the run report's `policy` scope.
 
@@ -216,6 +216,25 @@ density of states near the chemical potential), not on kT alone.
 - **The measurement (E-c, before any rule):** r/n and the per-iteration rho cost on both routes, against kT/gap and the pivot
   tolerance, on a GAPPED system at kT well below the gap (Si, or MnO Γ Shub smear) and on a metal (Li k444 Becke smear).  It goes to
   the controller, with the proposed rule, before E-c is coded.
+
+**The result and the ruling (2026-11-24).**  Measured on Si k222 (Becke, gap 0.072 Ha), MnO AFM-II Γ (gap 0.053 Ha) and Li k444 (metal) at kT
+0..2e-2 Ha, factored + census / factored / direct, 27 runs (full table: the lane B note `laneB-Ec-measurement.md`; logs
+`~/Code/qchem6-runs/{Si,Li,MnO}/laneB_Ec/`).
+- Both routes gave the same Etot to 1e-10 Ha in every pair: the factored route is exact (its pivots sit at LAPACK's roundoff floor).
+- The thermal tail is SHORT: r counts the bands within ~32 kT of μ.  At kT 0.02 (kT/gap 0.3-0.4) r/n reached 0.16 on MnO and 0.42 on Si;
+  no block in any case or iteration reached the existing per-block fallback (2r >= n).
+- The pivot tolerance barely matters: r(1e-4) = r(1e-14) up to kT 5e-3, 15 vs 20 on MnO at 0.02 -- a looser cut is an accuracy trade
+  worth <= 25 %, so there is NO pivot-tolerance knob.
+- The factored route was never slower (direct ÷ factored 1.2-2.2 MnO, ~1.5 Si, ~1.0 Li at n = 5).
+- On a uniform raster XC mesh the route never runs (`FactorPays` false): the choice matters only where rho is sampled through the
+  orbital basis (Becke).
+
+**THE RULING: NO kT RULE** (the user, 2026-11-24, asked "kT, item (c): do you accept no kT rule": *"yes I am convinced.  Thanks."*).  The
+per-block test on the rank each density ACHIEVES is the whole decision: no setup switches the route on kT before the SCF, and no policy
+revises it at an SCF boundary (the controller's boundary-revision reading above is WITHDRAWN).  Built as E-c (fe2826687): the test in the
+CLAUDE.md shape, `FactoredRhoOpRatio` (rigorous r/n) × `kFactoredRhoMargin` (= 2, the named calibration, unexercised at its threshold,
+this record and the ruling at its declaration) in `FactoredForwardPays`, `src/ChargeDensity/Internal/Imp/IrrepCD.C`; and each factored
+block's achieved rank Accumulated as health into a `densityFactor` record (densities, factored, fallbacks by reason, Σr, Σn).
 
 ### 4.4 The collocation route: kept PRIVATE to the evaluator (option (2), controller 2026-11-23)
 `CollocationRoute {contractCube, expRecurrence}` (78e621788) was BOUND ON THE MOLECULAR BASIS through a public setter,
