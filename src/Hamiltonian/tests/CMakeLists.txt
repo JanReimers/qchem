@@ -18,7 +18,7 @@ add_executable(UTHamiltonian ../../Common/tests/gtestmain.C
 )
 
 target_compile_definitions(UTHamiltonian PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET UTHamiltonian PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTHamiltonian PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTHamiltonian PRIVATE
     ${QCHEM_BLAZE_DIR}

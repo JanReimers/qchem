@@ -20,7 +20,7 @@ target_include_directories(qcRadial_BS PRIVATE
 # on target features (measured 2026-08-20: "compiled with the target feature '+avx2' but the current
 target_compile_definitions(qcRadial_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 
-set_property(TARGET qcRadial_BS PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcRadial_BS PROPERTY CXX_STANDARD 23)
 target_link_libraries(qcRadial_BS PUBLIC qcBasisSet qcElConfig qcStructure lapack)
 add_subdirectory(Evaluators)
 add_subdirectory(tests)

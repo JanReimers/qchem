@@ -6,7 +6,7 @@ add_executable(UTPseudopotential ../../Common/tests/gtestmain.C
 )
 
 target_compile_definitions(UTPseudopotential PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET UTPseudopotential PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTPseudopotential PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTPseudopotential PRIVATE
     ${QCHEM_BLAZE_DIR}

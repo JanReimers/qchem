@@ -11,7 +11,7 @@ add_executable(UTSCFIterator ../../Common/tests/gtestmain.C
 )
 
 target_compile_definitions(UTSCFIterator PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET UTSCFIterator PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTSCFIterator PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTSCFIterator PRIVATE
     ${QCHEM_GTEST_INCLUDE}

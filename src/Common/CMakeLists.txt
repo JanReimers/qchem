@@ -23,7 +23,7 @@ target_sources(qcCommon PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     InstanceToken.C                       # an object's instance identity: a never-reused serial + a weak handle (IntegralCacheOwnershipPlan §3b)
     )
 
-set_property(TARGET qcCommon PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcCommon PROPERTY CXX_STANDARD 23)
 target_compile_definitions(qcCommon PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_compile_definitions(qcCommon PUBLIC ${CommonDataPath})
 

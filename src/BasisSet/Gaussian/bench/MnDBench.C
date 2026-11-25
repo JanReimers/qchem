@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <memory>   // std::make_shared: libc++ does not bring it in through <string>
 
 import qchem.BasisSet.Gaussian.PG_Cart;          // M&D Orbital_IBS
 import qchem.BasisSet.Gaussian.Point.PG_LibCint;       // libcint Orbital_IBS

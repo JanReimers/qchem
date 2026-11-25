@@ -34,7 +34,7 @@ target_sources(qcMath PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     PositionJet.C
 )
 
-set_property(TARGET qcMath PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcMath PROPERTY CXX_STANDARD 23)
 target_compile_definitions(qcMath PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 
 target_include_directories(qcMath PRIVATE

@@ -71,7 +71,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
 )
 
    
-set_property(TARGET qcHamiltonian PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcHamiltonian PROPERTY CXX_STANDARD 23)
 target_include_directories(qcHamiltonian PRIVATE 
     ${QCHEM_BLAZE_DIR}
     ${QCHEM_LIBXC_BUILD}

@@ -5,7 +5,7 @@ add_executable(UTSCFAccelerator ../../Common/tests/gtestmain.C
 )
 
 target_compile_definitions(UTSCFAccelerator PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET UTSCFAccelerator PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTSCFAccelerator PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTSCFAccelerator PRIVATE
     ${QCHEM_GTEST_INCLUDE}

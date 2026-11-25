@@ -20,7 +20,7 @@ add_executable(UTRadial_BS gtestmain.C
 )
 
 target_compile_definitions(UTRadial_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET UTRadial_BS PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTRadial_BS PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTRadial_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/src   # forward.H (A_Cache4's unit-test friend)

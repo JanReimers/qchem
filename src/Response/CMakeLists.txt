@@ -16,7 +16,7 @@ target_sources(qcResponse PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
 target_include_directories(qcResponse PRIVATE
     ${QCHEM_BLAZE_DIR}
     )
-set_property(TARGET qcResponse PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcResponse PROPERTY CXX_STANDARD 23)
 target_link_libraries(qcResponse PUBLIC qcWaveFunction qcOrbitals qcHamiltonian qcBasisSet qcChargeDensity qcElConfig qcSymmetry qcLASolver qcMesh qcMath qcCommon)
 target_compile_definitions(qcResponse PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 

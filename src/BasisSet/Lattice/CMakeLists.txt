@@ -20,7 +20,7 @@ target_include_directories(qcLattice_BS PRIVATE
     ${QCHEM_JSON_INCLUDE}
     ${PROJECT_SOURCE_DIR}/src
 )
-set_property(TARGET qcLattice_BS PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcLattice_BS PROPERTY CXX_STANDARD 23)
 target_compile_definitions(qcLattice_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 # The two engines, both PUBLIC so every client that reached their modules through qcLattice_BS still does:
 # qcPlaneWave_BS (PlaneWave_IBS, the PW fit basis, the FFT/Poisson grid; step 1a) and qcGaussian_BS

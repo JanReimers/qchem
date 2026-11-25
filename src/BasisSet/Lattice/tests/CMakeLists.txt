@@ -12,7 +12,7 @@
 add_library(qcPW_TestFields)
 target_sources(qcPW_TestFields PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES PW_Fields.C)
 target_compile_definitions(qcPW_TestFields PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET qcPW_TestFields PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcPW_TestFields PROPERTY CXX_STANDARD 23)
 target_include_directories(qcPW_TestFields PRIVATE ${QCHEM_BLAZE_DIR} ${QCHEM_JSON_INCLUDE})
 target_link_libraries(qcPW_TestFields PUBLIC qcLattice_BS qcPseudopotential qcFitting)
 
@@ -38,7 +38,7 @@ add_executable(UTLattice_BS ../../Radial/tests/gtestmain.C
 )
 
 target_compile_definitions(UTLattice_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})  # GTH data path now baked into qcPseudopotential
-set_property(TARGET UTLattice_BS PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTLattice_BS PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTLattice_BS PRIVATE
     ${QCHEM_BLAZE_DIR}
