@@ -77,7 +77,9 @@ TEST(GPW_Li, k444_Becke_Imp_Smear_ThreadedRunIsReproducibleAndMatchesSerial_Long
 //                                                  signature (PADE, not VWN5: the functionals differ by ~0.6 mHa here, the margin is 15 mHa).
 //   CP2K QS GPW, this basis, L=12,    -7.2857130   XALPHA 2/3 + VWN5, i.e. OUR LDA (Dirac + VWN5); EPS_DEFAULT 1e-14, CUTOFF 2000/150.
 //     Dirac + VWN5
-//   ours, default grids               -7.2857262   13 μHa below it (grid-converged Becke 100/35: -7.2857129, 0.1 μHa).
+//   ours, default grids               -7.2857135   0.5 μHa below it (grid-converged Becke 100/35: -7.2857129, 0.1 μHa).  Since
+//                                                  D-BECKE-ENERGY-AUDIT (2026-11-24) the pilot sizes the Becke mesh from eps on an energy run
+//                                                  too ((40,L29) -> (60,L29) here); on the old entry mesh the run sat 12.5 μHa above CP2K.
 // The 0.64 mHa "gap" this gate once sat above was the FUNCTIONAL, not the code: the old oracle ran CP2K's XC_FUNCTIONAL PADE (the
 // Goedecker-Teter-Hutter Padé LDA the GTH-PADE PPs are fitted with), -7.2850821, unchanged to 2e-10 at EPS_PGF_ORB 1e-30 / CUTOFF
 // 3000/300.  With VWN5 on both sides q1 on this basis agrees to 15 μHa too (-0.1840431 vs CP2K -0.1840584).  OpenWork §3 row closed
@@ -137,7 +139,7 @@ TEST(GPW_LiBox, Γ_M2_CP2K_Long)
     ASSERT_TRUE(out.converged) << out.summary;
     const double e=out.energy.value_or(0.0);
     EXPECT_GT(e, -7.3007906) << "below CP2K ATOM's complete-basis energy: the q3 local PP is non-variational again (the Hermite3 overrun class)";
-    EXPECT_NEAR(e, -7.2857130, 5e-5) << "CP2K QS GPW on the same basis + box + functional (Dirac + VWN5); default grids sit 13 μHa off";
+    EXPECT_NEAR(e, -7.2857130, 5e-5) << "CP2K QS GPW on the same basis + box + functional (Dirac + VWN5); default grids sit 0.5 μHa off (12.5 before the pilot sized the Becke mesh)";
     // The policy fires once per Hamiltonian BUILD (the solid schedule builds one per SCF stage: two here), so the claim is that the
     // mismatch is REPORTED, not how many builds the schedule makes (no count pins).
     EXPECT_GE(warned, 1u) << "a GTH-PADE PP under LDA (Dirac + VWN5) files a PPFittedFunctional warn row (user ruling 2026-11-12)";
@@ -145,7 +147,7 @@ TEST(GPW_LiBox, Γ_M2_CP2K_Long)
 
 // THE PADE TWIN (user ruling 2026-11-12, OpenWork PADE row): the functional the GTH-PADE PPs were fitted with, stated, against the OLD
 // oracle -- CP2K QS GPW, this basis, L=12, XC_FUNCTIONAL PADE: -7.2850821 (unchanged to 2e-10 at EPS_PGF_ORB 1e-30 / CUTOFF 3000/300;
-// ~/Code/cp2k-runs/Li/atom/qs/li_q3_qs_L12{,_tight}.out).  Same grids as the VWN5 gate, so the same ~13 μHa grid offset is expected.
+// ~/Code/cp2k-runs/Li/atom/qs/li_q3_qs_L12{,_tight}.out).  Same grids as the VWN5 gate: 0.4 μHa off since the pilot sizes the Becke mesh (12.4 before).
 // And the PP now MATCHES the run's functional, so the run files no PPFittedFunctional row.
 TEST(GPW_LiBox, Γ_PADE_M2_CP2K_Long)
 {

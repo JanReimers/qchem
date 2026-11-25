@@ -565,11 +565,19 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long)
     // quantity summed): -61.3031134482 -> -61.3031140146 (-566 nHa); the SAD anchor lands on the same value (-61.30311401, 18 iterations),
     // so the twin claim stands.  Pin 10's independent route: the same run with the collocation screen 100x tighter (densityEps 1e-12,
     // through a recipe) gives -61.3031139546 -- 60 nHa from the new value, 506 nHa from the old (~/Code/qchem6-runs/MnO/lanea_foldk).
-    // RE-JUDGED 2026-11-24 (lane A, the absolute pair routing ecut >= 2 p ln(1/eps), no beta floor under Becke): -61.3031140146 ->
-    // -61.3031168554 (-2.84 uHa).  Pin 10's independent route: eps 1e-12 gives -61.3031168506, EVERY pair on the finest level (no routing)
-    // -61.3031168511 -- 4 nHa from the new value, 2.8 uHa from the old (~/Code/qchem6-runs/anchors/lane-a-pin10).  2.8 uHa further from the CP2K VA limit above:
-    // the converged-vs-converged gap row, not routing.
-    EXPECT_NEAR(R->Energy(), -61.3031168554, 1e-7) << "the SAD anchor's state (measured 2026-11-02, re-judged 2026-11-10, -22, -24)";
+    // RE-JUDGED 2026-11-24 (lane B, D-BECKE-ENERGY-AUDIT: an energy run's pilot now sizes the unstated Becke XC mesh from eps, the
+    // molecule's rule): -61.3031140146 -> -61.3031842859 (-70.3 uHa).  The pilot climbs (40,L29) -> (80,L35) at the converged D: (40,L29)
+    // read |dE_xc| 2.1e-4 radial / 1.2e-4 angular against the 4e-5 target, (80,L35) 6.4e-7 / 1.8e-5.  Pin 10's independent route: the
+    // same recipe on the UNIFORM XC mesh (the pilot settles its rasters, 180 s) gives -61.3031847082 -- 0.42 uHa from the new value,
+    // 70.7 uHa from the old.  The twin stands: the SAD anchor on the same code lands on -61.3031842858 (14 + 4 iterations), 1e-10 away.
+    // ~/Code/qchem6-runs/MnO/laneB_eqsad_pin10.
+    // RE-JUDGED 2026-11-25 (lane A's absolute pair routing merged onto lane B's mesh): -61.3031842859 -> -61.3031871333 (-2.85 uHa).
+    // Pin 10: the routing alone moved this anchor -2.84 uHa on the (40,L29) mesh, confirmed there by two independent routes (eps 1e-12:
+    // 4 nHa; every pair on the finest level: 4 nHa); lane B's mesh move was confirmed on the uniform mesh (0.42 uHa).  The two moves add
+    // to 0.01 uHa, so neither interacts with the other.  The run itself shows it: it converges on (40,L29) to -61.3031168554, this
+    // lane's routing anchor to the last digit (15 iterations), and the energy pilot's (80,L35) re-convergence lands here (5 iterations).
+    // ~/Code/qchem6-runs/anchors/lane-a-pin10/v4_eqsad.log.
+    EXPECT_NEAR(R->Energy(), -61.3031871333, 1e-7) << "the SAD anchor's state (measured 2026-11-02, re-judged 2026-11-10, 2026-11-22, 2026-11-24, 2026-11-25)";
     ASSERT_FALSE(trace.rows.empty());
     EXPECT_GT(std::abs(trace.rows.back().order), 4.0) << "the AFM order survives the ionic seed (measured 4.459, = SAD's)";
 }
