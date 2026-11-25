@@ -66,7 +66,7 @@ TEST(SpecialFunctions, SphericalBesselMatchesTheReferenceTable)
     for (const Row& r : theTable)
         for (int lmax=0; lmax<=10; ++lmax)
         {
-            const qchem::rvec_t j=qchem::SpecialFunctions::SphericalBessel(lmax, r.x);
+            const rvec_t j=qchem::SpecialFunctions::SphericalBessel(lmax, r.x);
             ASSERT_EQ(j.size(), size_t(lmax+1));
             for (int l=0; l<=lmax; ++l) EXPECT_TRUE(Near(j[l], r.j[l], l, r.x, lmax));
         }
@@ -75,7 +75,7 @@ TEST(SpecialFunctions, SphericalBesselMatchesTheReferenceTable)
 // Tiny x with a large lmax: the trial values grow like prod (2l+1)/x and overflow a double without rescaling.
 TEST(SpecialFunctions, SphericalBesselStaysFiniteAtTinyX)
 {
-    const qchem::rvec_t j=qchem::SpecialFunctions::SphericalBessel(10, 1e-11);
+    const rvec_t j=qchem::SpecialFunctions::SphericalBessel(10, 1e-11);
     for (size_t l=0; l<j.size(); ++l) EXPECT_TRUE(std::isfinite(j[l])) << "l=" << l;
     EXPECT_TRUE(Near(j[0], 1.00000000000000000e+00, 0, 1e-11, 10));
     EXPECT_TRUE(Near(j[1], 3.33333333333333313e-12, 1, 1e-11, 10));
@@ -85,7 +85,7 @@ TEST(SpecialFunctions, SphericalBesselStaysFiniteAtTinyX)
 // j(0) = delta_{l0}, the documented special case.
 TEST(SpecialFunctions, SphericalBesselAtZeroIsTheDelta)
 {
-    const qchem::rvec_t j=qchem::SpecialFunctions::SphericalBessel(4, 0.0);
+    const rvec_t j=qchem::SpecialFunctions::SphericalBessel(4, 0.0);
     EXPECT_EQ(j[0], 1.0);
     for (size_t l=1; l<j.size(); ++l) EXPECT_EQ(j[l], 0.0);
 }
