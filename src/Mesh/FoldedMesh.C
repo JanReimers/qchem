@@ -131,6 +131,8 @@ public:
 
     //! Is a \c SiteAction present?
     bool HasSiteAction() const {return !itsSites.image.empty();}
+    //! The site action itself, for a consumer that carries more than 3-vectors (the radial channels' real-harmonic blocks, \c SiteMultipoles::MakeChannelAction).
+    const SiteAction& GetSiteAction() const {return itsSites;}
     //! \brief The GROUP AVERAGE of one 3-vector per site: \f$g_A\leftarrow\tfrac1{|H|}\sum_k W_k^\top g_{\sigma_k(A)}\f$ -- the totally
     //! symmetric projection \f$P\f$, under which the gradient of an invariant energy at a symmetric geometry is fixed.  It is also how a
     //! per-orbit consumer gets that gradient: a member's contribution is the representative's carried by the edge op,
