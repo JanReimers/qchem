@@ -74,6 +74,17 @@ struct BeckeClimbResult
     std::string                 why;       //!< AxisEnd: the axis that ran out
 };
 
+//! \brief THE PILOT'S RULE for a Becke XC mesh: ONE rule, read by every facade (controller 2026-11-24, D-BECKE-ENERGY-AUDIT; user: "What
+//! should not depend on the structure: the decision of when to climb").  Whenever a pilot judges a converged D on a Becke XC mesh -- whatever
+//! the run consumes (energy or matrix elements), whatever the functional -- an UNSTATED mesh is the pilot's to size, so it CLIMBS; a STATED
+//! mesh is the user's, so it is AUDITED and reported, never raised (pin 31 rule 3).  The two facades once wrote this twice and drifted: the
+//! solid judged its mesh only on a geometry run (or a GGA), so an LDA energy run kept the default (40, 29) whatever eps said.
+enum class BeckePilotRole { Climb, Audit };
+constexpr BeckePilotRole BeckePilotRoleOf(bool meshStated) {return meshStated ? BeckePilotRole::Audit : BeckePilotRole::Climb;}
+//! \brief The \c maxRaises a pilot hands \c ClimbBeckeLadder: round 0 of a climb walks the ladder to settled (0 = no cap); a confirming
+//! round, at the re-converged D, raises at most once; an audit measures (1, and its raise is never applied).
+constexpr int BeckePilotMaxRaises(BeckePilotRole role, int round) {return (role==BeckePilotRole::Audit || round>0) ? 1 : 0;}
+
 //! \brief THE STOPPING RULE: climb from \a start until both axes' tail estimates meet \a target at one rung.  Each step audits the rung
 //! against the rung above on EACH axis (\c BeckeAngularRungAbove, \c BeckeRadialRungAbove), and raises the axis further over.  An axis's
 //! estimate uses its own previous difference only when that was measured at a DIFFERENT rung (a re-measure of the same rung has no ratio:
