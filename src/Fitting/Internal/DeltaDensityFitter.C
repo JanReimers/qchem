@@ -1,9 +1,13 @@
-// File: Fitting/Internal/GridDensityFitter.C  A density fit on a mesh: the projection is the fit, the operator finds v.
+// File: Fitting/Internal/DeltaDensityFitter.C  A density fit on a δ fit basis: the projection is the fit, the operator finds v.
 //
 // The density-side sibling of DeltaScalarFitter, on the same δ fit basis and the same forward/adjoint pair:
 //     forward    rho(r_g)                          -- the density contracts its own D, per block, as it does for a Gaussian fit
 //     potential  v(r_g) = op(w_g rho(r_g))         -- the BASIS's Coulomb integrals (PointCoulombIntegrals, V-ONE-OF-N 3b-ii)
-//     adjoint    sum_g w_g v(r_g) chi_i chi_j      -- the same quadrature XC uses
+//     adjoint    V_ij = sum_g c_g (ij|δ_g)         -- c_g = w_g v(r_g); the δ basis's exact projection integrals, contracted
+//
+// NAMING (user ruling 2026-11-24): this is the Hartree FIT with a δ fit basis ("δ-fit Hartree"), never "grid Hartree".  A fit basis is
+// named as a fit basis whatever its functions are; "mesh" and "grid" are kept for quadrature.  The XC mesh only SUPPLIES the δ points
+// (and their weights, carried inside c_g); (ij|δ_g) are analytic projection integrals that get summed, not a quadrature.
 //
 // ENERGY IS FIRST ORDER (user ruling 2026-11-06).  Tr(DV) = sum_g w_g rho_g v_g = <rho~|rho~> here, so the energy is the plain
 // 1/2 <rho~|rho~>; Dunlap's 2 EeeFit - EeeFitFit is second-order only where the cross term is exact, which needs a real rho~ with a
@@ -20,12 +24,12 @@
 // NO CHARGE CONSTRAINT (user ruling 2026-11-06).  Dunlap's shift is a Coulomb-metric object, and a uniform rescale was declined
 // for now: the mesh's charge error is reported instead (Vee_DFT, as a diagnostic).  So Integral() is the mesh's charge, not N.
 //
-// The bodies are in Internal/Imp/GridDensityFitter.C.
+// The bodies are in Internal/Imp/DeltaDensityFitter.C.
 module;
 #include <functional>
 #include <memory>
 #include <string>
-export module qchem.Fitting.Internal.GridDensityFitter;
+export module qchem.Fitting.Internal.DeltaDensityFitter;
 export import qchem.Fitting.CoulombOperator;
 import qchem.BasisSet.CoulombDeltaFit_IBS;   // PointCoulombIntegrals (the basis answers its Coulomb integrals)
 import qchem.Fitting.Types;           // robs_t
@@ -40,7 +44,7 @@ import qchem.SlotMap;                 // InstanceSlotMap
 export namespace qchem::Fitting
 {
 
-class GridDensityFitter
+class DeltaDensityFitter
     : public virtual FirstOrderDensityFit<double>
 {
 public:
@@ -49,7 +53,7 @@ public:
     //! physics belongs to the basis (ruling (f)), and this fitter only asks it.
     //! And it demands the δ basis's own point set \a mesh (its quadrature's mesh, gathered by the factory too): the force reads its owners
     //! and its weight response, which the basis keeps private.
-    GridDensityFitter(fbs_t fbs, const BasisSet::PointCoulombIntegrals& coulomb, std::shared_ptr<const qcMesh::Mesh> mesh);
+    DeltaDensityFitter(fbs_t fbs, const BasisSet::PointCoulombIntegrals& coulomb, std::shared_ptr<const qcMesh::Mesh> mesh);
 
     double HartreeEnergy(const std::function<double()>& trDV) const override;
     //! \copydoc FirstOrderDensityFit<double>::DoFit -- on a δ basis the projections ARE the fit (values at the points).

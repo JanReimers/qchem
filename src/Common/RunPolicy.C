@@ -18,9 +18,13 @@
 // instead of re-deriving it and hoping the two agree.
 //
 // D-ENV STEP 6b (2026-10-04): THE POLICY IS A TYPED VALUE, NOT THE ENVIRONMENT.  `RunPolicySpec` (the deck's `policy` block, carried on
-// `RunOptions::policy`) states it; the facade installs it once at run start (`SetRunPolicy`) and every factory reads the resolved
-// `theRunPolicy()` as before.  The CP2K_COMPAT / QCHEM_* / GPW_* variables are retired (ignored, reported).  Names below that read as
+// `RunOptions::policy`) states it.  The CP2K_COMPAT / QCHEM_* / GPW_* variables are retired (ignored, reported).  Names below that read as
 // env variables are historical: the knob is now the deck key `policy.<camelCase>`.
+//
+// D-MUTABLE-STATICS-RUNPOLICY (2026-11-24): THERE IS NO PROCESS-WIDE POLICY.  The solid setup resolves the spec into ITS OWN \c RunPolicy
+// (\c SolidSetup::policy) and hands each factory the one value it consumes (doc/Records/RunPolicyOnTheRun.md, groups A-E).  The old
+// installed global (\c SetRunPolicy / \c theRunPolicy / \c ScopedRunPolicy) is retired: a molecule after a cp2kCompat solid in one process
+// took the solid's density route through it (the RunPolicyLeak gate).
 //
 // THE OVERRIDE RULE: an explicitly-stated individual knob WINS over `cp2kCompat`.  Stating
 // `cp2kCompat:true, streamFold:true` is a deliberate act -- "parity everywhere except this one" -- and
@@ -81,10 +85,10 @@ struct Deviation
     bool Deviates() const {return value!=cp2kValue;}
 };
 
-//! \brief The process-wide resolved answer to "which non-CP2K routes is this run taking?".
+//! \brief ONE run's resolved answer to "which non-CP2K routes is this run taking?".
 //!
-//! Read ONCE (the values are process lifetime constants -- they select which objects the factories
-//! BUILD, and re-reading them mid-run would mean two halves of one SCF disagreeing about what it is).
+//! Resolved ONCE, by the run's setup, which holds it for the run's lifetime (the values select which objects the factories BUILD, and
+//! re-reading them mid-run would mean two halves of one SCF disagreeing about what it is).  A plain value: no process-wide copy exists.
 class RunPolicy
 {
 public:
@@ -176,28 +180,6 @@ private:
     bool      itsCP2KCompat = false;
     Deviation itsDMLowRank{}, itsStreamFold{}, itsMixRhoM{}, itsXCFromDM{}, itsImpose{}, itsBeckeXC{},
               itsDAware{}, itsUEigen{};
-};
-
-//! The process's policy.  A function rather than a global so it is constructed on first use, after
-//! main() has had its chance to set the environment.
-const RunPolicy& theRunPolicy();
-
-//! \brief INSTALL \a spec as the process policy.  The FACADE calls this once at run start (SolidCalculation's constructor, from
-//! \c RunOptions::policy); a test that A/Bs a route calls it (or uses \c ScopedRunPolicy) between arms.  The object is ASSIGNED
-//! (never replaced), so a reference handed out earlier stays valid across a flip.  Two live runs with DIFFERENT policies in one process
-//! would see the last one installed -- the factories consult it at BUILD time, so sequential runs are safe and overlapping ones are not.
-void SetRunPolicy(const RunPolicySpec& spec);
-
-//! \brief Install \a spec for a scope and restore the previous policy after (tests; an A/B arm).
-class ScopedRunPolicy
-{
-public:
-    explicit ScopedRunPolicy(const RunPolicySpec& spec) : itsPrev(theRunPolicy().Spec()) { SetRunPolicy(spec); }
-    ~ScopedRunPolicy() { SetRunPolicy(itsPrev); }
-    ScopedRunPolicy(const ScopedRunPolicy&) = delete;
-    ScopedRunPolicy& operator=(const ScopedRunPolicy&) = delete;
-private:
-    RunPolicySpec itsPrev;
 };
 
 } //export namespace qchem

@@ -17,6 +17,7 @@
 module;
 #include <iosfwd>
 #include <memory>
+#include <string>   // operator+(const char*, std::string): libc++ does not bring it in through <memory>
 export module qchem.Fitting.FunctionFitter;
 export import qchem.Mesh.Integrator;   // MatrixForward -- what a forward vendor vends (2026-09-09)
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types

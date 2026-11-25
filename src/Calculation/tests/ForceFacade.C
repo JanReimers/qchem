@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <regex>
 #include <string>
 #include <memory>
 #include <vector>
@@ -22,6 +23,7 @@ import qchem.UnitCell;
 import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSetData::SIPP_SR
 import qchem.Mesh;                     // qcMesh::UnitCellKind
 import qchem.Mesh.XCPolicy;            // qcMesh::BeckeXCParams
+import qchem.Mesh.Maker;               // qcMesh::SymmetrySource (the fold-flipped force gate)
 import qchem.StructureData;
 import qchem.Structure;
 import qchem.SCFParams;
@@ -40,6 +42,9 @@ using namespace qchem;
 using StructureData::GetMolecule;
 using LibCintEval = BasisSet::Gaussian::Evaluators::PG_LibCint::NR_Evaluator;
 using PGData      = BasisSet::Gaussian::Evaluators::PG_Cart_MnD::PGData;
+//! A term's label with its point count masked: a mesh term states how many points it samples, and the imposed run's folded XC term
+//! samples one per orbit (OpenWork §3, the per-orbit consumer), so two runs' terms are matched by what they are, not by that count.
+static std::string WithoutPointCount(const std::string& label) {return std::regex_replace(label, std::regex(R"(\(\d+ points\))"), "(N points)");}
 
 //! The friend (forward.H): reaches the facade's basis, Hamiltonian and carry -- what a TEST of one term needs, never a client.
 class ForceFacadeTests
@@ -61,6 +66,26 @@ public:
         return t;
     }
     static MoleculeCalculation::Carry Carry(const MoleculeCalculation& c) {return c.MakeCarry();}
+    static rvec3vec_t Forces(const MoleculeCalculation& c) {return c.MakeForces();}
+    //! The converged point's forces from a Hamiltonian on the SAME mesh with the fold choice FLIPPED (the per-orbit consumer's force gate,
+    //! OpenWork §3): folded <-> unfolded, the same ops.  Also checks that Hamiltonian misses no gradient.
+    static rvec3vec_t ForcesWithTheFoldFlipped(const MoleculeCalculation& c)
+    {
+        struct Flipped : qcMesh::SymmetrySource
+        {
+            std::vector<Symmetry::SymOp> ops; bool averages=false;
+            std::vector<Symmetry::SymOp> MeshOps() const override {return ops;}
+            bool AveragesDensityOverOrbits() const override {return averages;}
+        } f;
+        f.ops=c.itsMeshSymmetry->MeshOps();
+        f.averages=!c.itsMeshSymmetry->AveragesDensityOverOrbits();
+        const std::unique_ptr<Hamiltonian::rHamiltonian> h(c.MakeHamiltonianOn(c.itsSetup->xcMesh, f));
+        const auto D=c.MakeCarriedDensity(c.MakeCarry());
+        const auto W=c.MakeCarriedDensity(MoleculeCalculation::Carry{c.MakeEnergyWeightedDensity()});
+        const auto missing=h->MissingGradients(c.itsBasis, c.itsStructure.get());
+        EXPECT_TRUE(missing.empty()) << (missing.empty() ? std::string() : missing.front());
+        return h->At(c.itsBasis, D.get()).Forces(W.get(), c.itsStructure.get());
+    }
     //! The setup's point at the POSITIONS of \a at (V-MESH-FACTORY: a point comes out of the setup's typed builder, with its mesh maker).
     static MoleculeSetup::Point PointAt(const MoleculeSetup& setup, const Structure& at)
     {
@@ -1503,7 +1528,7 @@ TEST(HamiltonianForces, ASymmetryBlockedRunsForceIsTheUnblockedRunsForce)
         double largest=0.0; size_t compared=0;
         for (size_t t=0;t<Ff.size();t++)
         {
-            ASSERT_EQ(Fb[t].label, Ff[t].label) << what;
+            ASSERT_EQ(WithoutPointCount(Fb[t].label), WithoutPointCount(Ff[t].label)) << what;   // the folded XC term states its own count
             EXPECT_EQ(Fb[t].missing.empty(), Ff[t].missing.empty()) << what << ", " << Ff[t].label << ": " << Fb[t].missing;
             if (!Fb[t].missing.empty() || !Ff[t].missing.empty()) continue;
             ++compared;
@@ -1567,4 +1592,33 @@ TEST(HandGradient, TheConvergedStatesFieldsGradientsAreTheFiniteDifferenceOfThei
             size_t n=0;
             for (const auto& L : c->GetLevels()) if (n++<8) check(*L.phi, what+" MO "+L.label, 0.1);
         }
+}
+
+// THE PER-ORBIT XC FORCE (OpenWork §3, lane H 2026-11-24): on a SALC-imposed run, the XC term on the representatives (one point per orbit,
+// the full mesh's weight response at |o| e_o, then the A1 projection of the per-site gradient) gives the SAME force as the unfolded mesh.
+// The unfolded imposed force is FD-gated (ASymmetryBlockedRunsForceIsTheUnblockedRunsForce and the Becke-force FD gates), so this carries the
+// FD claim to the folded route.  Closed shell (H2O C2v) and open shell (O2 triplet, D2h; _Long below).
+static void ExpectTheFoldedForceIsTheUnfoldedOne(const Molecule& mol, RunOptions o, const char* what)
+{
+    o.imposeSymmetry=true; o.scf=Tight(); o.molecule.basis="dzvp";
+    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(mol, o)).TakeValue(); (void)c->Converge();
+    ASSERT_TRUE(c->IsConverged()) << what;
+    const rvec3vec_t F=ForceFacadeTests::Forces(*c), Ff=ForceFacadeTests::ForcesWithTheFoldFlipped(*c);
+    ASSERT_EQ(F.size(), Ff.size());
+    double big=0.0, worst=0.0;
+    for (size_t A=0;A<F.size();A++) { big=std::max(big, norm(F[A])); worst=std::max(worst, norm(F[A]-Ff[A])); }
+    std::cout << "[fold force] " << what << ": max|F| " << big << ", max|F - F_flipped| " << worst << std::endl;
+    EXPECT_GT(big, 1e-5) << what << ": a non-trivial force, else the gate is vacuous";
+    EXPECT_LT(worst, 1e-9) << what;
+}
+TEST(HamiltonianForces, TheFoldedXCForceIsTheUnfoldedOne)
+{
+    ExpectTheFoldedForceIsTheUnfoldedOne(GetMolecule("H2O"), {.model=Model::LDA}, "H2O C2v LDA");
+}
+TEST(HamiltonianForces, TheFoldedXCForceIsTheUnfoldedOne_O2Triplet_Long)
+{
+    Molecule o2;
+    o2.Insert(Site{8, Vector3D<double>(0, 0,  1.10)});   // off the LSDA bond length: a real force along z
+    o2.Insert(Site{8, Vector3D<double>(0, 0, -1.10)});
+    ExpectTheFoldedForceIsTheUnfoldedOne(o2, {.multiplicity=3, .model=Model::LDA}, "O2 triplet D2h LSDA");
 }

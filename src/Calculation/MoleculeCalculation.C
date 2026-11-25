@@ -170,6 +170,12 @@ public:
     //! Hamiltonian's own mesh reports go to a nested run, so this run's `hamiltonian` keeps describing the meshes it USED.  Judged on
     //! \c Consumes(): |ΔE| against eps x N_atoms, or max|ΔH_ij| against eps.  THROWS before a Converge.
     GridAuditResult MeshAudit(const qcMesh::MeshParams& reference) const;
+    //! \brief THE FOLD AUDIT (the per-orbit consumer of the molecular mesh fold, OpenWork §3): the run against a Hamiltonian rebuilt on the
+    //! SAME mesh with the OPPOSITE fold choice (folded <-> unfolded), at the converged D, term by term, as \c MeshAudit.  The fold is exact,
+    //! not an approximation, so every term reads roundoff: the gate that the per-orbit route computes the same Hamiltonian cheaper.
+    //! THROWS (invalid_argument) on a free run (its density is not invariant: the folded mesh is a different answer) or a run with no
+    //! point group on its mesh; THROWS before a Converge.
+    GridAuditResult FoldAudit() const;
     //! \brief WHAT THIS RUN'S CLIENT CONSUMES (pin 31; the solid's rule): a run built on its own answers an \c Energy, judged on |ΔE| against
     //! eps x N_atoms; a point a \c MoleculeSession builds (a surface, forces, an optimization) answers \c MatrixElements, max|ΔH_ij| against eps.
     ClientConsumes Consumes() const override;
@@ -223,9 +229,16 @@ private:
     bool itsPrepared = false;   //!< \c Prepare built the graph: the next Converge reuses it instead of rebuilding
     //! The point's Hamiltonian on \a mesh (the setup's model or pseudopotential, this basis): the graph's, and every audit reference's.
     qchem::Hamiltonian::rHamiltonian* MakeHamiltonianOn(const qcMesh::MeshParams& mesh) const;
-    //! The same with the Hartree route \a coulomb and its fit slot \a fit in place of the setup's: the Coulomb-fit check's δ reference.
+    //! The same with the mesh source \a symmetry in place of the point's (the fold audit's reference).
+    qchem::Hamiltonian::rHamiltonian* MakeHamiltonianOn(const qcMesh::MeshParams& mesh, const qcMesh::SymmetrySource& symmetry) const;
+    //! The same with the Hartree route \a coulomb and its fit slot \a fit in place of the setup's (the Coulomb-fit check's δ reference), and
+    //! the mesh source \a symmetry when given (null: the point's).
     qchem::Hamiltonian::rHamiltonian* MakeHamiltonianOn(const qcMesh::MeshParams& mesh, const qchem::Hamiltonian::CoulombRoute& coulomb,
-                                                        const qchem::Hamiltonian::CoulombFitSlot<double>& fit) const;
+                                                        const qchem::Hamiltonian::CoulombFitSlot<double>& fit,
+                                                        const qcMesh::SymmetrySource* symmetry=nullptr) const;
+    //! The audit body: the run against the Hamiltonian on \a reference built under \a symmetry, named \a referenceName, under \a title.
+    GridAuditResult AuditAgainst(const qcMesh::MeshParams& reference, const qcMesh::SymmetrySource& symmetry, const std::string& referenceName,
+                                 const char* title) const;
     //! THE COULOMB-FIT CHECK (policy CoulombFitResidual): the fit's J error, J_δ − J_fit, at \a d -- the seed's first density before the
     //! SCF (\a when "seed"), the converged one after (\a when "converged").  WARNs over the accuracy target; skipped, saying so, when the
     //! δ reference would not fit in memory.

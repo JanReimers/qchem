@@ -5,7 +5,7 @@ module;
 #include <stdexcept>
 #include <string>
 module qchem.Fitting.CoulombOperator;
-import qchem.Fitting.Internal.GridDensityFitter;
+import qchem.Fitting.Internal.DeltaDensityFitter;
 import qchem.Fitting.Internal.GSpaceDensityFitter;
 import qchem.Fitting.Internal.FunctionFitterImp;   // IntegralConstrainedFF (the Gaussian Dunlap fit)
 import qchem.BasisSet.G_FieldEvaluator;
@@ -52,16 +52,16 @@ Outcome<rmat3d_t,AD::NoGradient> FirstOrderDensityFit<dcmplx>::MakeRepulsionViri
 }
 
 std::unique_ptr<FirstOrderDensityFit<double>>
-MakeGridDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::shared_ptr<const qcMesh::Mesh> mesh)
+MakeDeltaDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::shared_ptr<const qcMesh::Mesh> mesh)
 {
     // The factory gathers the basis's Coulomb-integral face (the concrete association lives here, not in the class).
-    if (!deltaBasis) throw std::logic_error("MakeGridDensityFitter: no fit basis");
+    if (!deltaBasis) throw std::logic_error("MakeDeltaDensityFitter: no fit basis");
     auto* coulomb=dynamic_cast<const BasisSet::PointCoulombIntegrals*>(deltaBasis.get());
     if (!coulomb)
-        throw std::logic_error("MakeGridDensityFitter: the fit basis '"+deltaBasis->Name()+"' carries no Coulomb integrals "
+        throw std::logic_error("MakeDeltaDensityFitter: the fit basis '"+deltaBasis->Name()+"' carries no Coulomb integrals "
                                "(wrap a δ basis in BasisSet::CoulombDeltaFit_IBS with its operator)");
-    if (!mesh) throw std::logic_error("MakeGridDensityFitter: no mesh for the fit basis '"+deltaBasis->Name()+"'");
-    return std::make_unique<GridDensityFitter>(std::move(deltaBasis), *coulomb, std::move(mesh));
+    if (!mesh) throw std::logic_error("MakeDeltaDensityFitter: no mesh for the fit basis '"+deltaBasis->Name()+"'");
+    return std::make_unique<DeltaDensityFitter>(std::move(deltaBasis), *coulomb, std::move(mesh));
 }
 
 std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs)

@@ -1256,6 +1256,10 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
     // at r = 1e6 bohr (M_Calculation.WaterLDA_eqRotated, 2026-11-23), i.e. ~1.7e-14 per unit of r / R_min.  So the spread is NORMALIZED
     // by max(1, r / R_min) before it is judged: a wrong frame or a mismatched edge op gives O(1) spreads at every r; past 1e-10 normalized
     // it is a broken invariant, not roundoff.  The normalized spread is reported.
+    // The spread is that of the PARTITION, |ΔP| = |Δw| / (w_q), not |Δw| / w (lane H 2026-11-24): P ∈ [0,1] is what carries absolute
+    // roundoff, and a point deep in another atom's cell has P down to 1e-26, whose RELATIVE roundoff is not bounded by anything.  Measured on
+    // SF₆'s pilot-raised meshes (to 726k points): |Δw|/w reached 1.2e-10 normalized at P ~ 1e-15 and threw on a correct mesh; at P ~ 1 it
+    // stays at the 1e-16..1e-14 above.  The template weight w_q = w / P, with P recomputed by the build's own qcMesh::BeckePartitionWeight.
     double rMin=std::numeric_limits<double>::infinity();
     for (size_t a=0; a<natom; a++)
         for (size_t b=a+1; b<natom; b++) rMin=std::min(rMin, norm(Rv[a]-Rv[b]));
@@ -1264,6 +1268,9 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
     {
         EuclideanIndex index(m.Points(), kMeshMatchTol);
         const rvec_t& w=m.Weights();
+        std::vector<size_t> siteOf(m.size(), 0);
+        for (size_t a=0; a<m.NSites(); a++) for (size_t i=m.SiteBegin(a); i<m.SiteEnd(a); i++) siteOf[i]=a;
+        const int beckeOrder=mp.beckeOrder;
         for (size_t k=0; k<opsC.size(); k++)
             for (size_t i=0; i<m.size(); i++)
             {
@@ -1272,8 +1279,10 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
                     throw std::logic_error("MakeMesh(Molecule, ops): the built mesh is not invariant under op "+std::to_string(k)
                                            +": point "+std::to_string(i)+" has no image point");
                 if (w[i]==0.0) continue;
+                const double P=qcMesh::BeckePartitionWeight(Rv, siteOf[i], m.Points()[i], beckeOrder);
+                if (P==0.0) continue;
                 const double reach=std::max(1.0, norm(m.Points()[i]-sites.c)/rMin);
-                spread=std::max(spread, std::abs(w[size_t(j)]-w[i])/std::abs(w[i])/reach);
+                spread=std::max(spread, std::abs(w[size_t(j)]-w[i])*P/std::abs(w[i])/reach);   // |ΔP| = |Δw| / w_q, w_q = w / P
             }
     }
     if (spread>1e-10)
@@ -1296,15 +1305,41 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
 qcMesh::FoldedMesh FoldOrbits(const Molecule& mol, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops)
 {
     RequirePointGroupOps(ops, "FoldOrbits");
+    const SitePoints sites=SitesOf(mol);   // the ops the mesh was built under: polished against the same geometry
+    const std::vector<Symmetry::SymOp> opsC=AboutCentre(FrameAndPolishedOps(sites, ops, "FoldOrbits").second, sites.c);
     auto fold=[&]{ qchem::report::Timed timed("setup: XC mesh orbit fold (FoldMesh)");
                    std::vector<rvec3_t> pts(mesh.size());
                    for (size_t i=0; i<mesh.size(); i++) pts[i]=mesh.Points()[i];
-                   const SitePoints sites=SitesOf(mol);   // the ops the mesh was built under: polished against the same geometry
-                   return Symmetry::Lattice_3D::FoldPoints(pts, AboutCentre(FrameAndPolishedOps(sites, ops, "FoldOrbits").second, sites.c),
-                                                           kMeshMatchTol); }();
+                   return Symmetry::Lattice_3D::FoldPoints(pts, opsC, kMeshMatchTol); }();
+    // The SITE ACTION: which atom each op carries each atom onto.  The site blocks are the atoms in ForEachSite order (RequireSiteBlocks in
+    // MakeMesh), and MakeMesh already refused a geometry an op does not map onto itself, so every image is found.
+    qcMesh::FoldedMesh::SiteAction act;
+    {
+        const size_t natom=sites.R.size();
+        if (mesh.NSites()!=natom)
+            throw std::logic_error("FoldOrbits(Molecule): the mesh has "+std::to_string(mesh.NSites())+" site blocks for "+std::to_string(natom)
+                                   +" atoms -- not a mesh MakeMesh(Molecule, ops) built");
+        rvec3vec_t R(natom);
+        for (size_t i=0; i<natom; i++) R[i]=sites.R[i];
+        EuclideanIndex index(R, kMolecularMeshGeometryTol);
+        for (const Symmetry::SymOp& op : opsC)
+        {
+            std::vector<size_t> img(natom);
+            for (size_t i=0; i<natom; i++)
+            {
+                const long j=index.Find(op.W*R[i]+op.tau);
+                if (j<0 || sites.Z[size_t(j)]!=sites.Z[i])
+                    throw std::logic_error("FoldOrbits(Molecule): an op does not map atom "+std::to_string(i)+" onto an atom of its element, "
+                                           "though MakeMesh accepted the geometry");
+                img[i]=size_t(j);
+            }
+            act.W.push_back(op.W);
+            act.image.push_back(std::move(img));
+        }
+    }
     std::cout << "[Becke grid] molecular point group (" << ops.size() << " ops): invariant mesh " << mesh.size() << " points in "
               << fold.Reps() << " orbits; rho star-averaged each iteration" << std::endl;
-    return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold)};
+    return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold), std::move(act)};
 }
 
 } // namespace qchem

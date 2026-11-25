@@ -44,7 +44,7 @@ import qchem.BasisSet.Lattice.BasisSet;       // GPWFactory (the GPW basis conta
 import qchem.BasisSet.Gaussian.Point.Factory;          // Gaussian::Factory, BasisSetData/Engine/Angular
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
 import qchem.Outcome;                           // Outcome<Converged,SCFFailure> -- the facade's result
-import qchem.RunPolicy;                         // SetRunPolicy / RunOptions::policy -- the declared-deviation A/B hatch (N5)
+import qchem.RunPolicy;                         // RunOptions::policy -- the declared-deviation A/B hatch (N5)
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Tests.GPW_Harness;                   // THE HARNESS (IntegrationTests/GPW/Harness.C): Materials cells, gates, recipes, the XC probes
 import qchem.Materials;                           // Materials::Get -- the cells come from src/Structure/Data/materials.json (row MD)
@@ -650,15 +650,8 @@ TEST(GPW_Mn2Box, k211_Becke_Pol_Smear_EqualsItsSupercellAtGamma_Long)   // ~4.5 
 TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows_Panel)   // PANEL case 9: a cheap witness of the linear step (G3)
 {
     qchem::IterationBudget budget(290, "Na2 box Shubnikov order-lost (232 measured, 2026-10-29 panel baseline)");
-    // ⛔ THIS GATE CANNOT RUN WITHOUT THE BECKE MESH, and the header above already says why: the
-    // postcondition reads the INTEGRATED SITE MOMENT, whose basins ARE the Becke site blocks.  Vetoing the
-    // atom-centred mesh (QCHEM_BECKE_XC=0 / CP2K_COMPAT=1) leaves SiteMoments correctly empty, the run is
-    // then a perfectly good non-magnetic answer, and OrderLost has nothing to fire on -- the diagnostics
-    // say so in as many words ("order: not measurable (no atom-centred basins on this XC mesh)").  So the
-    // honest outcome is SKIP: the subject is unmeasurable in that configuration, not broken by it.
-    if (!qchem::theRunPolicy().BeckeXC())
-        GTEST_SKIP() << "the OrderLost postcondition is measured on Becke site basins, which the run "
-                        "policy has vetoed (QCHEM_BECKE_XC=0 / CP2K_COMPAT=1)";
+    // THIS GATE NEEDS THE BECKE MESH (the header above says why).  It once skipped when the PROCESS policy vetoed Becke (QCHEM_BECKE_XC=0 /
+    // CP2K_COMPAT=1); the run now states its own policy in \c o below (the default: Becke allowed), and there is no process policy to veto it.
     const Material box=qchem::Materials::Get("Na2_box16");   // Na2 at d=5.8 in the Si gate's 16-bohr box, +m/-m: the AFM flip the SAD seed plants
     const Lattice_3D lat=LatticeOf(box);
 

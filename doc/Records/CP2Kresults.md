@@ -187,6 +187,26 @@ our `ivec3_t(2,2,2)`).  CP2K 2026.1, OMP 8, 70–500 s each.
   is only the right oracle for restricted runs.  NB the crystal decks' per-KIND atomic-guess blocks
   are NOT clean oracles — they carry a Confinement term (+0.842 for Mn).
 
+### MnO VA FM − AFM-II, cutoff-converged (2026-11-24, lane B) — the oracle of `GPW_MnO.Γ_Uni_Shub_Pol_Smear_CP2K_Long`
+
+The banked VA decks (`mno_afm2_gpw_va.inp`, `mno_fm_gpw_va.inp`: Γ, GTH-PADE LDA, Fermi-Dirac 5e-3 common μ, FM free moment at
+MULTIPLICITY 11) with only CUTOFF and EPS_SCF 1e-8 changed (`~/Code/cp2k-runs/MnO/laneB_ordering_{afm,fm}_va_c*.inp`; the AFM at 288 / 576
+Ry are lane A's `lanea_ball_mno_va_c{288,576}.inp`), `OMP_NUM_THREADS=4 mpirun -np 1 cp2k.psmp -i <deck>`:
+
+| CUTOFF | AFM-II | FM | FM − AFM |
+|---|---|---|---|
+| 144 Ry | −61.303353641 | −61.304782594 | −1.42895 mHa |
+| 288 Ry | −61.303094578 | −61.304378547 | −1.28397 mHa |
+| 576 Ry | −61.303059698 | −61.304350139 | −1.29044 mHa |
+
+The 288 → 576 step of FM − AFM is 6.47 μHa; REL_CUTOFF 60 → 120 moved the 288 Ry AFM by 7.05 μHa (`lanea_ball_mno_va_c288_r120`).  The
+EPS_SCF 1e-6 pair of 2026-08-12 (−61.303325178 / −61.304782531) sat 28 μHa high on the AFM.  Mulliken: AFM ±4.633, FM 5.044 per Mn, −0.045
+per O.  Electronic entropic energy: AFM −0.965 mHa, FM −7.064 mHa (576 Ry).
+qchem, same model with the UNIFORM XC grid (accuracy 1e-6): AFM −61.3030550, FM −61.3043413, FM − AFM −1.28624 mHa (4.2 μHa from 576 Ry).
+The pilot ends NOT SETTLED on the uniform XC mesh's "beside the ball" audit: AFM 6.147 μHa, FM 6.213 μHa (equal to 0.07 μHa, so it should
+cancel in FM − AFM).
+On the Becke mesh: −61.3030150 / −61.3045022, −1.48723 mHa (OpenWork §3 "Becke vs uniform XC").
+
 ## How to run
 See `UnitTests/CP2K/README.md`. In short: `source ~/Code/cp2k/tools/toolchain/install/setup`,
 `export LD_LIBRARY_PATH=~/Code/cp2k/install/lib:$LD_LIBRARY_PATH`, then

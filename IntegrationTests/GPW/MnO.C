@@ -11,6 +11,7 @@
 //   GPW_MnO.Γ_Shub_Pol_SeedReadsTheStatedOrdering
 //   GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Long      (LONG: ~2.5 min; `ctest -L long` -- the converged AFM-II gate)
 //   GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long      (LONG: two ~6 min arms; the shell-averaged DFT+U oracle gate, VA span)
+//   GPW_MnO.Γ_Uni_Shub_Pol_Smear_CP2K_Long    (LONG: two ~7 min arms; FM - AFM-II against CP2K on its own model: VA, uniform XC)
 
 #include "gtest/gtest.h"
 #include <memory>
@@ -733,54 +734,77 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_Saved_CP2K_Long)   // ~5.5 min serial: ~150 s 
 }
 
 
-// ============================ THE ORDERING GATE (was `gpwprobe mno`'s last check; D-ENV step 6d.3) ============================
-// "AFM-II is the LSDA ground-state ordering of MnO": E(AFM-II) < E(FM), the same cell, the same recipe.  It used to be a PASS/FAIL line in a
-// command-line probe driven by environment variables; the user ruled (2026-10-04) that an important gate is a hard-coded integration test.
-// The AFM arm is run FROM A DECK (deck::Run -- which also gates the deck system on the production recipe: the anchor above pins the SAME
-// energy built by hand, to its tolerance); the FM arm is built here, in the test, because FM-vs-AFM is a property of THIS test and not of the
-// calculation framework: the same Bravais cell with no spin flip, multiplicity 11 (two d^5 Mn).  LONG: two arms of ~7 min.
-// ⚠ KNOWN RED (root CMakeLists QCHEM_KNOWN_RED; DISABLED_ until 2026-11-09): the CLAIM IS CURRENTLY FALSE, so it runs and PASSES only
-// while its ordering EXPECT fails (never on a throw), beside its open row; the day the ordering is right it goes red -- take it off the list:
-// RE-MEASURED 2026-10-23 after the V_short image fix: E_AFM=-61.35052 vs E_FM=-61.35215 -- FM 1.63 mHa below (was 38 mHa), as CP2K on the
-// comparable VA span (FM below by 1.46); CP2K's 136-function SR puts AFM 8.87 mHa below, so the claim still fails on THIS 122-function span.
-// MEASURED 2026-10-04, E_AFM=-61.414547 vs E_FM=-61.452697 -- the FM arm is 38 mHa BELOW (doc/OpenWork.md §3, "MnO ordering at Γ/SR").  The
-// deck-vs-anchor assertion and the FM charge assertion below passed; only the ordering EXPECT failed -- the one failure a known-red run expects.
-// (It rotted while disabled: since R2.5 an imposed polarized run must STATE siteSpins, so it threw before any SCF.  Stated 2026-11-09:
-// AFM-II {+1,-1,0,0} in the deck, FM {+1,+1,0,0}.)
-TEST(GPW_MnO, Γ_Shub_Pol_Smear_Ordering_Long)
+// ============================ THE FM - AFM-II ORACLE GATE (re-claimed 2026-11-24, lane B; was the ordering gate) ============================
+// CLAIM: on CP2K's own model our E_FM - E_AFM-II equals CP2K's, to the oracle's own uncertainty.  Code against oracle, same model.
+//
+// WHAT IT DOES NOT CLAIM: which ordering is MnO's ground state.  This gate used to assert "AFM-II is the LSDA ground-state ordering"
+// (E_AFM < E_FM; was `gpwprobe mno`'s last check, DISABLED_ then KNOWN RED 2026-11-09).  On this model (a 2-f.u. Γ cell, a valence
+// Gaussian basis, plain LDA, no U) FM lies below AFM-II in BOTH codes, while CP2K's full 136-function SR puts AFM-II 8.87 mHa below, so
+// the ordering is a claim the model cannot support (doc/Pins.md pin 31: a model limit, not a code defect).  The physics question is
+// deferred to OpenWork §3 "MnO magnetic ordering", which waits on GGA and geometry optimization; there is no ordering gate until then.
+//
+// THE MODEL is CP2K's, term for term: the VA span function for function through the spherical view (CP2KPlusUBasis, 118 functions),
+// GTH-PADE LDA, Γ, Fermi-Dirac kT 5e-3, both arms imposed (AFM-II its 24-op Shubnikov group, FM its 24 spatial ops), and CP2K's XC
+// QUADRATURE: the uniform real-space grid (token Uni).  On our default Becke mesh the same pair gives -1.48723 mHa, 0.197 mHa below
+// CP2K, converged on both sides (accuracy 1e-5 and 1e-6 agree to 0.3 uHa) and almost all of it on the FM arm (-152 uHa; AFM +45):
+// that is an open row (OpenWork §3 "Becke vs uniform XC: MnO FM - AFM differs by 0.2 mHa"), not this gate's claim.
+//
+// THE ORACLE (CP2K, EPS_SCF 1e-8; decks ~/Code/cp2k-runs/MnO/laneB_ordering_{afm,fm}_va_c*.inp beside lanea_ball_mno_va_c*.inp, the
+// banked mno_{afm2,fm}_gpw_va.inp at each CUTOFF):
+//   CUTOFF 144 Ry   AFM -61.303353641   FM -61.304782594   FM-AFM -1.42895 mHa
+//          288      AFM -61.303094578   FM -61.304378547          -1.28397
+//          576      AFM -61.303059698   FM -61.304350139          -1.29044
+// THE TOLERANCE is the oracle's own, from its settings: the last cutoff step of FM-AFM (288 -> 576 Ry, 6.47 uHa) plus its REL_CUTOFF
+// sensitivity (60 -> 120 at 288 Ry moved AFM by 7.05 uHa).  Our side runs at accuracy 1e-6 (at the default 1e-5 the raster pilot's
+// per-term budget, 4e-5 Ha, is larger than the tolerance).  OUR OWN ERROR, as the run reports it: every grid the pilot sizes meets its
+// 4e-6 Ha, but the pilot ends NOT SETTLED on the uniform XC mesh's "beside the ball" audit (OpenWork §3, no pilot knob cures it):
+// AFM 6.147 uHa, FM 6.213 uHa against twice the ball.  The two arms agree to 0.07 uHa, so the difference should cancel almost all of it;
+// if it did not, the sum (12.4 uHa) would sit just inside the tolerance.  Stated here, not folded into kOracleTol.
+// MEASURED 2026-11-24 (this test, and rundeck on the same recipe, to all printed digits): AFM -61.30305505, FM -61.30434128,
+// FM-AFM -1.28624 mHa, 4.2 uHa from the oracle.
+// LONG: two cold arms, ~7 min each at 4 threads.
+constexpr double CP2K_VA_FMminusAFM=-61.304350138705786-(-61.303059697631376);   //!< CUTOFF 576 Ry
+constexpr double kOracleCutoffStep=6.47e-6;   //!< |FM-AFM(576) - FM-AFM(288)|
+constexpr double kOracleRelCutoff =7.05e-6;   //!< AFM at 288 Ry, REL_CUTOFF 60 vs 120
+constexpr double kOracleTol=kOracleCutoffStep+kOracleRelCutoff;
+TEST(GPW_MnO, Γ_Uni_Shub_Pol_Smear_CP2K_Long)
 {
-    namespace fs=std::filesystem;
-    const nlohmann::json deck={
-        {"structure","MnO_AFM2"}, {"basis",{{"data","VALENCE_LOWQ_SR"}}},
-        {"multiplicity",1},{"spin","Polarized"},{"seed","IonicSAD"},{"spins",{1,-1,0,0}},{"ortho","CholeskyPivoted"},{"orthoTol",1e-4},{"accelerator","Null"},{"imposeSymmetry",true},
-        {"scf",{{"NMaxIter",200},{"minDeltaRhoPerElectron",1e-6},{"deltaRhoMeasure","MaxDeltaD"},{"minDeltaE","off"},{"minDeltaFD","off"},{"minVirial","off"},{"minFD","off"},
-                {"startingRelaxRo",0.45},{"mergeTol",1e-4},{"pulayDepth",8},{"pulayStart",5},{"kerkerG0",1.0},{"useMOM",false},{"smearingkT",5e-3}}}};
-    qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
-    const fs::path dir=fs::temp_directory_path()/("qchem_it_mno_ordering_"+std::to_string(::getpid()));
-    fs::remove_all(dir);
-    qchem::deck::Provenance pv; pv.codeVersion="it";
-    const auto afm=qchem::deck::Run(spec, pv, dir);
-    ASSERT_TRUE(afm.converged) << afm.summary;
-    ASSERT_TRUE(afm.energy.has_value());
-    EXPECT_NEAR(*afm.energy, -61.30328, 2e-3) << "the deck run reproduces the hand-built anchor (GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Long)";
+    const Material mno=qchem::Materials::Get("MnO_AFM2");   // Mn +m at 0, Mn -m at 1/2, O at 1/4, 3/4
+    // the FM cell: the same Bravais cell with no spin decoration (the arm states its own spins)
+    auto fmCell=std::make_shared<UnitCell>(BravaisCell(Bravais::CubicF, {.a=8.4}, Matrix3D<int>(0,1,1, 1,0,1, 1,1,0)));
+    fmCell->AddAtom(25, {0.0,0.0,0.0}, false);  fmCell->AddAtom(25, {0.5,0.5,0.5}, false);
+    fmCell->AddAtom(8,  {0.25,0.25,0.25});     fmCell->AddAtom(8,  {0.75,0.75,0.75});
+    const std::shared_ptr<const Real_BS> fmBasis=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(
+        std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_VA, fmCell.get(),
+                                       BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian)));
 
-    // the FM arm: same cell, NO spin flip, multiplicity 11, the same recipe
-    auto cellp=std::make_shared<UnitCell>(BravaisCell(Bravais::CubicF, {.a=8.4}, Matrix3D<int>(0,1,1, 1,0,1, 1,1,0)));
-    cellp->AddAtom(25, {0.0,0.0,0.0}, false);  cellp->AddAtom(25, {0.5,0.5,0.5}, false);
-    cellp->AddAtom(8,  {0.25,0.25,0.25});     cellp->AddAtom(8,  {0.75,0.75,0.75});
-    Lattice_3D lat(*cellp, ivec3_t(1,1,1));
-    qchem::deck::RunSpec resolved=spec; qchem::deck::Resolve(resolved);     // fills Nelec / species from the material, as the AFM arm's run did
-    RunOptions o=resolved.opts; o.multiplicity=11; o.spins={+1,+1,0,0}; o.label="MnO FM Gamma (imposed)";
-    const SCFParams par=spec.opts.scf;
-    GpwReport report("MnO FM", false);
-    o.scf=par; auto fm=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisLowQ(*cellp, BasisSetData::VALENCE_LOWQ_SR), o)).TakeValue(); (void)fm->Converge();
-    auto R=fm->Result();
-    ASSERT_TRUE(R) << Why(R);
-    EXPECT_NEAR(R->TotalCharge(), 26.0, 1e-6);
-    std::cout << "[MnO ordering] E_AFM=" << std::setprecision(10) << *afm.energy << "  E_FM=" << R->Energy()
-              << "  dE=" << (R->Energy()-*afm.energy)*1000 << " mHa" << std::endl;
-    EXPECT_LT(*afm.energy, R->Energy()) << "AFM-II is the LSDA ground-state ordering";
-    fs::remove_all(dir);
+    std::vector<std::unique_ptr<qchem::SolidCalculation>> arms;   // each arm outlives its Result
+    auto run=[&](const Lattice_3D& lat, std::shared_ptr<const Real_BS> bs, bool ferro, const std::string& label) -> std::optional<double>
+    {
+        auto [o,par]=CP2KPlusURecipe(mno, 0.0, label);   // the +U gate's U = 0 recipe: CP2K's loop shape, imposed, kT 5e-3
+        if (ferro) { o.multiplicity=11; o.spins={+1,+1,0,0}; }
+        SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;   // CP2K's XC quadrature (see the header)
+        o.accuracy.eps=1e-6;                                    // inside the oracle's tolerance (see the header)
+        Trace trace;
+        GpwReport report("MnO "+o.label, par.Verbose);
+        o.scf=par;
+        arms.push_back(qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, std::move(bs), o), trace.Observer()).TakeValue());
+        (void)arms.back()->Converge();
+        trace.Print(o.label, /*polarized*/true);
+        auto R=arms.back()->Result();
+        if (!R) { ADD_FAILURE() << label << ": " << Why(R); return std::nullopt; }
+        EXPECT_NEAR(R->TotalCharge(), 26.0, 1e-6) << label;
+        // No site-moment check here: the uniform XC mesh has no atom-centred basins, so m_site is not measurable (the run says so).  A
+        // collapsed arm cannot pass anyway: losing the d^5 moments costs far more than the oracle tolerance below.
+        return R->Energy();
+    };
+    const auto afm=run(LatticeOf(mno),                      CP2KPlusUBasis(mno), false, "MnO AFM-II VA sph Gamma uniform XC (imposed)");
+    const auto fm =run(Lattice_3D(*fmCell, ivec3_t(1,1,1)), fmBasis,             true,  "MnO FM VA sph Gamma uniform XC (imposed)");
+    ASSERT_TRUE(afm && fm);
+    const double dE=*fm-*afm;
+    std::cout<<std::setprecision(10)<<"[MnO FM-AFM] E_AFM="<<*afm<<"  E_FM="<<*fm<<"  FM-AFM="<<dE*1e3<<" mHa (CP2K "
+             <<CP2K_VA_FMminusAFM*1e3<<" mHa, tolerance "<<kOracleTol*1e6<<" uHa)"<<std::endl;
+    EXPECT_NEAR(dE, CP2K_VA_FMminusAFM, kOracleTol) << "ORACLE: CP2K's FM - AFM-II on the same model (VA, Γ, LDA, uniform XC), CUTOFF 576 Ry";
 }
 
 

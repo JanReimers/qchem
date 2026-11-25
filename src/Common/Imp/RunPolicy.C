@@ -1,6 +1,7 @@
 // File: Common/Imp/RunPolicy.C  Resolving the deviation set once (see the interface for WHY).
 //
-// THE SITES THAT CONSULT THIS POLICY -- kept here so the list is checkable against a grep:
+// THE SITES THAT CONSULT THIS POLICY (each handed its value from the run's SolidSetup::policy since D-MUTABLE-STATICS-RUNPOLICY; there is
+// no process-wide policy to read) -- the decisions as first placed, kept so the list is checkable against a grep:
 //   DMLowRank   -> ChargeDensity/Imp/Factory.C          (which rho route the density factory builds)
 //   StreamFold  -> BasisSet/Lattice/Imp/BasisSet.C   (whether the collocation streams are orbit-folded)
 //   MixRhoM     -> ChargeDensity/Imp/DensityMixer.C     (which channel basis the G-space factories compose in)
@@ -79,15 +80,5 @@ std::string RunPolicy::Banner() const
     os<<"   [* = differs from CP2K]";
     return os.str();
 }
-
-// ONE object for the process's lifetime, ASSIGNED (never replaced) by ReresolveRunPolicy, so a
-// reference handed out earlier stays valid across an A/B flip.
-static RunPolicy& thePolicy()
-{
-    static RunPolicy p;   // the DEFAULT policy until a facade installs a stated one
-    return p;
-}
-const RunPolicy& theRunPolicy()  { return thePolicy(); }
-void SetRunPolicy(const RunPolicySpec& spec) { thePolicy() = RunPolicy(spec); }
 
 } //namespace

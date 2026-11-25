@@ -20,7 +20,7 @@ import qchem.BasisSet;                          // Real_BS, VxcFit, rFIT_SF_ABS,
 import qchem.BasisSet.Gaussian.Point.Factory;   // Gaussian::Factory
 import qchem.BasisSet.CoulombDeltaFit_IBS;      // the δ Coulomb fit basis
 import qchem.Fitting.FunctionFitter;            // MakeDeltaScalarFitter
-import qchem.Fitting.CoulombOperator;           // MakeDunlapDensityFitter / MakeGridDensityFitter
+import qchem.Fitting.CoulombOperator;           // MakeDunlapDensityFitter / MakeDeltaDensityFitter
 import qchem.Mesh;                              // qcMesh::MeshParams
 import qchem.Mesh.CoulombOperator;              // MakeDirectSumCoulomb
 import qchem.Symmetry;                          // SymmetryOrder
@@ -96,7 +96,7 @@ TEST(FitterBlockKeys, TwoBlocksOfEqualSymmetryAskedOfOneFitterGetTheirOwnViews)
                                  std::dynamic_pointer_cast<const BasisSet::PairProjector<double>>(
                                      std::shared_ptr<const Fitting::DeltaScalarFit<double>>(Fitting::MakeDeltaScalarFitter(delta))));}},
         {"grid density", [&]{return std::dynamic_pointer_cast<const BasisSet::PairProjector<double>>(
-                                 std::shared_ptr<const Fitting::FirstOrderDensityFit<double>>(Fitting::MakeGridDensityFitter(cdelta, quad.GetMesh())));}},
+                                 std::shared_ptr<const Fitting::FirstOrderDensityFit<double>>(Fitting::MakeDeltaDensityFitter(cdelta, quad.GetMesh())));}},
         {"dunlap",       [&]{return std::dynamic_pointer_cast<const BasisSet::PairProjector<double>>(
                                  std::shared_ptr<const Fitting::DunlapDensityFit<double>>(Fitting::MakeDunlapDensityFitter(gauss)));}},
     };

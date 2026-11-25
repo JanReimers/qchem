@@ -1,6 +1,7 @@
 // File:: Hamiltonian/Internal/Imp/Hamiltonians.C  Create fully implemented Hamiltonians
 module;
 #include <cassert>
+#include <cmath>
 #include <stdexcept>
 #include <iostream>
 #include <memory>
@@ -22,7 +23,7 @@ import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Types;
-import qchem.Fitting.CoulombOperator;            // the grid Hartree route: the fitter (the operators are qcMesh's, re-exported)
+import qchem.Fitting.CoulombOperator;            // the δ-fit Hartree route: the fitter (the operators are qcMesh's, re-exported)
 import qchem.BasisSet.CoulombDeltaFit_IBS;       // a δ basis with its Coulomb integrals
 import qchem.Mesh.Radial;                         // MakeRadial: the radial rule the Poisson operator shares with the mesh
 import qchem.Mesh.Angular;                        // MakeAngular: the site multipoles' angular rule, from the same recipe
@@ -150,7 +151,7 @@ static BasisSet::FitQuadrature BuildMeshQuadrature(const qcMesh::MeshMaker& mesh
 }
 
 //! \brief THE XC QUADRATURE AND THE δ FIT BASIS ON IT, ONE PER HAMILTONIAN (lane H 2026-11-15, the basis-on-grid survey P2,
-//! controller ruling).  A molecular run whose Hartree term is a grid route (\c CoulombFit::Delta / \c Multipole) on the XC mesh's own
+//! controller ruling).  A molecular run whose Hartree term is a δ-fit route (\c CoulombFit::Delta / \c Multipole) on the XC mesh's own
 //! parameters used to build a SECOND quadrature and a second δ fit beside the Vxc term's, identical, so every orbital block's
 //! \f$\Phi_{gi}=\chi_i(r_g)\f$ table (npts x n, the largest grid holder) was held twice.  The factory now builds them once and hands
 //! the same objects to both terms: a pairing decided here, where the concrete wiring lives; neither term caches anything new.  Each is
@@ -175,7 +176,73 @@ public:
         if (built) itsDelta.reset(itsBs->CreateVxcFitBasisSet(itsSt.get(), VxcFit::Delta, &Quadrature(), itsMp.relCutoff));
         return itsDelta;
     }
+
+    //! \name THE PER-ORBIT XC ROUTE (OpenWork §3, the cost lever V-FOLD-NEUTRAL did not buy; lane H 2026-11-24)
+    //! On a FOLDED quadrature (an averaging run: the SALC-imposed molecule) the δ XC route samples ONE POINT PER ORBIT at the orbit's summed
+    //! weight (\c FoldedMesh::MakeRepresentativeMesh).  Exact, not an approximation: every integrand the δ route forms within a block -- ρ,
+    //! \f$v\,\chi_i\chi_j\f$, \f$|\nabla\rho|^2\f$, \f$\nabla\rho\cdot\nabla(\chi_i\chi_j)\f$ -- is invariant under the fold's group
+    //! when each block is a 1-D real irrep of it, and the δ fit function at a representative with weight \f$W_o\f$ IS the orbit sum
+    //! \f$\sum_R\delta(R\,r_o)\f$.  So no star-average is left to do (the quadrature handed over carries no fold), and a GGA needs no
+    //! rotation of \f$\nabla\rho\f$.  ONLY the δ route: a Gaussian or multipole Vxc fit projects onto single fit functions, which are not
+    //! invariant, so those keep the full folded quadrature (\c Quadrature()).  The δ-fit Hartree keeps the full δ fit basis (\c Delta()):
+    //! its Coulomb operator couples two fit functions, so it needs every one (the exact (ij|δ_g) projections are not a quadrature).
+    //!@{
+    //! The quadrature the δ XC route samples on: the representatives when the run folds, else \c Quadrature().
+    const BasisSet::FitQuadrature& XCQuadrature()
+    {
+        if (!Quadrature().HasFold()) return Quadrature();
+        if (!itsRepQuad.GetMesh())
+        {
+            RequireInvariantPairProducts();
+            itsRepQuad=itsQuad.MakeRepresentatives();   // no fold left to average; the folded mesh rides along for the geometry derivative
+            itsRepQuad.GetMesh()->FourierTarget()->accuracy=itsMp.sampling;
+            qchem::report::Set("perOrbit", std::to_string(itsQuad.size())+" points in "+std::to_string(itsQuad.NumOrbits())
+                                           +" orbits: the δ XC route samples one point per orbit");
+        }
+        return itsRepQuad;
+    }
+    //! The δ fit basis on \c XCQuadrature(): the shared \c Delta() on an unfolded run, its own on the representatives on a folded one.
+    std::shared_ptr<const BasisSet::rFIT_SF_ABS> XCDelta(bool& built)
+    {
+        if (!Quadrature().HasFold()) return Delta(built);
+        built=!itsRepDelta;
+        if (built) itsRepDelta.reset(itsBs->CreateVxcFitBasisSet(itsSt.get(), VxcFit::Delta, &XCQuadrature(), itsMp.relCutoff));
+        return itsRepDelta;
+    }
+    //!@}
 private:
+    //! \brief THROWS unless every orbital block is a 1-D irrep of the fold's group: the per-orbit route's precondition.  The policy layer
+    //! folds only a SALC-imposed run, so a failure here is a broken invariant.  The block's own \c Symmetry::Representation answers it:
+    //! its image of a generic symmetric matrix under every op must be the matrix itself (a SALC block is the identity on its stabiliser,
+    //! \f$\chi(g)^2=1\f$; an AO block permutes and rotates; a block that does not know the op throws).
+    void RequireInvariantPairProducts() const
+    {
+        const std::vector<Symmetry::SymOp> ops=itsSymmetry.MeshOps();
+        size_t b=0;
+        for (auto ibs : itsBs->Iterate<BasisSet::Real_OIBS>())
+        {
+            const size_t n=ibs->GetNumFunctions();
+            rsmat_t M(n);
+            for (size_t i=0;i<n;i++) for (size_t j=0;j<=i;j++) M(i,j)=1.0/double(1+i+2*j)+0.01*double(i==j);
+            for (size_t k=0;k<ops.size();k++)
+            {
+                std::string why;
+                try
+                {
+                    const rmat_t I=ibs->Image(ops[k], M);
+                    for (size_t i=0;i<n && why.empty();i++) for (size_t j=0;j<n;j++)
+                        if (std::abs(I(i,j)-M(i,j))>1e-12) {why="its image under the op is not the identity"; break;}
+                }
+                catch (const std::logic_error& e) {why=std::string("it does not know the op (")+e.what()+")";}
+                if (!why.empty())
+                    throw std::logic_error("XCMeshShare: the folded XC mesh samples one point per orbit, which is exact only when every orbital "
+                                           "block is a 1-D irrep of the fold's group, and block "+std::to_string(b)+" is not under op "
+                                           +std::to_string(k)+": "+why+".  Only a SALC-imposed run folds (policy MeshSymmetry).");
+            }
+            ++b;
+        }
+    }
+
     st_t                                         itsSt;
     const rbs_t*                                 itsBs;
     qcMesh::MeshParams                           itsMp;
@@ -183,6 +250,8 @@ private:
     const qcMesh::SymmetrySource&                itsSymmetry;    //!< likewise
     BasisSet::FitQuadrature                      itsQuad;
     std::shared_ptr<const BasisSet::rFIT_SF_ABS> itsDelta;
+    BasisSet::FitQuadrature                      itsRepQuad;    //!< the representatives (folded runs only; empty otherwise)
+    std::shared_ptr<const BasisSet::rFIT_SF_ABS> itsRepDelta;   //!< the δ fit on them
 };
 
 //! THE MOLECULAR / ATOM NONLINEAR INTEGRATION MESH (V-NONLINEAR-MESH, user ruling 2026-11-20 1(a)): the sampler the Hamiltonian holds and
@@ -203,14 +272,14 @@ static rmesh_t MolecularNonlinearMesh(const st_t& st, const rbs_t* bs, XCMeshSha
         throw std::invalid_argument(std::string("MolecularVxcTerm: xc.rho fit on the ")+(resolved==VxcFit::Multipole ? "multipole" : "A1")
                                     +" Vxc fit -- the fit is incomplete, so P rho is not rho[D], and XC must see rho[D] (doc/Pins.md pin 28; "
                                      "the rho axis retired 2026-11-15)");
-    BasisSet::FitQuadrature quad=share.Quadrature();   // shared with a grid Hartree term on the same mesh (P2)
+    BasisSet::FitQuadrature quad=share.Quadrature();   // shared with a δ-fit Hartree term on the same mesh (P2)
     // The δ basis on the XC points: the whole term on the δ cell, the inner strategy of a fitted-potential one.  It is the share's:
     // one Φ table per block for the whole Hamiltonian (P2).
     auto makeDelta=[&]
     {
         bool built=false;
         auto d=share.Delta(built);
-        if (!built) qchem::report::Set("sharedWith", "Hartree");   // the grid Hartree term built it on the same mesh
+        if (!built) qchem::report::Set("sharedWith", "Hartree");   // the δ-fit Hartree term built it on the same mesh
         return d;
     };
     if (resolved==VxcFit::Multipole)
@@ -226,7 +295,14 @@ static rmesh_t MolecularNonlinearMesh(const st_t& st, const rbs_t* bs, XCMeshSha
     }
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT", "Vxc fit", [&]() -> std::shared_ptr<const BasisSet::rFIT_SF_ABS>
     {
-        if (resolved==VxcFit::Delta) return makeDelta();
+        if (resolved==VxcFit::Delta)
+        {   // the δ route samples one point per orbit on a folded run (XCMeshShare::XCQuadrature), on the shared mesh otherwise
+            quad=share.XCQuadrature();
+            bool built=false;
+            auto d=share.XCDelta(built);
+            if (!built) qchem::report::Set("sharedWith", "Hartree");
+            return d;
+        }
         return std::shared_ptr<const BasisSet::rFIT_SF_ABS>(bs->CreateVxcFitBasisSet(st.get(), resolved, &quad, mp.relCutoff));
     });
     const auto points=quad.GetMesh();   // held past the move: the point set answers for itself
@@ -251,15 +327,16 @@ static rgmesh_t MolecularGradientMesh(const st_t& st, XCMeshShare& share, XCRout
     if (resolved!=VxcFit::Delta)
         throw std::invalid_argument("MolecularGradientMesh: a GGA samples the density gradient on the delta Vxc fit only (GGA stage 2) -- the "
                                     "setup should have refused this fit (policy GGARoute)");
-    BasisSet::FitQuadrature quad=share.Quadrature();
-    const auto points=quad.GetMesh();   // held past the move
+    BasisSet::FitQuadrature quad;
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Vxc_DFT_GGA", "Vxc fit", [&]
     {
+        quad=share.XCQuadrature();   // one point per orbit on a folded run: |∇ρ|² and ∇ρ·∇(χ_iχ_j) are invariant scalars (XCMeshShare)
         bool built=false;
-        auto d=share.Delta(built);
+        auto d=share.XCDelta(built);
         if (!built) qchem::report::Set("sharedWith", "Hartree");
         return d;
     });
+    const auto points=quad.GetMesh();   // held past the move
     auto sampler=ChargeDensity::MakeDensityGradientSampler(fb, std::move(quad));
     RequireForcedWithinG(*sampler, points.get(), *st);
     return sampler;
@@ -272,7 +349,7 @@ template <class T, class Make> static std::shared_ptr<const BasisSet::FIT_CD_ABS
     return slot.GetOrFill([&]{return fit_t(make());});
 }
 
-//! THE MOLECULAR / ATOM HARTREE TERM.  This is where a grid route's fit basis and operator are paired, so nothing below knows
+//! THE MOLECULAR / ATOM HARTREE TERM.  This is where a δ-fit route's fit basis and operator are paired, so nothing below knows
 //! which it got.  An unresolved \c Auto is the Gaussian fit; the δ route is one stated choice away (\c CoulombFit::Delta).
 //! \a coulombFit: the run's Coulomb-fit slot (S2b): filled here on the first build, read on every later one.
 static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, XCMeshShare& share, const CoulombRoute& coulomb,
@@ -315,12 +392,12 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, XCMesh
     // The δ basis carries its Coulomb integrals (V-ONE-OF-N 3b-ii, ruling (f)): the operator is the BASIS's physics, chosen here.
     auto withCoulomb=[&](std::unique_ptr<qcMesh::CoulombOperator> op)
         {return std::make_shared<const BasisSet::CoulombDeltaFit_IBS>(std::make_shared<BasisSet::BasisCache>(), fb, std::move(op), sym_t(new UnitQN));};
-    if (direct) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(withCoulomb(qcMesh::MakeDirectSumCoulomb(mesh)), quad.GetMesh()), st->GetNumElectrons());
+    if (direct) return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(withCoulomb(qcMesh::MakeDirectSumCoulomb(mesh)), quad.GetMesh()), st->GetNumElectrons());
     const auto sites=MakeSiteMultipoles(st, mesh, hmp, lMax);
-    if (!multipole) return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(withCoulomb(qcMesh::MakeRadialPoissonCoulomb(sites)), quad.GetMesh()), st->GetNumElectrons());
+    if (!multipole) return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(withCoulomb(qcMesh::MakeRadialPoissonCoulomb(sites)), quad.GetMesh()), st->GetNumElectrons());
     // A multipole fit basis owns its own solve (over its sites, in its own metric).
     const auto mfb=std::make_shared<const BasisSet::MultipoleFit_IBS>(std::make_shared<BasisSet::BasisCache>(), fb, sites, sym_t(new UnitQN));
-    return new Vee_Fit<double>(Fitting::MakeGridDensityFitter(mfb, quad.GetMesh()), st->GetNumElectrons());
+    return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(mfb, quad.GetMesh()), st->GetNumElectrons());
 }
 
 Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit,
