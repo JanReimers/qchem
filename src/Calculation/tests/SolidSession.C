@@ -153,8 +153,11 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     EXPECT_EQ(single->Consumes(), ClientConsumes::Energy);
     const auto sizedE=single->SizedSetup();
     EXPECT_TRUE(sizedE->rastersResolved);
-    // What the pilot costs (reported and gated, not hidden): the energy run raises the density raster once from the ball's.
-    EXPECT_TRUE(single->PilotCost().settled);
+    // What the pilot costs (reported and gated, not hidden): the energy run raises the density raster once from the ball's.  And it AUDITS its
+    // stated Becke mesh, as every run on Becke does (D-BECKE-ENERGY-AUDIT, the molecule's rule): (30, L5) reads |dE_xc| 1.5e-1 Ha against its
+    // angular rung, OVER and honoured, so the energy run is NOT settled either (until 2026-11-24 it never looked, and read settled).
+    EXPECT_FALSE(single->PilotCost().settled) << "a stated grid over its target is not settled, on an energy run too";
+    EXPECT_TRUE(single->PilotCost().statedOver);
     EXPECT_EQ(single->PilotCost().rounds, 2);
     // 8 measured 2026-11-13 with GDM's parabolic line minimum (1c3ec5b81): an HONEST convergence, [F,D] 9.4e-8 at E -7.240056928901.
     // The earlier "2" (2026-11-10, cap 4) was a FALSE convergence: iteration 2 met the Δρ gate (7.6e-8) while [F,D] was still 4.8e-4,
@@ -174,7 +177,6 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     // it read settled until lane G's Si Γ catch, 2026-11-07) and says why: statedOver, with a StatedXCMeshMissesEps warn row.
     EXPECT_FALSE(pes.Current()->PilotCost().settled) << "a stated grid over its target is not settled";
     EXPECT_TRUE(pes.Current()->PilotCost().statedOver);
-    EXPECT_FALSE(single->PilotCost().statedOver) << "the energy run does not audit the Becke mesh (an H-run audit)";
     EXPECT_EQ(pes.Current()->PilotCost().rounds, 4) << "the rasters at the bound; the ball climbs cutoffFactor 2 -> 16";
     EXPECT_LE(pes.Current()->PilotCost().reconvergeIterations, 16u) << "9 serial / 13 at 4 threads, 0 stalls (2026-11-10, Δρ/N 1e-7)";
     EXPECT_EQ(pes.Current()->SizedSetup()->opts.solid.cutoffFactor, 16.0);

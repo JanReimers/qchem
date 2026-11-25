@@ -792,7 +792,7 @@ void MoleculeCalculation::PilotMesh(const SCFParams& params)
             }
             return worst;
         };
-        const int cap = (stated || round>0) ? 1 : 0;   // a stated mesh is only measured; a confirming round raises at most once
+        const int cap = qcMesh::BeckePilotMaxRaises(qcMesh::BeckePilotRoleOf(stated), round);   // THE rule (qchem.Mesh.BeckeClimb), as the solid
         const qcMesh::BeckeClimbResult climb=qcMesh::ClimbBeckeLadder(itsSetup->xcMesh, target, cal, false, distance, cap);
         itsPilotCost.rounds=round+1;
         rpt::json steps=rpt::json::array();

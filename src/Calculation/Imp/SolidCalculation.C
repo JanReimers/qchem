@@ -1883,9 +1883,9 @@ std::optional<ResourceRefusal> SolidCalculation::PilotPreflight() const
     if (S.planeWave || S.rastersResolved || itsImp->rastersSettled || !itsImp->ladder) return std::nullopt;
     // ROUND 0's two references, exactly as CalibrateRasters names and builds them (a geometry run on Becke carries the rungs).
     const qcMesh::MeshParams& xcCur=S.xcMesh;
-    // A geometry run climbs its Becke mesh; so does an ENERGY run whose GGA route chose Becke itself (controller ruling 2026-11-21, pin 31:
-    // the new route may not ship on the fixed (40, 29) default -- NaF PBE moved 29 uHa from L47 to L65).  An LDA energy run keeps (40, 29): OpenWork G2.
-    const bool xcOnBecke = (itsImp->consumes==BasisSet::Gaussian::ClientConsumes::MatrixElements || S.ggaChoseBecke) && xcCur.cellKind==qcMesh::UnitCellKind::Becke;
+    // EVERY run on a Becke mesh judges it (qcMesh::BeckePilotRoleOf: unstated climbs, stated is audited), energy or geometry, LDA or GGA, as the
+    // molecule does (D-BECKE-ENERGY-AUDIT, controller 2026-11-24).  Until then an LDA energy run kept (40, 29) whatever eps said (OpenWork G2 (1)).
+    const bool xcOnBecke = xcCur.cellKind==qcMesh::UnitCellKind::Becke;
     std::optional<qcMesh::MeshParams> xcAngular, xcRadial;
     if (xcOnBecke)
     {
@@ -1954,8 +1954,8 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     const bool   onH   =c==G::ClientConsumes::MatrixElements;
     const size_t nAtoms=itsImp->lat->GetUnitCell().GetNumAtoms();
     const double target=itsImp->setup->opts.solid.grid.Target(c, nAtoms);
-    // THE BECKE CLIMB'S MEASURE FOLLOWS THE CLIENT (user ruling 2026-11-21, option A): a geometry run's climb settles on max|dH_xc| <= eps, a GGA
-    // ENERGY run's on |dE_xc| between rungs <= eps x atoms -- every other term of an energy run is judged on its energy.  max|dH_xc| is still
+    // THE BECKE CLIMB'S MEASURE FOLLOWS THE CLIENT (user ruling 2026-11-21, option A): a geometry run's climb settles on max|dH_xc| <= eps, an
+    // ENERGY run's (LDA or GGA since D-BECKE-ENERGY-AUDIT) on |dE_xc| between rungs <= eps x atoms -- every other term of an energy run is judged on its energy.  max|dH_xc| is still
     // MEASURED and REPORTED on an energy run, beside dE_xc (ruling part 1), but does not steer it.  WHY not max|dH| there: NaF Gamma PBE at eps 1e-5
     // climbed (100, L53) -> (140, GL89) on it in 93 min and ended NOT SETTLED (L53/L65 8.7e-5, L65/GL77 2.3e-5, GL77/GL89 1.1e-4) while its
     // energy sat within 1 uHa of CP2K from L65 on (GPW_NaF.Γ_Becke_PBE_CP2K_Long).  The max|dH_xc| floor (~3.5e-5 per element from GL53 to GL89,
@@ -1963,6 +1963,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
     // on diffuse x diffuse pairs only (the empty Na p, F's most diffuse p), symmetry-forbidden elements included; not the partition (Becke
     // orders 2/3/5, SSF, modified Becke), not the image cut, not radial (that converges, 1.8e-5 -> 1.7e-6 from nR 100 to 200).  OpenWork row.
     const double xcTarget=target;
+    const qcMesh::MeshParams xcEntry=itsImp->setup->xcMesh;   // where the XC mesh entered: the policy row below names it beside where it ends
     qchem::report::Timed timed("postSCF: raster pilot (reference basis + audit; re-converge when a raster rises)");
     const std::streamsize prec0=std::cout.precision();
     report::FormatGuard keepFormat(std::cout);   // exact restore on every exit (prec0 alone missed the flags and the early returns)
@@ -1989,7 +1990,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         // read from the reference that moved it.  Four separate references built the run's own 259200-point mesh twice a round to compare it with itself
         // (MnO geometry, 2026-11-05: 6 of the stage's 15 mesh builds).  An admitted PlaneWave fit on Becke would break this: it would put a raster under XC.
         const qcMesh::MeshParams& xcCur=itsImp->setup->xcMesh;
-        const bool xcOnBecke=(onH || itsImp->setup->ggaChoseBecke) && xcCur.cellKind==qcMesh::UnitCellKind::Becke;   // as PilotPreflight
+        const bool xcOnBecke=xcCur.cellKind==qcMesh::UnitCellKind::Becke;   // every run on Becke judges it, as PilotPreflight (D-BECKE-ENERGY-AUDIT)
         std::optional<qcMesh::MeshParams> xcAngular, xcRadial;
         if (xcOnBecke)
         {
@@ -2137,7 +2138,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             };
             const qcMesh::BeckeRungDistance& distance = onH ? distanceH : distanceE;
             const char* measure = onH ? "max|dH_xc|" : "|dE_xc|";
-            const int cap = (stated || round>0) ? 1 : 0;   // a stated mesh is only measured; a confirming round raises at most once
+            const int cap = qcMesh::BeckePilotMaxRaises(qcMesh::BeckePilotRoleOf(stated), round);   // THE rule (qchem.Mesh.BeckeClimb), as the molecule
             qcMesh::BeckeClimbResult climb;
             try { climb=qcMesh::ClimbBeckeLadder(xcCur, xcTarget, itsImp->setup->opts.solid.beckeLadder, itsImp->setup->imposed, distance, cap); }
             catch (ClimbRefused& c)
@@ -2338,6 +2339,24 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
                        "the XC-mesh audit (each axis against its next rung, at the converged D) delivers "+miss(xcStatedMiss)
                        +": a stated grid is honoured and reported, never raised (pin 31 rule 3); state xcMesh Auto to let the pilot size it");
         statedOver.push_back({{"grid","xcMesh"},{"value",mesh},{"delivered",xcStatedMiss},{"target",target}});
+    }
+    // AN UNSTATED BECKE MESH REPORTS WHERE EPS PUT IT (the molecule's MolecularXCMeshSettled / NotSettled, the same rule): the row a user reads
+    // to see that eps moved the mesh, and why.
+    const bool xcMeshStated=itsImp->setup->opts.xcMesh->cellKind!=qcMesh::UnitCellKind::Auto;
+    const bool pilotSizedABeckeMesh=xcEntry.cellKind==qcMesh::UnitCellKind::Becke && qcMesh::BeckePilotRoleOf(xcMeshStated)==qcMesh::BeckePilotRole::Climb;
+    if (pilotSizedABeckeMesh)
+    {
+        std::ostringstream tg; tg<<std::defaultfloat<<std::setprecision(3)<<target;
+        const std::string measure = onH ? "max|ΔH_xc|" : "|ΔE_xc|";
+        const std::string mesh=BeckeName(itsImp->setup->xcMesh), entered=BeckeName(xcEntry);
+        const bool settled=itsImp->pilotCost.settled;
+        const std::string name   = settled ? "SolidXCMeshSettled" : "SolidXCMeshNotSettled";
+        const std::string decided= settled ? "the Becke XC mesh "+mesh+" (entered at "+entered+")" : "the Becke XC mesh stops at "+mesh+" (entered at "+entered+")";
+        const std::string reason = settled
+            ? "the mesh is unstated, so the pilot sizes it from eps: climbed at the converged density until both axes meet the target "+tg.str()+" Ha on "+measure+" (each axis against its next rung)"
+            : "the pilot ended NOT SETTLED (its round lines say which term); the XC mesh's delivered error may be over the target "+tg.str()+" Ha on "+measure;
+        std::cout<<tag<<"policy "<<name<<": "<<decided<<" -- "<<reason<<std::endl;   // the console's copy of the row (rundeck's record does not carry the report)
+        policy::Report(name, decided, settled ? policy::Verdict::Choose : policy::Verdict::Warn, reason);
     }
     const rpt::json restate=RestateKeys(itsImp->setup->opts.solid.tolerances, itsImp->setup->opts.solid.cutoffFactor, itsImp->setup->xcMesh);
     // NOT SETTLED keeps the grids it reached, so the keys still restate THIS run -- but not a run that met the target: the line says so.
