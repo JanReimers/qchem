@@ -141,7 +141,7 @@ private:
 
 //! \brief PULAY (density-DIIS) ON THE DENSITY MATRIX -- "Pulay without Kerker" (OpenWork §3, 2026-10-26).
 //!
-//! The history is D itself: copies of each step's D_in and D_out.  The step solves the DIIS bordered system over the
+//! The history is D itself: a copy of each step's D_in and its residual R = D_out - D_in.  The step solves the DIIS bordered system over the
 //! residuals R_i = D_out,i - D_in,i (inner product \c tMixableDensity::Dot) for c (Σc = 1), and the next input is
 //! \f$D_{in}^{next}=(1-\alpha)\sum_i c_iD_{in,i}+\alpha\sum_i c_iD_{out,i}\f$, formed on the mixer's OWN copy (\c OwnedDIn; the working D_out is untouched) with
 //! \c ReScale + \c Axpy.  So the Fock -- and V_xc -- see that mixed density MATRIX through the DM route: no fit, no ρ̃, no
@@ -149,7 +149,13 @@ private:
 //! linear in D, so this IS Pulay on ρ[D] -- exactly, with no G-ball truncation.  Any T, any system: it asks nothing of the
 //! geometry.  On a polarized run the composite holds both spins, so ONE history and one B summed over them come free.
 //! Priming: \a start plain linear steps at \a relax before the history engages (history-based mixing is unstable far out).
-//! Memory: 2 copies of D per history slot (the residual inner products are formed bilinearly from in/out).
+//! Memory: 2 copies of D per history slot, D_in and the RESIDUAL R = D_out - D_in (D_out = D_in + R is never needed alone).
+//! ⚠ THE RESIDUAL IS HELD, NEVER RE-FORMED BILINEARLY (lane B 2026-11-25, OpenWork §3 "Δρ noise floor ~3e-8 on the NaF PW SCF").
+//! B_ij = <R_i,R_j> once read <out_i,out_j> - <out_i,in_j> - <in_i,out_j> + <in_i,in_j>: four terms of size ||D||² (16 on NaF) whose
+//! difference is ||R||² ~ 1e-15, so B's absolute roundoff (~5e-13 measured; B_nn went NEGATIVE) swamped it once ||R||_F < ~1e-6, the
+//! coefficients turned to noise and Δρ/N stalled at 2-8e-8 (it read ~0.12 ||R||_F there).  With R held, B's error is RELATIVE
+//! (|δB_ij| <= γ_m ||R_i|| ||R_j||) and the same SCF fell geometrically to Δρ/N 3.9e-13 in 21 iterations.  The bilinear form's floor
+//! is ||R||_F >= 2 ||D||_F sqrt(u) even with exact dot products (each term rounds at u ||D||²); held, it is u ||D||_F.
 template <class T> class PulayDMixer : private OwnedDIn<T>, public tDensityMixer<T>
 {
     using OwnedDIn<T>::InputFor; using OwnedDIn<T>::Install;
@@ -168,22 +174,21 @@ public:
         if (itsStart>0 && itsCount==itsStart+1)                                      // R1.3: priming gives way to the history
             itsHandOff=HandOffRequest{"linear priming", "Pulay history on D (depth "+std::to_string(itsDepth)+")",
                                       "pulayStart "+std::to_string(itsStart)+" priming steps done"};
-        itsIns.push_back(in.MakeCopy());                                             // D_in  of this step
-        itsOuts.push_back(working.MakeCopy());                                       // D_out of this step
-        while ((int)itsIns.size()>itsDepth) { itsIns.pop_front(); itsOuts.pop_front(); }
+        itsIns.push_back(in.MakeCopy());                                             // D_in of this step
+        auto R=working.MakeCopy(); R->Axpy(-1.0, in);                                // its residual D_out - D_in, formed ONCE (see the class note)
+        itsResiduals.push_back(std::move(R));
+        while ((int)itsIns.size()>itsDepth) { itsIns.pop_front(); itsResiduals.pop_front(); }
         const size_t n=itsIns.size();
         if (n<2) { mixed->MixIn(in, 1.0-itsRelax); Install(std::move(mixed), working); return dcd; }
-        rsmat_t B=blazem::zero<double>(n);                                           // B_ij = <R_i,R_j>, bilinear in (in,out)
+        rsmat_t B=blazem::zero<double>(n);                                           // B_ij = <R_i,R_j>
         for (size_t i=0;i<n;++i)
-            for (size_t j=i;j<n;++j)
-                B(i,j)= itsOuts[i]->Dot(*itsOuts[j]) - itsOuts[i]->Dot(*itsIns[j])
-                      - itsIns [i]->Dot(*itsOuts[j]) + itsIns [i]->Dot(*itsIns[j]);
+            for (size_t j=i;j<n;++j) B(i,j)=itsResiduals[i]->Dot(*itsResiduals[j]);
         const rvec_t c=qchem::Math::DIIS::Coefficients(qchem::Math::DIIS::Bordered(B));
         mixed->ReScale(0.0);                                                         // D_out is in the history
         for (size_t i=0;i<n;++i)
         {
-            mixed->Axpy((1.0-itsRelax)*c[i], *itsIns [i]);
-            mixed->Axpy(     itsRelax *c[i], *itsOuts[i]);
+            mixed->Axpy(          c[i], *itsIns      [i]);                           // (1-α)Σc D_in + αΣc D_out = Σc D_in + αΣc R
+            mixed->Axpy(itsRelax*c[i], *itsResiduals[i]);
         }
         Install(std::move(mixed), working);
         return dcd;
@@ -198,7 +203,7 @@ private:
 public:
     std::optional<HandOffRequest> TakeHandOff() override {auto h=std::move(itsHandOff); itsHandOff.reset(); return h;}
 private:
-    std::deque<std::unique_ptr<tMixableDensity<T>>> itsIns, itsOuts;   //!< the history (aligned index-wise)
+    std::deque<std::unique_ptr<tMixableDensity<T>>> itsIns, itsResiduals;   //!< the history: D_in and R = D_out - D_in (aligned index-wise)
 };
 
 } //namespace
