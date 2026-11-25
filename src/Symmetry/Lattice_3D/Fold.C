@@ -15,6 +15,7 @@
 module;
 #include <vector>
 #include <utility>
+#include <unordered_map>
 #include <cassert>   // the SymmetrizeValuesSigned edge-op guard
 export module qchem.Symmetry.Lattice_3D.Fold;
 export import qchem.Types;       // ivec3_t, rvec3_t
@@ -49,6 +50,32 @@ struct Fold
     std::vector<std::vector<std::pair<int,int>>> members;
 
     size_t Reps() const {return repRaw.size();}   //!< Number of orbits (stars).
+};
+
+//! \brief The point of a set NEAREST a query within an absolute Euclidean tolerance: the matcher of \c FoldPoints and of the molecular mesh's
+//! invariance checks (lane H 2026-11-25).
+//!
+//! A SPARSE 3-D BUCKET GRID with edge \f$2\,tol\f$, so the 3x3x3 neighbourhood of the query's bucket holds every candidate, and at most one
+//! bucket exists per point.  It replaces a sorted-by-x window search, which scans every point inside the slab \f$|x-x_q|\le tol\f$: an
+//! invariant molecular mesh puts whole planes of points at one x (a mirror plane, an atom on an axis), so each query scanned thousands.
+//! MEASURED: SF₆ D2h, 0.73M points x 8 ops, 25 s per fold and as much again in the mesh's own invariance check, paid on every mesh-pilot
+//! round (14 folds, 354 s of a 20-minute run) -- the periodic \c FoldPointsPeriodic's index had the same defect fixed on 2026-09-06.
+//! Ties (coincident points: a radial rule's repeated r = 0 node) keep the lowest index.
+class PointIndex
+{
+public:
+    //! \a pts is held by reference: it must outlive the index.  THROWS on a tolerance that is not positive.
+    PointIndex(const std::vector<rvec3_t>& pts, double tol);
+    //! The index of the point nearest \a r with distance <= tol, or -1.
+    long Find(const rvec3_t& r) const;
+private:
+    struct Key { long long x, y, z; bool operator==(const Key&) const = default; };
+    struct KeyHash { size_t operator()(const Key& k) const; };
+    Key  KeyOf(const rvec3_t& r) const;
+    void Scan(const Key& k, const rvec3_t& r, long& best, double& bestD2) const;
+    const std::vector<rvec3_t>& itsPts;
+    double itsTol, itsEdge;
+    std::unordered_map<Key, std::vector<long>, KeyHash> itsBuckets;
 };
 
 //! \brief Fold arbitrary points under \f$r \to W r + \tau\f$, matching images against the

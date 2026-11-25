@@ -18,6 +18,7 @@ module;
 export module qchem.Mesh.CoulombOperator;
 export import qchem.Mesh;                     // qcMesh::Mesh (the points a direct sum runs over)
 export import qchem.Mesh.SiteMultipoles;      // what a radial solve runs over
+import qchem.Mesh.Folded;                     // FoldedMesh: the orbits a folded operator scatters over
 export import qchem.Types;
 
 export namespace qchem::qcMesh
@@ -68,5 +69,20 @@ std::unique_ptr<CoulombOperator> MakeRadialPoissonCoulomb(std::shared_ptr<const 
 
 //! \brief The same solve for a multipole fit over \a sites: \a metric is that basis's diagonal.
 std::unique_ptr<CoulombOperator> MakeMultipoleCoulomb(std::shared_ptr<const qcMesh::SiteMultipoles> sites, rvec_t metric);
+
+//! \brief A point operator on the REPRESENTATIVES of a folded mesh: \a full runs over every point of \a folded's mesh, and this one answers
+//! for one point per orbit (lane H 2026-11-24, the δ-fit Hartree on the representatives; OpenWork §3).
+//!
+//! WHY IT IS EXACT.  On an invariant mesh an operator built from it commutes with the group's action (the radial Poisson solve: its moments,
+//! solve and synthesis, and their transposes, are covariant, complete in m), so an INVARIANT charge has an invariant potential.  The charge
+//! at the representatives, \f$Q_o=W_o\rho_o\f$, then fixes the charge everywhere, \f$q_g=w_g\rho_o\f$ for each member g of orbit o, and the
+//! potential is read back at the representative.  The energy \f$\tfrac12\sum_gq_gv_g=\tfrac12\sum_oQ_ov_o\f$ follows, as does the
+//! self-repulsion pullback (taken on the full charges).  The CALLER owns the invariance of the charge: a SALC-imposed density on the mesh's
+//! own group.  The cost is the full operator's: only the points the CLIENTS sample (collocation, contraction) fold.
+//!
+//! The orbit bookkeeping lives HERE, in the operator's wiring, so a fitter on the representatives sees an ordinary point basis whose
+//! multiplicity is in its weights (the contract with lane S's analytic (ij|δ) fitter, 2026-11-24).  THROWS when \a folded has no fold, or
+//! \a full is null.  \a full must be built on \a folded's mesh.
+std::unique_ptr<CoulombOperator> MakeFoldedCoulomb(std::unique_ptr<CoulombOperator> full, const FoldedMesh& folded);
 
 } //namespace

@@ -15,6 +15,7 @@ target_sources(qcMesh PRIVATE
     Internal/FoldedMesh.C
     Internal/CoulombOperatorFactory.C
     Internal/Imp/RadialPoissonCoulomb.C
+    Internal/Imp/FoldedCoulomb.C
     )
 # Module interface units (export the BMI .gcm files other modules import).
 target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
