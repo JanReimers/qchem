@@ -32,7 +32,7 @@ set(QCHEM_DEPS_FLAVOR release)
 
 #  one row per dependency: name | repository (no .git) | the full 40-character commit
 set(QCHEM_PINS
-    "blaze|https://github.com/JanReimers/blaze|7478a70b992dffb9a366a0be405730d1368f3eb9"
+    "blaze|https://github.com/JanReimers/blaze|c90b4a299f3f6f74c482c890a7bb520b4ee5f4ee"
     "json|https://github.com/nlohmann/json|568b708fd46deeb23a959381393a7564f1586588"
     "BSplinebasis|https://github.com/okruz/BSplinebasis|678b28d226f781d4405ec20027489b520688d9a5"
     "tabulate|https://github.com/p-ranav/tabulate|b9026bf1e31dd561680e20cfda2a37716161aac1"
