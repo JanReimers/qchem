@@ -12,6 +12,7 @@ module;
 #include <map>
 #include <optional>
 #include <iomanip>
+#include <sstream>
 module qchem.AtomCalculation;
 
 import qchem.SetupDecisions;   // DIISEngageGate: the engage gate every setup shares (V-FACADE-SETUP)
@@ -505,9 +506,18 @@ void AtomCalculation::RecordState(StateRecord& r, double kT) const
     if (!o.atom.configuration.empty()) fp.refuseStr["configuration"]=o.atom.configuration;   // a state of another configuration seeds nothing (stated only: the derived default keeps its old fingerprint)
     // ---- WARM ----
     if (*o.model==Model::Xalpha) fp.warmNum["xc.xalpha"]={o.xalpha};
-    fp.warmNum["grids.xcMesh"]={double(o.xcMesh->nRadial), double(o.xcMesh->angularDegree), double(int(o.xcMesh->radial)), double(int(o.xcMesh->angular))};
+    // The grids the run CONVERGED ON (V-FACADE-HOIST (b)): a DFT atom's are \c itsGrids, as resolved and as its pilot raised them, so a
+    // restart of this state at the same eps adopts them (SizedBySavedState) and compares equal; the entry mesh named only where it climbed FROM.
+    const int xcRadial=itsDFT ? itsGrids.xcRadial : o.xcMesh->nRadial;
+    const auto& route=itsDFT ? itsGrids.coulomb : o.coulomb;
+    fp.warmNum["grids.xcMesh"]={double(xcRadial), double(o.xcMesh->angularDegree), double(int(o.xcMesh->radial)), double(int(o.xcMesh->angular))};
     fp.warmNum["xc.fit"]={double(int(o.vxcFit))};
-    fp.warmNum["coulomb.route"]={double(int(o.coulomb.fit)), double(int(o.coulomb.solver)), double(o.coulomb.lMax), double(o.coulomb.nRadial)};
+    fp.warmNum["coulomb.route"]={double(int(route.fit)), double(int(route.solver)), double(route.lMax), double(route.nRadial)};
+    if (itsDFT)
+    {
+        fp.warmNum["grids.coulombFitRung"]={double(itsGrids.fitRung)};
+        fp.warmNum["accuracy.eps"]={o.accuracy.eps};
+    }
     fp.warmNum["ortho.kind"]={double(int(*o.ortho))};
 }
 
@@ -530,12 +540,43 @@ std::unique_ptr<qchem::ChargeDensity::rDM_CD> AtomCalculation::RestoredDensity()
     return cd;
 }
 
+namespace
+{
+//! \brief A STATE SIZED FOR THIS TARGET (the molecule's and the solid's \c SizedBySavedState, for the atom's grids; V-FACADE-HOIST (b)):
+//! a setup whose eps the saved state was made at adopts the grids that state CONVERGED ON -- what the atom pilot settled for that eps -- so
+//! an exact resume stays exact and a view of the run's own state is exact too.  Null when nothing is adopted (another eps, eps 0, another
+//! kind, an older state without the keys, grids already sized); else the adopted setup, and \a why says what and why.
+std::shared_ptr<const AtomSetup> SizedBySavedState(const std::shared_ptr<const AtomSetup>& setup, const SavedState& saved, std::string& why)
+{
+    if (setup->sizedGrids || saved.kind!="atom" || !(setup->opts.accuracy.eps>0.0)) return nullptr;
+    const auto& w=saved.fingerprint.warmNum;
+    auto key=[&](const char* k, size_t n) -> const std::vector<double>*
+    { auto it=w.find(k); return it!=w.end() && it->second.size()==n ? &it->second : nullptr; };
+    const auto* eps=key("accuracy.eps", 1);
+    const auto* xc =key("grids.xcMesh", 4);
+    const auto* cr =key("coulomb.route", 4);
+    const auto* fit=key("grids.coulombFitRung", 1);
+    if (!(eps && xc && cr && fit && (*eps)[0]==setup->opts.accuracy.eps)) return nullptr;
+    auto adopted=std::make_shared<AtomSetup>(*setup);
+    adopted->sizedGrids=AtomSetup::SizedGrids{.xcRadial=int((*xc)[0]), .hartreeRadial=int((*cr)[3]), .fitRung=int((*fit)[0])};
+    std::ostringstream os;
+    os<<"the saved state's grids (XC radial "<<int((*xc)[0])<<", Hartree radial "<<int((*cr)[3])<<", Coulomb-fit rung "<<int((*fit)[0])
+      <<") were sized for this accuracy (eps "<<(*eps)[0]<<")";
+    why=os.str();
+    return adopted;
+}
+} //anonymous namespace
+
 Outcome<std::unique_ptr<StateView>, RestartRefusal>
 AtomCalculation::ViewState(const std::string& path, std::shared_ptr<const AtomSetup> setup)
 {
     using O=Outcome<std::unique_ptr<StateView>, RestartRefusal>;
     auto saved=ReadState(path);
     if (!saved) return O::Fail(saved.Error());
+    {
+        std::string why;
+        if (auto adopted=SizedBySavedState(setup, *saved, why)) { qchem::report::Set("adopted", why); setup=std::move(adopted); }   // an exact view
+    }
     std::unique_ptr<AtomCalculation> c(new AtomCalculation(BuildOnly{}, std::move(setup), nullptr));
     {
         qchem::report::Scope basis("basis");
@@ -579,6 +620,15 @@ AtomCalculation::PrepareRestart(const std::string& path, std::shared_ptr<const A
     {
         std::cout<<tag<<"REFUSED ("<<path<<"): "<<saved.Error().details<<std::endl;
         return O::Fail(saved.Error());
+    }
+    {
+        std::string why;   // A STATE SIZED FOR THIS TARGET: an unsized setup adopts the saved state's grids (SizedBySavedState)
+        if (auto adopted=SizedBySavedState(setup, *saved, why))
+        {
+            policy::Report("RestartAdoptsGrids", "the restart runs on the saved state's atom grids, no pilot", policy::Verdict::Choose, why);
+            std::cout<<tag<<"adopting "<<why<<std::endl;
+            setup=std::move(adopted);
+        }
     }
     std::unique_ptr<AtomCalculation> c(new AtomCalculation(BuildOnly{}, std::move(setup), std::move(onIteration)));
     {
@@ -661,6 +711,17 @@ void AtomCalculation::ResolveGrids()
         if (!itsGrids.hStated) itsGrids.coulomb.nRadial=kAtomHartreeRadials[0];
     }
     itsGrids.fitRung=0;
+    if (const auto& g=itsSetup->sizedGrids)   // a restart of a state sized for this eps: adopt its grids, no pilot (SizedBySavedState)
+    {
+        if (!itsGrids.xcStated) itsGrids.xcRadial=g->xcRadial;
+        if (itsGrids.coulomb.fit==CF::Multipole && !itsGrids.hStated && g->hartreeRadial>0) itsGrids.coulomb.nRadial=g->hartreeRadial;
+        if (itsGrids.coulomb.fit==CF::Auxiliary) itsGrids.fitRung=g->fitRung;
+        itsPiloted=true;
+        policy::Report("AtomGridsAdopted", "the atom runs on the saved state's sized grids: XC radial "+std::to_string(itsGrids.xcRadial),
+                       policy::Verdict::Choose, "the state was converged on grids a pilot sized for this accuracy (eps "+
+                       std::to_string(itsSetup->opts.accuracy.eps)+"), so they are adopted and the pilot does not run again");
+        return;
+    }
     const std::string xc=std::to_string(itsGrids.xcRadial);
     if (!sized)
         policy::Report("AtomGridsAsStated", "the atom's grids as stated: XC radial "+xc, policy::Verdict::Choose,
