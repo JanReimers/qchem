@@ -708,7 +708,8 @@ private:
     //! (\c GridAccuracy::MeasuredDemand) at the target for what the client consumes (\c Consumes), and -- when any term demands more --
     //! rebuild the point on the raised rasters and re-converge from this D (a restored stage: the Ladder on its GDM rung at kT = 0).
     //! Repeats until every term meets its target (at most \c kPilotRounds); idempotent once settled.  No-op on a resolved setup.
-    //! A run whose client consumes H on a Becke XC mesh also audits that mesh against the next rung on each axis of the nested ladder
+    //! A run on a Becke XC mesh -- energy or geometry, LDA or GGA (\c qcMesh::BeckePilotRoleOf, the molecule's rule) -- also audits that mesh
+    //! against the next rung on each axis of the nested ladder, on |dE_xc| or max|dH_xc| as the client consumes
     //! (\c qcMesh::BeckeAngularRungAbove, \c BeckeRadialRungAbove).  When the mesh was the facade's choice (\c xcMesh Auto) it CLIMBS at the
     //! audited D (\c qcMesh::ClimbBeckeLadder): round 0 walks the ladder to settled with no re-convergence between rungs, and every later round
     //! is the confirming audit (one raise at most).  A STATED Becke mesh is audited and reported, never raised (the grid is a user decision).

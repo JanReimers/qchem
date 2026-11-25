@@ -27,6 +27,7 @@
 #include <filesystem>
 #include <iostream>
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
+#include <nlohmann/json.hpp>   // the eps gate's inline decks
 
 import qchem.SCFCap;                             // IterationBudget: the convergence PANEL's budget (doc/SCFRobustnessPlan.md §4)
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
@@ -58,6 +59,8 @@ import qchem.Symmetry.Spin;                      // Spin
 import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
 import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
 import qchem.BasisSet.GMap;              // PairProjection<dcmplx> (the collocation weight tensor); SymmetryDefects (§3 diagnostic)
+import qchem.Deck;                                // deck::Run -- the eps gate runs the path rundeck and the GUI run
+import qchem.Reporting;                           // the eps gate reads the run's XC-mesh policy row
 import qchem.Pseudopotential.GTH_Potentials;      // GetGTH, GTH_PP (the PP model, for the matrix-trace probe)
 import qchem.Types;
 import qchem.GeometryOptimizer;                   // GeometryOptimizer, CellWyckoffMap (the rocksalt cell relaxation)
@@ -281,6 +284,69 @@ TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke intern
     EXPECT_NEAR(B40.rhoLost, 0.0, 5e-3);
     DiffXC(U,B40);                                    // report-only: the uniform raster's element error
     EXPECT_LT(DiffXC(B40,B80), 2e-3) << "Becke V_xc not internally converged on the sharp-F system";
+}
+
+
+// CLAIM (D-BECKE-ENERGY-AUDIT, controller 2026-11-24; user: "I was playing eps and becke grid would not budge"): an LDA ENERGY run on the Becke
+// mesh its facade chose (xcMesh unstated) sizes that mesh FROM EPS, and its policy row says so.  The solid now takes the molecule's rule
+// (qcMesh::BeckePilotRoleOf: unstated climbs, stated is audited) on every run, not only a geometry run or a GGA; until then an LDA energy run
+// kept (40, L29) whatever eps said -- on MnO FM that mesh was 161 uHa low at its own D (OpenWork §3 "Becke vs uniform XC").
+// MEASURED 2026-11-24 (rundeck, `~/Code/qchem6-runs/NaF/laneB_becke_eps/`): eps 1e-4 and 1e-5 settle on (40, L29) (radial |dE_xc| 1.44e-5
+// against 2e-5 at 1e-5), 5e-6 climbs to (60, L29) in one raise, 1e-6 to (60, GL41) in three.  Two arms here, ~2 + ~3.5 min.
+namespace
+{
+//! The XC-mesh policy rows (SolidXCMeshSettled / NotSettled) of the LAST run filed under \a prefix.
+std::vector<qchem::report::json> XCMeshRows(const std::string& prefix)
+{
+    const auto& G=qchem::report::GlobalReport();
+    const qchem::report::json* last=nullptr;
+    for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind(prefix,0)==0) last=&it.value();
+    if (!last) throw std::logic_error("no filed run "+prefix);
+    std::vector<qchem::report::json> rows;
+    std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& x)
+    {
+        if (x.is_object())
+            for (auto it=x.begin(); it!=x.end(); ++it)
+            {
+                if (it.key()=="policy" && it.value().is_array())
+                    for (const auto& r : it.value()) if (r.contains("name") && r["name"].get<std::string>().rfind("SolidXCMesh",0)==0) rows.push_back(r);
+                walk(it.value());
+            }
+        else if (x.is_array()) for (const auto& y : x) walk(y);
+    };
+    walk(*last);
+    return rows;
+}
+} // namespace
+TEST(GPW_NaF, Γ_Imp_EnergyRunSizesItsBeckeMeshFromEps_Long)
+{
+    namespace fs=std::filesystem;
+    auto run=[](double eps)
+    {
+        const nlohmann::json deck={
+            {"structure","NaF_rocksalt"}, {"kmesh",{1,1,1}}, {"basis",{{"data","VALENCE_LOWQ_SR2"}}}, {"seed","IonicSAD"},
+            {"ortho","CholeskyPivoted"}, {"orthoTol",1e-4}, {"accelerator","Ladder"}, {"imposeSymmetry",true}, {"accuracy",eps},   // NO xc mesh: the facade's choice
+            {"scf",{{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7},{"minFD",1e-7},{"minDeltaE","off"},{"minDeltaFD","off"},{"minVirial","off"}}}};
+        qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
+        const fs::path dir=fs::temp_directory_path()/("qchem_it_naf_becke_eps_"+std::to_string(::getpid()));
+        fs::remove_all(dir);
+        qchem::deck::Provenance pv; pv.codeVersion="it";
+        const auto out=qchem::deck::Run(spec, pv, dir);
+        fs::remove_all(dir);
+        EXPECT_TRUE(out.converged) << "eps " << eps << ": " << out.summary;
+        const auto rows=XCMeshRows("NaF_rocksalt");
+        EXPECT_EQ(rows.size(), 1u) << "eps " << eps << ": one XC-mesh policy row";
+        if (rows.empty()) return std::string();
+        EXPECT_EQ(rows[0]["name"], "SolidXCMeshSettled") << rows[0].dump();
+        EXPECT_EQ(rows[0]["verdict"], "choose");
+        const std::string decided=rows[0]["decided"];
+        std::cout << "[eps gate] eps " << eps << ": " << decided << std::endl;
+        return decided.substr(0, decided.find(" (entered at"));   // the mesh it settled on
+    };
+    const std::string loose=run(1e-5), tight=run(5e-6);
+    EXPECT_NE(loose.find("nR=40, L=29"), std::string::npos) << "eps 1e-5 keeps the entry rung (radial 1.44e-5 against 2e-5): " << loose;
+    EXPECT_NE(loose, tight) << "a tighter eps moves the Becke mesh on an LDA energy run";
+    EXPECT_EQ(tight.find("nR=40"), std::string::npos) << "eps 5e-6 raises the radial axis (measured (60, L29)): " << tight;
 }
 
 
