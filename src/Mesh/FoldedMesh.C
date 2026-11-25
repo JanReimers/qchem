@@ -56,7 +56,7 @@ public:
 
     //! \brief How each op of the fold's group acts on the mesh's SITE BLOCKS: \c image[k][A] is the site op \c k carries site \c A onto,
     //! and \c W[k] its Cartesian rotation.  Plain indices, so qcMesh stays geometry-free: the BUILDER that knows which atom a site block
-    //! is supplies it (the molecular \c FoldOrbits).  What a per-orbit consumer's GEOMETRY GRADIENT needs (\c SymmetrizeSiteVectors).
+    //! is supplies it (the molecular \c MakeFoldedMesh).  What a per-orbit consumer's GEOMETRY GRADIENT needs (\c SymmetrizeSiteVectors).
     struct SiteAction
     {
         std::vector<Matrix3D<double>>    W;       //!< one per op
