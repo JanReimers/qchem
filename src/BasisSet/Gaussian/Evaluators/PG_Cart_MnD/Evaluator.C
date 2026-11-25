@@ -128,7 +128,8 @@ public:
     void BindTolerances(const GPWTolerances& t)
     {
         if (t.screenEps==itsPGTol.screenEps && t.fieldSharp==itsPGTol.fieldSharp
-         && t.relCutoff==itsPGTol.relCutoff && t.densityEps==itsPGTol.densityEps && t.relCutoffSafety==itsPGTol.relCutoffSafety) return;
+         && t.relCutoff==itsPGTol.relCutoff && t.densityEps==itsPGTol.densityEps && t.relCutoffSafety==itsPGTol.relCutoffSafety
+         && t.pairRoutingEps==itsPGTol.pairRoutingEps) return;
         // GUARD: two GPW_Evaluators sharing this basis with DIFFERENT tolerances would silently invalidate each other's caches.
         // A built task list / memo means integrals were already computed at the old values: that is a broken invariant, not an input.
         if (!itsBoxTasks.empty() || !itsIntegrateMemos.empty())
@@ -1240,38 +1241,28 @@ public:
     size_t PairLevel(size_t i, size_t j, const std::vector<double>& ecut_L, double absRelCutoff,
                      double fieldSharpness=0.0, double relFieldSharp=-1.0) const
     {
-        // ecut_L[0] is the RESOLUTION REFERENCE (the charge-calibrated density grid) -- the relative req is
-        // measured against ITS resolution, so appending a finer completion rung (doc/GPWPlan 0b') must not
-        // stiffen every pair's requirement.  Selection is order-free: the COARSEST level satisfying req,
-        // else the FINEST present (the completion rung when the ladder is complete; the reference grid when
-        // it is not).
-        // GRID-MATCHING OVERRIDE (doc/GPWPlan §0e; verification instrument): GPW_RELCUTOFF=<Ha> forces the
-        // ABSOLUTE rule at the given kappa for EVERY assignment (density side included) -- the CP2K-matching
-        // experiment knob.
+        // ecut_L[0] is the RESOLUTION REFERENCE (the charge-calibrated density grid); appending a finer completion rung (doc/GPWPlan
+        // 0b') must not stiffen any pair's requirement.  Selection is order-free: the COARSEST level satisfying req, else the FINEST
+        // present (the completion rung when the ladder is complete; the reference grid when it is not).
+        // GRID-MATCHING OVERRIDE (doc/GPWPlan §0e; verification instrument): relCutoff > 0 forces CP2K's absolute kappa rule for EVERY
+        // assignment (density side included); a positive absRelCutoff is the local-PP sweep's own kappa.
         const double kappa = itsPGTol.relCutoff>0.0 ? itsPGTol.relCutoff : absRelCutoff;
-        // FIELD SHARPNESS in BOTH rules (doc/GPWPlan1.md 4b): the integrand chi_i * V * chi_j is a product of
-        // Gaussians, so exponents ADD -- the grid must resolve alpha_i+alpha_j + beta, where beta is the FIELD's
-        // own effective exponent, NOT the pair alone.  Without it a DIFFUSE pair (alpha_i+alpha_j tiny) against a
-        // SHARP field lands on a coarse level that cannot resolve the field -> a spurious low diffuse eigenvalue.
-        //   * ABSOLUTE rule (local PP): beta = fieldSharpness = 1/(2 rloc^2), passed by MakeLocalPP.
-        //   * RELATIVE rule (density/Hartree/XC): the KS field's core sharpness follows the valence density,
-        //     whose tightest Gaussian product exponent is 2*alpha_max; the LDA XC potential V_xc ~ rho^{1/3}
-        //     softens that to ~ (2/3)*alpha_max.  So beta_field = kFieldSharp*MaxExponent() with kFieldSharp=2/3
-        //     -- DERIVED, not tuned: it floors every pair's requirement at the resolution the sharp XC core
-        //     needs, curing the NaF 3^3-grid diving-ghost the 63f20bd1 coarse ladder exposed.  (GPW_FIELDSHARP
-        //     overrides the 2/3 for the self-convergence check.)  0 reproduces the old pair-only relative rule.
-        // MAX not ADD: a diffuse pair * sharp field is as sharp as the FIELD alone (the sharp factor dominates
-        // the product envelope), so max() LIFTS the diffuse pairs that cannot resolve the field while leaving
-        // tight/mid pairs -- already fine enough for their own product -- untouched (no cost blow-up on a
-        // diffuse-heavy basis; doc/GPWPlan1.md 4b).  beta_field = kFieldSharp*alpha_max is the KS field's core
-        // exponent (V_xc ~ rho^{1/3}); kFieldSharp pinned by rho_lost/N grid-convergence, not wall-clock.
-        // relFieldSharp<0 (the default) = the historical beta = kFieldSharp*alpha_max; >=0 = the caller's
-        // EXPLICIT beta -- 0 is pair-only routing (RasterFields::HartreeOnly: the raster serves only the
-        // smoothing Poisson solve, so a diffuse pair's own bandwidth is the whole requirement).
-        const double beta = relFieldSharp>=0.0 ? relFieldSharp : itsPGTol.fieldSharp*MaxExponent();
+        const double p = MaxExponent(i)+MaxExponent(j);
+        // THE PAIR'S OWN BOUND (GPWTolerances PairRoutingEcut, its derivation there): the cutoff that keeps this pair's spectral tail
+        // below pairRoutingEps, absolute in p.  It replaced the relative s ecut_0 p/(2 alpha_max) on 2026-11-24, which went lean
+        // whenever the reference was coarse against alpha_max (NaF's seed stage, TiO2's mid pairs: e^{-1/4} .. e^{-8} tails).
+        //
+        // THE FIELD FLOOR (doc/GPWPlan1.md 4b), a separate piece: the gathered integrand is chi_i V chi_j, so the grid must also resolve
+        // the FIELD.  V_H is smooth, but V_xc ~ rho^{1/3} carries the core sharpness ~ (2/3) alpha_max (\c GPWTolerances::fieldSharp).  When
+        // V_xc rides the raster (RasterFields::HartreeXC, relFieldSharp < 0) the floor seats every pair at the resolution that field
+        // needs, s ecut_0 beta/(2 alpha_max) -- i.e. on the reference or finer.  relFieldSharp >= 0 is the caller's explicit beta;
+        // 0 (RasterFields::HartreeOnly, the Becke-XC partner: the raster serves only the smoothing Poisson solve) is no floor at all.
+        // MAX not ADD: a diffuse pair times a sharp field is as sharp as the FIELD alone.
+        const double beta  = relFieldSharp>=0.0 ? relFieldSharp : itsPGTol.fieldSharp*MaxExponent();
+        const double floor = beta>0.0 ? kRelSafety()*ecut_L[0]*beta/(2.0*MaxExponent()) : 0.0;
         const double req = kappa>0.0
-            ? kappa*std::max(MaxExponent(i)+MaxExponent(j), fieldSharpness)
-            : kRelSafety()*ecut_L[0]*std::max(MaxExponent(i)+MaxExponent(j), beta)/(2.0*MaxExponent());
+            ? kappa*std::max(p, fieldSharpness)
+            : std::max(PairRoutingEcut(p, itsPGTol.pairRoutingEps), floor);
         size_t L=0;
         for (size_t l=1; l<ecut_L.size(); l++) if (ecut_L[l]>ecut_L[L]) L=l;          // fallback: finest present
         bool sat=false;

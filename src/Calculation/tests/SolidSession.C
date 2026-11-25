@@ -173,13 +173,16 @@ TEST(SolidSession, SessionSizesItsRastersOnMatrixElements)
     // A geometry pilot STARTS ITS RASTERS AT THE BOUND (rigorous L(eps), eta = 1): they meet it at once.  The DENSITY BALL does not
     // (2026-11-02, OpenWork F "density ball unjudged"): measured on this cell, max|dH| of Hartree against twice the ball 1.3e-2 / 6.7e-5 /
     // 1.4e-5 / 6.4e-7 at cutoffFactor 2 / 4 / 8 / 16, so it settles on 16 in 4 rounds, 24 re-convergence iterations.
+    // RE-MEASURED 2026-11-24 (lane A, the absolute pair routing ecut >= 2 p ln(1/eps)): the ball's slow tail was the RELATIVE pair rule
+    // re-routing pairs whenever the ball moved ecut_0.  Now Eee against twice the ball reads 8.8e-5 / 5.3e-5 / 2.6e-10 at cutoffFactor 2 / 4 / 8:
+    // it settles on 8 in 3 rounds, 5 re-convergence iterations.
     // ... but its STATED coarse Becke mesh reads 1.8e-2 per element, OVER: honoured and reported, so the pilot is NOT settled (pin 31 rule 3;
     // it read settled until lane G's Si Γ catch, 2026-11-07) and says why: statedOver, with a StatedXCMeshMissesEps warn row.
     EXPECT_FALSE(pes.Current()->PilotCost().settled) << "a stated grid over its target is not settled";
     EXPECT_TRUE(pes.Current()->PilotCost().statedOver);
-    EXPECT_EQ(pes.Current()->PilotCost().rounds, 4) << "the rasters at the bound; the ball climbs cutoffFactor 2 -> 16";
+    EXPECT_EQ(pes.Current()->PilotCost().rounds, 3) << "the rasters at the bound; the ball climbs cutoffFactor 2 -> 8";
     EXPECT_LE(pes.Current()->PilotCost().reconvergeIterations, 16u) << "9 serial / 13 at 4 threads, 0 stalls (2026-11-10, Δρ/N 1e-7)";
-    EXPECT_EQ(pes.Current()->SizedSetup()->opts.solid.cutoffFactor, 16.0);
+    EXPECT_EQ(pes.Current()->SizedSetup()->opts.solid.cutoffFactor, 8.0);
     EXPECT_EQ(single->SizedSetup()->opts.solid.cutoffFactor, 4.0) << "the energy run's ball: 1.2e-3 Ha at 2, 3.3e-6 at 4";
     const auto sizedH=pes.Current()->SizedSetup();
     const auto& tE=sizedE->opts.solid.tolerances; const auto& tH=sizedH->opts.solid.tolerances;

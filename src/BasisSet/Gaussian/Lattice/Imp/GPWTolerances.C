@@ -27,6 +27,7 @@ std::string GPWTolerances::Describe() const
     if (densityEps       != d.densityEps)       os << " densityEps="       << densityEps;
     if (rungGateC        != d.rungGateC)        os << " rungGateC="        << rungGateC;
     if (relCutoffSafety  != d.relCutoffSafety)  os << " relCutoffSafety="  << relCutoffSafety;
+    if (pairRoutingEps   != d.pairRoutingEps)   os << " pairRoutingEps="   << pairRoutingEps;
     if (rasterX          != d.rasterX)          os << " rasterX="          << rasterX;
     if (vlocRasterX      != d.vlocRasterX)      os << " vlocRasterX="      << vlocRasterX;
     if (xcRasterX        != d.xcRasterX)        os << " xcRasterX="        << xcRasterX;
@@ -37,12 +38,19 @@ std::string GPWTolerances::Describe() const
 std::string GPWTolerances::KeyFragment() const
 {
     std::string k="vlocEps="+KeyString(vlocEps)+",rig="+KeyString(vlocEpsRigorous)+",etaR="+KeyString(vlocRoutingEta)
-                 +",gateC="+KeyString(rungGateC)+",rcSafety="+KeyString(relCutoffSafety)+",ppRel="+KeyString(localPPRelCutoff)
+                 +",gateC="+KeyString(rungGateC)+",rcSafety="+KeyString(relCutoffSafety)+",pairEps="+KeyString(pairRoutingEps)+",ppRel="+KeyString(localPPRelCutoff)
                  +",relSharp="+KeyString(relFieldSharp)+",screen="+KeyString(screenEps)+",sharp="+KeyString(fieldSharp)
                  +",relCut="+KeyString(relCutoff)+",dens="+KeyString(densityEps)+",rX="+KeyString(rasterX)
                  +",vX="+KeyString(vlocRasterX)+",xX="+KeyString(xcRasterX)+",mgrid=";
     for (double e : mgridEcuts) k+=KeyString(e)+";";
     return k;
+}
+
+double PairRoutingEcut(double p, double eps)
+{
+    if (!(p>0.0)) throw std::invalid_argument("PairRoutingEcut: the pair exponent must be > 0 (got "+std::to_string(p)+")");
+    if (!(eps>0.0 && eps<1.0)) throw std::invalid_argument("PairRoutingEcut: eps must lie in (0,1) (got "+std::to_string(eps)+")");
+    return 2.0*p*std::log(1.0/eps);
 }
 
 double AliasTail::Bound(double x) const {return S*std::pow(x,n)*std::exp(-x);}
