@@ -8,6 +8,7 @@ module;
 #include <unordered_map>
 #include <array>
 #include <algorithm>
+#include <cmath>
 module qchem.Symmetry.Lattice_3D.Fold;
 
 namespace qchem::Symmetry::Lattice_3D
@@ -198,29 +199,64 @@ Fold FoldGVectors(const std::vector<ivec3_t>& ms, const std::vector<SymOp>& ops)
 //  Tolerance path ({r}/Becke): r -> W r + tau, images matched within Euclidean tol via a
 //  sorted-by-x window search.
 //
+PointIndex::PointIndex(const std::vector<rvec3_t>& pts, double tol)
+    : itsPts(pts), itsTol(tol), itsEdge(2.0*tol)
+{
+    if (!(tol>0.0)) throw std::invalid_argument("Symmetry::Lattice_3D::PointIndex: the tolerance must be positive");
+    itsBuckets.reserve(pts.size());
+    for (size_t i=0; i<pts.size(); ++i) itsBuckets[KeyOf(pts[i])].push_back(long(i));   // each bucket in increasing index
+}
+
+size_t PointIndex::KeyHash::operator()(const Key& k) const
+{
+    size_t h=std::hash<long long>()(k.x);
+    h^=std::hash<long long>()(k.y)+0x9e3779b97f4a7c15ull+(h<<6)+(h>>2);
+    h^=std::hash<long long>()(k.z)+0x9e3779b97f4a7c15ull+(h<<6)+(h>>2);
+    return h;
+}
+
+PointIndex::Key PointIndex::KeyOf(const rvec3_t& r) const
+{
+    return {(long long)std::floor(r.x/itsEdge), (long long)std::floor(r.y/itsEdge), (long long)std::floor(r.z/itsEdge)};
+}
+
+void PointIndex::Scan(const Key& k, const rvec3_t& r, long& best, double& bestD2) const
+{
+    auto it=itsBuckets.find(k);
+    if (it==itsBuckets.end()) return;
+    for (long i : it->second)
+    {
+        const rvec3_t& p=itsPts[size_t(i)];
+        const double dx=p.x-r.x, dy=p.y-r.y, dz=p.z-r.z, d2=dx*dx+dy*dy+dz*dz;
+        if (d2<bestD2 || (d2==bestD2 && (best<0 || i<best))) {best=i; bestD2=d2;}
+    }
+}
+
+long PointIndex::Find(const rvec3_t& r) const
+{
+    // The CENTRE bucket first (TorusIndex::Find says why): an invariant set's image lands ~1e-15 from a point, almost always in the
+    // query's own bucket, and a neighbour can hold a nearer point only when the best so far is farther than r is from that bucket's faces.
+    const Key c=KeyOf(r);
+    long best=-1; double bestD2=itsTol*itsTol;
+    Scan(c, r, best, bestD2);
+    if (best>=0)
+    {
+        auto face=[&](double x){const double u=x/itsEdge-std::floor(x/itsEdge); return std::min(u, 1.0-u)*itsEdge;};
+        const double f=std::min({face(r.x), face(r.y), face(r.z)});
+        if (bestD2<f*f) return best;
+    }
+    for (long long dx=-1; dx<=1; ++dx)
+    for (long long dy=-1; dy<=1; ++dy)
+    for (long long dz=-1; dz<=1; ++dz)
+        if (dx || dy || dz) Scan({c.x+dx, c.y+dy, c.z+dz}, r, best, bestD2);
+    return best;
+}
+
 Fold FoldPoints(const std::vector<rvec3_t>& pts, const std::vector<SymOp>& ops, double tol)
 {
-    const int n = int(pts.size());
-    std::vector<int> byx(n);
-    for (int i = 0; i < n; ++i) byx[i] = i;
-    std::sort(byx.begin(), byx.end(), [&](int a, int b) {return pts[a].x < pts[b].x;});
-
-    auto lookup = [&](const rvec3_t& r) -> int   // the NEAREST point within tol (TorusIndex::Find says why)
-    {
-        auto lo = std::lower_bound(byx.begin(), byx.end(), r.x - tol,
-                                   [&](int a, double v) {return pts[a].x < v;});
-        int best = -1; double bestD2 = tol*tol;
-        for (auto it = lo; it != byx.end() && pts[*it].x <= r.x + tol; ++it)
-        {
-            const rvec3_t& p = pts[*it];
-            double dx = p.x - r.x, dy = p.y - r.y, dz = p.z - r.z;
-            const double d2 = dx*dx + dy*dy + dz*dz;
-            if (d2 < bestD2 || (best < 0 && d2 <= bestD2)) { best = *it; bestD2 = d2; }   // ties keep the first
-        }
-        return best;
-    };
-    auto apply = [&](int o, int i) -> int {return lookup(ops[o].W * pts[i] + ops[o].tau);};
-    return FoldByAction(n, int(ops.size()), apply);
+    const PointIndex index(pts, tol);   // the NEAREST point within tol (TorusIndex::Find says why)
+    auto apply = [&](int o, int i) -> int {return int(index.Find(ops[o].W * pts[i] + ops[o].tau));};
+    return FoldByAction(int(pts.size()), int(ops.size()), apply);
 }
 
 //---------------------------------------------------------------------------------------

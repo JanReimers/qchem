@@ -53,7 +53,7 @@ Outcome<rmat3d_t,AD::NoGradient> FirstOrderDensityFit<dcmplx>::MakeRepulsionViri
 }
 
 std::unique_ptr<FirstOrderDensityFit<double>>
-MakeDeltaDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::shared_ptr<const qcMesh::Mesh> mesh)
+MakeDeltaDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, const BasisSet::FitQuadrature& quad)
 {
     // The factory gathers the basis's Coulomb-integral face (the concrete association lives here, not in the class).
     if (!deltaBasis) throw std::logic_error("MakeDeltaDensityFitter: no fit basis");
@@ -61,8 +61,8 @@ MakeDeltaDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, 
     if (!coulomb)
         throw std::logic_error("MakeDeltaDensityFitter: the fit basis '"+deltaBasis->Name()+"' carries no Coulomb integrals "
                                "(wrap a δ basis in BasisSet::CoulombDeltaFit_IBS with its operator)");
-    if (!mesh) throw std::logic_error("MakeDeltaDensityFitter: no mesh for the fit basis '"+deltaBasis->Name()+"'");
-    return std::make_unique<DeltaDensityFitter>(std::move(deltaBasis), *coulomb, std::move(mesh));
+    if (!quad.GetMesh()) throw std::logic_error("MakeDeltaDensityFitter: no mesh for the fit basis '"+deltaBasis->Name()+"'");
+    return std::make_unique<DeltaDensityFitter>(std::move(deltaBasis), *coulomb, quad);
 }
 
 std::unique_ptr<FirstOrderDensityFit<double>>

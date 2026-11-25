@@ -184,8 +184,9 @@ public:
     //! when each block is a 1-D real irrep of it, and the δ fit function at a representative with weight \f$W_o\f$ IS the orbit sum
     //! \f$\sum_R\delta(R\,r_o)\f$.  So no star-average is left to do (the quadrature handed over carries no fold), and a GGA needs no
     //! rotation of \f$\nabla\rho\f$.  ONLY the δ route: a Gaussian or multipole Vxc fit projects onto single fit functions, which are not
-    //! invariant, so those keep the full folded quadrature (\c Quadrature()).  The δ-fit Hartree keeps the full δ fit basis (\c Delta()):
-    //! its Coulomb operator couples two fit functions, so it needs every one (the exact (ij|δ_g) projections are not a quadrature).
+    //! invariant, so those keep the full folded quadrature (\c Quadrature()).  The δ-fit Hartree samples on the SAME representatives
+    //! (\c XCDelta(), shared): its operator couples every point, but an invariant charge has an invariant potential, so the operator scatters
+    //! the orbits' charges to the full mesh, solves there and reads v back at the representatives (\c qcMesh::MakeFoldedCoulomb).
     //!@{
     //! The quadrature the δ XC route samples on: the representatives when the run folds, else \c Quadrature().
     const BasisSet::FitQuadrature& XCQuadrature()
@@ -197,7 +198,7 @@ public:
             itsRepQuad=itsQuad.MakeRepresentatives();   // no fold left to average; the folded mesh rides along for the geometry derivative
             itsRepQuad.GetMesh()->FourierTarget()->accuracy=itsMp.sampling;
             qchem::report::Set("perOrbit", std::to_string(itsQuad.size())+" points in "+std::to_string(itsQuad.NumOrbits())
-                                           +" orbits: the δ XC route samples one point per orbit");
+                                           +" orbits: the δ routes (XC, δ-fit Hartree) sample one point per orbit");
         }
         return itsRepQuad;
     }
@@ -210,7 +211,6 @@ public:
         return itsRepDelta;
     }
     //!@}
-private:
     //! \brief THROWS unless every orbital block is a 1-D irrep of the fold's group: the per-orbit route's precondition.  The policy layer
     //! folds only a SALC-imposed run, so a failure here is a broken invariant.  The block's own \c Symmetry::Representation answers it:
     //! its image of a generic symmetric matrix under every op must be the matrix itself (a SALC block is the identity on its stabiliser,
@@ -242,6 +242,7 @@ private:
             ++b;
         }
     }
+private:
 
     st_t                                         itsSt;
     const rbs_t*                                 itsBs;
@@ -370,7 +371,8 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, XCMesh
     if (coulomb.nRadial>0) hmp.nRadial=coulomb.nRadial;
     const bool direct=coulomb.solver==CoulombSolver::DirectSum, multipole=coulomb.fit==CoulombFit::Multipole;
     const int  lMax=ResolvedLMax(coulomb, multipole, qcMesh::ExactAngularDegree(hmp.angular, hmp.angularDegree));
-    BasisSet::FitQuadrature quad;
+    BasisSet::FitQuadrature quad;      // the operator's mesh: every point
+    BasisSet::FitQuadrature fitQuad;   // the δ basis's points: the representatives on a folded δ run (one per orbit), else quad
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Hartree", "Hartree ρ fit", [&]
     {
         qchem::report::Set("coulombFit", multipole ? "multipole" : "delta");
@@ -379,27 +381,43 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, XCMesh
         // Ruled 2026-11-06: a quadrature route's energy is first order.  A multipole's second leg cancels its l truncation, not the mesh's error.
         qchem::report::Set("energyOrder", "first");
         // On the XC mesh's own parameters the quadrature and the δ fit are the Hamiltonian's ONE pair (P2), shared with the Vxc term.
+        // A FOLDED mesh (an imposed run, policy MeshSymmetry): the δ basis is one point per orbit and the operator scatters over the
+        // orbits (exact for the invariant density such a run has; XCMeshShare's per-orbit route).  A multipole fit's axis is its
+        // channels, not the points, so it keeps the full δ.
         if (hmp.nRadial==mp.nRadial)
         {
             bool built=false;
-            auto d=share.Delta(built);
-            if (!built) qchem::report::Set("sharedWith", "Vxc_DFT");
             quad=share.Quadrature();
+            auto d= quad.HasFold() && !multipole ? share.XCDelta(built) : share.Delta(built);
+            fitQuad= quad.HasFold() && !multipole ? share.XCQuadrature() : quad;
+            if (!built) qchem::report::Set("sharedWith", "Vxc_DFT");
             return d;
         }
         quad=BuildMeshQuadrature(share.MeshMaker(), share.Symmetry(), hmp);
-        return std::shared_ptr<const BasisSet::rFIT_SF_ABS>(bs->CreateVxcFitBasisSet(st.get(), VxcFit::Delta, &quad, hmp.relCutoff));
+        fitQuad=quad;
+        if (quad.HasFold() && !multipole)
+        {
+            share.RequireInvariantPairProducts();
+            fitQuad=quad.MakeRepresentatives();
+            fitQuad.GetMesh()->FourierTarget()->accuracy=hmp.sampling;
+            qchem::report::Set("perOrbit", std::to_string(quad.size())+" points in "+std::to_string(quad.NumOrbits())
+                                           +" orbits: the δ-fit Hartree samples one point per orbit");
+        }
+        return std::shared_ptr<const BasisSet::rFIT_SF_ABS>(bs->CreateVxcFitBasisSet(st.get(), VxcFit::Delta, &fitQuad, hmp.relCutoff));
     });
     const qcMesh::Mesh& mesh=*quad.GetMesh();
     // The δ basis carries its Coulomb integrals (V-ONE-OF-N 3b-ii, ruling (f)): the operator is the BASIS's physics, chosen here.
     auto withCoulomb=[&](std::unique_ptr<qcMesh::CoulombOperator> op)
         {return std::make_shared<const BasisSet::CoulombDeltaFit_IBS>(std::make_shared<BasisSet::BasisCache>(), fb, std::move(op), sym_t(new UnitQN));};
-    if (direct) return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(withCoulomb(qcMesh::MakeDirectSumCoulomb(mesh)), quad.GetMesh()), st->GetNumElectrons());
+    // On the representatives the full-mesh operator is wrapped: the orbits' charges scattered to every point, v read back per orbit.
+    auto onFitPoints=[&](std::unique_ptr<qcMesh::CoulombOperator> op)
+        {return fitQuad.IsRepresentatives() ? qcMesh::MakeFoldedCoulomb(std::move(op), quad) : std::move(op);};
+    if (direct) return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(withCoulomb(onFitPoints(qcMesh::MakeDirectSumCoulomb(mesh))), fitQuad), st->GetNumElectrons());
     const auto sites=MakeSiteMultipoles(st, mesh, hmp, lMax);
-    if (!multipole) return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(withCoulomb(qcMesh::MakeRadialPoissonCoulomb(sites)), quad.GetMesh()), st->GetNumElectrons());
+    if (!multipole) return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(withCoulomb(onFitPoints(qcMesh::MakeRadialPoissonCoulomb(sites))), fitQuad), st->GetNumElectrons());
     // A multipole fit basis owns its own solve (over its sites, in its own metric).
     const auto mfb=std::make_shared<const BasisSet::MultipoleFit_IBS>(std::make_shared<BasisSet::BasisCache>(), fb, sites, sym_t(new UnitQN));
-    return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(mfb, quad.GetMesh()), st->GetNumElectrons());
+    return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(mfb, quad), st->GetNumElectrons());
 }
 
 Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit,

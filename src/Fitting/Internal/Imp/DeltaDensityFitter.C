@@ -12,8 +12,8 @@ import qchem.BasisSet.PointSetPullback;   // the block face leg 2 asks (lane B, 
 namespace qchem::Fitting
 {
 
-DeltaDensityFitter::DeltaDensityFitter(fbs_t fbs, const BasisSet::PointCoulombIntegrals& coulomb, std::shared_ptr<const qcMesh::Mesh> mesh)
-    : itsFitBasis(std::move(fbs)), itsCoulomb(&coulomb), itsMesh(std::move(mesh))
+DeltaDensityFitter::DeltaDensityFitter(fbs_t fbs, const BasisSet::PointCoulombIntegrals& coulomb, const BasisSet::FitQuadrature& quad)
+    : itsFitBasis(std::move(fbs)), itsCoulomb(&coulomb), itsQuad(quad), itsMesh(quad.GetMesh())
 {
     if (!itsFitBasis) throw std::logic_error("DeltaDensityFitter: needs a fit basis");
     if (!itsMesh) throw std::logic_error("DeltaDensityFitter: needs the fit basis's mesh");
@@ -67,6 +67,7 @@ Outcome<rvec3vec_t,AD::NoGradient> DeltaDensityFitter::MakeRepulsionPullback(con
     rvec3vec_t G=p->gradient;
     for (size_t a=0; a<m.NSites(); a++)
         for (size_t g=m.SiteBegin(a); g<m.SiteEnd(a); g++) G[a]+=p->perPoint[g];   // the point rides its owner
+    ProjectOntoA1(G);   // on the representatives, c_o = W_o v_o took each orbit |o| times: g~, and P g~ is the full mesh's
     return R::Ok(std::move(G));
 }
 
@@ -77,10 +78,15 @@ Outcome<rvec3vec_t,AD::NoGradient> DeltaDensityFitter::MakeHartreePullback(const
     const qcMesh::Mesh& m=*itsMesh;
     rvec_t f(m.size());
     for (size_t g=0; g<f.size(); g++) f[g]=itsV[g]*itsC[g];
-    const auto w=m.WeightResponse()->Pullback(m, f);                       // leg 1
-    const rvec3vec_t k=itsCoulomb->MakeSelfRepulsionPullback(Projection());  // leg 3, scaled as qᵀKq
+    // Leg 1.  On the representatives: the PARENT's weight response at |o| f_o on each representative (g~), projected below.
+    const qcMesh::FoldedMesh* P=itsQuad.Parent();
+    const auto w= P ? P->GetMesh()->WeightResponse()->Pullback(*P->GetMesh(), P->ScatterToRepresentatives(f))
+                    : m.WeightResponse()->Pullback(m, f);
+    // Leg 3, scaled as qᵀKq.  A folded operator takes it on the full charges, so it is already the full mesh's (P leaves it as it is).
+    const rvec3vec_t k=itsCoulomb->MakeSelfRepulsionPullback(Projection());
     rvec3vec_t G(m.NSites());
     for (size_t a=0; a<G.size(); a++) G[a]=w.gradient[a]+0.5*k[a];
+    ProjectOntoA1(G);
     return R::Ok(std::move(G));
 }
 
@@ -98,6 +104,14 @@ std::string DeltaDensityFitter::ForceGap() const
     const qcMesh::Mesh& m=*itsMesh;
     if (m.size()!=itsW->size()) return "the δ fit's functions are not its mesh's points";
     if (m.NSites()==0 || m.OwnerOffsets().size()!=m.size()) return "the δ fit's mesh records no point owners (not an atom-centred build)";
+    if (const qcMesh::FoldedMesh* P=itsQuad.Parent())
+    {
+        const qcMesh::Mesh& pm=*P->GetMesh();
+        if (!P->HasSiteAction()) return "the folded δ fit mesh's builder supplied no site action (which atom each op carries onto which)";
+        if (!pm.WeightResponse()) return "the folded δ fit mesh's builder installed no weight response";
+        if (pm.NSites()!=m.NSites()) return "the representatives' site blocks are not the folded mesh's";
+        return "";
+    }
     if (!m.WeightResponse()) return "the δ fit's mesh builder installed no weight response";
     return "";
 }

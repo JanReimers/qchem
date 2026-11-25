@@ -18,6 +18,7 @@ export import qchem.BasisSet.Orbital_DFT_IBS;  // the fit-basis faces and the or
 export import qchem.Mesh;                     // qcMesh::Mesh (the points a direct sum runs over)
 export import qchem.Mesh.SiteMultipoles;      // what a radial solve runs over
 export import qchem.Mesh.CoulombOperator;     // the point set's Coulomb integrals (moved to qcMesh, V-ONE-OF-N 3b-ii)
+export import qchem.BasisSet.Fit_Types;       // FitQuadrature: the δ basis's own point set, folded or not
 
 export namespace qchem::Fitting
 {
@@ -167,9 +168,11 @@ std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_pt
 //! \brief A density fit on \a deltaBasis (an orthogonal, \f$\delta\f$-like fit basis that answers its own Coulomb integrals,
 //! \c BasisSet::PointCoulombIntegrals: a \c CoulombDeltaFit_IBS or a \c MultipoleFit_IBS).  THROWS when the basis is not orthogonal or
 //! carries no Coulomb integrals.
-//! \a mesh is the δ basis's own point set (its quadrature's mesh): the fixed-D force reads its points' owners and its weight response.
+//! \a quad is the δ basis's own quadrature: the fixed-D force reads its points' owners and its weight response.  On the
+//! REPRESENTATIVES of a folded mesh (\c FitQuadrature::IsRepresentatives) the force reads the PARENT's: its weight response and its
+//! site action, which turns the representatives' contributions into the full mesh's gradient (the A1 projection).
 std::unique_ptr<FirstOrderDensityFit<double>>
-MakeDeltaDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::shared_ptr<const qcMesh::Mesh> mesh);
+MakeDeltaDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, const BasisSet::FitQuadrature& quad);
 
 //! \brief The δ-PROJECTION density fit on \a deltaBasis (lane S 2026-11-25): the same δ fit and overlap projection, with the Coulomb side the
 //! orbital blocks' analytic point-charge integrals \f$(ij|\delta_g)\f$ at \a mesh's points (\c BasisSet::PointCoulomb) instead of an
