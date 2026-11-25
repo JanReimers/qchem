@@ -62,8 +62,9 @@ public:
     virtual bool            PreservesReal () const override {return itsPreservesReal;}
     //! A density MATRIX (not a matrix-free fit) is required to seed the SCF iff this Hamiltonian either holds
     //! an exact-exchange HF term (K needs D) or is relativistic (the non-rel LDA-sibling SAD bootstrap does
-    //! not apply -- see SCFIterator).  Derived from the term lists, so no concrete Hamiltonian need declare it.
-    virtual bool            RequiresDensityMatrix() const override {return !itsHF_HTs.empty() || itsIsRelativistic;}
+    //! not apply -- see SCFIterator), or holds a dynamic term that says it needs D (\c DensityMatrixRequirement: the analytic (ij|δ)
+    //! Hartree).  Derived from the term lists, so no concrete Hamiltonian need declare it.
+    virtual bool            RequiresDensityMatrix() const override {return !itsHF_HTs.empty() || itsIsRelativistic || itsTermNeedsDensityMatrix;}
     //! \copydoc tHamiltonian::SiteMoments
     //! Asked of the Hamiltonian's NONLINEAR INTEGRATION MESH (V-NONLINEAR-MESH): its atom-centred partition integrates
     //! \f$\rho_\uparrow-\rho_\downarrow\f$.  Empty with no mesh, on a mesh with no site blocks, or on a run that resolves no spin.
@@ -140,6 +141,7 @@ protected:
     bool   itsIsRelativistic;
     bool   itsIsVirialValid=true;   //!< AND of the terms' IsVirialValid() (see Add); true for an empty H
     bool   itsPreservesReal=true;   //!< AND of the terms' PreservesReal() (see Add); true for an empty H
+    bool   itsTermNeedsDensityMatrix=false;   //!< OR of the dynamic terms' DensityMatrixRequirement (see Add)
 };
 
 // NO InsertStandardTerms.  There is no "standard" term set to insert (R2.8; user 2026-08-07: the whole

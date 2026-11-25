@@ -370,15 +370,17 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, XCMesh
     qcMesh::MeshParams hmp=mp;
     if (coulomb.nRadial>0) hmp.nRadial=coulomb.nRadial;
     const bool direct=coulomb.solver==CoulombSolver::DirectSum, multipole=coulomb.fit==CoulombFit::Multipole;
+    const bool analytic=coulomb.solver==CoulombSolver::Analytic;   // AdmitCoulomb: on the δ fit of a finite structure only
     const int  lMax=ResolvedLMax(coulomb, multipole, qcMesh::ExactAngularDegree(hmp.angular, hmp.angularDegree));
     BasisSet::FitQuadrature quad;      // the operator's mesh: every point
     BasisSet::FitQuadrature fitQuad;   // the δ basis's points: the representatives on a folded δ run (one per orbit), else quad
     const auto fb=BuildTermFit<BasisSet::rFIT_SF_ABS>("Hartree", "Hartree ρ fit", [&]
     {
         qchem::report::Set("coulombFit", multipole ? "multipole" : "delta");
-        qchem::report::Set("coulombOperator", direct ? "direct sum" : "radial Poisson");
-        if (!direct) qchem::report::Set("lMax", lMax);
+        qchem::report::Set("coulombOperator", direct ? "direct sum" : analytic ? "analytic (ij|delta)" : "radial Poisson");
+        if (!direct && !analytic) qchem::report::Set("lMax", lMax);
         // Ruled 2026-11-06: a quadrature route's energy is first order.  A multipole's second leg cancels its l truncation, not the mesh's error.
+        // The analytic route's E = ½(ρ|ρ̃) keeps one leg of the mesh's error, in the charges (DeltaProjectionDensityFitter).
         qchem::report::Set("energyOrder", "first");
         // On the XC mesh's own parameters the quadrature and the δ fit are the Hamiltonian's ONE pair (P2), shared with the Vxc term.
         // A FOLDED mesh (an imposed run, policy MeshSymmetry): the δ basis is one point per orbit and the operator scatters over the
@@ -413,6 +415,11 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, XCMesh
     auto onFitPoints=[&](std::unique_ptr<qcMesh::CoulombOperator> op)
         {return fitQuad.IsRepresentatives() ? qcMesh::MakeFoldedCoulomb(std::move(op), quad) : std::move(op);};
     if (direct) return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(withCoulomb(onFitPoints(qcMesh::MakeDirectSumCoulomb(mesh))), fitQuad), st->GetNumElectrons());
+    // The analytic route needs no operator: the δ basis's own points (the representatives on a folded run, each weight its orbit's) ARE
+    // where ρ̃'s potential is taken, from the orbital blocks' (ij|δ_g).  Exact per orbit for the invariant density such a run has.
+    // A matrix-free seed (SAD) has no (ρ|δ_g): the fitter says so (CanProjectField false), the term then RequiresDensityMatrix, and the
+    // SCF's existing bootstrap (SCFIterator: one iteration-0 step through an LDA sibling) manufactures D0 before this term sees a density.
+    if (analytic) return new Vee_Fit<double>(Fitting::MakeDeltaProjectionDensityFitter(fb, fitQuad.GetMesh()), st->GetNumElectrons());
     const auto sites=MakeSiteMultipoles(st, mesh, hmp, lMax);
     if (!multipole) return new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(withCoulomb(onFitPoints(qcMesh::MakeRadialPoissonCoulomb(sites))), fitQuad), st->GetNumElectrons());
     // A multipole fit basis owns its own solve (over its sites, in its own metric).

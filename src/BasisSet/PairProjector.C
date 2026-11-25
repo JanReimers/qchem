@@ -40,6 +40,9 @@ public:
     //! A density with no D projects its FIELD (it is a \c ScalarFunction).  The projector says how (quadrature, sampling, a
     //! transform); the answer is on the SAME axis as \c Forward's.
     virtual Projections ProjectField(const ScalarFunction<double>&) const=0;
+    //! False exactly when \c ProjectField would throw for every field: the projector needs a D (the analytic (ij|δ) Hartree).  CLIENT:
+    //! the Hartree term, which then \c RequiresDensityMatrix so the SCF's matrix-free-seed bootstrap gives it a D0 (SCFIterator).
+    virtual bool CanProjectField() const {return true;}
     virtual size_t NumCoefficients() const=0;   //!< the basis's function count (a vector realization's length)
     //! The projections of a ZERO density, in my own realization (a zero block answers with it, so a sum over blocks never mixes
     //! realizations).  The default is the vector realization every molecular projector uses.
@@ -76,6 +79,7 @@ public:
     virtual const qcMesh::MatrixForward<double>& Forward(const Orbital_DFT_IBS<double,dcmplx>&) const=0;   //!< a real TRIM block
     virtual const qcMesh::MatrixForward<dcmplx>& Forward(const Orbital_DFT_IBS<dcmplx,dcmplx>&) const=0;   //!< a Bloch block
     virtual Projections ProjectField(const ScalarFunction<double>&) const=0;   //!< \copydoc PairProjector<double>::ProjectField
+    virtual bool CanProjectField() const {return true;}                        //!< \copydoc PairProjector<double>::CanProjectField
     virtual size_t NumCoefficients() const=0;
     //! \copydoc PairProjector<double>::Zero -- the default is the vector realization (δ points, occupations); a G-space projector
     //! overrides it with an empty map.

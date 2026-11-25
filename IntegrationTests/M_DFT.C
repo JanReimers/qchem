@@ -395,6 +395,17 @@ TEST(M_DFT, WaterLDA_DeltaCoulomb_Poisson)
     EXPECT_NEAR(calc->Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC; the gap (-9 μHa) is the mesh's, inside eps x N";
 }
 
+// ...and with the ANALYTIC potential (lane S 2026-11-25, the Q2 arm; coulomb.solver Analytic): ṽ_g = Σ D_kl (kl|δ_g) at the same points,
+// E = ½(ρ|ρ̃), so the operator's error is gone and one leg of the mesh's is left, in the charges.  Same oracle as the Poisson twin.
+// A SAD seed has no D, so the term RequiresDensityMatrix and the SCF's matrix-free-seed bootstrap (the HF path) hands it D0.
+TEST(M_DFT, WaterLDA_DeltaCoulomb_Analytic_Long)   // 90 s alone: every iteration builds (kl|delta_g) on all mesh points (the Q2 cost)
+{
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit = Hamiltonian::CoulombFit::Delta, .solver = Hamiltonian::CoulombSolver::Analytic}, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    EXPECT_NEAR(calc->Energy(), -75.8772909692, 1e-6);   // anchor (lane S 2026-11-25; the SAD seed reaches it through the D0 bootstrap)
+    EXPECT_NEAR(calc->Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC: +8.3 μHa (the Poisson twin -9.3), the mesh's charges";
+}
+
 // The multipole fit has δ x Poisson's potential, so its SCF is the same one; only the energy's second leg differs.  Re-judged with the
 // δ case above (2026-11-08): the pilot's (100, 29) moves it -39.5 μHa, from +32 to -7.9 μHa off the oracle.
 TEST(M_DFT, WaterLDA_MultipoleCoulomb)

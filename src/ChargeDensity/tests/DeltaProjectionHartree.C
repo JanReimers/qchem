@@ -111,7 +111,7 @@ TEST(DeltaProjectionHartree, ItsChargeIsTheMeshsAndItsEnergyIsTheDirectSumRoutes
     // sanity bound only, the direct sum's own error on this coarse mesh is the larger one
     const auto cdelta=std::make_shared<const BasisSet::CoulombDeltaFit_IBS>(std::make_shared<BasisSet::BasisCache>(), s.delta,
                                   qcMesh::MakeDirectSumCoulomb(*s.quad.GetMesh()), sym_t(new UnitQN));
-    auto p=Fitting::MakeDeltaDensityFitter(cdelta, s.quad.GetMesh());
+    auto p=Fitting::MakeDeltaDensityFitter(cdelta, s.quad);
     const double Ep=Fit(*p, *s.block, D).first;
     EXPECT_NEAR(f->Integral(), p->Integral(), 1e-12*std::fabs(p->Integral())) << "the same δ charges";
     EXPECT_NEAR(E, Ep, 5e-2*std::fabs(Ep)) << "two routes on one coarse mesh agree to the direct sum's error";
@@ -123,5 +123,6 @@ TEST(DeltaProjectionHartree, ItsProjectionsAreTwoPerPointAndAOneLegVectorIsRefus
     HartreeFixture s;
     auto f=Fitting::MakeDeltaProjectionDensityFitter(s.delta, s.quad.GetMesh());
     EXPECT_EQ(f->NumCoefficients(), 2*s.quad.GetMesh()->size()) << "two projections per point: [rho ; v]";
+    EXPECT_FALSE(f->CanProjectField()) << "a field has no D: the Hartree term must RequiresDensityMatrix so the seed bootstrap gives one";
     EXPECT_THROW((void)f->DoFit(Projections(rvec_t(s.quad.GetMesh()->size(), 0.0))), std::logic_error) << "one projection per point is not this fitter's";
 }

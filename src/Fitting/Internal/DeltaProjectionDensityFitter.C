@@ -12,7 +12,8 @@
 // THE PROJECTIONS ARE TWO PER POINT.  ṽ needs D, and D stays in the density (a fitter never sees it), so the density contracts its D through
 // this fitter's Forward(orb) into BOTH projections at once: [ρ_g ; ṽ_g], 2 N_pts coefficients.  The record's only consumer is this fitter's
 // own DoFit (V-ONE-OF-N: its own client reads the realization), and the sum over blocks stays a plain vector sum, since both are linear in D.
-// A density with no D (a field seed) has no (ρ|δ_g): ProjectField REFUSES, as the Gaussian Coulomb fit's does.
+// A density with no D (a field seed) has no (ρ|δ_g): ProjectField REFUSES and CanProjectField says so up front, so the Hartree term
+// RequiresDensityMatrix and the SCF's matrix-free-seed bootstrap (SCFIterator, the HF path) hands it a D0 instead.
 //
 // The bodies are in Internal/Imp/DeltaProjectionDensityFitter.C.
 module;
@@ -82,6 +83,7 @@ public:
     size_t NumCoefficients() const override {return 2*itsW->size();}
     //! REFUSES: a field has no analytic \f$(\rho|\delta_g)\f$ (the Gaussian Coulomb fit refuses the same way).
     Projections ProjectField(const ScalarFunction<double>&) const override;
+    bool CanProjectField() const override {return false;}   //!< a field has no D: the SCF's seed bootstrap must give one
 
 private:
     struct Block;   //!< one orbital block's two projections and their joint forward

@@ -87,7 +87,11 @@ enum class CoulombFit {Auto, Auxiliary, Delta, Multipole};
 
 //! \brief HOW a grid fit finds its potential.  \c RadialPoisson reaches the mesh's own limit (TeF₆: J to 5e-4 at 80/29, the same as
 //! the exact potential on those points); \c DirectSum is \f$O(N^2)\f$ and about 1e-2 at any rung tried.  \c Auto = \c RadialPoisson.
-enum class CoulombSolver {Auto, RadialPoisson, DirectSum};
+//! \c Analytic (lane S 2026-11-25, the Q2 measurement arm): no operator on the mesh at all -- the potential at each point is the orbital
+//! basis's analytic point-charge integral, \f$\tilde v_g=\sum_{kl}D_{kl}(kl|\delta_g)\f$ (\c BasisSet::PointCoulomb), and the energy is
+//! \f$\tfrac12(\rho|\tilde\rho)\f$, so one leg of mesh error is left, in the charges (\c Fitting::DeltaProjectionDensityFitter).  The
+//! kernel ORCA's COSX, Q-Chem's sn-K and Jaguar's pseudospectral method use.  \c Delta fit, finite structures only (\c AdmitCoulomb).
+enum class CoulombSolver {Auto, RadialPoisson, DirectSum, Analytic};
 
 //! \brief THE TWO AXES OF A GAUSSIAN DENSITY FIT, orthogonal (V-FIT-AXES; user 2026-11-25: "I think {constrained, unconstrained} and
 //! {overlap,coulomb/dunlap} should be orthogonal axes in code"; design note lane-s-V-FIT-AXES-design.md).  \c Auto: the policy layer

@@ -1427,4 +1427,11 @@ TEST(Deck, AMoleculesCoulombBlockReadsAndRoundTrips)
     EXPECT_EQ(ja.at("coulomb").at("constraint"), "None");
     deck::RunSpec axBack; deck::FromJson(ja, axBack); EXPECT_EQ(deck::ToJson(axBack), ja);
     EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"constraint","Yes"}}}}, bad), std::runtime_error) << "an unknown constraint name";
+    // The δ fit's solver is a deck key (the analytic (ij|δ) route, lane S 2026-11-25), and round-trips
+    deck::RunSpec an; deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"fit","Delta"},{"solver","Analytic"}}}}, an);
+    EXPECT_EQ(an.opts.coulomb.solver, Hamiltonian::CoulombSolver::Analytic);
+    const json jn=deck::ToJson(an);
+    EXPECT_EQ(jn.at("coulomb").at("solver"), "Analytic");
+    deck::RunSpec anBack; deck::FromJson(jn, anBack); EXPECT_EQ(deck::ToJson(anBack), jn);
+    EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"solver","Exact"}}}}, bad), std::runtime_error) << "an unknown solver name";
 }

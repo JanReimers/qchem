@@ -203,6 +203,10 @@ TEST(MoleculeSetup, ACoulombFitFileTheRunCannotUseIsRefusedByName)
         {{.model=Model::LDA, .coulomb={.fit=CF::Delta, .metric=Hamiltonian::CoulombMetric::Coulomb}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
         {{.model=Model::LDA, .coulomb={.fit=CF::Auxiliary, .metric=Hamiltonian::CoulombMetric::Overlap}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
         {{.model=Model::HF, .coulomb={.constraint=Hamiltonian::ChargeConstraint::None}, .molecule={.basis="dzvp"}}, "CoulombFitAxesUnused", 8},
+        // The analytic (ij|δ) solver: the δ fit's only (lane S 2026-11-25)
+        {{.model=Model::HF, .coulomb={.solver=Hamiltonian::CoulombSolver::Analytic}, .molecule={.basis="dzvp"}}, "CoulombSolverUnused", 8},
+        {{.model=Model::LDA, .coulomb={.fit=CF::Auxiliary, .solver=Hamiltonian::CoulombSolver::Analytic}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        {{.model=Model::LDA, .coulomb={.fit=CF::Multipole, .solver=Hamiltonian::CoulombSolver::Analytic}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
     };
     for (const Case& c : cases)
     {

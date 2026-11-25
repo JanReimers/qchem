@@ -185,9 +185,19 @@ namespace qchem::Hamiltonian
         if (multipole)
         {
             if (st.MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice()) return R::Fail("the multipole Coulomb fit: "+thePeriodicMultipole);
-            if (coulomb.solver==CoulombSolver::DirectSum)
-                return R::Fail("a multipole fit's potential is the radial Poisson solve of its channels; a direct sum runs over points -- "
+            if (coulomb.solver==CoulombSolver::DirectSum || coulomb.solver==CoulombSolver::Analytic)
+                return R::Fail("a multipole fit's potential is the radial Poisson solve of its channels; a "
+                               +std::string(coulomb.solver==CoulombSolver::DirectSum ? "direct sum" : "analytic (ij|delta)")+" runs over points -- "
                                "state the solver RadialPoisson or Auto, or the fit Delta");
+        }
+        if (coulomb.solver==CoulombSolver::Analytic)
+        {
+            if (coulomb.fit!=CoulombFit::Delta)
+                return R::Fail("coulomb.solver Analytic is the delta fit's (ij|delta_g) potential, and this Hartree route is not the delta fit -- "
+                               "To fix this, please state coulomb.fit Delta, or drop coulomb.solver");
+            if (st.MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice())
+                return R::Fail("coulomb.solver Analytic on a periodic structure: the point-charge integrals (ij|delta_g) are the bare 1/r, "
+                               "with no lattice sum -- To fix this, please state coulomb.solver Auto");
         }
         const int degree=qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree);   // 0 on the radial-only set
         if ((multipole || fit==VxcFit::Multipole) && coulomb.lMax>MultipoleLMaxBound(degree))

@@ -75,6 +75,9 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
         if (c.metric!=Hamiltonian::CoulombMetric::Auto || c.constraint!=Hamiltonian::ChargeConstraint::Auto)
             policy::Refuse("CoulombFitAxesUnused", "coulomb.metric / coulomb.constraint stated on a Hartree-Fock run",
                            "HF builds J from the exact 4-centre integrals and fits nothing -- drop coulomb.metric and coulomb.constraint");
+        if (c.solver!=Hamiltonian::CoulombSolver::Auto)
+            policy::Refuse("CoulombSolverUnused", "coulomb.solver stated on a Hartree-Fock run",
+                           "HF builds J from the exact 4-centre integrals and solves for no potential -- drop coulomb.solver");
         return;
     }
     if (c.fit==CF::Delta || c.fit==CF::Multipole)
@@ -89,7 +92,9 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
     if (c.fit==CF::Auto && stated.empty() && !axesStated)
     {
         c.fit=CF::Delta;
-        policy::Report("CoulombFit", "the Hartree term: delta (rho on the XC mesh, radial Poisson)", policy::Verdict::Choose,
+        const bool analytic=c.solver==Hamiltonian::CoulombSolver::Analytic;
+        policy::Report("CoulombFit", std::string("the Hartree term: delta (rho on the XC mesh, ")+(analytic ? "analytic (ij|delta), as stated)" : "radial Poisson)"),
+                       policy::Verdict::Choose,
                        "no Hartree route stated: the molecular default (user ruling 2026-11-22), the one route that meets eps -- the DGauss "
                        "fits are mHa low on every molecule measured; state coulomb.fit Auxiliary (A2) or coulomb.auxBasis for the faster fit");
         return;

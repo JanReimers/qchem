@@ -10,6 +10,7 @@ module;
 #include <vector>
 #include <type_traits>   // is_same_v (MakeTermMatrices real-block twin)
 module qchem.Hamiltonian.Internal.Hamiltonian;
+import qchem.Hamiltonian.Internal.Term;     // DensityMatrixRequirement (folded at Add)
 import qchem.Hamiltonian.Internal.ACBN0;    // ACBN0 + HubbardProjection (MakeACBN0Estimator)
 import qchem.Energy;
 import qchem.ChargeDensity;
@@ -139,6 +140,8 @@ template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
     itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
     itsPreservesReal  = itsPreservesReal  && p->PreservesReal();   // AND: one SOC/A-field term flips all blocks complex
+    // OR: one term that needs D (the analytic (ij|δ) Hartree) makes the whole Hamiltonian need it.  Abstract -> abstract.
+    if (auto* r=dynamic_cast<const DensityMatrixRequirement*>(p)) itsTermNeedsDensityMatrix = itsTermNeedsDensityMatrix || r->RequiresDensityMatrix();
 }
 template <class T> void tHamiltonianImp<T>::HoldNonlinearMesh(mesh_t m)
 {
