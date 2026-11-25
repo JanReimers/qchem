@@ -20,5 +20,33 @@
   "B": {
     "comment": "a boron atom: the open-2p1 doublet that flips DIIS to GDM (the tough light-atom test)",
     "atoms": [ { "el": "B", "xyz": [0.0, 0.0, 0.0] } ]
+  },
+  "CH4": {
+    "comment": "tetrahedral, C-H 2.0504 bohr (1.085 A, the CH4_dzvp box's geometry); Td, the Q2 Hartree-route table (lane S 2026-11-25)",
+    "atoms": [ { "el": "C", "xyz": [0.0, 0.0, 0.0] },
+               { "el": "H", "xyz": [ 1.18381,  1.18381,  1.18381] },
+               { "el": "H", "xyz": [-1.18381, -1.18381,  1.18381] },
+               { "el": "H", "xyz": [-1.18381,  1.18381, -1.18381] },
+               { "el": "H", "xyz": [ 1.18381, -1.18381, -1.18381] } ]
+  },
+  "SF6": {
+    "comment": "octahedral, S-F 1.564 A; Oh, the Q2 Hartree-route table's imposed (folded) case (lane S 2026-11-25)",
+    "atoms": [ { "el": "S", "xyz": [0.0, 0.0, 0.0] },
+               { "el": "F", "xyz": [2.955532, 0, 0] },
+               { "el": "F", "xyz": [-2.955532, 0, 0] },
+               { "el": "F", "xyz": [0, 2.955532, 0] },
+               { "el": "F", "xyz": [0, -2.955532, 0] },
+               { "el": "F", "xyz": [0, 0, 2.955532] },
+               { "el": "F", "xyz": [0, 0, -2.955532] } ]
+  },
+  "TeF6": {
+    "comment": "octahedral, Te-F 1.82 A: M_DFT's MakeTeF6 and the 2026-11-05 runs' geometry; the Q2 Hartree-route table (lane S 2026-11-25)",
+    "atoms": [ { "el": "Te", "xyz": [0.0, 0.0, 0.0] },
+               { "el": "F", "xyz": [3.439302, 0, 0] },
+               { "el": "F", "xyz": [-3.439302, 0, 0] },
+               { "el": "F", "xyz": [0, 3.439302, 0] },
+               { "el": "F", "xyz": [0, -3.439302, 0] },
+               { "el": "F", "xyz": [0, 0, 3.439302] },
+               { "el": "F", "xyz": [0, 0, -3.439302] } ]
   }
 }

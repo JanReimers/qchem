@@ -20,7 +20,11 @@ TEST(StructureData, WaterIsTheExperimentalGeometryInBohr)
 {
     const Molecule w=SD::GetMolecule("H2O");
     ASSERT_EQ(w.GetNumAtoms(), 3u);
-    EXPECT_EQ(SD::MoleculeNames().size(), 4u);
+    for (const std::string& n : SD::MoleculeNames())
+    {
+        EXPECT_EQ(SD::KindOf(n), SD::Kind::Molecule) << n << " is in the molecule pick-list, so it must be a molecule";
+        EXPECT_GT(SD::GetMolecule(n).GetNumAtoms(), 0u) << n;
+    }
     EXPECT_EQ(SD::KindOf("H2O"), SD::Kind::Molecule);
 }
 
