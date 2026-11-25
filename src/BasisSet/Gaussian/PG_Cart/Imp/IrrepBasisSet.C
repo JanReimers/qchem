@@ -518,6 +518,85 @@ Orbital_IBS::MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const 
     return R::Ok(std::move(out));
 }
 
+// THE POINT-CHARGE COULOMB INTEGRALS (BasisSet::PointCoulomb, lane S 2026-11-25): (ij|δ_g) by the M&D kernel, matrix-free.  The Ω table is
+// built HERE, serially (the store is single-thread); the closures run the pass over fixed point chunks (independent of the thread count),
+// so the forward writes each point once and the adjoint's per-chunk partials are reduced in chunk order: bit-identical at any thread count.
+PairProjection<double> Orbital_IBS::MakePointCoulomb(const rvec3vec_t& pts) const
+{
+    struct Plan
+    {
+        const Orbital_IBS* self;
+        NR_Evaluator::GroupPairΩ table;
+        rvec3vec_t pts;
+        size_t n;
+        //! Run \a f(chunk, p0, p1) over the fixed chunks, threaded when \c InnerThreads allows.
+        void Chunks(const std::function<void(size_t,size_t,size_t)>& f) const
+        {
+            const size_t npts=pts.size(), nchunk=std::min<size_t>(64, npts), per=nchunk ? (npts+nchunk-1)/nchunk : 0;
+            auto run=[&](size_t b){ const size_t p0=b*per, p1=std::min(npts,(b+1)*per); if (p0<p1) f(b,p0,p1); };
+#ifdef QCHEM_OPENMP
+            if (const int nthreads=qchem::InnerThreads(); nthreads>1)
+            {
+                std::exception_ptr firstEx;
+                #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
+                for (size_t b=0; b<nchunk; b++)
+                {
+                    try { run(b); }
+                    catch (...)
+                    {
+                        #pragma omp critical (pg_pointcoulomb_throw)
+                        if (!firstEx) firstEx=std::current_exception();
+                    }
+                }
+                if (firstEx) std::rethrow_exception(firstEx);
+                return;
+            }
+#endif
+            for (size_t b=0; b<nchunk; b++) run(b);
+        }
+        size_t NChunks() const {return std::min<size_t>(64, pts.size());}
+    };
+    auto plan=std::make_shared<const Plan>(Plan{this, MakeGroupPairΩ(), pts, GetNumFunctions()});
+    PairProjection<double> out;
+    // forward: ṽ_g = Σ_ij D_ij (ij|δ_g); the pass visits fa <= fb once, so an off-diagonal pair counts twice (D symmetric)
+    out.applyRaw=[plan](const hmat_t<double>& D) -> rvec_t
+    {
+        const Plan& P=*plan;
+        if (D.rows()!=P.n) throw std::invalid_argument("MakePointCoulomb forward: D is "+std::to_string(D.rows())+" square for "+std::to_string(P.n)+" functions");
+        const mat_t<double> Dm(D);
+        rvec_t v(P.pts.size(), 0.0);
+        P.Chunks([&](size_t, size_t p0, size_t p1)
+        {
+            P.self->PointCoulombPass(P.table, P.pts, p0, p1, [&](size_t g, size_t a, size_t b, double val)
+                                     { v[g] += (a==b ? 1.0 : 2.0)*Dm(a,b)*val; });
+        });
+        return v;
+    };
+    // adjoint: Σ_g q_g (ij|δ_g); a chunk accumulates its upper triangle privately
+    out.applyRawAdjoint=[plan](const rvec_t& q) -> hmat_t<double>
+    {
+        const Plan& P=*plan;
+        if (q.size()!=P.pts.size()) throw std::invalid_argument("MakePointCoulomb adjoint: "+std::to_string(q.size())+" charges for "+std::to_string(P.pts.size())+" points");
+        std::vector<mat_t<double>> part(P.NChunks());
+        P.Chunks([&](size_t c, size_t p0, size_t p1)
+        {
+            mat_t<double>& M=part[c];
+            M=mat_t<double>(P.n, P.n, 0.0);
+            P.self->PointCoulombPass(P.table, P.pts, p0, p1, [&](size_t g, size_t a, size_t b, double val)
+                                     { if (q[g]!=0.0) M(a,b) += q[g]*val; });
+        });
+        hmat_t<double> V(P.n);
+        for (size_t i=0;i<P.n;i++) for (size_t j=i;j<P.n;j++)
+        {
+            double s=0.0;
+            for (const auto& M : part) if (M.rows()==P.n) s+=M(i,j);
+            V(i,j)=s;
+        }
+        return V;
+    };
+    return out;
+}
+
 chmat_t Orbital_IBS::MakeOverlap(const cellphase_t& phase, const UnitCell& A) const {return NR_Evaluator::MakeOverlap(phase,A);}
 cvec_t  Orbital_IBS::MakeOverlap(const cellphase_t& phase, const UnitCell& A,
                                  const Gaussian::LatticeSum1E::GaussianFunction& g) const {return NR_Evaluator::MakeOverlap(phase,A,g);}

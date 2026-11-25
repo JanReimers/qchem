@@ -514,6 +514,14 @@ public:
                                       const GaussianRF* const* rc, size_t mc,
                                       const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
                                       const Polarization* pc, size_t nc, const PrimitivePairTable& abΩ, double* out);
+    //! \brief THE POINT-CHARGE COULOMB GROUP BLOCK (lane S 2026-11-25, the δ-projection Hartree): \f$(ab|\delta_r)=\int\phi_a\phi_b(r')
+    //! /|r'-r|\,dr'\f$ for every member pair of two shell groups and ONE point \a r: \a out[m*n+q] with m=ia*mb+ib, q=a*nb+b, the
+    //! per-member radial coefficients applied, the norms NOT (the evaluator's).  It is \c Repulsion3CGroupBlock with the fit function a
+    //! unit point charge (the reduced exponent \f$p\alpha/(p+\alpha)\to p\f$), i.e. \c Nuclear's kernel (\c PairNuclear) at a single unit
+    //! positive charge, so the sign is +.  WORKER-SAFE: the ab Ω come in, \a R and \a t are the caller's scratch (one per worker).
+    static void PointCoulombGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+                                       const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                       const PrimitivePairTable& abΩ, const rvec3_t& r, RNLM& R, std::vector<double>& t, double* out);
     //! WORKER-SAFE as it stands: each primitive triple's Hermite3 is built locally (the cold tensor meets each triple once, so the global
     //! Cache3 would only insert), and nothing else is shared.
     static void Overlap3CGroupBlock  (const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,

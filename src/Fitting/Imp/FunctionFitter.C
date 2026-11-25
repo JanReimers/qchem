@@ -15,7 +15,7 @@ namespace qchem::Fitting
 {
 
 //  (2026-09-19) The Coulomb metric solve c0 = J^-1 <rho|c> no longer lives on the projection: it is the
-//  FITTER's -- ConstrainedFF::DoFitUnconstrained applies its own metric to the RHS the density hands it
+//  FITTER's -- ConstrainedFF::DoFit applies its own metric to the RHS the density hands it
 //  through the DensityProjector face (R1.0q: the fitter owns the metric, the density owns D, one integrator
 //  object owns the tensor).  This TU keeps only the factories.
 

@@ -6,6 +6,7 @@ module;
 #include <string>
 module qchem.Fitting.CoulombOperator;
 import qchem.Fitting.Internal.DeltaDensityFitter;
+import qchem.Fitting.Internal.DeltaProjectionDensityFitter;
 import qchem.Fitting.Internal.GSpaceDensityFitter;
 import qchem.Fitting.Internal.FunctionFitterImp;   // IntegralConstrainedFF (the Gaussian Dunlap fit)
 import qchem.BasisSet.G_FieldEvaluator;
@@ -62,6 +63,14 @@ MakeDeltaDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, 
                                "(wrap a δ basis in BasisSet::CoulombDeltaFit_IBS with its operator)");
     if (!mesh) throw std::logic_error("MakeDeltaDensityFitter: no mesh for the fit basis '"+deltaBasis->Name()+"'");
     return std::make_unique<DeltaDensityFitter>(std::move(deltaBasis), *coulomb, std::move(mesh));
+}
+
+std::unique_ptr<FirstOrderDensityFit<double>>
+MakeDeltaProjectionDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::shared_ptr<const qcMesh::Mesh> mesh)
+{
+    if (!deltaBasis) throw std::logic_error("MakeDeltaProjectionDensityFitter: no fit basis");
+    if (!mesh) throw std::logic_error("MakeDeltaProjectionDensityFitter: no mesh for the fit basis '"+deltaBasis->Name()+"'");
+    return std::make_unique<DeltaProjectionDensityFitter>(std::move(deltaBasis), std::move(mesh));
 }
 
 std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs)

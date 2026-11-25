@@ -23,6 +23,7 @@ import qchem.BasisSet.Fit_Types;   // BasisSet::Forces(VxcFit, Frame): the one s
 import qchem.Types;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.PointSetPullback;   // the molecular δ quadrature derivative face
+import qchem.BasisSet.PointCoulomb;       // (ij|δ_g): the δ-projection Hartree's Coulomb projection
 import qchem.BasisSet.Internal.Fit_IBS;   // the shared Gaussian-family implementation base we DERIVE
 
 export namespace qchem::BasisSet::Gaussian::PG_Cart
@@ -81,6 +82,7 @@ class Orbital_IBS
     , public virtual Gaussian::ToleranceBinding        // the builder binds the pair-loop tolerances (D-ENV-TOL option A)
     , public IrrepBasisSet
     , public virtual ::qchem::BasisSet::PointSetPullback<double>   // the molecular δ quadrature's derivative (the Becke mesh force; lane B 2026-11-22)
+    , public virtual ::qchem::BasisSet::PointCoulomb<double>       // (ij|δ_g) at a point set (the δ-projection Hartree; lane S 2026-11-25)
 {
 public:
     Orbital_IBS(const std::shared_ptr<BasisCache>& cache, Reader *, const Structure *);
@@ -121,6 +123,9 @@ public:
     //! The MOLECULAR twin (BasisSet::PointSetPullback): the same jets with no images, the functions at their own centres.
     virtual Outcome<::qchem::BasisSet::PointSetPullback<double>::Result,AD::NoGradient>
             MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const hmat_t<double>& D, const Structure* st) const override;
+    //! \copydoc BasisSet::PointCoulomb::MakePointCoulomb -- the M&D kernel (\c NR_Evaluator::PointCoulombPass), point chunks on
+    //! \c InnerThreads workers, bit-identical at any thread count (fixed chunks, the adjoint's chunk partials reduced in chunk order).
+    virtual PairProjection<double> MakePointCoulomb(const rvec3vec_t& pts) const override;
     virtual PointPullback BlochPointPullbackFolded(const rvec3vec_t& pts, const rvec_t& c,
                                                    const std::vector<std::pair<const chmat_t*, const cellphase_t*>>& terms,
                                                    const UnitCell& A, const Structure* st) const override;

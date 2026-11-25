@@ -163,6 +163,13 @@ std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_pt
 std::unique_ptr<FirstOrderDensityFit<double>>
 MakeDeltaDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::shared_ptr<const qcMesh::Mesh> mesh);
 
+//! \brief The δ-PROJECTION density fit on \a deltaBasis (lane S 2026-11-25): the same δ fit and overlap projection, with the Coulomb side the
+//! orbital blocks' analytic point-charge integrals \f$(ij|\delta_g)\f$ at \a mesh's points (\c BasisSet::PointCoulomb) instead of an
+//! operator, \f$E_H=\tfrac12(\rho|\tilde\rho)\f$ (the derivation at \c DeltaProjectionDensityFitter).  \a deltaBasis needs no Coulomb
+//! operator (a bare δ basis will do); \a mesh is its own point set.  THROWS when the basis is not orthogonal or the mesh is not its points.
+std::unique_ptr<FirstOrderDensityFit<double>>
+MakeDeltaProjectionDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::shared_ptr<const qcMesh::Mesh> mesh);
+
 //! \brief A density fit on a PLANE-WAVE fit basis \a pw (orthonormal {G}): the fit is \f$\tilde\rho(G)\f$ itself, held privately;
 //! the physics is the basis's Coulomb integrals.  THROWS when \a pw is not orthonormal or lacks the G-space faces.
 std::unique_ptr<FirstOrderDensityFit<dcmplx>> MakeGSpaceDensityFitter(std::shared_ptr<const BasisSet::cFIT_CD_ABS> pw);

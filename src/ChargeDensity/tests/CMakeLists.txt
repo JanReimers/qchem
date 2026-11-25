@@ -10,6 +10,7 @@ add_executable(UTChargeDensity ../../Common/tests/gtestmain.C
    AtomicDensity.C
    SinglesSampler.C
    BlockInstanceKeys.C
+   DeltaProjectionHartree.C   # the δ-projection Hartree fitter at fixed D: V = dE/dD (both legs), Tr(DV)=2E (lane S 2026-11-25)
 )
 
 # The library-wide seed gate reads the seed files and NIST's atomic tables directly (src/Common/Data/nistL{D,S}A.json).
