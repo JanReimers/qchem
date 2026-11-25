@@ -266,24 +266,24 @@ Virial               V/K  :    -2.00407537645  Eee/Exc:      -6.150743646
 const char* const kSolidGolden = R"G(  #               Etotal      [F,D]       ΔE/E        Δρ   ρ_lost/N    XC ρ    samp/τ  ρ_mix         accel   svMin    cfg       gap  
                                        (1e-06)   (1e-03)
 ----------------------------------------------------------------------------------------------------
-  1      -7.116180684469   2.70e-01  -1.00e+00  5.12e-02   1.79e-09      DM      ----  PulD 0.45     ----    ----          6.69e-02  
-  2      -7.115350728843   1.23e-02   1.17e-04  2.60e-02   3.94e-10      DM      ----  PulD 0.45     ----    ----          6.83e-02  
-  3      -7.115141396884   6.46e-03   2.94e-05  1.34e-02  -3.81e-11      DM      ----  PulD 0.45     ----    ----          6.90e-02  
-  4      -7.115088719483   3.97e-03   7.40e-06  7.18e-03  -3.73e-10      DM      ----  PulD 0.45     ----    ----          6.93e-02  
-[energy] final E_KS[D_out] = -7.115054417  (the trace's first-order E_T: |E_T - E_KS| = 3.43e-05 Ha, second order)
+  1      -7.116183252226   2.70e-01  -1.00e+00  5.12e-02   1.79e-09      DM      ----  PulD 0.45     ----    ----          6.69e-02  
+  2      -7.115353353866   1.23e-02   1.17e-04  2.60e-02   4.00e-10      DM      ----  PulD 0.45     ----    ----          6.83e-02  
+  3      -7.115144035063   6.46e-03   2.94e-05  1.34e-02  -3.41e-11      DM      ----  PulD 0.45     ----    ----          6.90e-02  
+  4      -7.115091360556   3.97e-03   7.40e-06  7.18e-03  -3.66e-10      DM      ----  PulD 0.45     ----    ----          6.93e-02  
+[energy] final E_KS[D_out] = -7.115057060936  (the trace's first-order E_T: |E_T - E_KS| = 3.43e-05 Ha, second order)
 ----------------------------------------------------------------------------------------------------------
-Energy    Breakdown  Total:  -7.11505441700  Kinetic:   4.36165985660  Potential: -11.47671427360
-Potential Breakdown  Een  :  -1.13823278927  Eee    :   0.90114785581  Eex      :  -2.54427178815
-Een       Breakdown  Eloc :  -2.86263084616  EenNL  :   1.72439805689
-Virial               V/K  :  -2.63127218787  Eee/Exc:  -0.35418694654  
+Energy    Breakdown  Total:  -7.11505706094  Kinetic:   4.36166334024  Potential: -11.47672040117
+Potential Breakdown  Een  :  -1.13823774772  Eee    :   0.90115127698  Eex      :  -2.54427637844
+Een       Breakdown  Eloc :  -2.86262545848  EenNL  :   1.72438771075
+Virial               V/K  :  -2.63127149115  Eee/Exc:  -0.35418765218  
 +-----------+-------------+----------+
 | Occ/Degen |      ϵ (au) | Symmetry |
 +-----------+-------------+----------+
-|    2/2    | -0.11636597 | 2(0,0,0) |
-|    6/6    |  0.32414685 | 3(0,0,0) |
+|    2/2    | -0.11636574 | 2(0,0,0) |
+|    6/6    |  0.32414579 | 3(0,0,0) |
 +-----------+-------------+----------+
-[gpw] NOT converged iters=4 charge=8.00000000000 Eelec=1.58030313499 Etot=-7.1150544170  (Ekin=4.36165985660 Een=-1.13823278927 Eee=0.90114785581 Exc=-2.54427178815 Enn=-8.40046478619 E_alphaZ=-0.29489276580)
-[gpw] Hartree mesh charge error=-4.875e-09 energy=-1.098e-09
+[gpw] NOT converged iters=4 charge=8.00000000000 Eelec=1.58030049105 Etot=-7.1150570609  (Ekin=4.36166334024 Een=-1.13823774772 Eee=0.90115127698 Exc=-2.54427637844 Enn=-8.40046478619 E_alphaZ=-0.29489276580)
+[gpw] Hartree mesh charge error=-4.868e-09 energy=-1.097e-09
 [gpw raster pilot] SKIPPED: the SCF did not converge, so there is no D to audit -- the rasters stay the ball's own
 )G";
 }

@@ -25,6 +25,28 @@ inline constexpr double kVlocEpsNoTarget = 1.0e-5;
 //! deliberately decoupled from cutoffFactor when that fell to 2 (BuildLevels in Imp/GPW_Evaluator.C).
 inline constexpr double kRungGateC = 8.0;
 
+//! \brief RIGOROUS: the cutoff at which a Gaussian pair product of exponent \a p (Bohr^-2) keeps a spectral tail of at most \a eps,
+//! relative to its own G = 0 term -- the pair->level ROUTING bound (lane A, 2026-11-24).  The product of two Gaussians is a Gaussian of
+//! exponent \f$p=\alpha_i+\alpha_j\f$ (times a polynomial for l > 0), whose Fourier transform is \f$\propto e^{-G^2/4p}\f$.  A level of
+//! cutoff \f$E\f$ keeps \f$G^2\le 2E\f$, so what it drops is bounded by \f$e^{-2E/4p}=e^{-E/2p}\f$, and
+//! \f[ E \ge 2\,p\,\ln(1/\varepsilon) \f]
+//! bounds it by \f$\varepsilon\f$.  ABSOLUTE in p: no reference grid and no \f$\alpha_{\max}\f$ enter, so a coarse reference (a seed
+//! stage, a small cutoffFactor) cannot make the rule lean.  (The relative rule it replaces, \f$s\,e^{ref}_{cut}p/2\alpha_{\max}\f$, read
+//! \f$e^{-2}\f$..\f$e^{-4}\f$ tails at a typical reference and \f$e^{-1/4}\f$ on NaF's Ecut-40 seed stage: -98 mHa there once the field
+//! floor stopped hiding it.)  The polynomial prefactor of an l > 0 pair shifts the bound by O(ln l) -- inside the calibrated eps.
+//! A pair whose bound exceeds the finest level sits on the finest level: its tail is then the ladder's completeness, which the charge
+//! calibration and the grid audit own, not the routing.  THROWS for p <= 0 or eps outside (0,1).
+double PairRoutingEcut(double p, double eps);
+
+//! \brief CALIBRATION: the routing tolerance \c PairRoutingEcut is evaluated at (\c GPWTolerances::pairRoutingEps, deck
+//! `solid.tolerances.pairRoutingEps`).  The bound is per pair and relative; the cell energy sums many pairs whose truncations may add or
+//! cancel, so the eps that DELIVERS a given energy accuracy is measured, not derived (like \c GridAccuracy::vlocRoutingEta).
+//! MEASURED 2026-11-24 (lane A, ~/Code/qchem6-runs/TiO2/lanea_routing, `GPW_TiO2.k222_CP2KsCellIsStationary_Long`, every level but the
+//! routing held): E at ln(1/eps) = 9.21 / 16.12 / 23.03 / 32.24 is -71.33796766 / -71.33795527 / -71.33795527 / -71.33795527 -- 12 uHa
+//! at eps 1e-4, converged to < 1e-8 Ha at 1e-7; NaF q9 k222 at 1e-7 reads the all-on-the-reference energy to 3 nHa.  1e-7 is CP2K's
+//! REL_CUTOFF 60 Ry class (32 p against its 30 p).  Not yet derived from the accuracy target (doc/OpenWork.md: pair routing from eps).
+inline constexpr double kPairRoutingEps = 1.0e-7;
+
 //! \brief EMPIRICAL: the STIFFNESS of the relative pair->level rule (expert `solid.accuracyCalibration.relCutoffSafety`; CP2K's REL_CUTOFF
 //! safety).  The RIGOROUS part is the rule's form: a pair of product exponent \f$p\f$ is resolved on a level whose cutoff reaches its own
 //! share of the reference, \f$e_{cut}\ge s\,e_{cut}^{ref}\,p/(2\alpha_{\max})\f$ (the sharpest pair sits on the reference).  The factor
@@ -32,8 +54,10 @@ inline constexpr double kRungGateC = 8.0;
 //! tails on a pair at its own cutoff -- fine for the charge (~1e-5 loss) but a few-mHa ENERGY term once V_H / V_xc couple to it: Si SR
 //! Gamma sat ~5 mHa below CP2K at s = 1.  s = 2 moves only the MID pairs one level up (the diffuse tail stays coarse) and squares the tail
 //! to ~e^{-5}.  CP2K's REL_CUTOFF default (30 Ry) is a ~3x stiffer ratio than the auto floor, so 2 is still on the lean side.
-//! One number for the pair rule (the MnD evaluator's \c PairLevel) and the ladder's completion rung (at \f$s\,e_{cut}^{ref}\f$), so the
-//! two agree by construction; moved off the basis to the ladder's tolerances by V-BS-RASTER step 2 (2026-11-07).
+//! One number for the ladder's completion rung (at \f$s\,e_{cut}^{ref}\f$) and the HartreeXC field floor; moved off the basis to the
+//! ladder's tolerances by V-BS-RASTER step 2 (2026-11-07).  Since 2026-11-24 it no longer routes the PAIRS: \c PairRoutingEcut does
+//! (absolute in p), and this stiffness only scales the field floor \f$s\,e^{ref}_{cut}\beta/2\alpha_{\max}\f$ that seats every pair on
+//! the reference or finer when V_xc rides the raster.
 inline constexpr double kRelCutoffSafety = 2.0;
 
 //! \brief WHICH collocation kernel the MnD evaluator runs: two exact routes to one sum, so this is NOT a run input (D-ENV 6c: an
@@ -69,13 +93,23 @@ struct GPWTolerances
     //! The relative pair->level rule's stiffness: the facade writes \c GridAccuracy::relCutoffSafety; bound on the molecular basis with
     //! the other pair-loop tolerances (its \c PairLevel reads it), so the pair rule and the ladder read ONE value.
     double relCutoffSafety = kRelCutoffSafety;
+    //! The pair->level ROUTING tolerance: a pair of product exponent p goes to the coarsest level of cutoff >= \c PairRoutingEcut(p,
+    //! pairRoutingEps) (the field floor aside).  Bound on the molecular basis with the other pair-loop tolerances (its \c PairLevel reads
+    //! it) and printed by the ladder's pairRule report row; the raster cap (PairCap) is still the relative rule, deliberately conservative.
+    //! Default: the calibration \c kPairRoutingEps.
+    double pairRoutingEps = kPairRoutingEps;
     //! The ABSOLUTE pair->level rule kappa (Ha per unit pair exponent) of the local-PP sweeps: every pair's spectral tail is
     //! bounded by e^{-kappa/2} independent of the field's sharpness.  30 Ha (e^{-15}) is CP2K's REL_CUTOFF 60 Ry; 60 is the
     //! self-convergence check.
     double localPPRelCutoff = 30.0;
-    //! The HartreeOnly raster routing floor, as a FRACTION of alpha_max (only used with \c RasterFields::HartreeOnly).  beta=0
-    //! (pure pair bandwidth) DIVERGES (+904 Ha), so the floor protects the density too.
-    double relFieldSharp = 1.0/3.0;
+    //! The HartreeOnly raster routing floor, as a FRACTION of alpha_max (only used with \c RasterFields::HartreeOnly); 0 = none, pure
+    //! pair routing.  It was 1/3 after NaF SR2 Becke DIVERGED at 0 (+904 Ha, 2026-07-31): an under-resolved diffuse pair folded high G
+    //! into rho-tilde's low G.  EXPLAINED 2026-11-24 (lane A): that was the RELATIVE pair rule's lean tail (e^{-2} at the then s ~ 1),
+    //! which the floor hid by seating every pair on the reference; with the absolute \c PairRoutingEcut the floor protects nothing --
+    //! NaF q9 k222 at 0 reads the floored energy to 3 nHa; TiO2 is eps-converged (kPairRoutingEps); Na / Li / MnO / Si read
+    //! their eps 1e-12 and all-pairs-on-the-finest-level energies to <= 5 nHa (~/Code/qchem6-runs/anchors/lane-a-pin10).  The Hartree field
+    //! is smooth (V_H(G) ~ rho(G)/G^2), so the pair's own bandwidth is the whole requirement.
+    double relFieldSharp = 0.0;
     //! EXPLICIT multigrid cutoff list (Ha, descending) replacing the factor-ladder AND the top completion rung: level 0 stays
     //! the reference grid, these follow.  For matching CP2K's `CUTOFF/3^i` ladder, which the factor-4 default cannot
     //! reproduce.  Empty = the automatic ladder.   Deck: `"mgridEcuts":[53.33,17.78,5.926]`.

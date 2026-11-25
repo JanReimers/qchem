@@ -91,5 +91,8 @@ TEST(GPW_Na, k222s_Imp_Smear_GlobalMu_Anchor)
     // the old 3e-3, which a 1 mHa regression would have passed.
     // RE-BANKED 2026-11-02 (the density ball judged, OpenWork F): +41.9 uHa, the pilot doubles the ball once (cutoffFactor 4: Hartree
     // 1.66e-5 at 2, 5.8e-6 at 4 against twice it).  Judged by the ball's SELF-CONVERGENCE, as above -- still no independent route at k222.
-    EXPECT_NEAR(R->Energy(), 0.0473906, 1e-5);
+    // RE-JUDGED 2026-11-24 (lane A, the absolute pair routing ecut >= 2 p ln(1/eps)): 0.0473906 -> 0.0473793 (-11.3 uHa).  Pin 10's
+    // independent route: the same run at eps 1e-12 and with EVERY pair on the finest level (no routing at all) gives 0.04737928161 both
+    // times, identical to the new value; the old relative pair rule left the diffuse Na 3s pairs on coarse levels (~/Code/qchem6-runs/anchors/lane-a-pin10).
+    EXPECT_NEAR(R->Energy(), 0.0473793, 1e-5);
 }

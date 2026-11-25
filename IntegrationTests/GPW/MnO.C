@@ -564,7 +564,11 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long)
     // quantity summed): -61.3031134482 -> -61.3031140146 (-566 nHa); the SAD anchor lands on the same value (-61.30311401, 18 iterations),
     // so the twin claim stands.  Pin 10's independent route: the same run with the collocation screen 100x tighter (densityEps 1e-12,
     // through a recipe) gives -61.3031139546 -- 60 nHa from the new value, 506 nHa from the old (~/Code/qchem6-runs/MnO/lanea_foldk).
-    EXPECT_NEAR(R->Energy(), -61.3031140146, 1e-7) << "the SAD anchor's state (measured 2026-11-02, re-judged 2026-11-10, 2026-11-22)";
+    // RE-JUDGED 2026-11-24 (lane A, the absolute pair routing ecut >= 2 p ln(1/eps), no beta floor under Becke): -61.3031140146 ->
+    // -61.3031168554 (-2.84 uHa).  Pin 10's independent route: eps 1e-12 gives -61.3031168506, EVERY pair on the finest level (no routing)
+    // -61.3031168511 -- 4 nHa from the new value, 2.8 uHa from the old (~/Code/qchem6-runs/anchors/lane-a-pin10).  2.8 uHa further from the CP2K VA limit above:
+    // the converged-vs-converged gap row, not routing.
+    EXPECT_NEAR(R->Energy(), -61.3031168554, 1e-7) << "the SAD anchor's state (measured 2026-11-02, re-judged 2026-11-10, -22, -24)";
     ASSERT_FALSE(trace.rows.empty());
     EXPECT_GT(std::abs(trace.rows.back().order), 4.0) << "the AFM order survives the ionic seed (measured 4.459, = SAD's)";
 }

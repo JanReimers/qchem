@@ -231,6 +231,7 @@ set(QCHEM_PANEL_RED
 #      lists them.  A sweep report lists them separately with their reason.  When one goes red (fixed), remove it and close the row.
 set(QCHEM_KNOWN_RED
     "GPW_MnO.Γ_Shub_Pol_Smear_Ordering_Long"                   # OpenWork §3 "MnO ordering at Γ/SR: FM lies BELOW AFM-II" (the 136-function span); was DISABLED_
+    "GPW_TiO2.k222_CP2KsCellIsStationary_Long"                 # OpenWork §3 "TiO2 k222 energy vs CP2K is MESH-limited on the stated (40,29) Becke mesh": the ENERGY line fails (-142 uHa), stationarity passes
 )
 list(JOIN QCHEM_KNOWN_RED ":" _qchemKnownRed)
 set(_qchemKnownRedFast ${QCHEM_KNOWN_RED})        # a _Long known-red case keeps the long label and timeout

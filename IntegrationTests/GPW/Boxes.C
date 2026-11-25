@@ -339,12 +339,19 @@ SCFParams O2PulayOnDParams()
     return par;
 }
 //! The rasters this case's pilot settles on (C2 step 3, 2026-10-31: density x 20.56 from the ball's 5.55, where Hartree read 1.3 Ha).
-constexpr double kO2PulayRasterX=20.5590805;   // 20.5590984 at the fixed vlocEps 1e-5 (re-sized 2026-11-02, the derived eps/10)
+constexpr double kO2PulayRasterX=19.20214115779529;   // 20.5590805 under the relative pair rule (2026-11-02); re-sized 2026-11-24, the absolute pair routing
 //! The density ball it ends on (2026-11-02, the ball judged: Hartree 1.5 Ha, 4.7e-3, 2.3e-4, 1.1e-4 against twice the ball at cutoffFactor
 //! 2, 4, 8, 16 -- the pilot's four rounds run out still OVER the 2e-5 target, and the run keeps 16 and says so; OpenWork §3 row).
-constexpr double kO2PulayCutoffFactor=16.0;
+//! RESOLVED 2026-11-24 (lane A, the absolute pair routing): that slow "O tail" was the RELATIVE pair rule, whose level choice scaled with the
+//! ball's own ecut_0, so doubling the ball re-routed the pairs and the audit read the routing change.  Under ecut >= 2 p ln(1/eps) the ball
+//! reads 0.42, 7.2e-3, 9.9e-12 Ha at cutoffFactor 2, 4, 8: it settles on 8 in 3 rounds.
+constexpr double kO2PulayCutoffFactor=8.0;
 //! The energy on them (the pilot's re-converged point, 2026-11-02).
-constexpr double kO2PulayE=-29.9988768296;
+//! RE-BANKED 2026-11-24 (lane A, the absolute pair routing): -29.9988768296 -> -29.9988878897 (-11.1 uHa).  Not routing error: the
+//! stated cutoffFactor 16 / x 20.56 grid still reads -29.9988768 under the new routing (the ball is converged to 1e-11 between 8 and 16);
+//! the 11 uHa is the density raster at the pilot's new x 19.20 (Hartree delivered 1.4e-5 against the 2e-5 target, inside eps).  Against
+//! CP2K's converged -29.998767: 0.121 mHa (was 0.110), the auto densityEcut row's residual, not this change.
+constexpr double kO2PulayE=-29.9988878897;
 //! The V_loc long routing tolerance the pilot's target derives (GridAccuracy::VlocEps, eps/10): the panel case states it too.
 constexpr double kO2PulayVlocEps=1e-6;
 } // namespace
@@ -391,9 +398,11 @@ TEST(GPW_O2Box, Γ_Imp_M3_Pulay_PilotSizesTheRaster)
     // 2026-11-02 (the density ball judged): the raster settles in round 1 as before, but the ball doubles in every round and the pilot's
     // four rounds end with it still over (1.1e-4 at cutoffFactor 16 against the 2e-5 target, the tail not yet geometric): NOT settled,
     // said so, and the run keeps cutoffFactor 16.  Pinned as measured; when the ball's slow O tail is understood this goes back to settled.
-    EXPECT_FALSE(cost.settled) << "the ball's O tail outruns the pilot's four rounds (OpenWork §3)";
-    EXPECT_EQ(cost.rounds, 4);
-    EXPECT_LE(cost.reconvergeIterations, 45u) << "three re-convergences from the audited D (37 measured 2026-11-02; 16 with the raster alone)";
+    // UNDERSTOOD 2026-11-24 (lane A): the tail was the relative pair rule re-routing with the ball (kO2PulayCutoffFactor); under the absolute
+    // pair routing the pilot SETTLES in 3 rounds on cutoffFactor 8, 22 re-convergence iterations.
+    EXPECT_TRUE(cost.settled) << "the raster and the ball both meet the 2e-5 target";
+    EXPECT_EQ(cost.rounds, 3);
+    EXPECT_LE(cost.reconvergeIterations, 30u) << "two re-convergences from the audited D (22 measured 2026-11-24; 37 under the relative rule)";
     EXPECT_NEAR(calc->SizedSetup()->opts.solid.tolerances.rasterX, kO2PulayRasterX, 1e-6) << "the panel case states what this settles on";
     EXPECT_EQ(calc->SizedSetup()->opts.solid.cutoffFactor, kO2PulayCutoffFactor) << "and the ball it ends on";
     EXPECT_NEAR(R->Energy(), kO2PulayE, 1e-6) << "the pilot's re-converged point is the stated-grid panel case's";
