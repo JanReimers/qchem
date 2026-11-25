@@ -91,7 +91,7 @@ if(OpenMP_CXX_FOUND)
                 COMPILE_DEFINITIONS ${_qchemOmpFlags}
                 LINK_OPTIONS ${_qchemOmpFlags} ${_rpathOpts}
                 LINK_LIBRARIES "${OpenMP_omp_LIBRARY}"
-                COMPILE_OUTPUT_VARIABLE _compileOut RUN_OUTPUT_VARIABLE _loaded)
+                COMPILE_OUTPUT_VARIABLE _compileOut RUN_OUTPUT_STDOUT_VARIABLE _loaded)  # stdout only: a TSan libomp WARNS on stderr
         if(NOT _compile OR NOT _run EQUAL 0)
             message(FATAL_ERROR "OpenMP: a program linked against ${OpenMP_omp_LIBRARY} with '${OpenMP_CXX_FLAGS}' does not build or run:\n"
                 "${_compileOut}\n-- To fix this, please state -DOpenMP_omp_LIBRARY=<the libomp.so of this clang> (and OpenMP_CXX_FLAGS) on a fresh tree.")
