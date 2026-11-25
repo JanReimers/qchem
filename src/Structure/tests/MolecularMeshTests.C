@@ -732,3 +732,105 @@ TEST(MolecularPointGroupMesh, EveryLebedevRuleFromDegree9CarriesTheFrame)
         catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find("degree 9"), std::string::npos) << e.what(); }
     }
 }
+
+// ---- The per-orbit consumer's view (OpenWork §3, the cost lever V-FOLD-NEUTRAL did not buy; lane H 2026-11-24) -------------------------
+namespace
+{
+//! An INVARIANT integrand under any D2h-type group in the molecule's frame: Gaussians on every atom times an EVEN polynomial of the frame
+//! coordinates.  (\c Field above is not: its 0.3 u.x term is odd under the x mirror.)
+double EvenField(const rvec3_t& r, const Molecule& mol, const Matrix3D<double>& Q, const rvec3_t& shift)
+{
+    const rvec3_t u=Transpose(Q)*(r-shift);
+    double g=0.0;
+    for (const Site& s : mol.Sites()) { const rvec3_t d=r-s.R; g+=std::exp(-0.8*(d*d)); }
+    return g*(1.0+0.1*u.x*u.x+0.2*u.y*u.y*u.z*u.z+0.05*u.z*u.z);
+}
+// CH4: the D2 subgroup of Td (C2 along each frame axis) carries the four H at (±a,±a,±a), an even number of minus signs.
+std::vector<Site> CH4()
+{
+    const double a=1.19;
+    return {{6, rvec3_t(0,0,0)}, {1, rvec3_t(a,a,a)}, {1, rvec3_t(a,-a,-a)}, {1, rvec3_t(-a,a,-a)}, {1, rvec3_t(-a,-a,a)}};
+}
+const std::vector<Matrix3D<double>> kD2={Diag(1,1,1), Diag(1,-1,-1), Diag(-1,1,-1), Diag(-1,-1,1)};
+
+//! On \a q (built for \a mol placed by \a Q, \a shift), the representatives integrate an invariant field exactly and a non-invariant one
+//! not; CopyOut restores the full samples of an invariant field; and the per-orbit gradient P g~ is the full one.
+void ExpectTheRepresentativesServeAnInvariantIntegrand(const qcMesh::FoldedMesh& q, const Molecule& mol, const Matrix3D<double>& Q,
+                                                       const rvec3_t& shift, const char* name)
+{
+    ASSERT_TRUE(q.HasFold());
+    ASSERT_TRUE(q.HasSiteAction()) << "the molecular fold carries its site action";
+    const qcMesh::Mesh& full=*q.GetMesh();
+    const qcMesh::Mesh  rep =q.MakeRepresentativeMesh();
+    ASSERT_EQ(rep.size(), q.NumOrbits());
+    ASSERT_EQ(rep.NSites(), full.NSites());
+    std::printf("[fold factor] %s: %zu points in %zu orbits = %.2fx\n", name, full.size(), rep.size(), double(full.size())/double(rep.size()));
+
+    double Ef=0.0, Er=0.0, Ff=0.0, Fr=0.0, Wf=0.0, Wr=0.0;
+    for (size_t i=0;i<full.size();i++)
+    {
+        Ef+=full.Weights()[i]*EvenField(full.Points()[i], mol, Q, shift);
+        Ff+=full.Weights()[i]*Field    (full.Points()[i], mol, Q, shift);
+        Wf+=full.Weights()[i];
+    }
+    for (size_t i=0;i<rep.size();i++)
+    {
+        Er+=rep.Weights()[i]*EvenField(rep.Points()[i], mol, Q, shift);
+        Fr+=rep.Weights()[i]*Field    (rep.Points()[i], mol, Q, shift);
+        Wr+=rep.Weights()[i];
+    }
+    EXPECT_NEAR(Wr, Wf, 1e-13*Wf) << "the orbit weights sum to the mesh's (summation order: 7e11 weights on the 1e6-bohr shell)";
+    EXPECT_NEAR(Er, Ef, 1e-13*std::abs(Ef)) << "an invariant integrand: one point per orbit is exact";
+    EXPECT_GT(std::abs(Fr-Ff), 1e-6*std::abs(Ff)) << "a NON-invariant integrand is wrong on the representatives -- why a consumer must know its "
+                                                    "integrand is invariant (a single Gaussian fit function, a site multipole)";
+
+    rvec_t fr(rep.size());
+    for (size_t i=0;i<rep.size();i++) fr[i]=EvenField(rep.Points()[i], mol, Q, shift);
+    const rvec_t ff=q.CopyOut(fr);
+    ASSERT_EQ(ff.size(), full.size());
+    for (size_t i=0;i<full.size();i++)
+    {
+        const double e=EvenField(full.Points()[i], mol, Q, shift);
+        EXPECT_NEAR(ff[i], e, 1e-12*std::max(1.0,std::abs(e))) << "CopyOut of an invariant field, point " << i;
+    }
+
+    // A GRADIENT-shaped quantity: per site A, sum over its block of w f(r) u (u the point's owner offset) -- covariant under the group,
+    // as the XC force's point-riding term is.  The per-orbit route accumulates it at the representatives at the orbit weight, then projects.
+    ASSERT_EQ(full.OwnerOffsets().size(), full.size());
+    rvec3vec_t gFull(full.NSites(), rvec3_t(0,0,0)), gRep(rep.NSites(), rvec3_t(0,0,0));
+    for (size_t a=0;a<full.NSites();a++)
+        for (size_t i=full.SiteBegin(a);i<full.SiteEnd(a);i++)
+            gFull[a]+=full.Weights()[i]*EvenField(full.Points()[i], mol, Q, shift)*full.OwnerOffsets()[i];
+    for (size_t a=0;a<rep.NSites();a++)
+        for (size_t i=rep.SiteBegin(a);i<rep.SiteEnd(a);i++)
+            gRep[a]+=rep.Weights()[i]*EvenField(rep.Points()[i], mol, Q, shift)*rep.OwnerOffsets()[i];
+    q.SymmetrizeSiteVectors(gRep);
+    double scale=0.0; for (size_t a=0;a<gFull.size();a++) scale=std::max(scale, norm(gFull[a]));
+    for (size_t a=0;a<gFull.size();a++)
+        EXPECT_NEAR(norm(gRep[a]-gFull[a]), 0.0, 1e-12*std::max(1.0,scale)) << "the per-orbit gradient P g~ at site " << a;
+    rvec3vec_t again=gFull;
+    q.SymmetrizeSiteVectors(again);
+    for (size_t a=0;a<gFull.size();a++) EXPECT_NEAR(norm(again[a]-gFull[a]), 0.0, 1e-12*std::max(1.0,scale)) << "P fixes a covariant field";
+}
+} //anon
+
+TEST(MolecularPointGroupMesh, TheRepresentativesServeAnInvariantIntegrand)
+{
+    const rvec3_t shift(0.4,-1.1,2.3);
+    {
+        auto mol=Placed(kWater, kQ, shift);
+        Ops s; s.ops=PlacedOps(kC2v, kQ);
+        ExpectTheRepresentativesServeAnInvariantIntegrand(StructureMeshMaker<Molecule>(mol).Make(SymParams(), s), *mol, kQ, shift, "H2O C2v");
+    }
+    {
+        auto mol=Placed(CH4(), kQ, shift);
+        Ops s; s.ops=PlacedOps(kD2, kQ);
+        ExpectTheRepresentativesServeAnInvariantIntegrand(StructureMeshMaker<Molecule>(mol).Make(SymParams(), s), *mol, kQ, shift, "CH4 D2");
+    }
+    {
+        qcMesh::MeshParams mp=Params(); mp.angularDegree=17;
+        auto mol=Placed(SF6(), kQ, shift);
+        Ops s; s.ops=PlacedOps(D2h(), kQ);
+        ExpectTheRepresentativesServeAnInvariantIntegrand(StructureMeshMaker<Molecule>(mol).Make(mp, s), *mol, kQ, shift, "SF6 D2h");
+    }
+}

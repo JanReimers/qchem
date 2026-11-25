@@ -274,9 +274,14 @@ TEST(MoleculeSetup, AMoleculesMeshIsInvariantUnderItsD2hTypeSubgroupAndSaysSo)
     ASSERT_EQ(r.size(), size_t(1));
     EXPECT_NE(r[0].dump().find("C2v"), std::string::npos) << r[0].dump();
     EXPECT_NE(r[0].dump().find("not folded"), std::string::npos) << r[0].dump();
-    EXPECT_NE(PolicyRows("MeshSymmetry imposed", "MeshSymmetry")[0].dump().find("NOT folded"), std::string::npos)
-        << "the fold is built but not engaged: it has no geometry gradient and no GGA gradient rotation yet";
-    EXPECT_FALSE(imposed->MakePoint().meshSymmetry->AveragesDensityOverOrbits());
+    EXPECT_NE(PolicyRows("MeshSymmetry imposed", "MeshSymmetry")[0].dump().find("FOLDED"), std::string::npos)
+        << "an imposed δ-fit DFT run samples XC once per orbit (OpenWork §3, the per-orbit consumer)";
+    EXPECT_TRUE(imposed->MakePoint().meshSymmetry->AveragesDensityOverOrbits());
+    std::shared_ptr<const MoleculeSetup> a1;
+    { report::Run run("MeshSymmetry imposed A1"); a1=MoleculeSetup::Resolve(Water(), {.model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary,
+                                                                                       .imposeSymmetry=true, .molecule={.basis="dzvp"}}); }
+    EXPECT_FALSE(a1->MakePoint().meshSymmetry->AveragesDensityOverOrbits()) << "a Gaussian Vxc fit's functions are not invariant: not folded";
+    EXPECT_NE(PolicyRows("MeshSymmetry imposed A1", "MeshSymmetry")[0].dump().find("NOT folded"), std::string::npos);
     EXPECT_TRUE(PolicyRows("MeshSymmetry HF", "MeshSymmetry").empty()) << "an all-electron HF run builds no XC mesh";
     EXPECT_TRUE(hf->MakePoint().meshSymmetry->MeshOps().empty());
 }

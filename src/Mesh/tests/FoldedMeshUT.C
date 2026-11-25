@@ -157,3 +157,43 @@ TEST(FoldedMesh, GreySemanticsAverageEachChannelAndSoEraseAStaggeredMoment)
     // the +/- pair sits inside ONE orbit, so the spatial mean cancels it: order destroyed, as designed
     for (size_t i=0;i<4;i++) EXPECT_NEAR(m[i], 0.0, 1e-15);
 }
+
+// The per-orbit view: one point per orbit at the orbit's summed weight, CopyOut back, and a site action that must be a permutation.
+TEST(FoldedMesh, TheRepresentativeMeshCarriesTheOrbitWeights)
+{
+    qcMesh::MeshBuilder b;
+    for (size_t i=0;i<6;i++) b.Append(rvec3_t(double(i),0,0), 1.0+double(i));
+    FoldedMesh fm(std::make_shared<const qcMesh::Mesh>(b.take()), PairFold(6));
+    const qcMesh::Mesh r=fm.MakeRepresentativeMesh();
+    ASSERT_EQ(r.size(), 3u);
+    for (size_t o=0;o<3;o++)
+    {
+        EXPECT_EQ(r.Points()[o].x, double(2*o));
+        EXPECT_EQ(r.Weights()[o], (1.0+2*o)+(2.0+2*o)) << "W_o = the members' summed weight";
+    }
+    const rvec_t full=fm.CopyOut(rvec_t{10.0, 20.0, 30.0});
+    const rvec_t want{10.0, 10.0, 20.0, 20.0, 30.0, 30.0};
+    for (size_t i=0;i<6;i++) EXPECT_EQ(full[i], want[i]);
+    EXPECT_THROW(fm.CopyOut(rvec_t{1.0, 2.0}), std::invalid_argument);
+    EXPECT_FALSE(fm.HasSiteAction());
+    rvec3vec_t g(1, rvec3_t(0,0,0));
+    EXPECT_THROW(fm.SymmetrizeSiteVectors(g), std::logic_error);
+    EXPECT_THROW(FoldedMesh().MakeRepresentativeMesh(), std::logic_error) << "a free run has no orbits to represent";
+}
+
+TEST(FoldedMesh, ASiteActionMustPermuteTheSiteBlocks)
+{
+    auto mesh=std::make_shared<const qcMesh::Mesh>(rvec3vec_t{rvec3_t(1,0,0), rvec3_t(-1,0,0)}, rvec_t{1.0,1.0}, std::vector<size_t>{0,1});
+    SL::Fold f;
+    f.owner={0,0}; f.repRaw={0}; f.starSize={2}; f.members={{{0,0},{1,1}}};
+    const Matrix3D<double> I(1,0,0, 0,1,0, 0,0,1), Mx(-1,0,0, 0,1,0, 0,0,1);
+    EXPECT_THROW(FoldedMesh(mesh, f, FoldedMesh::SiteAction{{I, Mx}, {{0,1},{1,1}}}), std::runtime_error) << "not a permutation";
+    EXPECT_THROW(FoldedMesh(mesh, f, FoldedMesh::SiteAction{{I}, {{0,1},{1,0}}}), std::runtime_error) << "one rotation per image";
+    const FoldedMesh fm(mesh, f, FoldedMesh::SiteAction{{I, Mx}, {{0,1},{1,0}}});
+    rvec3vec_t g{rvec3_t(0.5,0.2,0), rvec3_t(-0.5,0.2,0)};   // covariant under the x mirror: fixed
+    fm.SymmetrizeSiteVectors(g);
+    EXPECT_NEAR(g[0].x, 0.5, 1e-15); EXPECT_NEAR(g[1].x, -0.5, 1e-15); EXPECT_NEAR(g[0].y, 0.2, 1e-15);
+    rvec3vec_t h{rvec3_t(0.5,0,0), rvec3_t(0.5,0,0)};         // the antisymmetric part is projected out
+    fm.SymmetrizeSiteVectors(h);
+    EXPECT_NEAR(h[0].x, 0.0, 1e-15); EXPECT_NEAR(h[1].x, 0.0, 1e-15);
+}

@@ -5,6 +5,7 @@
 // its audit meets eps (water at the entry rung, F2 above it), a stated one is kept and reported, HF has none, and a session freezes it.
 #include <gtest/gtest.h>
 #include <cmath>
+#include <cstdio>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -225,4 +226,58 @@ TEST(MeshPilot, ASessionPilotsItsFirstPointOnMatrixElementsAndStepsTheRestOnIt)
     EXPECT_EQ(pes.Current()->PilotCost().rounds, 0) << "a later point steps on the frozen mesh: no pilot";
     EXPECT_EQ(pes.Current()->SizedSetup()->xcMesh.nRadial,       frozen.nRadial);
     EXPECT_EQ(pes.Current()->SizedSetup()->xcMesh.angularDegree, frozen.angularDegree);
+}
+
+// ---- THE FOLD AUDIT (the per-orbit consumer of the molecular mesh fold, OpenWork §3; lane H 2026-11-24) -----------------------------------
+// On a SALC-imposed run every orbital block is a 1-D real irrep of the mesh's group H, so every integrand the δ XC route forms in a block is
+// H-invariant pointwise, and one point per orbit at the orbit's summed weight integrates it EXACTLY.  The claim: at the converged D the
+// folded Hamiltonian (one point per orbit) and the unfolded one (every point) agree term by term to roundoff -- E to 1e-10, every
+// matrix element to 1e-12 -- LDA and PBE, closed and open shell.
+namespace
+{
+Molecule MakeO2()   // as IntegrationTests/M_DFT.C, along z: D∞h, its D2h subgroup
+{
+    Molecule m;
+    m.Insert(Site{8, Vector3D<double>(0, 0,  1.141)});
+    m.Insert(Site{8, Vector3D<double>(0, 0, -1.141)});
+    return m;
+}
+Molecule MakeCH4()   // Td; H's D2h-type subgroup is the C2v BuildAbelianGroup picks (its frame 45° from these axes)
+{
+    Molecule ch4;
+    const double a=1.186;
+    ch4.Insert(Site{6, Vector3D<double>(0,0,0)});
+    for (const rvec3_t& h : {rvec3_t(a,a,a), rvec3_t(-a,-a,a), rvec3_t(-a,a,-a), rvec3_t(a,-a,-a)}) ch4.Insert(Site{1, Vector3D<double>(h.x,h.y,h.z)});
+    return ch4;
+}
+void ExpectTheFoldIsExact(const Molecule& mol, RunOptions o, const char* what)
+{
+    o.imposeSymmetry=true; o.scf=Tight(); o.molecule.basis="dzvp";
+    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(mol, o)).TakeValue(); (void)c->Converge();
+    ASSERT_TRUE(c->Result()) << what;
+    const GridAuditResult R=c->FoldAudit();
+    bool sawExc=false;
+    for (const auto& t : R.terms)
+    {
+        sawExc = sawExc || t.entries=="Exc";
+        EXPECT_LT(std::fabs(t.ΔE), 1e-10)   << what << ", " << t.label;
+        EXPECT_LT(t.maxAbsΔH,      1e-12)   << what << ", " << t.label;
+    }
+    EXPECT_TRUE(sawExc) << what;
+    std::printf("[fold audit] %s: |ΔE| %.2e, max|ΔH| %.2e\n", what, std::fabs(R.ΔE), R.maxAbsΔH);
+}
+} //anon
+
+TEST(FoldAudit, OnePointPerOrbitIsExactOnAnImposedRun_H2O_LDA)    {ExpectTheFoldIsExact(GetMolecule("H2O"), {.model=Model::LDA}, "H2O C2v LDA");}
+TEST(FoldAudit, OnePointPerOrbitIsExactOnAnImposedRun_H2O_PBE)    {ExpectTheFoldIsExact(GetMolecule("H2O"), {.model=Model::PBE}, "H2O C2v PBE");}
+TEST(FoldAudit, OnePointPerOrbitIsExactOnAnImposedRun_CH4_LDA)    {ExpectTheFoldIsExact(MakeCH4(), {.model=Model::LDA}, "CH4 Td->C2v LDA");}
+TEST(FoldAudit, OnePointPerOrbitIsExactOnAnImposedRun_O2_LSDA_Long)    {ExpectTheFoldIsExact(MakeO2(), {.multiplicity=3, .model=Model::LDA}, "O2 triplet D2h LSDA");}
+TEST(FoldAudit, OnePointPerOrbitIsExactOnAnImposedRun_O2_PBE_Long)    {ExpectTheFoldIsExact(MakeO2(), {.multiplicity=3, .model=Model::PBE}, "O2 triplet D2h PBE");}
+
+TEST(FoldAudit, AFreeRunIsRefused)
+{
+    auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(GetMolecule("H2O"), {.model=Model::LDA, .scf=Tight(), .molecule={.basis="dzvp"}})).TakeValue();
+    (void)c->Converge();
+    ASSERT_TRUE(c->Result());
+    EXPECT_THROW((void)c->FoldAudit(), std::invalid_argument) << "a free run's density is not invariant: folding would change the answer";
 }
