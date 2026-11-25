@@ -1,15 +1,92 @@
 Notes:        
 - Turn on/off vscode popups: search `quickSuggestions`.
-- ninja bug blocking build.
-D=build/Debug
-cmake -S /home/janr/Code/qchem6 -B $D          # 1. regenerate build.ninja
-find $D -name CXX.dd -delete                    # 2. purge stale collated dyndep
-rm -f $D/.ninja_deps $D/.ninja_log $D/.ninja_lock   # 3. clear the dep-log  ← decisive
-ninja -C $D <target>                            # 4. rescans dyndep, recompiles only what changed
 
-source .venv/bin/activate
-export QCHEM_BUILD=~/Code/qchem-viz/build/PIC
-python app_desktop.py 
+cd ~/Code/qchem-GUI && QCHEM_BUILD=~/Code/qchem-lane-g/build/Release .venv/bin/python app_desktop.py
+
+# Structure symmetry
+
+Where the chain holds exactly:
+
+Structure → Ven. Ven’s group is the space group of the nuclear positions, whether all-electron or pseudopotential: a GTH projector set is the same on equivalent sites and rotationally complete per site.
+ρ → Vxc. A local or semi-local functional gives Vxc(gr) = Vxc(r) whenever ρ(gr) = ρ(r), so Vxc inherits ρ's group exactly.
+
+Where it doesn’t:
+
+Ven → orbital basis is a requirement, not a consequence. The basis span must be closed under G: equivalent sites carry the same sets, and shells are complete in m. A basis can break this, and then everything downstream inherits the break.
+The real break is between the Hamiltonian and ρ. ρ[D] belongs to the solution, and a solution can break the Hamiltonian’s symmetry spontaneously: AFM order, Jahn-Teller, a charge-ordered state. So Gρ ⊆ G_Ven, and the state decides Gρ, not the chain. That’s your frustrated-magnet point. An imposed run declares G_ρ = G up front, and a free run lets the SCF find it. For a spin-polarized run, ρ↑ and ρ↓ carry the magnetic group while the total ρ may keep more.
+Everything downstream should follow G_ρ, not the structure’s G. That covers the ρ fit, the Vxc fit and the integration grid.
+There are two conditions, and Admits checks only one. For each representation R (fit basis or grid):
+(a) No false symmetry: what R imposes must lie within G (H ⊆ G). For example, plane waves impose T on a molecule. This is what Admits(H) checks.
+(b) No broken symmetry: R must be invariant under G, so that every g maps the fit span or point set onto itself. Otherwise the integral isn’t equivariant even when the integrand is.
+
+Nothing checks (b) today. OpenWork already has a witness for it: the uniform-raster XC route fails M^H F M = F by 2.8e-4 Ha on imposed Fd-3m Si, while the Becke mesh carries over to 1e-9. Energies hide it, because free and imposed Etot agree to 2e-7. A δ fit on Becke points imposes {e}, so it is always admitted under (a), but whether its point set is G-invariant is exactly question (b).
+
+So the corrected chain is roughly this. G_structure gives G_Ven. The orbital basis must be G-closed. The SCF state picks Gρ ⊆ G_Ven. Then the ρ fit, the Vxc fit and the grid must each satisfy both (a) and (b) with respect to Gρ, and Vxc follows ρ exactly. For the GUI, the menu filter is (a). (b) is a correctness gate on what the library builds, which a menu can’t see.
+
+FOr structures we have Atoms->O(3), Molecules {e}, and solids T.  O(3) is lie group, T is an abelian group with an infinite number of elements.  I suspect don't need to try represent these in code with anything more sophisticated than a class enum.  
+
+Structure group types=O(3) xor point⊆O(3) xor T.  Maybe this could be a class enum?
+The actual structure symmetry is either O3 xor point group {e} xor space group {e}x{T}?
+      G={g}=O3 xor point group {e} xor space group {e}x{T}
+      The symmetry Ven is also G,  Ven(gr)=Ven(r)
+Since the ground state symmetry may or may not break symmetry G, it gets it's own symbol Gρ, Gρ⊆G.  Typically we do not know Gρ in advance it must be discovered.
+Any orbital basis set also has it's own group of symmetry ops: Go (instead of overloaded H). Go has to be equal or lower symmetry than either G or Gρ. Go⊆Gρ⊆G.  BUT if we make Go too low in symmetry we waste CPU/RAM resources needlessly.  Cartesian Gaussians will yield an atom ground state, but not efficiently.  So for efficiency we want Go==Gρ ... but that is also not right because orbitals are signed (or complex) but ρ is real and positive.
+
+
+
+
+# valgen
+valgen builds a basis one element at a time. You give it windows of exponents for each angular momentum; it runs an SCF on the spherical pseudo-atom to test them and prints a block ready for a .bsd file. I rebuilt it (the binary was from Oct 5) at ~/Code/qchem6/build/Release/CLIapps/valgen, and ran H as a test.
+
+1. Pick the pseudopotential. H uses q1 and C uses q4, from the GTH-LDA set in BasisSetData/GTH_POTENTIALS.txt. valgen chooses the valence variant by default, so you don’t need --q.
+
+2. Describe the windows and run. Each --shell l:N:emin:emax is N exponents spaced geometrically from emin to emax. Add --floor to compare against the complete-basis limit:
+
+valgen --element H --shell 0:5:0.08:20 --shell 1:2:0.25:1.1 --floor
+
+My test run gave −0.445363 Ha against a floor of −0.445603 Ha, a gap of 0.24 mHa.
+
+3. Read the verdict and iterate.
+
+Gap to the floor (gap_mHa): how incomplete the basis is.
+Usage table: how much of the density each exponent carries. The most diffuse exponent should be well populated.
+Advice block: tuning hints. For H it said the two sharpest s functions carry little density, so the basis could be trimmed by a few mHa.
+cond: the overlap matrix’s condition number.
+
+Keep exponents distinct across l, because the reader merges shared values.
+
+4. Know what the atom can’t test. The pseudo-atom is spherical, so it only tests the occupied shells. My H run built only the 5 s functions; the p shell was printed but never tested. Polarization functions (p on H, d on C) only get tested in a molecule. For C, start with s and p windows sized like H’s, then add a d polarization shell judged in CH₄.
+
+5. Write it out.
+
+--out H.bsd writes the element block, which you then merge into a file in BasisSetData/.
+--seed-into src/ChargeDensity/Data/atomic_valence_densities.json adds the atom’s starting density; IonicSAD needs one per element. Lane B already added H, C and N seed densities (f21ad3c6), which your new run would replace.
+
+6. Test it in a molecule. CH₄ is the natural test, with basis.vet:true to see the [basis trim] line. Lane B now has a converged CP2K reference: −8.0351296 Ha with CP2K’s DZVP-MOLOPT basis. scripts/bsd2cp2k converts your basis so CP2K can run the identical one.
+
+Something to watch for: the usage table prints Gaussian exponents doubled. My window ran 0.08–20, but the table listed 0.16–40, exactly twice. The energies look right; only the labels in the report are off, which matters because that table is how you choose emin and emax. I logged it as a §3 row (64356e82). Until it’s fixed, halve the exponents in that table.
+# The deficit.
+
+It is measured with U = 4.62 eV on the O p_z slot and no U on Mn d. Under that U, 
+the Mn d moment in PW grows by +0.0385. The Gaussian basis gives +0.0229 with the standard basis 
+(control) and +0.0302 with the one that adds Mn p and f functions (p5f3_Od), 
+so it reaches 60–79% of PW. This is a cross response: a potential on O p_z changing the Mn moment.
+
+What has been ruled out:
+
+Numerical settings: the XC mesh, the fit and the density route each change the result by less than 1e-4.
+Q: WHich result, the Mn d moment?
+
+Bands: at U = 0 every band matches QE to within 0.04 eV.
+Q: But we to know how the bands line when U (on O)= 4.62 eV 
+
+Mn d itself: the Gaussian basis responds like PW (95–107%) to a direct potential on Mn d, in both the 
+charge and the spin channel.  
+
+Charge cross response: when O p_z is shifted, the charge moved on Mn d 
+and O p_z matches PW to 3–5%.
+Q: "when O p_z is shifted" 1) Do you when U on Ox is shifted? 2) Are you talking about orbital resolved Us on Ox?
+
 
 # DFT+U survey:
 

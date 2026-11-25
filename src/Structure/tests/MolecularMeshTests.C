@@ -498,8 +498,9 @@ TEST(MeshFactory, AStrainedCellsMakerBuildsOverItsOwnCellUnderTheReferencesOps)
     EXPECT_GT(moved, 0.1) << "the strained maker built the REFERENCE cell's mesh";
 }
 
-// The symmetric overload's per-structure hooks: an atom's invariant mesh is its radial-only set (an angular one refused); a molecule's is a
-// tracked, not-yet-built feature (V-FOLD-NEUTRAL) refused by name; and with NO ops neither hook is reached -- the plain mesh, unfolded.
+// The symmetric overload's per-structure hooks: an atom's invariant mesh is its radial-only set (an angular one refused); a molecule handed
+// the identity alone gets its plain mesh, folded trivially (V-FOLD-NEUTRAL: every point its own orbit); and with NO ops neither hook is
+// reached -- the plain mesh, unfolded.
 TEST(MeshFactory, TheSymmetricOverloadsHooksPerStructure)
 {
     auto atom=std::make_shared<const Atom>(8, rvec3_t(0,0,0));
@@ -515,8 +516,207 @@ TEST(MeshFactory, TheSymmetricOverloadsHooksPerStructure)
     ExpectSameMesh(*a.GetMesh(), MakeMesh(*atom, radial));
     EXPECT_FALSE(a.HasFold()) << "one direction per shell: the trivial fold";
     EXPECT_THROW(StructureMeshMaker<Atom>(atom).Make(Params(), oneOp), std::invalid_argument) << "an angular set on an atom claims a symmetry it lacks";
-    EXPECT_THROW(StructureMeshMaker<Molecule>(mol).Make(Params(), oneOp), std::invalid_argument) << "V-FOLD-NEUTRAL: not built yet";
+    const qcMesh::FoldedMesh e=StructureMeshMaker<Molecule>(mol).Make(Params(), oneOp);
+    // The identity's frame is the lab frame: the plain mesh's points and weights, less the zero-weight points a radial node at r = 0 stacks
+    // on each nucleus (the symmetric build drops them: coincident points would make the fold ambiguous), and every point its own orbit.
+    const qcMesh::Mesh plain=MakeMesh(*mol, Params());
+    size_t j=0;
+    for (size_t i=0; i<plain.size(); i++)
+    {
+        if (plain.Weights()[i]==0.0) continue;
+        ASSERT_LT(j, e.size());
+        EXPECT_EQ(e.GetMesh()->Weights()[j], plain.Weights()[i]);
+        EXPECT_EQ(norm(e.GetMesh()->Points()[j]-plain.Points()[i]), 0.0);
+        j++;
+    }
+    EXPECT_EQ(j, e.size());
+    EXPECT_TRUE(e.HasFold());
+    EXPECT_EQ(e.NumOrbits(), e.size()) << "under the identity alone every point is its own orbit";
     const qcMesh::FoldedMesh m=StructureMeshMaker<Molecule>(mol).Make(Params(), qcMesh::NoSymmetry());
     ExpectSameMesh(*m.GetMesh(), MakeMesh(*mol, Params()));
     EXPECT_FALSE(m.HasFold());
+}
+
+// ---- V-FOLD-NEUTRAL step 1: a molecule's mesh invariant under its point group (the D2h-type abelian subgroup) ---------------------------
+namespace
+{
+//! The test recipe at the smallest Lebedev rule that carries a D2h frame (degree 9, 38 directions).
+qcMesh::MeshParams SymParams() {qcMesh::MeshParams mp=Params(); mp.angularDegree=9; return mp;}
+Matrix3D<double> Diag(double a, double b, double c) {return Matrix3D<double>(a,0,0, 0,b,0, 0,0,c);}
+//! A rotation by \a angle about the unit axis \a n (Rodrigues).
+Matrix3D<double> Rotation(rvec3_t n, double angle)
+{
+    n=n/norm(n);
+    const double c=std::cos(angle), s=std::sin(angle), t=1.0-c;
+    return Matrix3D<double>(t*n.x*n.x+c,     t*n.x*n.y-s*n.z, t*n.x*n.z+s*n.y,
+                            t*n.x*n.y+s*n.z, t*n.y*n.y+c,     t*n.y*n.z-s*n.x,
+                            t*n.x*n.z-s*n.y, t*n.y*n.z+s*n.x, t*n.z*n.z+c);
+}
+const Matrix3D<double> kQ=Rotation(rvec3_t(0.3,-0.7,0.5), 0.9);   // an arbitrary deck orientation
+
+//! A molecule given by its atoms in its own symmetry frame, placed in the deck by \a Q and moved by \a shift.
+std::shared_ptr<const Molecule> Placed(const std::vector<Site>& frameSites, const Matrix3D<double>& Q, const rvec3_t& shift=rvec3_t(0,0,0))
+{
+    auto m=std::make_shared<Molecule>();
+    for (Site s : frameSites) { s.R=Q*s.R+shift; m->Insert(s); }
+    return m;
+}
+//! The ops \a W (frame) as the deck sees them: Q W Q^T, tau = 0.
+std::vector<Symmetry::SymOp> PlacedOps(const std::vector<Matrix3D<double>>& W, const Matrix3D<double>& Q)
+{
+    std::vector<Symmetry::SymOp> ops;
+    for (const auto& w : W) ops.push_back({Q*w*Transpose(Q), rvec3_t(0,0,0)});
+    return ops;
+}
+struct Ops : qcMesh::SymmetrySource
+{
+    std::vector<Symmetry::SymOp> ops; bool averages=true;
+    std::vector<Symmetry::SymOp> MeshOps() const override {return ops;}
+    bool AveragesDensityOverOrbits() const override {return averages;}
+};
+const std::vector<Site> kWater={{8, rvec3_t(0,0,0.12)}, {1, rvec3_t(0,1.43,-0.98)}, {1, rvec3_t(0,-1.43,-0.98)}};       // C2v: C2 along z, yz plane
+const std::vector<Matrix3D<double>> kC2v={Diag(1,1,1), Diag(-1,-1,1), Diag(-1,1,1), Diag(1,-1,1)};
+std::vector<Matrix3D<double>> D2h()
+{
+    std::vector<Matrix3D<double>> w;
+    for (double a : {1.0,-1.0}) for (double b : {1.0,-1.0}) for (double c : {1.0,-1.0}) w.push_back(Diag(a,b,c));
+    return w;
+}
+std::vector<Site> SF6()
+{
+    const double d=2.96;
+    return {{16, rvec3_t(0,0,0)}, {9, rvec3_t(d,0,0)}, {9, rvec3_t(-d,0,0)}, {9, rvec3_t(0,d,0)}, {9, rvec3_t(0,-d,0)},
+            {9, rvec3_t(0,0,d)}, {9, rvec3_t(0,0,-d)}};
+}
+// NH3: C3v; its D2h-type subgroup is Cs, the mirror x -> -x (an N-H bond in the yz plane).
+std::vector<Site> NH3()
+{
+    std::vector<Site> s{{7, rvec3_t(0,0,0.21)}};
+    for (int k=0;k<3;k++)
+    {
+        const double phi=M_PI/2+2*M_PI*k/3, r=1.77;
+        s.push_back({1, rvec3_t(r*std::cos(phi), r*std::sin(phi), -0.49)});
+    }
+    return s;
+}
+//! An anisotropic test integrand that moves with the molecule: Gaussians on the atoms times a polynomial in the frame coordinates.
+double Field(const rvec3_t& r, const Molecule& mol, const Matrix3D<double>& Q, const rvec3_t& shift)
+{
+    const rvec3_t u=Transpose(Q)*(r-shift);   // frame coordinates
+    double g=0.0;
+    for (const Site& s : mol.Sites()) { const rvec3_t d=r-s.R; g+=std::exp(-0.8*(d*d)); }
+    return g*(1.0+0.3*u.x+0.2*u.y*u.z+0.1*u.x*u.x);
+}
+double Integral(const qcMesh::Mesh& m, const Molecule& mol, const Matrix3D<double>& Q, const rvec3_t& shift=rvec3_t(0,0,0))
+{
+    double sum=0.0;
+    for (size_t i=0;i<m.size();i++) sum+=m.Weights()[i]*Field(m.Points()[i], mol, Q, shift);
+    return sum;
+}
+//! Every orbit of \a q carries one weight, and the star-average is idempotent.
+void ExpectAnOrbitConsistentFold(const qcMesh::FoldedMesh& q)
+{
+    ASSERT_TRUE(q.HasFold());
+    rvec_t w=q.GetMesh()->Weights(), w2=w;
+    q.Symmetrize(w2);
+    for (size_t i=0;i<w.size();i++) EXPECT_NEAR(w2[i], w[i], 1e-10*std::abs(w[i])) << "the weights differ across the orbit of point " << i;
+    rvec_t f(w.size());
+    for (size_t i=0;i<f.size();i++) f[i]=std::sin(1.0+q.GetMesh()->Points()[i].x)*std::cos(q.GetMesh()->Points()[i].y);
+    q.Symmetrize(f);
+    rvec_t g=f;
+    q.Symmetrize(g);
+    for (size_t i=0;i<f.size();i++) EXPECT_NEAR(g[i], f[i], 1e-14) << "the star-average is a projector";
+}
+} //anon
+
+// The deck's orientation no longer reaches the answer: water placed in an arbitrary orientation (and off the origin) integrates a
+// co-moving field to the same number as water in its symmetry frame -- the plain lab-frame mesh does not.
+TEST(MolecularPointGroupMesh, TheDecksOrientationDoesNotReachTheIntegral)
+{
+    const qcMesh::MeshParams mp=SymParams();
+    const Matrix3D<double> I=Diag(1,1,1);
+    auto aligned=Placed(kWater, I);
+    const rvec3_t shift(0.4,-1.1,2.3);
+    auto rotated=Placed(kWater, kQ, shift);
+    Ops a, r; a.ops=PlacedOps(kC2v, I); r.ops=PlacedOps(kC2v, kQ);
+    const qcMesh::FoldedMesh qa=StructureMeshMaker<Molecule>(aligned).Make(mp, a);
+    const qcMesh::FoldedMesh qr=StructureMeshMaker<Molecule>(rotated).Make(mp, r);
+    const double Ea=Integral(*qa.GetMesh(), *aligned, I), Er=Integral(*qr.GetMesh(), *rotated, kQ, shift);
+    // An aligned deck keeps the lab frame: the plain mesh's point set (the mirror image H carries its partner's points, in its own order).
+    EXPECT_NEAR(Integral(MakeMesh(*aligned, mp), *aligned, I), Ea, 1e-13*std::abs(Ea));
+    ASSERT_EQ(qr.size(), qa.size());
+    EXPECT_NEAR(Er, Ea, 1e-12*std::abs(Ea));
+    const double Eplain=Integral(MakeMesh(*rotated, mp), *rotated, kQ, shift);
+    EXPECT_GT(std::abs(Eplain-Ea), 1e-10) << "the lab-frame mesh on the rotated deck: the artifact this removes (else the gate above is vacuous)";
+    ExpectAnOrbitConsistentFold(qa);
+    ExpectAnOrbitConsistentFold(qr);
+    EXPECT_LT(qr.NumOrbits(), qr.size()/2) << "C2v folds the mesh";
+}
+
+// SF6 (Oh) under its D2h subgroup, in an arbitrary orientation: the 8 ops fold the mesh, the S atom at the centre carries all of them.
+TEST(MolecularPointGroupMesh, SF6UnderD2hInAnyOrientation)
+{
+    qcMesh::MeshParams mp=Params(); mp.angularDegree=17;
+    auto mol=Placed(SF6(), kQ, rvec3_t(1.0,2.0,3.0));
+    Ops s; s.ops=PlacedOps(D2h(), kQ);
+    const qcMesh::FoldedMesh q=StructureMeshMaker<Molecule>(mol).Make(mp, s);
+    ExpectAnOrbitConsistentFold(q);
+    EXPECT_LT(q.NumOrbits(), q.size()/5) << "D2h's 8 ops: most orbits are full (short ones lie on the planes)";
+    // An orientation, not a new rule: the plain mesh of SF6 in its own frame (where the lab frame IS the group's), less its zero weights.
+    const qcMesh::Mesh plain=MakeMesh(*Placed(SF6(), Diag(1,1,1)), mp);
+    size_t nonzero=0; for (size_t i=0;i<plain.size();i++) nonzero+=(plain.Weights()[i]!=0.0);
+    EXPECT_EQ(q.size(), nonzero);
+}
+
+// NH3 (C3v) under its D2h-type subgroup Cs, rotated; and the C3 it also carries is REFUSED by name (the full group is the follow-up).
+TEST(MolecularPointGroupMesh, NH3UnderCsAndItsC3Refused)
+{
+    const qcMesh::MeshParams mp=SymParams();
+    auto mol=Placed(NH3(), kQ);
+    Ops cs; cs.ops=PlacedOps({Diag(1,1,1), Diag(-1,1,1)}, kQ);
+    ExpectAnOrbitConsistentFold(StructureMeshMaker<Molecule>(mol).Make(mp, cs));
+    const Matrix3D<double> C3=Rotation(rvec3_t(0,0,1), 2*M_PI/3);
+    Ops c3v; c3v.ops=PlacedOps({Diag(1,1,1), C3, C3*C3}, kQ);
+    try { StructureMeshMaker<Molecule>(mol).Make(mp, c3v); ADD_FAILURE() << "a C3 was accepted"; }
+    catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find("D2h type"), std::string::npos) << e.what(); }
+}
+
+// A free run gets the same invariant mesh, unfolded; a geometry that carries the ops only roughly, an op with a translation or a spin
+// action, and a non-closed set are refused.
+TEST(MolecularPointGroupMesh, FreeRunsAndRefusals)
+{
+    const qcMesh::MeshParams mp=SymParams();
+    auto mol=Placed(kWater, kQ);
+    Ops fold, free; fold.ops=free.ops=PlacedOps(kC2v, kQ); free.averages=false;
+    const qcMesh::FoldedMesh qf=StructureMeshMaker<Molecule>(mol).Make(mp, fold), qn=StructureMeshMaker<Molecule>(mol).Make(mp, free);
+    EXPECT_FALSE(qn.HasFold());
+    ExpectSameMesh(*qn.GetMesh(), *qf.GetMesh());
+
+    std::vector<Site> bent=kWater; bent[1].R.y+=1e-6;
+    EXPECT_THROW(StructureMeshMaker<Molecule>(Placed(bent, kQ)).Make(mp, fold), std::invalid_argument) << "the geometry does not carry the mirror";
+    Ops shifted=fold; shifted.ops[1].tau=rvec3_t(0.1,0,0);
+    EXPECT_THROW(StructureMeshMaker<Molecule>(mol).Make(mp, shifted), std::invalid_argument) << "a point-group op has no translation";
+    Ops magnetic=fold; magnetic.ops[1].sigma=Symmetry::SpinAction::Flip;
+    EXPECT_THROW(StructureMeshMaker<Molecule>(mol).Make(mp, magnetic), std::invalid_argument) << "no molecular Shubnikov imposition";
+    Ops open; open.ops=PlacedOps({Diag(1,1,1), Diag(-1,-1,1), Diag(-1,1,1)}, kQ);
+    EXPECT_ANY_THROW(StructureMeshMaker<Molecule>(mol).Make(mp, open)) << "not a group";
+}
+
+// Which angular rules carry the frame's reflections: every Lebedev rule from degree 9 up (the molecular entry rung is 29); the 24- and
+// 30-direction rules (degrees 7, 8) do not, and are REFUSED by name with the degree to state instead.
+TEST(MolecularPointGroupMesh, EveryLebedevRuleFromDegree9CarriesTheFrame)
+{
+    auto mol=Placed({{8, rvec3_t(0,0,0)}}, Diag(1,1,1));
+    Ops s; s.ops=PlacedOps(D2h(), Diag(1,1,1));
+    for (int d : {9,11,15,17,19,21,23,29,31,35,53,65})
+    {
+        qcMesh::MeshParams mp=Params(); mp.angularDegree=d;
+        EXPECT_NO_THROW(StructureMeshMaker<Molecule>(mol).Make(mp, s)) << "degree " << d;
+    }
+    for (int d : {7,8})
+    {
+        qcMesh::MeshParams mp=Params(); mp.angularDegree=d;
+        try { StructureMeshMaker<Molecule>(mol).Make(mp, s); ADD_FAILURE() << "degree " << d << " accepted"; }
+        catch (const std::invalid_argument& e) { EXPECT_NE(std::string(e.what()).find("degree 9"), std::string::npos) << e.what(); }
+    }
 }

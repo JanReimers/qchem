@@ -114,6 +114,7 @@ MoleculeCalculation::MoleculeCalculation(BuildOnly, std::shared_ptr<const Molecu
     // structure the basis and the EC both read.
     , itsStructure(std::move(point.structure))
     , itsMeshMaker(std::move(point.meshMaker))
+    , itsMeshSymmetry(std::move(point.meshSymmetry))
     , itsCarry(std::move(carry))
     , itsObserver(std::move(onIteration))
 {
@@ -543,9 +544,9 @@ qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const q
 {
     const RunOptions& opts=itsSetup->opts;
     return itsSetup->pp
-        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, *itsMeshMaker, *itsSetup->meshSymmetry, itsBasis, fit, {opts.vxcFit, opts.xcRho},
+        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, *itsMeshMaker, *itsMeshSymmetry, itsBasis, fit, {opts.vxcFit, opts.xcRho},
                                       coulomb, qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha))
-        : qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, *itsMeshMaker, *itsSetup->meshSymmetry, itsBasis, fit, opts.xalpha,
+        : qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, *itsMeshMaker, *itsMeshSymmetry, itsBasis, fit, opts.xalpha,
                                       {opts.vxcFit, opts.xcRho}, coulomb);
 }
 

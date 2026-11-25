@@ -56,7 +56,7 @@ green before the next.
   Sequenced AFTER lane A's k-fold lands and is measured (no toolchain change under an open performance comparison).  (Was: 22.1.6.)** Newest module + `import std` fixes; do this first so the
   rest is on the best-supported base. Verify a clean `UTMain` + `allTests` build on 22.1.6 before changing any
   code. (GCC remains out — Clang-only.)
-- **Step R — Rename the project to SOLID² (user, 2026-10-30).**  `qchem` is taken, and this is not strictly a chemistry app
+- **Step R — Rename the project to SOLID² (user, 2026-10-30).**  **SPELLING RULED 2026-11-24: `solid2`** (user: "I am thinking solid2 rather SOLID2 for the github name.  We can use caps when the superscript 2 (utf) is usable/available."): `solid2` for the repo, identifiers, packages and paths, `SOLID²` in prose that renders UTF-8, never `SOLID2`.  The user renames the GitHub repo at the freeze window the controller announces (after Step 0, every lane landed); then every checkout's remote URL is updated.  `qchem` is taken, and this is not strictly a chemistry app
   (solid-state physics, batteries); SOLID² = solids + the SOLID principles.  A superscript cannot appear in an identifier, so pick
   ONE ASCII spelling and use it everywhere code, packages and repos need one: candidates `solid2` / `solidsquared` (PyPI
   `solid2`, `solidsquared`, `solid-squared`, `solid2-dft`, `solid2dft` all free 2026-10-30; `solidpython2` is an unrelated
@@ -76,6 +76,7 @@ green before the next.
   concept for "modular 3rd-party dep alongside `import std;`". Asterisk: json's module is on `develop`
   (unreleased) — pinning a dependency to a dev branch is a maintenance smell; revisit before making permanent.
   Optional / skippable.
+- **Blaze, decided 2026-11-24 (user; "owning the Blaze fork and making it a proper module ... still seems the most pragmatic for us"):** (i) ONE OWNER: Blaze is textually included in exactly one module (`qchem.Blaze.Core`; lane G's spike: qchem.Types 75 → 11 MB, qchem.Blaze 77 → 11 MB, and the clang-23 reduced-BMI MultTraitEval2 ambiguity goes in qcMath) -- may land before Step 1; (ii) TIERS ("I think qchem.Blaze.Names and Access will be a huge win"): `qchem.Blaze.Names` (fork forward headers, defaults there only) / `qchem.Blaze.Access` (containers, op(i,j)) / `qchem.Blaze` (expression templates), designed with Step 4; (iii) the FORK: master mirrors upstream (bitbucket blaze-lib/blaze, dormant since 2024-12-30), one topic branch per change with its test in Blaze's own suite, a `qchem` integration branch the submodule pins (std::forward, CMake 3.10, heevx/syevx jobz, inline constexpr flags, SymmetricMatrix (n,init) ctor retiring blazem::zero, the SMP guard bool, then the additive module); opening anything upstream is the user's call.  Records: lane G's laneG-import-std-feasibility.md / laneG-blaze-fork-plan.md.
 - **Step 4 — Modularize the Blaze fork.** The big BMI/compile-time lever, uniquely feasible because we own the
   fork. Do it LAST: on top of C++23 (so modular Blaze can `import std;` itself) and after json has de-risked the
   modular-3rd-party path. Expect expression-template/ADL visibility quirks — Clang 22 handles these best.

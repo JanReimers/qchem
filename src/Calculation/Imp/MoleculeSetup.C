@@ -8,6 +8,9 @@ module;
 #include <string>
 #include <filesystem>
 #include <vector>
+#include <sstream>   // the MeshSymmetry row's numbers
+#include <iomanip>
+#include <cmath>
 module qchem.MoleculeSetup;
 
 import qchem.PeriodicTable;   // thePeriodicTable (Z -> element symbol, for the PP lookup)
@@ -19,7 +22,8 @@ import qchem.BasisSet.Gaussian.Point.Factory; // RegisteredBasis, BasisSetData: 
 import qchem.BasisSet.Gaussian.Point.BasisFiles; // BasisFileOfName: the basis name's file, for the coverage pre-flight
 import qchem.BasisCoverage;   // RequireBasisCovers, BasisCovers, ElementsOf: a basis lacking an element is refused before anything is built
 import qchem.Structure.MeshFactory;   // StructureMeshMaker<S>: each geometry point's mesh maker, typed where S is known (V-MESH-FACTORY)
-import qchem.Symmetry.Molecule.PointGroup;   // DetectPointGroup: the group the unfolded mesh leaves on the table (policy MeshFoldNotBuilt)
+import qchem.Symmetry.Molecule.PointGroup;     // DetectPointGroup: the point group the mesh's policy names (policy MeshSymmetry)
+import qchem.Symmetry.Molecule.AbelianGroup;   // BuildAbelianGroup: its D2h-type subgroup, the ops the mesh is made invariant under
 
 namespace qchem
 {
@@ -147,8 +151,101 @@ template <class S> static auto TypedPointBuilder(std::shared_ptr<const S> ref)
     };
 }
 
-MoleculeSetup::Point MoleculeSetup::MakePoint() const {return itsPointBuilder(nullptr, pp ? &*pp : nullptr);}
-MoleculeSetup::Point MoleculeSetup::MakePoint(const std::vector<rvec3_t>& R) const {return itsPointBuilder(&R, pp ? &*pp : nullptr);}
+MoleculeSetup::Point MoleculeSetup::MakePoint() const
+{
+    Point p=itsPointBuilder(nullptr, pp ? &*pp : nullptr);
+    p.meshSymmetry=MeshSymmetryAt(*p.structure, /*report*/false);
+    return p;
+}
+MoleculeSetup::Point MoleculeSetup::MakePoint(const std::vector<rvec3_t>& R) const
+{
+    Point p=itsPointBuilder(&R, pp ? &*pp : nullptr);
+    p.meshSymmetry=MeshSymmetryAt(*p.structure, /*report*/false);
+    return p;
+}
+
+namespace {
+//! A molecule's point-group mesh source: the ops of its D2h-type subgroup H, {W | 0} about the centroid (the SymOp point-group
+//! convention; the maker supplies the centre), copied from the SALC group's ops -- the adapter V-SYM-ONE-SYMOP will retire.
+class MolecularPointGroupSource : public qcMesh::SymmetrySource
+{
+public:
+    MolecularPointGroupSource(std::vector<Symmetry::SymOp> ops, bool averages) : itsOps(std::move(ops)), itsAverages(averages) {}
+    std::vector<Symmetry::SymOp> MeshOps() const override {return itsOps;}
+    bool AveragesDensityOverOrbits() const override {return itsAverages;}
+private:
+    std::vector<Symmetry::SymOp> itsOps;
+    bool                         itsAverages;
+};
+} //anon
+
+// POLICY MeshSymmetry (OOD-SOLID V-FOLD-NEUTRAL; user ruling 2026-11-23: D1 the abelian SALC subgroup H now, D2 free runs too, D3 a C1
+// molecule stays in the lab frame).  The mesh is made invariant under H -- the one shared angular set rotated into H's frame, which
+// removes the deck's orientation from the answer -- and folded when the run imposes symmetry.  Three cases keep the lab frame, each a
+// reported choice: an angular rule that cannot carry H (Lebedev below degree 9, GaussLegendre), and a geometry that carries H only to
+// the detection tolerance (the oriented mesh needs kMolecularMeshGeometryTol: its members' grids sit on their own nuclei).
+std::shared_ptr<const qcMesh::SymmetrySource> MoleculeSetup::MeshSymmetryAt(const Structure& point, bool report) const
+{
+    auto none=std::make_shared<const qcMesh::NoSymmetry>();
+    const bool dft=Hamiltonian::IsDFT(*opts.model);
+    if (!dft && opts.pp->empty()) return none;   // no XC mesh: HF all-electron (its SAD seed Fock's mesh stays plain)
+    namespace SM=Symmetry::Molecule;
+    std::vector<SM::SymPoint> pts;
+    point.ForEachSite([&pts](int Z, const rvec3_t& r, bool){ pts.push_back({Z, r}); });
+    const SM::PointGroup pg=SM::DetectPointGroup(pts, opts.symmetryTol);
+    if (pg.symbol=="C1") return none;            // D3: no group, no frame to orient to
+    const SM::AbelianGroup H=SM::BuildAbelianGroup(pts, opts.symmetryTol);
+    const std::string group=pg.symbol+(pg.abelian==pg.symbol ? std::string() : " (its D2h-type subgroup "+pg.abelian+")");
+    auto row=[&](const std::string& what, const std::string& why)
+    {
+        if (report) policy::Report("MeshSymmetry", what, policy::Verdict::Choose, why);
+        else if (group!=itsMeshGroup)   // a later point: only a change of group
+            policy::Report("MeshSymmetry", what+" (this geometry point; the reference's group was "+(itsMeshGroup.empty() ? "C1" : itsMeshGroup)+")",
+                           policy::Verdict::Choose, why);
+    };
+    if (H.ops.size()<=1) return none;            // a group with no D2h-type element beyond E (C3, ...): nothing to orient to
+    // The angular rule must carry the frame's reflections (MolecularPointGroupMesh.EveryLebedevRuleFromDegree9CarriesTheFrame).
+    if (xcMesh.angular!=qcMesh::AngularKind::Lebedev || xcMesh.angularDegree<9)
+    {
+        row("point group "+group+" detected; the XC mesh stays in the lab frame",
+            "its angular rule (degree "+std::to_string(xcMesh.angularDegree)+") cannot carry the group's frame reflections: only a Lebedev rule of "
+            "degree 9 or more does -- the answer then depends on how the deck orients the molecule, at the mesh's orientation error");
+        return none;
+    }
+    // A ROTATED angular rule (angRot, the cubic-site calibration that steers Lebedev's special orbits off a crystal's bonds) is a stated
+    // orientation of its own: the group's frame would undo it, so it is kept, and the mesh with it in the lab frame.
+    if (xcMesh.angRot!=0.0)
+    {
+        std::ostringstream a; a << xcMesh.angRot;
+        row("point group "+group+" detected; the XC mesh stays in the lab frame",
+            "its angular rule is stated ROTATED (angRot "+a.str()+" rad), an orientation of its own that the group's frame would undo -- the "
+            "answer then depends on how the deck orients the molecule, at the mesh's orientation error.  To fix this, please state angRot 0");
+        return none;
+    }
+    // The geometry must carry H to the mesh's precision, not just to the detection tolerance (measured after the maker's polish).
+    std::vector<Symmetry::SymOp> ops;
+    for (const auto& op : H.ops) ops.push_back({op.Matrix(), rvec3_t(0,0,0)});
+    const double d=PointGroupGeometryError(point, ops);
+    if (d>kMolecularMeshGeometryTol)
+    {
+        std::ostringstream o; o << std::scientific << std::setprecision(1) << d;
+        row("point group "+group+" detected; the XC mesh stays in the lab frame",
+            "the geometry carries the group only to "+o.str()+" bohr, and an invariant mesh needs "+[]{std::ostringstream t; t<<std::scientific
+            <<std::setprecision(0)<<kMolecularMeshGeometryTol; return t.str();}()+" -- the answer then depends on how the deck orients the "
+            "molecule, at the mesh's orientation error.  To fix this, please state the coordinates symmetric to more digits");
+        return none;
+    }
+    row("point group "+group+" detected; the XC mesh is made invariant under "+pg.abelian+" ("+std::to_string(ops.size())+" ops)"
+        +(imposed ? ", NOT folded: the density is not averaged over its orbits on this imposed run" : ", not folded (a free run)"),
+        "the one angular set is rotated into the group's frame (reported as nonlinearMesh.frame), so the deck's orientation does not reach "
+        "the answer"+std::string(pg.abelian==pg.symbol ? "" : "; invariance under the full group "+pg.symbol+" is the follow-up (OOD-SOLID V-FOLD-NEUTRAL)")
+        +(imposed ? std::string("; the fold is built but not engaged: a folded mesh has no geometry gradient (forces, so no geometry "
+                                "optimization) and cannot rotate a GGA's density gradient, and an imposed SALC run's density is already "
+                                "invariant under the group to roundoff, so averaging it would buy nothing until a per-orbit consumer "
+                                "exists (OpenWork §3)") : std::string()));
+    // Not folded on any run yet (lane H 2026-11-23; see the row): the source's averaging answer is false.
+    return std::make_shared<const MolecularPointGroupSource>(std::move(ops), /*averages*/false);
+}
 
 std::shared_ptr<const MoleculeSetup> MoleculeSetup::Resolve(const Molecule& st, const RunOptions& asked, const AcceleratorOptions& acc)
 {
@@ -189,7 +286,8 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Decide(std::shared_ptr<Molec
                            "(sipp*, valence_lowq*) is the matched choice");
     }
     s->imposed=opts.imposeSymmetry;   // a molecule's imposition has no policy veto: as asked
-    const std::shared_ptr<const Structure> point=s->MakePoint().structure;
+    // The reference point's STRUCTURE only (its mesh symmetry is decided below, once the mesh recipe is resolved).
+    const std::shared_ptr<const Structure> point=s->itsPointBuilder(nullptr, s->pp ? &*s->pp : nullptr).structure;
     s->Ne=int(point->GetNumElectrons());
     RequireBasisStated(opts.molecule.basis, *point);   // no default basis: an unstated one is refused, naming the bases that cover this structure
     // Coverage, when the name is a basis file (an unknown name is the build's refusal, which lists every name there).
@@ -262,20 +360,14 @@ std::shared_ptr<const MoleculeSetup> MoleculeSetup::Decide(std::shared_ptr<Molec
     }
     ResolveCoulombFit(s->opts.coulomb, *point, dft || !opts.pp->empty());   // policy CoulombFit: the Hartree fit named here, never in a library
 
-    // THE MESHES' SYMMETRY SOURCE (policy MeshFoldNotBuilt; user 2026-11-22: "molecules have a point group").  The point group is the
-    // molecule's, but its orbit fold is not built yet (OOD-SOLID V-FOLD-NEUTRAL): the library refuses a molecule non-trivial ops by name,
-    // so the POLICY chooses the unfolded mesh -- the same points, every orbit kept whole -- and reports what that leaves on the table.
-    s->meshSymmetry=std::make_shared<const qcMesh::NoSymmetry>();
-    if (dft || !opts.pp->empty())
+    // THE MESHES' SYMMETRY SOURCE (policy MeshSymmetry): decided per geometry point by MakePoint; the reference's files its row here, and
+    // its group is kept so a later point reports only a CHANGE of group.
     {
         std::vector<Symmetry::Molecule::SymPoint> pts;
         point->ForEachSite([&pts](int Z, const rvec3_t& r, bool){ pts.push_back({Z, r}); });
         const Symmetry::Molecule::PointGroup pg=Symmetry::Molecule::DetectPointGroup(pts, opts.symmetryTol);
-        if (pg.symbol!="C1")
-            policy::Report("MeshFoldNotBuilt", "point group "+pg.symbol+" ("+(pg.order>0 ? std::to_string(pg.order)+" ops" : std::string("infinite"))
-                           +") detected; the XC mesh is not folded", policy::Verdict::Choose,
-                           "a molecular point-group mesh is not built yet (OOD-SOLID V-FOLD-NEUTRAL): the run builds the unfolded mesh, the same "
-                           "answer at the cost of every orbit's repeated points");
+        (void)s->MeshSymmetryAt(*point, /*report*/true);
+        s->itsMeshGroup=pg.symbol=="C1" ? std::string() : pg.symbol+(pg.abelian==pg.symbol ? std::string() : " (its D2h-type subgroup "+pg.abelian+")");
     }
 
     AdmitRecipe(opts.recipe, /*kT: not read for a molecule*/0.0, /*molecule*/true);   // Auto | Insulator only (R4.1 ruling (c))
