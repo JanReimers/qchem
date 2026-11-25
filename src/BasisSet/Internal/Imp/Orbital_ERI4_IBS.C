@@ -3,6 +3,7 @@ module;
 #include <memory>
 #include <cassert>
 #include <stdexcept>
+#include <string>   // operator+(const char*, std::string): libc++ does not bring it in
 module qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.Blaze;   // blazem:: in the asserts: invisible to an NDEBUG build
 import qchem.BasisSet.Internal.ERI4;

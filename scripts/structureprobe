@@ -21,7 +21,7 @@ import re
 import subprocess
 import sys
 
-CLANG_QUERY = "/opt/LLVM-21.1.6-Linux-X64/bin/clang-query"
+CLANG_QUERY = "/opt/LLVM-23.1.4-Linux-X64/bin/clang-query"
 FAMILY = re.compile(r'\b(Structure|Atom|Molecule|UnitCell|FCCUnitCell|BCCUnitCell|ForEachSite|GetNumAtoms|itsZ|itsR)\b')
 IN_STRUCTURE = 'isExpansionInFileMatching("src/Structure/")'
 MATCHERS = [

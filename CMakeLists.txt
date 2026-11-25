@@ -27,10 +27,8 @@ endif()
 if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(FATAL_ERROR
         "This project requires the Clang C++ toolchain. "
-        "Use clang++/clang and flang, for example: "
-        "CXX=/opt/LLVM-21.1.6-Linux-X64/bin/clang++ "
-        "CC=/opt/LLVM-21.1.6-Linux-X64/bin/clang "
-        "FC=/opt/LLVM-21.1.6-Linux-X64/bin/flang cmake -S . -B build/Release -G Ninja"
+        "State clang++ alone (C and Fortran are derived from it), on a fresh tree, for example: "
+        "cmake -S . -B build/Release -G Ninja -DCMAKE_CXX_COMPILER=/opt/LLVM-23.1.4-Linux-X64/bin/clang++"
     )
 endif()
 # FULL BMIs.  Clang 23 writes REDUCED BMIs by default, and those do not merge the duplicate Blaze partial specializations that
@@ -68,10 +66,10 @@ if(OpenMP_CXX_FOUND)
     # add_compile_definitions (directory-inherited everywhere), and the runtime into link_libraries
     # (every target declared after this point).  QCHEM_OPENMP gates the (opt-in via GPW_OMP_THREADS,
     # serial-by-default) parallel code.
-    # On a toolchain whose clang lacks omp.h (the /opt LLVM 21.1.6 tarball), point find_package at apt's libomp-dev:
+    # The /opt LLVM 23.1.4 tarball (the project's toolchain since 2026-11-24) ships its own omp.h and libomp, and find_package finds
+    # them unaided.  HISTORY: the /opt LLVM 21.1.6 tarball lacked omp.h, and its trees pointed find_package at apt's libomp-dev:
     #   cmake -DOpenMP_CXX_FLAGS="-fopenmp -I/usr/lib/llvm-21/lib/clang/21/include" \
     #         -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=/usr/lib/x86_64-linux-gnu/libomp.so .
-    # The /opt LLVM 23.1.4 tarball ships its own omp.h and libomp, and find_package finds them unaided.
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     add_compile_definitions(QCHEM_OPENMP)
     link_libraries(${OpenMP_omp_LIBRARY})

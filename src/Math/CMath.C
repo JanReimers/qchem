@@ -1,6 +1,7 @@
 // File: Common/CMath.C  The <cmath> leaf: std math functions + the cheap stable numeric primitives.
 // (Imported by code INSIDE the math library; outside code imports the qchem.Math umbrella instead.)
 module;
+#include <algorithm>   // std::max, std::min (libc++ does not bring them in through <cmath>)
 #include <cmath>
 export module qchem.CMath;
 export import qchem.IntPow;
