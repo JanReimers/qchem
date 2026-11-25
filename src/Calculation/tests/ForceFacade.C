@@ -1091,9 +1091,11 @@ TEST(HamiltonianStress, OnPlaneWavesNaFsStressIsQEs)
     RunOptions o; o.Nelec=8; o.species={{"Na",1},{"F",7}}; o.solid.densityEcut=60.0; o.label="pw NaF stress vs QE";
     o.solid.orbitalBasis=RunOptions::Solid::OrbitalBasis::PlaneWave; o.solid.planeWaveEcut=15.0;
     // The Gaussian recipe is unread on a plane-wave basis, but it must still cover both elements.
-    // Δρ gate 1e-7, not PWStressParams' 1e-8 (user 2026-11-24): this SCF plateaus at Δρ ≈ 2-4e-8 from iteration 14 (E constant to 1e-14)
-    // and met 1e-8 only by a lucky sample at iteration 30.  The floor's source is open (OpenWork §3 "Δρ noise floor ~3e-8 on NaF PW").
-    o.scf=PWStressParams(); o.scf.MinΔρPerElectron=1e-7;
+    // PWStressParams' Δρ gate 1e-8 again (lane B 2026-11-25): the SCF used to plateau at Δρ ≈ 2-8e-8 from iteration 14 (E constant to 1e-14),
+    // meeting 1e-8 only by a lucky sample, so the gate sat at 1e-7 meanwhile (user 2026-11-24).  The floor was PulayDMixer's bilinear
+    // residual inner product (catastrophic cancellation, see its class note); with the residual held the SCF falls geometrically
+    // (Δρ 1.7e-8 at 14, 7.0e-9 at 15, 3.9e-13 at 21).
+    o.scf=PWStressParams();
     const auto setup=SolidSetup::Resolve(Lattice_3D(cell, ivec3_t(1,1,1)), {.data=BasisSet::Gaussian::BasisSetData::VALENCE_LOWQ}, o);
     auto c=SolidCalculation::Prepare(setup).TakeValue(); (void)c->Converge();
     ASSERT_TRUE(c->Result());
