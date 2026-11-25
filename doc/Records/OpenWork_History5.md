@@ -4149,3 +4149,21 @@ Done (plan: side-session notes `lane-h-per-orbit-consumer-plan.md`, steps 1-5):
   Gaussian/Multipole fits stay unfolded, each with its reason in the MeshSymmetry policy row.  Timings: `doc/Benchmark.md` §10.
 - Follow-ups logged in `doc/OpenWork.md` §3: the δ-fit Hartree's full δ, the non-δ fits, a quiet-box re-measure, the test helper's
   relative weight check; the full-G mesh row stays open.
+
+## ✅ PulayDMixer's DIIS matrix was the Δρ noise floor (closed 2026-11-25, lane B, 06ac2c175)
+The row as it stood:
+
+| **Δρ noise floor ~3e-8 on the NaF plane-wave SCF** (user 2026-11-24) | `HamiltonianStress.OnPlaneWavesNaFsStressIsQEs` plateaued at Δρ 2-4e-8 from iteration 14 (E constant to 1e-14) and met its 1e-8 gate by a lucky sample at iteration 30 (it timed out under contention).  3e-8 is ~1e5 above double roundoff, so a code TOLERANCE sets it.  User: plateaus can break later ("how to distinguish??"), so NO runtime stop heuristic: E is second order in δρ, so E-flatness cannot tell a noise floor from a slow mode.  Test gate set to 1e-7 meanwhile (14 iterations, every σ within 4e-9 of QE) | Lane B when free: (1) find the source by tightening candidate tolerances one at a time (diagonalizer, screening, Pulay conditioning, fit); (2) derive a rigorous floor bound from the settings, kept apart from any calibration, and refuse/warn a gate below it at SETUP (policy layer); (3) optional report-only health column (successive-residual correlation) · ForceFacade.C PWStressParams |
+
+**Verdict (step 1, the source).**  Not a tolerance: no candidate tolerance moved the plateau.  `PulayDMixer` (`src/ChargeDensity/Internal/LinearMixer.C`,
+since 1d0ccd9d7) held D_in and D_out and formed B_ij = <R_i,R_j> bilinearly, <out_i,out_j> - <out_i,in_j> - <in_i,out_j> + <in_i,in_j>.  These are four terms of
+size ||D||_F^2 (16 on NaF) whose difference is ||R||^2.  B's absolute roundoff, about gamma_m ||D||_F^2 with gamma_m ~ sqrt(m) u (m = 473^2 elements,
+u = 1.1e-16), is ~8e-13; 5e-13 was measured, and B_nn came out NEGATIVE.  That swamps ||R||^2 once ||R||_F < ~9e-7.  The DIIS coefficients then turn to
+noise and Δρ/N (about 0.1-0.14 ||R||_F here) stalls at 2e-8 .. 8e-7: under a 1e-8 gate the SCF hit its 100-iteration cap.  The fix holds the residual
+R = D_out - D_in, formed once.  B's error is then RELATIVE (|dB_ij| <= gamma_m ||R_i|| ||R_j||), the mixed input Sum c D_in + alpha Sum c R is
+algebraically the same, and the memory is unchanged.  NaF PW falls geometrically to Δρ 3.9e-13 at iteration 21 with E unchanged (-22.330601985225).
+`HamiltonianStress.OnPlaneWavesNaFsStressIsQEs` is back on PWStressParams' 1e-8 gate (15 iterations).  Logs:
+~/Code/qchem6-runs/NaF/laneB_drho/{pw_bilinear,pw_explicit,pw_fixed}.log.  Sweep: side-session note laneB-READY-drho-noise-floor.md.
+
+**Steps 2/3 (the setup bound, the health column): CLOSED by the user, 2026-11-25, verbatim: "Yes, neither".**  With the residual held, the floor is
+set by forming R itself, ~u ||D||_F (Δρ ~1e-16).  A setup refusal of a gate below it, or a report column watching for it, could never trip.
