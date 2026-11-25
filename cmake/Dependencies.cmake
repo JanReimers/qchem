@@ -54,6 +54,16 @@ foreach(row IN LISTS QCHEM_PINS)
     # A prefix SOURCE stands in for the download (CMake's own override), unless the caller already points this pin elsewhere.
     string(TOUPPER "${name}" _NAME)
     set(_inPrefix "${QCHEM_DEPS_PREFIX}/src/${name}-${commit}")
+    # FetchContent caches the override, so after a PIN BUMP a reconfigure still holds the OLD commit's prefix source, which would
+    # read below as a "stated local source" and silently build the old commit (the blaze bump c90b4a29, 2026-11-24, built against
+    # 7478a70b this way).  A cached prefix source of THIS dependency at ANOTHER commit is our own stale pin, never a user's
+    # statement: drop it, so the pin is re-resolved (prefix, else fetch).  A path outside the prefix is still the user's, untouched.
+    if(FETCHCONTENT_SOURCE_DIR_${_NAME} MATCHES "^${QCHEM_DEPS_PREFIX}/src/${name}-[0-9a-f]+$"
+       AND NOT FETCHCONTENT_SOURCE_DIR_${_NAME} STREQUAL _inPrefix)
+        message(STATUS "dependency ${name}: the cached prefix source ${FETCHCONTENT_SOURCE_DIR_${_NAME}} is a stale pin; re-resolving at ${commit}")
+        unset(FETCHCONTENT_SOURCE_DIR_${_NAME})
+        unset(FETCHCONTENT_SOURCE_DIR_${_NAME} CACHE)
+    endif()
     if(NOT FETCHCONTENT_SOURCE_DIR_${_NAME} AND IS_DIRECTORY "${_inPrefix}")
         set(FETCHCONTENT_SOURCE_DIR_${_NAME} "${_inPrefix}")
     endif()
