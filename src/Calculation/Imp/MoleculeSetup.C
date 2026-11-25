@@ -72,6 +72,9 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
         if (!stated.empty())
             policy::Refuse("CoulombAuxBasisUnused", "coulomb.auxBasis \""+stated+"\" on a Hartree-Fock run",
                            "HF builds J from the exact 4-centre integrals and reads no Coulomb fit basis -- drop coulomb.auxBasis");
+        if (c.metric!=Hamiltonian::CoulombMetric::Auto || c.constraint!=Hamiltonian::ChargeConstraint::Auto)
+            policy::Refuse("CoulombFitAxesUnused", "coulomb.metric / coulomb.constraint stated on a Hartree-Fock run",
+                           "HF builds J from the exact 4-centre integrals and fits nothing -- drop coulomb.metric and coulomb.constraint");
         return;
     }
     if (c.fit==CF::Delta || c.fit==CF::Multipole)
@@ -81,7 +84,9 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
                            "that route puts rho on the XC mesh and has no fit basis -- drop coulomb.auxBasis, or state coulomb.fit Auxiliary");
         return;
     }
-    if (c.fit==CF::Auto && stated.empty())
+    // A stated fit axis (V-FIT-AXES) implies the Gaussian route, as a stated fit file does: only that fit has the axes to choose.
+    const bool axesStated=c.metric!=Hamiltonian::CoulombMetric::Auto || c.constraint!=Hamiltonian::ChargeConstraint::Auto;
+    if (c.fit==CF::Auto && stated.empty() && !axesStated)
     {
         c.fit=CF::Delta;
         policy::Report("CoulombFit", "the Hartree term: delta (rho on the XC mesh, radial Poisson)", policy::Verdict::Choose,
@@ -91,6 +96,11 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
     }
     const bool fitStated=c.fit==CF::Auxiliary;
     c.fit=CF::Auxiliary;
+    // THE FIT AXES (V-FIT-AXES): unstated, Dunlap's fit -- the Coulomb metric, charge-constrained (AdmitCoulomb refused what is not built).
+    if (c.metric==Hamiltonian::CoulombMetric::Auto)        c.metric=Hamiltonian::CoulombMetric::Coulomb;
+    if (c.constraint==Hamiltonian::ChargeConstraint::Auto) c.constraint=Hamiltonian::ChargeConstraint::Charge;
+    const std::string axes=std::string(" (Coulomb metric, ")+(c.constraint==Hamiltonian::ChargeConstraint::Charge ? "charge-constrained" : "unconstrained")
+                           +(axesStated ? ", as stated)" : ": the Dunlap default; state coulomb.constraint None for the plain fit)");
     auto uncovered=[&](const std::string& file)
     {
         std::string missing;
@@ -120,12 +130,13 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
         policy::Refuse("CoulombAuxBasisCoverage", "Coulomb fit basis "+c.auxBasis+" has no block for "+missing,
                        std::string(stated.empty() ? "neither A2 nor A1 (H-Te) covers this structure" : "the stated fit does not cover this structure")
                        +" -- state coulomb.fit Delta (rho on the XC mesh, every element), or a fit file that covers it");
-    if (!stated.empty() && fitStated) return;   // fully stated: as asked, nothing decided
-    policy::Report("CoulombFit", "the Hartree term: a Dunlap fit on "+c.auxBasis, policy::Verdict::Choose,
-                   stated.empty()
-                     ? "coulomb.fit Auxiliary stated without coulomb.auxBasis: the fastest-good fit, DGauss A2 (user ruling 2026-11-22)"
+    if (!stated.empty() && fitStated) return;   // fit and file stated: as asked, nothing decided (unstated axes are the long-standing Dunlap default)
+    const std::string route = fitStated ? "" : (stated.empty() ? "a stated fit axis implies the Auxiliary route; " : "coulomb.auxBasis stated: its route is the Auxiliary fit; ");
+    policy::Report("CoulombFit", "the Hartree term: a Gaussian density fit on "+c.auxBasis+axes, policy::Verdict::Choose,
+                   route+(stated.empty()
+                     ? "no fit file stated: the fastest-good fit, DGauss A2 (user ruling 2026-11-22)"
                        +(fallbackWhy.empty() ? std::string() : " -- "+fallbackWhy)+"; its residual is checked against eps (CoulombFitResidual)"
-                     : "coulomb.auxBasis stated: its route is the Auxiliary (Dunlap) fit");
+                     : "the stated file "+c.auxBasis));
 }
 
 // THE DOORS (as SolidSetup's): Admit for user input, Resolve its throwing twin for code that states its own options.

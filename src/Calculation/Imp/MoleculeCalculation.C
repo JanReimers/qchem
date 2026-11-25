@@ -649,6 +649,7 @@ void MoleculeCalculation::CheckCoulombFit(const qchem::ChargeDensity::rDM_CD* d,
             return E;
         };
         H::CoulombRoute deltaRoute=opts.coulomb; deltaRoute.fit=H::CoulombFit::Delta; deltaRoute.auxBasis.clear();
+        deltaRoute.metric=H::CoulombMetric::Auto; deltaRoute.constraint=H::ChargeConstraint::Auto;   // the Gaussian fit's axes (V-FIT-AXES) are not the δ route's
         const H::CoulombFitSlot<double> none;   // the delta route reads no fit basis
         const std::unique_ptr<H::rHamiltonian> ref(MakeHamiltonianOn(itsSetup->xcMesh, deltaRoute, none));
         ref->RefreshForDensity(itsBasis, d);

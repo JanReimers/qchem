@@ -89,11 +89,23 @@ enum class CoulombFit {Auto, Auxiliary, Delta, Multipole};
 //! the exact potential on those points); \c DirectSum is \f$O(N^2)\f$ and about 1e-2 at any rung tried.  \c Auto = \c RadialPoisson.
 enum class CoulombSolver {Auto, RadialPoisson, DirectSum};
 
+//! \brief THE TWO AXES OF A GAUSSIAN DENSITY FIT, orthogonal (V-FIT-AXES; user 2026-11-25: "I think {constrained, unconstrained} and
+//! {overlap,coulomb/dunlap} should be orthogonal axes in code"; design note lane-s-V-FIT-AXES-design.md).  \c Auto: the policy layer
+//! resolves it (\c MoleculeSetup, policy \c CoulombFit): Coulomb x Charge on the \c Auxiliary route, today's Dunlap fit.
+//!  - \c CoulombMetric: which metric picks the coefficients.  \c Coulomb (Dunlap) is the one built; \c Overlap is V-FIT-AXES step 2 and
+//!    REFUSED until then (\c AdmitCoulomb).  A \f$\delta\f$ or multipole fit has its own diagonal metric, so a stated one is refused there.
+//!  - \c ChargeConstraint: \f$\sum c_k\int f_k=N\f$ by one Lagrange step, or none.  A \f$\delta\f$ or multipole fit REFUSES \c Charge (user ruling
+//!    2026-11-25, "yes I accept the delta basis has special needs": constraining its charges changes the two-term Fock derivation).
+enum class CoulombMetric    {Auto, Coulomb, Overlap};
+enum class ChargeConstraint {Auto, Charge, None};
+
 //! \brief The whole Hartree choice, one value through the factories.
 struct CoulombRoute
 {
     CoulombFit    fit    = CoulombFit::Auto;
     CoulombSolver solver = CoulombSolver::Auto;
+    CoulombMetric    metric     = CoulombMetric::Auto;      //!< the Gaussian fit's metric (V-FIT-AXES)
+    ChargeConstraint constraint = ChargeConstraint::Auto;   //!< the Gaussian fit's charge constraint (V-FIT-AXES)
     //! The multipole cut, 0 = \c ResolvedLMax's choice.  A stated value above a multipole fit's bound is refused (\c AdmitCoulomb).
     int lMax    = 0;
     //! Radial points of the Hartree mesh; 0 = the run's own.  All-electron densities want about twice what the contraction needs.

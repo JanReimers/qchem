@@ -194,6 +194,19 @@ namespace qchem::Hamiltonian
             return R::Fail("lMax "+std::to_string(coulomb.lMax)+" on an angular rule of degree "+std::to_string(degree)+": a multipole fit's "
                            "channels are orthonormal only for 2 lMax <= degree -- state lMax <= "+std::to_string(MultipoleLMaxBound(degree))+
                            " or raise the degree");
+        // THE FIT AXES (V-FIT-AXES): which metric x constraint combinations are built, and where each axis exists at all.
+        const bool pointFit=coulomb.fit==CoulombFit::Delta || multipole;
+        if (pointFit && coulomb.metric!=CoulombMetric::Auto)
+            return R::Fail("a stated coulomb.metric on the "+std::string(multipole ? "multipole" : "delta")+" Hartree route: that fit's metric "
+                           "is its own diagonal one (and the Coulomb metric of delta functions is singular) -- To fix this, please state "
+                           "coulomb.metric Auto, or coulomb.fit Auxiliary for a Gaussian fit in a chosen metric");
+        if (pointFit && coulomb.constraint==ChargeConstraint::Charge)
+            return R::Fail("a charge constraint on the "+std::string(multipole ? "multipole" : "delta")+" Hartree fit: constraining its charges "
+                           "q_g shifts rho uniformly over the mesh and changes the two-term Fock derivation (user ruling 2026-11-25, "
+                           "\"the delta basis has special needs\") -- To fix this, please state coulomb.constraint None or Auto");
+        if (coulomb.metric==CoulombMetric::Overlap)
+            return R::Fail("coulomb.metric Overlap: the overlap-metric Gaussian fit (its Fock needs the dc/dD leg through the overlap "
+                           "3-centre tensor) is V-FIT-AXES step 2, not built yet -- To fix this, please state coulomb.metric Coulomb or Auto");
         return R::Ok(coulomb);
     }
     //! The factories' half of \c AdmitCoulomb.

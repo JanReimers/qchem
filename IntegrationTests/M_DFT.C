@@ -301,6 +301,28 @@ TEST(M_DFT, WaterLDA_AuxiliaryFit)
     EXPECT_NEAR(calc->Energy(), -75.87944736, 2e-5) << "ORACLE: PySCF A1_coul J-fit route, exact XC; the gap is the A1 fit of v in H (second order)";
 }
 
+// V-FIT-AXES step 1 (lane S 2026-11-25): the deck's charge-constraint axis reaches the run's Hartree fit.  Unconstrained, the Coulomb
+// least-squares fit has (ρ|ρ̃) = (ρ̃|ρ̃) at EVERY density, so the run's diagnostics EeeFit and EeeFitFit agree to roundoff; under the
+// default (Dunlap's charge constraint) they part.  Neither run pins an energy: this gate is that the stated axis is the one that ran.
+TEST(M_DFT, WaterLDA_AuxiliaryFit_TheChargeConstraintAxisReachesTheRun)
+{
+    auto run=[](Hamiltonian::ChargeConstraint con)
+    {
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
+                      {.model=Model::LDA, .coulomb={.fit=Hamiltonian::CoulombFit::Auxiliary, .auxBasis="A1_coul", .constraint=con},
+                       .molecule={.basis="dzvp"}})).TakeValue();
+        (void)calc->Converge();
+        EXPECT_TRUE(calc->IsConverged());
+        const auto E=calc->EnergyTerms();
+        return std::pair{E.Diagnostic("EeeFit"), E.Diagnostic("EeeFitFit")};
+    };
+    const auto [uFit, uFitFit]=run(Hamiltonian::ChargeConstraint::None);
+    const auto [cFit, cFitFit]=run(Hamiltonian::ChargeConstraint::Auto);
+    ASSERT_GT(uFit, 1.0) << "the diagnostics are filed";
+    EXPECT_NEAR(uFit, uFitFit, 1e-10*uFit) << "unconstrained: the robust and plain energies are one";
+    EXPECT_GT(std::fabs(cFit-cFitFit), 1e-8) << "the default (constrained) fit is not the unconstrained one";
+}
+
 TEST(M_DFT, OxygenTripletLDA_AuxiliaryFit)
 {
     auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeO2(), {.multiplicity=3, .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .coulomb={.auxBasis="A1_coul"}, .scf=kTight80, .molecule={.basis="dzvp"}})).TakeValue();

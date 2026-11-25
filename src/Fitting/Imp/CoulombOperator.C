@@ -73,13 +73,13 @@ MakeDeltaProjectionDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> de
     return std::make_unique<DeltaProjectionDensityFitter>(std::move(deltaBasis), std::move(mesh));
 }
 
-std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs)
+std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs, DensityFitConstraint constraint)
 {
     if (!fbs) throw std::logic_error("MakeDunlapDensityFitter: no fit basis");
     auto nonOrtho=std::dynamic_pointer_cast<const BasisSet::FIT_CD_NonOrtho>(fbs);   // its Coulomb metric-solve face
     if (fbs->isOrtho() || !nonOrtho)
         throw std::logic_error("MakeDunlapDensityFitter: the fit basis '"+fbs->Name()+"' has no Coulomb metric to solve in");
-    return std::make_unique<IntegralConstrainedFF<double>>(nonOrtho);
+    return std::make_unique<IntegralConstrainedFF<double>>(nonOrtho, constraint==DensityFitConstraint::Charge);
 }
 
 std::unique_ptr<FirstOrderDensityFit<dcmplx>> MakeGSpaceDensityFitter(std::shared_ptr<const BasisSet::cFIT_CD_ABS> pw)

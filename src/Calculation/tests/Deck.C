@@ -1419,4 +1419,12 @@ TEST(Deck, AMoleculesCoulombBlockReadsAndRoundTrips)
     deck::RunSpec bad;
     EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"fit","Gaussian"}}}}, bad), std::runtime_error) << "an unknown route name";
     EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"auxbasis","A1_coul"}}}}, bad), std::runtime_error) << "typo guard";
+    // V-FIT-AXES: the fit's metric and charge constraint are deck keys too, and round-trip
+    deck::RunSpec ax; deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"fit","Auxiliary"},{"metric","Coulomb"},{"constraint","None"}}}}, ax);
+    EXPECT_EQ(ax.opts.coulomb.metric, Hamiltonian::CoulombMetric::Coulomb);
+    EXPECT_EQ(ax.opts.coulomb.constraint, Hamiltonian::ChargeConstraint::None);
+    const json ja=deck::ToJson(ax);
+    EXPECT_EQ(ja.at("coulomb").at("constraint"), "None");
+    deck::RunSpec axBack; deck::FromJson(ja, axBack); EXPECT_EQ(deck::ToJson(axBack), ja);
+    EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"constraint","Yes"}}}}, bad), std::runtime_error) << "an unknown constraint name";
 }

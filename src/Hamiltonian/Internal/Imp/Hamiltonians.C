@@ -362,7 +362,9 @@ static rDynamic_HT* MolecularHartreeTerm(const st_t& st, const rbs_t* bs, XCMesh
             [&]{return OneCoulombFit(coulombFit, [&]{return bs->CreateCDFitBasisSet(st.get());});});
         // Dunlap needs a Coulomb METRIC, so a δ basis (none) cannot reach it: the route enum picks the fit, and this branch only
         // ever builds the Gaussian one.  Ruling (g)'s "refuse Dunlap on a δ basis" has no deck path to fire on today.
-        return new Vee_FitDunlap(Fitting::MakeDunlapDensityFitter(fb), st->GetNumElectrons());
+        // The constraint axis (V-FIT-AXES), resolved by the policy layer; an unresolved Auto (an atom, a test) is Dunlap's, constrained.
+        const auto con=coulomb.constraint==ChargeConstraint::None ? Fitting::DensityFitConstraint::None : Fitting::DensityFitConstraint::Charge;
+        return new Vee_FitDunlap(Fitting::MakeDunlapDensityFitter(fb, con), st->GetNumElectrons());
     }
     qcMesh::MeshParams hmp=mp;
     if (coulomb.nRadial>0) hmp.nRadial=coulomb.nRadial;

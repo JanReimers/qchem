@@ -176,6 +176,15 @@ TEST(MoleculeSetup, AnUnstatedCoulombFitIsNamedByTheSetup)
     const auto delta=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .coulomb={.fit=CF::Delta}, .molecule={.basis="dzvp"}});
     EXPECT_EQ(delta->opts.coulomb.fit, CF::Delta);
     EXPECT_TRUE(delta->opts.coulomb.auxBasis.empty());
+    // V-FIT-AXES: an unstated axis on the Auxiliary route is Dunlap's (Coulomb metric, charge-constrained); a stated axis implies that route
+    EXPECT_EQ(aux->opts.coulomb.metric, Hamiltonian::CoulombMetric::Coulomb);
+    EXPECT_EQ(aux->opts.coulomb.constraint, Hamiltonian::ChargeConstraint::Charge);
+    const auto plain=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .coulomb={.constraint=Hamiltonian::ChargeConstraint::None}, .molecule={.basis="dzvp"}});
+    EXPECT_EQ(plain->opts.coulomb.fit, CF::Auxiliary) << "a stated fit axis implies the Gaussian route, as a stated file does";
+    EXPECT_EQ(plain->opts.coulomb.auxBasis, "A2_coul");
+    EXPECT_EQ(plain->opts.coulomb.metric, Hamiltonian::CoulombMetric::Coulomb);
+    EXPECT_EQ(plain->opts.coulomb.constraint, Hamiltonian::ChargeConstraint::None);
+    EXPECT_EQ(delta->opts.coulomb.constraint, Hamiltonian::ChargeConstraint::Auto) << "the δ route has no constraint axis: left unresolved";
 }
 
 TEST(MoleculeSetup, ACoulombFitFileTheRunCannotUseIsRefusedByName)
@@ -188,6 +197,12 @@ TEST(MoleculeSetup, ACoulombFitFileTheRunCannotUseIsRefusedByName)
         {{.model=Model::HF, .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnused", 8},
         {{.model=Model::LDA, .coulomb={.auxBasis="no_such_fit"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnknown", 8},
         {{.model=Model::LDA, .coulomb={.auxBasis="A2_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisCoverage", 52},   // A2 stops at Zn
+        // V-FIT-AXES: the δ fit refuses the axes (user ruling 2026-11-25), the overlap metric is not built yet, HF fits nothing
+        {{.model=Model::LDA, .coulomb={.fit=CF::Delta, .constraint=Hamiltonian::ChargeConstraint::Charge}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        {{.model=Model::LDA, .coulomb={.fit=CF::Multipole, .constraint=Hamiltonian::ChargeConstraint::Charge}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        {{.model=Model::LDA, .coulomb={.fit=CF::Delta, .metric=Hamiltonian::CoulombMetric::Coulomb}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        {{.model=Model::LDA, .coulomb={.fit=CF::Auxiliary, .metric=Hamiltonian::CoulombMetric::Overlap}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        {{.model=Model::HF, .coulomb={.constraint=Hamiltonian::ChargeConstraint::None}, .molecule={.basis="dzvp"}}, "CoulombFitAxesUnused", 8},
     };
     for (const Case& c : cases)
     {
