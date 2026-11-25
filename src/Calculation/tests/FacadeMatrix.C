@@ -40,6 +40,8 @@ import qchem.UnitCell;
 import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSetData::SIPP_SR
 import qchem.SCFParams;
 import qchem.SCFCap;                            // BoundedSCF (the outcome cell's failing attempt)
+import qchem.RunControl;                        // RunControl, RunCommand (the run-control cell)
+import qchem.Parallel;                          // ScopedWorkerThreads, CurrentThreads (the run-control cell)
 import qchem.SCFIterator;                       // IterationRow
 import qchem.SCFAccelerator.Factory;            // SCFAccelerators::Type, AcceleratorParams
 import qchem.Reporting;
@@ -68,8 +70,11 @@ enum class Capability
                                         //!< runs out, a Converged whose answers are the run's own (its typed density's charge, m = 0 unpolarized)
     EveryConvergeCheckpoints,           //!< a setup's saveStateTo is written by EVERY Converge, converged or not (the base's template method),
                                         //!< and the converged one is an exact resume of its own run
-    ScheduleRunsOnEveryKind             //!< Converge(schedule) runs a kT ramp on every kind and lands where its final stage alone lands; a stage
+    ScheduleRunsOnEveryKind,            //!< Converge(schedule) runs a kT ramp on every kind and lands where its final stage alone lands; a stage
                                         //!< naming another setup is REFUSED by name (R7: the schedule is structure-neutral, V-FACADE-PARITY P4)
+    RunControlStopsAndSaves             //!< a RUN CONTROL (qchem.RunControl) reaches every kind's SCF at each iteration's end: threads change,
+                                        //!< a checkpoint saves and the run goes on, save-and-stop saves and ends it as StoppedByUser (no cap
+                                        //!< report), the stop is reported through the test main's hook, and it is sticky for that calculation
 };
 
 //! THE EXPECTED FAILURES: the row whose work will make the cell hold; nullptr = the cell must hold now.
@@ -99,6 +104,7 @@ const char* ExpectedFailure(Kind k, Capability c)
         case Capability::ConvergeAnswersAnOutcome:  return nullptr;   // one proof type for every kind (V-FACADE-PARITY P2)
         case Capability::EveryConvergeCheckpoints:  return nullptr;   // one template method for every kind (V-FACADE-PARITY P3)
         case Capability::ScheduleRunsOnEveryKind:   return nullptr;   // the schedule is the base's (V-FACADE-PARITY P4)
+        case Capability::RunControlStopsAndSaves:   return nullptr;   // the poll is the base's (tCalculation::RunControlHook), every kind installs it
     }
     return nullptr;
 }
@@ -243,6 +249,7 @@ public:
     virtual std::string ConvergeAnswersAnOutcome()  = 0;
     virtual std::string EveryConvergeCheckpoints()  = 0;
     virtual std::string ScheduleRunsOnEveryKind()   = 0;
+    virtual std::string RunControlStopsAndSaves()   = 0;
 
     std::string Check(Capability c)
     {
@@ -259,6 +266,7 @@ public:
             case Capability::ConvergeAnswersAnOutcome:  return ConvergeAnswersAnOutcome();
             case Capability::EveryConvergeCheckpoints:  return EveryConvergeCheckpoints();
             case Capability::ScheduleRunsOnEveryKind:   return ScheduleRunsOnEveryKind();
+            case Capability::RunControlStopsAndSaves:   return RunControlStopsAndSaves();
         }
         return "unknown capability";
     }
@@ -330,6 +338,69 @@ template <class C> std::string Checkpoints(C& calc, const std::string& path)
     std::filesystem::remove(path);
     if (!judged) why << "the checkpoint does not judge against its own run: " << judged.Error().details << "; ";
     else if (!judged->empty()) why << "the checkpoint is not an exact resume of its own run: " << judged->front() << "; ";
+    return why.str();
+}
+
+//! A SCRIPTED run control: the commands it answers at each poll (1-based); an empty poll answers nothing.
+class ScriptedControl : public RunControl
+{
+public:
+    explicit ScriptedControl(std::vector<std::vector<RunCommand>> script) : itsScript(std::move(script)) {}
+    std::vector<RunCommand> Poll() override {return itsPolls<itsScript.size() ? itsScript[itsPolls++] : (++itsPolls, std::vector<RunCommand>{});}
+    size_t Polls() const {return itsPolls;}
+private:
+    std::vector<std::vector<RunCommand>> itsScript;
+    size_t itsPolls=0;
+};
+
+//! For its scope the cap/stop hook COUNTS the stop reports instead of failing the test (the main's ADD_FAILURE hook is put back on exit).
+class CaptureStops
+{
+public:
+    CaptureStops()  {qchem::SetSCFCapHook([this](const std::string& what){ itsReports.push_back(what); });}
+    ~CaptureStops() {qchem::SetSCFCapHook([](const std::string& what){ ADD_FAILURE() << what; });}
+    std::vector<std::string> itsReports;
+};
+
+//! THE RUN-CONTROL CLAIM, for every kind (OpenWork "Run control", user 2026-11-25).  On a Prepare'd \a calc handed a scripted control:
+//! poll 1 changes the threads, poll 2 checkpoints to \a ckpt, poll 3 saves-and-stops to \a stop.  The SCF must end at iteration 3 as
+//! \c StoppedByUser (both files written; no cap report, ONE stop report through the main's hook, naming the save), the threads must be
+//! the commanded ones, and a second \c Converge must end at once, stopped still (sticky).  Then a FRESH run of the same setup must judge
+//! the stopped state as its own (a restartable file) and converge (a stop is per calculation, not process-wide).
+template <class C> std::string ControlledByRunControl(C& calc, C& fresh, const std::string& ckpt, const std::string& stop)
+{
+    std::ostringstream why;
+    std::filesystem::remove(ckpt); std::filesystem::remove(stop);
+    const qchem::ScopedWorkerThreads restore(1, 1);   // the SetThreads below changes the process's counts: put them back after
+    RunCommand threads; threads.kind=RunCommand::Kind::SetThreads; threads.threads={2, 1};
+    RunCommand check;   check.kind=RunCommand::Kind::Checkpoint;   check.path=ckpt;
+    RunCommand save;    save.kind=RunCommand::Kind::SaveAndStop;   save.path=stop;
+    auto control=std::make_shared<ScriptedControl>(std::vector<std::vector<RunCommand>>{{threads}, {check}, {save}});
+    calc.Control(control);
+    std::vector<std::string> reports;
+    {
+        CaptureStops capture;
+        auto r=calc.Converge();
+        if (r) return "a save-and-stop at poll 3 answered a CONVERGED proof (the run converged in <= 3 iterations: pick a slower case)";
+        if (r.Error().why!=SCFFailure::Why::StoppedByUser) why << "the stopped run answered why=" << int(r.Error().why) << ", not StoppedByUser: " << r.Error().details << "; ";
+        if (control->Polls()!=3) why << "the SCF polled " << control->Polls() << " times, not 3 (stopped at the end of iteration 3); ";
+        if (r.Error().details.find("state saved to "+stop)==std::string::npos) why << "the stop does not name its saved state: " << r.Error().details << "; ";
+        if (qchem::CurrentThreads().openmp!=2) why << "SetThreads(2) left WorkerThreads at " << qchem::CurrentThreads().openmp << "; ";
+        if (!calc.Stopped()) why << "Stopped() is false after a stop; ";
+        auto again=calc.Converge();
+        if (again || again.Error().why!=SCFFailure::Why::StoppedByUser) why << "a second Converge of the stopped calculation was not StoppedByUser (not sticky); ";
+        if (control->Polls()!=3) why << "the second Converge polled again (" << control->Polls() << "): a stopped calculation runs no SCF; ";
+        reports=capture.itsReports;
+    }
+    if (reports.size()!=1) why << reports.size() << " reports through the main's hook, not ONE stop report; ";
+    else if (reports[0].find("STOPPED by run control")==std::string::npos) why << "the hook's report is not the stop: " << reports[0] << "; ";
+    if (!std::filesystem::exists(ckpt)) why << "the checkpoint wrote no " << ckpt << "; ";
+    if (!std::filesystem::exists(stop)) return why.str()+"save-and-stop wrote no "+stop;
+    auto judged=fresh.JudgeState(stop);
+    if (!judged) why << "a fresh run of the same setup does not judge the stopped state as its own: " << judged.Error().details << "; ";
+    auto f=fresh.Converge();
+    if (!f) why << "a fresh calculation after another one's stop did not converge (a stop leaked past its calculation): " << f.Error().details << "; ";
+    std::filesystem::remove(ckpt); std::filesystem::remove(stop);
     return why.str();
 }
 
@@ -553,6 +624,12 @@ public:
         auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, o)).TakeValue();
         return Checkpoints(*calc, path);
     }
+    std::string RunControlStopsAndSaves() override
+    {
+        auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue();
+        auto fresh=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue();
+        return ControlledByRunControl(*calc, *fresh, TempPath("facade_matrix_runctl_ckpt_atom.h5"), TempPath("facade_matrix_runctl_stop_atom.h5"));
+    }
     std::string ScheduleRunsOnEveryKind() override
     {
         auto ramped=AtomCalculation::Prepare(AtomSetup::Resolve(Z, 0, Options())).TakeValue();
@@ -709,6 +786,12 @@ public:
         auto calc=MoleculeCalculation::Prepare(Setup({}, SCFAccelerators::Type::Auto, path)).TakeValue();
         return Checkpoints(*calc, path);
     }
+    std::string RunControlStopsAndSaves() override
+    {
+        auto calc=MoleculeCalculation::Prepare(Setup()).TakeValue();
+        auto fresh=MoleculeCalculation::Prepare(Setup()).TakeValue();
+        return ControlledByRunControl(*calc, *fresh, TempPath("facade_matrix_runctl_ckpt_h2o.h5"), TempPath("facade_matrix_runctl_stop_h2o.h5"));
+    }
     std::string ScheduleRunsOnEveryKind() override
     {
         auto ramped=MoleculeCalculation::Prepare(Setup()).TakeValue();
@@ -849,6 +932,12 @@ public:
         auto calc=SolidCalculation::Prepare(Setup(SCFAccelerators::Type::Auto, {}, path)).TakeValue();
         return Checkpoints(*calc, path);
     }
+    std::string RunControlStopsAndSaves() override
+    {
+        auto calc=SolidCalculation::Prepare(Setup()).TakeValue();
+        auto fresh=SolidCalculation::Prepare(Setup()).TakeValue();
+        return ControlledByRunControl(*calc, *fresh, TempPath("facade_matrix_runctl_ckpt_si.h5"), TempPath("facade_matrix_runctl_stop_si.h5"));
+    }
     std::string ScheduleRunsOnEveryKind() override
     {
         auto ramped=SolidCalculation::Prepare(Setup()).TakeValue();
@@ -895,6 +984,7 @@ const char* Name(Capability c)
         case Capability::ConvergeAnswersAnOutcome:  return "ConvergeAnswersAnOutcome";
         case Capability::EveryConvergeCheckpoints:  return "EveryConvergeCheckpoints";
         case Capability::ScheduleRunsOnEveryKind:   return "ScheduleRunsOnEveryKind";
+        case Capability::RunControlStopsAndSaves:   return "RunControlStopsAndSaves";
     }
     return "?";
 }
@@ -913,7 +1003,7 @@ std::vector<CellId> AllCells()
                              Capability::SaveRestartRoundTrips, Capability::DeckRoundTrips, Capability::LevelsAnswerTheState,
                              Capability::ViewMatchesTheLiveState, Capability::SetupRefusesAnUnrealisableRequest,
                              Capability::ConvergeAnswersAnOutcome, Capability::EveryConvergeCheckpoints,
-                             Capability::ScheduleRunsOnEveryKind})
+                             Capability::ScheduleRunsOnEveryKind, Capability::RunControlStopsAndSaves})
             cells.push_back({k,c});
     return cells;
 }

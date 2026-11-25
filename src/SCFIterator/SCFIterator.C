@@ -237,6 +237,13 @@ public:
     // IterationRow -- the console's own cells.  Read-only telemetry -- the observer must not drive the loop.
     using Observer = std::function<void(const IterationRow&)>;
     void SetObserver(Observer obs) {itsObserver=std::move(obs);}
+    //! \brief THE RUN-CONTROL POLL (qchem.RunControl): called once at the END of every iteration -- the one safe point, nothing
+    //! mid-build -- and TRUE ends this Iterate there (unconverged, NOT a cap hit: no cap report).  The facade installs it and owns what
+    //! a command means (save, stop, threads); the iterator only stops.
+    using BoundaryHook = std::function<bool(size_t iteration)>;   //!< \a iteration: the one that just ended (this Iterate's count)
+    void SetBoundaryHook(BoundaryHook hook) {itsBoundaryHook=std::move(hook);}
+    //! Whether the last Iterate was ended by its boundary hook (a run-control stop), not by convergence or the cap.
+    bool StoppedByControl() const {return itsStoppedByControl;}
 
     // (No SetOrderParameter any more -- 2026-09-14.  The order parameter is the INTEGRATED site moment the
     //  spin-native XC term writes into every iteration's EnergyBreakdown (R1.0h); the m_site column reads it
@@ -428,6 +435,8 @@ private:
     //! Shared run exists to keep (boron LDA, 2026-11-08).  Cleared by the first Iterate.
     bool            itsFreshSeedFill=false;
     Observer        itsObserver;   //!< optional live-progress sink (default empty)
+    BoundaryHook    itsBoundaryHook;              //!< optional run-control poll at each iteration's end (default empty)
+    bool            itsStoppedByControl=false;    //!< the last Iterate was ended by \c itsBoundaryHook
 
     // Density-face state.  The mixer (Linear / Kerker; see qchem.ChargeDensity.DensityMixer) is built per-run
     // from SCFParams at the top of Iterate and owns the mixing policy + state (relax, the Kerker ρ̃, ...).

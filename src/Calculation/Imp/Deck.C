@@ -1603,7 +1603,7 @@ static DisplaceResult Displace(const RunSpec& specIn, const std::vector<RunSpec:
     return out;
 }
 
-RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDir)
+RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDir, std::shared_ptr<RunControl> control)
 {
     namespace fs=std::filesystem;
     struct Close { ~Close() { qchem::report::ClearConsole(); qchem::report::End(); } };
@@ -1668,6 +1668,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         return out;
     }
     std::unique_ptr<SolidCalculation> calc=prepared.TakeValue();   // not const: the split replaces run #1 by run #2
+    calc->Control(control);   // the front end's commands (rundeck: runctl, signals); a run never relies on the process's default
     (void)calc->Converge(stages);
     if (auto R=calc->Result())
     {
@@ -1676,7 +1677,9 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     }
     else out.summary=(R.Error().why==SCFFailure::Why::ResourceRefused ? "REFUSED ON RESOURCES: "
                     : R.Error().why==SCFFailure::Why::StageRefused    ? "REFUSED: "
-                    : R.Error().why==SCFFailure::Why::StateNotSaved   ? "converged, STATE NOT SAVED: " : "NOT converged: ")+R.Error().details;
+                    : R.Error().why==SCFFailure::Why::StateNotSaved   ? "converged, STATE NOT SAVED: "
+                    : R.Error().why==SCFFailure::Why::StoppedByUser   ? "STOPPED (resumable): " : "NOT converged: ")+R.Error().details;
+    out.stopped=calc->Stopped();
     // A run REFUSED ON RESOURCES (the audit RSS policy) did not reach the state its postSCF actions read: before the first SCF there is no D
     // at all, and mid-pilot the rasters are not settled.  Each action is recorded as skipped, and the record carries the refusal's numbers.
     std::optional<ResourceRefusal> refused;
@@ -1690,9 +1693,9 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     {
         RunOutcome::PostResult pr; pr.action=PostName(a.kind);
         json rj={{"action",pr.action}};
-        if (refused)
+        if (refused || out.stopped)
         {
-            pr.ok=false; pr.summary="SKIPPED: the run was refused on resources ("+refused->when+")";
+            pr.ok=false; pr.summary=out.stopped ? "SKIPPED: the run was stopped by run control" : "SKIPPED: the run was refused on resources ("+refused->when+")";
             std::cout<<"["<<stem<<"] postSCF: "<<pr.action<<"  "<<pr.summary<<std::endl;
             rj["ok"]=pr.ok; rj["summary"]=pr.summary; results.push_back(rj);
             out.postSCF.push_back(pr);
@@ -1902,6 +1905,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         rec["results"]={{"converged",out.converged},{"postSCF",results}};
         if (refused) rec["results"]["refusedOnResources"]=Describe(refused->footprint, refused->available);
         if (out.energy) rec["results"]["energy"]=*out.energy;
+        if (out.stopped) rec["results"]["stopped"]=out.summary;   // run control: resumable, and where the state went
         std::ofstream os(out.revision,std::ios::trunc); os<<rec.dump(2)<<"\n";
     }
     return out;

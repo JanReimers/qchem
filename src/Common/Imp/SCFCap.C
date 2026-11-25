@@ -29,6 +29,11 @@ void ReportSCFCapHit(const std::string& what)
     Hook()(what);
 }
 
+void ReportSCFStopped(const std::string& what)
+{
+    if (Hook()) Hook()(what);
+}
+
 BoundedSCF::BoundedSCF(const char* why)
 {
     assert(why && *why && "BoundedSCF: say why this SCF is deliberately bounded");

@@ -1071,6 +1071,7 @@ void SolidCalculation::AttachProbes()
         }
         if (userObs) userObs(row);
     });
+    itsImp->scf->SetBoundaryHook(RunControlHook());   // run control (qchem.RunControl): stop / save / threads at each iteration's end
 }
 
 void SolidCalculation::EnterStage(const SCFStage& stage, size_t index)
