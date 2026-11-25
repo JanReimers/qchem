@@ -17,6 +17,9 @@ import qchem.Reporting;                 // report::Scope: the mesh files its fie
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 import qchem.Structure.MeshFactory;   // MakeMesh, StructureMeshMaker<S> (V-MESH-FACTORY)
 import qchem.Lattice_3D.Imposition;   // ResolveImposition: a crystal run's SymmetrySource (the strain gate)
+import qchem.Mesh.CoulombOperator;   // the radial Poisson solve and its folded decorator (the δ-fit Hartree on the representatives)
+import qchem.Mesh.Radial;            // MakeRadial / MakeAngular: the rules a SiteMultipoles reads
+import qchem.Mesh.Angular;
 using namespace qchem;
 
 // Note: this TU sees BOTH the old global `Mesh`/`MeshParams` (via qchem.Structure) and the new
@@ -832,5 +835,80 @@ TEST(MolecularPointGroupMesh, TheRepresentativesServeAnInvariantIntegrand)
         auto mol=Placed(SF6(), kQ, shift);
         Ops s; s.ops=PlacedOps(D2h(), kQ);
         ExpectTheRepresentativesServeAnInvariantIntegrand(StructureMeshMaker<Molecule>(mol).Make(mp, s), *mol, kQ, shift, "SF6 D2h");
+    }
+}
+
+namespace
+{
+//! THE δ-FIT HARTREE ON THE REPRESENTATIVES (lane H 2026-11-24).  The radial Poisson operator built on an invariant mesh commutes with the
+//! group: an invariant charge q has a potential constant over every orbit.  So the folded operator, fed one orbit charge Q_o per
+//! representative, answers the full operator's potential there, and its self-repulsion pullback (on the scattered charges) is the full one.
+void ExpectTheFoldedPoissonIsTheFullOne(const qcMesh::FoldedMesh& q, const qcMesh::MeshParams& mp, const Molecule& mol,
+                                        const Matrix3D<double>& Q, const rvec3_t& shift, const char* name)
+{
+    ASSERT_TRUE(q.HasFold());
+    const qcMesh::Mesh& full=*q.GetMesh();
+    rvec3vec_t centres(mol.GetNumAtoms());
+    for (size_t a=0;a<centres.size();a++) centres[a]=mol.Sites()[a].R;
+    const auto sites=std::make_shared<const qcMesh::SiteMultipoles>(full, centres, qcMesh::MakeRadial(mp), qcMesh::MakeAngular(mp), 8);
+    const auto K=qcMesh::MakeRadialPoissonCoulomb(sites);
+
+    rvec_t qf(full.size());
+    for (size_t i=0;i<full.size();i++) qf[i]=full.Weights()[i]*EvenField(full.Points()[i], mol, Q, shift);
+    const rvec_t vf=K->Potential(qf);
+    double vmax=0.0;
+    for (size_t i=0;i<vf.size();i++) vmax=std::max(vmax, std::abs(vf[i]));
+    ASSERT_GT(vmax, 0.0);
+
+    const std::vector<size_t>& rep=q.RepresentativeIndices();
+    const qcMesh::Mesh reps=q.MakeRepresentativeMesh();
+    rvec_t vrep(rep.size());
+    for (size_t o=0;o<rep.size();o++) vrep[o]=vf[rep[o]];
+    const rvec_t vcopy=q.CopyOut(vrep);
+    double spread=0.0;
+    for (size_t i=0;i<vf.size();i++) spread=std::max(spread, std::abs(vcopy[i]-vf[i]));
+    std::printf("[folded Poisson] %s: max|v| %.3e, orbit spread of v %.3e\n", name, vmax, spread);
+    EXPECT_LT(spread, 1e-12*vmax) << "the Poisson potential of an invariant charge is constant over each orbit";
+
+    rvec_t Qo(rep.size());
+    for (size_t o=0;o<rep.size();o++) Qo[o]=reps.Weights()[o]*EvenField(reps.Points()[o], mol, Q, shift);
+    const auto F=qcMesh::MakeFoldedCoulomb(qcMesh::MakeRadialPoissonCoulomb(sites), q);
+    const rvec_t vo=F->Potential(Qo);
+    ASSERT_EQ(vo.size(), rep.size());
+    double dv=0.0;
+    for (size_t o=0;o<rep.size();o++) dv=std::max(dv, std::abs(vo[o]-vrep[o]));
+    EXPECT_LT(dv, 1e-12*vmax) << "the folded operator answers the full one's potential at the representatives";
+    double Ef=0.0, Eo=0.0;
+    for (size_t i=0;i<full.size();i++) Ef+=qf[i]*vf[i];
+    for (size_t o=0;o<rep.size();o++) Eo+=Qo[o]*vo[o];
+    EXPECT_NEAR(Eo, Ef, 1e-12*std::abs(Ef)) << "the self-repulsion on the representatives is the full mesh's";
+
+    ASSERT_TRUE(F->CanPullbackSelfRepulsion());
+    const rvec3vec_t gf=K->MakeSelfRepulsionPullback(qf), go=F->MakeSelfRepulsionPullback(Qo);
+    double gmax=0.0, dg=0.0;
+    for (size_t a=0;a<gf.size();a++) {gmax=std::max(gmax, norm(gf[a])); dg=std::max(dg, norm(go[a]-gf[a]));}
+    EXPECT_LT(dg, 1e-11*std::max(1.0,gmax)) << "the self-repulsion pullback is taken on the full charges";
+}
+} //anon
+
+TEST(MolecularPointGroupMesh, TheFoldedPoissonIsTheFullOneOnAnInvariantCharge)
+{
+    const rvec3_t shift(0.4,-1.1,2.3);
+    {
+        auto mol=Placed(kWater, kQ, shift);
+        Ops s; s.ops=PlacedOps(kC2v, kQ);
+        ExpectTheFoldedPoissonIsTheFullOne(StructureMeshMaker<Molecule>(mol).Make(SymParams(), s), SymParams(), *mol, kQ, shift, "H2O C2v");
+    }
+    {
+        qcMesh::MeshParams mp=Params(); mp.angularDegree=17;
+        auto mol=Placed(SF6(), kQ, shift);
+        Ops s; s.ops=PlacedOps(D2h(), kQ);
+        ExpectTheFoldedPoissonIsTheFullOne(StructureMeshMaker<Molecule>(mol).Make(mp, s), mp, *mol, kQ, shift, "SF6 D2h");
+    }
+    {
+        auto mol=Placed(kWater, kQ, shift);
+        EXPECT_THROW(qcMesh::MakeFoldedCoulomb(qcMesh::MakeDirectSumCoulomb(*StructureMeshMaker<Molecule>(mol).Make(SymParams(), qcMesh::NoSymmetry()).GetMesh()),
+                                               StructureMeshMaker<Molecule>(mol).Make(SymParams(), qcMesh::NoSymmetry())), std::logic_error)
+            << "a free run's mesh has no orbits to fold over";
     }
 }
