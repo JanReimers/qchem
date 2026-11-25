@@ -16,7 +16,7 @@ L = {'S': 0, 'P': 1, 'D': 2, 'F': 3}
 def g94(name, el):
     """One element's block of a Gaussian94 .bsd file as a PySCF basis (as pyscf_molecule_oracle.py, which runs its cases on import)."""
     txt = open(os.path.join(DATA, name)).read()
-    m = re.search(r'\n %s +0\n(.*?)\n \*\*\*\*' % el.upper(), txt, re.S)
+    m = re.search(r'\n %s +0\n(.*?)\n ?\*\*\*\*' % el.upper(), txt, re.S)
     if not m: raise SystemExit(f'{name} has no block for {el}')
     lines, out, i = m.group(1).split('\n'), [], 0
     while i < len(lines):
@@ -37,12 +37,19 @@ def atoms(name):
     e = json.load(open(MOLS))[name]
     return [[a['el'], tuple(a['xyz'])] for a in e['atoms']]
 
+# The PP runs read the files our decks name: the molopt GTH bases (H C O in dzvp_molopt_gth, F Te in dzvp_molopt_sr_gth; no S file, so
+# SF6 is all-electron only), GTH-PADE (our gth-lda-valence) at each file's PP-PROVENANCE charge (Te q6).
+PPBASIS = {'H': 'dzvp_molopt_gth.bsd', 'C': 'dzvp_molopt_gth.bsd', 'O': 'dzvp_molopt_gth.bsd', 'F': 'dzvp_molopt_sr_gth.bsd', 'Te': 'dzvp_molopt_sr_gth.bsd'}
+PPNAME  = {'Te': 'gth-pade-q6'}
+
 def run(name, basis, pseudo, tol):
     t0 = time.perf_counter()
     at = atoms(name)
     els = sorted({a[0] for a in at})
-    m = gto.M(atom=at, unit='Bohr', basis={e: g94(basis, e) for e in els}, cart=True,
-              pseudo=({e: pseudo for e in els} if pseudo else None), verbose=0, max_memory=8000)
+    bas = {e: g94(PPBASIS[e] if pseudo else basis, e) for e in els}
+    m = gto.M(atom=at, unit='Bohr', basis=bas, cart=True,
+              pseudo=({e: PPNAME.get(e, pseudo) for e in els} if pseudo else None), verbose=0, max_memory=8000)
+    basis = 'molopt_gth' if pseudo else basis
     mf = dft.RKS(m); mf.xc = 'lda,vwn'; mf.grids.atom_grid = (200, 590)
     mf.direct_scf = True; mf.direct_scf_tol = tol; mf.conv_tol = 1e-10; mf.max_cycle = 200
     mf.grids.build(); h1 = mf.get_hcore(); s1 = mf.get_ovlp()
@@ -73,5 +80,5 @@ if __name__ == '__main__':
     if '--tol' in args: i = args.index('--tol'); tol = float(args[i+1]); del args[i:i+2]
     pp = '--pp' in args; args = [a for a in args if a != '--pp']
     for name in args or ['H2O']:
-        if pp: run(name, 'valence_lowq_vb.bsd', 'gth-pade', tol)
+        if pp: run(name, None, 'gth-pade', tol)
         else:  run(name, 'dzvp.bsd', None, tol)
