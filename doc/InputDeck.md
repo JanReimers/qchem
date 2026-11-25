@@ -76,6 +76,12 @@ forces Polarized.  An AFM crystal states `"spin": "Polarized", "multiplicity": 1
           "mesh": { "cellKind": "Auto|Uniform|Becke", "nRadial": 40, "angularDegree": 29, "beckeEps": 1e-6, ... } },   // was solid.xcMesh
   "coulomb": { "fit": "Auto",              // a MOLECULE's Hartree route: Auto (the policy picks: Delta, user ruling 2026-11-22) | Auxiliary (a Dunlap fit) | Delta (rho on the XC mesh,
                                           //   radial Poisson) | Multipole; a solid refuses the block (its Hartree is its density ball)
+               "solver": "Auto",          // how the Delta route finds v at its points: Auto (= RadialPoisson) | RadialPoisson | DirectSum |
+                                          //   Analytic (v_g = sum D_kl (kl|delta_g), the COSX / sn-K kernel; Delta fit, finite structures only;
+                                          //   lane S 2026-11-25).  HF refuses a stated solver; Auxiliary / Multipole refuse DirectSum and Analytic
+               "metric": "Auto", "constraint": "Auto",   // the Auxiliary fit's two axes (V-FIT-AXES): metric Coulomb (Dunlap) | Overlap
+                                          //   (not built yet, refused); constraint Charge | None.  Auto = Coulomb x Charge.  Delta / Multipole
+                                          //   refuse a stated metric and the Charge constraint
                "auxBasis": "A2_coul" },   // the Auxiliary route's fit file stem (A1_coul, A2_coul); empty = A2 (A1 where A2 misses an element).  An atom
                                           //   refuses it; so do HF and the Delta / Multipole routes.  Every Auxiliary run reports the fit's J error,
                                           //   one delta J at the seed and at the converged density (policy CoulombFitResidual), WARNING over eps x N
