@@ -520,11 +520,29 @@ rsmat_t SinglesDensitySampler::Matrix(const robs_t* bs, const rvec_t& v) const {
 // E_xc = Σ_g w_g e(ρ_g), w_g = w_q W(R_owner + u_g).  At fixed D, dE = Σ_g ∂w_g e_g + Σ_g w_g v_g ∂ρ_g: the second sum per block (the
 // functions moving, the points riding their owners, the weights HELD: MakeMatrixPullback / MakeMatrixVirial), the first the quadrature's own
 // (MakeQuadraturePullback, the mesh builder's weight response; the XC term contracts it with e).
+//
+// ON THE REPRESENTATIVES OF A FOLDED MESH (the per-orbit consumer, OpenWork §3; lane H 2026-11-24).  The sampler sums over one point per
+// orbit at the orbit's weight W_o = |o| w_o, so each per-point contribution c(r_o) to the gradient is taken |o| times: g~ = Σ_o |o| c(r_o).
+// A member's contribution is the representative's carried by the edge op (ρ, the mesh and D are all invariant), so the full mesh's
+// gradient is the A1 projection P g~ (FoldedMesh::SymmetrizeSiteVectors), the virial likewise (SymmetrizeTensor).  The weight response is
+// the FULL mesh's (the parent's), contracted with |o| e_o at each representative and 0 elsewhere (ScatterToRepresentatives).
+static void ProjectOntoA1(const BasisSet::FitQuadrature& q, rvec3vec_t& g) {if (q.IsRepresentatives()) q.Parent()->SymmetrizeSiteVectors(g);}
+static void ProjectOntoA1(const BasisSet::FitQuadrature& q, rmat3d_t& V)   {if (q.IsRepresentatives()) q.Parent()->SymmetrizeTensor(V);}
+
 template <class T> std::string tSinglesDensitySampler<T>::MeshDerivativeGap() const
 {
     const auto& m=itsQuad.GetMesh();
     if (!m) return "the XC quadrature has no mesh injected";
     if (itsQuad.HasFold()) return "an IMPOSED-symmetry XC mesh (orbit-rotated grids, a star-averaged rho) gives no geometry derivative yet";
+    if (const qcMesh::FoldedMesh* P=itsQuad.Parent())
+    {
+        const qcMesh::Mesh& pm=*P->GetMesh();
+        if (!P->HasSiteAction()) return "the folded XC mesh's builder supplied no site action (which atom each op carries onto which)";
+        if (pm.OwnerOffsets().size()!=pm.size() || pm.NSites()==0) return "the folded XC mesh records no point owners (not an atom-centred build)";
+        if (!pm.WeightResponse()) return "the folded XC mesh's builder installed no weight response";
+        if (m->NSites()!=pm.NSites()) return "the representatives' site blocks are not the folded mesh's";
+        return "";
+    }
     if (m->OwnerOffsets().size()!=m->size() || m->NSites()==0) return "the XC mesh records no point owners (not an atom-centred build)";
     if (!m->WeightResponse()) return "the XC mesh's builder installed no weight response";
     return "";
@@ -537,6 +555,14 @@ tSinglesDensitySampler<T>::MakeQuadraturePullback(const rvec_t& f, const Structu
     if (const std::string gap=MeshDerivativeGap(); !gap.empty()) return R::Fail({gap});
     const qcMesh::Mesh& m=*itsQuad.GetMesh();
     if (!st || st->GetNumAtoms()!=m.NSites()) return R::Fail({"the XC mesh's site blocks are not the structure's atoms"});
+    if (const qcMesh::FoldedMesh* P=itsQuad.Parent())
+    {   // one point per orbit: the full mesh's weight response at |o| e_o on each representative, then the A1 projection
+        const qcMesh::Mesh& pm=*P->GetMesh();
+        auto r=pm.WeightResponse()->Pullback(pm, P->ScatterToRepresentatives(f));
+        P->SymmetrizeSiteVectors(r.gradient);
+        P->SymmetrizeTensor(r.virial);
+        return R::Ok({r.gradient, r.virial});
+    }
     const auto r=m.WeightResponse()->Pullback(m, f);
     return R::Ok({r.gradient, r.virial});
 }
@@ -590,14 +616,18 @@ tSinglesDensitySampler<T>::PullbackT(const tobs_t<U>* bs, const rvec_t& v, const
 {
     const auto p=PointSetOf(bs, v, D, st);
     if (!p) return Outcome<rvec3vec_t,AD::NoGradient>::Fail(p.Error());
-    return Outcome<rvec3vec_t,AD::NoGradient>::Ok(FinishPullback(*p));
+    rvec3vec_t g=FinishPullback(*p);
+    ProjectOntoA1(itsQuad, g);
+    return Outcome<rvec3vec_t,AD::NoGradient>::Ok(std::move(g));
 }
 template <class T> template <class U> Outcome<rmat3d_t,AD::NoGradient>
 tSinglesDensitySampler<T>::VirialT(const tobs_t<U>* bs, const rvec_t& v, const hmat_t<U>& D, const Structure* st) const
 {
     const auto p=PointSetOf(bs, v, D, st);
     if (!p) return Outcome<rmat3d_t,AD::NoGradient>::Fail(p.Error());
-    return Outcome<rmat3d_t,AD::NoGradient>::Ok(FinishVirial(*p));
+    rmat3d_t V=FinishVirial(*p);
+    ProjectOntoA1(itsQuad, V);
+    return Outcome<rmat3d_t,AD::NoGradient>::Ok(V);
 }
 
 // THE k-FOLD of the whole-density calls (user ruling 2026-11-22 "yes").  Each block (either scalar) is one entry; entries whose blocks are
@@ -676,7 +706,7 @@ tSinglesDensitySampler<T>::FoldedBlocksT(const SampledBlocks<T>& b, const Struct
 }
 template <class T> Outcome<rvec3vec_t,AD::NoGradient> tSinglesDensitySampler<T>::MakeMatrixPullbackBlocks(const SampledBlocks<T>& b, const Structure* st) const
 {
-    return FoldedBlocksT<rvec3vec_t>(b, st, rvec3vec_t{},
+    auto r=FoldedBlocksT<rvec3vec_t>(b, st, rvec3vec_t{},
         [this](const auto& p){return FinishPullback(p);},
         [](rvec3vec_t& F, const rvec3vec_t& f)
         {
@@ -684,12 +714,20 @@ template <class T> Outcome<rvec3vec_t,AD::NoGradient> tSinglesDensitySampler<T>:
             if (f.size()!=F.size()) throw std::logic_error("MakeMatrixPullbackBlocks: two blocks answered for different atom counts");
             for (size_t A=0;A<F.size();A++) F[A]+=f[A];
         });
+    if (!r) return r;
+    rvec3vec_t g=*r;
+    ProjectOntoA1(itsQuad, g);   // linear: the projection of the block sum is the sum of the blocks' projections
+    return Outcome<rvec3vec_t,AD::NoGradient>::Ok(std::move(g));
 }
 template <class T> Outcome<rmat3d_t,AD::NoGradient> tSinglesDensitySampler<T>::MakeMatrixVirialBlocks(const SampledBlocks<T>& b, const Structure* st) const
 {
-    return FoldedBlocksT<rmat3d_t>(b, st, rmat3d_t(0,0,0, 0,0,0, 0,0,0),
+    auto r=FoldedBlocksT<rmat3d_t>(b, st, rmat3d_t(0,0,0, 0,0,0, 0,0,0),
         [this](const auto& p){return FinishVirial(p);},
         [](rmat3d_t& V, const rmat3d_t& v){V+=v;});
+    if (!r) return r;
+    rmat3d_t V=*r;
+    ProjectOntoA1(itsQuad, V);
+    return Outcome<rmat3d_t,AD::NoGradient>::Ok(V);
 }
 template <class T> bool tSinglesDensitySampler<T>::CanPullbackMatrix(const tobs_t<T>* bs) const {return CanT<T>(bs);}
 template <class T> bool tSinglesDensitySampler<T>::CanVirialMatrix  (const tobs_t<T>* bs) const {return CanT<T>(bs);}

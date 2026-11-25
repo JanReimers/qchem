@@ -4094,3 +4094,58 @@ M_Calculation's moved-water restart), each a `Molecule` seen through the abstrac
 | **D-RUNPOLICY-LEAK: a molecule or atom run takes the density route the LAST SOLID installed** (lane B, 2026-11-23, found writing `doc/Records/RunPolicyOnTheRun.md`) | Only `SolidSetup::Resolve` installs a run policy (process-wide `SetRunPolicy`), and the orbitals build every iteration's density through `DefaultRhoRoute()`, which reads it.  So after a `cp2kCompat` solid in the same process (a GUI session, a test binary) a molecule runs the Direct ρ route where its own default is the factored one.  The route is `movesState`.  Gate: `RunPolicyLeak.AMoleculeAfterACP2KCompatSolidKeepsItsOwnDensityRoute`, on the root CMakeLists `QCHEM_KNOWN_RED` list | Group E of the run-policy design note, as the user ruled it (2026-11-23, E2′): each setup builds a `DensityMaker` holding its resolved `RhoRoute` and the orbitals call it; take the gate off the knownRed list when it goes green · `doc/Records/RunPolicyOnTheRun.md` §4 |
 
 Done: group E of `doc/Records/RunPolicyOnTheRun.md` (the user's ruling 2026-11-23, E2'): each setup builds a `ChargeDensity::DensityMaker` holding its resolved `RhoRoute` (a solid's from its policy, reported as policy `DensityRoute`; a molecule's and an atom's the factored default), the facade builds the wave function with it, and `TOrbitalsImp::MakeChargeDensity`, the seed and a restart make their block densities with it.  `DefaultRhoRoute()` and its process-wide read are gone.  Gate `RunPolicyLeak.AMoleculeAfterACP2KCompatSolidKeepsItsOwnDensityRoute` (H2 HF/DZVP before and after a cp2kCompat Si setup: every block factored) went green and left the knownRed list.
+
+## ✅ NiO restore panel anchor moved 1.28 μHa (closed 2026-11-24, lane S: the k-fold 3c973a2b8, re-pinned)
+
+| **NiO restore panel anchor moved 1.28 μHa** (controller 2026-11-24, from lane B's RunPolicy panel): `GPW_NiO.k222_…_Saved_RestoresOnItsOwnHistory_Panel_Long` first iterate −106.351421842746 vs pin −106.351423122 (1.28 μHa), E −106.351425491911 (1.24 μHa); main 2aa2c73e reproduces it to 1e-12 without lane B, 4 threads = serial.  Last green panel main-3b4e8112 (2026-11-20); 19 landings since ran no panel.  Listed in QCHEM_PANEL_RED; gate NOT loosened | lane S bisects 3b4e8112..main (first suspect 9a415ecf7, the δ Coulomb default) and re-judges per `doc/Pins.md` pin 10 against an independent route; then fix or re-pin, and take it off QCHEM_PANEL_RED · log `~/Code/qchem6-runs/anchors/main-2aa2c73e_nio4t.log` |
+
+Done (lane S 2026-11-24).  First-parent bisect of the one case over 3b4e8112..main (4 threads, heavy lock): every landing through
+b03c0efc5 gives first iterate −106.351423121668, E −106.351426728199 (the δ Coulomb default 9a415ecf7 among them, cleared); the
+first bad commit is **3c973a2b8, the merge of lane A's k-fold (72dca4b7a)**: −106.351421842746 / −106.351425491911, a move of
++1.279 / +1.236 μHa, still 11 iterations, Ni moment 1.376.  Mechanism: the k-fold collocates all k-blocks in one box walk, so the
+D-aware collocation screen (densityEps) rules on |Σ_b P^b(R)|, the quantity summed, not block by block -- a screening-tolerance move,
+the same kind lane A re-judged on MnO IonicSAD.
+
+Pin 10 independent route: the same deck at HEAD with the screen 100x tighter (`solid.tolerances.densityEps` 1e-12) gives first
+iterate −106.351421694882, E −106.3514253456 (11 iterations, AFM-II held).
+
+| | first iterate − tight | E − tight |
+|---|---|---|
+| new, k-fold at densityEps 1e-10 | 148 nHa | 146 nHa |
+| old pin, pre-k-fold | 1.427 μHa | 1.383 μHa |
+
+The new value is ~10x closer to the screen-converged answer: the old pin carried a 1.4 μHa screening error the k-fold removed (MnO
+showed the same, 60 vs 506 nHa).  Verdict: a correction, not a regression.  Re-pinned to −106.351421843 / −106.3514254919, gate
+±1e-8 kept (a did-it-move anchor inside the default screen's ~150 nHa residual); the test comment's old "independent route" (the cold
+run's −106.3514267289, computed at the old screening, so carrying the same bias) is replaced by the tight-screen route.  Off
+QCHEM_PANEL_RED.
+
+## MnO ordering at Γ/SR: the row as it stood before the re-scope (2026-11-24, lane B, controller tasking)
+
+The gate it named, `GPW_MnO.Γ_Shub_Pol_Smear_Ordering_Long` (KNOWN RED since 2026-11-09, asserting AFM-II below FM), is re-claimed as
+`GPW_MnO.Γ_Uni_Shub_Pol_Smear_CP2K_Long` (FM − AFM-II against CP2K on its own model) and is off `QCHEM_KNOWN_RED`; the live row keeps only the
+physics question, deferred.  The row verbatim:
+
+| **MnO ordering at Γ/SR: FM lies BELOW AFM-II** | **LARGELY THE V_short IMAGE BUG (2026-10-23): with the BuildOpTerms fix the gate gives E_AFM −61.35052 / E_FM −61.35215, FM below by 1.63 mHa (was 38.15; the later Ewald fix shifts both arms by the same −47.24 mHa → −61.30328 / −61.30491, difference unchanged) -- matching CP2K on the comparable span (VA: FM below by 1.46); CP2K's 136-function SR has AFM below by 8.87 mHa, so what is left is the span question (row "The 136-function span").**  Previously: KNOWN PROBLEM (user 2026-10-04: "FM lower than AFM is a known problem; we probably need a denser k mesh and/or DFT+U to fix it"). MEASURED 2026-10-04 (deck-run AFM arm = the hand-built anchor to 1e-8; both arms imposed, SR basis, Γ, kT 5e-3, Kerker+Pulay 8): E_AFM-II = −61.414547, E_FM = −61.452697 Ha ⇒ **FM 38.15 mHa LOWER** (site moments Mn +4.73, net +10.0), against CP2K's AFM-II −61.470570.  The old `gpwprobe mno` check "AFM-II is the LSDA ground-state ordering" asserted the opposite; the gate is now `GPW_MnO.Γ_Shub_Pol_Smear_Ordering_Long`, run KNOWN RED (root CMakeLists `QCHEM_KNOWN_RED`, since 2026-11-09; it had rotted while disabled -- siteSpins unstated).  Suspects: a 2-f.u. Γ-only cell cannot carry the superexchange (the AFM-II energy needs k-sampling), and the 56 mHa AFM offset to CP2K (SR/Becke/fit); FM has no CP2K number.  The true-Mn²⁺-seed order LOSS (2026-10-23) is gone on the fixed code (re-measured 2026-10-27: IonicSAD and SAD converge to the same AFM-II state, −61.3032807795). | next: shrink this row to the span remainder; the AFM/FM pair on a denser k mesh (`kmesh:[2,2,2]`) and with DFT+U (a deck each) only if the span row does not explain the CP2K-SR sign; re-enable the gate when the ordering is right; FM arm in CP2K for an oracle · record `doc/Records/EnvKnobInventory.md` §10 |
+## ✅ A per-orbit consumer of the molecular mesh fold (closed 2026-11-24, lane H, 9a7da63a1 · e65f2514d · 765aa19f2 · ad206b559 · 52ccafb07)
+
+The row as it stood:
+
+| **A per-orbit consumer of the molecular mesh fold: the cost lever V-FOLD-NEUTRAL did not buy** (lane H 2026-11-23) **SCHEDULED 2026-11-24 to lane H, next** (user, accepting the fold built-not-engaged: "yes, as long as the work required to properly use it is scheduled"; plan lane-h-per-orbit-consumer-plan.md, steps 1-5, δ Vxc fit only, Gaussian/Multipole stay unfolded with a policy row) | The molecular XC mesh is now invariant under H, the D2h-type subgroup (V-FOLD-NEUTRAL step 2, `9fb57e3e7` / `716754718`).  Its orbit fold is BUILT (`FoldOrbits(Molecule)`) but NOT ENGAGED on any run: a folded mesh has no geometry gradient and no GGA gradient rotation, the solid's limits too.  Even engaged, the fold would be consumed in one place only: `DensitySampler` star-averages ρ.  `DeltaFit_IBS` still has one δ per POINT, so no work drops.  Lane S counted the lever: an Oh orbit fold is 34-39× on SF₆/TeF₆ (δ Coulomb), and H = D2h is ≤ 8× | Accumulate Σ_orbits q_o A(rep), then symmetrize the n×n matrix once (or form ρ / v_xc at representatives only).  This needs ρ invariant under the folded group, which holds on a SALC-imposed run.  Engaging the fold (MoleculeSetup MeshSymmetry: `averages` true on an imposed LDA run) also needs the folded mesh's weight derivative (forces), or a policy that forgoes forces on such runs.  Read lane H's design note §6.1 (side-session notes `lane-h-V-FOLD-NEUTRAL-design.md`) and `lane-s-ij-delta-measurement.md` |
+
+Done (plan: side-session notes `lane-h-per-orbit-consumer-plan.md`, steps 1-5):
+- **The key fact.** An imposed run works in a SALC basis, so every δ-route XC integrand (ρ, v s_i s_j, |∇ρ|², ∇ρ·∇(s_i s_j)) is
+  H-invariant pointwise, and ∫f = Σ_o W_o f(rep_o) exactly.  No ∇ρ rotation is needed; GGA rides the same route.
+- **Step 1 (9a7da63a1):** `FoldedMesh`, a representatives-only view (points, orbit weights W_o, owner sites, per-op site action).
+- **Step 2 (e65f2514d):** the δ Vxc fit over the representatives.  `FoldAudit.OnePointPerOrbitIsExactOnAnImposedRun_*`: |ΔE| ≤ 8e-13,
+  max|ΔH| ≤ 9e-14 on H₂O (LDA, PBE) and CH₄ (LDA); O₂ triplet LSDA and PBE twins are `_Long`; a free run is refused.
+- **Step 3 (765aa19f2):** the XC geometry gradient on the representatives: the parent's weight response contracted with |o|e_o, then
+  projected onto A1 through the site action (the virial likewise).  `HamiltonianForces.TheFoldedXCForceIsTheUnfoldedOne`: 8e-15 on H₂O
+  LDA, 2e-13 on the O₂ triplet.
+- **ad206b559:** a V-FOLD-NEUTRAL step-2 defect found here: every SF₆ DFT run (free or imposed) threw, because the orbit-weight check
+  measured |Δw|/w and points with a Becke partition P ~ 1e-26 amplify roundoff past 1e-10.  The check now measures the partition's
+  absolute spread; gate `MolecularPointGroupMesh.SF6OnARaisedMeshPassesItsOrbitWeightCheck` (1.0M points).
+- **Step 4 (52ccafb07):** `MeshSymmetryAt` engages the fold on imposed DFT runs with the δ Vxc fit (Auto or Delta); free runs, HF and the
+  Gaussian/Multipole fits stay unfolded, each with its reason in the MeshSymmetry policy row.  Timings: `doc/Benchmark.md` §10.
+- Follow-ups logged in `doc/OpenWork.md` §3: the δ-fit Hartree's full δ, the non-δ fits, a quiet-box re-measure, the test helper's
+  relative weight check; the full-G mesh row stays open.

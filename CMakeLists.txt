@@ -28,10 +28,8 @@ endif()
 if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(FATAL_ERROR
         "This project requires the Clang C++ toolchain. "
-        "Use clang++/clang and flang, for example: "
-        "CXX=/opt/LLVM-21.1.6-Linux-X64/bin/clang++ "
-        "CC=/opt/LLVM-21.1.6-Linux-X64/bin/clang "
-        "FC=/opt/LLVM-21.1.6-Linux-X64/bin/flang cmake -S . -B build/Release -G Ninja"
+        "State clang++ alone (C and Fortran are derived from it), on a fresh tree, for example: "
+        "cmake -S . -B build/Release -G Ninja -DCMAKE_CXX_COMPILER=/opt/LLVM-23.1.4-Linux-X64/bin/clang++"
     )
 endif()
 # FULL BMIs.  Clang 23 writes REDUCED BMIs by default, and those do not merge the duplicate Blaze partial specializations that
@@ -69,10 +67,10 @@ if(OpenMP_CXX_FOUND)
     # add_compile_definitions (directory-inherited everywhere), and the runtime into link_libraries
     # (every target declared after this point).  QCHEM_OPENMP gates the (opt-in via GPW_OMP_THREADS,
     # serial-by-default) parallel code.
-    # On a toolchain whose clang lacks omp.h (the /opt LLVM 21.1.6 tarball), point find_package at apt's libomp-dev:
+    # The /opt LLVM 23.1.4 tarball (the project's toolchain since 2026-11-24) ships its own omp.h and libomp, and find_package finds
+    # them unaided.  HISTORY: the /opt LLVM 21.1.6 tarball lacked omp.h, and its trees pointed find_package at apt's libomp-dev:
     #   cmake -DOpenMP_CXX_FLAGS="-fopenmp -I/usr/lib/llvm-21/lib/clang/21/include" \
     #         -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=/usr/lib/x86_64-linux-gnu/libomp.so .
-    # The /opt LLVM 23.1.4 tarball ships its own omp.h and libomp, and find_package finds them unaided.
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     add_compile_definitions(QCHEM_OPENMP)
     link_libraries(${OpenMP_omp_LIBRARY})
@@ -229,14 +227,12 @@ set(QCHEM_PANEL_RED
     "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_Pulay_Converges_Panel_Long" # OpenWork §3 "Kerker+Pulay overshoots β-MnO₂'s U = 1 eV basin"
     "GPW_MnO2.Γ_U_Shub_Pol_Smear_Kerker_ConvergesAtU2eV_Panel_Long"     # same row: control U = 2 eV limit-cycles under plain Kerker
     "ResponsePolarizability.GPW_Si_Γ_Pol_OneSpinAlpha_KeepsZeroMoment_Panel" # OpenWork §3 "Polarized Γ Si JUMPS" (panel #10)
-    "GPW_NiO.k222_Pol_Smear_Kerker_Pulay_Null_Saved_RestoresOnItsOwnHistory_Panel_Long" # OpenWork §3 "NiO restore panel anchor moved 1.28 μHa"
 )
 #   6. KNOWN RED (user ruling 2026-11-08, CLAUDE.md DISABLED_/WILL_FAIL rule): a NON-panel case that fails today for a reason an
 #      open OpenWork §3 row names, and whose gate must NOT be loosened, is listed in QCHEM_KNOWN_RED with its row.  It runs in its
 #      own tier as the panel-red cases do (PASSES only on gtest's "[  FAILED  ] 1 test", never on a throw), label `knownRed` (a `_Long` one also `long`): `ctest -L knownRed`
 #      lists them.  A sweep report lists them separately with their reason.  When one goes red (fixed), remove it and close the row.
 set(QCHEM_KNOWN_RED
-    "GPW_MnO.Γ_Shub_Pol_Smear_Ordering_Long"                   # OpenWork §3 "MnO ordering at Γ/SR: FM lies BELOW AFM-II" (the 136-function span); was DISABLED_
 )
 list(JOIN QCHEM_KNOWN_RED ":" _qchemKnownRed)
 set(_qchemKnownRedFast ${QCHEM_KNOWN_RED})        # a _Long known-red case keeps the long label and timeout

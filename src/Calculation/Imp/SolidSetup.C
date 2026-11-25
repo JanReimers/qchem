@@ -249,7 +249,6 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, st
                                                       const AcceleratorOptions& acc)
 {
     const RunOptions opts=SolidOptions(asked);   // the kind's defaults filled, what a solid does not consume refused (P0b-2)
-    qchem::SetRunPolicy(opts.solid.policy);   // D-ENV 6b: the policy is part of the run's options, installed ONCE here, before any factory consults it
     RefuseUnrealizedRoutes(opts);
     return Decide(SizedForStrain(lat0, opts), std::move(mol), opts, acc);
 }
@@ -259,7 +258,6 @@ std::shared_ptr<const SolidSetup> SolidSetup::Resolve(const Lattice_3D& lat0, co
                                                       const AcceleratorOptions& acc)
 {
     const RunOptions opts=SolidOptions(asked);   // the kind's defaults filled, what a solid does not consume refused (P0b-2)
-    qchem::SetRunPolicy(opts.solid.policy);   // before the vet loop builds its Bloch blocks, as before every other factory
     RefuseUnrealizedRoutes(opts);      // before the basis is built: nothing is spent on a run that cannot go
     const Lattice_3D lat=SizedForStrain(lat0, opts);   // the vet loop's Bloch blocks are sized as every later point's will be
     const auto pp=Pseudopotential::PseudopotentialSet::Get(*opts.pp).With(opts.species);

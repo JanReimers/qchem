@@ -19,9 +19,8 @@
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH, GTH_PP (real HGH parameters)
 import qchem.Mesh.Quadrature;                     // qcMesh::RadialMesh, MakeRadial
 import qchem.Mesh.Recipe;   // MeshParams and the mesh kinds (V-MESH-FACTORY step 5: qchem.Mesh no longer re-exports it)
-import qchem.Mesh.Radial;
-import qchem.SpecialFunctions;   // SphericalBessel: libc++ ships no std::sph_bessel
-// MakeRadial (V-MESH-FACTORY step 5: qchem.Mesh.Quadrature no longer re-exports the radial factory)
+import qchem.Mesh.Radial;   // MakeRadial (V-MESH-FACTORY step 5: qchem.Mesh.Quadrature no longer re-exports the radial factory)
+import qchem.SpecialFunctions;   // SphericalBessel (libc++ has no std::sph_bessel; ours is gated in UTCommon against a reference table)
 using namespace qchem;
 
 using namespace qchem::Pseudopotential;
@@ -33,7 +32,7 @@ static double BesselTransform(const HGH_SeparablePotential& sep, int Z, size_t p
     const rvec_t& R=mesh.R();  const rvec_t& W=mesh.W();
     double s=0;
     for (size_t i=0;i<R.size();i++)
-        s += W[i] * sep.RadialR(Z,p,R[i]) * qchem::SpecialFunctions::SphericalBessel(l, q*R[i])[l]   /* libc++ has no C++17 special math (std::sph_bessel) */;
+        s += W[i] * sep.RadialR(Z,p,R[i]) * qchem::SpecialFunctions::SphericalBessel(l, q*R[i])[l];
     return s;
 }
 

@@ -13,21 +13,16 @@ import qchem.RunPolicy;
 
 using namespace qchem;
 
-// D-ENV step 6b: the policy is the typed \c RunPolicySpec (the deck's `policy` block); no environment variable sets it any more.  Every
-// test installs a spec and restores the default after.
-namespace
-{
-struct Restore { ~Restore() {SetRunPolicy({});} };
-}
+// D-ENV step 6b: the policy is the typed \c RunPolicySpec (the deck's `policy` block); no environment variable sets it any more.  Since
+// D-MUTABLE-STATICS-RUNPOLICY (2026-11-24) there is no process-wide policy either: each test resolves its spec into a local value, as a
+// run's setup does.
 
 // The DEFAULT run is NOT at parity, and it is able to say which routes make it so.  This is the whole
 // point of the item: the low-rank rho route has been on by default since 07d13bf6 and no timing row
 // since has said so, because nothing could.
 TEST(RunPolicy, DefaultRunDeviatesAndNamesTheRoutes)
 {
-    Restore r;
-    SetRunPolicy({});
-    const RunPolicy& p=theRunPolicy();
+    const RunPolicy p{RunPolicySpec{}};
     EXPECT_FALSE(p.CP2KCompat());
     EXPECT_FALSE(p.AtParity()) << "the default build runs accelerations CP2K does not -- if this ever "
                                   "passes, either a route was retired or one stopped being declared";
@@ -48,10 +43,8 @@ TEST(RunPolicy, DefaultRunDeviatesAndNamesTheRoutes)
 // THE UMBRELLA: one switch turns every route off, and the policy then reports parity.
 TEST(RunPolicy, CP2KCompatTurnsEveryRouteOff)
 {
-    Restore r;
     RunPolicySpec spec; spec.cp2kCompat=true;
-    SetRunPolicy(spec);
-    const RunPolicy& p=theRunPolicy();
+    const RunPolicy p(spec);
     EXPECT_TRUE (p.CP2KCompat());
     EXPECT_TRUE (p.AtParity());
     EXPECT_FALSE(p.DMLowRank());
@@ -74,10 +67,8 @@ TEST(RunPolicy, CP2KCompatTurnsEveryRouteOff)
 // it is NOT at parity, or the switch quietly lies about what was measured.
 TEST(RunPolicy, AnExplicitKnobOutranksTheUmbrellaAndSaysSo)
 {
-    Restore r;
     RunPolicySpec spec; spec.cp2kCompat=true; spec.streamFold=true;
-    SetRunPolicy(spec);
-    const RunPolicy& p=theRunPolicy();
+    const RunPolicy p(spec);
     EXPECT_TRUE (p.CP2KCompat());
     EXPECT_TRUE (p.StreamFold())  << "an explicitly-stated knob must not be silently overruled";
     EXPECT_FALSE(p.DMLowRank())   << "...while the umbrella still governs the knobs nobody named";
@@ -89,24 +80,14 @@ TEST(RunPolicy, AnExplicitKnobOutranksTheUmbrellaAndSaysSo)
 // expressible at all -- without it, cp2kCompat could not tell a deliberate off from a default off.
 TEST(RunPolicy, StatedFalseCountsAsStated)
 {
-    Restore r;
     RunPolicySpec spec; spec.streamFold=false;
-    SetRunPolicy(spec);
-    EXPECT_FALSE(theRunPolicy().StreamFold());
+    const RunPolicy p(spec);
+    EXPECT_FALSE(p.StreamFold());
     bool found=false;
-    for (const Deviation& d : theRunPolicy().Deviations())
+    for (const Deviation& d : p.Deviations())
         if (std::string(d.knob)=="policy.streamFold") {found=true; EXPECT_TRUE(d.stated); EXPECT_FALSE(d.Deviates());}
     EXPECT_TRUE(found);
-    EXPECT_EQ(theRunPolicy().Spec(), spec) << "the policy remembers what was STATED (the record's `policy` block)";
-}
-
-// The scope guard installs and restores, so an A/B arm cannot leak its policy into the next test.
-TEST(RunPolicy, ScopedPolicyRestoresThePreviousOne)
-{
-    Restore r;
-    EXPECT_TRUE(theRunPolicy().StreamFold());
-    { RunPolicySpec off; off.streamFold=false; ScopedRunPolicy s(off); EXPECT_FALSE(theRunPolicy().StreamFold()); }
-    EXPECT_TRUE(theRunPolicy().StreamFold());
+    EXPECT_EQ(p.Spec(), spec) << "the policy remembers what was STATED (the record's `policy` block)";
 }
 
 // ---- D-THREADS: the ONE thread-count rule (qchem.Parallel) ----

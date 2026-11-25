@@ -127,7 +127,7 @@ protected:
     //! \brief THE RESULT LINE: a run reports its own outcome, contemporaneously, as one \c "[label] CONVERGED iters= charge= Eelec=
     //! Etot= (terms)" console line and a \c result section of the run report.  Each facade calls it where its SCF ends, from what
     //! every facade has; a solid's site moments follow as its own lines.  Rendered at Verbose only, since the line already says it.
-    //! A grid Hartree route adds what its mesh lost of the charge, and that charge's energy against \a energyTarget when one is
+    //! A Hartree route whose fit basis sits on a mesh (a δ fit, GPW's raster) adds what that mesh lost of the charge, and that charge's energy against \a energyTarget when one is
     //! stated (user ruling 2026-11-06: reported against eps, not rescaled away).  \a iterations is the RUN's total; \a pilotIterations
     //! is the share a grid pilot spent re-converging on the grids it raised, printed beside it and filed as \c pilotIterations.
     static void ReportResult(const std::string& label, bool converged, size_t iterations, double charge, const EnergyBreakdown& E,

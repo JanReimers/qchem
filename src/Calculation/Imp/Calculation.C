@@ -24,7 +24,7 @@ void Calculation::ReportResult(const std::string& label, bool converged, size_t 
 {
     namespace rpt = qchem::report;
     const double dq=E.Diagnostic("HartreeChargeError"), dE=E.Diagnostic("HartreeChargeEnergy");
-    const bool gridHartree=dq!=0.0;   // only a grid route writes it, and a mesh never integrates a density exactly
+    const bool meshCharge=dq!=0.0;    // only a fit basis on a mesh (a δ fit, GPW's raster) writes it, and a mesh never integrates a density exactly
     {
         rpt::Section result("result");
         rpt::Set("converged",  converged);
@@ -33,7 +33,7 @@ void Calculation::ReportResult(const std::string& label, bool converged, size_t 
         rpt::Set("charge",     charge);
         rpt::Set("Eelec",      E.GetElectronicEnergy());
         rpt::Set("Etot",       E.GetTotalEnergy());
-        if (gridHartree)
+        if (meshCharge)
         {
             rpt::Set("hartreeChargeError",  dq);
             rpt::Set("hartreeChargeEnergy", dE);
@@ -53,7 +53,7 @@ void Calculation::ReportResult(const std::string& label, bool converged, size_t 
     for (const auto& [name,shown] : {std::pair{"Kinetic","Ekin"}, {"Een","Een"}, {"Eee","Eee"}, {"Exc","Exc"}, {"Enn","Enn"}, {"E_alphaZ","E_alphaZ"}})
         if (E.Has(name)) { std::cout<<sep<<shown<<"="<<E[name]; sep=" "; }
     std::cout<<")"<<std::endl;
-    if (gridHartree)
+    if (meshCharge)
     {
         std::cout<<std::scientific<<std::setprecision(3)<<"["<<label<<"] Hartree mesh charge error="<<dq<<" energy="<<dE;
         if (energyTarget>0.0) std::cout<<" target="<<energyTarget<<" ratio="<<std::fabs(dE)/energyTarget;

@@ -17,7 +17,7 @@ import qchem.ChargeDensity.Seed;            // IonicSADTargets, MagneticDecorati
 import qchem.ChargeDensity.SeedCD;          // SeedCD, PolarizedSeedCD
 import qchem.ChargeDensity.AtomicDensity;   // HasAtomicSpinPair, GetAtomicDensity
 import qchem.ChargeDensity.NumericCD;       // NumericCD (the hand-gradient audit; the SAD seed's own grid)
-import qchem.Fitting.CoulombOperator;       // MakeDunlapDensityFitter / MakeGridDensityFitter (the seed's Coulomb projections)
+import qchem.Fitting.CoulombOperator;       // MakeDunlapDensityFitter / MakeDeltaDensityFitter (the seed's Coulomb projections)
 import qchem.BasisSet.CoulombDeltaFit_IBS;  // the δ Coulomb fit basis
 import qchem.Mesh.CoulombOperator;          // MakeDirectSumCoulomb
 import qchem.Symmetry.Unit;                 // UnitQN (the δ basis's one-irrep symmetry)
@@ -393,7 +393,7 @@ TEST(SADSeed, ItsGridIsItsOwnAndGoneOnceItHasProjected)
     const std::shared_ptr<const BasisSet::rFIT_SF_ABS> delta(bs->CreateVxcFitBasisSet(&h2o, BasisSet::VxcFit::Delta, &quad));
     const auto cdelta=std::make_shared<const BasisSet::CoulombDeltaFit_IBS>(std::make_shared<BasisSet::BasisCache>(), delta, qcMesh::MakeDirectSumCoulomb(*quad.GetMesh()), sym_t(new UnitQN));
     const auto dunlap=Fitting::MakeDunlapDensityFitter(fb);
-    const auto grid  =Fitting::MakeGridDensityFitter(cdelta, quad.GetMesh());
+    const auto grid  =Fitting::MakeDeltaDensityFitter(cdelta, quad.GetMesh());
     for (const BasisSet::PairProjector<double>* fitter : {static_cast<const BasisSet::PairProjector<double>*>(dunlap.get()),
                                                           static_cast<const BasisSet::PairProjector<double>*>(grid.get())})
     {

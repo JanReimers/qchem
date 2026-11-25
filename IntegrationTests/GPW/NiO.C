@@ -19,9 +19,13 @@ import qchem.Reporting;
 
 // Vendored state decks/states/NiO_AFM2_k222_MagneticInsulator.h5: saved by ~/Code/qchem6-runs/NiO/laneA_qr_cold.json (MagneticInsulator
 // cold, 18 iterations on the ball rasters, then the raster pilot's 10-iteration re-convergence onto cutoffFactor 4 / V_long x 4.97,
-// E -106.3510571976), 2026-11-13.  The deck restores it onto the cold run's FIRST grids (cutoffFactor 2, rasters x 0), whose converged
-// energy is that same cold run's -106.3514267289 (Ni moment +-1.376): the independent route for the fixed point below.
-// MEASURED 2026-11-13 (6 threads): 11 iterations, first iterate -106.351423122 (3.6 uHa above), E -106.3514267282.  The SAME restart as
+// E -106.3510571976), 2026-11-13.  The deck restores it onto the cold run's FIRST grids (cutoffFactor 2, rasters x 0).
+// MEASURED 2026-11-13 (6 threads): 11 iterations, first iterate -106.351423122 (3.6 uHa above), E -106.3514267282.
+// RE-PINNED 2026-11-24 (lane S, doc/Pins.md pin 10): lane A's k-fold (3c973a2b8) makes the D-aware collocation screen rule on the
+// k-summed |P(R)|, which moved the first iterate +1.279 and E +1.236 uHa (still 11 iterations, Ni moment 1.376).  The independent route
+// is the same deck with the screen 100x tighter (solid.tolerances.densityEps 1e-12): first iterate -106.351421694882, E -106.3514253456,
+// 148 / 146 nHa from the new values and 1.427 / 1.383 uHa from the old, so the move is a correction (OpenWork_History5 "NiO restore
+// panel anchor").  The +-1e-8 gate sits inside the default screen's ~150 nHa residual: a did-it-move anchor.  The SAME restart as
 // recipe Insulator (row 4, DIIS + linear 0.3) stops at iteration 1 on a drho of 6.5e-13 while [F,D] is 6.9e-4, 147 nHa high (OpenWork §3
 // "A Δρ-only stop certifies an unconverged iterate") -- the case for ruling (b).
 // The state's OWNER is decks/panel/NiO_k222_MagneticInsulator_Cold.json (~1.5 h, run by hand, not a gtest).  REFRESH IT ONLY WHEN THIS GATE'S
@@ -45,9 +49,9 @@ TEST(GPW_NiO, k222_Pol_Smear_Kerker_Pulay_Null_Saved_RestoresOnItsOwnHistory_Pan
     ASSERT_FALSE(E.empty());
     std::printf("[Q-R] iterations %zu  first iterate %.12f  E %.12f\n", used, E.front(), calc->Result()->Energy());
     // The FIRST iterate (CLAUDE.md: pin a restart's first iterate): the restored D's energy on these grids, before any mixing.
-    EXPECT_NEAR(E.front(), -106.351423122, 1e-8) << "the first iterate of the warm restore";
+    EXPECT_NEAR(E.front(), -106.351421843, 1e-8) << "the first iterate of the warm restore";
     EXPECT_GE(used, 2u) << "a moved density cannot be certified at iteration 1 (row 4 stopped there, 147 nHa high)";
-    EXPECT_NEAR(calc->Result()->Energy(), -106.3514267289, 1e-8) << "the cold run's fixed point on these grids";
+    EXPECT_NEAR(calc->Result()->Energy(), -106.3514254919, 1e-8) << "the fixed point on these grids (densityEps 1e-12 route: -106.3514253456)";
     const auto mu=calc->LastIterateTerms().charge.siteMoments;
     ASSERT_EQ(mu.size(), 4u) << "one Becke basin per site (Ni, Ni, O, O)";
     EXPECT_NEAR(mu[0],  1.376, 0.01) << "AFM-II survives the restore";

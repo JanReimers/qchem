@@ -2,7 +2,8 @@
  "_doc": [
   "CONVERGENCE PANEL (doc/SCFRobustnessPlan.md §4), Q-R ruling (b) (user 2026-11-13): a named MagneticInsulator RESTORES on Null + Kerker+Pulay with its history from iteration 1 (pulayStart 0), not on row 4's DIIS + linear <= 0.3.  NiO AFM-II, k222, free, kT 0.005, VA spherical.",
   "WARM restart: the vendored state decks/states/NiO_AFM2_k222_MagneticInsulator.h5 (the pilot-sized state: cutoffFactor 4, V_long x 4.97; saved by ~/Code/qchem6-runs/NiO/laneA_qr_cold.json, cold 18 + pilot 10 iterations, E -106.3510571976) restored onto the cold run's FIRST grids stated here (cutoffFactor 2, rasters x 0), so the density MOVES (an exact resume converges in 1 iteration on any recipe and proves nothing about Q-R).",
-  "Measured 2026-11-13 (6 threads): MagneticInsulator 11 iterations, first iterate -106.351423122, E -106.3514267282 = the cold run's -106.3514267289 on these grids, Ni moment 1.376.  The same restart as recipe Insulator (row 4) stops FALSELY at iteration 1 (drho 6.5e-13, [F,D] 6.9e-4, E 147 nHa high).  NMaxIter is above the budget so a slow restore fails on the BUDGET, not the cap."
+  "Measured 2026-11-13 (6 threads): MagneticInsulator 11 iterations, first iterate -106.351423122, E -106.3514267282 = the cold run's -106.3514267289 on these grids, Ni moment 1.376.  The same restart as recipe Insulator (row 4) stops FALSELY at iteration 1 (drho 6.5e-13, [F,D] 6.9e-4, E 147 nHa high).  NMaxIter is above the budget so a slow restore fails on the BUDGET, not the cap.",
+  "Re-pinned 2026-11-24 (lane S, pin 10): lane A's k-fold (3c973a2b8) moved first iterate / E by +1.28 / +1.24 uHa to -106.351421843 / -106.3514254919; judged by solid.tolerances.densityEps 1e-12 (-106.3514253456, 146 nHa from the new E, 1.38 uHa from the old).  The cold run's -106.3514267289 above carries the old screening."
  ],
  "structure": "NiO_AFM2",
  "schema": 2,
