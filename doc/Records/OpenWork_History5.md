@@ -4094,3 +4094,26 @@ M_Calculation's moved-water restart), each a `Molecule` seen through the abstrac
 | **D-RUNPOLICY-LEAK: a molecule or atom run takes the density route the LAST SOLID installed** (lane B, 2026-11-23, found writing `doc/Records/RunPolicyOnTheRun.md`) | Only `SolidSetup::Resolve` installs a run policy (process-wide `SetRunPolicy`), and the orbitals build every iteration's density through `DefaultRhoRoute()`, which reads it.  So after a `cp2kCompat` solid in the same process (a GUI session, a test binary) a molecule runs the Direct ρ route where its own default is the factored one.  The route is `movesState`.  Gate: `RunPolicyLeak.AMoleculeAfterACP2KCompatSolidKeepsItsOwnDensityRoute`, on the root CMakeLists `QCHEM_KNOWN_RED` list | Group E of the run-policy design note, as the user ruled it (2026-11-23, E2′): each setup builds a `DensityMaker` holding its resolved `RhoRoute` and the orbitals call it; take the gate off the knownRed list when it goes green · `doc/Records/RunPolicyOnTheRun.md` §4 |
 
 Done: group E of `doc/Records/RunPolicyOnTheRun.md` (the user's ruling 2026-11-23, E2'): each setup builds a `ChargeDensity::DensityMaker` holding its resolved `RhoRoute` (a solid's from its policy, reported as policy `DensityRoute`; a molecule's and an atom's the factored default), the facade builds the wave function with it, and `TOrbitalsImp::MakeChargeDensity`, the seed and a restart make their block densities with it.  `DefaultRhoRoute()` and its process-wide read are gone.  Gate `RunPolicyLeak.AMoleculeAfterACP2KCompatSolidKeepsItsOwnDensityRoute` (H2 HF/DZVP before and after a cp2kCompat Si setup: every block factored) went green and left the knownRed list.
+
+## ✅ A per-orbit consumer of the molecular mesh fold (closed 2026-11-24, lane H, 9a7da63a1 · e65f2514d · 765aa19f2 · ad206b559 · 52ccafb07)
+
+The row as it stood:
+
+| **A per-orbit consumer of the molecular mesh fold: the cost lever V-FOLD-NEUTRAL did not buy** (lane H 2026-11-23) **SCHEDULED 2026-11-24 to lane H, next** (user, accepting the fold built-not-engaged: "yes, as long as the work required to properly use it is scheduled"; plan lane-h-per-orbit-consumer-plan.md, steps 1-5, δ Vxc fit only, Gaussian/Multipole stay unfolded with a policy row) | The molecular XC mesh is now invariant under H, the D2h-type subgroup (V-FOLD-NEUTRAL step 2, `9fb57e3e7` / `716754718`).  Its orbit fold is BUILT (`FoldOrbits(Molecule)`) but NOT ENGAGED on any run: a folded mesh has no geometry gradient and no GGA gradient rotation, the solid's limits too.  Even engaged, the fold would be consumed in one place only: `DensitySampler` star-averages ρ.  `DeltaFit_IBS` still has one δ per POINT, so no work drops.  Lane S counted the lever: an Oh orbit fold is 34-39× on SF₆/TeF₆ (δ Coulomb), and H = D2h is ≤ 8× | Accumulate Σ_orbits q_o A(rep), then symmetrize the n×n matrix once (or form ρ / v_xc at representatives only).  This needs ρ invariant under the folded group, which holds on a SALC-imposed run.  Engaging the fold (MoleculeSetup MeshSymmetry: `averages` true on an imposed LDA run) also needs the folded mesh's weight derivative (forces), or a policy that forgoes forces on such runs.  Read lane H's design note §6.1 (side-session notes `lane-h-V-FOLD-NEUTRAL-design.md`) and `lane-s-ij-delta-measurement.md` |
+
+Done (plan: side-session notes `lane-h-per-orbit-consumer-plan.md`, steps 1-5):
+- **The key fact.** An imposed run works in a SALC basis, so every δ-route XC integrand (ρ, v s_i s_j, |∇ρ|², ∇ρ·∇(s_i s_j)) is
+  H-invariant pointwise, and ∫f = Σ_o W_o f(rep_o) exactly.  No ∇ρ rotation is needed; GGA rides the same route.
+- **Step 1 (9a7da63a1):** `FoldedMesh`, a representatives-only view (points, orbit weights W_o, owner sites, per-op site action).
+- **Step 2 (e65f2514d):** the δ Vxc fit over the representatives.  `FoldAudit.OnePointPerOrbitIsExactOnAnImposedRun_*`: |ΔE| ≤ 8e-13,
+  max|ΔH| ≤ 9e-14 on H₂O (LDA, PBE) and CH₄ (LDA); O₂ triplet LSDA and PBE twins are `_Long`; a free run is refused.
+- **Step 3 (765aa19f2):** the XC geometry gradient on the representatives: the parent's weight response contracted with |o|e_o, then
+  projected onto A1 through the site action (the virial likewise).  `HamiltonianForces.TheFoldedXCForceIsTheUnfoldedOne`: 8e-15 on H₂O
+  LDA, 2e-13 on the O₂ triplet.
+- **ad206b559:** a V-FOLD-NEUTRAL step-2 defect found here: every SF₆ DFT run (free or imposed) threw, because the orbit-weight check
+  measured |Δw|/w and points with a Becke partition P ~ 1e-26 amplify roundoff past 1e-10.  The check now measures the partition's
+  absolute spread; gate `MolecularPointGroupMesh.SF6OnARaisedMeshPassesItsOrbitWeightCheck` (1.0M points).
+- **Step 4 (52ccafb07):** `MeshSymmetryAt` engages the fold on imposed DFT runs with the δ Vxc fit (Auto or Delta); free runs, HF and the
+  Gaussian/Multipole fits stay unfolded, each with its reason in the MeshSymmetry policy row.  Timings: `doc/Benchmark.md` §10.
+- Follow-ups logged in `doc/OpenWork.md` §3: the δ-fit Hartree's full δ, the non-δ fits, a quiet-box re-measure, the test helper's
+  relative weight check; the full-G mesh row stays open.
