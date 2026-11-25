@@ -368,6 +368,27 @@ template <class T> SCFParams tCalculation<T>::ExactResumeMixing(const SCFParams&
     return r;
 }
 
+template <class T> typename tCalculation<T>::RowObserver tCalculation<T>::KeepingLastRow(RowObserver forward)
+{
+    return [this, forward=std::move(forward)](const SCFIterator::IterationRow& row)
+    {
+        itsLastRow=row;
+        if (forward) forward(row);
+    };
+}
+
+template <class T> std::string tCalculation<T>::LastIterateGates() const
+{
+    return itsLastRow ? "; the last iterate: "+itsLastRow->GatesText() : std::string();
+}
+
+template <class T> void tCalculation<T>::RecordResidual(StateSummary& s, const std::string& densityLabel) const
+{
+    if (!itsLastRow) return;
+    s.commutator   =itsLastRow->ValueOf("[F,D]");
+    s.densityChange=itsLastRow->ValueOf(densityLabel);
+}
+
 template class tCalculation<double>;   // the atom and the molecule
 template class tCalculation<dcmplx>;   // the solid's Bloch blocks
 

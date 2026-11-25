@@ -341,7 +341,7 @@ bool AtomCalculation::RunStage(const SCFParams& params)
             : std::string(kNoAccuracyConsumerYet)); }   // the "what recipe am I running" header
     if (itsPrepared) itsPrepared=false;                // Prepare built the graph (in its caller's run): reuse it, once
     else             BuildGraph();
-    if (itsObserver) itsScf->SetObserver(itsObserver);
+    AttachObserver();
 
     itsLastkT=params.SmearingkT;
     bool ok = itsScf->Iterate(ExactResumeMixing(params, itsScf->ResolveMixing(params)));   // the exact-resume Pulay policy
@@ -365,7 +365,14 @@ std::optional<SCFFailure> AtomCalculation::MakeFailure() const
     f.iterations = itsIterations;
     f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
     f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
+    if (!refused) f.details += LastIterateGates();
     return f;
+}
+
+void AtomCalculation::AttachObserver()
+{
+    ForgetLastRow();
+    itsScf->SetObserver(KeepingLastRow([this](const qchem::SCFIterator::IterationRow& row){ if (itsObserver) itsObserver(row); }));
 }
 
 EnergyBreakdown AtomCalculation::ProofEnergyTerms() const {return itsScf->GetEnergy();}
@@ -473,9 +480,11 @@ std::vector<StateBlock> AtomCalculation::StateBlocks(bool withOrbitals) const
 StateSummary AtomCalculation::MakeStateSummary() const
 {
     if (!itsScf || !itsScf->GetWaveFunction()) throw std::logic_error("AtomCalculation: no wave function yet");
-    return {.label=Tag(), .converged=itsScf->Converged(), .iterations=itsIterations,
-            .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0,
-            .recipe="model "+FunctionalName()+", basis "+AtomTypeName(itsSetup->opts.atom.type)+", accelerator "+AcceleratorTag()};
+    StateSummary s{.label=Tag(), .converged=itsScf->Converged(), .iterations=itsIterations,
+                   .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0,
+                   .recipe="model "+FunctionalName()+", basis "+AtomTypeName(itsSetup->opts.atom.type)+", accelerator "+AcceleratorTag()};
+    RecordResidual(s, itsHam ? itsHam->DeltaRhoLabel() : std::string("Δρ"));
+    return s;
 }
 
 void AtomCalculation::RecordState(StateRecord& r, double kT) const
@@ -826,7 +835,7 @@ size_t AtomCalculation::PilotGrids(const SCFParams& params)
         itsGrids=next;
         itsCarried=itsScf->GetWaveFunction()->GetChargeDensity();
         BuildGraph();
-        if (itsObserver) itsScf->SetObserver(itsObserver);
+        AttachObserver();
         itsScf->Iterate(PilotWarmStart(params));
         reconverged+=itsScf->GetIterationCount();
         RebuildSampling();

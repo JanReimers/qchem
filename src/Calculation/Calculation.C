@@ -30,6 +30,7 @@ export import qchem.SCFFailure; // SCFFailure: why an attempt has no answer (Res
 export import qchem.Outcome;    // Outcome<Converged, SCFFailure>
 import qchem.ScalarFunction;    // ScalarFunction<double> (the spin density's face)
 import qchem.ChargeDensity;     // tDM_CD<T> (the converged density)
+import qchem.SCFIterator;       // IterationRow: the last iterate every kind keeps (KeepingLastRow)
 import qchem.Reporting;         // report::TimingWindow: the run's own timing breakdown at the end of each Converge
 export import qchem.SCFParams;  // SCFParams (Converge's edit argument)
 export import qchem.Setup;      // Setup (a stage's optional setup) + RunOptions (Converge's settings, the checkpoint path) + SCFRecipe
@@ -333,7 +334,26 @@ protected:
     //! write start 5 back and the recipe would record a spurious deviation.
     SCFParams ExactResumeMixing(const SCFParams& params, const SCFParams& resolved);
     //!@}
+
+    //! \name THE LAST ITERATE (V-FACADE-HOIST (a), controller's facade survey 2026-11-25): every kind keeps its last iteration's row,
+    //! whether or not a caller observes, so a run that misses its gates says by how much (\c LastIterateGates, in \c MakeFailure) and a
+    //! saved state records the residual it was saved at (\c RecordResidual, in \c MakeStateSummary; without it every restart printed
+    //! "saved residual not recorded").  It lived in the molecule and the solid only; the atom kept none.
+    //!@{
+    using RowObserver = std::function<void(const SCFIterator::IterationRow&)>;
+    //! The observer a kind hands its iterator: it keeps the row here, then calls \a forward (the caller's own, may be empty).  A kind that
+    //! needs the row for its own detectors (the solid's) calls \c KeepLastRow from its own observer instead.
+    RowObserver KeepingLastRow(RowObserver forward);
+    void KeepLastRow(const SCFIterator::IterationRow& row) {itsLastRow=row;}
+    void ForgetLastRow() {itsLastRow.reset();}   //!< a new iterator: its rows, not the previous one's
+    //! "; the last iterate: <every gated cell, met or missed>" for a failure's details, or "" before any iteration.
+    std::string LastIterateGates() const;
+    //! The saved state's residual: the last row's [F,D] and the cell titled \a densityLabel (the Hamiltonian's \c DeltaRhoLabel).
+    //! Leaves the summary's NaNs (unmeasured) before any iteration.
+    void RecordResidual(StateSummary& s, const std::string& densityLabel) const;
+    //!@}
 private:
+    std::optional<SCFIterator::IterationRow> itsLastRow;   //!< see \c KeepingLastRow
     bool itsExactResumePending=false;   //!< see \c SeededIterator
     std::string itsSaveFailure;          //!< the last \c Checkpoint's failure ("" after a save that succeeded); see \c Checkpoint
     //! \brief THE RUN'S TIMING BREAKDOWN (user 2026-11-22: "we used to have exactly this breakdown at end of every run"): opened when the
