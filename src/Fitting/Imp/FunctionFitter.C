@@ -3,6 +3,7 @@ module;
 #include <memory>
 #include <cassert>
 #include <stdexcept>
+#include <string>       // std::string, used here: libstdc++ supplied it transitively, libc++ does not
 #include <type_traits>
 module qchem.Fitting.FunctionFitter;
 import qchem.Fitting.Internal.FunctionFitterImp;   // FunctionFitterImp (the Gaussian scalar fit)

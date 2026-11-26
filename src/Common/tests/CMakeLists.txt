@@ -14,6 +14,7 @@ add_executable(UTCommon gtestmain.C
     SlotMap.C   # qchem.SlotMap: the owner-held keyed cache (cache-ownership S1)
     PositionJet.C   # qchem.PositionJet (qcMath): the first-order jet in the atom positions
     SpecialFunctions.C   # qchem.SpecialFunctions (qcMath): SphericalBessel against a hard-coded reference table
+    Hardening.C   # RelChecked: an overrun of a C-array member or a std::array TRAPS (the hardening canary)
 )
 
 target_compile_definitions(UTCommon PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

@@ -17,6 +17,12 @@ if(_qchemCxx MATCHES "clang\\+\\+(-[0-9]+)?$")
         set(CMAKE_Fortran_COMPILER "${_qchemLLVMBin}/flang" CACHE FILEPATH "Fortran compiler: flang beside the stated clang++")
     endif()
 endif()
+# THE C++ STANDARD LIBRARY IS LLVM's libc++ (user ruling 2026-11-25, "Go ahead with libc++"; lane G study laneG-import-std-feasibility.md).
+# It is part of the toolchain, so it is the project's choice and never an input: it goes into the INITIAL CMAKE_CXX_FLAGS (every C++
+# compile AND link, try_compile and the dependencies included).  It is chosen before project() so the compiler checks run with it.  The
+# check after project() refuses a tree whose cached flags predate this (a reconfigured libstdc++ tree): libc++ and libstdc++ objects
+# must never mix in one binary.
+string(APPEND CMAKE_CXX_FLAGS_INIT " -stdlib=libc++")
 project(qchem VERSION 0.1.0 LANGUAGES CXX)
 # Release unless stated: the tests, the anchors and the timings are all Release numbers (RelChecked is Release + QCHEM_RELCHECKED).
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -41,6 +47,25 @@ check_cxx_compiler_flag(-fno-modules-reduced-bmi QCHEM_CXX_HAS_NO_REDUCED_BMI)
 if(QCHEM_CXX_HAS_NO_REDUCED_BMI)
     add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-modules-reduced-bmi>)
 endif()
+# libc++: the tree must really be on it, and every binary must LOAD the libc++ of this clang (the /opt tarball keeps it in its per-target
+# runtime dir, which is not on the loader's default search, so its directory joins CMAKE_BUILD_RPATH here, before any target and before
+# the OpenMP runtime check below).
+include(CheckCXXSourceCompiles)
+check_cxx_source_compiles("#include <version>\n#ifndef _LIBCPP_VERSION\n#error not libc++\n#endif\nint main(){}" QCHEM_ON_LIBCXX)
+if(NOT QCHEM_ON_LIBCXX)
+    message(FATAL_ERROR "This project builds on LLVM's libc++ (user ruling 2026-11-25), and this tree compiles against another standard "
+        "library (CMAKE_CXX_FLAGS='${CMAKE_CXX_FLAGS}' has no -stdlib=libc++: the tree was configured before the switch, or the flags were "
+        "stated by hand).\n-- To fix this, please configure a FRESH (wiped) tree, or add -stdlib=libc++ to a stated CMAKE_CXX_FLAGS.")
+endif()
+execute_process(COMMAND ${CMAKE_CXX_COMPILER} -stdlib=libc++ -print-file-name=libc++.so.1 OUTPUT_VARIABLE _qchemLibcxx OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT IS_ABSOLUTE "${_qchemLibcxx}" OR NOT EXISTS "${_qchemLibcxx}")
+    message(FATAL_ERROR "libc++: ${CMAKE_CXX_COMPILER} does not ship libc++.so.1 (-print-file-name answered '${_qchemLibcxx}').\n"
+        "-- To fix this, please state a clang++ whose LLVM install includes libc++ (the /opt/LLVM-23.1.4-Linux-X64 tarball does).")
+endif()
+get_filename_component(_qchemLibcxx "${_qchemLibcxx}" REALPATH)
+get_filename_component(_qchemLibcxxDir "${_qchemLibcxx}" DIRECTORY)
+list(APPEND CMAKE_BUILD_RPATH "${_qchemLibcxxDir}")
+message(STATUS "C++ standard library: libc++ (${_qchemLibcxxDir}, in the build RPATH)")
 # The Python bindings are a shared module, so every object linked into it is position independent: QCHEM_PYBIND implies PIC
 # (without it the thread_local qchem::detail::g_outerDepth takes a local-exec TLS relocation no shared object can use).
 # Declared here, before the first target, because CMAKE_POSITION_INDEPENDENT_CODE is read when a target is created.
@@ -380,9 +405,15 @@ else()
 endif()
 # The smoke test: the plugin must load into this clang and differentiate (a plugin built against another LLVM fails here, not mid-build).
 # Its -O2 is the smoke program's own (Enzyme runs in the optimisation pipeline), not a flag of the tree's TUs.
+# The smoke program RUNS, so it carries the tree's build RPATH (libc++, libomp): try_run does not apply CMAKE_BUILD_RPATH itself.
+set(_qchemEnzymeRpath "")
+foreach(_d IN LISTS CMAKE_BUILD_RPATH)
+    list(APPEND _qchemEnzymeRpath "-Wl,-rpath,${_d}")
+endforeach()
 try_run(_qchemEnzymeRun _qchemEnzymeCompile
         SOURCES "${PROJECT_SOURCE_DIR}/cmake/EnzymeSmoke.cpp"
         COMPILE_DEFINITIONS "-fplugin=${QCHEM_ENZYME_PLUGIN}" -O2
+        LINK_OPTIONS ${_qchemEnzymeRpath}
         CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${QCHEM_ENZYME_INCLUDE}"
         COMPILE_OUTPUT_VARIABLE _qchemEnzymeCompileOut RUN_OUTPUT_VARIABLE _qchemEnzymeRunOut)
 if(NOT _qchemEnzymeCompile OR NOT _qchemEnzymeRun EQUAL 0)
@@ -476,8 +507,17 @@ endif()
 # Step 3 cost attribution possible at all.  Dropped -pg (gprof): inaccurate on optimized code.
 # -DNDEBUG here too (it also reaches the submodules' C++), but NOT under QCHEM_RELCHECKED: an unconditional one silently
 # killed every assert in the "asserts live" tree (found 2026-10-31 setting up the daily RelChecked sweep).
+# RelChecked also HARDENS (user ruling 2026-11-26: "I think it makes sense to turn on _LIBCPP_HARDENING_MODE_EXTENSIVE and
+# -fsanitize=array-bounds for the 2:30am debug runs"):
+#  - libc++'s EXTENSIVE hardening checks std::array / std::vector / std::span / string_view element access (operator[], front, back);
+#  - -fsanitize=array-bounds checks a fixed-size C array INDEXED BY A RUNTIME VALUE, including one INSIDE a class: an overrun that stays
+#    inside the object, which ASan cannot see (the 2026-11-03 Hermite3 LMAX overrun, which corrupted Li q3's local PP by 9-30 mHa);
+#  - -fsanitize-trap=array-bounds makes a failed check a TRAP (SIGILL at the faulting line, readable in a core or gdb): no runtime library.
+# Both are in the GLOBAL flags, like the codegen flags above: a macro and a sanitizer are part of a BMI's configuration, so every TU of a
+# tree must agree.  Release stays unhardened (its numbers and timings are the anchors).
+set(QCHEM_RELCHECKED_HARDENING "-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE -fsanitize=array-bounds -fsanitize-trap=array-bounds")
 if(QCHEM_RELCHECKED)
-    set(CMAKE_CXX_FLAGS_RELEASE "${QCHEM_RELEASE_CODEGEN} -g -fno-omit-frame-pointer")
+    set(CMAKE_CXX_FLAGS_RELEASE "${QCHEM_RELEASE_CODEGEN} -g -fno-omit-frame-pointer ${QCHEM_RELCHECKED_HARDENING}")
 else()
     set(CMAKE_CXX_FLAGS_RELEASE "${QCHEM_RELEASE_CODEGEN} -g -fno-omit-frame-pointer -DNDEBUG")
 endif()
