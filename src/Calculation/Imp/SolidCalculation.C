@@ -68,6 +68,93 @@ qchem::OccupationConfig OccupationOf(const SCFParams& params)
                         ? qchem::OccupationConfig::DegenerateLevels::Shared : qchem::OccupationConfig::DegenerateLevels::OrbitalByOrbital,
             .levelTol=params.MergeTol};
 }
+
+//! \brief One block's WEAKEST directions for the quotient range audit: S's lowest eigenpairs above \a floor, at least \c min(4, n), plus
+//! every one below \f$10^{-4}\lambda_{\max}\f$, up to 8.  \a floor is the run's own eigenvalue drop floor (an Eigen / SVD ortho at
+//! orthoTol), else 0: a PIVOTED Cholesky keeps directions far below its pivot tolerance (Li bcc q3, tol 1e-7: the defect sat at
+//! \f$\lambda\sim10^{-9}\f$), so its floor is no eigenvalue floor.  Every \f$\lambda_j\f$ handed on is \f$v_j^\dagger Sv_j\f$ itself (the
+//! quotient's own denominator), and a direction below \f$10^{-14}\lambda_{\max}\f$ is roundoff, not a direction.  Full \c eigen(S), the
+//! same work the conditioning report already does per block.
+template <class U> Hamiltonian::WeakDirections<dcmplx> WeakDirectionsOf(const hmat_t<U>& S, double floor)
+{
+    Hamiltonian::WeakDirections<dcmplx> w;
+    const size_t n=S.rows();
+    if (n==0) return w;
+    rvec_t lam; mat_t<U> V;
+    blazem::eigen(S, lam, V);   // ascending; eigenvectors are the COLUMNS, unit norm
+    const double lmax=lam[n-1];
+    std::vector<size_t> keep;
+    for (size_t j=0;j<n && keep.size()<8;j++)
+    {
+        if (!(lam[j]>floor) || !(lam[j]>1e-14*lmax)) continue;
+        if (keep.size()<std::min<size_t>(4,n) || lam[j]<1e-4*lmax) keep.push_back(j);
+        else break;
+    }
+    w.v.resize(n, keep.size()); w.lambda.resize(keep.size());
+    for (size_t c=0;c<keep.size();c++)
+    {
+        for (size_t i=0;i<n;i++) w.v(i,c)=dcmplx(V(i,keep[c]));
+        dcmplx vSv=0.0;   // the quotient's own denominator, not the solver's eigenvalue
+        for (size_t i=0;i<n;i++) for (size_t k=0;k<n;k++) vSv+=std::conj(w.v(i,c))*dcmplx(S(i,k))*w.v(k,c);
+        w.lambda[c]=std::real(vSv);
+    }
+    return w;
+}
+
+//! \brief THE QUOTIENT RANGE AUDIT, the POLICY half (user rulings 2026-11-25: the Hamiltonian answers it by asking each term; the
+//! policy decides).  Every static term's Rayleigh quotient along each block's weakest directions against its operator's RIGOROUS range
+//! (\c Hamiltonian::TermRangeAudit), with the allowance \f$\eta\cdot\|A\|_F/\lambda\f$ (\f$\eta\f$ = \a eta, the named calibration
+//! \c kQuotientAllowance) combined HERE, in one place:
+//! \f[ \text{refuse}\iff R<a_{\min}-\eta\,\frac{\|A\|_F}{\lambda}\ \text{ or }\ R>a_{\max}+\eta\,\frac{\|A\|_F}{\lambda}. \f]
+//! A term outside its rigorous range is a DEFECT in its matrix (the Hermite3 overrun put V_short at -1.4e4 Ha on Li bcc q3, its range a
+//! few Ha), not a model choice, so it REFUSES before iteration 1 with "-- To fix this" and a \c QuotientRange policy row.  The table
+//! (one row per term, pass or refuse) is ALWAYS reported: the health line.
+void AuditTermRanges(const BasisSet::Complex_BS& bs, const Hamiltonian::cHamiltonian& ham, double floor, double eta)
+{
+    namespace rpt = qchem::report;
+    std::vector<Hamiltonian::WeakDirections<dcmplx>> weak;
+    for (size_t i=0;i<bs.GetNumIBS();i++)
+        if (const auto* r=bs.GetRealIBS(i)) weak.push_back(WeakDirectionsOf<double>(r->Overlap(), floor));
+        else                                weak.push_back(WeakDirectionsOf<dcmplx>(bs[i]->Overlap(), floor));
+    const std::vector<Hamiltonian::TermRangeAudit> audit=ham.MakeTermRangeAudit(&bs, weak);
+    const Hamiltonian::TermRangeAudit* worst=nullptr;
+    {
+        rpt::Section sec("quotientRange");
+        rpt::Set("allowanceFactor", eta);
+        rpt::Set("floor", floor);
+        report::FormatGuard keep(std::cout);
+        for (const auto& a : audit)
+        {
+            rpt::Row row("terms");
+            rpt::Set("label", a.label);
+            rpt::Set("hasRange", a.hasRange);
+            std::cout<<"[quotient range] "<<a.label<<": ";
+            if (!a.hasRange) { rpt::Set("why", a.why); std::cout<<a.why<<std::endl; continue; }
+            const double allowance=eta*a.scale, excess=a.Excess();
+            const bool outside=excess>eta;
+            rpt::Set("lower", a.lower); rpt::Set("upper", a.upper); rpt::Set("quotient", a.quotient); rpt::Set("lambda", a.lambda);
+            rpt::Set("scale", a.scale); rpt::Set("allowance", allowance); rpt::Set("excess", excess); rpt::Set("block", a.blockLabel);
+            rpt::Set("outside", outside);
+            std::cout<<std::setprecision(4)<<"R "<<a.quotient<<" Ha in ["<<a.lower<<", "<<a.upper<<"] at lambda "<<a.lambda<<" ("
+                     <<a.blockLabel<<"), allowance "<<allowance<<" Ha (eta "<<eta<<" x |A|_F/lambda "<<a.scale<<"), excess "<<excess
+                     <<(outside ? "  ** OUTSIDE **" : "")<<std::endl;
+            if (outside && (!worst || excess>worst->Excess())) worst=&a;
+        }
+    }
+    if (worst)
+    {
+        std::ostringstream os;
+        os<<std::setprecision(6)<<worst->label<<": its matrix gives a Rayleigh quotient of "<<worst->quotient<<" Ha along the basis's "
+          "weakest direction (lambda "<<worst->lambda<<", block "<<worst->blockLabel<<"), outside its operator's rigorous range ["
+          <<worst->lower<<", "<<worst->upper<<"] Ha by more than the allowance "<<eta*worst->scale<<" Ha (eta "<<eta<<" x |A|_F/lambda): "
+          "the matrix is WRONG along that direction, and the orthonormal frame carries the error into the SCF amplified by 1/lambda";
+        qchem::report::json detail={{"term",worst->label},{"quotient",worst->quotient},{"lower",worst->lower},{"upper",worst->upper},
+                                    {"lambda",worst->lambda},{"allowance",eta*worst->scale},{"block",worst->blockLabel}};
+        policy::Report("QuotientRange", "refused before iteration 1", policy::Verdict::Refuse, os.str(), std::nullopt, detail);
+        throw policy::Refused("QuotientRange", os.str()+" -- To fix this, please trim the basis (basis.autoTrim true with an orthoTol "
+                              "> 0), or report the term: its matrix is wrong along the basis's weakest direction");
+    }
+}
 } // namespace
 
 
@@ -674,6 +761,15 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     // that its terms cannot serve.
     assert((!S.realTRIMBlocks || itsImp->ham->PreservesReal()) &&
            "SolidCalculation: the term stack no longer preserves realness -- update the forecast above");
+
+    // THE QUOTIENT RANGE AUDIT (user rulings 2026-11-25): the CAUSE trap in front of the first-iterate floor.  Static blocks only, so it
+    // runs before the seed; a Gaussian basis only (plane waves are orthonormal: every lambda is 1).
+    if (!S.planeWave)
+    {
+        qchem::report::Timed timed("setup: quotient range audit (S eigenpairs + static term quotients)");
+        const bool eigenFloor = opts.ortho==qchem::Eigen || opts.ortho==qchem::SVD;   // a pivoted Cholesky's tolerance is no eigenvalue floor
+        AuditTermRanges(*itsImp->bs, *itsImp->ham, eigenFloor ? opts.orthoTol : 0.0, opts.solid.quotientAllowance);
+    }
 
     // DECISION 3 -- the accelerator, by policy (Auto pairs it with the mixer), through the public typed door.
     MakeAccelerator(accel, recipe, params, restored ? SCFStageKind::Restored : seed ? SCFStageKind::Carried : SCFStageKind::Cold);

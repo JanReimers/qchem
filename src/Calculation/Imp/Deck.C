@@ -492,6 +492,7 @@ json ToJson(const RunOptions& o)
     if (o.solid.grid.samplerResidualMargin!=BasisSet::Gaussian::GridAccuracy{}.samplerResidualMargin)
         solid["accuracyCalibration"]["samplerResidualMargin"]=o.solid.grid.samplerResidualMargin;
     if (o.solid.firstIterateMargin!=kFirstIterateMargin) solid["firstIterateMargin"]=o.solid.firstIterateMargin;
+    if (o.solid.quotientAllowance!=kQuotientAllowance) solid["quotientAllowance"]=o.solid.quotientAllowance;
     if (o.solid.auditFootprint!=kAuditFootprintCalibration)
         solid["auditFootprint"]={{"eta",o.solid.auditFootprint.eta},{"kappa",o.solid.auditFootprint.kappa},{"bandLow",o.solid.auditFootprint.bandLow},
                                  {"bandHigh",o.solid.auditFootprint.bandHigh}};
@@ -544,6 +545,9 @@ static void SolidBlockFromJson(const json& j, RunOptions& o)
     f.Get("firstIterateMargin",o.solid.firstIterateMargin);   // STATED (expert): the first-iterate floor's margin, Ha per atom
     if (!(o.solid.firstIterateMargin>=0.0))
         throw std::runtime_error("deck: 'solid.firstIterateMargin' is Ha per atom below the free-atom reference, >= 0");
+    f.Get("quotientAllowance",o.solid.quotientAllowance);   // STATED (expert): the quotient range audit's allowance factor
+    if (!(o.solid.quotientAllowance>=0.0))
+        throw std::runtime_error("deck: 'solid.quotientAllowance' is a relative matrix error, >= 0");
     if (j.contains("auditFootprint"))   // STATED (expert): the audit RSS policy's calibration (absent = its measured record)
     {
         Fields c(f.At("auditFootprint"),"solid.auditFootprint");

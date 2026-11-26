@@ -44,6 +44,21 @@ export namespace qchem
 //! failing test, not a silent pass.
 constexpr double kFirstIterateMargin = 1.0;
 
+//! \brief EMPIRICAL: the quotient range audit's ALLOWANCE FACTOR \f$\eta\f$, the relative matrix error a healthy static term carries
+//! (expert deck `solid.quotientAllowance`).  The audit (\c Hamiltonian::MakeTermRangeAudit, user rulings 2026-11-25) holds each static
+//! term's Rayleigh quotient along the basis's weakest directions to its operator's RIGOROUS range; an error \f$\delta A\f$ moves the
+//! quotient by at most \f$\|\delta A\|_F/\lambda\f$, so the term reports \f$\mathrm{scale}=\|A\|_F/\lambda\f$ and the policy allows
+//! \f$\eta\cdot\mathrm{scale}\f$ beyond the range.  That \f$\|\delta A\|_F=\eta\|A\|_F\f$ is the measured, not derived, part.
+//! The excess the policy compares with \f$\eta\f$ is then a LOWER BOUND on the term's relative matrix error along that direction.
+//!
+//! MEASUREMENT RECORD (lane H, 2026-11-26; short + long tiers with the audit logging and refusing nothing, 2861 term audits): every
+//! healthy quotient sits inside its range or outside by at most an excess of 6.8e-11 (V_short, GPW_Li k444 smeared, along a pivoted-
+//! Cholesky direction at \f$\lambda=1.5\times10^{-9}\f$: the run's own integration accuracy); the Kinetic and KB terms never leave
+//! theirs (-9.7e-11, -5.5e-33).  The defect it traps, the 2026-11-02 Hermite3 LMAX overrun re-emulated at GPW_Li bcc q3 k12, gives
+//! V_short R = -1105 Ha against [-14.01, 0.269] at \f$\lambda=9.05\times10^{-6}\f$: excess 2.9e-4.  So 1e-7 is 1.5e3 above the worst
+//! healthy term and 2.9e3 below the defect (near their geometric mean).
+constexpr double kQuotientAllowance = 1e-7;
+
 //! Orbital-integral engine: the in-house MnD recursion (default) or the libcint foreign engine.
 using BasisSet::Gaussian::Engine;   // the library's own axis (one enum, as Angular)
 //! Angular basis convention: Cartesian Gaussians (default) or real solid-harmonic (spherical).  THE library's own axis, shared by the
@@ -333,6 +348,8 @@ struct RunOptions
         //! The first-iterate floor's margin, Ha per atom below the free-atom reference (expert deck `solid.firstIterateMargin`; the
         //! default carries its measurement record, \c kFirstIterateMargin).
         double firstIterateMargin = kFirstIterateMargin;
+        //! The quotient range audit's allowance factor (expert deck `solid.quotientAllowance`; the calibration at \c kQuotientAllowance).
+        double quotientAllowance = kQuotientAllowance;
         //! The GPW basis's numerical TOLERANCES (local-PP G-ball eps, local-PP kappa, the HartreeOnly floor fraction, an explicit
         //! multigrid cutoff list).  Tier-2 numerical policy, typed (D-ENV step 5): the defaults are today's behaviour, and the
         //! environment (GPW_VLOC_EPS, ...) is applied on top as an OVERRIDE LAYER when the run resolves its options -- every

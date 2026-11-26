@@ -9,6 +9,7 @@ module;
 #include <string>
 #include <vector>
 #include <type_traits>   // is_same_v (MakeTermMatrices real-block twin)
+#include <complex>       // std::imag (RealDirections)
 module qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.Hamiltonian.Internal.ACBN0;    // ACBN0 + HubbardProjection (MakeACBN0Estimator)
 import qchem.Energy;
@@ -18,6 +19,7 @@ import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Blaze;
 import qchem.Parallel;   // OuterFor (InducedFock's coupled pairs, KAxisPlan P1)
+import qchem.Hamiltonian.Internal.Term;   // tHT_RangeAuditor: the quotient range audit's term face (asked by cross-cast)
 
 namespace qchem::Hamiltonian
 {
@@ -337,6 +339,84 @@ template <class T> std::vector<hmat_t<double>> tHamiltonianImp<T>::MakeTermMatri
         return out;
     }
     else throw std::logic_error("Hamiltonian::MakeTermMatrices: a real block of a REAL Hamiltonian is the native overload");
+}
+
+namespace
+{
+//! A term's own description, the first line of its Write, trimmed (EnergyOfTerm's label).
+template <class HT> std::string LabelOf(const HT& t)
+{
+    std::ostringstream os; os<<t;
+    std::string l=os.str(); l=l.substr(0,l.find('\n'));
+    const size_t a=l.find_first_not_of(" \t");
+    return a==std::string::npos ? std::string("(unnamed term)") : l.substr(a);
+}
+//! The real part of a TRIM block's weak directions, which are real by construction (a real S): a complex part is a wiring error.
+inline mat_t<double> RealDirections(const mat_t<dcmplx>& v)
+{
+    mat_t<double> r(v.rows(), v.columns());
+    for (size_t i=0;i<v.rows();i++) for (size_t j=0;j<v.columns();j++)
+    {
+        if (std::abs(std::imag(v(i,j)))>1e-12*(1.0+std::abs(v(i,j))))
+            throw std::logic_error("MakeTermRangeAudit: a real TRIM block's weak direction is complex");
+        r(i,j)=std::real(v(i,j));
+    }
+    return r;
+}
+} //anon
+
+// THE QUOTIENT RANGE AUDIT (user rulings 2026-11-25): the composite asks each static term, block by block, and keeps each term's worst
+// direction.  It holds no range and knows no operator; a term that does not carry tHT_RangeAuditor answers "no static range".
+template <class T> std::vector<TermRangeAudit> tHamiltonianImp<T>::MakeTermRangeAudit(const tbs_t<T>* bs, const std::vector<WeakDirections<T>>& weak) const
+{
+    if (!bs) throw std::logic_error("Hamiltonian::MakeTermRangeAudit: no basis");
+    if (weak.size()!=bs->GetNumIBS())
+        throw std::logic_error("Hamiltonian::MakeTermRangeAudit: "+std::to_string(weak.size())+" blocks of weak directions for a "
+                               +std::to_string(bs->GetNumIBS())+"-block basis");
+    std::vector<TermRangeAudit> out;
+    for (const auto& t : itsSHTs)
+    {
+        TermRangeAudit worst; worst.label=LabelOf(*t);
+        bool any=false;
+        std::string why;
+        for (size_t i=0;i<bs->GetNumIBS() && why.empty();i++)
+        {
+            const WeakDirections<T>& w=weak[i];
+            if (w.v.columns()==0) continue;
+            TermRangeAudit a;
+            std::string blockLabel;
+            bool asked=false;
+            if constexpr (std::is_same_v<T,dcmplx>)
+                if (const tobs_t<double>* rb=bs->GetRealIBS(i))
+                {
+                    auto* aud=dynamic_cast<const tHT_RangeAuditor<double>*>(t.get());   // abstract to abstract (internal term face)
+                    if (!aud) { why="no static range: the term answers none"; break; }
+                    a=aud->AuditRange(rb, Spin::None, RealDirections(w.v), w.lambda);
+                    blockLabel=rb->GetSymmetry().GetLabel();
+                    asked=true;
+                }
+            if (!asked)
+            {
+                const tobs_t<T>* b=(*bs)[i];
+                auto* aud=dynamic_cast<const tHT_RangeAuditor<T>*>(t.get());   // abstract to abstract (internal term face)
+                if (!aud) { why="no static range: the term answers none"; break; }
+                a=aud->AuditRange(b, Spin::None, w.v, w.lambda);
+                blockLabel=b->GetSymmetry().GetLabel();
+            }
+            if (!a.hasRange) { why=a.why.empty() ? std::string("no static range") : a.why; break; }
+            a.block=i; a.blockLabel=blockLabel; a.label=worst.label;
+            if (!any || a.Excess()>worst.Excess()) worst=a;
+            any=true;
+        }
+        if (!why.empty() || !any) { worst=TermRangeAudit{}; worst.label=LabelOf(*t); worst.why=why.empty() ? "no weak directions to probe" : why; }
+        out.push_back(worst);
+    }
+    for (const auto& t : itsDHTs)
+    {
+        TermRangeAudit r; r.label=LabelOf(*t); r.why="density-dependent: no static range (Hartree, XC, +U are the iterate's own)";
+        out.push_back(r);
+    }
+    return out;
 }
 
 template <class T> std::ostream& tHamiltonianImp<T>::Write(std::ostream& os) const
