@@ -1,10 +1,10 @@
 // File: Types.C  Some common types used everywhere in the code
 module;
-#include <blaze/Math.h>
 #include <complex>
 #include <ranges>
 #include <type_traits>
 export module qchem.Types;
+import qchem.Blaze.Core;   // Blaze has ONE owner (BlazeCore.C); the aliases below name its exported types
 export import qchem.Vector3D;
 export import qchem.Matrix3D;   // fixed 3x3 (brings Vector3D too)
 export import qchem.Matrix2D;   // brings in Vector2D too (fixed 2x2 / 2-vector)
