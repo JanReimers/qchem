@@ -719,7 +719,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
             itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
             std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>>(qchem::WaveFunction::Factory(itsImp->ham.get(), itsImp->bs.get(), itsImp->ec.get(), itsImp->accel.get(), itsImp->setup->densityMaker, *opts.ortho, opts.SolverTruncation(), opts.solid.numBands)),   // the WF on the setup's density maker (group E)
-            itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), seed.release(), seedRole);   // the iterator consumes the seed in Init
+            itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), itsImp->setup->firstIterateFloor, seed.release(), seedRole);   // the iterator consumes the seed in Init
     }
     SeededIterator(seedRole==qchem::SCFIterator::SeedRole::ExactResume);   // the exact-resume Pulay policy's first-stage bit
 
@@ -1024,11 +1024,11 @@ void SolidCalculation::BuildStage(const std::string& why, SCFAccelerators::Type 
         ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
               std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>>(qchem::WaveFunction::Factory(itsImp->ham.get(), itsImp->bs.get(), itsImp->ec.get(), itsImp->accel.get(), itsImp->setup->densityMaker, *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.solid.numBands)),
-              itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), carried.release(), qchem::SCFIterator::SeedRole::WorkingDensity)
+              itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), itsImp->setup->firstIterateFloor, carried.release(), qchem::SCFIterator::SeedRole::WorkingDensity)
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
               std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>>(qchem::WaveFunction::Factory(itsImp->ham.get(), itsImp->bs.get(), itsImp->ec.get(), itsImp->accel.get(), itsImp->setup->densityMaker, *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.solid.numBands)), itsImp->setup->densityMaker,
-              itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), itsImp->setup->opts.seed);
+              itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), itsImp->setup->firstIterateFloor, itsImp->setup->opts.seed);
     SeededIterator(false);   // a fresh stage is never an exact resume
     // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
     // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on

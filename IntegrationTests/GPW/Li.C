@@ -156,3 +156,44 @@ TEST(GPW_LiBox, Γ_PADE_M2_CP2K_Long)
     EXPECT_NEAR(e, -7.2850821, 5e-5) << "CP2K QS GPW, XC_FUNCTIONAL PADE, on the same basis + box";
     EXPECT_EQ(warned, 0u) << "a GTH-PADE PP under PADE matches: no PPFittedFunctional row";
 }
+
+// THE LOWER SIDE OF THE FIRST-ITERATE REFUSAL (OpenWork "The periodic first-iterate refusal is a SCALE", lane H 2026-11-25).  The case that
+// earned it: bcc Li q3 on a diffuse-augmented basis (s 0.04, p 0.06 kept; lambda_min(S) 7.6e-8 at Γ, the p 0.06 triplet) collapsed to -1418 Ha
+// at iteration 1 on 2026-11-02 and iterated 24 h without complaint (~/Code/qchem6-runs/Li/mu/aug/).  Today's main gives a healthy first iterate
+// on that deck (Γ -7.448 against the free pseudo-atom's -7.301: the S and Hamiltonian defects behind it were fixed in between), so the gate
+// STATES a zero margin -- the floor is then the free atom itself, which a bonded cell's first iterate lies BELOW -- and asserts that the run is
+// refused through the facade's Outcome, before a second iteration, naming the floor.  Before the lower side existed, this run converged.
+namespace
+{
+const char* kLiQ3Aug =
+    "Li q3 valgen block + a diffuse s 0.04 and p 0.06 (lane H 2026-11-01, ~/Code/qchem6-runs/Li/mu/aug/liq3_aug.bsd)\n"
+    "PP-PROVENANCE Li=3\n!\nBASIS=\"Li q3 aug\"\n LI   0\n"
+    " S   1  1.00\n  0.04 1.0\n P   1  1.00\n  0.06 1.0\n S   1  1.00\n  0.10 1.0\n S   1  1.00\n  0.24938984 1.0\n"
+    " S   1  1.00\n  0.62195290 1.0\n S   1  1.00\n  1.55108733 1.0\n S   1  1.00\n  3.86825415 1.0\n S   1  1.00\n  9.64703269 1.0\n"
+    " S   1  1.00\n  24.05871903 1.0\n S   1  1.00\n  60.00000000 1.0\n P   1  1.00\n  0.15 1.0\n P   1  1.00\n  0.40716264 1.0\n"
+    " P   1  1.00\n  1.10520945 1.0\n P   1  1.00\n  3.00000000 1.0\n ****\n";
+}
+TEST(GPW_Li, Γ_Becke_Imp_RefusesAFirstIterateBelowTheFreeAtoms)
+{
+    const fs::path dir=fs::temp_directory_path()/("qchem_it_li_floor_"+std::to_string(::getpid()));
+    fs::remove_all(dir); fs::create_directories(dir);
+    { std::FILE* f=std::fopen((dir/"liq3_aug.bsd").c_str(), "w"); ASSERT_TRUE(f); std::fputs(kLiQ3Aug, f); std::fclose(f); }
+    const double h=3.260725;
+    const nlohmann::json deck={
+        {"structure",{{"name","Li_bcc"},{"lattice",{{"vectors_bohr",{{-h,h,h},{h,-h,h},{h,h,-h}}}}},{"atoms",{{{"el","Li"},{"frac",{0.0,0.0,0.0}}}}}}},
+        {"kmesh",{1,1,1}},
+        {"basis",{{"data","VALENCE_LOWQ_VA"},{"file",(dir/"liq3_aug.bsd").string()},{"autoTrim",false}}},
+        {"imposeSymmetry",true},{"xc",{{"mesh",{{"cellKind","Becke"}}}}},{"species",nlohmann::json::array({nlohmann::json::array({"Li",3})})},
+        {"ortho","CholeskyPivoted"},{"orthoTol",1e-7},
+        {"solid",{{"tolerances",{{"rasterX",8.0},{"vlocRasterX",8.0},{"xcRasterX",8.0}}},{"firstIterateMargin",0.0}}},
+        {"accuracy",0},
+        {"scf",{{"NMaxIter",100},{"minDeltaRhoPerElectron",1e-7},{"smearingkT",0.001}}}};
+    qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
+    qchem::deck::Provenance pv; pv.codeVersion="it";
+    const auto out=qchem::deck::Run(spec, pv, dir/"out");
+    fs::remove_all(dir);
+    EXPECT_FALSE(out.converged) << "a first iterate below the stated floor (the free atom, margin 0) is refused, not iterated";
+    EXPECT_NE(out.summary.find("BELOW"), std::string::npos) << out.summary;
+    EXPECT_NE(out.summary.find("free pseudo-atoms"), std::string::npos) << "the refusal names how its floor was derived: " << out.summary;
+    EXPECT_NE(out.summary.find("To fix this"), std::string::npos) << out.summary;
+}
