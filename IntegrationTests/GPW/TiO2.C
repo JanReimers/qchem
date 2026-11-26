@@ -31,6 +31,16 @@ TEST(GPW_TiO2, k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long)
     nlohmann::json deck=nlohmann::json::parse(in);
     deck.erase("postSCF"); deck.erase("state");
     deck["basis"]["file"]=(qchem::panel::BasisDataDir()/"valence_lowq_tm.bsd").string();   // the deck names /home/janr/Code/qchem6/...
+    // The grids are STATED (lane B 2026-11-25): this case's claim is the SCF recipe, not the grids.  At the default accuracy the energy
+    // run's pilot now climbs the Becke XC mesh (D-BECKE-ENERGY-AUDIT), and its round-1 audit reference (x + 8 rasters, Becke (60,L41 GL))
+    // needs 5.6-10.7 GB: REFUSED ON RESOURCES on this 14 GB box even run alone under an 8 G cap.  These are the grids round 0 raised to
+    // (x 8.437, cutoffFactor 4, Becke (60,L35): the climb met 6e-5 Ha on both axes at that D), copied from the pilot's restate line, as the
+    // refusal itself advises.  The default route's refusal is its own row: doc/OpenWork.md §3 "The default Becke energy climb refuses TiO₂
+    // k222 on resources" (re-measure after selector A).
+    deck["accuracy"]=0;
+    deck["solid"]["cutoffFactor"]=4.0;
+    deck["solid"]["tolerances"]={{"rasterX",8.437207815501397},{"vlocRasterX",0.0},{"xcRasterX",0.0},{"vlocEps",1e-6}};
+    deck["xc"]={{"mesh",{{"cellKind","Becke"},{"nRadial",60},{"angularDegree",35},{"angular","Lebedev"},{"angRot",0.5},{"beckeOrder",3},{"mhlM",2}}}};
     const auto o=qchem::panel::Run(deck, 49, "TiO2 k222 little-group reference to drho/N 1e-9 (regime 1, kT 5 mHa; 39 measured, 2026-10-29 panel baseline)");
     ASSERT_TRUE(o.run.converged) << o.run.summary;
 }
