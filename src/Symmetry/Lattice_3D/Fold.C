@@ -85,6 +85,14 @@ private:
 Fold FoldPoints(const std::vector<rvec3_t>& pts,
                 const std::vector<SymOp>& ops, double tol);
 
+//! \brief The fold of \a n points under \a nops ops whose images are ALREADY KNOWN: \a image[o*n + i] is the index of op o's image of
+//! point i, or -1 (skipped, as \c FoldPoints skips an unmatched image).  The same partition, reps and edge ops \c FoldPoints builds from
+//! the same images.  For a caller that has searched the images anyway: a molecule's invariant mesh is VERIFIED image by image as it is
+//! built (\c MakeMesh(Molecule, ops)), and folding from that table spares the fold a second search of every point under every op -- on
+//! SF₆'s pilot-raised meshes (1.0M points x 8 ops) the fold was 29% of building the mesh, paid on every candidate mesh the pilot climbs.
+//! THROWS when the table is not n x nops or an entry is out of range.
+Fold FoldByImages(const std::vector<int>& image, size_t n, size_t nops);
+
 //! \brief Is \a ops CLOSED under composition -- i.e. actually a GROUP?
 //!
 //! ★ WHY THIS EXISTS (2026-09-07, doc/SymmetryUpgradePlan.md "SUPERCELLS").  Every star-average in the

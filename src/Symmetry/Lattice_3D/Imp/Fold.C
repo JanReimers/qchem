@@ -259,6 +259,17 @@ Fold FoldPoints(const std::vector<rvec3_t>& pts, const std::vector<SymOp>& ops, 
     return FoldByAction(int(pts.size()), int(ops.size()), apply);
 }
 
+Fold FoldByImages(const std::vector<int>& image, size_t n, size_t nops)
+{
+    if (image.size()!=n*nops)
+        throw std::invalid_argument("FoldByImages: the image table holds "+std::to_string(image.size())+" entries, not n x nops = "
+                                    +std::to_string(n)+" x "+std::to_string(nops));
+    for (int j : image)
+        if (j<-1 || j>=long(n)) throw std::invalid_argument("FoldByImages: an image index "+std::to_string(j)+" outside [-1, "+std::to_string(n)+")");
+    auto apply = [&](int o, int i) -> int {return image[size_t(o)*n+size_t(i)];};
+    return FoldByAction(int(n), int(nops), apply);
+}
+
 //---------------------------------------------------------------------------------------
 //  Torus path (periodic {r}/Becke meshes): fractional coordinates matched modulo the lattice,
 //  via a uniform bucket index (real meshes are 1e4-1e5 points x 48 ops -- lookups must be

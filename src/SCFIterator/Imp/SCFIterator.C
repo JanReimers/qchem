@@ -521,6 +521,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     int holeRun=0, momReleases=0;   // 0h MOM-guard state (per run): consecutive hole iterations + releases
     bool exhaustedStop=false;       // the opt-in ladder-exhaustion stage end (a deliberate early stop, not a cap)
     itsUnphysicalStop.clear();      // set when iteration 1's energy is physically impossible (UnphysicalStop)
+    itsStoppedByControl=false;      // set when the run-control boundary hook ends the loop (SetBoundaryHook)
     OccupiedConfiguration prevConfig;   // previous occupied configuration (the cfg '*' change flag; item 2)
     bool extrapolatedSaid=false;
     bool baseFallbackSaid=false;        // ... and the one when the extrapolated input cannot be formed (ExtrapolatedInput)        // the one-time hand-off line when DIIS extrapolation takes over the D mixer's step
@@ -796,6 +797,14 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
             exhaustedStop=true;
             break;
         }
+        // RUN CONTROL (qchem.RunControl; OpenWork "Run control", user 2026-11-25): the END of the iteration is the one safe point --
+        // the facade's hook applies the commands (threads, checkpoint) and answers whether to stop here.  Not on the converged one.
+        if (!itsConverged && itsBoundaryHook && itsBoundaryHook(itsIterationCount))
+        {
+            itsIterationCount++;   // match the for-increment the break skips (the -- below assumes it ran)
+            itsStoppedByControl=true;
+            break;
+        }
         // DisplayEigen();
     }
     // THE EXACT ENERGY AT THE END (controller ruling 2026-11-09): when the last iteration reported the first-order E_T, refresh
@@ -829,7 +838,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
     qchem::ReportSCFIterations(itsIterationCount);   // the convergence panel's IterationBudget counts every Iterate
     // AN SCF THAT ENDS AT ITS CAP IS REPORTED (qchem.SCFCap; user 2026-10-29: "All SCF tests should fail if they hit max
     // iterations") -- the test mains make it a failure of the running test; a production driver installs no hook.
-    if (!itsConverged && !exhaustedStop && itsUnphysicalStop.empty())
+    if (!itsConverged && !exhaustedStop && !itsStoppedByControl && itsUnphysicalStop.empty())
     {
         std::ostringstream os;
         auto gate=[](const Gate& g){std::ostringstream o; if (g) o << std::scientific << std::setprecision(2) << *g; else o << "off"; return o.str();};

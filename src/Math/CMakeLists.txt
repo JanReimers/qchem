@@ -14,6 +14,7 @@ target_sources(qcMath PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Factorials.C
     CMath.C
     Math.C
+    BlazeCore.C
     Blaze.C
     Types.C
     vector2d.C

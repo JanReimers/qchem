@@ -54,13 +54,14 @@ qcMesh::Mesh MakeMesh(const Molecule&, const qcMesh::MeshParams&, const std::vec
 //! +infinity for ops outside D2h type.
 double PointGroupGeometryError(const Structure&, const std::vector<Symmetry::SymOp>& ops);
 
-//! The ORBIT FOLD of a cell mesh invariant under \a ops: the orbit partition (fractional, torus-metric point matching), and on a
+//! The mesh \c MakeMesh(cell, mp, ops) builds, ORBIT-FOLDED: the orbit partition (fractional, torus-metric point matching), and on a
 //! Shubnikov op set the per-op spin actions and the flip-fixed points (m = 0 there exactly).
-qcMesh::FoldedMesh FoldOrbits(const UnitCell&, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops);
+qcMesh::FoldedMesh MakeFoldedMesh(const UnitCell&, const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops);
 //! An atom's radial-only mesh: one direction per shell, so every orbit is a single point -- the trivial fold.
-qcMesh::FoldedMesh FoldOrbits(const Atom&,     qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops);
-//! A molecule's: the orbit partition under \a ops about its centroid (Euclidean point matching); no Shubnikov tags (a spin action throws).
-qcMesh::FoldedMesh FoldOrbits(const Molecule&, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops);
+qcMesh::FoldedMesh MakeFoldedMesh(const Atom&,     const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops);
+//! A molecule's: the orbit partition under \a ops about its centroid; no Shubnikov tags (a spin action throws).  Folded from the image
+//! table \c MakeMesh(Molecule, ops) searches to verify the mesh, so every point is matched under every op once, not twice.
+qcMesh::FoldedMesh MakeFoldedMesh(const Molecule&, const qcMesh::MeshParams&, const std::vector<Symmetry::SymOp>& ops);
 
 //! \brief THE concrete \c qcMesh::MeshMaker: closes over one structure of concrete type \a S and builds through \c MakeMesh(const S&, mp).
 //! One class template instead of a hand-written hierarchy parallel to the structures (§2 (ii)).  The structure is DEMANDED: no null.
@@ -76,8 +77,8 @@ public:
 protected:
     qcMesh::Mesh MakeInvariant(const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops) const override
         {return MakeMesh(*itsStructure, mp, ops);}
-    qcMesh::FoldedMesh FoldOrbits(qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops) const override
-        {return qchem::FoldOrbits(*itsStructure, std::move(mesh), ops);}
+    qcMesh::FoldedMesh MakeFolded(const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops) const override
+        {return MakeFoldedMesh(*itsStructure, mp, ops);}
 private:
     std::shared_ptr<const S> itsStructure;
 };

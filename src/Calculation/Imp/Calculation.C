@@ -5,6 +5,7 @@ module;
 #include <iomanip>
 #include <iostream>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -13,6 +14,9 @@ module;
 #include <vector>
 module qchem.Calculation;
 import qchem.Reporting;
+import qchem.RunControl;         // RunCommand, ProcessRunControl (the poll)
+import qchem.Parallel;           // SetRunThreads, CurrentThreads (a SetThreads command)
+import qchem.SCFCap;             // ReportSCFStopped: a stop fails the running test (a test main's hook)
 import qchem.Policy;             // policy::Refuse: a schedule stage a kind cannot run as stated
 import qchem.Hamiltonian.Factory;   // PPFunctionalChecks, ModelToXC (CheckPPFunctional)
 
@@ -286,7 +290,7 @@ template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCal
     SCFParams params=Options().scf;
     if (edit) edit(params);
     (void)ConvergeStage(params);
-    FinishSchedule(params);   // a single Converge is a one-stage schedule: the kind's pilot runs after it too (the solid's rasters)
+    if (!Stopped()) FinishSchedule(params);   // a single Converge is a one-stage schedule: the kind's pilot runs after it too (the solid's rasters)
     ReportTiming();
     return Result();
 }
@@ -311,6 +315,7 @@ template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCal
         }
         (void)ConvergeStage(stage.params);
         LeaveStage(s, schedule.size(), stage.params);
+        if (Stopped()) return Result();   // a run-control stop ends the SCHEDULE: no later stage, no pilot
     }
     FinishSchedule(schedule.back().params);
     ReportTiming();
@@ -329,6 +334,11 @@ template <class T> void tCalculation<T>::ReportTiming()
 template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCalculation<T>::Result() const
 {
     using O=Outcome<Converged, SCFFailure>;
+    if (itsStopped)   // FIRST: a stopped SCF is unconverged too, but WHY is the stop (resumable), not the physics
+    {
+        SCFFailure f; f.why=SCFFailure::Why::StoppedByUser; f.iterations=ProofIterations(); f.details=*itsStopped;
+        return O::Fail(std::move(f));
+    }
     if (std::optional<SCFFailure> f=MakeFailure()) return O::Fail(std::move(*f));
     if (!itsSaveFailure.empty())
     {
@@ -340,8 +350,79 @@ template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCal
 
 template <class T> Outcome<typename tCalculation<T>::Converged, SCFFailure> tCalculation<T>::ConvergeStage(const SCFParams& params)
 {
+    if (Stopped()) return Result();   // sticky: a stopped calculation runs no further SCF (its drivers' later stages end here)
     if (RunStage(params)) itsSaveFailure=Checkpoint(Options().saveStateTo, Tag());
     return Result();
+}
+
+//----------------------------------------------------------------------------------------------------
+//  RUN CONTROL (qchem.RunControl; OpenWork "Run control", user 2026-11-25; design laneG-runcontrol-design.md): the policy layer owns
+//  what each command means.  The iterator calls the hook at the end of every iteration and only stops when it says so.
+//----------------------------------------------------------------------------------------------------
+template <class T> std::function<bool(size_t)> tCalculation<T>::RunControlHook()
+{
+    return [this](size_t iteration) -> bool
+    {
+        if (itsStopped) return true;   // a pilot or a later Iterate of a stopped calculation ends at its first boundary
+        const std::shared_ptr<RunControl> control = itsControl ? itsControl : ProcessRunControl();
+        if (!control) return false;
+        bool stop=false;
+        for (RunCommand c : control->Poll())
+        {
+            if ((c.kind==RunCommand::Kind::SaveAndStop || c.kind==RunCommand::Kind::Checkpoint) && c.path.empty() && Options().saveStateTo.empty())
+                c.path=control->DefaultSavePath();   // the run states no saveStateTo: the front end's default place
+            stop = ApplyRunCommand(c, iteration) || stop;
+        }
+        return stop;
+    };
+}
+
+template <class T> bool tCalculation<T>::ApplyRunCommand(const RunCommand& c, size_t iteration)
+{
+    const std::string at="at the end of SCF iteration "+std::to_string(iteration);
+    const std::string tag="["+Tag()+" run control] ";
+    using K=RunCommand::Kind;
+    switch (c.kind)
+    {
+    case K::SetThreads:
+    {
+        const ThreadCounts was=CurrentThreads();
+        SetRunThreads(c.threads);
+        const ThreadCounts now=CurrentThreads();
+        const std::string decided="threads OpenMP "+std::to_string(was.openmp)+" -> "+std::to_string(now.openmp)
+                                 +", BLAS "+std::to_string(was.blas)+" -> "+std::to_string(now.blas)+" "+at;
+        const std::string why="a run-control command; an output-partitioned loop stays bit-identical, a threaded reduction may move by round-off";
+        std::cout<<tag<<decided<<std::endl;
+        policy::Report("RunControlThreads", decided, policy::Verdict::Choose, why, std::nullopt,
+                       report::json{{"openmp",now.openmp},{"blas",now.blas},{"iteration",iteration}});
+        return false;
+    }
+    case K::Checkpoint:
+    {
+        const std::string path=c.path.empty() ? Options().saveStateTo : c.path;
+        if (path.empty()) { std::cout<<tag<<"checkpoint IGNORED "<<at<<": no path given, the run has no saveStateTo and the front end no default"<<std::endl; return false; }
+        const std::string err=Checkpoint(path, Tag());   // CK-1: a failed write is reported, and the run goes on
+        std::cout<<tag<<"checkpoint "<<at<<": "<<(err.empty() ? "state saved to "+path : err)<<std::endl;
+        return false;
+    }
+    case K::Stop:
+    case K::SaveAndStop:
+    {
+        std::string saved="no state saved";
+        if (c.kind==K::SaveAndStop)
+        {
+            const std::string path=c.path.empty() ? Options().saveStateTo : c.path;
+            if (path.empty()) saved="no state saved (no path given, the run has no saveStateTo and the front end no default)";
+            else if (const std::string err=Checkpoint(path, Tag()); err.empty()) saved="state saved to "+path;
+            else saved=err;
+        }
+        itsStopped="STOPPED by run control ("+Name(c.kind)+") "+at+"; "+saved;
+        std::cout<<tag<<*itsStopped<<std::endl;
+        ReportSCFStopped("["+Tag()+"] "+*itsStopped);   // a test main makes it a failure of the running test
+        return true;
+    }
+    }
+    return false;
 }
 
 // AN EXACT RESUME STARTS PULAY AT ONCE (OpenWork §3, 2026-10-29; the field-mixer twin of "a restart enters the Ladder at its GDM
