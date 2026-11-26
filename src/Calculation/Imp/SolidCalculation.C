@@ -106,8 +106,8 @@ template <class U> Hamiltonian::WeakDirections<dcmplx> WeakDirectionsOf(const hm
 //! (\c Hamiltonian::TermRangeAudit), with the allowance \f$\eta\cdot\|A\|_F/\lambda\f$ (\f$\eta\f$ = \a eta, the named calibration
 //! \c kQuotientAllowance) combined HERE, in one place:
 //! \f[ \text{refuse}\iff R<a_{\min}-\eta\,\frac{\|A\|_F}{\lambda}\ \text{ or }\ R>a_{\max}+\eta\,\frac{\|A\|_F}{\lambda}. \f]
-//! A term outside its rigorous range is a DEFECT in its matrix (the Hermite3 overrun put V_short at -1.4e4 Ha on Li bcc q3, its range a
-//! few Ha), not a model choice, so it REFUSES before iteration 1 with "-- To fix this" and a \c QuotientRange policy row.  The table
+//! A term outside its rigorous range is a DEFECT in its matrix (the Hermite3 overrun put V_short at R = -1105 Ha on Li bcc q3 k12, its range
+//! [-14.0, 0.27] Ha), not a model choice, so it REFUSES before iteration 1 with "-- To fix this" and a \c QuotientRange policy row.  The table
 //! (one row per term, pass or refuse) is ALWAYS reported: the health line.
 void AuditTermRanges(const BasisSet::Complex_BS& bs, const Hamiltonian::cHamiltonian& ham, double floor, double eta)
 {
