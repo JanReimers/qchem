@@ -15,7 +15,9 @@ ALLOW = {"QCHEM_OPENMP_THREADS", "GPW_OMP_THREADS", "QCHEM_BLAS_THREADS",      #
          "OMP_NUM_THREADS", "KMP_BLOCKTIME",                                   # read only to DESCRIBE the run on the banner
          "GPW_COLLOC_MEMO",                                                    # replay-cache depth: memory against time
          "QCHEM_DIAGNOSTICS",                                                  # output-only registry (qchem.Diagnostics)
-         "GTH2UPF_VERBOSE"}                                                    # the gth2upf converter's print switch
+         "GTH2UPF_VERBOSE",                                                    # the gth2upf converter's print switch
+         "HOME"}                                                               # FRONT ENDS only (rundeck, ITMain main): where the run-control
+                                                                               # directory lives (OpenWork "Run control", 2026-11-25); never a number
 NONLITERAL_OK = {"src/Common/Imp/Diagnostics.C", "src/Common/Imp/Environment.C"}
 bad = []
 files = []
