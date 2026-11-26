@@ -1016,31 +1016,19 @@ static Matrix3D<double> D2hFrame(const std::vector<Symmetry::SymOp>& ops, std::s
     return F;
 }
 
-//! The nearest point of \a pts within \a tol of \a r, or -1: a sorted-by-x window search (the Euclidean twin of the fold's matcher).
+//! The nearest point of \a pts within \a tol of \a r, or -1: \c Symmetry::Lattice_3D::PointIndex (a sparse bucket grid; the fold's matcher)
+//! on a copy of the points.  It was a sorted-by-x window search, which scans the whole slab |x - x_r| <= tol: an invariant mesh's mirror
+//! planes put thousands of points at one x (SF₆: as slow as the fold itself, on every mesh-pilot round).
 class EuclideanIndex
 {
 public:
-    EuclideanIndex(const rvec3vec_t& pts, double tol) : itsPts(pts), itsTol(tol), itsByX(pts.size())
-    {
-        for (size_t i=0; i<pts.size(); i++) itsByX[i]=i;
-        std::sort(itsByX.begin(), itsByX.end(), [&](size_t a, size_t b){return itsPts[a].x<itsPts[b].x;});
-    }
-    long Find(const rvec3_t& r) const
-    {
-        auto lo=std::lower_bound(itsByX.begin(), itsByX.end(), r.x-itsTol, [&](size_t a, double v){return itsPts[a].x<v;});
-        long best=-1; double bestD2=itsTol*itsTol;
-        for (auto it=lo; it!=itsByX.end() && itsPts[*it].x<=r.x+itsTol; ++it)
-        {
-            const rvec3_t d=itsPts[*it]-r;
-            const double d2=d*d;
-            if (d2<=bestD2) { best=long(*it); bestD2=d2; }
-        }
-        return best;
-    }
+    EuclideanIndex(const rvec3vec_t& pts, double tol) : itsPts(Copy(pts)), itsIndex(itsPts, tol) {}
+    long Find(const rvec3_t& r) const {return itsIndex.Find(r);}
 private:
-    const rvec3vec_t&   itsPts;
-    double              itsTol;
-    std::vector<size_t> itsByX;
+    //! An element loop: a Blaze iterator has no op== std's range constructor can see (CLAUDE.md, the Blaze exceptions).
+    static std::vector<rvec3_t> Copy(const rvec3vec_t& pts) {std::vector<rvec3_t> v(pts.size()); for (size_t i=0;i<pts.size();i++) v[i]=pts[i]; return v;}
+    std::vector<rvec3_t>                  itsPts;   //!< declared before the index, which holds it by reference
+    Symmetry::Lattice_3D::PointIndex      itsIndex;
 };
 
 //! The sites of a structure, as the polish and the geometry checks read them.
@@ -1271,19 +1259,20 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
         std::vector<size_t> siteOf(m.size(), 0);
         for (size_t a=0; a<m.NSites(); a++) for (size_t i=m.SiteBegin(a); i<m.SiteEnd(a); i++) siteOf[i]=a;
         const int beckeOrder=mp.beckeOrder;
-        for (size_t k=0; k<opsC.size(); k++)
-            for (size_t i=0; i<m.size(); i++)
+        for (size_t i=0; i<m.size(); i++)
+        {
+            const double P= w[i]==0.0 ? 0.0 : qcMesh::BeckePartitionWeight(Rv, siteOf[i], m.Points()[i], beckeOrder);   // once per point
+            const double reach=std::max(1.0, norm(m.Points()[i]-sites.c)/rMin);
+            for (size_t k=0; k<opsC.size(); k++)
             {
                 const long j=index.Find(opsC[k].W*m.Points()[i]+opsC[k].tau);
                 if (j<0)
                     throw std::logic_error("MakeMesh(Molecule, ops): the built mesh is not invariant under op "+std::to_string(k)
                                            +": point "+std::to_string(i)+" has no image point");
-                if (w[i]==0.0) continue;
-                const double P=qcMesh::BeckePartitionWeight(Rv, siteOf[i], m.Points()[i], beckeOrder);
                 if (P==0.0) continue;
-                const double reach=std::max(1.0, norm(m.Points()[i]-sites.c)/rMin);
                 spread=std::max(spread, std::abs(w[size_t(j)]-w[i])*P/std::abs(w[i])/reach);   // |ΔP| = |Δw| / w_q, w_q = w / P
             }
+        }
     }
     if (spread>1e-10)
     {
