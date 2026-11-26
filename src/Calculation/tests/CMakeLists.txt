@@ -27,6 +27,7 @@ add_executable(UTCalculation ../../Common/tests/gtestmain.C
     CacheKeyExactness.C # two geometries 3e-6 bohr apart, either order, one process: each its fresh energy (2026-11-12)
     GeometryCache.C     # a geometry iteration builds a new Calculation; no cache outlives its geometry (cache-ownership S2b)
     PPFittedFunctional.C # PADE as a stated functional; the PP / functional match policy (user ruling 2026-11-12)
+    RasterPilotXC.C     # the raster pilot's uniform-XC demand: the L0 and rho arms, replayed on MnO's rounds (lane A 2026-11-25)
     SCFRecipe.C         # the SCF recipe policy: Auto == the pre-B5 policy cell for cell, the named regimes, the deck key (B5)
     BasisMenu.C         # the orbital-basis menu a structure offers (qchem.BasisMenu, lane G 2026-11-21)
     RunPolicyLeak.C     # a run's density route is its own, not the last solid's (D-MUTABLE-STATICS-RUNPOLICY; knownRed until group E)

@@ -27,6 +27,7 @@ import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;   // tGPW_IBS<double>: the real 
 import qchem.BasisSet.Fit_Types;                  // BasisSet::Forces: what the A1 family forces in the cell's frame
 import qchem.BasisSet.AoShellSource;           // FunctionName: the audit's largest element, by atom, shell and l
 import qchem.BasisSet.Conditioning;            // ReportConditioning, MinOverlapEigenvalue
+import qchem.RasterPilotXC;                    // UniformXCDemand: the uniform XC term's two-arm demand (L0 / rho)
 import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS / Complex_OIBS (the per-irrep bases to iterate)
 import qchem.Pseudopotential.Set;             // PseudopotentialSet -- the run's chosen pseudopotential, resolved once by SolidSetup::Resolve
 import qchem.Pseudopotential.GTH_Potentials;  // MakeMultiSpeciesLocal -- the local the ladder is sized for (the Hamiltonian's own builder)
@@ -1970,8 +1971,9 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
              <<(onH ? std::string("per matrix element (max|ΔH_ij|): a geometry run")
                     : "per raster term's energy (eps x "+std::to_string(nAtoms)+" atoms): an energy run")<<std::endl;
     rpt::json rounds=rpt::json::array();
-    std::optional<std::pair<double,double>> xcBefore;   // the XC term's (x, delivered) one round back: the power-law fit's first point
+    UniformXCDemand xcDemand;   // the uniform XC term's two arms, L0 and rho (qchem.RasterPilotXC says why)
     bool xcOver=false;                                  // the XC term was over its target in the last round audited
+    bool xcOverUnanswered=false;                        // ... with no arm left to raise (it blocks SETTLED, honestly)
     bool xcStatedOver=false;                            // a STATED Becke mesh was over its target in the last round (honoured, reported)
     double xcStatedMiss=0.0;                            // ... its worst tail estimate there
     std::optional<std::pair<std::string,double>> ballBefore;    // (ball, its difference) one round back
@@ -2039,23 +2041,38 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             {
                 // WHOSE error is the uniform XC's?  Below the density's rigorous x the collocated rho itself aliases, and v_xc[rho] carries
                 // it: Na k222s at density x 6 read |dE_xc| 1.2e-4 with its XC raster at x 28 AND at x 60, and 5e-8 once the density raster
-                // went to x 16 (C2 step 3).  So there the XC term raises the DENSITY raster, under the density's shape; above it only the
-                // nonlinearity of v_xc is left, and the XC raster's own power law sizes L0 (Si Gamma, density x 27).
-                if (x.density < itsImp->setup->opts.solid.grid.Rigorous(G::kDensityTail)) { demand=&dDens; xRun=x.density; which="XC via rho (MEASURED)"; }
-                else                                                                    { demand=&dXC;   xRun=x.xcL0;    which="XC (MEASURED: no bound)"; }
+                // went to x 16 (C2 step 3).  So below it the XC term raises the DENSITY raster too (the rho arm); above it only the
+                // nonlinearity of v_xc is left, and the XC raster's own power law sizes L0 (Si Gamma, density x 27).  But below it L0 can
+                // be the one that matters (MnO, qchem.RasterPilotXC), so the L0 arm runs there as well.
+                // THE TWO ARMS (qchem.RasterPilotXC): the L0 arm always, the rho arm below the density's rigorous x; a refuted arm is out.
+                const double d=onH ? T.maxAbsΔH : std::fabs(T.ΔE);
+                const bool belowRho=x.density < itsImp->setup->opts.solid.grid.Rigorous(G::kDensityTail);
+                const UniformXCDemand::Verdict v=xcDemand.Round(x.density, x.xcL0, d, target, belowRho);
+                if (!v.refuted.empty())
+                    std::cout<<tag<<"round "<<round<<"  XC: the "<<v.refuted<<" moved alone and the error did not fall (now "<<d
+                             <<"): this XC error is not the "<<v.refuted<<"'s"<<std::endl;
+                xcOver=v.over;
+                xcOverUnanswered=v.unanswered;
+                const double needRho=v.needRho, needL0=v.needL0;
+                dDens=std::max(dDens, needRho);
+                dXC  =std::max(dXC,   needL0);
+                auto line=[&](const char* which, double xRun, double need)
+                {
+                    const double C=d/(std::pow(xRun,3.0)*std::exp(-xRun));   // the measured scale under the rigorous shape (a report column)
+                    std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<which<<std::right<<" delivered "<<d<<" at x "<<std::defaultfloat
+                             <<std::setprecision(4)<<xRun<<std::scientific<<std::setprecision(3)<<"  (C = "<<C<<" Ha)  ";
+                    if (need>0.0)   std::cout<<"OVER: demands x "<<std::defaultfloat<<std::setprecision(4)<<need<<std::scientific<<std::setprecision(3)<<std::endl;
+                    else if (xcOver) std::cout<<"OVER, and this arm is refuted (no demand)"<<std::endl;
+                    else            std::cout<<"meets "<<target<<std::endl;
+                    terms.push_back({{"term",which},{"delivered",d},{"x",xRun},{"C",C},{"demand",need}});
+                };
+                if (belowRho) line(xcDemand.RhoRefuted() ? "XC via rho (refuted)" : "XC via rho (MEASURED)", x.density, needRho);
+                line(xcDemand.L0Refuted() ? "XC on L0 (refuted)" : "XC on L0 (MEASURED)", x.xcL0, needL0);
+                continue;
             }
             if (!demand) continue;   // an analytic term: nothing on a raster
             const double d   =onH ? T.maxAbsΔH : std::fabs(T.ΔE);
             double need=G::GridAccuracy::MeasuredDemand(d, xRun, target);   // 0 = meets the target here
-            if (demand==&dXC)   // no bound and no shape: once two rounds are measured, the XC term's own power law (MeasuredPowerDemand)
-            {
-                if (xcBefore && need>0.0)
-                    if (const double p=G::GridAccuracy::MeasuredPowerDemand(xcBefore->first, xcBefore->second, xRun, d, target); p>0.0) need=p;
-                xcBefore=std::pair{xRun, d};
-                // At most DOUBLE x per round: a slope from two nearby, noisy rounds extrapolates wildly (Si: k 1.4 from x 21 -> 30 would
-                // ask x ~ 3000), and the next round measures again anyway.
-                if (need>0.0) { need=std::min(need, 2.0*xRun); xcOver=true; } else xcOver=false;
-            }
             const double C   =d/(std::pow(xRun,3.0)*std::exp(-xRun));             // the measured scale under the rigorous shape
             *demand=std::max(*demand, need);
             std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<which<<std::right<<" delivered "<<d<<" at x "<<std::defaultfloat
@@ -2240,6 +2257,12 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
         if (t==was && !xcMeshNext && !ballNext && !xcLadderEnd.empty())
         {   // nothing left to climb, and one axis of the XC mesh unchecked
             std::cout<<tag<<"NOT SETTLED after "<<round<<" re-convergence(s): "<<xcLadderEnd<<" -- the run keeps these grids and says so"<<std::endl;
+            break;
+        }
+        if (t==was && !xcMeshNext && !ballNext && xcOverUnanswered)
+        {   // the uniform XC term is over and both its arms are refuted: no raster the pilot sizes answers it
+            std::cout<<tag<<"NOT SETTLED after "<<round<<" re-convergence(s): the uniform XC term is over "<<target<<" Ha on "<<RasterName(t)
+                     <<" and neither the density raster nor the L0 raster moved it -- the run keeps these grids and says so"<<std::endl;
             break;
         }
         if (t==was && !xcMeshNext && !ballNext && !ballOtherOver.empty())
