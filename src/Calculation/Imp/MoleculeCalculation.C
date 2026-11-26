@@ -688,6 +688,7 @@ void MoleculeCalculation::AttachObserver()
         itsLastRow = row;
         if (itsObserver) itsObserver(row);
     });
+    itsScf->SetBoundaryHook(RunControlHook());   // run control (qchem.RunControl): stop / save / threads at each iteration's end
 }
 
 namespace

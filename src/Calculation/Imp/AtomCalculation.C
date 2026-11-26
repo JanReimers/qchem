@@ -342,6 +342,7 @@ bool AtomCalculation::RunStage(const SCFParams& params)
     if (itsPrepared) itsPrepared=false;                // Prepare built the graph (in its caller's run): reuse it, once
     else             BuildGraph();
     if (itsObserver) itsScf->SetObserver(itsObserver);
+    itsScf->SetBoundaryHook(RunControlHook());   // run control (qchem.RunControl): stop / save / threads at each iteration's end
 
     itsLastkT=params.SmearingkT;
     bool ok = itsScf->Iterate(ExactResumeMixing(params, itsScf->ResolveMixing(params)));   // the exact-resume Pulay policy
@@ -827,6 +828,7 @@ size_t AtomCalculation::PilotGrids(const SCFParams& params)
         itsCarried=itsScf->GetWaveFunction()->GetChargeDensity();
         BuildGraph();
         if (itsObserver) itsScf->SetObserver(itsObserver);
+        itsScf->SetBoundaryHook(RunControlHook());   // run control (qchem.RunControl): the pilot polls too
         itsScf->Iterate(PilotWarmStart(params));
         reconverged+=itsScf->GetIterationCount();
         RebuildSampling();

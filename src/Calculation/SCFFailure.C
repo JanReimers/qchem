@@ -42,7 +42,11 @@ struct SCFFailure
         //! the SCF ran, but the state the setup asked to save (\c RunOptions::saveStateTo) could NOT be written (a missing directory, a
         //! full disk): a run that asked for a state must not read green without it (doc/OpenWork.md "state.save into a missing
         //! directory", 2026-11-22).  \c details names the path and the writer's reason; the converged answer is still in memory.
-        StateNotSaved
+        StateNotSaved,
+        //! a RUN CONTROL command (qchem.RunControl: runctl stop / save-and-stop, SIGTERM/SIGUSR1/Ctrl-C, a ctest TIMEOUT's signal) ended
+        //! the SCF at an iteration boundary.  Not a failure of the physics: a deliberate, RESUMABLE end.  \c details names the iteration,
+        //! the stage and where the state was saved (or that none was); rundeck exits 75 (EX_TEMPFAIL) on it.
+        StoppedByUser
     };
     Why         why        = Why::NotConverged;
     size_t      iterations = 0;

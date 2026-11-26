@@ -27,6 +27,10 @@ using SCFCapHook = std::function<void(const std::string& what)>;
 void SetSCFCapHook(SCFCapHook hook);
 //! Called by the SCF when an Iterate ends at NMaxIter WITHOUT converging.  Suppressed inside a BoundedSCF scope.
 void ReportSCFCapHit(const std::string& what);
+//! \brief Called by a calculation when a RUN CONTROL command stopped its SCF (qchem.RunControl: stop, save-and-stop, the ctest TIMEOUT
+//! signal).  Reported through the SAME hook as a cap hit, so a test main makes it a failure of the running test even when the test
+//! ignores its Outcome.  NOT suppressed by a BoundedSCF scope: a stop is never the bounded loop's subject.
+void ReportSCFStopped(const std::string& what);
 
 //! Called by the SCF at the end of EVERY Iterate with the iterations it ran; every live IterationBudget on this thread counts them.
 void ReportSCFIterations(std::size_t n);

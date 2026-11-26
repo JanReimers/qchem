@@ -34,6 +34,14 @@ ScopedWorkerThreads::~ScopedWorkerThreads()
     detail::g_workerOverride=itsOld;
 }
 
+void SetRunThreads(const ThreadCounts& c)
+{
+    if (c.openmp>0) detail::g_workerOverride=c.openmp;
+    if (c.blas>0)   { detail::g_blasOverride=c.blas; openblas_set_num_threads(c.blas); }
+}
+
+ThreadCounts CurrentThreads() {return ThreadCounts{WorkerThreads(), openblas_get_num_threads()};}
+
 int PhysicalCores()
 {
     static const int n=[]
