@@ -26,7 +26,12 @@ Each candidate run is JUDGED before it is written:
     that stops at MAX_ITER still prints an energy: that is no oracle (Zn q12 read 12.7 Ha off at the default 200 iterations).
 A failed judge is REPORTED and the entry is not written.  Prints the record table (Markdown) on stdout.
 
-usage: scripts/gen-valence-seeds [--ions] [--el Fe,Mn] [--lib src/ChargeDensity/Data/atomic_valence_densities.json]
+ENERGY BACKFILL (--backfill-energy, 2026-11-25): a NEUTRAL entry written before entries carried energies gets its pseudo-atom's Etot,
+judged as above (converged, the electron count, CP2K ATOM within --tol) and inserted into that entry's text; its density is KEPT as
+shipped (the regenerated density's largest difference is printed, as information), so no run that reads the seed moves.  The energy
+is the free-atom reference of a periodic run's first-iterate floor (SolidCalculation).
+
+usage: scripts/gen-valence-seeds [--ions] [--backfill-energy] [--el Fe,Mn] [--lib src/ChargeDensity/Data/atomic_valence_densities.json]
                                  [--scfrun build/Release/CLIapps/scfrun] [--tol 1e-3] [--dry]
 """
 import argparse, json, os, re, subprocess, sys, tempfile
@@ -287,6 +292,92 @@ def splice(lib, entry):
     os.replace(lib + '.tmp', lib)
 
 
+def insert_energy(lib, Z, q, nel, fields):
+    """Insert \a fields (key -> JSON value) at the top of the ONE entry (Z, q, Nelec) of the library TEXT; every other byte is kept."""
+    lines = open(lib).read().split('\n')
+    starts = [i for i, l in enumerate(lines) if l == '\t{']
+    hits = []
+    for k, i0 in enumerate(starts):
+        i1 = starts[k + 1] if k + 1 < len(starts) else len(lines)
+        top = {}
+        for l in lines[i0 + 1:i1]:
+            m = re.match(r'^\t\t"(Z|q|Nelec)": (\d+),?$', l)
+            if m:
+                top[m[1]] = int(m[2])
+        if top.get('Z') == Z and top.get('q', top.get('Nelec')) == q and top.get('Nelec') == nel:
+            hits.append(i0)
+    if len(hits) != 1:
+        raise RuntimeError(f'{len(hits)} library entries match Z={Z} q={q} Nelec={nel}')
+    new = [f'\t\t"{k}": {json.dumps(v, ensure_ascii=False)},' for k, v in fields.items()]
+    lines[hits[0] + 1:hits[0] + 1] = new
+    open(lib + '.tmp', 'w').write('\n'.join(lines))
+    os.replace(lib + '.tmp', lib)
+
+
+def backfill(a):
+    lib = json.load(open(a.lib))
+    keep = set(a.el.split(',')) if a.el else None
+    print('| el | Z | q | spin | E (Ha) | E CP2K ATOM | ΔE | max Δρ / max ρ (kept as shipped) | iters | note |')
+    print('|---|---|---|---|---|---|---|---|---|---|')
+    failed = []
+    for e in lib:
+        Z, nel = e['Z'], e['Nelec']
+        q = e.get('q', nel)
+        if nel != q or 'Etot' in e or e.get('functional') != 'LDA':
+            continue
+        el = e.get('symbol') or 'H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn'.split()[Z - 1]
+        if keep and el not in keep:
+            continue
+        # the spin comes from the run, as for a new entry (an old open-shell entry may carry no spin pair): an unpolarized probe names
+        # the occupied subshells, and an open one re-runs polarized -- the Hund atom is the free-atom energy
+        probe = solve(a.scfrun, Z, q, nel, 'U')
+        pol = 'P' if 'error' not in probe and is_open(probe['cfg']) else 'U'
+        r = solve(a.scfrun, Z, q, nel, pol) if pol == 'P' else probe
+        why = []
+        if 'error' in r:
+            why.append(r['error'])
+        elif not r['converged']:
+            why.append('unconverged')
+        elif abs(r['Nelec'] - nel) > 1e-6:
+            why.append(f"Nelec {r['Nelec']}")
+        Ecp = dE = None
+        drho = '--'
+        if not why:
+            phys, core = physical(Z, el, q, r['cfg'], r['cfg'])
+            if phys is None:
+                why.append(f'no CP2K configuration: {core}')
+            else:
+                Ecp = cp2k_energy(el, q, phys, core, hund(r['cfg']) + 1)
+                if Ecp is None:
+                    why.append('CP2K ATOM gave no converged energy')
+                else:
+                    dE = r['E'] - Ecp
+                    if abs(dE) > a.tol:
+                        why.append(f'ΔE {dE:+.2e}')
+            with tempfile.TemporaryDirectory() as d:
+                tmp = os.path.join(d, 'entry.json')
+                w = scfrun(a.scfrun, Z, q, nel, pol, out=tmp, accel=r['accel'])
+                if 'error' not in w:
+                    x = json.load(open(tmp))[0]
+                    if len(x['rho']) == len(e['rho']):
+                        drho = f"{max(abs(u - v) for u, v in zip(x['rho'], e['rho'])) / max(e['rho']):.1e}"
+        Etxt = f"{r['E']:.6f}" if 'E' in r else '--'
+        Ectxt = f'{Ecp:.6f}' if Ecp is not None else '--'
+        dEtxt = f'{dE:+.2e}' if dE is not None else '--'
+        if why:
+            failed.append((el, q))
+            print(f"| {el} | {Z} | {q} | {pol} | {Etxt} | {Ectxt} | {dEtxt} | {drho} | {r.get('iters', '--')} | **NOT WRITTEN**: {'; '.join(why)} |", flush=True)
+            continue
+        if not a.dry:
+            insert_energy(a.lib, Z, q, nel, {'Etot': r['E'], 'oracle': f'CP2K ATOM GTH-PADE-q{q} {Ecp:.6f}', 'deltaE': f'{dE:+.3e}',
+                                             'converged': True, 'note': 'energy backfilled 2026-11-25, density kept as shipped'})
+        print(f"| {el} | {Z} | {q} | {pol} | {Etxt} | {Ectxt} | {dEtxt} | {drho} | {r['iters']} | {'Ladder' if r['accel'] else ''} |", flush=True)
+    if failed:
+        print(f'\nNOT WRITTEN: (el, q) = {failed}', file=sys.stderr)
+        return 1
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--ions', action='store_true', help='the charge states IonicSAD forms on the shipped structures (IONS)')
@@ -296,7 +387,10 @@ def main():
     ap.add_argument('--tol', type=float, default=3e-3, help='|E - E_CP2K| bound in Ha (a wrong spin state or configuration misses by tens '
                     'to hundreds of mHa; our Gaussian pool lies up to ~1 mHa ABOVE CP2K on a diffuse s, Cs q1)')
     ap.add_argument('--dry', action='store_true', help='judge only, write nothing')
+    ap.add_argument('--backfill-energy', action='store_true', help='give the neutral entries that lack one their judged Etot (density kept)')
     a = ap.parse_args()
+    if a.backfill_energy:
+        return backfill(a)
     cases = IONS if a.ions else gth_cases()
     if a.el:
         keep = set(a.el.split(','))
