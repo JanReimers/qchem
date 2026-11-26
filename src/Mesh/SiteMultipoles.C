@@ -66,6 +66,7 @@ public:
     SiteMultipoles(const Mesh& mesh, const rvec3vec_t& centres, const RadialMesh& radial, const AngularMesh& angular, int lMax);
 
     size_t NumSites   () const {return itsCentres.size();}
+    size_t NumPoints  () const {return itsPoints.size();}   //!< the mesh points the transforms run over
     size_t NumLM      () const {return itsNLM;}
     int    LMax       () const {return itsLMax;}
     size_t NumChannels() const {return NumSites()*itsR.size()*itsNLM;}
@@ -75,7 +76,7 @@ public:
 
     //! Is point \a g on a shell of its site, so that a charge there has moments?  Only the rule's zero-weight node AT a nucleus is not.
     //! CLIENT: the δ operator's symmetrization, which has no column for such a point (\c RadialPoissonCoulomb::Potential).
-    bool OnShell(size_t g) const {return itsOnShell[g]!=0;}
+    bool OnShell(size_t g) const {return itsItem[g]!=theNoShell;}
 
     //! \f$Q_{lm}(i)=\sum_{g\in\text{shell }i}q_gY_{lm}(\Omega_g)\f$ for each site, of \a q, one entry per mesh point.
     channels_t Moments(const rvec_t& q) const;
@@ -92,6 +93,39 @@ public:
     //! derivatives in \f$\log r\f$) and the exact powers past the table's ends read backwards.  Threaded over (site, point chunk) with a FIXED
     //! chunk count, each chunk's sums reduced in chunk order: the same bits at any thread count.
     channels_t SynthesizeAdjoint(const rvec_t& w) const;
+
+    //! \name THE SAME TRANSFORMS ON A SUBSET OF THE POINTS (lane H 2026-11-25, phase B of the δ-fit Hartree fold, OpenWork §3).
+    //! \a idx lists mesh points; a per-point argument or answer has one entry per listed point, in \a idx order.  Each is the full
+    //! transform's sum restricted to those points, so with \a idx = every point, in order, it IS the full transform, to the bit (the full
+    //! ones above delegate here).  The folded δ-fit Hartree reads the potential at one point per orbit (\c SynthesizeAt, \c MomentsAdjointAt:
+    //! exact for any channels), and takes the moments of an invariant charge from the representatives alone (\c MomentsAt,
+    //! \c SynthesizeAdjointAt, then \c SymmetrizeChannels: see \c ChannelAction).
+    //!@{
+    channels_t MomentsAt          (const std::vector<size_t>& idx, const rvec_t& q) const;
+    rvec_t     SynthesizeAt       (const channels_t& V, const std::vector<size_t>& idx) const;
+    rvec_t     MomentsAdjointAt   (const channels_t& G, const std::vector<size_t>& idx) const;
+    channels_t SynthesizeAdjointAt(const std::vector<size_t>& idx, const rvec_t& w) const;
+    //!@}
+
+    //! \brief How a point group acts on the channels: op k carries site A's channels to site \c image[k][A], each l block rotated by the
+    //! real-harmonic matrix \f$D^l(W_k)\f$, \f$Y_l(W_k\hat u)=D^l(W_k)Y_l(\hat u)\f$.
+    //!
+    //! WHY.  A point's contribution to the channels (to \c Moments, or to \c SynthesizeAdjoint) is the representative's carried by the op
+    //! that maps one onto the other, so on an INVARIANT charge (one value per orbit) the sum over every point is the GROUP AVERAGE of the
+    //! representatives' sum taken at the orbit's total, \f$\sum_{g\in o}c(r_g)=\tfrac{|o|}{|H|}\sum_kT_k\,c(r_o)\f$: the same identity as
+    //! \c FoldedMesh::SymmetrizeSiteVectors, with \f$D^l\f$ in place of \f$W\f$ (at l = 1 they are the same rotation).
+    struct ChannelAction
+    {
+        std::vector<std::vector<size_t>>              image;   //!< per op, a site permutation
+        std::vector<std::vector<std::vector<double>>> D;       //!< per op and l, \f$D^l\f$ as a (2l+1)^2 row-major block
+    };
+    //! \brief The action of the ops \a W (Cartesian rotations) with their site permutations \a image (a \c FoldedMesh::SiteAction).
+    //! \f$D^l\f$ is a least-squares fit of \f$Y_l(W\hat u)=D^lY_l(\hat u)\f$ over \f$2(l_{max}+1)^2\f$ generic directions (a Fibonacci
+    //! sphere; the angular rule's own are too few at a low degree, and too symmetric).  THROWS when the fit's residual is not roundoff:
+    //! then \a W is not a rotation.
+    ChannelAction MakeChannelAction(const std::vector<Matrix3D<double>>& W, const std::vector<std::vector<size_t>>& image) const;
+    //! \brief The group average \f$G_A\leftarrow\tfrac1{|H|}\sum_kD(W_k)^TG_{\sigma_k(A)}\f$, the totally symmetric projection of the channels.
+    void SymmetrizeChannels(channels_t& G, const ChannelAction& action) const;
 
     //! \brief THE CROSS-SITE PULLBACK of a synthesis: \f$\partial/\partial R_C\sum_h q_h\sum_{A\ne b(h)}V_A(r_h-R_A)\f$ for each site C, the
     //! channels \a V HELD and every point riding its owner b(h) (\f$r_h=R_{b(h)}+u_h\f$).
@@ -157,7 +191,9 @@ private:
     std::vector<double> itsLogR;
     std::vector<std::vector<size_t>> itsShell;   //!< point indices per (site, shell)
     std::vector<size_t> itsOwner;                //!< each point's site block (\c NumSites() for none)
-    std::vector<char>   itsOnShell;              //!< 1 where a point is on a shell of its site (\c OnShell)
+    static constexpr size_t theNoShell=size_t(-1);
+    std::vector<size_t> itsItem;                 //!< each point's (site, shell) item \f$a\,n_R+i\f$, \c theNoShell for none (\c OnShell)
+    std::vector<size_t> All() const;             //!< every point, in order: the full transforms' \a idx
     std::vector<double> itsPmm, itsA, itsB;      //!< the \f$Y_{lm}\f$ recursion's constants
 };
 

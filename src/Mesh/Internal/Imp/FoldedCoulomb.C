@@ -19,7 +19,7 @@ class FoldedCoulomb : public virtual CoulombOperator
 {
 public:
     FoldedCoulomb(std::unique_ptr<CoulombOperator> full, const FoldedMesh& folded)
-        : itsFull(std::move(full)), itsFolded(folded), itsW(folded.GetMesh()->Weights())
+        : itsFull(std::move(full)), itsOnReps(itsFull->MakeOnRepresentatives(folded)), itsFolded(folded), itsW(folded.GetMesh()->Weights())
     {
         const Mesh reps=itsFolded.MakeRepresentativeMesh();
         itsWo=reps.Weights();
@@ -27,8 +27,10 @@ public:
 
     //! \copydoc CoulombOperator::Potential
     //! \a Q is one charge per representative, \f$Q_o=W_o\rho_o\f$; the answer is the potential at each representative.
+    //! The full operator's own route on the representatives when it has one (\c MakeOnRepresentatives, phase B), else scatter, solve, gather.
     rvec_t Potential(const rvec_t& Q) const override
     {
+        if (itsOnReps) return itsOnReps->Potential(Q);
         const rvec_t v=itsFull->Potential(Scatter(Q));
         const std::vector<size_t>& rep=itsFolded.RepresentativeIndices();
         rvec_t vo(rep.size());
@@ -55,6 +57,7 @@ private:
     }
 
     std::unique_ptr<CoulombOperator> itsFull;
+    std::unique_ptr<CoulombOperator> itsOnReps;   //!< \c itsFull's route on the representatives; null = scatter, solve, gather
     FoldedMesh itsFolded;   //!< the full mesh with its fold: the orbits scattered over
     rvec_t itsW;            //!< the full mesh's weights
     rvec_t itsWo;           //!< the representatives' (orbit-summed) weights

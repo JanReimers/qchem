@@ -217,14 +217,14 @@ json ToJson(const BasisSet::Gaussian::GPWTolerances& t)
 {
     return {{"vlocEps",t.vlocEps},{"localPPRelCutoff",t.localPPRelCutoff},{"relFieldSharp",t.relFieldSharp},{"mgridEcuts",t.mgridEcuts},
             {"screenEps",t.screenEps},{"fieldSharp",t.fieldSharp},{"relCutoff",t.relCutoff},{"densityEps",t.densityEps},
-            {"rasterX",t.rasterX},{"vlocRasterX",t.vlocRasterX},{"xcRasterX",t.xcRasterX}};
+            {"pairRoutingEps",t.pairRoutingEps},{"rasterX",t.rasterX},{"vlocRasterX",t.vlocRasterX},{"xcRasterX",t.xcRasterX}};
 }
 void FromJson(const json& j, BasisSet::Gaussian::GPWTolerances& t)
 {
     Fields f(j,"tolerances");
     f.Get("vlocEps",t.vlocEps); f.Get("localPPRelCutoff",t.localPPRelCutoff); f.Get("relFieldSharp",t.relFieldSharp);
     f.Get("mgridEcuts",t.mgridEcuts); f.Get("screenEps",t.screenEps); f.Get("fieldSharp",t.fieldSharp);
-    f.Get("relCutoff",t.relCutoff); f.Get("densityEps",t.densityEps);
+    f.Get("relCutoff",t.relCutoff); f.Get("densityEps",t.densityEps); f.Get("pairRoutingEps",t.pairRoutingEps);
     f.Get("rasterX",t.rasterX); f.Get("vlocRasterX",t.vlocRasterX); f.Get("xcRasterX",t.xcRasterX);
     f.Done();
 }

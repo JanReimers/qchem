@@ -56,7 +56,7 @@ public:
 
     //! \brief How each op of the fold's group acts on the mesh's SITE BLOCKS: \c image[k][A] is the site op \c k carries site \c A onto,
     //! and \c W[k] its Cartesian rotation.  Plain indices, so qcMesh stays geometry-free: the BUILDER that knows which atom a site block
-    //! is supplies it (the molecular \c FoldOrbits).  What a per-orbit consumer's GEOMETRY GRADIENT needs (\c SymmetrizeSiteVectors).
+    //! is supplies it (the molecular \c MakeFoldedMesh).  What a per-orbit consumer's GEOMETRY GRADIENT needs (\c SymmetrizeSiteVectors).
     struct SiteAction
     {
         std::vector<Matrix3D<double>>    W;       //!< one per op
@@ -131,6 +131,8 @@ public:
 
     //! Is a \c SiteAction present?
     bool HasSiteAction() const {return !itsSites.image.empty();}
+    //! The site action itself, for a consumer that carries more than 3-vectors (the radial channels' real-harmonic blocks, \c SiteMultipoles::MakeChannelAction).
+    const SiteAction& GetSiteAction() const {return itsSites;}
     //! \brief The GROUP AVERAGE of one 3-vector per site: \f$g_A\leftarrow\tfrac1{|H|}\sum_k W_k^\top g_{\sigma_k(A)}\f$ -- the totally
     //! symmetric projection \f$P\f$, under which the gradient of an invariant energy at a symmetric geometry is fixed.  It is also how a
     //! per-orbit consumer gets that gradient: a member's contribution is the representative's carried by the edge op,

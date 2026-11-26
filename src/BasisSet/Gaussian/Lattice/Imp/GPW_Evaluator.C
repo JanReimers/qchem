@@ -163,7 +163,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     {
         const GPWTolerances& b=itsLat->Tolerances();
         if (b.screenEps!=itsTol.screenEps || b.fieldSharp!=itsTol.fieldSharp || b.relCutoff!=itsTol.relCutoff || b.densityEps!=itsTol.densityEps
-         || b.relCutoffSafety!=itsTol.relCutoffSafety)
+         || b.relCutoffSafety!=itsTol.relCutoffSafety || b.pairRoutingEps!=itsTol.pairRoutingEps)
             throw std::invalid_argument("GPW_Evaluator: the molecular basis was built with pair-loop tolerances "+b.Describe()+" but the run asks "
                                         +itsTol.Describe()+" -- build the basis through a GaussianBasisRecipe (it binds the run's), not pre-built");
     }
@@ -179,12 +179,8 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     // typed raster option (GPWParams::raster / SolidCalcOptions::raster) and could disagree with it on the banner;
     // removed, D-ENV.  State the policy in the options.)
 
-    // HartreeOnly routing beta: the LADDER's (it sizes the levels by it).  MEASURED
-    // (NaF SR2 Becke, 2026-07-31): beta=0 (pure pair-bandwidth) DIVERGES (+904 Ha, low-G slosh) -- an
-    // under-resolved diffuse pair's FFT folds high-G back into the kept ball, corrupting rho-tilde's low-G
-    // (the charge-transfer mode), so the 2/3*alpha_max floor was protecting the DENSITY too, not only
-    // V_xc.  The HartreeOnly floor is therefore a FRACTION of alpha_max, GPWTolerances::relFieldSharp
-    // (the calibration instrument; pin by convergence + rho_lost/N, not wall-clock).
+    // HartreeOnly routing beta: the LADDER's (it sizes the levels by it); GPWTolerances::relFieldSharp, 0 by default since the absolute
+    // pair bound (PairRoutingEcut) explained the July 2026 beta = 0 divergence -- the record is at relFieldSharp.
     itsRelFieldSharp=itsLadder->RelFieldSharp();
     itsMaxReach=std::sqrt(-std::log(1e-10)/itsLat->MinExponent());
     itsCellCtr =cell.ToCartesian(rvec3_t(0.5,0.5,0.5));

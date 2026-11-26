@@ -883,6 +883,32 @@ void ExpectTheFoldedPoissonIsTheFullOne(const qcMesh::FoldedMesh& q, const qcMes
     for (size_t o=0;o<rep.size();o++) Eo+=Qo[o]*vo[o];
     EXPECT_NEAR(Eo, Ef, 1e-12*std::abs(Ef)) << "the self-repulsion on the representatives is the full mesh's";
 
+    // Phase B: the radial Poisson's own route on the representatives builds no full-mesh vector, and is the one MakeFoldedCoulomb takes.
+    const auto R=K->MakeOnRepresentatives(q);
+    ASSERT_TRUE(R) << "the molecular fold carries a site action, so the radial Poisson has its own route on the representatives";
+    const rvec_t vr=R->Potential(Qo);
+    double dr=0.0;
+    for (size_t o=0;o<rep.size();o++) dr=std::max(dr, std::abs(vr[o]-vrep[o]));
+    std::printf("[folded Poisson] %s: on the representatives max|v - v_full| %.3e\n", name, dr);
+    EXPECT_LT(dr, 1e-12*vmax) << "the representatives' route answers the full operator's potential";
+    // Its pieces: the representatives' moments, group-averaged, are the full mesh's (and so is the transposed synthesis).
+    {
+        const qcMesh::SiteMultipoles::ChannelAction act=sites->MakeChannelAction(q.GetSiteAction().W, q.GetSiteAction().image);
+        auto Mo=sites->MomentsAt(rep,Qo);            sites->SymmetrizeChannels(Mo,act);
+        auto So=sites->SynthesizeAdjointAt(rep,Qo);  sites->SymmetrizeChannels(So,act);
+        const auto Mf=sites->Moments(qf), Sf=sites->SynthesizeAdjoint(qf);
+        double mmax=0.0, dm=0.0, smax=0.0, ds=0.0;
+        for (size_t a=0;a<Mf.size();a++)
+            for (size_t c=0;c<Mf[a].size();c++)
+            {
+                mmax=std::max(mmax,std::abs(Mf[a][c])); dm=std::max(dm,std::abs(Mo[a][c]-Mf[a][c]));
+                smax=std::max(smax,std::abs(Sf[a][c])); ds=std::max(ds,std::abs(So[a][c]-Sf[a][c]));
+            }
+        std::printf("[folded Poisson] %s: moments %.3e of %.3e, transposed synthesis %.3e of %.3e\n", name, dm, mmax, ds, smax);
+        EXPECT_LT(dm, 1e-12*mmax);
+        EXPECT_LT(ds, 1e-12*smax);
+    }
+
     ASSERT_TRUE(F->CanPullbackSelfRepulsion());
     const rvec3vec_t gf=K->MakeSelfRepulsionPullback(qf), go=F->MakeSelfRepulsionPullback(Qo);
     double gmax=0.0, dg=0.0;

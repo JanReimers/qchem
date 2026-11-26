@@ -57,7 +57,10 @@ TEST(GPW_Li, k444_Becke_Imp_Smear_ThreadedRunIsReproducibleAndMatchesSerial_Long
     const double e8a=RunAt(8, "8a"), e8b=RunAt(8, "8b"), e1=RunAt(1, "1");
     EXPECT_EQ(e8a, e8b) << "two runs at the SAME thread count must be bit-identical";
     EXPECT_NEAR(e8a, e1, 1e-8) << "threaded vs serial: only the partition's rounding (row 160) may separate them";
-    EXPECT_NEAR(e1, -0.2520403163, 1e-8) << "the serial bcc Li q1 k444 state (lane H's serial run reads the same)";
+    // RE-JUDGED 2026-11-24 (lane A, the absolute pair routing): -0.2520403163 -> -0.2520400975 (+219 nHa; the thread figures above predate it).
+    // Pin 10: eps 1e-12 gives -0.2520400975, every pair on the finest level -0.2520400974 -- the old value carried the relative rule's
+    // routing error (~/Code/qchem6-runs/anchors/lane-a-pin10).
+    EXPECT_NEAR(e1, -0.2520400975, 1e-8) << "the serial bcc Li q1 k444 state, routing-converged";
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------

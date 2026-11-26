@@ -192,6 +192,11 @@ struct SolidSetup : Setup
     //! of the decision; there is no user knob (\c forceComplex retired 2026-11-19).  A test comparing real against complex on purpose sets
     //! it on a COPY of a resolved setup (tests may cheat).
     bool realTRIMBlocks = true;
+    //! \brief WHICH FIELDS THE GPW RASTER SERVES, decided ONCE from the resolved XC route (policy RasterRouting, lane A 2026-11-24): a Becke
+    //! mesh with the delta XC fit samples V_xc at its own points, so the raster carries V_H alone (\c HartreeOnly: pairs route on their own
+    //! bound, no field floor); every other route gathers V_xc through the raster (\c HartreeXC: the V_xc core floor seats every pair on the
+    //! reference or finer).  Every \c GPWParams the facade builds reads THIS, so a reference or audit ladder routes as the run does.
+    BasisSet::PlaneWave::RasterFields rasterFields = BasisSet::PlaneWave::RasterFields::HartreeXC;
     std::vector<int> decoration;   //!< \c spins, or all zeros: the per-site spins the run was built with (the +U site groups read it)
     //! \brief THE GROUP A GEOMETRY STEP MUST KEEP, read at \a at: the space group detected there (\c GetSpaceGroup's \f$\{W|\tau\}\f$, or
     //! the Shubnikov group under \c spins) when the setup is \c imposed, P1 (the identity alone) when it is free.  ONE rule for its two

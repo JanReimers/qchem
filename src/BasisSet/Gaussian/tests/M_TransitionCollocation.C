@@ -315,7 +315,9 @@ TEST(GPWTolerances, DefaultsAreTodaysBehaviourAndTheRetiredEnvironmentIsIgnoredA
     EXPECT_EQ(Accuracy(1e-5).VlocEps(), 1e-5/10.0) << "the default is bit-identical to the old eps/10";
     EXPECT_DOUBLE_EQ((Accuracy(1e-5, 2.0)).VlocEps(), 5e-6) << "a non-default calibration reaches VlocEps";
     EXPECT_EQ(t.localPPRelCutoff, 30.0);
-    EXPECT_NEAR(t.relFieldSharp, 1.0/3.0, 1e-15);
+    EXPECT_EQ(t.relFieldSharp, 0.0) << "no beta floor under the pair routing (2026-11-24): the absolute bound replaces it";
+    EXPECT_EQ(t.pairRoutingEps, kPairRoutingEps) << "the pair routing's named calibration";
+    EXPECT_DOUBLE_EQ(PairRoutingEcut(1.0, 1e-7), 2.0*std::log(1e7)) << "the rigorous bound: ecut >= 2 p ln(1/eps)";
     EXPECT_TRUE(t.mgridEcuts.empty());
     EXPECT_EQ(t.screenEps, 1e-10);  EXPECT_EQ(t.densityEps, 1e-10);  EXPECT_EQ(t.relCutoff, 0.0);
     EXPECT_NEAR(t.fieldSharp, 2.0/3.0, 1e-15);

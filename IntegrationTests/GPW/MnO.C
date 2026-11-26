@@ -571,7 +571,13 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long)
     // same recipe on the UNIFORM XC mesh (the pilot settles its rasters, 180 s) gives -61.3031847082 -- 0.42 uHa from the new value,
     // 70.7 uHa from the old.  The twin stands: the SAD anchor on the same code lands on -61.3031842858 (14 + 4 iterations), 1e-10 away.
     // ~/Code/qchem6-runs/MnO/laneB_eqsad_pin10.
-    EXPECT_NEAR(R->Energy(), -61.3031842859, 1e-7) << "the SAD anchor's state (measured 2026-11-02, re-judged 2026-11-10, 2026-11-22, 2026-11-24)";
+    // RE-JUDGED 2026-11-25 (lane A's absolute pair routing merged onto lane B's mesh): -61.3031842859 -> -61.3031871333 (-2.85 uHa).
+    // Pin 10: the routing alone moved this anchor -2.84 uHa on the (40,L29) mesh, confirmed there by two independent routes (eps 1e-12:
+    // 4 nHa; every pair on the finest level: 4 nHa); lane B's mesh move was confirmed on the uniform mesh (0.42 uHa).  The two moves add
+    // to 0.01 uHa, so neither interacts with the other.  The run itself shows it: it converges on (40,L29) to -61.3031168554, this
+    // lane's routing anchor to the last digit (15 iterations), and the energy pilot's (80,L35) re-convergence lands here (5 iterations).
+    // ~/Code/qchem6-runs/anchors/lane-a-pin10/v4_eqsad.log.
+    EXPECT_NEAR(R->Energy(), -61.3031871333, 1e-7) << "the SAD anchor's state (measured 2026-11-02, re-judged 2026-11-10, 2026-11-22, 2026-11-24, 2026-11-25)";
     ASSERT_FALSE(trace.rows.empty());
     EXPECT_GT(std::abs(trace.rows.back().order), 4.0) << "the AFM order survives the ionic seed (measured 4.459, = SAD's)";
 }
@@ -757,14 +763,32 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_Saved_CP2K_Long)   // ~5.5 min serial: ~150 s 
 //          288      AFM -61.303094578   FM -61.304378547          -1.28397
 //          576      AFM -61.303059698   FM -61.304350139          -1.29044
 // THE TOLERANCE is the oracle's own, from its settings: the last cutoff step of FM-AFM (288 -> 576 Ry, 6.47 uHa) plus its REL_CUTOFF
-// sensitivity (60 -> 120 at 288 Ry moved AFM by 7.05 uHa).  Our side runs at accuracy 1e-6 (at the default 1e-5 the raster pilot's
-// per-term budget, 4e-5 Ha, is larger than the tolerance).  OUR OWN ERROR, as the run reports it: every grid the pilot sizes meets its
-// 4e-6 Ha, but the pilot ends NOT SETTLED on the uniform XC mesh's "beside the ball" audit (OpenWork §3, no pilot knob cures it):
-// AFM 6.147 uHa, FM 6.213 uHa against twice the ball.  The two arms agree to 0.07 uHa, so the difference should cancel almost all of it;
-// if it did not, the sum (12.4 uHa) would sit just inside the tolerance.  Stated here, not folded into kOracleTol.
-// MEASURED 2026-11-24 (this test, and rundeck on the same recipe, to all printed digits): AFM -61.30305505, FM -61.30434128,
-// FM-AFM -1.28624 mHa, 4.2 uHa from the oracle.
-// LONG: two cold arms, ~7 min each at 4 threads.
+// sensitivity (60 -> 120 at 288 Ry moved AFM by 7.05 uHa).  Our side's grids are STATED and AUDITED below against the per-term
+// share of accuracy 1e-6 (4e-6 Ha; at the default 1e-5 the share, 4e-5 Ha, is larger than the tolerance).  OUR OWN ERROR is that audit,
+// stated here, not folded into kOracleTol.
+// MEASURED 2026-11-24, piloted, before the absolute routing: AFM -61.30305505, FM -61.30434128, FM-AFM -1.28624 mHa, 4.2 uHa from the
+// oracle.  2026-11-25, piloted, absolute routing: AFM -61.3030528, FM -61.30433868, FM-AFM -1.285883 mHa, 4.6 uHa.
+// LONG: two cold arms, 2051 s in all (serial, as under ctest, on a loaded box; the TIMEOUT is 3600 s).
+//
+// THE GRIDS ARE STATED (controller ruling 2026-11-25): a stated, AUDITED grid, not the raster pilot's endpoint, so this gate tests code
+// against CP2K and not the pilot's climb.  cutoffFactor 4, density raster x 14.063 (75^3) in both arms, vlocEps 1e-7, accuracy 0 (no
+// pilot).  THE AUDIT at this grid (2026-11-25; raster terms by SolidCalculation::GridAudit against x+8 = 23.11, the ball by the pilot
+// against twice the cf-4 ball), each term against its 4e-6 Ha share:
+//   term                     AFM-II      FM          form
+//   XC (Exc)                 1.33e-6     1.29e-6     MEASURED only: no rigorous value or calibration yet
+//   Eee raster               5.5e-11     1.8e-10     rigorous bound 3.3e-4 x calibration eta ~1e-8
+//   Een+E_alphaZ raster      2.3e-11     2.2e-11     rigorous bound 2.2e-3 x calibration eta 2.1e-2
+//   Eee tail (ball)          1.9e-9      5.4e-10     tail estimate against twice the ball
+//   density / V_long alias   2.7e-7      2.7e-7      MEASURED only
+// CAVEAT: the pilot's "beside the ball" Exc line read 5.1e-6 (AFM) / 5.5e-6 (FM), over the share, at x 11.94; at the stated x 14.06
+// the measured XC is 1.3e-6 (above).  FM-AFM at this grid -1.286359 mHa, 4.1 uHa from the oracle; 2051 s alone, serial, on a loaded
+// box (load ~21).  The pilot (accuracy 1e-6) settles on cutoffFactor 2 / x 19.0 instead (92^3, 2864 s stated, 4734 s piloted against
+// a 3600 s TIMEOUT): it buys XC accuracy with the raster where a bigger ball is cheaper.  That is a cost lever, not this gate's claim:
+// OpenWork §3 "The raster pilot never weighs a bigger ball against a finer raster".
+constexpr double kAFM_RasterX=14.063046183074869;   //!< AFM-II arm's stated density raster x (cutoffFactor 4)
+constexpr double kFM_RasterX =14.063046183074869;   //!< FM arm: the same raster (cutoffFactor 4)
+constexpr double kStatedCutoffFactor=4.0;
+constexpr double kStatedVlocEps=1e-7;
 constexpr double CP2K_VA_FMminusAFM=-61.304350138705786-(-61.303059697631376);   //!< CUTOFF 576 Ry
 constexpr double kOracleCutoffStep=6.47e-6;   //!< |FM-AFM(576) - FM-AFM(288)|
 constexpr double kOracleRelCutoff =7.05e-6;   //!< AFM at 288 Ry, REL_CUTOFF 60 vs 120
@@ -786,7 +810,10 @@ TEST(GPW_MnO, Γ_Uni_Shub_Pol_Smear_CP2K_Long)
         auto [o,par]=CP2KPlusURecipe(mno, 0.0, label);   // the +U gate's U = 0 recipe: CP2K's loop shape, imposed, kT 5e-3
         if (ferro) { o.multiplicity=11; o.spins={+1,+1,0,0}; }
         SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;   // CP2K's XC quadrature (see the header)
-        o.accuracy.eps=1e-6;                                    // inside the oracle's tolerance (see the header)
+        o.accuracy.eps=0.0;                                     // grids STATED and audited (see the header)
+        o.solid.cutoffFactor=kStatedCutoffFactor;
+        o.solid.tolerances.rasterX=ferro ? kFM_RasterX : kAFM_RasterX;
+        o.solid.tolerances.vlocEps=kStatedVlocEps;
         Trace trace;
         GpwReport report("MnO "+o.label, par.Verbose);
         o.scf=par;

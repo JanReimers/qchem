@@ -162,6 +162,8 @@ StateFingerprint MigrateSolidFingerprint(StateFingerprint s, const StateFingerpr
     // The pair rule's stiffness (V-BS-RASTER step 2, 2026-11-07): before it was a tolerance it was the evaluator's constant, the default.
     if (!s.warmNum.count("gpw.relCutoffSafety") && now.warmNum.count("gpw.relCutoffSafety"))
         s.warmNum["gpw.relCutoffSafety"]={BasisSet::Gaussian::kRelCutoffSafety};
+    // The pair routing tolerance (2026-11-24) gets NO stand-in: a state that records none was routed by the old relative rule, a different
+    // pair->level map, so it differs and resumes WARM -- the honest class.
     // The raster demands (C2 step 3, 2026-10-31): a state written before them sampled on a NAMED raster.  The ball's own raster has
     // every demand 0; the retired AliasFree has no demand equivalent, so its keys stay absent and differ (warm).
     // The accuracy target itself moves no state (the demands it derives do): an older state takes the run's.

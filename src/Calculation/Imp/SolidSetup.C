@@ -594,6 +594,21 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
         const bool becke=s->xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
         const VxcFit fit= opts.vxcFit==VxcFit::Auto ? (becke ? VxcFit::Delta : VxcFit::PlaneWave) : opts.vxcFit;
         ReportSolidXCRho(fit, opts.xcRho, s->planeWave, becke);
+        // THE RASTER'S FIELDS (policy RasterRouting): which terms the GPW raster gathers decides the pair routing's field floor.
+        if (!s->planeWave)
+        {
+            using BasisSet::PlaneWave::RasterFields;
+            const bool hartreeOnly = becke && fit==VxcFit::Delta;
+            s->rasterFields = hartreeOnly ? RasterFields::HartreeOnly : RasterFields::HartreeXC;
+            if (hartreeOnly)
+                policy::Report("RasterRouting", "the GPW raster serves V_H only: every pair routes on its own bound, 2 p ln(1/eps)",
+                               policy::Verdict::Choose, "V_xc is sampled on the Becke points through the delta fit, so no field on the raster "
+                               "is sharper than the pair itself (V_H(G) ~ rho(G)/G^2)");
+            else
+                policy::Report("RasterRouting", "the GPW raster serves V_H + V_xc: the V_xc core floor seats every pair on the reference grid or finer",
+                               policy::Verdict::Choose, "V_xc ~ rho^{1/3} is gathered through the raster, and its core sharpness ~ (2/3) alpha_max "
+                               "outruns a diffuse pair's own bandwidth");
+        }
     }
 
     // DECISION 2 -- the spin bookkeeping.  multiplicity -> (nUp,nDown), with the parity check that catches
@@ -656,7 +671,8 @@ std::unique_ptr<BasisSet::Lattice::ShellConditioning> SolidSetup::MakeShellCondi
 {
     const GaussianBasisRecipe bare=Untrimmed(recipe, planeWave, "SolidSetup::MakeShellConditioning");
     return std::make_unique<BasisSet::Lattice::ShellConditioning>(lattice, MakeMeshMaker(lattice.GetUnitCell()), bare.Make(*structure, *pp),
-                                                                  BasisSet::Lattice::GPWParams{.images=opts.solid.images, .kShift=opts.solid.kShift, .tol=bare.tolerances,
+                                                                  BasisSet::Lattice::GPWParams{.images=opts.solid.images, .kShift=opts.solid.kShift, .rasterFields=rasterFields,
+                                                                                              .tol=bare.tolerances,
                                                                                               .dAwareScreen=policy.DAwareScreen(), .streamFold=policy.StreamFold()});
 }
 
