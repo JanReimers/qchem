@@ -135,6 +135,7 @@ const auto kOrbitalTables = NAMES(policy::XCOrbitalTables, {"auto",policy::XCOrb
 const auto kAngularForm = NAMES(BasisSet::Gaussian::Angular, {"cartesian",BasisSet::Gaussian::Angular::Cartesian}, {"spherical",BasisSet::Gaussian::Angular::Spherical});
 const auto kFamily = NAMES(RunOptions::Solid::OrbitalBasis, {"gaussian",RunOptions::Solid::OrbitalBasis::GPW}, {"planeWave",RunOptions::Solid::OrbitalBasis::PlaneWave});
 const auto kCoulFit= NAMES(Hamiltonian::CoulombFit, {"Auto",Hamiltonian::CoulombFit::Auto}, {"Auxiliary",Hamiltonian::CoulombFit::Auxiliary}, {"Delta",Hamiltonian::CoulombFit::Delta}, {"Multipole",Hamiltonian::CoulombFit::Multipole});
+const auto kHartreeRoute= NAMES(Hamiltonian::HartreeRoute, {"Fit",Hamiltonian::HartreeRoute::Fit}, {"Exact",Hamiltonian::HartreeRoute::Exact});
 const auto kCoulSolver= NAMES(Hamiltonian::CoulombSolver, {"Auto",Hamiltonian::CoulombSolver::Auto}, {"RadialPoisson",Hamiltonian::CoulombSolver::RadialPoisson}, {"DirectSum",Hamiltonian::CoulombSolver::DirectSum}, {"Analytic",Hamiltonian::CoulombSolver::Analytic});
 const auto kCoulMetric= NAMES(Hamiltonian::CoulombMetric, {"Auto",Hamiltonian::CoulombMetric::Auto}, {"Coulomb",Hamiltonian::CoulombMetric::Coulomb}, {"Overlap",Hamiltonian::CoulombMetric::Overlap});
 const auto kCoulConstraint= NAMES(Hamiltonian::ChargeConstraint, {"Auto",Hamiltonian::ChargeConstraint::Auto}, {"Charge",Hamiltonian::ChargeConstraint::Charge}, {"None",Hamiltonian::ChargeConstraint::None});
@@ -720,7 +721,7 @@ void ReadRunOptions(Fields& f, const json& j, RunOptions& o)
     f.Get("xalpha",o.xalpha); f.Get("symmetryTol",o.symmetryTol);   // a molecule's (and the atom's xalpha); a solid refuses them (ForeignOption)
     if (j.contains("coulomb"))   // the Hartree route (a molecule's; an atom refuses auxBasis, a solid any of it -- ForeignOption)
     {
-        Fields cf(f.At("coulomb"),"coulomb"); cf.GetEnum("fit",o.coulomb.fit,kCoulFit); cf.Get("auxBasis",o.coulomb.auxBasis); cf.GetEnum("solver",o.coulomb.solver,kCoulSolver);
+        Fields cf(f.At("coulomb"),"coulomb"); cf.GetEnum("route",o.coulomb.route,kHartreeRoute); cf.GetEnum("fit",o.coulomb.fit,kCoulFit); cf.Get("auxBasis",o.coulomb.auxBasis); cf.GetEnum("solver",o.coulomb.solver,kCoulSolver);
         cf.GetEnum("metric",o.coulomb.metric,kCoulMetric); cf.GetEnum("constraint",o.coulomb.constraint,kCoulConstraint); cf.Done();   // V-FIT-AXES
     }
     else f.At("coulomb");
@@ -979,7 +980,7 @@ static json NonPeriodicJson(const RunOptions& o, RunKind kind)
     {
         json species=json::array();
         for (const auto& s : o.species) species.push_back({s.first,s.second});
-        j["coulomb"]={{"fit",NameOf(o.coulomb.fit,kCoulFit)},{"auxBasis",o.coulomb.auxBasis},{"solver",NameOf(o.coulomb.solver,kCoulSolver)},
+        j["coulomb"]={{"route",NameOf(o.coulomb.route,kHartreeRoute)},{"fit",NameOf(o.coulomb.fit,kCoulFit)},{"auxBasis",o.coulomb.auxBasis},{"solver",NameOf(o.coulomb.solver,kCoulSolver)},
                      {"metric",NameOf(o.coulomb.metric,kCoulMetric)},{"constraint",NameOf(o.coulomb.constraint,kCoulConstraint)}};
         j.update({{"multiplicity",o.multiplicity},{"pp",o.pp.value_or(std::string())},{"species",species},
                   {"imposeSymmetry",o.imposeSymmetry},{"symmetryTol",o.symmetryTol},{"label",o.label},{"saveStateTo",o.saveStateTo}});

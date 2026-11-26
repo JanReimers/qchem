@@ -67,17 +67,28 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
 {
     using CF=Hamiltonian::CoulombFit;
     const std::string stated=c.auxBasis;
+    // HARTREE-FOCK (V-HAM-COMPOSE step 2, controller ruling 2026-11-25): its J is the exact four-centre one unless a Gaussian fit is stated,
+    // which makes the run RI-J HF (a fitted J, the exchange exact) and resolves as a density model's Auxiliary fit does below.
+    const bool gaussianFitStated=c.fit==CF::Auxiliary || !stated.empty()
+                              || c.metric!=Hamiltonian::CoulombMetric::Auto || c.constraint!=Hamiltonian::ChargeConstraint::Auto;
     if (!densityModel)
     {
-        if (!stated.empty())
-            policy::Refuse("CoulombAuxBasisUnused", "coulomb.auxBasis \""+stated+"\" on a Hartree-Fock run",
-                           "HF builds J from the exact 4-centre integrals and reads no Coulomb fit basis -- drop coulomb.auxBasis");
-        if (c.metric!=Hamiltonian::CoulombMetric::Auto || c.constraint!=Hamiltonian::ChargeConstraint::Auto)
-            policy::Refuse("CoulombFitAxesUnused", "coulomb.metric / coulomb.constraint stated on a Hartree-Fock run",
-                           "HF builds J from the exact 4-centre integrals and fits nothing -- drop coulomb.metric and coulomb.constraint");
         if (c.solver!=Hamiltonian::CoulombSolver::Auto)
             policy::Refuse("CoulombSolverUnused", "coulomb.solver stated on a Hartree-Fock run",
-                           "HF builds J from the exact 4-centre integrals and solves for no potential -- drop coulomb.solver");
+                           "the solvers are the δ route's, which an HF run does not take -- drop coulomb.solver (state coulomb.fit Auxiliary for RI-J HF)");
+        if (c.route!=Hamiltonian::HartreeRoute::Fit)
+            policy::Refuse("CoulombRouteUnused", "coulomb.route stated on a Hartree-Fock run",
+                           "HF's J is already the exact four-centre one; the key chooses a density model's Hartree -- drop coulomb.route");
+        if (c.fit==CF::Delta || c.fit==CF::Multipole)
+            policy::Refuse("CoulombRouteForHF", std::string("coulomb.fit ")+(c.fit==CF::Delta ? "Delta" : "Multipole")+" on a Hartree-Fock run",
+                           "that route puts rho on the XC mesh, and an HF run sizes no mesh -- state coulomb.fit Auxiliary for RI-J HF, or drop coulomb.fit "
+                           "for the exact J");
+        if (!gaussianFitStated) { c.route=Hamiltonian::HartreeRoute::Exact; return; }   // the model's own J: no choice was made, nothing to report
+    }
+    if (c.route==Hamiltonian::HartreeRoute::Exact)   // AdmitCoulomb refused every fit key beside it; the cost row is MoleculeCalculation's (ExactCoulomb)
+    {
+        policy::Report("CoulombFit", "the Hartree term: exact-J DFT (the four-centre J), as stated", policy::Verdict::Choose,
+                       "coulomb.route Exact: HF's J in the density model, no fit, the accuracy oracle of the fitted routes (Q2)");
         return;
     }
     if (c.fit==CF::Delta || c.fit==CF::Multipole)
@@ -135,9 +146,11 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
         policy::Refuse("CoulombAuxBasisCoverage", "Coulomb fit basis "+c.auxBasis+" has no block for "+missing,
                        std::string(stated.empty() ? "neither A2 nor A1 (H-Te) covers this structure" : "the stated fit does not cover this structure")
                        +" -- state coulomb.fit Delta (rho on the XC mesh, every element), or a fit file that covers it");
-    if (!stated.empty() && fitStated) return;   // fit and file stated: as asked, nothing decided (unstated axes are the long-standing Dunlap default)
+    // RI-J HF always reports its row, so the literature name is on every such run (controller ruling 2026-11-25).
+    const std::string hfName=densityModel ? "" : "RI-J HF (a fitted J, the exchange exact): ";
+    if (!stated.empty() && fitStated && densityModel) return;   // fit and file stated: as asked, nothing decided (unstated axes are the long-standing Dunlap default)
     const std::string route = fitStated ? "" : (stated.empty() ? "a stated fit axis implies the Auxiliary route; " : "coulomb.auxBasis stated: its route is the Auxiliary fit; ");
-    policy::Report("CoulombFit", "the Hartree term: a Gaussian density fit on "+c.auxBasis+axes, policy::Verdict::Choose,
+    policy::Report("CoulombFit", hfName+"the Hartree term: a Gaussian density fit on "+c.auxBasis+axes, policy::Verdict::Choose,
                    route+(stated.empty()
                      ? "no fit file stated: the fastest-good fit, DGauss A2 (user ruling 2026-11-22)"
                        +(fallbackWhy.empty() ? std::string() : " -- "+fallbackWhy)+"; its residual is checked against eps (CoulombFitResidual)"

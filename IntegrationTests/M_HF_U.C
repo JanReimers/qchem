@@ -90,3 +90,30 @@ TEST(M_HF_U, WaterSpherical)
     EXPECT_LT(E_sph - E_cart, 0.05);           // ... but only slightly (the contaminant is a minor fn)
     EXPECT_LT(fabs(RelativeError(E_sph, -76.020277)), 1e-5);  // regression anchor (just above E_cart)
 }
+
+// RI-J HF (V-HAM-COMPOSE step 2; controller ruling 2026-11-25: gated against Ham_HF at fixed D): a stated Gaussian fit makes HF's J a fitted
+// one while the exchange stays exact.  At the exact-J run's converged D, the audit rebuilds the Hamiltonian on the RI-J route and THROWS if any
+// term but the Hartree moves (so K is identical), and the Hartree moves by the Dunlap fit's error: second order and one-signed, J_fit <= J.
+// Then the RI-J run converges on its own, and lands within the fit's error of the exact one.
+TEST(M_HF_U, Water_RIJ_eqExactJAtFixedD)
+{
+    using CF=Hamiltonian::CoulombFit;
+    auto exact=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.molecule={.basis="dzvp"}})).TakeValue();
+    (void)exact->Converge();
+    ASSERT_TRUE(exact->Result());
+    const auto self=exact->CoulombAudit({.route=Hamiltonian::HartreeRoute::Exact});
+    EXPECT_EQ(self.ΔE_H, 0.0) << "the exact-J run against its own route";
+    EXPECT_EQ(self.maxAbsΔJ, 0.0);
+    const auto rij=exact->CoulombAudit({.fit=CF::Auxiliary, .auxBasis="A2_coul"});   // throws if K (or any other term) moved
+    EXPECT_GT(rij.ΔE_H, 0.0) << "Dunlap: the fitted J is below the exact one at the same D";
+    EXPECT_LT(rij.ΔE_H, 5e-3);
+    EXPECT_LT(rij.maxAbsΔJ, 1e-2);
+    EXPECT_THROW(exact->CoulombAudit({.fit=CF::Delta}), std::invalid_argument) << "an HF run sizes no mesh for a δ reference";
+
+    auto fitted=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
+                                                                    {.coulomb={.fit=CF::Auxiliary}, .molecule={.basis="dzvp"}})).TakeValue();
+    (void)fitted->Converge();
+    ASSERT_TRUE(fitted->Result());
+    EXPECT_LT(fitted->Energy(), exact->Energy()) << "the fitted J is variationally low";
+    EXPECT_LT(exact->Energy()-fitted->Energy(), 5e-3) << "within the fit's own error";
+}

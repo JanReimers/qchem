@@ -103,9 +103,17 @@ enum class CoulombSolver {Auto, RadialPoisson, DirectSum, Analytic};
 enum class CoulombMetric    {Auto, Coulomb, Overlap};
 enum class ChargeConstraint {Auto, Charge, None};
 
+//! \brief WHAT the Hartree term IS (lane S 2026-11-25, the Q2 accuracy oracle; controller ruling the same day: "Exact J is not a fit"):
+//!  - \c Fit: \f$\rho\f$ through a representation, \c CoulombFit and the axes below choose which.
+//!  - \c Exact: the four-centre \f$J_{ij}=\sum_{kl}(ij|kl)D_{kl}\f$, HF's own Coulomb term in the density model's Hamiltonian.  No fit basis,
+//!    mesh, solver, metric or constraint: a stated one is refused by name (\c AdmitCoulomb).  Finite structures only (no lattice sum).  Never a
+//!    default: its ERI4 tensor is WARNED on every use with its predicted RAM, and refused on resources past the budget (policy ExactCoulomb).
+enum class HartreeRoute {Fit, Exact};
+
 //! \brief The whole Hartree choice, one value through the factories.
 struct CoulombRoute
 {
+    HartreeRoute  route  = HartreeRoute::Fit;
     CoulombFit    fit    = CoulombFit::Auto;
     CoulombSolver solver = CoulombSolver::Auto;
     CoulombMetric    metric     = CoulombMetric::Auto;      //!< the Gaussian fit's metric (V-FIT-AXES)

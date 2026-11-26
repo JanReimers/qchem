@@ -41,7 +41,7 @@ TEST(ERI4MemoryPolicy, TheVerdictReadsTheRangesEnds)
 namespace
 {
 //! The ERI4Memory rows of the current run report.
-std::vector<report::json> ERI4Rows()
+std::vector<report::json> ERI4Rows(const std::string& name="ERI4Memory")
 {
     std::vector<report::json> rows;
     std::function<void(const report::json&)> walk=[&](const report::json& j)
@@ -50,7 +50,7 @@ std::vector<report::json> ERI4Rows()
             for (auto it=j.begin(); it!=j.end(); ++it)
             {
                 if (it.key()=="policy" && it.value().is_array())
-                    for (const auto& r : it.value()) if (r.value("name",std::string())=="ERI4Memory") rows.push_back(r);
+                    for (const auto& r : it.value()) if (r.value("name",std::string())==name) rows.push_back(r);
                 walk(it.value());
             }
         else if (j.is_array()) for (const auto& e : j) walk(e);
@@ -78,4 +78,23 @@ TEST(ERI4MemoryPolicy, TheDoorIsSilentWarnsOrRefuses)
     ASSERT_EQ(rows.size(), 2u);
     EXPECT_EQ(rows[1]["verdict"], "resource");
     EXPECT_NE(rows[1]["reason"].get<std::string>().find("available"), std::string::npos) << "the refusal prints the memory available";
+}
+
+// THE EXACT-J DOOR (policy ExactCoulomb, lane S 2026-11-25): a density model's four-centre J holds the Direct tensor alone, half HF's count,
+// and files a row on EVERY use -- a warn even when it fits comfortably (it is an oracle, never a default) -- or refuses on resources.
+TEST(ERI4MemoryPolicy, ExactJHoldsTheDirectTensorAndWarnsOnEveryUse)
+{
+    const std::vector<size_t> blocks{10,10};
+    EXPECT_EQ(policy::CountERI4Bytes(blocks, policy::ERI4Tensors::DirectOnly), 0.5*policy::CountERI4Bytes(blocks)) << "J alone: Direct, no Exchange";
+    const auto b=policy::PredictERI4Bytes(blocks, policy::ERI4Tensors::DirectOnly);
+    report::Run run("ExactCoulomb");
+    policy::ExactCoulomb(blocks, "test", AvailableMemory{.bytes=1e6*b.high, .source="stated"});
+    auto rows=ERI4Rows("ExactCoulomb");
+    ASSERT_EQ(rows.size(), 1u) << "a comfortable fit still files its row";
+    EXPECT_EQ(rows[0]["verdict"], "warn");
+    EXPECT_EQ(rows[0]["detail"]["lowBytes"].get<double>(), b.low);
+    EXPECT_THROW(policy::ExactCoulomb(blocks, "test", AvailableMemory{.bytes=0.5*b.low, .source="stated"}), std::runtime_error);
+    rows=ERI4Rows("ExactCoulomb");
+    ASSERT_EQ(rows.size(), 2u);
+    EXPECT_EQ(rows[1]["verdict"], "resource");
 }

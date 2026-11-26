@@ -28,13 +28,16 @@ export namespace qchem::policy
 //! the outer adaptor keeps ONE value per unordered pair (blaze's non-scalar SymmetricMatrix shares (a,b) and (b,a)), each a full
 //! \f$n_j\times n_j\f$ (blaze's scalar SymmetricMatrix stores the whole square), so \f$\frac{n_i(n_i+1)}{2}\,n_j^2\f$ doubles.  Only the
 //! canonical orientation i <= j is stored (S3a), and a run that needs ERI4 builds both Direct and Exchange.
-inline double CountERI4Bytes(const std::vector<size_t>& blockSizes)
+//! Which tensors a run builds: HF / DHF both; a density model's exact J (coulomb.route Exact, \c Vee_HF alone) the Direct one only.
+enum class ERI4Tensors { DirectAndExchange, DirectOnly };
+inline double TensorCount(ERI4Tensors t) {return t==ERI4Tensors::DirectAndExchange ? 2.0 : 1.0;}
+inline double CountERI4Bytes(const std::vector<size_t>& blockSizes, ERI4Tensors tensors=ERI4Tensors::DirectAndExchange)
 {
     double doubles=0.0;
     for (size_t i=0;i<blockSizes.size();i++)
         for (size_t j=i;j<blockSizes.size();j++)
             doubles+=0.5*double(blockSizes[i])*double(blockSizes[i]+1)*double(blockSizes[j])*double(blockSizes[j]);
-    return 2.0*doubles*sizeof(double);   // Direct + Exchange
+    return TensorCount(tensors)*doubles*sizeof(double);
 }
 
 //! \brief The prediction as a RANGE, as the audit footprint's admission line states one (controller ruling 2026-11-14).  \a low is the
@@ -45,15 +48,15 @@ struct ERI4Bytes {double low=0.0, estimate=0.0, high=0.0;};
 //! The allocator's rounding on top of the counted bytes: a bound, not a measurement (glibc malloc rounds to 16 B plus an 8 B header per
 //! block; on the n_j x n_j blocks of a real basis that is a few percent).  Named so the rigorous count and this allowance stay apart.
 inline constexpr double kERI4OverheadFactor=1.10;
-inline ERI4Bytes PredictERI4Bytes(const std::vector<size_t>& blockSizes)
+inline ERI4Bytes PredictERI4Bytes(const std::vector<size_t>& blockSizes, ERI4Tensors tensors=ERI4Tensors::DirectAndExchange)
 {
-    const double count=CountERI4Bytes(blockSizes);
+    const double count=CountERI4Bytes(blockSizes, tensors);
     double handles=0.0;
     for (size_t i=0;i<blockSizes.size();i++)
         for (size_t j=i;j<blockSizes.size();j++)
         {
             const double ni=double(blockSizes[i]);
-            handles+=2.0*(ni*ni*16.0 + 0.5*ni*(ni+1.0)*64.0);   // per tensor: a 16 B handle per outer element, a ~64 B header per stored matrix
+            handles+=TensorCount(tensors)*(ni*ni*16.0 + 0.5*ni*(ni+1.0)*64.0);   // per tensor: a 16 B handle per outer element, a ~64 B header per stored matrix
         }
     return {count, count+handles, (count+handles)*kERI4OverheadFactor};
 }
@@ -104,6 +107,38 @@ inline void ERI4Memory(const std::vector<size_t>& blockSizes, const std::string&
 inline void ERI4Memory(const std::vector<size_t>& blockSizes, const std::string& basisName)
 {
     ERI4Memory(blockSizes, basisName, QueryAvailableMemory());
+}
+
+//! \brief THE EXACT-J DOOR (policy ExactCoulomb; controller ruling 2026-11-25): a density model whose Hartree is the four-centre J (coulomb.route
+//! Exact) holds the Direct ERI4 tensor, which no fitted route needs -- the user's "why so much ram, why so long before SCF starts".  So it
+//! files a row on EVERY use: WARN AND RUN with the predicted RAM range (the Direct count above) and the number of distinct integrals the
+//! setup builds before the first iteration, or REFUSE ON RESOURCES (it throws) when even the low end cannot fit.  The build TIME is not
+//! predicted: no calibration of seconds per integral exists yet (the Q2 table measures it); the row says so rather than guess.
+inline void ExactCoulomb(const std::vector<size_t>& blockSizes, const std::string& basisName, const AvailableMemory& available)
+{
+    const ERI4Bytes b=PredictERI4Bytes(blockSizes, ERI4Tensors::DirectOnly);
+    const double GB=1024.0*1024.0*1024.0;
+    const double integrals=b.low/sizeof(double);
+    report::json detail={{"lowBytes", b.low}, {"estimateBytes", b.estimate}, {"highBytes", b.high}, {"availableBytes", available.bytes},
+                         {"availableSource", available.source}, {"blocks", blockSizes.size()}, {"integrals", integrals}};
+    const std::string what=std::format("exact four-centre J on basis '{}': its Direct ERI4 tensor holds {:.3g} integrals, {:.3f} GB to {:.3f} GB "
+                                       "(estimate {:.3f} GB), built before the first iteration, against {:.2f} GB available [{}]",
+                                       basisName, integrals, b.low/GB, b.high/GB, b.estimate/GB, available.bytes/GB, available.source);
+    if (JudgeERI4(b, available.bytes)==ERI4Verdict::Refuse)
+    {
+        std::cout << "[exact J] REFUSED ON RESOURCES: " << what << std::endl;
+        Report("ExactCoulomb", "refused: the exact-J ERI4 tensor cannot be held in RAM", Verdict::Resource,
+               what+" -- state coulomb.route Fit (the delta route is the default), a smaller basis, or impose symmetry", Cost{.memoryBytes=b.low}, detail);
+        throw std::runtime_error("REFUSED ON RESOURCES: "+what);
+    }
+    std::cout << "[exact J] WARNING (an oracle, not a production route): " << what << std::endl;
+    Report("ExactCoulomb", "the run holds the exact-J ERI4 tensor in RAM, as stated", Verdict::Warn,
+           what+"; no fitted Hartree route needs it, and the time to build it is not predicted (uncalibrated) -- coulomb.route Exact is the "
+           "fitted routes' accuracy oracle, never a default", Cost{.memoryBytes=b.estimate}, detail);
+}
+inline void ExactCoulomb(const std::vector<size_t>& blockSizes, const std::string& basisName)
+{
+    ExactCoulomb(blockSizes, basisName, QueryAvailableMemory());
 }
 
 } // namespace qchem::policy

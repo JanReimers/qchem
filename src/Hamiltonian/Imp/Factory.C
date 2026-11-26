@@ -10,6 +10,9 @@ module;
 #include <utility>
 module qchem.Hamiltonian.Factory;
 import qchem.Hamiltonian.Internal.Hamiltonians;
+import qchem.Hamiltonian.Internal.TermFactories;          // MolecularTermContext + XCChoice: the molecular ctors' inputs (V-HAM-COMPOSE step 2)
+import qchem.Pseudopotential.GTH_Potentials;              // the molecular PP model: GetGTH / the per-species routers
+import qchem.PeriodicTable;                               // the per-species nonlocal router's key
 import qchem.Hamiltonian.Internal.Libxc_LDA;             // XC::LibXC selector (one libxc LDA functional)
 import qchem.Hamiltonian.Internal.Libxc_GGA;             // XC::LibXCGGA: the GGA functional the factory asks
 import qchem.Hamiltonian.Internal.SlaterExchange;        // the DiracVWN functional list
@@ -181,6 +184,22 @@ namespace qchem::Hamiltonian
     Outcome<CoulombRoute,std::string> AdmitCoulomb(const Structure& st, const CoulombRoute& coulomb, const qcMesh::MeshParams& mp, VxcFit fit)
     {
         using R=Outcome<CoulombRoute,std::string>;
+        if (coulomb.route==HartreeRoute::Exact)
+        {
+            // Exact J has none of a fit's choices: each stated one is refused by its deck key, so nothing stated is silently unused.
+            std::string unused;
+            auto add=[&](bool stated, const char* key){ if (stated) unused+=(unused.empty() ? "" : ", ")+std::string(key); };
+            add(coulomb.fit!=CoulombFit::Auto, "coulomb.fit");             add(coulomb.solver!=CoulombSolver::Auto, "coulomb.solver");
+            add(coulomb.metric!=CoulombMetric::Auto, "coulomb.metric");    add(coulomb.constraint!=ChargeConstraint::Auto, "coulomb.constraint");
+            add(coulomb.lMax!=0, "coulomb.lMax");                          add(coulomb.nRadial!=0, "coulomb.nRadial");
+            add(!coulomb.auxBasis.empty(), "coulomb.auxBasis");
+            if (!unused.empty())
+                return R::Fail("coulomb.route Exact is the four-centre J, which fits nothing, and "+unused+" choose a fit -- To fix this, please "
+                               "drop "+unused+", or state coulomb.route Fit");
+            if (st.MakeSymmetry(Symmetry::kAdmissionTolerance)->HasLattice())
+                return R::Fail("coulomb.route Exact on a periodic structure: the four-centre J has no lattice sum -- To fix this, please drop coulomb.route");
+            return R::Ok(coulomb);
+        }
         const bool multipole=coulomb.fit==CoulombFit::Multipole;
         if (multipole)
         {
@@ -220,7 +239,7 @@ namespace qchem::Hamiltonian
         return R::Ok(coulomb);
     }
     //! The factories' half of \c AdmitCoulomb.
-    bool UsesCoulombFitBasis(const CoulombRoute& coulomb) {return coulomb.fit!=CoulombFit::Delta && coulomb.fit!=CoulombFit::Multipole;}
+    bool UsesCoulombFitBasis(const CoulombRoute& coulomb) {return coulomb.route==HartreeRoute::Fit && coulomb.fit!=CoulombFit::Delta && coulomb.fit!=CoulombFit::Multipole;}
 
     static void RequireAdmitted(const Structure& st, const CoulombRoute& coulomb, const qcMesh::MeshParams& mp, VxcFit fit)
     {
@@ -247,7 +266,12 @@ namespace qchem::Hamiltonian
         switch (m)
         {
             case Model::E1:  return new Ham_1E(st, p);
-            case Model::HF:  return new Ham_HF(st, p);
+            case Model::HF:
+            {
+                const CoulombFitSlot<double> noFit;   // the exact J reads no fit; the slot lives for the ctor only
+                MolecularTermContext ctx(st, nullptr);
+                return new Ham_HF(ctx, CoulombRoute{.route=HartreeRoute::Exact}, noFit, p);
+            }
             // Dirac: ALWAYS Polarized -- spin lives inside the double group's (κ,m_j) blocks and the tree
             // has no folded form for them, so the requested subgroup cannot be honoured and is not
             // pretended to be (see the namespace note in Internal/Hamiltonians.C).
@@ -300,17 +324,41 @@ namespace qchem::Hamiltonian
     // the Internal ExFunctional where one is needed.  Every other DFT entry point (the Model resolver, the
     // alpha convenience) funnels through here, so the functional->Hamiltonian mapping lives in ONE place.
     // The functional internals never leak past this switch; if/else returns keep the U/P pointer types clean.
+    //! The XC choice as the term factory takes it: a GGA as its functional, any other kind as its parts (Slater X\f$\alpha\f$ is the one
+    //! part; each part contributes its OWN eps, so E_c is the correct integral eps_c rho, not the 3/4 exchange virial; libxc is spin-native
+    //! through its XC_POLARIZED contract, 2026-10-21).
+    static XCChoice MakeXCChoice(const XCFunctional& xc)
+    {
+        if (xc.kind==XC::LibXCGGA) return XCChoice{.gga=MakeGGAFunctional(xc)};   // GGA stage 2
+        return XCChoice{.parts=MakeXCParts(xc)};
+    }
+
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const XCFunctional& xc, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs,
                           const CoulombFitSlot<double>& coulombFit, XCRoute fit, const CoulombRoute& coulomb)
     {
         RequireAdmitted(*st,fit.fit,mp);
         RequireAdmitted(*st,coulomb,mp,fit.fit);
-        // Slater Xalpha keeps its own ctor (it is the same single SlaterExchange part).  Every other kind sums its parts into the
-        // one XC term (each contributes its OWN eps, so E_c is the correct integral eps_c rho, not the 3/4 exchange virial); libxc is
-        // spin-native through its XC_POLARIZED contract (2026-10-21).
-        if (xc.kind==XC::SlaterXalpha) return new Ham_DFT(st, xc.alpha, mp, meshMaker, symmetry, bs, coulombFit, p, fit, coulomb);
-        if (xc.kind==XC::LibXCGGA)     return new Ham_DFT(st, MakeGGAFunctional(xc), mp, meshMaker, symmetry, bs, coulombFit, p, fit, coulomb);   // GGA stage 2
-        return new Ham_DFT(st, MakeXCParts(xc), mp, meshMaker, symmetry, bs, coulombFit, p, fit, coulomb);
+        MolecularTermContext ctx(st, bs, mp, meshMaker, symmetry);   // ONE per Hamiltonian: the XC quadrature + δ fit both terms share (P2)
+        return new Ham_DFT(ctx, MakeXCChoice(xc), fit, coulomb, coulombFit, p);
+    }
+
+    //! \brief HARTREE-FOCK ON THE MOLECULAR FACTORY'S INPUTS: the exact four-centre J (the model's own Coulomb term), or -- a stated
+    //! Gaussian fit -- RI-J HF (a fitted J, the exchange exact).  An UNRESOLVED \c Auto (a caller that skipped the policy layer) is the
+    //! model's own J, exact.  A δ or multipole Hartree puts ρ on a mesh, so the context then carries the one \a mp names (the policy layer
+    //! refuses that pairing for now: an HF run sizes no mesh; the library builds it).
+    static rHamiltonian* FactoryHF(SpinGroup p, const st_t& st, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker,
+                                   const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, CoulombRoute coulomb)
+    {
+        if (coulomb.route==HartreeRoute::Fit && coulomb.fit==CoulombFit::Auto) coulomb.route=HartreeRoute::Exact;
+        const bool onMesh=coulomb.route==HartreeRoute::Fit && !UsesCoulombFitBasis(coulomb);
+        if (onMesh)
+        {
+            RequireAdmitted(*st,coulomb,mp,VxcFit::Delta);
+            MolecularTermContext ctx(st, bs, mp, meshMaker, symmetry);
+            return new Ham_HF(ctx, coulomb, coulombFit, p);
+        }
+        MolecularTermContext ctx(st, bs);
+        return new Ham_HF(ctx, coulomb, coulombFit, p);
     }
 
     // The unified one-call resolver: HF/1-e/Dirac build directly; DFT Models map to an XCFunctional and
@@ -319,7 +367,8 @@ namespace qchem::Hamiltonian
     rHamiltonian* Factory(Model m,SpinGroup p,const st_t& st, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs,
                           const CoulombFitSlot<double>& coulombFit, double xalpha, XCRoute fit, const CoulombRoute& coulomb)
     {
-        if (!IsDFT(m)) return Factory(m,p,st);                       // non-DFT: mp/bs/xalpha unused
+        if (m==Model::HF) return FactoryHF(p, st, mp, meshMaker, symmetry, bs, coulombFit, coulomb);   // exact J, or RI-J HF
+        if (!IsDFT(m)) return Factory(m,p,st);                       // the other non-DFT models: mp/bs/xalpha unused
         return Factory(p, st, ModelToXC(m,xalpha), mp, meshMaker, symmetry, bs, coulombFit, fit, coulomb);    // DFT: Model -> XCFunctional -> Hamiltonian
     }
 
@@ -337,7 +386,10 @@ namespace qchem::Hamiltonian
     {
         RequireAdmitted(*st,fit.fit,mp);
         RequireAdmitted(*st,coulomb,mp,fit.fit);
-        return new Ham_PP(st, element, valence, mp, meshMaker, symmetry, bs, coulombFit, p, fit, coulomb, MakeXCParts(xc));
+        const Pseudopotential::GTH_PP gth=Pseudopotential::GetGTH(element,"LDA",valence);
+        MolecularTermContext ctx(st, bs, mp, meshMaker, symmetry);
+        return new Ham_PP(ctx, std::make_shared<const Pseudopotential::HGH_LocalPotential>(gth.local),
+                          std::make_shared<const Pseudopotential::HGH_SeparablePotential>(gth.nonlocal), MakeXCChoice(xc), fit, coulomb, coulombFit, p);
     }
 
     // Multi-species pseudopotential front door: per-Z router PP so each atom gets its own GTH pseudopotential.
@@ -347,7 +399,14 @@ namespace qchem::Hamiltonian
     {
         RequireAdmitted(*st,fit.fit,mp);
         RequireAdmitted(*st,coulomb,mp,fit.fit);
-        return new Ham_PP(st, pp.Species(*st), pp.Functional(), mp, meshMaker, symmetry, bs, coulombFit, p, fit, coulomb, MakeXCParts(xc));
+        const auto species=pp.Species(*st);
+        auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();   // the per-Z KB router
+        for (const auto& [element, q] : species)
+            sep->Add(thePeriodicTable().GetZ(element),
+                     std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,pp.Functional(),q).nonlocal));
+        MolecularTermContext ctx(st, bs, mp, meshMaker, symmetry);
+        return new Ham_PP(ctx, Pseudopotential::MakeMultiSpeciesLocal(species, pp.Functional()), std::move(sep), MakeXCChoice(xc), fit, coulomb,
+                          coulombFit, p);
     }
 
     // The SOLID front door (Step 4): the cHamiltonian twin of the PP factory above.

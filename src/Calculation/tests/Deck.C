@@ -1434,4 +1434,11 @@ TEST(Deck, AMoleculesCoulombBlockReadsAndRoundTrips)
     EXPECT_EQ(jn.at("coulomb").at("solver"), "Analytic");
     deck::RunSpec anBack; deck::FromJson(jn, anBack); EXPECT_EQ(deck::ToJson(anBack), jn);
     EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"solver","Exact"}}}}, bad), std::runtime_error) << "an unknown solver name";
+    // The exact four-centre J is a Hartree ROUTE, not a fit (controller ruling 2026-11-25), and round-trips
+    deck::RunSpec ex; deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"route","Exact"}}}}, ex);
+    EXPECT_EQ(ex.opts.coulomb.route, Hamiltonian::HartreeRoute::Exact);
+    const json je=deck::ToJson(ex);
+    EXPECT_EQ(je.at("coulomb").at("route"), "Exact");
+    deck::RunSpec exBack; deck::FromJson(je, exBack); EXPECT_EQ(deck::ToJson(exBack), je);
+    EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"route","FourCentre"}}}}, bad), std::runtime_error) << "an unknown route name";
 }

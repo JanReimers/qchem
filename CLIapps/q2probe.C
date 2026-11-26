@@ -1,10 +1,10 @@
 // q2probe -- the Q2 molecular Hartree-route table's driver (lane S 2026-11-25; design note lane-s-design-ij-delta.md, the Q2 spec).
 //
-//   q2probe <deck.json>
+//   q2probe <deck.json> [--audit]
 //
 // An INSTRUMENT, not a gate (CLAUDE.md: a ladder a human reads is a CLIapps probe): a MOLECULE deck (rundeck drives a cell only so far, OpenWork
-// "Deck: Run / Vet / View for a molecule or an atom") through MoleculeSetup::Admit + MoleculeCalculation::Prepare, converged.  (The fixed-D
-// audit against exact J joins with V-HAM-COMPOSE step 2, where the exact-J Coulomb term lands.)  One machine-readable line:
+// "Deck: Run / Vet / View for a molecule or an atom") through MoleculeSetup::Admit + MoleculeCalculation::Prepare, converged.  --audit adds the fixed-D
+// column: MoleculeCalculation::CoulombAudit against the exact four-centre J at the converged D (dE_H, max|dJ_ij|, its wall).  One machine-readable line:
 //   SETUP  = Admit + Prepare (basis, mesh, fit, integral tables built before the first iteration)
 //   SCF    = Converge (every iteration, the mesh pilot's climb and its re-convergence included), with the iteration count
 //   peak RSS of the process (getrusage).
@@ -25,7 +25,8 @@ import qchem.Reporting;
 int main(int argc, char** argv)
 {
     using namespace qchem;
-    if (argc<2) { std::cerr<<"usage: q2probe <deck.json>\n"; return 2; }
+    if (argc<2) { std::cerr<<"usage: q2probe <deck.json> [--audit]\n"; return 2; }
+    const bool audit=argc>2 && std::string(argv[2])=="--audit";
     try
     {
         report::Run run("q2probe");
@@ -51,6 +52,12 @@ int main(int argc, char** argv)
                  <<" pilotRounds="<<calc->PilotCost().rounds<<" peakRSS_MB="<<ru.ru_maxrss/1024.0;
 
         std::cout<<std::setprecision(12)<<" Eee="<<calc->EnergyTerms()["Eee"];
+        if (audit && ok)
+        {
+            const auto a=calc->CoulombAudit({.route=Hamiltonian::HartreeRoute::Exact});
+            std::cout<<std::setprecision(4)<<std::scientific<<" auditExact_dEH="<<a.ΔE_H<<" auditExact_maxdJ="<<a.maxAbsΔJ
+                     <<std::fixed<<" audit_s="<<a.wallSeconds;
+        }
         std::cout<<std::endl;
         return ok ? 0 : 1;
     }

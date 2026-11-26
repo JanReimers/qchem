@@ -11,8 +11,6 @@ module;
 module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.TermFactories;   // the term factories (V-HAM-COMPOSE): the Hartree switch, the XC mesh pairing
 import qchem.Hamiltonian.Internal.Terms;
-import qchem.BasisSet.Orbital_PP_IBS;              // the closed-form species-field service (NeedsPPQuadrature)
-import qchem.BasisSet.ImplicitAngular_IBS;         // the radial capability (NeedsPPQuadrature)
 import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, cVxc_DFT + MakeDensitySampler (the periodic KS terms)
 import qchem.Hamiltonian.Internal.IonIon;         // IonIon<T>: ion-ion energy (double molecular / dcmplx PW)
 import qchem.Hamiltonian.Internal.Kinetic;        // Kinetic<T>: kinetic energy (double molecular / dcmplx PW)
@@ -42,73 +40,38 @@ Ham_1E::Ham_1E(const st_t& st, SpinGroup g)
     Add(new Ven(st));
 }
 
-Ham_HF::Ham_HF(const st_t& st, SpinGroup g)
+Ham_HF::Ham_HF(MolecularTermContext& ctx, const CoulombRoute& coulomb, const CoulombFitSlot<double>& coulombFit, SpinGroup g)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
-    Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
-    Add(new Ven(st));
-    Add(new Vee_HF);
+    Add(new IonIon<double>(ctx.St()));   // bare nuclei: the ion charge IS Z
+    Add(new Ven(ctx.St()));
+    Add(MakeCoulombTerm(ctx, coulomb, coulombFit));   // the exact four-centre J, or a fitted one (RI-J HF)
     Add(new Vxc_HF);                  // same-spin exchange: -1/2 K on a folded doublet, -K per channel
 }
 
-
-Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit,
-                 SpinGroup g, XCRoute fit, const CoulombRoute& coulomb)
-    : Ham_DFT(st, {std::make_shared<SlaterExchange>(alpha_ex)}, mp, meshMaker, symmetry, bs, coulombFit, g, fit, coulomb)
-{};
-
-Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> parts,
-                 const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit,
-                 const CoulombRoute& coulomb)
+Ham_DFT::Ham_DFT(MolecularTermContext& ctx, const XCChoice& xc, XCRoute fit, const CoulombRoute& coulomb, const CoulombFitSlot<double>& coulombFit,
+                 SpinGroup g)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
-    Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
-    Add(new Ven(st));
-
-    MolecularTermContext xcMesh(st, bs, mp, meshMaker, symmetry);   // the XC quadrature and its δ fit: ONE for both terms below (P2)
-    xcMesh.Quadrature();              // the nonlinear mesh's points, built BEFORE its first client term (its report scope first)
-    Add(MakeCoulombTerm(st, bs, xcMesh, coulomb, coulombFit));
-
-    // The Hamiltonian's nonlinear mesh, then ONE XC term on it over the SUM of functionals (the gather is linear, so gather(a+b) is
-    // gather(a)+gather(b) for half the work); its energy is the functionals' own eps -- correlation's is NOT the exchange virial.
-    rmesh_t mesh=MolecularNonlinearMesh(st, bs, xcMesh, fit, ResolvedLMax(coulomb, true, qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree)));
-    HoldNonlinearMesh(mesh);
-    ReportMeshClients(false);
-    Add(new tVxc_DFT<double>(std::make_shared<CompositeExFunctional>(std::move(parts)), std::move(mesh), g));
+    Add(new IonIon<double>(ctx.St()));   // bare nuclei: the ion charge IS Z
+    Add(new Ven(ctx.St()));
+    Add(MakeCoulombTerm(ctx, coulomb, coulombFit));   // a fit (δ on the XC mesh, shared with the XC term: P2), or the exact J
+    Add(MakeXCTerm(ctx, xc, fit, coulomb, g));        // ONE XC term with the nonlinear mesh it brings
 }
 
-Ham_DFT::Ham_DFT(const st_t& st, std::shared_ptr<const GGAFunctional> gga,
-                 const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit,
-                 const CoulombRoute& coulomb)
+Ham_PP::Ham_PP(MolecularTermContext& ctx, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
+               std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep, const XCChoice& xc, XCRoute fit, const CoulombRoute& coulomb,
+               const CoulombFitSlot<double>& coulombFit, SpinGroup g)
     : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
-    Add(new IonIon<double>(st));
-    Add(new Ven(st));
-
-    MolecularTermContext xcMesh(st, bs, mp, meshMaker, symmetry);
-    xcMesh.Quadrature();
-    Add(MakeCoulombTerm(st, bs, xcMesh, coulomb, coulombFit));
-
-    // The nonlinear mesh, realized by the density-gradient strategy, and the GGA term on it (V-NONLINEAR-MESH: the Hamiltonian holds it).
-    rgmesh_t mesh=MolecularGradientMesh(st, xcMesh, fit);
-    HoldNonlinearMesh(mesh);
-    ReportMeshClients(false, "Vxc_DFT_GGA");
-    Add(new tVxc_DFT_GGA<double>(std::move(gga), std::move(mesh), g));
-}
-
-// Does any block of \a bs fall back to the PP terms' quadrature?  The same questions PP_Local and PP_NonLocal ask.
-static bool NeedsPPQuadrature(const rbs_t* bs, const BasisSet::SpeciesRadialField& vloc, const BasisSet::SpeciesProjectorSet* sep)
-{
-    for (auto ibs : const_cast<rbs_t&>(*bs).Iterate<BasisSet::Real_OIBS>())
-    {
-        const auto* pp=dynamic_cast<const BasisSet::Orbital_PP_IBS<double>*>(ibs);
-        if (!pp || !pp->CanAssembleField(vloc)) return true;
-        if (sep && !dynamic_cast<const BasisSet::ImplicitAngular_IBS*>(ibs) && !pp->CanAssembleProjectors(*sep)) return true;
-    }
-    return false;
+    Add(new IonIon<double>(ctx.St(), vloc->ZionFn()));   // ion-ion of the Zion cores (0 for one atom)
+    Add(MakePPLocalTerm(ctx, vloc, sep.get()));          // the pseudized replacement for Ven
+    if (sep) Add(MakePPNonLocalTerm(ctx, *vloc, sep));   // KB separable projectors (a local-only PP has none)
+    Add(MakeCoulombTerm(ctx, coulomb, coulombFit));
+    Add(MakeXCTerm(ctx, xc, fit, coulomb, g));
 }
 
 namespace {
@@ -119,70 +82,6 @@ std::vector<std::shared_ptr<ExFunctional>> OrDefaultLDA(std::vector<std::shared_
     return xc;
 }
 } //anon
-
-Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
-               std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-               const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit,
-               SpinGroup g, XCRoute fit, const CoulombRoute& coulomb, std::vector<std::shared_ptr<ExFunctional>> xc)
-    : rHamiltonianImp(g)
-{
-    Add(new Kinetic<double>);
-    Add(new IonIon<double>(st, vloc->ZionFn()));     // ion-ion of the Zion cores (0 for one atom; Zion, not itsZ)
-    // ONE quadrature for both PP terms, built HERE -- in the Hamiltonian's own build phase, under a scope naming it -- and
-    // shared.  The terms used to build it lazily at their first matrix request, which happens inside the SCF iterator's
-    // construction, so the run report filed it under the facade's basis scope (CLAUDE.md "the run report": fix the run
-    // sequence, never the path); and once per term per basis block.  Geometry-only, so one mesh serves every block.
-    // Null when every block assembles the PP terms in closed form: then no mesh enters them at all.
-    const PP_Local::mesh_t ppMesh=[&]()->PP_Local::mesh_t
-    {
-        if (!NeedsPPQuadrature(bs, *vloc, sep.get())) return nullptr;
-        qchem::report::Scope here("ppQuadrature");
-        // INVARIANT under the run's ops, never folded: the PP terms' integrands are linear in the density, nothing averages on this
-        // mesh -- but a molecule's mesh must not carry the deck's orientation into the answer (policy MeshSymmetry, V-FOLD-NEUTRAL).
-        return meshMaker.Make(mp, InvariantOnly(symmetry)).GetMesh();
-    }();
-    Add(new PP_Local(st, vloc, ppMesh));             // pseudized replacement for Ven (combined model -> _R view)
-    if (sep) Add(new PP_NonLocal(st, std::move(sep), mp, ppMesh));   // KB separable projectors (null => local-only)
-
-    MolecularTermContext xcMesh(st, bs, mp, meshMaker, symmetry);   // the XC quadrature and its δ fit: ONE for both terms below (P2)
-    xcMesh.Quadrature();              // the nonlinear mesh's points, built BEFORE its first client term (see Ham_DFT)
-    Add(MakeCoulombTerm(st, bs, xcMesh, coulomb, coulombFit));
-
-    // The run's functional (default LDA: Dirac exchange + VWN5 correlation), ONE XC term over the sum of its parts, a client of the
-    // Hamiltonian's nonlinear mesh (see Ham_DFT).
-    rmesh_t mesh=MolecularNonlinearMesh(st, bs, xcMesh, fit, ResolvedLMax(coulomb, true, qcMesh::ExactAngularDegree(mp.angular, mp.angularDegree)));
-    HoldNonlinearMesh(mesh);
-    ReportMeshClients(ppMesh!=nullptr);
-    Add(new tVxc_DFT<double>(std::make_shared<CompositeExFunctional>(OrDefaultLDA(std::move(xc))), std::move(mesh), g));
-}
-
-Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry,
-               const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit, const CoulombRoute& coulomb,
-               std::vector<std::shared_ptr<ExFunctional>> xc)
-    : Ham_PP(st,
-             std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
-             std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal),
-             mp, meshMaker, symmetry, bs, coulombFit, g, fit, coulomb, std::move(xc))
-{}
-
-namespace {
-std::shared_ptr<const BasisSet::SpeciesProjectorSet_R>
-BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species, const std::string& functional)
-{
-    auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
-    for (const auto& [element, q] : species)
-        sep->Add(thePeriodicTable().GetZ(element),
-                 std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,functional,q).nonlocal));
-    return sep;
-}
-} //anon
-
-Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
-               const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit,
-               SpinGroup g, XCRoute fit, const CoulombRoute& coulomb, std::vector<std::shared_ptr<ExFunctional>> xc)
-    : Ham_PP(st, Pseudopotential::MakeMultiSpeciesLocal(species, functional), BuildMultiSpeciesSep(species, functional), mp, meshMaker, symmetry, bs, coulombFit,
-             g, fit, coulomb, std::move(xc))
-{}
 
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const CoulombFitSlot<dcmplx>& coulombFit, double numElectrons, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const Pseudopotential::LocalPotential* loc,
                             const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,

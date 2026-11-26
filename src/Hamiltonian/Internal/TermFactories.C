@@ -8,8 +8,11 @@
 //   - MakeCoulombTerm (was MolecularHartreeTerm): THE Hartree route switch, the one place it is decided;
 //   - the XC term's nonlinear meshes (MolecularNonlinearMesh / MolecularGradientMesh), the fit-in-the-term's-scope helper, the pin-30
 //     admission on built objects, the mesh-client report.
-// Factories are allowed to look ugly (CLAUDE.md): the constructors may not.  Step 2 turns the XC side into one MakeXCTerm and the
-// constructors into Add lists.
+// Factories are allowed to look ugly (CLAUDE.md): the constructors may not.  Step 2 (lane S 2026-11-25): every factory takes the
+// context and its own CHOICE and returns a Term record (qchem.Hamiltonian.Internal.Hamiltonian), so the constructors are Add lists:
+//   - MakeCoulombTerm(ctx, route, slot): fitted Vee (Vee_FitDunlap / Vee_Fit) or the exact four-centre J (Vee_HF, coulomb.route Exact);
+//   - MakeXCTerm(ctx, XCChoice, ...): the ONE XC term (LDA parts summed, or a GGA) with the nonlinear mesh it brings;
+//   - MakePPLocalTerm / MakePPNonLocalTerm(ctx, ...): the two molecular PP terms on the context's ONE PP quadrature.
 module;
 #include <memory>
 #include <stdexcept>
@@ -19,6 +22,11 @@ export module qchem.Hamiltonian.Internal.TermFactories;
 export import qchem.Hamiltonian.Types;
 export import qchem.Hamiltonian.Factory;           // st_t, CoulombFitSlot
 import qchem.Hamiltonian;                          // rDynamic_HT
+export import qchem.Hamiltonian.Internal.Hamiltonian;   // rTerm: what every factory returns
+import qchem.Hamiltonian.Internal.ExFunctional;    // XCChoice: the LDA parts
+import qchem.Hamiltonian.Internal.GGAFunctional;   // XCChoice: a GGA
+import qchem.BasisSet.Orbital_PP_IBS;              // SpeciesRadialField / SpeciesProjectorSet_R (the PP terms' views)
+import qchem.Pseudopotential.LocalPotential;       // the molecular PP's local model
 import qchem.Mesh.Maker;                           // MeshParams, MeshMaker, SymmetrySource
 import qchem.Mesh;                                 // qcMesh::Mesh
 import qchem.Mesh.SiteMultipoles;                  // MakeSiteMultipoles
@@ -81,11 +89,11 @@ template <class T, class Make> std::shared_ptr<const BasisSet::FIT_CD_ABS<T>> On
 
 //! THE MOLECULAR / ATOM Vxc DEFAULT: an unresolved \c Auto is the delta basis on the run's own XC mesh (body: Imp/TermFactories.C).
 VxcFit MolecularVxcFit(VxcFit fit);
-//! The site structure of an atom-centred mesh built from  mp, in the structure's own site order.
+//! The site structure of an atom-centred mesh built from \a mp, in the structure's own site order.
 std::shared_ptr<const qcMesh::SiteMultipoles> MakeSiteMultipoles(const st_t& st, const qcMesh::Mesh& mesh, const qcMesh::MeshParams& mp, int lMax);
 //! THE NONLINEAR MESH'S CLIENTS, listed under its report scope (V-NONLINEAR-MESH).
 void ReportMeshClients(bool ppQuadrature, const char* xcClient="Vxc_DFT");
-//! The run's nonlinear-integral quadrature at  mp, under the "nonlinearMesh" scope.
+//! The run's nonlinear-integral quadrature at \a mp, under the "nonlinearMesh" scope.
 BasisSet::FitQuadrature BuildMeshQuadrature(const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const qcMesh::MeshParams& mp);
 
 //! \brief \a s's ops WITHOUT the density averaging: a mesh that must be invariant (no deck orientation in the answer) but that no density is
@@ -111,10 +119,19 @@ class MolecularTermContext
 {
 public:
     MolecularTermContext(const st_t& st, const rbs_t* bs, const qcMesh::MeshParams& mp, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry);
-    const qcMesh::MeshParams& Params() const {return itsMp;}
-    const qcMesh::MeshMaker&      MeshMaker() const {return itsMeshMaker;}
-    const qcMesh::SymmetrySource& Symmetry () const {return itsSymmetry;}
+    //! A run with NO nonlinear mesh (Hartree-Fock): only the mesh-free factories may ask it (the Auxiliary Coulomb fit); a mesh ask THROWS.
+    MolecularTermContext(const st_t& st, const rbs_t* bs);
+    const st_t&  St   () const {return itsSt;}   //!< the structure every term is built for
+    const rbs_t* Basis() const {return itsBs;}   //!< the orbital basis (the fits' factory)
+    bool HasMesh() const {return itsMeshMaker!=nullptr;}
+    const qcMesh::MeshParams&     Params   () const;
+    const qcMesh::MeshMaker&      MeshMaker() const;
+    const qcMesh::SymmetrySource& Symmetry () const;
     const BasisSet::FitQuadrature& Quadrature();
+    //! \brief The molecular PP terms' ONE quadrature (both terms share it), built on the first ask under the "ppQuadrature" scope -- in the
+    //! Hamiltonian's own build phase -- or null when every block assembles the PP terms in closed form (no mesh enters them).
+    std::shared_ptr<const qcMesh::Mesh> PPQuadrature(const BasisSet::SpeciesRadialField& vloc, const BasisSet::SpeciesProjectorSet* sep);
+    bool HasPPQuadrature() const {return itsPPMesh!=nullptr;}   //!< for the mesh-client report
     //! The δ fit basis on \c Quadrature(); \a built tells the caller whether this ask built it (else another term did).
     std::shared_ptr<const BasisSet::rFIT_SF_ABS> Delta(bool& built);
 
@@ -141,11 +158,14 @@ public:
     void RequireInvariantPairProducts() const;
 private:
 
+    void RequireMesh(const char* what) const;
     st_t                                         itsSt;
     const rbs_t*                                 itsBs;
     qcMesh::MeshParams                           itsMp;
-    const qcMesh::MeshMaker&                     itsMeshMaker;   //!< the factory's caller's, alive for the Hamiltonian's construction
-    const qcMesh::SymmetrySource&                itsSymmetry;    //!< likewise
+    const qcMesh::MeshMaker*                     itsMeshMaker=nullptr;   //!< the factory's caller's, alive for the Hamiltonian's construction; null = no mesh
+    const qcMesh::SymmetrySource*                itsSymmetry=nullptr;    //!< likewise
+    std::shared_ptr<const qcMesh::Mesh>          itsPPMesh;
+    bool                                         itsPPAsked=false;
     BasisSet::FitQuadrature                      itsQuad;
     std::shared_ptr<const BasisSet::rFIT_SF_ABS> itsDelta;
     BasisSet::FitQuadrature                      itsRepQuad;    //!< the representatives (folded runs only; empty otherwise)
@@ -159,8 +179,26 @@ rmesh_t MolecularNonlinearMesh(const st_t& st, const rbs_t* bs, MolecularTermCon
 //! THE MOLECULAR DENSITY-GRADIENT MESH (GGA stage 2), on the delta Vxc fit only.
 using rgmesh_t=std::shared_ptr<const ChargeDensity::tDensityGradientSampler<double>>;
 rgmesh_t MolecularGradientMesh(const st_t& st, MolecularTermContext& share, XCRoute xc);
-//! THE MOLECULAR / ATOM HARTREE TERM: the ONE place the Hartree route is switched (Auxiliary Gaussian fit | delta: radial Poisson, direct
-//! sum, analytic (ij|delta) | multipole).   coulombFit: the run's Coulomb-fit slot, filled on the first build, read on every later one.
-rDynamic_HT* MakeCoulombTerm(const st_t& st, const rbs_t* bs, MolecularTermContext& share, const CoulombRoute& coulomb,
-                             const CoulombFitSlot<double>& coulombFit);
+//! \brief THE MOLECULAR / ATOM HARTREE TERM: the ONE place the Hartree route is switched.  \c coulomb.route Exact: HF's own four-centre J
+//! (\c Vee_HF, a whole-system term; its ERI4 cost is the policy layer's row, ExactCoulomb).  Fit: the Auxiliary Gaussian fit, or the δ
+//! fit (radial Poisson, direct sum, analytic (ij|δ)), or the multipole fit.  \a coulombFit: the run's Coulomb-fit slot, filled on the
+//! first build, read on every later one.  On a context with a mesh, its quadrature is built first (the report sequence: mesh, Hartree).
+rTerm MakeCoulombTerm(MolecularTermContext& ctx, const CoulombRoute& coulomb, const CoulombFitSlot<double>& coulombFit);
+
+//! \brief THE XC CHOICE, one of two (V-ONE-OF-N): the LDA \c parts summed into ONE term (the gather is linear: half the work), or a \c gga.
+//! Exactly one is filled; \c MakeXCTerm throws otherwise.
+struct XCChoice
+{
+    std::vector<std::shared_ptr<ExFunctional>> parts;
+    std::shared_ptr<const GGAFunctional>       gga;
+};
+//! \brief THE XC TERM and the nonlinear mesh it is a client of (V-NONLINEAR-MESH): the record carries both, and \c Add holds the mesh
+//! before the term.  \a coulomb gives the δ route's lMax (the mesh's site multipoles).
+rTerm MakeXCTerm(MolecularTermContext& ctx, const XCChoice& xc, XCRoute fit, const CoulombRoute& coulomb, SpinGroup g);
+
+//! THE MOLECULAR PP TERMS, both on the context's ONE \c PPQuadrature (or none: closed form).  The local model replaces \c Ven.
+rTerm MakePPLocalTerm   (MolecularTermContext& ctx, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
+                         const BasisSet::SpeciesProjectorSet* sep);
+rTerm MakePPNonLocalTerm(MolecularTermContext& ctx, const Pseudopotential::LocalPotential& vloc,
+                         std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep);
 }

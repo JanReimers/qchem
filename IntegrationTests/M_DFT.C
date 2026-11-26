@@ -406,6 +406,33 @@ TEST(M_DFT, WaterLDA_DeltaCoulomb_Analytic_Long)   // 90 s alone: every iteratio
     EXPECT_NEAR(calc->Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC: +8.3 μHa (the Poisson twin -9.3), the mesh's charges";
 }
 
+// THE EXACT FOUR-CENTRE J in the density model (coulomb.route Exact; lane S 2026-11-25, the Q2 accuracy oracle): HF's Vee in the LDA
+// Hamiltonian, no fit and no Hartree mesh, so the only gap to PySCF's exact-J LDA is the XC mesh's.  A SAD seed has no D: the term is a
+// whole-system one, so the SCF bootstraps D0 as an HF run does.  The policy row ExactCoulomb warns on every use.
+TEST(M_DFT, WaterLDA_ExactCoulomb)
+{
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.route = Hamiltonian::HartreeRoute::Exact}, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    EXPECT_NEAR(calc->Energy(), -75.8772997308, 1e-6);   // anchor (lane S 2026-11-25)
+    EXPECT_NEAR(calc->Energy(), -75.87729931, 2e-6) << "ORACLE: PySCF, exact J and XC on (200, 590): -0.43 μHa, the XC mesh's alone";
+}
+
+// THE COULOMB AUDIT (MoleculeCalculation::CoulombAudit; the Q2 fixed-D column): at the converged D of a Poisson run, the run against itself
+// is zero to the bit (the reference is the same Hamiltonian rebuilt), and against the exact J it is the Poisson route's own J error.
+TEST(M_DFT, WaterLDA_DeltaCoulomb_CoulombAuditAgainstExactJ)
+{
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit = Hamiltonian::CoulombFit::Delta}, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    const auto self=calc->CoulombAudit(calc->SizedSetup()->opts.coulomb);
+    EXPECT_EQ(self.ΔE_H, 0.0) << "the run against its own route";
+    EXPECT_EQ(self.maxAbsΔJ, 0.0);
+    const auto exact=calc->CoulombAudit({.route = Hamiltonian::HartreeRoute::Exact});
+    EXPECT_NE(exact.ΔE_H, 0.0);
+    EXPECT_LT(std::fabs(exact.ΔE_H), 3e-5) << "the Poisson route's J error at its own D, inside eps x N";
+    EXPECT_LT(exact.maxAbsΔJ, 1e-3);
+    EXPECT_THROW(calc->CoulombAudit({.fit = Hamiltonian::CoulombFit::Auxiliary}), std::invalid_argument) << "a Gaussian-fit reference states its file";
+}
+
 // The multipole fit has δ x Poisson's potential, so its SCF is the same one; only the energy's second leg differs.  Re-judged with the
 // δ case above (2026-11-08): the pilot's (100, 29) moves it -39.5 μHa, from +32 to -7.9 μHa off the oracle.
 TEST(M_DFT, WaterLDA_MultipoleCoulomb)
