@@ -480,7 +480,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
         L3::GPWParams p{
             .densityEcut = opts.solid.densityEcut, .cutoffFactor = opts.solid.cutoffFactor,
             .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
-            .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = tol,
+            .imposeSymmetry = S.imposed, .rasterFields = S.rasterFields, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = tol,
             .hamPreservesReal = S.realTRIMBlocks, .dAwareScreen = S.policy.DAwareScreen(), .streamFold = S.policy.StreamFold()};
         ResolveGpwPoint(lat, mol, *S.pp, p);
         itsImp->imposition=p.imposition;
@@ -1387,7 +1387,7 @@ void SolidCalculation::RecordState(StateRecord& r, double kT) const
         id.ladderFactor=o.solid.ladderFactor;
         id.gpwTolerances={{"vlocEps",{t.vlocEps}}, {"localPPRelCutoff",{t.localPPRelCutoff}}, {"relFieldSharp",{t.relFieldSharp}},
                           {"screenEps",{t.screenEps}}, {"fieldSharp",{t.fieldSharp}}, {"relCutoff",{t.relCutoff}},
-                          {"densityEps",{t.densityEps}}, {"mgridEcuts",t.mgridEcuts}, {"rungGateC",{t.rungGateC}}, {"relCutoffSafety",{t.relCutoffSafety}},
+                          {"densityEps",{t.densityEps}}, {"mgridEcuts",t.mgridEcuts}, {"rungGateC",{t.rungGateC}}, {"relCutoffSafety",{t.relCutoffSafety}}, {"pairRoutingEps",{t.pairRoutingEps}},
                           {"rasterX",{t.rasterX}}, {"vlocRasterX",{t.vlocRasterX}}, {"xcRasterX",{t.xcRasterX}}, {"accuracyEps",{o.accuracy.eps}}};
     }
     // The run's OWN policy table, resolved from its stated spec (not the process's installed one, which a later run may have replaced).
@@ -1820,7 +1820,7 @@ AuditReferenceSize SolidCalculation::SizeReference(const std::string& name, cons
     const L3::GPWParams p{
         .densityEcut = autoBall ? opts.solid.densityEcut : ballScale*opts.solid.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.solid.cutoffFactor : opts.solid.cutoffFactor,
         .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
-        .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
+        .imposeSymmetry = S.imposed, .rasterFields = S.rasterFields, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
         .hamPreservesReal = S.realTRIMBlocks, .dAwareScreen = S.policy.DAwareScreen(), .streamFold = S.policy.StreamFold()};
     const std::shared_ptr<const Structure> held=itsImp->lat->GetStructure();
     const double ppSharpness=BasisSet::Gaussian::LocalPPSharpness(*held, *Pseudopotential::MakeMultiSpeciesLocal(S.pp->Species(*held), S.pp->Functional()));
@@ -2456,7 +2456,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
         L3::GPWParams p{
             .densityEcut = autoBall ? opts.solid.densityEcut : ballScale*opts.solid.densityEcut, .cutoffFactor = autoBall ? ballScale*opts.solid.cutoffFactor : opts.solid.cutoffFactor,
             .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
-            .imposeSymmetry = S.imposed, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
+            .imposeSymmetry = S.imposed, .rasterFields = S.rasterFields, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
             .hamPreservesReal = S.realTRIMBlocks, .dAwareScreen = S.policy.DAwareScreen(), .streamFold = S.policy.StreamFold()};
         ResolveGpwPoint(latRef, molRef, *S.pp, p);   // the reference's own ladder (its rasters / ball differ), sized for the same PP
         ladderRef=p.ladder;

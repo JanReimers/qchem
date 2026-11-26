@@ -63,12 +63,14 @@ TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_Saved_eqExactResume_Panel_Long)
 // amplifies a raster alias by up to 1/lambda_min.  On main 0fab43d6 both decks below DIVERGED from iteration 1 (+4.2e4 / +845 Ha) and ran 300
 // iterations to +4.7e3 Ha (OpenWork_History5 "Dense Mn d midpoints").  Measured 2026-11-01 (lane A), first iterate vs raster x: 8 -> +41888,
 // 11 -> -80.75302, 13 / 16 -> -80.75311.  A periodic first iterate above +1 Ha per electron is refused, not iterated (here +1102 / +22).
+// RE-MEASURED 2026-11-24 (lane A, the absolute pair routing ecut >= 2 p ln(1/eps)): x 8 no longer aliases (first iterate -80.75, converges in
+// 25), so the refusal case states x 4, where the first iterate is still +2080.3 Ha (54.74 per electron; x 2 the same).
 
 // A STATED raster is the deck's choice: never overridden, refused at iteration 1 with the cause named (~3 min, mostly setup).
 TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_RefusesAnAliasedFirstIterate_Long)
 {
-    const auto o=qchem::panel::Run(qchem::panel::LoadDeck("MnO2_dD_StatedX8.json"), 1,
-                                   "beta-MnO2 dense-d at a stated x 8: the first iterate is refused, not iterated");
+    const auto o=qchem::panel::Run(qchem::panel::LoadDeck("MnO2_dD_StatedX4.json"), 1,
+                                   "beta-MnO2 dense-d at a stated x 4: the first iterate is refused, not iterated");
     EXPECT_FALSE(o.run.converged);
     EXPECT_FALSE(o.run.energy) << "a refused run has no converged energy";
     EXPECT_EQ(o.iterations, 1u) << "refused AT iteration 1";

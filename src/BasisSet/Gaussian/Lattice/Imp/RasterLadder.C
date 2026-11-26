@@ -314,10 +314,25 @@ void GpwRasterLadder::ReportGrids(const Symmetry::StarGroup* group) const
     rpt::Set("densityEcutFloor", itsInputs.cutoffFactor * itsAlphaMax);
     rpt::Set("cutoffFactor", itsInputs.cutoffFactor);
     rpt::Set("raster",       { {"x", itsTol.rasterX}, {"vlocX", itsTol.vlocRasterX}, {"xcX", itsTol.xcRasterX} });   // the demands (0 = the ball's own)
-    // The relative pair rule, its RIGOROUS form (a pair p is resolved at ecut >= s ecut_ref p / 2 alpha_max) beside its EMPIRICAL
-    // stiffness s, and the exponents the ladder read off the basis's resolution.
-    rpt::Set("pairRule",     { {"form", "ecut >= relCutoffSafety * ecut_ref * p / (2 alpha_max)"}, {"relCutoffSafety", itsRelCutoffSafety},
-                               {"alphaMax", itsAlphaMax}, {"alphaMin", itsAlphaMin} });
+    // THE PAIR RULE: the RIGOROUS bound (PairRoutingEcut: a pair p goes to ecut >= 2 p ln(1/eps)), the CALIBRATED eps it is evaluated
+    // at (kPairRoutingEps, its measurement record there, or a stated value), and the FIELD FLOOR (a separate piece, only when V_xc rides
+    // the raster).  The RESULT: the pair exponent above which the bound outruns the finest level (those pairs sit there), and the tail
+    // the finest level leaves on the tightest pair, 2 alpha_max -- the ladder's completeness, which the charge calibration owns.
+    {
+        const double eps=itsTol.pairRoutingEps;
+        const double beta=itsRelFieldSharp>=0.0 ? itsRelFieldSharp : itsTol.fieldSharp*itsAlphaMax;
+        rpt::json rule={ {"bound", "ecut >= 2 p ln(1/eps)"}, {"eps", eps},
+                         {"epsSource", eps==kPairRoutingEps ? "calibration kPairRoutingEps" : "stated"},
+                         {"fieldFloor", beta>0.0 ? "ecut >= relCutoffSafety * ecut_ref * beta / (2 alpha_max)" : "none"}, {"beta", beta},
+                         {"relCutoffSafety", itsRelCutoffSafety}, {"alphaMax", itsAlphaMax}, {"alphaMin", itsAlphaMin} };
+        if (itsGrid)
+        {
+            const double eFine=itsLevels.ecut[FinestLevel(itsLevels)];
+            rule["pSaturates"]  = eFine/PairRoutingEcut(1.0, eps);           // pairs tighter than this sit on the finest level
+            rule["finestTail"]  = std::exp(-eFine/(2.0*2.0*itsAlphaMax));    // e^{-E_fine/2p} at p = 2 alpha_max
+        }
+        rpt::Set("pairRule", rule);
+    }
     rpt::Set("rungGate",     { {"relCutoffSafety", itsRelCutoffSafety}, {"C", itsTol.rungGateC}, {"ecut", RungGateEcut(itsRelCutoffSafety, itsTol.rungGateC, itsAlphaMax)} });
     rpt::Set("routing",      itsRelFieldSharp>=0.0 ? "HartreeOnly" : "HartreeXC");   // field-sharpness routing policy
     rpt::Set("routingBeta",  itsRelFieldSharp>=0.0 ? itsRelFieldSharp : itsTol.fieldSharp*itsAlphaMax);
@@ -393,6 +408,7 @@ void GpwRasterLadder::PrintGrids(std::ostream& os, size_t nFunctions, const Symm
       <<" raster x(density, V_long, XC L0)=("<<itsTol.rasterX<<", "<<itsTol.vlocRasterX<<", "<<itsTol.xcRasterX<<")"
       <<" routing="<<(itsRelFieldSharp>=0.0?"HartreeOnly beta=":"HartreeXC beta=2/3*alpha_max=")
       <<(itsRelFieldSharp>=0.0?itsRelFieldSharp:itsTol.fieldSharp*itsAlphaMax)<<" Ha-exp"
+      <<" pairs at ecut >= 2 p ln(1/"<<itsTol.pairRoutingEps<<")"
       <<" (auto density floor Ecut="<<itsInputs.cutoffFactor*itsAlphaMax<<" Ha)"<<std::endl;
     if (!itsGrid)
     {

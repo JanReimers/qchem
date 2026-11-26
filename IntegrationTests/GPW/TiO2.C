@@ -138,6 +138,10 @@ TEST(GPW_TiO2, k222_CP2KsCellIsStationary_Long)
         for (size_t i=0;i<grad.size();++i) std::cout<<" "<<grad[i];
         std::cout<<std::defaultfloat<<std::endl;
         EXPECT_LT(gmax, 3e-3);
+        // KNOWN RED (root CMakeLists QCHEM_KNOWN_RED, controller ruling 2026-11-24): the absolute pair routing (2026-11-24) removed 68 uHa of
+        // routing error, E -71.3378876 -> -71.33795527 (routing converged to 1e-8 from ln(1/eps) 16 to 32), 142 uHa below CP2K.  This line
+        // is MESH-limited: the stated (40,29) Becke mesh was luck, (80,41) puts the point 152 uHa above CP2K.  The gate stays; the claim
+        // moves to CP2K's own quadrature (a Uni twin), then this comes off the list (OpenWork §3 "TiO2 k222 energy vs CP2K is MESH-limited").
         EXPECT_NEAR(point->energy, -71.337813131, 1e-4);
     });
 }
