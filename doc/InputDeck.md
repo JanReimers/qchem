@@ -74,7 +74,11 @@ forces Polarized.  An AFM crystal states `"spin": "Polarized", "multiplicity": 1
   "accuracy": 1e-5,                       // THE ONE accuracy target eps (pin 31)
   "xc": { "fit": "Auto", "rho": "exact",  // the Vxc fit basis, the density XC sees
           "mesh": { "cellKind": "Auto|Uniform|Becke", "nRadial": 40, "angularDegree": 29, "beckeEps": 1e-6, ... } },   // was solid.xcMesh
-  "coulomb": { "fit": "Auto",              // a MOLECULE's Hartree route: Auto (the policy picks: Delta, user ruling 2026-11-22) | Auxiliary (a Dunlap fit) | Delta (rho on the XC mesh,
+  "coulomb": { "route": "Fit",             // Fit (the fit / solver keys below) | Exact (the four-centre J through the ERI4 tensor, the fit keys refused;
+                                          //   "exact-J DFT", policy row ExactCoulomb: Direct-only RAM, warned on every use).  HF: an unstated route is
+                                          //   Exact (plain HF); a stated Gaussian fit (fit Auxiliary, auxBasis, metric or constraint) is "RI-J HF" (fitted J,
+                                          //   exact K; policy row CoulombFit); Delta / Multipole on HF are refused (CoulombRouteForHF).  V-HAM-COMPOSE, lane S 2026-11-25
+               "fit": "Auto",             // a MOLECULE's Hartree route: Auto (the policy picks: Delta, user ruling 2026-11-22) | Auxiliary (a Dunlap fit) | Delta (rho on the XC mesh,
                                           //   radial Poisson) | Multipole; a solid refuses the block (its Hartree is its density ball)
                "solver": "Auto",          // how the Delta route finds v at its points: Auto (= RadialPoisson) | RadialPoisson | DirectSum |
                                           //   Analytic (v_g = sum D_kl (kl|delta_g), the COSX / sn-K kernel; Delta fit, finite structures only;
@@ -83,7 +87,7 @@ forces Polarized.  An AFM crystal states `"spin": "Polarized", "multiplicity": 1
                                           //   (not built yet, refused); constraint Charge | None.  Auto = Coulomb x Charge.  Delta / Multipole
                                           //   refuse a stated metric and the Charge constraint
                "auxBasis": "A2_coul" },   // the Auxiliary route's fit file stem (A1_coul, A2_coul); empty = A2 (A1 where A2 misses an element).  An atom
-                                          //   refuses it; so do HF and the Delta / Multipole routes.  Every Auxiliary run reports the fit's J error,
+                                          //   refuses it; so do the Delta / Multipole routes (on HF it selects RI-J HF).  Every Auxiliary run reports the fit's J error,
                                           //   one delta J at the seed and at the converged density (policy CoulombFitResidual), WARNING over eps x N
   "solid": {                              // the PERIODIC-ONLY options
     "kShift": [0,0,0], "densityEcut": -1, "cutoffFactor": 2,
