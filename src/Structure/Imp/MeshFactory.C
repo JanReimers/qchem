@@ -851,7 +851,7 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp)
 
 // The orbit fold, moved from CrystalImposition::MakeXCMesh (controller + user rulings 2026-11-22): the geometry it needs -- the cell
 // matrix, the flip-fixed test's fractional coordinates -- is the cell's, so it is the maker's, never the source's.
-qcMesh::FoldedMesh FoldOrbits(const UnitCell& cell, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops)
+static qcMesh::FoldedMesh FoldOrbits(const UnitCell& cell, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops)
 {
     const double tol = qchem::kMeshMatchTol;   // the ONE mesh-point coincidence tolerance (R2.12)
     const Matrix3D<double>& A = cell.GetCellMatrix();
@@ -894,9 +894,13 @@ qcMesh::Mesh MakeMesh(const Atom& atom, const qcMesh::MeshParams& mp, const std:
                                     "state the radial-only set (xcMesh angular None), whose angular part is analytic");
     return MakeMesh(atom, mp);
 }
-qcMesh::FoldedMesh FoldOrbits(const Atom&, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>&)
+qcMesh::FoldedMesh MakeFoldedMesh(const UnitCell& cell, const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops)
 {
-    return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), {}};   // one direction per shell: every orbit is one point
+    return FoldOrbits(cell, MakeMesh(cell, mp, ops), ops);
+}
+qcMesh::FoldedMesh MakeFoldedMesh(const Atom& atom, const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops)
+{
+    return {std::make_shared<const qcMesh::Mesh>(MakeMesh(atom, mp, ops)), {}};   // one direction per shell: every orbit is one point
 }
 
 // ---- The molecular point-group hooks (OOD-SOLID V-FOLD-NEUTRAL step 1; user ruling 2026-11-23, D1-D3 of lane H's design note) ----------
@@ -1163,7 +1167,11 @@ double PointGroupGeometryError(const Structure& s, const std::vector<Symmetry::S
     return GeometryError(p, FrameAndPolishedOps(p, ops, "PointGroupGeometryError").second);
 }
 
-qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops)
+// The invariant molecular mesh, and when \a images is non-null the image table its invariance check searched: images[k*n + i] = the
+// point op k (the polished ops about the centroid, in the caller's order) carries point i onto.  The check finds every image or throws,
+// so the table is complete.
+static qcMesh::Mesh InvariantMolecularMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops,
+                                           std::vector<int>* images)
 {
     assert(!ops.empty());
     RequirePointGroupOps(ops, "MakeMesh");
@@ -1256,6 +1264,7 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
     {
         EuclideanIndex index(m.Points(), kMeshMatchTol);
         const rvec_t& w=m.Weights();
+        if (images) images->assign(opsC.size()*m.size(), -1);
         std::vector<size_t> siteOf(m.size(), 0);
         for (size_t a=0; a<m.NSites(); a++) for (size_t i=m.SiteBegin(a); i<m.SiteEnd(a); i++) siteOf[i]=a;
         const int beckeOrder=mp.beckeOrder;
@@ -1269,6 +1278,7 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
                 if (j<0)
                     throw std::logic_error("MakeMesh(Molecule, ops): the built mesh is not invariant under op "+std::to_string(k)
                                            +": point "+std::to_string(i)+" has no image point");
+                if (images) (*images)[k*m.size()+i]=int(j);
                 if (P==0.0) continue;
                 spread=std::max(spread, std::abs(w[size_t(j)]-w[i])*P/std::abs(w[i])/reach);   // |ΔP| = |Δw| / w_q, w_q = w / P
             }
@@ -1291,22 +1301,29 @@ qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const s
     return m;
 }
 
-qcMesh::FoldedMesh FoldOrbits(const Molecule& mol, qcMesh::Mesh mesh, const std::vector<Symmetry::SymOp>& ops)
+qcMesh::Mesh MakeMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops)
 {
-    RequirePointGroupOps(ops, "FoldOrbits");
+    return InvariantMolecularMesh(mol, mp, ops, nullptr);
+}
+
+qcMesh::FoldedMesh MakeFoldedMesh(const Molecule& mol, const qcMesh::MeshParams& mp, const std::vector<Symmetry::SymOp>& ops)
+{
+    // ONE image search: the build's invariance check matches every point under every op (it must, to verify the mesh), and the fold
+    // partitions those same matches.  FoldPoints would repeat the search (a second index, n x |ops| nearest-point queries): 29% of building
+    // SF₆'s pilot-raised 1.0M-point mesh, on every candidate mesh the pilot climbs (lane H 2026-11-25).
+    std::vector<int> images;
+    qcMesh::Mesh mesh=InvariantMolecularMesh(mol, mp, ops, &images);
     const SitePoints sites=SitesOf(mol);   // the ops the mesh was built under: polished against the same geometry
-    const std::vector<Symmetry::SymOp> opsC=AboutCentre(FrameAndPolishedOps(sites, ops, "FoldOrbits").second, sites.c);
+    const std::vector<Symmetry::SymOp> opsC=AboutCentre(FrameAndPolishedOps(sites, ops, "MakeFoldedMesh").second, sites.c);
     auto fold=[&]{ qchem::report::Timed timed("setup: XC mesh orbit fold (FoldMesh)");
-                   std::vector<rvec3_t> pts(mesh.size());
-                   for (size_t i=0; i<mesh.size(); i++) pts[i]=mesh.Points()[i];
-                   return Symmetry::Lattice_3D::FoldPoints(pts, opsC, kMeshMatchTol); }();
+                   return Symmetry::Lattice_3D::FoldByImages(images, mesh.size(), opsC.size()); }();
     // The SITE ACTION: which atom each op carries each atom onto.  The site blocks are the atoms in ForEachSite order (RequireSiteBlocks in
     // MakeMesh), and MakeMesh already refused a geometry an op does not map onto itself, so every image is found.
     qcMesh::FoldedMesh::SiteAction act;
     {
         const size_t natom=sites.R.size();
         if (mesh.NSites()!=natom)
-            throw std::logic_error("FoldOrbits(Molecule): the mesh has "+std::to_string(mesh.NSites())+" site blocks for "+std::to_string(natom)
+            throw std::logic_error("MakeFoldedMesh(Molecule): the mesh has "+std::to_string(mesh.NSites())+" site blocks for "+std::to_string(natom)
                                    +" atoms -- not a mesh MakeMesh(Molecule, ops) built");
         rvec3vec_t R(natom);
         for (size_t i=0; i<natom; i++) R[i]=sites.R[i];
@@ -1318,7 +1335,7 @@ qcMesh::FoldedMesh FoldOrbits(const Molecule& mol, qcMesh::Mesh mesh, const std:
             {
                 const long j=index.Find(op.W*R[i]+op.tau);
                 if (j<0 || sites.Z[size_t(j)]!=sites.Z[i])
-                    throw std::logic_error("FoldOrbits(Molecule): an op does not map atom "+std::to_string(i)+" onto an atom of its element, "
+                    throw std::logic_error("MakeFoldedMesh(Molecule): an op does not map atom "+std::to_string(i)+" onto an atom of its element, "
                                            "though MakeMesh accepted the geometry");
                 img[i]=size_t(j);
             }

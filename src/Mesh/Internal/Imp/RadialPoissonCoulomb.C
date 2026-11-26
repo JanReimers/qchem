@@ -4,10 +4,13 @@ module;
 #include <cmath>
 #include <memory>
 #include <numbers>
+#include <stdexcept>
+#include <string>
 #include <vector>
 module qchem.Mesh.Internal.RadialPoissonCoulomb;
 import qchem.Parallel;   // OuterFor: every item writes only its own slots
 import qchem.Blaze;
+import qchem.Mesh.Folded;
 
 namespace qchem::qcMesh
 {
@@ -209,6 +212,50 @@ rvec_t RadialPoissonCoulomb::Potential(const rvec_t& q) const
 rvec3vec_t RadialPoissonCoulomb::MakeSelfRepulsionPullback(const rvec_t& q) const
 {
     return itsSites->CrossSitePullback(itsSolver.Solve(itsSites->Moments(q)), q);
+}
+
+namespace
+{
+//! \brief \c RadialPoissonCoulomb's \f$\bar K\f$ on the representatives of a folded mesh, for an invariant charge (see
+//! \c RadialPoissonCoulomb::MakeOnRepresentatives).  \a Q is one charge per representative, the orbit's total.
+class RadialPoissonOnRepresentatives : public virtual CoulombOperator
+{
+public:
+    RadialPoissonOnRepresentatives(std::shared_ptr<const qcMesh::SiteMultipoles> sites, std::vector<size_t> reps,
+                                   qcMesh::SiteMultipoles::ChannelAction action)
+        : itsSites(sites), itsSolver(sites), itsReps(std::move(reps)), itsAction(std::move(action)) {}
+    rvec_t Potential(const rvec_t& Q) const override
+    {
+        if (Q.size()!=itsReps.size())
+            throw std::invalid_argument("qcMesh::RadialPoissonOnRepresentatives: "+std::to_string(Q.size())+" charges for "
+                                        +std::to_string(itsReps.size())+" representatives");
+        typedef qcMesh::SiteMultipoles::channels_t channels_t;
+        channels_t M=itsSites->MomentsAt(itsReps,Q);             // the representatives' moments at the orbit totals...
+        itsSites->SymmetrizeChannels(M,itsAction);               // ...group-averaged: the full mesh's moments, exactly
+        const rvec_t Kq=itsSites->SynthesizeAt(itsSolver.Solve(M),itsReps);
+        channels_t S=itsSites->SynthesizeAdjointAt(itsReps,Q);   // the same for the transposed synthesis
+        itsSites->SymmetrizeChannels(S,itsAction);
+        const rvec_t KTq=itsSites->MomentsAdjointAt(itsSolver.SolveAdjoint(S),itsReps);
+        rvec_t v(Kq.size());
+        for (size_t o=0; o<v.size(); o++) v[o]=itsSites->OnShell(itsReps[o]) ? 0.5*(Kq[o]+KTq[o]) : Kq[o];
+        return v;
+    }
+private:
+    std::shared_ptr<const qcMesh::SiteMultipoles> itsSites;
+    RadialPoissonSolver itsSolver;
+    std::vector<size_t> itsReps;                     //!< the representatives' full-mesh indices
+    qcMesh::SiteMultipoles::ChannelAction itsAction;   //!< the fold's group on the channels
+};
+} //anonymous namespace
+
+std::unique_ptr<CoulombOperator> RadialPoissonCoulomb::MakeOnRepresentatives(const FoldedMesh& folded) const
+{
+    if (!folded.HasFold() || !folded.HasSiteAction()) return nullptr;
+    if (folded.size()!=itsSites->NumPoints())
+        throw std::logic_error("qcMesh::RadialPoissonCoulomb::MakeOnRepresentatives: the folded mesh has "+std::to_string(folded.size())
+                               +" points, this operator's sites "+std::to_string(itsSites->NumPoints()));
+    const FoldedMesh::SiteAction& sa=folded.GetSiteAction();
+    return std::make_unique<RadialPoissonOnRepresentatives>(itsSites,folded.RepresentativeIndices(),itsSites->MakeChannelAction(sa.W,sa.image));
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------

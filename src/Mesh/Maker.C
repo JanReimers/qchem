@@ -48,8 +48,8 @@ public:
 //! \brief Builds a real-space integration mesh from a recipe over ONE fixed structure (the one the realization closes over).
 //! Two overloads (the user, 2026-11-22: one interface, not two parallel class networks for raw and folded meshes): the plain mesh, and
 //! the mesh a \c SymmetrySource asks for.  The second is a TEMPLATE METHOD: the branch logic is the same for every structure; only the
-//! two steps that need the geometry -- the invariant mesh, and the orbit fold (a cell's matrix, its Shubnikov flip-fixed points) -- are
-//! the realization's protected hooks.  Neither hook is reached when the source has no ops.
+//! two steps that need the geometry -- the invariant mesh, and the invariant mesh with its orbit fold (a cell's matrix, its Shubnikov
+//! flip-fixed points) -- are the realization's protected hooks.  Neither hook is reached when the source has no ops.
 class MeshMaker
 {
 public:
@@ -62,8 +62,8 @@ public:
     {
         const std::vector<Symmetry::SymOp> ops=sym.MeshOps();
         if (ops.empty()) return {std::make_shared<const Mesh>(Make(mp)), {}};
+        if (sym.AveragesDensityOverOrbits()) return MakeFolded(mp, ops);
         Mesh mesh=MakeInvariant(mp, ops);
-        if (sym.AveragesDensityOverOrbits()) return FoldOrbits(std::move(mesh), ops);
         // FREE run: the same invariant mesh an imposed run gets, but NO fold -- nothing averages the density.
         std::cout << "[XC mesh] free run: mesh invariant under the " << ops.size() << " detected ops, "
                   << mesh.size() << " points; the density is NOT averaged" << std::endl;
@@ -72,8 +72,10 @@ public:
 protected:
     //! The bound structure's mesh at \a mp, invariant under \a ops (non-empty).
     virtual Mesh       MakeInvariant(const MeshParams& mp, const std::vector<Symmetry::SymOp>& ops) const=0;
-    //! \a mesh (invariant under \a ops) with its orbit partition, and on a magnetic op set the Shubnikov tags.
-    virtual FoldedMesh FoldOrbits(Mesh mesh, const std::vector<Symmetry::SymOp>& ops) const=0;
+    //! The bound structure's mesh at \a mp, invariant under \a ops (non-empty), WITH its orbit partition (and on a magnetic op set the
+    //! Shubnikov tags).  One hook, not "build, then fold": a structure whose build already searches every point's image under every op
+    //! (a molecule's, to verify the mesh) folds from that search instead of repeating it (lane H 2026-11-25, SF₆'s mesh pilot).
+    virtual FoldedMesh MakeFolded(const MeshParams& mp, const std::vector<Symmetry::SymOp>& ops) const=0;
 };
 
 } // namespace qchem::qcMesh
