@@ -15,9 +15,10 @@ ALLOW = {"QCHEM_OPENMP_THREADS", "GPW_OMP_THREADS", "QCHEM_BLAS_THREADS",      #
          "OMP_NUM_THREADS", "KMP_BLOCKTIME",                                   # read only to DESCRIBE the run on the banner
          "GPW_COLLOC_MEMO",                                                    # replay-cache depth: memory against time
          "QCHEM_DIAGNOSTICS",                                                  # output-only registry (qchem.Diagnostics)
-         "GTH2UPF_VERBOSE",                                                    # the gth2upf converter's print switch
-         "HOME"}                                                               # FRONT ENDS only (rundeck, ITMain main): where the run-control
-                                                                               # directory lives (OpenWork "Run control", 2026-11-25); never a number
+         "GTH2UPF_VERBOSE"}                                                    # the gth2upf converter's print switch
+# Variables allowed ONLY in the named files.  HOME: the run-control directory ~/Code/qchem6-runs/control, read by the two FRONT-END mains
+# and never under src/ (controller ruling 2026-11-26, OpenWork "Run control"); it locates files and can never change a number.
+ALLOW_IN = {"HOME": {"CLIapps/rundeck.C", "IntegrationTests/gtestmain.C"}}
 NONLITERAL_OK = {"src/Common/Imp/Diagnostics.C", "src/Common/Imp/Environment.C"}
 bad = []
 files = []
@@ -32,7 +33,10 @@ for f in sorted(files):
             arg = m.group(1).strip()
             lit = re.fullmatch(r'"([A-Za-z0-9_]+)"', arg)
             if lit:
-                if lit.group(1) not in ALLOW: bad.append(f"{rel}:{ln}: getenv(\"{lit.group(1)}\") -- not on the allowlist (a value that moves a number belongs in the deck)")
+                name = lit.group(1)
+                if name in ALLOW_IN:
+                    if rel not in ALLOW_IN[name]: bad.append(f"{rel}:{ln}: getenv(\"{name}\") -- allowed only in {sorted(ALLOW_IN[name])}")
+                elif name not in ALLOW: bad.append(f"{rel}:{ln}: getenv(\"{name}\") -- not on the allowlist (a value that moves a number belongs in the deck)")
             elif rel not in NONLITERAL_OK:
                 bad.append(f"{rel}:{ln}: getenv({arg}) -- a non-literal name outside qchem.Diagnostics / qchem.Environment")
         for m in re.finditer(r'\bqchem::Env\s*\(\s*"([A-Za-z0-9_]+)"', code):
