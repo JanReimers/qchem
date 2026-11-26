@@ -277,3 +277,32 @@ TEST(Fold, SymOpSpinActionDefaultsToNone)
     SymOp tr{Matrix3D<double>(), rvec3_t(0,0,0), SpinAction::Flip};
     EXPECT_EQ(tr.sigma, SpinAction::Flip);
 }
+
+// THE EUCLIDEAN MATCHER (lane H 2026-11-25): the nearest point within tol, through a sparse bucket grid.  A slab of points sharing one x
+// is the case the old sorted-by-x window search scanned whole; the answers must be the brute-force nearest.
+TEST(Fold, PointIndexFindsTheNearestPointWithinTol)
+{
+    using namespace qchem::Symmetry::Lattice_3D;
+    std::vector<rvec3_t> pts;
+    for (int i=0;i<40;i++) for (int j=0;j<40;j++) pts.push_back(rvec3_t(0.0, 0.1*i-2.0, 0.1*j-2.0));   // one plane, x = 0
+    pts.push_back(pts[820]);                             // coincident with point 820 (near the origin): ties keep the lowest index
+    pts.push_back(pts[820]+rvec3_t(1e-9, 1e-9, -1e-9));   // a near neighbour of it
+    const double tol=1e-8;
+    const PointIndex index(pts, tol);
+    auto brute=[&](const rvec3_t& r)
+    {
+        long best=-1; double bd=tol*tol;
+        for (size_t i=0;i<pts.size();i++)
+        {
+            const rvec3_t d=pts[i]-r; const double d2=d*d;
+            if (d2<bd || (d2==bd && best<0)) {best=long(i); bd=d2;}
+        }
+        return best;
+    };
+    for (size_t i=0;i<pts.size();i++) EXPECT_EQ(index.Find(pts[i]), brute(pts[i])) << "point " << i;
+    EXPECT_EQ(index.Find(pts[820]), 820) << "the first of two coincident points (40*20+20), not its twin";
+    EXPECT_EQ(index.Find(pts[820]+rvec3_t(0.9e-9, 1e-9, -1e-9)), long(pts.size()-1)) << "the nearer of two candidates within tol";
+    EXPECT_EQ(index.Find(rvec3_t(0.05, 0.0, 0.0)), -1) << "nothing within tol";
+    EXPECT_EQ(index.Find(rvec3_t(0.0, 0.1-2.0+0.5e-8, -2.0)), 40) << "within tol, across a bucket face";
+    EXPECT_THROW(PointIndex(pts, 0.0), std::invalid_argument);
+}

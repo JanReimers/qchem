@@ -36,6 +36,7 @@ import qchem.Fitting.Types;           // robs_t
 import qchem.Fitting.FitOperations;   // OrthogonalFit: a matrix-free seed samples itself
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.Mesh;                        // the δ basis's point set: owners, weights, the weight response
+import qchem.BasisSet.Fit_Types;          // FitQuadrature: that point set, and on the representatives its folded parent
 import qchem.Structure;                   // the force's atoms
 import qchem.Blaze;
 import qchem.Parallel;                // LazyLock -- the per-block cache's guard
@@ -51,9 +52,15 @@ public:
     typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;
     //! The constructor DEMANDS the basis's Coulomb-integral face \a coulomb (the same object as \a fbs, gathered by the factory): the
     //! physics belongs to the basis (ruling (f)), and this fitter only asks it.
-    //! And it demands the δ basis's own point set \a mesh (its quadrature's mesh, gathered by the factory too): the force reads its owners
-    //! and its weight response, which the basis keeps private.
-    DeltaDensityFitter(fbs_t fbs, const BasisSet::PointCoulombIntegrals& coulomb, std::shared_ptr<const qcMesh::Mesh> mesh);
+    //! And it demands the δ basis's own quadrature \a quad (gathered by the factory too): the force reads its owners and its weight
+    //! response, which the basis keeps private.
+    //!
+    //! ON THE REPRESENTATIVES OF A FOLDED MESH (lane H 2026-11-24, OpenWork §3).  The basis is then one δ per orbit at the orbit's weight
+    //! \f$W_o=|o|w_o\f$, and its operator scatters over the orbits (\c qcMesh::MakeFoldedCoulomb), so the energy, the fit and the Fock are
+    //! the full mesh's exactly and nothing here changes.  Only the force does: legs 1 and 2 are the representatives' contributions taken
+    //! at \f$W_o\f$, \f$\tilde g=\sum_o|o|c(r_o)\f$, and the full mesh's gradient is their A1 projection \f$P\tilde g\f$ through the parent's
+    //! site action (as the XC route's, \c DensitySampler_Singles.C); leg 1 contracts the PARENT's weight response.
+    DeltaDensityFitter(fbs_t fbs, const BasisSet::PointCoulombIntegrals& coulomb, const BasisSet::FitQuadrature& quad);
 
     double HartreeEnergy(const std::function<double()>& trDV) const override;
     //! \copydoc FirstOrderDensityFit<double>::DoFit -- on a δ basis the projections ARE the fit (values at the points).
@@ -80,6 +87,8 @@ private:
     std::string ForceGap() const;
     //! \c ForceGap, plus a fit to differentiate and the structure's atoms being the mesh's sites.
     std::string AtomsGap(const Structure* st) const;
+    //! The A1 projection of a gradient taken on the representatives (\f$P\tilde g\f$); the identity on an unfolded mesh.
+    void ProjectOntoA1(rvec3vec_t& g) const {if (itsQuad.IsRepresentatives()) itsQuad.Parent()->SymmetrizeSiteVectors(g);}
     rvec_t Projection() const {return (*itsW)*itsC;}   // <f_a|rho>.  Blaze: element-wise for two column vectors
     //! The forward+adjoint pair for one orbital block, off the basis's cached tensor.  Locked for the same reason
     //! DeltaScalarFitter::Integrator is: a parallel Fock pass's blocks share this fitter.
@@ -89,7 +98,8 @@ private:
     qchem::LazyLock itsCacheLock;
     fbs_t  itsFitBasis;                             //!< co-owned: the integrators' closures capture it
     const BasisSet::PointCoulombIntegrals* itsCoulomb;   //!< the basis's own Coulomb integrals (a face of itsFitBasis, co-owned there)
-    std::shared_ptr<const qcMesh::Mesh> itsMesh;   //!< the δ basis's points (the force's owners and weight response)
+    BasisSet::FitQuadrature itsQuad;   //!< the δ basis's points (the force's owners and weight response), or the representatives of a fold
+    std::shared_ptr<const qcMesh::Mesh> itsMesh;   //!< \c itsQuad's mesh
     std::shared_ptr<const rvec_t> itsW;   //!< \f$\langle f_a|f_a\rangle\f$: the mesh weights on a \f$\delta\f$ basis (shared with the views)
     rvec_t itsCharge;   //!< \f$\langle f_a|1\rangle\f$: the same numbers there, not on a multipole basis
     rvec_t itsC;   //!< the fit: on a \f$\delta\f$ basis, the density's values at the points

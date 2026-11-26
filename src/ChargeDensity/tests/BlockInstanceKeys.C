@@ -96,7 +96,7 @@ TEST(FitterBlockKeys, TwoBlocksOfEqualSymmetryAskedOfOneFitterGetTheirOwnViews)
                                  std::dynamic_pointer_cast<const BasisSet::PairProjector<double>>(
                                      std::shared_ptr<const Fitting::DeltaScalarFit<double>>(Fitting::MakeDeltaScalarFitter(delta))));}},
         {"grid density", [&]{return std::dynamic_pointer_cast<const BasisSet::PairProjector<double>>(
-                                 std::shared_ptr<const Fitting::FirstOrderDensityFit<double>>(Fitting::MakeDeltaDensityFitter(cdelta, quad.GetMesh())));}},
+                                 std::shared_ptr<const Fitting::FirstOrderDensityFit<double>>(Fitting::MakeDeltaDensityFitter(cdelta, quad)));}},
         {"dunlap",       [&]{return std::dynamic_pointer_cast<const BasisSet::PairProjector<double>>(
                                  std::shared_ptr<const Fitting::DunlapDensityFit<double>>(Fitting::MakeDunlapDensityFitter(gauss)));}},
     };

@@ -256,20 +256,24 @@ void ExpectTheFoldIsExact(const Molecule& mol, RunOptions o, const char* what)
     auto c=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(mol, o)).TakeValue(); (void)c->Converge();
     ASSERT_TRUE(c->Result()) << what;
     const GridAuditResult R=c->FoldAudit();
-    bool sawExc=false;
+    bool sawExc=false, sawEee=false;
     for (const auto& t : R.terms)
     {
         sawExc = sawExc || t.entries=="Exc";
+        sawEee = sawEee || t.entries=="Eee";   // the δ-fit Hartree samples one point per orbit too (lane H 2026-11-24)
         EXPECT_LT(std::fabs(t.ΔE), 1e-10)   << what << ", " << t.label;
         EXPECT_LT(t.maxAbsΔH,      1e-12)   << what << ", " << t.label;
     }
     EXPECT_TRUE(sawExc) << what;
+    EXPECT_TRUE(sawEee) << what;
     std::printf("[fold audit] %s: |ΔE| %.2e, max|ΔH| %.2e\n", what, std::fabs(R.ΔE), R.maxAbsΔH);
 }
 } //anon
 
 TEST(FoldAudit, OnePointPerOrbitIsExactOnAnImposedRun_H2O_LDA)    {ExpectTheFoldIsExact(GetMolecule("H2O"), {.model=Model::LDA}, "H2O C2v LDA");}
 TEST(FoldAudit, OnePointPerOrbitIsExactOnAnImposedRun_H2O_PBE)    {ExpectTheFoldIsExact(GetMolecule("H2O"), {.model=Model::PBE}, "H2O C2v PBE");}
+//! The δ-fit Hartree on its OWN mesh (a stated radial count): its representatives are its own, not the XC term's.
+TEST(FoldAudit, OnePointPerOrbitIsExactOnAnImposedRun_H2O_LDA_OwnHartreeMesh) {ExpectTheFoldIsExact(GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.nRadial=90}}, "H2O C2v LDA, Hartree mesh nR=90");}
 TEST(FoldAudit, OnePointPerOrbitIsExactOnAnImposedRun_CH4_LDA)    {ExpectTheFoldIsExact(MakeCH4(), {.model=Model::LDA}, "CH4 Td->C2v LDA");}
 TEST(FoldAudit, OnePointPerOrbitIsExactOnAnImposedRun_O2_LSDA_Long)    {ExpectTheFoldIsExact(MakeO2(), {.multiplicity=3, .model=Model::LDA}, "O2 triplet D2h LSDA");}
 TEST(FoldAudit, OnePointPerOrbitIsExactOnAnImposedRun_O2_PBE_Long)    {ExpectTheFoldIsExact(MakeO2(), {.multiplicity=3, .model=Model::PBE}, "O2 triplet D2h PBE");}
