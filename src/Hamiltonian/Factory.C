@@ -66,6 +66,10 @@ export namespace qchem::Hamiltonian
         double alpha   = 2.0/3.0;   //!< exchange scaling, XC::SlaterXalpha only
         int    libxcId = 1;         //!< libxc functional id, XC::LibXC / XC::LibXCGGA (1 = LDA_X / Slater; a GGA's exchange part)
         int    libxcCorrId = 0;     //!< XC::LibXCGGA only: the correlation part's libxc id (0: none, e.g. an exchange-correlation id)
+        //! THE HYBRID (V-HAM-COMPOSE step 3, lane S 2026-11-26): the fraction \f$a\f$ of exact (HF) exchange, \f$aK_{HF}+(1-a)E_x^{DFT}+E_c^{DFT}\f$
+        //! through the mixer term.  0 = pure DFT (no mixer is built).  Needs a SEPARABLE exchange part to scale (Slater / Xalpha / a libxc
+        //! exchange id); the setup refuses a combined XC id, a GGA (not wired yet) and a non-molecule (policy Hybrid).
+        double exactExchange = 0.0;
         bool operator==(const XCFunctional&) const = default;
     };
 

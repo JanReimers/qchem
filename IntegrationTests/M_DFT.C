@@ -417,6 +417,33 @@ TEST(M_DFT, WaterLDA_ExactCoulomb)
     EXPECT_NEAR(calc->Energy(), -75.87729931, 2e-6) << "ORACLE: PySCF, exact J and XC on (200, 590): -0.43 μHa, the XC mesh's alone";
 }
 
+// THE LDA HYBRID (xc.exactExchange; V-HAM-COMPOSE step 3, the mixer term): a K_HF + (1-a) E_x^Slater + E_c^VWN5.  On the exact J, so the
+// Hartree route's own error is out of the comparison and what is left is the XC mesh's (-0.43 uHa for pure LDA above).  ORACLE: PySCF RKS,
+// xc "a*HF + (1-a)*LDA, VWN", the same DZVP file, Cartesian, XC grid (200, 590) (~/Code/qchem6-runs/Q2/xcheck/hybrid.py, 2026-11-26).
+TEST(M_DFT, WaterLDAHybrid_ExactCoulomb)
+{
+    for (const auto& [a, oracle] : {std::pair{0.25, -76.0785074238}, std::pair{1.0, -76.6866235640}})
+    {
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
+            {.model=Model::LDA, .exactExchange=a, .coulomb={.route = Hamiltonian::HartreeRoute::Exact}, .molecule={.basis="dzvp"}})).TakeValue();
+        (void)calc->Converge();
+        ASSERT_TRUE(calc->Result()) << "a=" << a;
+        std::printf("  [hybrid] a=%.2f E=%.10f PySCF %.10f diff %.3e\n", a, calc->Energy(), oracle, calc->Energy()-oracle);
+        EXPECT_NEAR(calc->Energy(), oracle, 2e-6) << "ORACLE: PySCF, a=" << a << " (the XC mesh's error alone, as pure LDA's -0.43 uHa)";
+    }
+}
+
+// The hybrid on the molecular DEFAULT Hartree route (delta, radial Poisson): the same functional, its J the fitted one, so it sits within
+// the Poisson route's own J error of the exact-J hybrid above (the audit gate below bounds that at 3e-5 on water).
+TEST(M_DFT, WaterLDAHybrid_DeltaCoulomb)
+{
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
+        {.model=Model::LDA, .exactExchange=0.25, .molecule={.basis="dzvp"}})).TakeValue();
+    (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    EXPECT_NEAR(calc->Energy(), -76.0785074238, 3e-5) << "ORACLE: PySCF's exact-J hybrid, within the Poisson route's J error";
+}
+
 // THE COULOMB AUDIT (MoleculeCalculation::CoulombAudit; the Q2 fixed-D column): at the converged D of a Poisson run, the run against itself
 // is zero to the bit (the reference is the same Hamiltonian rebuilt), and against the exact J it is the Poisson route's own J error.
 TEST(M_DFT, WaterLDA_DeltaCoulomb_CoulombAuditAgainstExactJ)

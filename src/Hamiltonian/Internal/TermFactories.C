@@ -11,7 +11,7 @@
 // Factories are allowed to look ugly (CLAUDE.md): the constructors may not.  Step 2 (lane S 2026-11-25): every factory takes the
 // context and its own CHOICE and returns a Term record (qchem.Hamiltonian.Internal.Hamiltonian), so the constructors are Add lists:
 //   - MakeCoulombTerm(ctx, route, slot): fitted Vee (Vee_FitDunlap / Vee_Fit) or the exact four-centre J (Vee_HF, coulomb.route Exact);
-//   - MakeXCTerm(ctx, XCChoice, ...): the ONE XC term (LDA parts summed, or a GGA) with the nonlinear mesh it brings;
+//   - MakeXCTerms(ctx, XCChoice, ...): the XC term (LDA parts summed, or a GGA) with the nonlinear mesh it brings, plus a*K for a hybrid;
 //   - MakePPLocalTerm / MakePPNonLocalTerm(ctx, ...): the two molecular PP terms on the context's ONE PP quadrature.
 module;
 #include <memory>
@@ -186,15 +186,18 @@ rgmesh_t MolecularGradientMesh(const st_t& st, MolecularTermContext& share, XCRo
 rTerm MakeCoulombTerm(MolecularTermContext& ctx, const CoulombRoute& coulomb, const CoulombFitSlot<double>& coulombFit);
 
 //! \brief THE XC CHOICE, one of two (V-ONE-OF-N): the LDA \c parts summed into ONE term (the gather is linear: half the work), or a \c gga.
-//! Exactly one is filled; \c MakeXCTerm throws otherwise.
+//! Exactly one is filled; \c MakeXCTerms throws otherwise.
 struct XCChoice
 {
     std::vector<std::shared_ptr<ExFunctional>> parts;
     std::shared_ptr<const GGAFunctional>       gga;
+    //! The hybrid's exact-exchange fraction \f$a\f$: \f$\ne0\f$ makes \c MakeXCTerms add \f$a\cdot V_{xc}^{HF}\f$ (a one-child mixer) beside the DFT term, with the
+    //! DFT exchange already scaled by \f$1-a\f$ inside \a parts (\c ScaledExFunctional, one gather).  0 = pure DFT.
+    double exactExchange=0.0;
 };
 //! \brief THE XC TERM and the nonlinear mesh it is a client of (V-NONLINEAR-MESH): the record carries both, and \c Add holds the mesh
 //! before the term.  \a coulomb gives the δ route's lMax (the mesh's site multipoles).
-rTerm MakeXCTerm(MolecularTermContext& ctx, const XCChoice& xc, XCRoute fit, const CoulombRoute& coulomb, SpinGroup g);
+std::vector<rTerm> MakeXCTerms(MolecularTermContext& ctx, const XCChoice& xc, XCRoute fit, const CoulombRoute& coulomb, SpinGroup g);
 
 //! THE MOLECULAR PP TERMS, both on the context's ONE \c PPQuadrature (or none: closed form).  The local model replaces \c Ven.
 rTerm MakePPLocalTerm   (MolecularTermContext& ctx, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,

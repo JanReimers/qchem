@@ -165,7 +165,8 @@ void MoleculeCalculation::BuildGraph()
     CheckPPFunctional(*itsStructure);
     // THE ERI4 RAM CAP (S6, user ruling 6): a model that builds the 4-centre tensors (HF, DHF) is judged ONCE here, from the block sizes,
     // against the memory available -- warn and run, or refuse on resources -- instead of a collector evicting them mid-run.
-    if (*opts.model==qchem::Hamiltonian::Model::HF || *opts.model==qchem::Hamiltonian::Model::DHF)
+    // A hybrid's exact exchange builds the same tensors (policy Hybrid: judged as HF's, conservative when J is fitted).
+    if (*opts.model==qchem::Hamiltonian::Model::HF || *opts.model==qchem::Hamiltonian::Model::DHF || opts.exactExchange)
     {
         std::vector<size_t> blocks;
         for (auto b : itsBasis->Iterate<BasisSet::Real_IBS>()) blocks.push_back(b->GetNumFunctions());
@@ -659,11 +660,21 @@ qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const q
 {
     const RunOptions& opts=itsSetup->opts;
     const qcMesh::SymmetrySource& sym = symmetry ? *symmetry : *itsMeshSymmetry;
-    return itsSetup->pp
-        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, *itsMeshMaker, sym, itsBasis, fit, {opts.vxcFit, opts.xcRho},
-                                      coulomb, qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha))
-        : qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, *itsMeshMaker, sym, itsBasis, fit, opts.xalpha,
-                                      {opts.vxcFit, opts.xcRho}, coulomb);
+    if (itsSetup->pp)
+    {
+        qchem::Hamiltonian::XCFunctional xc=qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha);
+        xc.exactExchange=opts.exactExchange.value_or(0.0);   // the hybrid (policy Hybrid admitted it)
+        return qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, *itsMeshMaker, sym, itsBasis, fit, {opts.vxcFit, opts.xcRho},
+                                           coulomb, xc);
+    }
+    if (opts.exactExchange)   // a hybrid: the DFT model's functional with its exact-exchange fraction (policy Hybrid admitted only DFT models)
+    {
+        qchem::Hamiltonian::XCFunctional xc=qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha);
+        xc.exactExchange=*opts.exactExchange;
+        return qchem::Hamiltonian::Factory(opts.spin, itsStructure, xc, mesh, *itsMeshMaker, sym, itsBasis, fit, {opts.vxcFit, opts.xcRho}, coulomb);
+    }
+    return qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, *itsMeshMaker, sym, itsBasis, fit, opts.xalpha,
+                                       {opts.vxcFit, opts.xcRho}, coulomb);
 }
 
 // THE COULOMB-FIT CHECK (policy CoulombFitResidual; OpenWork "The Coulomb-fit default is a hidden policy", lane S 2026-11-21; the

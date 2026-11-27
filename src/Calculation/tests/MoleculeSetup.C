@@ -212,6 +212,12 @@ TEST(MoleculeSetup, ACoulombFitFileTheRunCannotUseIsRefusedByName)
         {{.model=Model::LDA, .coulomb={.route=Hamiltonian::HartreeRoute::Exact, .auxBasis="A2_coul"}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
         {{.model=Model::LDA, .coulomb={.route=Hamiltonian::HartreeRoute::Exact, .constraint=Hamiltonian::ChargeConstraint::None}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
         {{.model=Model::HF, .coulomb={.route=Hamiltonian::HartreeRoute::Exact}, .molecule={.basis="dzvp"}}, "CoulombRouteUnused", 8},
+        // The hybrid (xc.exactExchange, policy Hybrid; V-HAM-COMPOSE step 3): a in (0,1], a DFT model with a separable exchange part, an LDA
+        {{.model=Model::LDA,  .exactExchange=0.0,  .molecule={.basis="dzvp"}}, "Hybrid", 8},
+        {{.model=Model::LDA,  .exactExchange=1.5,  .molecule={.basis="dzvp"}}, "Hybrid", 8},
+        {{.model=Model::HF,   .exactExchange=0.25, .molecule={.basis="dzvp"}}, "Hybrid", 8},
+        {{.model=Model::PADE, .exactExchange=0.25, .molecule={.basis="dzvp"}}, "Hybrid", 8},
+        {{.model=Model::PBE,  .exactExchange=0.25, .molecule={.basis="dzvp"}}, "Hybrid", 8},
     };
     for (const Case& c : cases)
     {

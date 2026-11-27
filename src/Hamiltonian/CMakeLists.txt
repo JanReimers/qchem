@@ -36,6 +36,7 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/HamiltonianForces.C      # the force fold over the terms (GeometryOptimizationPlan §13; 2026-11-08)
     Internal/Imp/Hamiltonians.C 
     Internal/Imp/TermFactories.C          # the molecular term factories (V-HAM-COMPOSE, lane S 2026-11-25)
+    Internal/Imp/Mixed.C                  # the linear mixer term (V-HAM-COMPOSE step 3, lane S 2026-11-26)
     Internal/Imp/SlaterExchange.C         # e_x, and Enzyme's v_x / f_x (the plugin rides this file)
     Internal/Imp/VWN_Correlation.C        # e_c, and Enzyme's v_c / f_c (the plugin rides this file)
     Internal/Imp/Libxc_LDA.C
@@ -57,6 +58,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/HamiltonianTerm.C 
     Internal/Hamiltonians.C 
     Internal/TermFactories.C              # the molecular term factories (V-HAM-COMPOSE, lane S 2026-11-25)
+    Internal/Mixed.C                      # the linear mixer term (V-HAM-COMPOSE step 3, lane S 2026-11-26)
     Internal/ExchangeFunctional.C  
     Internal/SlaterExchange.C
     Internal/VWN_Correlation.C

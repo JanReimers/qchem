@@ -327,8 +327,23 @@ namespace qchem::Hamiltonian
     //! The XC choice as the term factory takes it: a GGA as its functional, any other kind as its parts (Slater X\f$\alpha\f$ is the one
     //! part; each part contributes its OWN eps, so E_c is the correct integral eps_c rho, not the 3/4 exchange virial; libxc is spin-native
     //! through its XC_POLARIZED contract, 2026-10-21).
+    //! THE HYBRID's DFT side: the parts with the EXCHANGE one scaled by 1-a (ScaledExFunctional: one composite, one gather).  The exchange
+    //! part is the separable one MakeXCParts puts FIRST (Slater / Xalpha / libxc's LDA_X); a single exchange-correlation id has none to scale.
+    //! The setup refuses what has none (policy Hybrid), so reaching a throw here is a broken invariant.
+    static std::vector<std::shared_ptr<ExFunctional>> HybridParts(const XCFunctional& xc)
+    {
+        const double a=xc.exactExchange;
+        std::vector<std::shared_ptr<ExFunctional>> parts=MakeXCParts(xc);
+        const bool combinedXC = xc.kind==XC::LibXC && parts.size()==1;
+        if (combinedXC || xc.kind==XC::LibXCGGA)
+            throw std::logic_error("Hamiltonian::MakeXCChoice: "+Describe(xc)+" has no separable exchange part for a hybrid's (1-a) -- the setup "
+                                   "should have refused it (policy Hybrid)");
+        parts[0]=std::make_shared<ScaledExFunctional>(1.0-a, parts[0]);
+        return parts;
+    }
     static XCChoice MakeXCChoice(const XCFunctional& xc)
     {
+        if (xc.exactExchange!=0.0) return XCChoice{.parts=HybridParts(xc), .exactExchange=xc.exactExchange};
         if (xc.kind==XC::LibXCGGA) return XCChoice{.gga=MakeGGAFunctional(xc)};   // GGA stage 2
         return XCChoice{.parts=MakeXCParts(xc)};
     }

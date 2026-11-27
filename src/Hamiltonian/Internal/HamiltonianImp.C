@@ -151,6 +151,8 @@ protected:
     //! Add a factory's term: its mesh first (if it brings one), then the term through the overload for its family.  THROWS on a record
     //! with no term or more than one (a broken factory).
     void Add(tTerm<T>&& t);
+    //! A factory's term LIST (the XC axis: one term, or two for a hybrid), each through \c Add(tTerm), in order.
+    void Add(std::vector<tTerm<T>>&& ts) {for (auto& t : ts) Add(std::move(t));}
 
     shtv_t   itsSHTs;
     dhtv_t   itsDHTs;

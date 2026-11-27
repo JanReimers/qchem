@@ -11,6 +11,7 @@ module;
 #include <sstream>   // the MeshSymmetry row's numbers
 #include <iomanip>
 #include <cmath>
+#include <format>   // the Hybrid row
 module qchem.MoleculeSetup;
 
 import qchem.PeriodicTable;   // thePeriodicTable (Z -> element symbol, for the PP lookup)
@@ -28,6 +29,35 @@ import qchem.Symmetry.Molecule.AbelianGroup;   // BuildAbelianGroup: its D2h-typ
 namespace qchem
 {
 
+// THE HYBRID (policy Hybrid; V-HAM-COMPOSE step 3, lane S 2026-11-26): xc.exactExchange a builds a*K_HF + (1-a)*E_x^DFT + E_c^DFT -- the DFT
+// term with its exchange part scaled inside the one composite, and a*K beside it (the mixer term).  REFUSED where the combination has no meaning
+// or is not wired: a outside (0,1]; a model whose exchange is already exact or absent; a model with no SEPARATE exchange part to scale (PADE,
+// one exchange-correlation formula); a GGA (PBE0 needs a scaled GGA exchange: not wired yet, OpenWork).  The ERI4 RAM row is the HF one
+// (MoleculeCalculation: policy ERI4Memory), which counts both tensors although a hybrid with a fitted J reads only K's -- conservative.
+static void ResolveHybrid(const RunOptions& o)
+{
+    if (!o.exactExchange) return;
+    const double a=*o.exactExchange;
+    const Hamiltonian::Model m=*o.model;
+    const std::string name=Hamiltonian::Name(m);
+    if (!(a>0.0 && a<=1.0))
+        policy::Refuse("Hybrid", std::format("xc.exactExchange {} is outside (0, 1]", a),
+                       "a is the fraction of exact exchange: 0 is pure DFT (drop the key), 1 all exact exchange");
+    if (!Hamiltonian::IsDFT(m))
+        policy::Refuse("Hybrid", "xc.exactExchange stated on the "+name+" model",
+                       "a hybrid mixes exact exchange into a DENSITY model's exchange; "+name+" has no DFT exchange to mix -- drop the key, or state a DFT model");
+    if (Hamiltonian::ConsumesDensityGradient(Hamiltonian::ModelToXC(m)))
+        policy::Refuse("Hybrid", "xc.exactExchange stated on the GGA "+name,
+                       "a hybrid GGA (PBE0 style) needs its GGA exchange part scaled by 1-a, which is not wired yet (OpenWork V-HAM-COMPOSE) -- an LDA "
+                       "hybrid (model LDA or Xalpha) runs");
+    if (m==Hamiltonian::Model::PADE)
+        policy::Refuse("Hybrid", "xc.exactExchange stated on PADE",
+                       "PADE (Teter 93) is ONE exchange-correlation formula with no separate exchange part to scale by 1-a -- state model LDA");
+    policy::Report("Hybrid", std::format("hybrid exchange: {} K_HF + {} E_x^{} + E_c", a, 1.0-a, name), policy::Verdict::Choose,
+                   "xc.exactExchange stated: the DFT term's exchange part scaled by 1-a inside its one composite, the exact exchange a*K beside it; "
+                   "K builds the HF ERI4 tensors (policy ERI4Memory)");
+}
+
 // THE MOLECULE'S VIEW OF THE ONE OPTIONS TREE: its per-kind defaults (each a `policy` row) and its refusals of what it does not consume.
 RunOptions MoleculeOptions(const RunOptions& asked)
 {
@@ -43,6 +73,7 @@ RunOptions MoleculeOptions(const RunOptions& asked)
     if (asked.ortho || asked.orthoTol!=0.0) refuse("ortho / orthoTol", "the molecular solver picks its own orthogonalisation (Auto)");
     if (!asked.spins.empty()) refuse("spins", "a per-site magnetic decoration is a periodic imposition's");
     if (!o.model) { o.model=Hamiltonian::Model::HF; policy::Report("DefaultModel", "model unstated: a molecule's default", policy::Verdict::Choose, "HF"); }
+    ResolveHybrid(o);
     if (!o.pp)     o.pp=std::string();                      // all-electron
     if (!o.xcMesh) o.xcMesh=kMolecularMeshDefault;          // climbed to eps from its entry rung
     return o;

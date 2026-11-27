@@ -108,6 +108,9 @@ struct RunOptions
     std::optional<Hamiltonian::Model> model;
     //! The Slater exchange parameter (model Xalpha only).
     double xalpha = 0.7;
+    //! THE HYBRID (deck `xc.exactExchange`; V-HAM-COMPOSE step 3, lane S 2026-11-26): the fraction a of exact (HF) exchange,
+    //! a*K_HF + (1-a)*E_x^DFT + E_c^DFT, a MOLECULE's density model only (policy Hybrid refuses the rest).  UNSTATED = pure DFT.
+    std::optional<double> exactExchange;
     //! The pseudopotential SET (src/Pseudopotential/Data/pseudopotentials.json; doc/CalcNetworkReview.md §4): per element the GTH
     //! valence variant and the functional it was generated for, chosen ONCE.  UNSTATED = the kind's default: a molecule all-electron,
     //! a solid "gth-lda-valence" (a deck takes its material's set).  An EMPTY string states all-electron.

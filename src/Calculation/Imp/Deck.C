@@ -753,6 +753,7 @@ void ReadRunOptions(Fields& f, const json& j, RunOptions& o)
     if (j.contains("xc"))
     {
         Fields xf(f.At("xc"),"xc"); xf.GetEnum("fit",o.vxcFit,kVxc); xf.GetEnum("rho",o.xcRho,kRho);
+        GetOpt(xf,j.at("xc"),"exactExchange",o.exactExchange);   // the hybrid's exact-exchange fraction (a molecule's; policy Hybrid)
         if (j.at("xc").contains("mesh")) { qcMesh::MeshParams m=o.xcMesh.value_or(qcMesh::XCMeshDefault()); FromJson(xf.At("mesh"),m); o.xcMesh=m; } else xf.At("mesh");
         xf.Done();
     }
@@ -971,6 +972,7 @@ static json NonPeriodicJson(const RunOptions& o, RunKind kind)
             {"seed",NameOf(o.seed,kSeed)},{"accuracy",o.accuracy.eps},{"accelerator",NameOf(o.accelerator,kAcc)},
             {"xc",{{"fit",NameOf(o.vxcFit,kVxc)},{"rho",NameOf(o.xcRho,kRho)},
                    {"mesh",ToJson(o.xcMesh.value_or(atom ? kAtomMeshDefault : kMolecularMeshDefault))}}}};
+    if (o.exactExchange) j["xc"]["exactExchange"]=*o.exactExchange;   // the hybrid, only when stated (unstated = pure DFT)
     if (atom)
     {
         j["ortho"]=NameOf(o.ortho.value_or(qchem::Auto),kOrtho);

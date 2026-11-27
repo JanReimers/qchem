@@ -58,7 +58,7 @@ Ham_DFT::Ham_DFT(MolecularTermContext& ctx, const XCChoice& xc, XCRoute fit, con
     Add(new IonIon<double>(ctx.St()));   // bare nuclei: the ion charge IS Z
     Add(new Ven(ctx.St()));
     Add(MakeCoulombTerm(ctx, coulomb, coulombFit));   // a fit (δ on the XC mesh, shared with the XC term: P2), or the exact J
-    Add(MakeXCTerm(ctx, xc, fit, coulomb, g));        // ONE XC term with the nonlinear mesh it brings
+    Add(MakeXCTerms(ctx, xc, fit, coulomb, g));       // the XC term with the nonlinear mesh it brings (+ a*K for a hybrid)
 }
 
 Ham_PP::Ham_PP(MolecularTermContext& ctx, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
@@ -71,7 +71,7 @@ Ham_PP::Ham_PP(MolecularTermContext& ctx, std::shared_ptr<const Pseudopotential:
     Add(MakePPLocalTerm(ctx, vloc, sep.get()));          // the pseudized replacement for Ven
     if (sep) Add(MakePPNonLocalTerm(ctx, *vloc, sep));   // KB separable projectors (a local-only PP has none)
     Add(MakeCoulombTerm(ctx, coulomb, coulombFit));
-    Add(MakeXCTerm(ctx, xc, fit, coulomb, g));
+    Add(MakeXCTerms(ctx, xc, fit, coulomb, g));
 }
 
 namespace {

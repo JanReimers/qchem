@@ -11,6 +11,7 @@ module;
 #include <vector>
 module qchem.Hamiltonian.Internal.TermFactories;
 import qchem.Hamiltonian.Internal.Terms;
+import qchem.Hamiltonian.Internal.Mixed;            // the hybrid: 1*V_xc^DFT + a*V_xc^HF (V-HAM-COMPOSE step 3)
 import qchem.Types;                               // rsmat_t / rmat_t (RequireInvariantPairProducts)
 import qchem.BasisSet.MultipoleFit_IBS;           // the multipole route, built here over a δ basis
 import qchem.Symmetry.Unit;                       // UnitQN: the molecular fit lineage's trivial irrep
@@ -364,10 +365,13 @@ rTerm MakeCoulombTerm(MolecularTermContext& share, const CoulombRoute& coulomb, 
     return rTerm::Of(new Vee_Fit<double>(Fitting::MakeDeltaDensityFitter(mfb, quad), st->GetNumElectrons()));
 }
 
-rTerm MakeXCTerm(MolecularTermContext& ctx, const XCChoice& xc, XCRoute fit, const CoulombRoute& coulomb, SpinGroup g)
+namespace
+{
+//! The DFT XC term (LDA parts or a GGA) and its nonlinear mesh: \c MakeXCTerms without the hybrid's exact exchange.
+rTerm MakeDFTXCTerm(MolecularTermContext& ctx, const XCChoice& xc, XCRoute fit, const CoulombRoute& coulomb, SpinGroup g)
 {
     if (bool(xc.gga)==!xc.parts.empty())
-        throw std::logic_error("MakeXCTerm: an XC choice holds "+std::string(xc.gga ? "both a GGA and LDA parts" : "neither a GGA nor LDA parts")+" (exactly one)");
+        throw std::logic_error("MakeXCTerms: an XC choice holds "+std::string(xc.gga ? "both a GGA and LDA parts" : "neither a GGA nor LDA parts")+" (exactly one)");
     rTerm t;
     if (xc.gga)
     {
@@ -386,5 +390,21 @@ rTerm MakeXCTerm(MolecularTermContext& ctx, const XCChoice& xc, XCRoute fit, con
     t=rTerm::Of(new tVxc_DFT<double>(std::make_shared<CompositeExFunctional>(xc.parts), mesh, g));
     t.mesh=std::move(mesh);
     return t;
+}
+} //anon
+
+// THE XC AXIS, the one place the XC terms are chosen.  Pure DFT: one term.  A HYBRID (exactExchange a != 0): the same DFT term, already carrying
+// (1-a)*E_x inside its one composite (MakeXCChoice scaled the exchange part), PLUS a*V_xc^HF as a one-child mixer.  TWO top-level terms, not
+// one cross-family mixer, so the DFT term stays where the grid audits and the mesh pilot read it (they leave whole-system terms out).
+std::vector<rTerm> MakeXCTerms(MolecularTermContext& ctx, const XCChoice& xc, XCRoute fit, const CoulombRoute& coulomb, SpinGroup g)
+{
+    std::vector<rTerm> out;
+    out.push_back(MakeDFTXCTerm(ctx, xc, fit, coulomb, g));
+    if (xc.exactExchange==0.0) return out;
+    qchem::report::Set("exactExchange", xc.exactExchange);
+    std::vector<tWeightedTerm<double>> k;
+    k.push_back({xc.exactExchange, rTerm::Of(new Vxc_HF)});
+    out.push_back(Mix(std::move(k)));
+    return out;
 }
 } //namespace
