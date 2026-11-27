@@ -1,5 +1,6 @@
 // File: Hamiltonian.C  Interface a Hamiltonianian operator.
 module;
+#include <algorithm>   // std::max (TermRangeAudit::Excess)
 #include <limits>
 #include <memory>
 #include <type_traits>   // std::conditional_t/is_same_v (HamRealBlockBase -- Step 3c-2)
@@ -326,6 +327,45 @@ struct TermForce { std::string label, missing; rvec3vec_t F; };
 //! One term's virial at fixed D (MakeTermVirials, the strain twin of TermForce): EMPTY missing = V is its ∂E/∂ε, gradient sign, Ha.
 struct TermVirial { std::string label, missing; rmat3d_t V; };
 
+//! \brief ONE BLOCK's WEAKEST directions, the probe of the quotient range audit (\c tHamiltonian::MakeTermRangeAudit; user rulings
+//! 2026-11-25, "Hamiltonian answers it" and "... by asking each term"): the lowest eigenpairs of the block's overlap,
+//! \f$S v_j=\lambda_j v_j\f$, \f$v_j^\dagger v_j=1\f$, so \f$v_j^\dagger S v_j=\lambda_j\f$.  Columns of \c v, eigenvalues in \c lambda;
+//! a real TRIM block of a complex run carries its (real) vectors in the run's scalar.  Empty = nothing to probe on this block.
+template <class T> struct WeakDirections { mat_t<T> v; rvec_t lambda; };
+
+//! \brief ONE STATIC TERM's answer to the quotient range audit: the RIGOROUS range of its OPERATOR and the worst Rayleigh quotient its
+//! MATRIX gives along the basis's weakest directions.
+//!
+//! For an operator \f$a_{\min}\le\hat A\le a_{\max}\f$ and any \f$\phi=\sum_i v_i\chi_i\f$ the quotient
+//! \f[ R_A(v)=\frac{v^\dagger A v}{v^\dagger S v}\in[a_{\min},a_{\max}] \f]
+//! holds EXACTLY, whatever \f$\lambda_{\min}(S)\f$ is: a near-singular overlap cannot by itself push a bounded term out of its range.
+//! What it does is amplify a matrix ERROR: along an S eigenvector \f$\delta R=v^\dagger\delta A\,v/\lambda\f$, so
+//! \f$|\delta R|\le\|\delta A\|_2/\lambda\le\|\delta A\|_F/\lambda\f$.  The term reports that amplification per unit relative
+//! error, \f$\mathrm{scale}=\|A\|_F/\lambda\f$ (the RIGOROUS part of the allowance); the policy multiplies it by its NAMED calibration
+//! (the relative matrix error a healthy run carries) in ONE visible place (CLAUDE.md "rigorous vs empirical").
+//!
+//! \c hasRange false: the term has no density-independent range (Hartree, XC, +U) or none is derived yet (V_loc long, v2); \c why says
+//! which.  Otherwise the fields describe the direction (over every block) whose \c Excess is largest.
+struct TermRangeAudit
+{
+    std::string label;                 //!< the term's own description (as TermEnergy's)
+    bool        hasRange=false;        //!< does the term answer a rigorous operator range?
+    std::string why;                   //!< when it does not: why not
+    double      lower=0.0, upper=0.0;  //!< the operator's rigorous range, Ha (±infinity allowed: Kinetic is [0,∞))
+    double      quotient=0.0;          //!< \f$R_A\f$ along the worst direction, Ha
+    double      lambda=0.0;            //!< that direction's \f$\lambda_j\f$
+    double      scale=0.0;             //!< \f$\|A\|_F/\lambda_j\f$: Ha per unit relative matrix error
+    size_t      block=0, direction=0;  //!< where: the block index and the column of its WeakDirections
+    std::string blockLabel;            //!< the block's symmetry label
+    //! The RELATIVE matrix error that would explain the quotient's distance outside the range,
+    //! \f$\max(a_{\min}-R,\,R-a_{\max})/\mathrm{scale}\f$: negative inside the range (how far inside, in the same units).
+    double Excess() const
+    {
+        const double out=std::max(lower-quotient, quotient-upper);
+        return scale>0.0 ? out/scale : (out>0.0 ? std::numeric_limits<double>::infinity() : -std::numeric_limits<double>::infinity());
+    }
+};
+
 template <class T> class tHamiltonian;
 //! \brief THE HAMILTONIAN AT ONE DENSITY (OOD V1.41 stage 1): what the SCF consumes -- the Fock/KS blocks and the energy
 //! at that density -- as a VALUE, made by \c tHamiltonian::At (which runs the refresh).  The block query is \c (bs, spin):
@@ -501,6 +541,13 @@ public:
     //! that check each term's virial against the strain finite difference of its own energy at fixed D.
     virtual std::vector<TermVirial>     MakeTermVirials(const tbs_t<T>*, const tDM_CD<T>*, const Structure*) const {return {};}
     virtual std::vector<hmat_t<T>>      MakeTermMatrices(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const {return {};}
+    //! \brief THE QUOTIENT RANGE AUDIT (user rulings 2026-11-25: "Hamiltonian answers it", sharpened "Hamiltonian answers it by asking
+    //! each term"): ask EACH static term, block by block over \a wholeBasis (its real TRIM blocks included), for its Rayleigh quotients
+    //! along that block's weakest directions \a weak[i] and its own rigorous operator range; one \c TermRangeAudit per static term, in
+    //! term order, the worst direction over every block.  The Hamiltonian holds no range and knows no operator: a term answers for
+    //! itself, or answers "no static range".  Static blocks only, so it needs no density and may run before the seed.  The caller (the
+    //! policy layer) decides what an excursion means: refuse before iteration 1, or report.  Empty for a Hamiltonian with no term list.
+    virtual std::vector<TermRangeAudit> MakeTermRangeAudit(const tbs_t<T>* wholeBasis, const std::vector<WeakDirections<T>>& weak) const {return {};}
     //! The REAL-TRIM-block twin (a real block of a complex run; see the real-block \c GetMatrix).
     virtual std::vector<hmat_t<double>> MakeTermMatrices(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const {return {};}
 };

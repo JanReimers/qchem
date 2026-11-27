@@ -457,6 +457,22 @@ namespace qchem::Hamiltonian {
         std::string label, missing;
         rmat3d_t V;
     };
+    template <class T> struct WeakDirections {
+        mat_t<T> v;
+        rvec_t lambda;
+    };
+    struct TermRangeAudit {
+        std::string label;
+        bool hasRange=false;
+        std::string why;
+        double lower=0.0, upper=0.0;
+        double quotient=0.0;
+        double lambda=0.0;
+        double scale=0.0;
+        size_t block=0, direction=0;
+        std::string blockLabel;
+        double Excess() const;
+    };
     template <class T> class tHamiltonian;
     template <class T> class tHamiltonianAt {
     public:
@@ -504,6 +520,7 @@ namespace qchem::Hamiltonian {
         virtual std::vector<TermForce> MakeTermForces(const tbs_t<T>*, const tDM_CD<T>*, const Structure*) const;
         virtual std::vector<TermVirial> MakeTermVirials(const tbs_t<T>*, const tDM_CD<T>*, const Structure*) const;
         virtual std::vector<hmat_t<T>> MakeTermMatrices(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const;
+        virtual std::vector<TermRangeAudit> MakeTermRangeAudit(const tbs_t<T>* wholeBasis, const std::vector<WeakDirections<T>>& weak) const;
         virtual std::vector<hmat_t<double>> MakeTermMatrices(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const;
     };
     template <class T> hmat_t<T> tHamiltonianAt<T>::GetMatrix(const tobs_t<T>* bs, const Spin& s) const;
@@ -712,6 +729,7 @@ namespace qchem {
         virtual rvec3vec_t IonIonForces (const std::function<double(int Z)>& zionOf) const;
         virtual rmat3d_t IonIonVirial (const std::function<double(int Z)>& zionOf) const;
         virtual double G0Background (const std::function<double(int Z)>& f) const;
+        virtual double SumAroundSite (size_t a, const std::function<double(int Z, double d)>& g) const;
         virtual Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const=0;
         SiteRange Sites() const;
         void ForEachSite(const std::function<void(int Z, const rvec3_t& R, bool spinFlip)>& f) const;

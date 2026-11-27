@@ -732,9 +732,9 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& callerParams)
         {
             std::ostringstream os;
             os << why << " (Etot " << std::setprecision(6) << ebJ.GetTotalEnergy() << ", Ekin " << ebJ["Kinetic"] << ", Eee " << ebJ["Eee"] << "), so the Hamiltonian "
-               << "it was built from is broken -- on a GPW run, an "
-               << "aliased raster that an ill-conditioned overlap amplifies (raise the rasters, or state the accuracy target and let the "
-               << "conditioning size them), or a basis the orthogonalization should have trimmed";
+               << "it was built from is broken: on a GPW run, an aliased raster that an ill-conditioned overlap amplifies, or a basis "
+               << "the orthogonalization should have trimmed -- To fix this, please trim the basis (basis.autoTrim true with "
+               << "an orthoTol > 0), or raise the rasters (state the accuracy target and let the conditioning size them)";
             itsUnphysicalStop=os.str();
             cout << "  *** SCF REFUSED at iteration 1: " << itsUnphysicalStop << " ***" << endl;
             itsIterationCount++;   // match the for-increment the break skips (the -- below assumes it ran)
@@ -1599,6 +1599,14 @@ std::string SolidSCFIterator::FirstEnergyRefusal(const EnergyBreakdown& eb, doub
 {
     constexpr double kMaxPerElectron=1.0;   // Ha: the stated scale (see the declaration); healthy cells sit below +0.05
     const double E=eb.GetTotalEnergy();
+    if (itsFloor.energy && E<*itsFloor.energy)
+    {
+        std::ostringstream os;
+        os << "the FIRST iterate's TOTAL energy is " << std::setprecision(6) << E << " Ha, " << *itsFloor.energy-E << " Ha BELOW the "
+              "lowest physical first iterate " << *itsFloor.energy << " Ha (" << itsFloor.basis << "): a variational COLLAPSE, the "
+              "signature of a near-singular overlap whose small eigenvalues amplify every matrix-element error";
+        return os.str();
+    }
     if (!(nElectrons>0.0) || E<=kMaxPerElectron*nElectrons) return {};
     std::ostringstream os;
     os << "the FIRST iterate's TOTAL energy is " << std::setprecision(6) << E << " Ha, " << E/nElectrons << " Ha per electron: above the "
@@ -1628,17 +1636,19 @@ void SolidSCFIterator::AccumulateColumns(std::vector<ColumnData>& cols, const SC
 SolidSCFIterator::SolidSCFIterator(const tbs_t<dcmplx>* bs, const ElectronConfiguration* ec, qchem::Hamiltonian::tHamiltonian<dcmplx>* H,
                                    qchem::SCFAccelerators::SCFAccelerator* acc, std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>> wf,
                                    const ChargeDensity::DensityMaker& seedMaker,
-                                   const UnitCell& cell, bool mixRhoM, ChargeDensity::SeedStrategy seed)
-    : SolidSCFIterator(bs,ec,H,acc, std::move(wf), cell, mixRhoM,
+                                   const UnitCell& cell, bool mixRhoM, FirstIterateFloor floor, ChargeDensity::SeedStrategy seed)
+    : SolidSCFIterator(bs,ec,H,acc, std::move(wf), cell, mixRhoM, std::move(floor),
                        ChargeDensity::MakeSeedDensity(seed,bs,cell,ec, seedMaker, H&&H->GetSpinGroup()==SpinGroup::Polarized), SeedRole::Guess)
 {}
 
 SolidSCFIterator::SolidSCFIterator(const tbs_t<dcmplx>* bs, const ElectronConfiguration* ec, qchem::Hamiltonian::tHamiltonian<dcmplx>* H,
                                    qchem::SCFAccelerators::SCFAccelerator* acc, std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>> wf,
-                                   const UnitCell& cell, bool mixRhoM, tChargeDensity<dcmplx>* seedDensity, SeedRole role)
+                                   const UnitCell& cell, bool mixRhoM, FirstIterateFloor floor, tChargeDensity<dcmplx>* seedDensity,
+                                   SeedRole role)
     : tSCFIterator<dcmplx>(bs,ec,H,acc,std::move(wf),seedDensity,&cell,role)
     , itsCell(cell)
     , itsMixRhoM(mixRhoM)
+    , itsFloor(std::move(floor))
 {}
 
 // The solid mixer.  The branch here is on the KNOBS -- which RECIPE did the caller ask for? -- not on the

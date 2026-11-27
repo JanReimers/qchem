@@ -81,6 +81,8 @@ forces Polarized.  An AFM crystal states `"spin": "Polarized", "multiplicity": 1
                                           //   one delta J at the seed and at the converged density (policy CoulombFitResidual), WARNING over eps x N
   "solid": {                              // the PERIODIC-ONLY options
     "kShift": [0,0,0], "densityEcut": -1, "cutoffFactor": 2,
+    "firstIterateMargin": 1.0,            // EXPERT, Ha per atom: iterate 1 below (sum of the free pseudo-atoms' energies) - margin x N_atoms is REFUSED as a collapse (kFirstIterateMargin, its record at the declaration); >= 0
+    "quotientAllowance": 1e-7,            // EXPERT: the quotient range audit's allowance factor eta (kQuotientAllowance, its record at the declaration): a static term whose Rayleigh quotient along the basis's weakest directions leaves its rigorous range by more than eta x |A|_F/lambda is REFUSED before iteration 1; >= 0
     "xcMeshSymmetric": true,              // FREE run: XC mesh invariant under the group detected at THIS geometry; false = the plain atom-centred mesh (a displacement path needs false)
     "tolerances": { "screenEps": 1e-10, "densityEps": 1e-10, "vlocEps": 1e-5, "fieldSharp": 0.667, "relCutoff": 0, "mgridEcuts": [], ... },
     "policy": { "cp2kCompat": false, "streamFold": true, ... },     // the declared CP2K deviations; ONLY stated routes are recorded

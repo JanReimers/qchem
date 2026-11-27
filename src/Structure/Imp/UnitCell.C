@@ -4,6 +4,8 @@ module;
 #include <iomanip>
 #include <cassert>
 #include <cstdlib>
+#include <cmath>
+#include <algorithm>
 #include <stdexcept> // RequireSiteBlocks -- a Becke-mesh invariant that must survive NDEBUG
 #include <iostream>
 #include <string>
@@ -252,6 +254,36 @@ double UnitCell::G0Background(const std::function<double(int)>& f) const
     double s=0;
     for (const Site& a : Sites()) s+=f(a.Z);
     return s/GetCellVolume();
+}
+
+// The shell-by-shell image sum (Structure::SumAroundSite's contract): shell n holds the translations with max|n_i| == n.  A Gaussian
+// envelope converges in a few shells; one that has not after kMaxShells is not decaying, which is a defect in the caller's bound.
+double UnitCell::SumAroundSite(size_t a, const std::function<double(int Z, double d)>& g) const
+{
+    if (a>=GetNumAtoms()) throw std::logic_error("UnitCell::SumAroundSite: no site "+std::to_string(a));
+    constexpr int kMaxShells=200;
+    const rvec3_t ra=Sites()[a].R;
+    double total=0.0;
+    for (int n=0;n<=kMaxShells;n++)
+    {
+        double shell=0.0;
+        for (int i=-n;i<=n;i++) for (int j=-n;j<=n;j++) for (int k=-n;k<=n;k++)
+        {
+            if (std::max(std::abs(i),std::max(std::abs(j),std::abs(k)))!=n) continue;
+            const rvec3_t R=ToCartesian(rvec3_t(i,j,k));
+            for (size_t b=0;b<GetNumAtoms();b++)
+            {
+                if (n==0 && b==a) continue;
+                const rvec3_t d=Sites()[b].R+R-ra;
+                shell+=g(Sites()[b].Z, norm(d));
+            }
+        }
+        total+=shell;
+        if (n>=1 && std::abs(shell)<=1e-16*std::abs(total)) return total;
+        if (n>=2 && total==0.0) return 0.0;
+    }
+    throw std::runtime_error("UnitCell::SumAroundSite: the image sum has not converged after "+std::to_string(kMaxShells)
+                             +" shells -- the envelope does not decay");
 }
 
 double CellGeometry::GetCellVolume() const
