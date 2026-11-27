@@ -12,11 +12,15 @@ module;
 #include <cassert>
 #include <cstddef>
 #include <type_traits>   // std::conditional_t/is_same_v (StaticRealBlockBase -- Step 3c)
+#include <cmath>         // std::sqrt (AuditAlong)
+#include <complex>       // std::real/std::norm (AuditAlong)
+#include <string>        // std::to_string (AuditAlong)
 export module qchem.Hamiltonian.Internal.Term;
 export import qchem.Hamiltonian;
 import qchem.Hamiltonian.Types;
 
 import qchem.Symmetry.Irrep;
+import qchem.Blaze;        // blazem::conjs (AuditAlong: blaze::conj is a no-op on a scalar)
 import qchem.SlotMap;      // every block cache below (doc/IntegralCacheOwnershipPlan.md S1)
 
 export namespace qchem::Hamiltonian
@@ -238,6 +242,63 @@ protected:
     mutable SlotMap<Irrep,hmat_t<double>,SlotDiscipline::Refresh> itsRealCache;
     mutable DensityID itsRealCacheID=DensityID(static_cast<const tChargeDensity<dcmplx>*>(nullptr));
 };
+
+//! \brief THE QUOTIENT RANGE AUDIT's TERM FACE (user rulings 2026-11-25: the Hamiltonian answers \c MakeTermRangeAudit "by asking each
+//! term"): a static term that KNOWS a rigorous range of its OPERATOR answers, for one block \a bs, the worst Rayleigh quotient its own
+//! matrix gives along the block's weakest directions (columns of \a v, \f$S v_j=\lambda_j v_j\f$, \f$v_j^\dagger v_j=1\f$; see
+//! \c TermRangeAudit).  INTERNAL, not a hub face: the Hamiltonian cross-casts each static term to it (abstract to abstract; a term
+//! without it answers "no static range").  The \a U of the BLOCK: a complex run's term answers its real TRIM blocks through
+//! \c tHT_RangeAuditor<double>.  ⚠ List it AFTER a term's private bases (the cross-cast trap, CLAUDE.md).
+template <class U> class tHT_RangeAuditor
+{
+public:
+    virtual ~tHT_RangeAuditor() = default;
+    virtual TermRangeAudit AuditRange(const tobs_t<U>* bs, const Spin& s, const mat_t<U>& v, const rvec_t& lambda) const=0;
+};
+
+//! \brief The ONE body every auditor shares: \a A's quotients \f$R_j=\mathrm{Re}(v_j^\dagger A v_j)/\lambda_j\f$ along the columns of
+//! \a v, and the direction whose \c Excess against \f$[\,\a lower,\a upper\,]\f$ is largest, with its amplification
+//! \f$\|A\|_F/\lambda_j\f$ (\c TermRangeAudit says why that bounds the error's effect).  \a lambda must be positive (the caller keeps
+//! only directions the run keeps).  Cost \f$O(n^2 m)\f$.
+template <class U> TermRangeAudit AuditAlong(const hmat_t<U>& A, double lower, double upper, const mat_t<U>& v, const rvec_t& lambda)
+{
+    const size_t n=A.rows(), m=v.columns();
+    if (v.rows()!=n || lambda.size()!=m)
+        throw std::logic_error("AuditAlong: the weak directions do not match the term's block ("+std::to_string(v.rows())+"x"
+                               +std::to_string(m)+" against a "+std::to_string(n)+"-function block)");
+    double f2=0.0;
+    for (size_t i=0;i<n;i++) for (size_t k=0;k<n;k++) f2+=std::norm(A(i,k));
+    const double normF=std::sqrt(f2);
+    TermRangeAudit r; r.hasRange=true; r.lower=lower; r.upper=upper;
+    bool first=true;
+    for (size_t j=0;j<m;j++)
+    {
+        if (!(lambda[j]>0.0)) throw std::logic_error("AuditAlong: a weak direction with lambda <= 0 (the caller keeps the run's own)");
+        double q=0.0;
+        for (size_t i=0;i<n;i++)
+        {
+            U Av=U(0);
+            for (size_t k=0;k<n;k++) Av+=A(i,k)*v(k,j);
+            q+=std::real(blazem::conjs(v(i,j))*Av);
+        }
+        TermRangeAudit c=r;
+        c.quotient=q/lambda[j]; c.lambda=lambda[j]; c.scale=normF/lambda[j]; c.direction=j;
+        if (first || c.Excess()>r.Excess()) { r=c; first=false; }
+    }
+    return r;
+}
+
+//! The REAL TRIM block's auditor of a T-templated term (the \c Static_HT_RealBlock_Of pattern): present on the \c dcmplx instantiation
+//! only, it routes a real block to the term's ONE \c template<class U> AuditBlock body.
+template <class D> class tHT_RangeAuditor_RealBlock_Of : public virtual tHT_RangeAuditor<double>
+{
+public:
+    virtual TermRangeAudit AuditRange(const tobs_t<double>* bs, const Spin& s, const mat_t<double>& v, const rvec_t& l) const override
+    {return static_cast<const D&>(*this).template AuditBlock<double>(bs, s, v, l);}
+};
+struct NoRealRangeAuditor {};
+template <class T, class D> using RealRangeAuditorBase =
+    std::conditional_t<std::is_same_v<T,dcmplx>, tHT_RangeAuditor_RealBlock_Of<D>, NoRealRangeAuditor>;
 
 struct NoRealBlock {};
 template <class T, class D> using StaticRealBlockBase =

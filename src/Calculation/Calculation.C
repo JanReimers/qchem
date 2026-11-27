@@ -30,6 +30,8 @@ export import qchem.SCFFailure; // SCFFailure: why an attempt has no answer (Res
 export import qchem.Outcome;    // Outcome<Converged, SCFFailure>
 import qchem.ScalarFunction;    // ScalarFunction<double> (the spin density's face)
 import qchem.ChargeDensity;     // tDM_CD<T> (the converged density)
+import qchem.SCFIterator;       // IterationRow: the last iterate every kind keeps (KeepingLastRow)
+import qchem.RunControl;        // RunControl: the commands a running calculation polls (Control, RunControlHook)
 import qchem.Reporting;         // report::TimingWindow: the run's own timing breakdown at the end of each Converge
 export import qchem.SCFParams;  // SCFParams (Converge's edit argument)
 export import qchem.Setup;      // Setup (a stage's optional setup) + RunOptions (Converge's settings, the checkpoint path) + SCFRecipe
@@ -294,7 +296,19 @@ public:
     //! answers, or the reason there are none.  \c [[nodiscard]] via \c Outcome.
     Outcome<Converged, SCFFailure> Result() const;
 
+    //! \brief THE COMMANDS this calculation polls at each SCF iteration's end (qchem.RunControl: stop, save-and-stop, checkpoint, threads).
+    //! A front end (rundeck, the GUI) ALWAYS hands its own; with none, the calculation polls the process's write-once default (a test
+    //! binary's; null in production).  A STOP is sticky: every later stage, pilot and \c Converge of this calculation ends at once, and
+    //! \c Result answers \c SCFFailure::StoppedByUser.
+    void Control(std::shared_ptr<RunControl> control) {itsControl=std::move(control);}
+    //! Whether a run-control command stopped this calculation (\c Result then says where its state went).
+    bool Stopped() const {return itsStopped.has_value();}
+
 protected:
+    //! \brief THE POLL each kind installs on its SCF iterator (\c SetBoundaryHook), beside its observer, wherever it builds one.  It
+    //! applies the commands that arrived (threads, a checkpoint) and answers TRUE to end the SCF there (stop, save-and-stop; and at once
+    //! once stopped).  The meaning of every command lives here, in the policy layer; the iterator only stops.
+    std::function<bool(size_t)> RunControlHook();
     //! \brief ONE STAGE, the same steps on every kind: the kind runs it (\c RunStage), the base checkpoints it (CK-1: after every
     //! stage, converged or not, when \c saveStateTo is set) and answers it.  \c Converge runs one; a kind's own multi-stage driver (the
     //! solid's annealed schedule, its +U loop, its raster pilot) runs one per stage, so each is checkpointed alike.
@@ -333,9 +347,31 @@ protected:
     //! write start 5 back and the recipe would record a spurious deviation.
     SCFParams ExactResumeMixing(const SCFParams& params, const SCFParams& resolved);
     //!@}
+
+    //! \name THE LAST ITERATE (V-FACADE-HOIST (a), controller's facade survey 2026-11-25): every kind keeps its last iteration's row,
+    //! whether or not a caller observes, so a run that misses its gates says by how much (\c LastIterateGates, in \c MakeFailure) and a
+    //! saved state records the residual it was saved at (\c RecordResidual, in \c MakeStateSummary; without it every restart printed
+    //! "saved residual not recorded").  It lived in the molecule and the solid only; the atom kept none.
+    //!@{
+    using RowObserver = std::function<void(const SCFIterator::IterationRow&)>;
+    //! The observer a kind hands its iterator: it keeps the row here, then calls \a forward (the caller's own, may be empty).  A kind that
+    //! needs the row for its own detectors (the solid's) calls \c KeepLastRow from its own observer instead.
+    RowObserver KeepingLastRow(RowObserver forward);
+    void KeepLastRow(const SCFIterator::IterationRow& row) {itsLastRow=row;}
+    void ForgetLastRow() {itsLastRow.reset();}   //!< a new iterator: its rows, not the previous one's
+    //! "; the last iterate: <every gated cell, met or missed>" for a failure's details, or "" before any iteration.
+    std::string LastIterateGates() const;
+    //! The saved state's residual: the last row's [F,D] and the cell titled \a densityLabel (the Hamiltonian's \c DeltaRhoLabel).
+    //! Leaves the summary's NaNs (unmeasured) before any iteration.
+    void RecordResidual(StateSummary& s, const std::string& densityLabel) const;
+    //!@}
 private:
+    std::optional<SCFIterator::IterationRow> itsLastRow;   //!< see \c KeepingLastRow
     bool itsExactResumePending=false;   //!< see \c SeededIterator
     std::string itsSaveFailure;          //!< the last \c Checkpoint's failure ("" after a save that succeeded); see \c Checkpoint
+    std::shared_ptr<RunControl> itsControl;   //!< see \c Control (null = the process's default, if any)
+    std::optional<std::string>  itsStopped;   //!< set by a run-control stop: what stopped it, at which iteration, where the state went
+    bool ApplyRunCommand(const RunCommand& c, size_t iteration);   //!< one command, at the end of SCF \a iteration; TRUE = stop
     //! \brief THE RUN'S TIMING BREAKDOWN (user 2026-11-22: "we used to have exactly this breakdown at end of every run"): opened when the
     //! calculation is constructed, reported at the end of each \c Converge (its share of the ledger since construction or the previous
     //! \c Converge, and its SCF iterations), unless a driver window (a geometry point, a geometry run, a deck) is open around it.

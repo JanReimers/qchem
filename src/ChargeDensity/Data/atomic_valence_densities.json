@@ -1,5 +1,10 @@
 [
 	{
+		"Etot": -24.062878848529,
+		"oracle": "CP2K ATOM GTH-PADE-q7 -24.062869",
+		"deltaE": "-1.022e-05",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"Nelec": 7,
 		"q": 7,
 		"Z": 9,
@@ -417,6 +422,11 @@
 		"symbol": "F"
 	},
 	{
+		"Etot": -0.19287075549764,
+		"oracle": "CP2K ATOM GTH-PADE-q1 -0.193016",
+		"deltaE": "+1.454e-04",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"Nelec": 1,
 		"q": 1,
 		"Z": 11,
@@ -1639,6 +1649,11 @@
 		"symbol": "Na"
 	},
 	{
+		"Etot": -3.7733103123727,
+		"oracle": "CP2K ATOM GTH-PADE-q4 -3.773308",
+		"deltaE": "-2.017e-06",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"Nelec": 4,
 		"q": 4,
 		"Z": 14,
@@ -2473,6 +2488,11 @@
 		"symbol": "F"
 	},
 	{
+		"Etot": -14.674745085079,
+		"oracle": "CP2K ATOM GTH-PADE-q7 -14.674771",
+		"deltaE": "+2.579e-05",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"Nelec": 7,
 		"q": 7,
 		"Z": 25,
@@ -6139,6 +6159,11 @@
 		"symbol": "Mn"
 	},
 	{
+		"Etot": -15.808167503756,
+		"oracle": "CP2K ATOM GTH-PADE-q6 -15.808162",
+		"deltaE": "-5.616e-06",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"Nelec": 6,
 		"q": 6,
 		"Z": 8,
@@ -7778,6 +7803,11 @@
 		"symbol": "O"
 	},
 	{
+		"Etot": -37.020735132509,
+		"oracle": "CP2K ATOM GTH-PADE-q10 -37.020722",
+		"deltaE": "-1.329e-05",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"Nelec": 10,
 		"q": 10,
 		"Z": 28,
@@ -10222,6 +10252,11 @@
 		"symbol": "Ni"
 	},
 	{
+		"Etot": -0.19873702141098,
+		"oracle": "CP2K ATOM GTH-PADE-q1 -0.198855",
+		"deltaE": "+1.180e-04",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"Nelec": 1,
 		"q": 1,
 		"Z": 3,
@@ -11444,6 +11479,11 @@
 		"symbol": "Li"
 	},
 	{
+		"Etot": -6.0233169598208,
+		"oracle": "CP2K ATOM GTH-PADE-q5 -6.023343",
+		"deltaE": "+2.641e-05",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"Nelec": 5,
 		"q": 5,
 		"Z": 23,
@@ -12278,6 +12318,11 @@
 		"symbol": "V"
 	},
 	{
+		"Etot": -0.6148721764941,
+		"oracle": "CP2K ATOM GTH-PADE-q2 -0.615122",
+		"deltaE": "+2.498e-04",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"Nelec": 2,
 		"q": 2,
 		"Z": 38,
@@ -12695,6 +12740,11 @@
 		"symbol": "Sr"
 	},
 	{
+		"Etot": -3.3619247216263,
+		"oracle": "CP2K ATOM GTH-PADE-q4 -3.361977",
+		"deltaE": "+5.256e-05",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"Nelec": 4,
 		"q": 4,
 		"Z": 22,
@@ -13112,6 +13162,11 @@
 		"symbol": "Ti"
 	},
 	{
+		"Etot": -20.601815662348,
+		"oracle": "CP2K ATOM GTH-PADE-q8 -20.601815",
+		"deltaE": "-5.178e-07",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"Nelec": 8,
 		"q": 8,
 		"Z": 26,
@@ -13529,6 +13584,11 @@
 		"symbol": "Fe"
 	},
 	{
+		"Etot": -10.099580508692,
+		"oracle": "CP2K ATOM GTH-PADE-q6 -10.099578",
+		"deltaE": "-2.444e-06",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"Nelec": 6,
 		"q": 6,
 		"Z": 16,
@@ -14363,6 +14423,11 @@
 		]
 	},
 	{
+		"Etot": -47.733534001464,
+		"oracle": "CP2K ATOM GTH-PADE-q9 -47.733666",
+		"deltaE": "+1.321e-04",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"symbol": "Na",
 		"Z": 11,
 		"q": 9,
@@ -15197,6 +15262,11 @@
 		]
 	},
 	{
+		"Etot": -7.3014225851057,
+		"oracle": "CP2K ATOM GTH-PADE-q3 -7.301545",
+		"deltaE": "+1.222e-04",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"symbol": "Li",
 		"Z": 3,
 		"q": 3,
@@ -16836,6 +16906,11 @@
 		]
 	},
 	{
+		"Etot": -103.9173383882,
+		"oracle": "CP2K ATOM GTH-PADE-q15 -103.917315",
+		"deltaE": "-2.367e-05",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"symbol": "Mn",
 		"Z": 25,
 		"q": 15,
@@ -18058,6 +18133,11 @@
 		]
 	},
 	{
+		"Etot": -0.47859762576413,
+		"oracle": "CP2K ATOM GTH-PADE-q1 -0.478598",
+		"deltaE": "-6.809e-08",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"symbol": "H",
 		"Z": 1,
 		"q": 1,
@@ -18475,6 +18555,11 @@
 		]
 	},
 	{
+		"Etot": -5.3917907660284,
+		"oracle": "CP2K ATOM GTH-PADE-q4 -5.391789",
+		"deltaE": "-1.729e-06",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"symbol": "C",
 		"Z": 6,
 		"q": 4,
@@ -18892,6 +18977,11 @@
 		]
 	},
 	{
+		"Etot": -9.7461750139821,
+		"oracle": "CP2K ATOM GTH-PADE-q5 -9.746172",
+		"deltaE": "-3.232e-06",
+		"converged": true,
+		"note": "energy backfilled 2026-11-25, density kept as shipped",
 		"symbol": "N",
 		"Z": 7,
 		"q": 5,

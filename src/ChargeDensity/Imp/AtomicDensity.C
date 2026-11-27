@@ -8,6 +8,7 @@ module;
 #include <vector>
 #include <memory>
 #include <map>
+#include <optional>
 #include <mutex>
 #include <utility>
 #include <nlohmann/json.hpp>
@@ -165,6 +166,13 @@ bool HasAtomicSpinPair(int Z, const std::string& functional, const std::string& 
 {
     const nlohmann::json* e = FindAtomicEntry(Z, functional, dbfile, Nval, q);
     return e && e->contains("rho_up") && e->contains("rho_dn");
+}
+
+std::optional<double> GetAtomicEnergy(int Z, const std::string& functional, const std::string& dbfile, int Nval, int q)
+{
+    const nlohmann::json* e = FindAtomicEntry(Z, functional, dbfile, Nval, q);
+    if (!e || !e->contains("Etot")) return std::nullopt;
+    return e->at("Etot").get<double>();
 }
 
 //-------------------------------------------------------------------------------- RecentredAtomicDensity

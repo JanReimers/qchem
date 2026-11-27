@@ -182,6 +182,10 @@ struct SolidSetup : Setup
     //! \brief THE RUN'S POLICY, resolved ONCE from \c opts.solid.policy (D-MUTABLE-STATICS-RUNPOLICY group A): every decision the setup and
     //! its facade make from a CP2K deviation reads THIS (there is no process-wide policy), so a run states the policy it holds.
     RunPolicy policy;
+    //! \brief THE FIRST ITERATE'S LOWER BOUND (policy \c FirstIterateFloor): the sum of the cell's free pseudo-atom energies (the seed
+    //! library's neutral entries at the run's q) less \c opts.solid.firstIterateMargin per atom; EMPTY energy when a species has no
+    //! library energy (its \c basis says which).  The iterator refuses a first iterate below it as a collapse.
+    FirstIterateFloor firstIterateFloor;
     bool ggaChoseBecke = false;   //!< a GGA with the XC mesh unstated: the setup chose the Becke delta route (policy GGARoute, GGA stage 3)
     //! \brief THE ANSATZ, decided ONCE from k and q (user ruling 2026-11-18): a TRIM block may run REAL (\c GPWParams::hamPreservesReal;
     //! a non-TRIM block is complex regardless).  False exactly when \c opts.solid.responseQMeshes plans a response.  The run's ONE source

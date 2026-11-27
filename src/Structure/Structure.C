@@ -108,6 +108,12 @@ public:
     //! \c SumFormFactors pair (V-STRUCTURE-ISP F3).
     virtual double G0Background     (const std::function<double(int Z)>& f) const;
 
+    //! \brief A RADIAL SUM AROUND SITE \a a over every OTHER site and periodic image, \f$\sum_{(b,R)\ne(a,0)} g(Z_b,|\tau_b+R-\tau_a|)\f$:
+    //! the other sites of a finite structure; every lattice image too on a \c UnitCell, summed shell by shell until a whole shell adds
+    //! below 1e-16 of the total (an eps-converged series, never a radius: doc/Pins.md pin 1).  \a g must DECAY with \a d (a rigorous
+    //! envelope, e.g. the quotient range audit's PP bounds, \c Ven_PP_Short / \c Ven_PP_NonLocal); a sum that does not converge THROWS.
+    virtual double SumAroundSite    (size_t a, const std::function<double(int Z, double d)>& g) const;
+
     //! \brief The structure's own symmetry group G_struct, in the Cartesian frame (lane H Group face, migration step 2), detected at
     //! \a tol.  MAKE, not Get: it computes, and the result depends on \a tol (a later cache must key on it).  Each kind issues its own:
     //! an \c Atom O(3) about its site (the atom path imposes it by spherically averaging its open shell); a \c Molecule the ABELIAN

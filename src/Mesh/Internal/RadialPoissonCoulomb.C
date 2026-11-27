@@ -24,6 +24,7 @@ module;
 #include <vector>
 export module qchem.Mesh.Internal.RadialPoissonCoulomb;
 export import qchem.Mesh.CoulombOperator;
+import qchem.Mesh.Folded;
 import qchem.Mesh.SiteMultipoles;
 import qchem.Types;
 
@@ -94,6 +95,11 @@ public:
     //! \f$q^TdKq=q^Td\bar Kq\f$, so the forward channels serve.
     bool       CanPullbackSelfRepulsion() const override {return true;}
     rvec3vec_t MakeSelfRepulsionPullback(const rvec_t& q) const override;
+    //! \copydoc CoulombOperator::MakeOnRepresentatives
+    //! The same \f$\bar K\f$ with no full-mesh vector (lane H 2026-11-25): the moments of the invariant charge, and the transposed synthesis,
+    //! are the representatives' sums group-averaged (\c SiteMultipoles::ChannelAction), and the synthesis and the transposed moments are
+    //! read at the representatives only.  Null when \a folded has no fold or no site action.
+    std::unique_ptr<CoulombOperator> MakeOnRepresentatives(const FoldedMesh& folded) const override;
 private:
     std::shared_ptr<const qcMesh::SiteMultipoles> itsSites;
     RadialPoissonSolver itsSolver;

@@ -31,6 +31,7 @@ import qchem.Mesh;                 // MeshParams
 import qchem.RunPolicy;            // RunPolicySpec
 import qchem.Types;                // ivec3_t
 import qchem.Parallel;             // ThreadCounts (the run's threads key)
+export import qchem.RunControl;    // RunControl: the commands a front end hands Run
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (a stage names its accelerator)
 import qchem.Materials;            // Material (the structure section's name resolves to one)
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
@@ -267,6 +268,7 @@ BasisShells MakeBasisShells(RunSpec spec);
 struct RunOutcome
 {
     bool                   converged = false;
+    bool                   stopped   = false;     //!< a run-control command stopped it (resumable: rundeck exits 75); see \c SCFFailure::StoppedByUser
     std::optional<double>  energy;                //!< total energy (Ha) of the converged state
     std::filesystem::path  revision;              //!< the resolved deck this run wrote: the record
     std::string            summary;               //!< the one-line verdict (or the failure reason)
@@ -276,7 +278,9 @@ struct RunOutcome
 //! \brief RUN a deck: resolve it, CLAIM and WRITE its revision `<outDir>/<structure>.rNNN.json` (BEFORE the SCF, so even a crashed
 //! run leaves its record), build the lattice, basis and \c SolidCalculation, converge the schedule, and report to the console.
 //! The caller supplies the provenance (command line, \c --set strings, input deck); the code version is the caller's too.
-RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDir);
+//! \a control: the front end's run control (qchem.RunControl), polled at every SCF iteration's end; null = none.  A run it STOPS
+//! answers \c stopped, its postSCF actions are recorded as skipped, and the record says where the state went.
+RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDir, std::shared_ptr<RunControl> control = nullptr);
 
 //! \brief BUILD a deck's calculation and STOP BEFORE ITS SCF (2026-10-31: lane G binds the GUI to the deck -- the GUI translates
 //! its own run spec into deck JSON, so the library never knows the GUI's types).  Resolves \a spec, builds the lattice, the basis,

@@ -76,6 +76,7 @@ class Ven_PP_Short
     , public virtual tStatic_PC<double>   // ... and a real TRIM block's (§13.2; lane B)
     , public virtual tStrainGradient_HT<dcmplx>, public virtual tStatic_VC<dcmplx>   // its virial (CellHalf_Design §5; user ruling §6.2)
     , public virtual tStatic_VC<double>   // ... and a real TRIM block's
+    , public virtual tHT_RangeAuditor<dcmplx>, public virtual tHT_RangeAuditor<double>   // the quotient range audit (user rulings 2026-11-25)
 {
 public:
     // The force (GeometryOptimizationPlan §13.2; lane B): the structure-factor Hellmann-Feynman term, Imp/PWTerms_PP_Forces.C.
@@ -103,6 +104,11 @@ public:
     typedef std::shared_ptr<const Structure> st_t;
     //! \a numElectrons: the FIXED electron count the G = 0 alignment multiplies (the run's resolved Nelec; see itsNumElectrons).
     Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc, double numElectrons);
+    //! \brief THE QUOTIENT RANGE AUDIT (user rulings 2026-11-25): this term's quotients along a block's weakest directions against
+    //! its operator's RIGOROUS range, computed once in the ctor (\c itsRange; the bound and its derivation at \c ShortRangeBound in
+    //! Imp/PWTerms_PP.C).  No range (the model has no real-space view) answers \c hasRange false with the reason.
+    virtual TermRangeAudit AuditRange(const cobs_t* bs, const Spin& s, const mat_t<dcmplx>& v, const rvec_t& l) const override;
+    virtual TermRangeAudit AuditRange(const robs_t* bs, const Spin& s, const mat_t<double>& v, const rvec_t& l) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const override;
     virtual std::ostream& Write(std::ostream&) const override;
 private:
@@ -111,6 +117,8 @@ private:
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
+    //! The operator's rigorous range, Ha (the quotient range audit), or why there is none.
+    struct { double lower=0.0, upper=0.0; std::string none; } itsRange;
     double itsAlphaZ=0.0;   //!< the SHORT G=0 alignment per electron, evaluated ONCE in the ctor (0 if finite)
     //! THE FIXED ELECTRON COUNT the G = 0 alignment multiplies, E_alphaZ = N alpha_Z: the run's resolved Nelec (SolidSetup's rule, the
     //! cell's valence minus the STATED RunOptions::charge -- not the sites' formal charges, which RequireConsistentSiteCharges holds to a
@@ -134,6 +142,7 @@ class Ven_PP_NonLocal
     , public virtual tStatic_PC<double>   // ... and a real TRIM block's (§13.2; lane B)
     , public virtual tStrainGradient_HT<dcmplx>, public virtual tStatic_VC<dcmplx>   // its virial (CellHalf_Design §5; user ruling §6.2)
     , public virtual tStatic_VC<double>   // ... and a real TRIM block's
+    , public virtual tHT_RangeAuditor<dcmplx>, public virtual tHT_RangeAuditor<double>   // the quotient range audit (user rulings 2026-11-25)
 {
 public:
     // The force (GeometryOptimizationPlan §13.2; lane B): the structure-factor Hellmann-Feynman term, Imp/PWTerms_PP_Forces.C.
@@ -161,6 +170,11 @@ public:
     typedef std::shared_ptr<const Structure> st_t;
     //! \a nl is REQUIRED (non-owning).  A local-only pseudopotential does not construct this term at all.
     Ven_PP_NonLocal(const st_t& st, const Pseudopotential::SeparablePotential* nl);
+    //! \brief THE QUOTIENT RANGE AUDIT (user rulings 2026-11-25): this term's quotients along a block's weakest directions against
+    //! its operator's RIGOROUS range, computed once in the ctor (\c itsRange; the bound and its derivation at \c ProjectorRangeBound in
+    //! Imp/PWTerms_PP.C).  No range (the model has no real-space view) answers \c hasRange false with the reason.
+    virtual TermRangeAudit AuditRange(const cobs_t* bs, const Spin& s, const mat_t<dcmplx>& v, const rvec_t& l) const override;
+    virtual TermRangeAudit AuditRange(const robs_t* bs, const Spin& s, const mat_t<double>& v, const rvec_t& l) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const override;
     virtual std::ostream& Write(std::ostream&) const override;
 private:
@@ -169,6 +183,8 @@ private:
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::SeparablePotential* itsSep;   //!< KB nonlocal model (non-owning).
+    //! The operator's rigorous range, Ha (the quotient range audit), or why there is none.
+    struct { double lower=0.0, upper=0.0; std::string none; } itsRange;
     //! GPW_NL_PER_L=1 diagnostic (doc/SphericalLatticePlan.md I0): the per-angular-channel KB blocks,
     //! l -> (block Irrep -> block), filled lazily by MakeMatrix and contracted per l in GetEnergy so the
     //! \f$E_{NL}^{(l)}\f$ decomposition prints beside the lumped \c EenNL.  Empty when the knob is off.

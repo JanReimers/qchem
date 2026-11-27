@@ -306,3 +306,42 @@ TEST(Fold, PointIndexFindsTheNearestPointWithinTol)
     EXPECT_EQ(index.Find(rvec3_t(0.0, 0.1-2.0+0.5e-8, -2.0)), 40) << "within tol, across a bucket face";
     EXPECT_THROW(PointIndex(pts, 0.0), std::invalid_argument);
 }
+
+// THE FOLD FROM A KNOWN IMAGE TABLE (lane H 2026-11-25): a molecule's invariant mesh folds from the images its own invariance check
+// searched.  It must be FoldPoints' partition exactly -- owners, reps, star sizes and the edge op onto every member -- on a D2h-invariant
+// cloud with full orbits, points on the mirror planes and axes (short orbits), and the centre.
+TEST(Fold, FoldByImagesIsFoldPointsOnTheSameImages)
+{
+    using namespace qchem::Symmetry::Lattice_3D;
+    std::vector<SymOp> ops;
+    for (int sx : {1,-1}) for (int sy : {1,-1}) for (int sz : {1,-1})
+    {
+        ops.push_back({Matrix3D<double>(sx,0,0, 0,sy,0, 0,0,sz), rvec3_t(0,0,0)});
+    }
+    const std::vector<rvec3_t> seeds = {rvec3_t(0.3,0.7,1.1), rvec3_t(0.4,0.0,0.9), rvec3_t(0.0,0.0,1.3), rvec3_t(0,0,0), rvec3_t(0.5,0.2,0.0)};
+    std::vector<rvec3_t> pts;
+    for (const rvec3_t& s : seeds)
+        for (const SymOp& op : ops)
+        {
+            const rvec3_t p=op.W*s;
+            bool seen=false; for (const rvec3_t& q : pts) seen = seen || norm(q-p)<1e-12;
+            if (!seen) pts.push_back(p);
+        }
+    const double tol=1e-8;
+    const PointIndex index(pts, tol);
+    std::vector<int> images(ops.size()*pts.size());
+    for (size_t o=0;o<ops.size();o++) for (size_t i=0;i<pts.size();i++) images[o*pts.size()+i]=int(index.Find(ops[o].W*pts[i]+ops[o].tau));
+
+    const Fold a = FoldPoints(pts, ops, tol);
+    const Fold b = FoldByImages(images, pts.size(), ops.size());
+    CheckPartition(b, pts.size());
+    EXPECT_EQ(b.Reps(), seeds.size());
+    EXPECT_EQ(b.owner, a.owner);
+    EXPECT_EQ(b.repRaw, a.repRaw);
+    EXPECT_EQ(b.starSize, a.starSize);
+    EXPECT_EQ(b.members, a.members);
+
+    EXPECT_THROW(FoldByImages(images, pts.size(), ops.size()+1), std::invalid_argument) << "a table of the wrong shape";
+    std::vector<int> bad=images; bad[3]=int(pts.size());
+    EXPECT_THROW(FoldByImages(bad, pts.size(), ops.size()), std::invalid_argument) << "an image index out of range";
+}

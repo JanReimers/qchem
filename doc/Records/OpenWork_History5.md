@@ -4173,3 +4173,33 @@ algebraically the same, and the memory is unchanged.  NaF PW falls geometrically
 
 **Steps 2/3 (the setup bound, the health column): CLOSED by the user, 2026-11-25, verbatim: "Yes, neither".**  With the residual held, the floor is
 set by forming R itself, ~u ||D||_F (Δρ ~1e-16).  A setup refusal of a gate below it, or a report column watching for it, could never trip.
+
+## ✅ Grid-pilot beta-test findings on Li -- (c)'s remainder (closed 2026-11-25, lane H)
+
+Measured on main f32563c04 (+ lane H's first-iterate floor, which does not touch the XC route), box load ~22.
+- `GPW_LiF.Γ_Becke_XCMeshAuditReadsTheCurvatureError_Long` (Li q1, Γ, the mesh STATED as `cellKind Becke` = (nR 40, Lebedev 29)): the
+  pilot judges both axes of the energy run's Becke mesh.  Angular L29 vs L35: |dE_xc| 5.1e-6 / 4.8e-6 (meets 2e-5).  RADIAL nR 40 vs 60:
+  7.2e-5 / 6.6e-5 (OVER).  The mesh is stated, so it is honoured and the pilot says NOT SETTLED (a WARN, pin 31: a stated choice is
+  warned, never substituted).  postSCF xcMeshAudit vs (80, 48 GL): dE_xc -6.7e-5, max|dH_xc| 2.4e-4.  The gate passes (it records ok=false).
+- The same dx = 0 deck with `xc.mesh.cellKind Auto` (`~/Code/qchem6-runs/LiF/xcauto/`): round 0 climbs (40, 29) -> (60, 35) in 2 raises
+  (radial 60 vs 80: 2.8e-6; angular 35 vs 41 GL: 2.0e-6), round 1 confirms both axes (2.0e-6 / 2.3e-6), SETTLED.
+- So the default (an unstated mesh) meets eps; nothing is left for the energy run's angular axis.
+
+Original row: | **Grid-pilot beta-test findings on Li (lane H, 2026-11-03)** | (a)-(d) FIXED (2026-11-05, 2026-11-07 b1f150ac8), (e) FIXED 2026-11-08 (lane A d54bec926); `doc/Records/OpenWork_History5.md`. RE-MEASURED 2026-11-07 (main 09eb3caa, bcc q3 aug, 4 threads, `~/Code/qchem6-runs/Li/mu/pilot2/Li_bcc_q3_aug_pilot.log`): 6,056 s wall against the old 22,010 s (3.6x; the old run's PP predates the Hermite3 fix, so not like for like), peak RSS 4.7 GB, Etot -7.366083108 Ha.  By phase: setup 753 s; SCF 406 s (11 iterations); audit round 1 1,284 s (x+8 reference 742, density ball x2 542); re-convergence at x 5.753 (rebuild 600 s + SCF 708 s, 6 iterations); audit round 2 2,054 s (1,072 + 982); the postSCF gridAudit REUSED the pilot's last round (5 s, was 2,460 s); xcMeshAudit 60/35 245 s.  The audits are 55% of the run, and the largest bucket is the reference bases' short-range local PP lattice sum (2,610 s over 432 calls, 6 s each). Left: (c)'s remainder, the q1 solids' auto-chosen 512-point Uniform XC mesh the pilot calls converged while Becke 60/35 differs by 26-35 μHa (the ε row's known miss 1) -- ok now means ≤ the run's target, so `GPW_LiF.Γ_Becke_XCMeshAuditReadsTheCurvatureError_Long` records ok=false (|dE| 7.4e-5 / 6.7e-5 vs 2e-5: the energy run's Becke angular mesh is not piloted) | (c): pilot the energy run's Becke angular mesh, or record the miss · `src/Calculation/Imp/SolidCalculation.C` |
+## ✅ Folded molecular runs: the mesh pilot folds every candidate mesh (closed 2026-11-25, lane H, 6c9fe9d68 · 7f441e356)
+The row as it stood:
+
+| **Folded molecular runs: the mesh pilot folds every candidate mesh** (lane H 2026-11-25; the δ-fit Hartree fold's phases A and B landed, 791bfaed5 + f5646d993 + 6c9fe9d68) | The δ-fit Hartree now runs on one point per orbit end to end: phase A fits on the representatives (`FoldedCoulomb`), phase B solves the radial Poisson there too (`RadialPoissonCoulomb::MakeOnRepresentatives`: the representatives' moments and transposed synthesis group-averaged over the fold's `SiteMultipoles::ChannelAction`, the synthesis read at the representatives only; exact to 4e-14).  SF₆ D2h, same loaded box: the Poisson 0.56-0.60 s/call on the representatives vs 8.8-9.9 s on the full mesh (about 15×; 2.2 s on a quiet box).  What remains: the molecular mesh pilot builds and FOLDS every candidate mesh it climbs (14 folds, ~22 s on SF₆), where only the settled mesh is used folded | fold only the mesh the pilot settles on (or fold the candidates lazily), gate = the pilot's choice and the run's energy unchanged, SF₆ setup time · `doc/Benchmark.md` §10 "Molecular mesh fold", side-session notes `lane-h-delta-hartree-fold-design.md` §7 |
+
+- **Phase B (6c9fe9d68):** the δ-fit Hartree's radial Poisson runs on the representatives (`RadialPoissonCoulomb::MakeOnRepresentatives`),
+  about 15× per call on SF₆.  Numbers: `doc/Benchmark.md` §10 "Molecular mesh fold".
+- **The pilot's folds (7f441e356):** "fold only the settled mesh" was the WRONG fix.  The pilot's reference Hamiltonians are evaluated on the
+  folded candidate meshes, and folded evaluation is the cheap one (SF₆ Poisson 0.6 vs 9 s, the rest of a refresh 0.3 vs 3.6 s), so the
+  candidates stay folded.  The waste was the fold REPEATING the image search that `MakeMesh(Molecule, ops)`'s invariance check had just
+  done (a second `PointIndex`, n × |ops| queries: 29% of building SF₆'s pilot-raised 1.0M-point mesh).  The check now records its matches
+  and `FoldByImages` partitions them; the `MeshMaker` hook became `MakeFolded(mp, ops)`.  SF₆ LDA, `FoldTiming` harness, box load 17-19:
+  14 folds 0.060 s/call (0.83 s) vs 1.567 s/call (21.9 s) at load ~16 before.  FoldAudit and the folded force unchanged to the digit.
+- What remains of a candidate mesh's cost: the build's own Becke partition recompute in the invariance check (29% of build + fold), and
+  the XC-mesh Φ tables (x112 calls, 7-18 s on SF₆ depending on load).  Neither is logged as a row: the check also guards member points
+  (a wrong edge op), and the Φ tables are per Hamiltonian by design.
+

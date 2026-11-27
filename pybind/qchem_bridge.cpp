@@ -266,6 +266,7 @@ std::string why_name(qchem::SCFFailure::Why w)
         case Why::ResourceRefused:  return "refused on resources (the run would not fit)";
         case Why::StageRefused:     return "schedule stage refused (the kind cannot run it as stated)";
         case Why::StateNotSaved:    return "converged, but the requested state was NOT saved";
+        case Why::StoppedByUser:    return "stopped by run control (resumable)";
     }
     return "unknown SCF failure";
 }
