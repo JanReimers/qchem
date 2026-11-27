@@ -303,7 +303,7 @@ std::optional<SCFFailure> MoleculeCalculation::MakeFailure() const
     f.iterations = itsIterations;
     f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
     f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
-    if (!refused && itsLastRow) f.details += "; the last iterate: "+itsLastRow->GatesText();
+    if (!refused) f.details += LastIterateGates();
     return f;
 }
 
@@ -682,12 +682,8 @@ ClientConsumes MoleculeCalculation::Consumes() const {return itsGeometryPoint ? 
 
 void MoleculeCalculation::AttachObserver()
 {
-    itsLastRow.reset();
-    itsScf->SetObserver([this](const qchem::SCFIterator::IterationRow& row)   // keep the last row: a failure states its gates
-    {
-        itsLastRow = row;
-        if (itsObserver) itsObserver(row);
-    });
+    ForgetLastRow();   // the base keeps the last row (a failure states its gates); the caller's observer is read at each row
+    itsScf->SetObserver(KeepingLastRow([this](const qchem::SCFIterator::IterationRow& row){ if (itsObserver) itsObserver(row); }));
     itsScf->SetBoundaryHook(RunControlHook());   // run control (qchem.RunControl): stop / save / threads at each iteration's end
 }
 
@@ -906,11 +902,7 @@ StateSummary MoleculeCalculation::MakeStateSummary() const
     StateSummary s{.label=Tag(), .converged=itsScf->Converged(), .iterations=itsIterations,
                    .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0};
     s.recipe="model "+MoleculeModelName(*itsSetup)+", basis "+itsSetup->opts.molecule.basis+", accelerator "+std::string(NameOf(itsSetup->accelerator));
-    if (itsLastRow)
-    {
-        s.commutator   =itsLastRow->ValueOf("[F,D]");
-        s.densityChange=itsLastRow->ValueOf(itsHam ? itsHam->DeltaRhoLabel() : std::string("Δρ"));
-    }
+    RecordResidual(s, itsHam ? itsHam->DeltaRhoLabel() : std::string("Δρ"));
     return s;
 }
 

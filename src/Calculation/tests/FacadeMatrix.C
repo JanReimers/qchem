@@ -300,6 +300,9 @@ template <class C> std::string AnswersAnOutcome(C& calc, double N)
         auto r=calc.Converge([](SCFParams& p){ p.NMaxIter=1; });
         if (r) why << "a 1-iteration attempt answered a proof; ";
         else if (r.Error().iterations!=1) why << "the failure counts " << r.Error().iterations << " iterations, not 1; ";
+        // V-FACADE-HOIST (a): every kind keeps its last iterate's row, so a run that misses its gates says by how much.
+        if (!r && r.Error().details.find("the last iterate: ")==std::string::npos)
+            why << "the failure does not state the last iterate's gates: " << r.Error().details << "; ";
         if (calc.Result()) why << "Result() after the failed attempt answered a proof; ";
     }
     catch (const std::exception& e) { why << "the failing attempt THREW (" << e.what() << ") instead of answering an SCFFailure; "; }
@@ -335,6 +338,9 @@ template <class C> std::string Checkpoints(C& calc, const std::string& path)
     if (!r) return why.str()+"the full attempt did not converge: "+r.Error().details;
     if (!std::filesystem::exists(path)) return why.str()+"a converged attempt wrote no checkpoint to "+path;
     auto judged=calc.JudgeState(path);
+    // V-FACADE-HOIST (a): the state records the residual it was saved at (else every restart prints "saved residual not recorded").
+    if (auto saved=ReadState(path); !saved) why << "the checkpoint does not read back: " << saved.Error().details << "; ";
+    else if (!std::isfinite(saved->summary.densityChange)) why << "the checkpoint records no density change (its saved residual); ";
     std::filesystem::remove(path);
     if (!judged) why << "the checkpoint does not judge against its own run: " << judged.Error().details << "; ";
     else if (!judged->empty()) why << "the checkpoint is not an exact resume of its own run: " << judged->front() << "; ";

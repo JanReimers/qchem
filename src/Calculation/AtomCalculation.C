@@ -124,6 +124,9 @@ private:
     std::string AcceleratorTag() const;   //!< the accelerator type the setup resolved, as the scf header names it
     bool itsPrepared = false;             //!< \c Prepare built the graph: the next Converge reuses it instead of rebuilding
     void RebuildSampling();
+    //! Hands the iterator the base's row keeper (\c KeepingLastRow), forwarding to the caller's observer: at every iterator built
+    //! (a stage, a pilot re-convergence), so a failure states its last iterate's gates and a saved state its residual.
+    void AttachObserver();
     //! \name \c Converge's STEPS (\c tCalculation's hooks)
     //!@{
     //! One stage: the recipe's report, the graph (\c Prepare's, reused once, else rebuilt), the SCF, the grid pilot, the result line.

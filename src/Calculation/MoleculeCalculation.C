@@ -337,9 +337,7 @@ private:
     std::unique_ptr<const sf_t>          itsSpinDensity;       //!< owned converged m(r), the zero field when unpolarized
     std::vector<Level>                   itsLevels;            //!< every MO, ascending; phi into the wave function
     std::vector<occ_t>                   itsOccupied;          //!< non-owning, into the wave function
-    Observer                             itsObserver;          //!< optional live-progress sink
-    //! The last iterate's row, kept whether or not a caller observes: a run that misses its gates says by how much.
-    std::optional<qchem::SCFIterator::IterationRow> itsLastRow;
+    Observer                             itsObserver;          //!< optional live-progress sink (the last iterate's row is the base's: KeepingLastRow)
 };
 
 //! \brief THE MOLECULAR POTENTIAL ENERGY SURFACE (doc/CalcNetworkReview.md §3.1, §7; step 8): one fixed \c MoleculeSetup,
