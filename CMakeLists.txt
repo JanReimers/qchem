@@ -32,6 +32,17 @@ endif()
 # check after project() refuses a tree whose cached flags predate this (a reconfigured libstdc++ tree): libc++ and libstdc++ objects
 # must never mix in one binary.
 string(APPEND CMAKE_CXX_FLAGS_INIT " -stdlib=libc++")
+# THE WEEKLY THREAD-SANITIZER TREE (user 2026-11-26: "Maybe the TSan run could be weekly if it is much slower" -- lane G's
+# ~/Code/qchem6-runs/tsan-weekly).  No routine sweep runs threaded (landings and the nightlies are serial), so nothing else sees a race
+# in an OpenMP region.  -fsanitize=thread must reach EVERY C++ TU and every link (the runtime lives in the executable), so it is set
+# here, before project(), where the try_run checks below see it too.  At run time point OMP_TOOL_LIBRARIES at this clang's libarcher.so
+# (OpenMP's barriers and reductions made visible to TSan) and TSAN_OPTIONS at scripts/tsan.supp (libomp's own suspend/resume init).
+# A TSan tree is a DIAGNOSTIC tree: its numbers and timings are never anchors.
+option(QCHEM_TSAN "Thread-sanitizer build (the weekly race sweep); never an anchor tree" OFF)
+if(QCHEM_TSAN)
+    string(APPEND CMAKE_CXX_FLAGS_INIT " -fsanitize=thread")   # CMake puts the C++ flags on every C++ link line too; not the
+                                                                # linker-flag variables, which also reach flang's links (it refuses the flag)
+endif()
 project(qchem VERSION 0.1.0 LANGUAGES CXX)
 # Release unless stated: the tests, the anchors and the timings are all Release numbers (RelChecked is Release + QCHEM_RELCHECKED).
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -600,7 +611,7 @@ endif()
 # a call into a library it does not DECLARE (target_link_libraries) fails at ITS OWN link -- by default a .so may leave symbols
 # undefined and the omission surfaces only, if at all, when some executable links.  The targets are walked from the project's own
 # trees (the root, src/, IntegrationTests/, CLIapps/), so a new library is covered with no list to keep; submodules and pybind/ are
-# not touched.  A sanitizer build (its runtime resolves only in the executable) would have to drop it; this tree has none.
+# not touched.  A sanitizer build (its runtime resolves only in the executable) drops it: QCHEM_TSAN.
 function(qchem_shared_libs_under dir out)
     get_property(targets DIRECTORY ${dir} PROPERTY BUILDSYSTEM_TARGETS)
     get_property(subdirs DIRECTORY ${dir} PROPERTY SUBDIRECTORIES)
@@ -629,9 +640,11 @@ foreach(d src IntegrationTests CLIapps)
     qchem_shared_libs_under(${CMAKE_CURRENT_SOURCE_DIR}/${d} libs)
     list(APPEND qchem_defs_libs ${libs})
 endforeach()
-foreach(t IN LISTS qchem_defs_libs)
-    target_link_options(${t} PRIVATE "LINKER:-z,defs")
-endforeach()
+if(NOT QCHEM_TSAN)    # a sanitizer's runtime resolves only in the executable, so a TSan tree's shared libraries cannot link -z defs
+    foreach(t IN LISTS qchem_defs_libs)
+        target_link_options(${t} PRIVATE "LINKER:-z,defs")
+    endforeach()
+endif()
 
 # EVERY PROJECT EXECUTABLE IS BUILT BY allTests (lane B 2026-11-13).  An executable no sweep builds rots silently: MnDBench broke on
 # 2026-11-04 and nobody saw it for nine days, the class the _NOT_BUILT trap belongs to (CLAUDE.md).  So configure walks the project's own

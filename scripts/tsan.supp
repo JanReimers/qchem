@@ -1,0 +1,11 @@
+# ThreadSanitizer suppressions for the weekly TSan sweep (~/Code/qchem6-runs/tsan-weekly; TSAN_OPTIONS=suppressions=<this file>).
+# Each entry names a known FALSE POSITIVE and why.  A race in qchem code is never suppressed here -- it is a bug to file.
+#
+# libomp is not TSan-instrumented, and it orders its own bookkeeping through atomics TSan cannot see, so the malloc / free / pthread
+# calls it makes look racy.  `called_from_lib` ignores ONLY the interceptors called directly from libomp (its allocations, its mutexes);
+# an access in qchem code inside a parallel region is still checked.  Seen (lane G, 2026-11-26, LLVM 23.1.4, archer loaded):
+#   - __kmp_suspend_initialize_thread's pthread_mutex_init vs the master's __kmp_resume_template lock (a race-free 4-thread reduction);
+#   - __kmpc_dispatch_next_8u's free of its dynamic-schedule buffer vs a malloc on another thread (all 10 reports of
+#     GPW_O2Box.Γ_Imp_M3_Pulay_PilotSizesTheRaster, inside PG_Cart_MnD::IntegratePotential's schedule(dynamic) loop).
+# Checked: with this entry a race-free OpenMP reduction reports nothing and a PLANTED race in the loop body is still reported.
+called_from_lib:libomp.so
