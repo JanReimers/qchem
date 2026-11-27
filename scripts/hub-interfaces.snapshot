@@ -730,6 +730,7 @@ namespace qchem {
         virtual rmat3d_t IonIonVirial (const std::function<double(int Z)>& zionOf) const;
         virtual double G0Background (const std::function<double(int Z)>& f) const;
         virtual double SumAroundSite (size_t a, const std::function<double(int Z, double d)>& g) const;
+        virtual std::optional<double> SumOverReciprocalLattice(const std::function<double(const rvec3_t& G)>& g) const;
         virtual Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const=0;
         SiteRange Sites() const;
         void ForEachSite(const std::function<void(int Z, const rvec3_t& R, bool spinFlip)>& f) const;
