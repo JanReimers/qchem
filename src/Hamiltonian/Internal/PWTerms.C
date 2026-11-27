@@ -211,8 +211,15 @@ class Ven_PP_Long
     , public virtual tStatic_PC<double>   // ... and a real TRIM block's (§13.2; lane B)
     , public virtual tStrainGradient_HT<dcmplx>, public virtual tStatic_VC<dcmplx>   // its virial (CellHalf_Design §5; user ruling §6.2)
     , public virtual tStatic_VC<double>   // ... and a real TRIM block's
+    , public virtual tHT_RangeAuditor<dcmplx>, public virtual tHT_RangeAuditor<double>   // the quotient range audit (v2, 2026-11-27)
 {
 public:
+    //! \brief THE QUOTIENT RANGE AUDIT (v2; user rulings 2026-11-25, 2026-11-27): this term's quotients along a block's weakest
+    //! directions against its operator's RIGOROUS range \f$[-B,B]\f$, computed once in the ctor (\c itsRange; the bound and its
+    //! derivation at \c LongRangeBound in Imp/PWTerms_PP.C).  A finite structure has no reciprocal lattice: \c hasRange false, said why.
+    //! Measured on beta-MnO2 dense-d (2026-11-27): this is the term a stated x 4 aliases (R +167.7 Ha against B = 26.0 Ha).
+    virtual TermRangeAudit AuditRange(const cobs_t* bs, const Spin& s, const mat_t<dcmplx>& v, const rvec_t& l) const override;
+    virtual TermRangeAudit AuditRange(const robs_t* bs, const Spin& s, const mat_t<double>& v, const rvec_t& l) const override;
     // The force (GeometryOptimizationPlan §13.2; lane B): the structure-factor Hellmann-Feynman term, Imp/PWTerms_PP_Forces.C.
     virtual std::string MissingGradient(const tbs_t<dcmplx>* bs, const Structure* st) const override;
     virtual void        AddForces(rvec3vec_t& F, const cDM_CD* D, const Structure* st) const override;
@@ -248,6 +255,8 @@ private:
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
     double itsAlphaZ=0.0;   //!< the LONG G=0 alignment per electron, evaluated ONCE in the ctor (0 if finite)
+    //! The operator's rigorous range, Ha (the quotient range audit), or why there is none.
+    struct { double lower=0.0, upper=0.0; std::string none; } itsRange;
     double itsNumElectrons=0.0;   //!< the FIXED electron count the alignment multiplies: \c Ven_PP_Short::itsNumElectrons's doc
 };
 

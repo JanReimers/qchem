@@ -3,6 +3,7 @@ module;
 #include <vector>
 #include <memory>
 #include <functional>
+#include <optional>
 #include <stdexcept>
 #include <cmath>
 #include <string>
@@ -127,6 +128,7 @@ SiteRange::iterator SiteRange::end  () const {return iterator(itsS,size());}
 SiteRange::SiteRange(const Structure& s) : itsS(&s) {}
 Structure::~Structure() {}
 double Structure::G0Background(const std::function<double(int Z)>&) const {return 0.0;}
+std::optional<double> Structure::SumOverReciprocalLattice(const std::function<double(const rvec3_t&)>&) const {return std::nullopt;}
 double Structure::SumAroundSite(size_t a, const std::function<double(int Z, double d)>& g) const
 {
     if (a>=GetNumAtoms()) throw std::logic_error("Structure::SumAroundSite: no site "+std::to_string(a));

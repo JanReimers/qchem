@@ -207,6 +207,34 @@ OperatorRangeBound ProjectorRangeBound(const Structure& st, const Pseudopotentia
     return b;
 }
 
+//! \brief THE LONG-RANGE LOCAL PP's RIGOROUS RANGE (v2, 2026-11-27), \f$v_{\rm long}(\mathbf r)=\frac1\Omega\sum_{\mathbf G\ne0}
+//! \tilde V(\mathbf G)e^{i\mathbf G\cdot\mathbf r}\f$ with \f$\tilde V(\mathbf G)=\sum_bf_b(G^2)e^{-i\mathbf G\cdot\tau_b}\f$ (\f$f_b\f$ =
+//! \c ValueQ(Z_b, G^2, Long)).
+//!
+//! The matrix drops \f$\mathbf G=0\f$ (\c GPW_Evaluator::MakeLocalPPLong: \f$\tilde V(0)=0\f$, the mean is the E_alphaZ alignment), so no
+//! \f$\bar vS\f$ shift enters, and by the triangle inequality on the Fourier series
+//! \f[ |v_{\rm long}(\mathbf r)|\le B=\frac1\Omega\sum_{\mathbf G\ne0}\big|\tilde V(\mathbf G)\big| \f]
+//! for every \f$\mathbf r\f$, so every Rayleigh quotient of the matrix lies in \f$[-B,B]\f$, whatever the basis.  The sum converges for a
+//! decaying form factor (GTH: \f$f_b=-4\pi Z_be^{-G^2r_b^2/2}/G^2\f$) and is taken shell by shell to eps, no cutoff
+//! (\c Structure::SumOverReciprocalLattice, pin 1).  Keeping the structure factor INSIDE the modulus is what makes the lower side tight:
+//! it is exact for one atom per cell (every phase aligns at \f$\tau\f$), and on beta-MnO2 B = 26.0 Ha against a sampled
+//! \f$v_{\rm long}\in[-14.9,1.64]\f$ (the cruder \f$\sum_b|f_b|\f$ gives 80.9).  The upper side is loose by the well depth: fine for
+//! a check whose job is a gross matrix error.
+OperatorRangeBound LongRangeBound(const Structure& st, const Pseudopotential::LocalPotential& loc)
+{
+    OperatorRangeBound b;
+    const std::optional<double> B=st.SumOverReciprocalLattice([&](const rvec3_t& G)
+    {
+        const double g2=G*G;
+        dcmplx acc(0.0);
+        for (const Site& s : st.Sites()) acc+=loc.ValueQ(s.Z,g2,BasisSet::FieldRange::Long)*std::exp(dcmplx(0.0,-(G*s.R)));
+        return std::abs(acc);
+    });
+    if (!B) { b.none="no static range: a finite structure has no reciprocal lattice to bound the G-space series on"; return b; }
+    b.lower=-*B; b.upper=*B;
+    return b;
+}
+
 template <class U> TermRangeAudit AuditOwn(const hmat_t<U>& A, const std::string& none, double lower, double upper,
                                            const mat_t<U>& v, const rvec_t& l)
 {
@@ -355,7 +383,14 @@ Ven_PP_Long::Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* 
         throw std::runtime_error("Ven_PP_Long: the long-range local-PP term requires a LocalPotential "
                                  "model.  A run without a local pseudopotential must not add this term.");
     itsAlphaZ=st->G0Background([loc](int Z){return loc->FormFactorG0Long(Z);});
+    const OperatorRangeBound b=LongRangeBound(*st, *loc);   // a pure function of the fixed inputs: built once
+    itsRange.lower=b.lower; itsRange.upper=b.upper; itsRange.none=b.none;
 }
+
+TermRangeAudit Ven_PP_Long::AuditRange(const cobs_t* bs, const Spin& s, const mat_t<dcmplx>& v, const rvec_t& l) const
+{return AuditOwn<dcmplx>(cStatic_HT_Imp::GetMatrix(bs,s), itsRange.none, itsRange.lower, itsRange.upper, v, l);}
+TermRangeAudit Ven_PP_Long::AuditRange(const robs_t* bs, const Spin& s, const mat_t<double>& v, const rvec_t& l) const
+{return AuditOwn<double>(Static_HT_RealBlock_Imp::GetMatrix(bs,s), itsRange.none, itsRange.lower, itsRange.upper, v, l);}
 
 template <class U> hmat_t<U> Ven_PP_Long::MakeMatrixT(const tobs_t<U>* bs, const Spin&) const
 {

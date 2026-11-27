@@ -3,6 +3,7 @@ module;
 #include <vector>
 #include <memory>
 #include <functional>
+#include <optional>
 #include <cstddef>
 
 export module qchem.Structure;
@@ -113,6 +114,14 @@ public:
     //! below 1e-16 of the total (an eps-converged series, never a radius: doc/Pins.md pin 1).  \a g must DECAY with \a d (a rigorous
     //! envelope, e.g. the quotient range audit's PP bounds, \c Ven_PP_Short / \c Ven_PP_NonLocal); a sum that does not converge THROWS.
     virtual double SumAroundSite    (size_t a, const std::function<double(int Z, double d)>& g) const;
+
+    //! \brief A SUM OVER THE RECIPROCAL LATTICE PER CELL VOLUME, \f$\frac1\Omega\sum_{\mathbf G\ne0}g(\mathbf G)\f$, for a periodic
+    //! structure; EMPTY for a finite one (it has no reciprocal lattice).  Summed shell by shell until a whole shell adds below 1e-16 of
+    //! the total (an eps-converged series, never a cutoff: doc/Pins.md pin 1).  \a g must DECAY with \f$|\mathbf G|\f$ (a rigorous bound,
+    //! e.g. V_long's \f$|\tilde V(\mathbf G)|\f$ for the quotient range audit, \c Ven_PP_Long); a sum that does not converge THROWS.
+    //! (User ruling 2026-11-27: "do what we need, to get things working for now"; the Structure network's lattice-sum faces get an
+    //! OOD review once they settle.)
+    virtual std::optional<double> SumOverReciprocalLattice(const std::function<double(const rvec3_t& G)>& g) const;
 
     //! \brief The structure's own symmetry group G_struct, in the Cartesian frame (lane H Group face, migration step 2), detected at
     //! \a tol.  MAKE, not Get: it computes, and the result depends on \a tol (a later cache must key on it).  Each kind issues its own:
