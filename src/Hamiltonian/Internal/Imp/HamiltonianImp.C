@@ -414,7 +414,7 @@ template <class T> std::vector<TermRangeAudit> tHamiltonianImp<T>::MakeTermRange
         out.push_back(worst);
     };
     for (const auto& t : itsSHTs) auditTerm(t, "no static range: the term answers none");
-    for (const auto& t : itsDHTs) auditTerm(t, "density-dependent: the term answers no range (Hartree: the fitter's bound is not yet a face)");
+    for (const auto& t : itsDHTs) auditTerm(t, "density-dependent: the term answers no range");
     return out;
 }
 

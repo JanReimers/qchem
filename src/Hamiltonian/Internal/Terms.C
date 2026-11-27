@@ -1,5 +1,6 @@
 // Hamiltonian/Internal/Terms.C  Declare and export all Hamiltonian term types.
 module;
+#include <optional>
 #include <iosfwd>
 #include <memory>
 #include <type_traits>
@@ -408,8 +409,25 @@ template <class T> class Vee_Fit
     , public virtual tStrainGradient_HT<T>              // its virial (CellHalf_Design §5; lane H 2026-11-10): Imp/Vee_Fit_Virials.C
     , public virtual tStatic_VC<T>                      // the per-block virial client DM_Virial walks
     , public         RealVirialBase<T,Vee_Fit<T>>       // ... and on <dcmplx> the real TRIM block's
+    , public virtual tHT_RangeAuditor<T>                // the quotient range audit at the refreshed density (v2 §3, user ruling 2026-11-27)
+    , public         RealRangeAuditorBase<T,Vee_Fit<T>> // ... and on <dcmplx> the real TRIM block's
 {
 public:
+    //! \brief THE QUOTIENT RANGE AUDIT AT A DENSITY (v2 §3): the quotients of the blocks the last refresh BUILT (a pure read at the fit's
+    //! \c DensityID) against \f$[-B,B]\f$, \f$B\f$ the fitter's \c RepulsionBound of the field \c Repulsion contracts (the user's 2026-11-27
+    //! framing ruling: the bound is the Coulomb-fit face's own).  G = 0 is dropped from the periodic field (its mean is the alignment), so
+    //! its sign is open and the range is symmetric.  A fit whose realization gives no bound (a delta fit) answers no range, said why.
+    virtual TermRangeAudit AuditRange(const tobs_t<T>* bs, const Spin& s, const mat_t<T>& v, const rvec_t& l) const override
+    {return AuditBlock<T>(bs, s, v, l);}
+    template <class U> TermRangeAudit AuditBlock(const tobs_t<U>* bs, const Spin&, const mat_t<U>& v, const rvec_t& l) const
+    {
+        TermRangeAudit r;
+        if (this->itsFitID.IsNone()) { r.why="density-dependent: no density fitted yet (the audit at the seed asks after the first Fock build)"; return r; }
+        const std::optional<double> B=itsFit->RepulsionBound();
+        if (!B) { r.why="density-dependent: the fit's realization gives no bound on its Coulomb field (a delta fit's point weights)"; return r; }
+        const hmat_t<U> M=static_cast<const ChargeDensity::tDynamic_CC<U>&>(*this).GetMatrix(bs, Spin::None, this->itsFitID);
+        return AuditAlong<U>(M, -*B, *B, v, l);
+    }
     // The virial (CellHalf_Design §5): the fitter's FIT side (MakeHartreeVirial) plus every block's ORBITAL side (MakeRepulsionVirial).
     virtual std::string MissingVirial(const tbs_t<T>* bs, const Structure* st) const override;
     virtual void        AddVirial(rmat3d_t& V, const tDM_CD<T>* D, const Structure* st) const override;
