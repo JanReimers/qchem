@@ -6,6 +6,7 @@
 // level question -- "the external matrix", "the Hartree matrix for this density".  The basis owns the
 // integration; the term owns no G-vectors or mesh.  Energies delegate to the density's DM_Contract.
 module;
+#include <algorithm>   // std::min/max (the XC range audit)
 #include <cassert>    // NarrowExact / SampledField (the module-internal helpers at the foot of this file)
 #include <complex>   // std::real/std::imag in NarrowExact
 #include <cstddef>
@@ -333,8 +334,40 @@ template <class T> class tVxc_DFT
     , public virtual tStatic_VC<T>                     // the per-block virial client DM_Virial walks
     , public         RealVirialBase<T,tVxc_DFT<T>>     // ... and on <dcmplx> the real TRIM block's
     , public         Vxc_DFT_BlochBase<T,tVxc_DFT<T>>  // ... and on <dcmplx> the real TRIM block's cache and the ALDA response
+    , public virtual tHT_RangeAuditor<T>               // the quotient range audit at the refreshed density (v2 §3, user ruling 2026-11-27)
+    , public         RealRangeAuditorBase<T,tVxc_DFT<T>> // ... and on <dcmplx> the real TRIM block's
 {
 public:
+    //! \brief THE QUOTIENT RANGE AUDIT AT A DENSITY (v2 §3, user ruling 2026-11-27): the quotients of the blocks the last refresh BUILT
+    //! (a pure read: \c GetMatrix at the refresh's \c DensityID, so nothing is sized or rebuilt) against the range of the potential that
+    //! refresh made, per spin channel:
+    //! \f[ R\in\Big[\min_g v^\sigma_g,\ \max\big(0,\max_g v^\sigma_g\big)\Big]. \f]
+    //! The matrix is the quadrature \f$\sum_g w_g\phi_i^*v_g\phi_j\f$ while the quotient divides by the ANALYTIC \f$v^\dagger Sv\f$, so a
+    //! mesh that over-integrates a weak direction (\f$\sum_gw_g|\phi|^2\gg\lambda\f$) leaves the range: that is the defect this catches.
+    //! ⚠ RIGOROUS ONLY IF \f$\rho_0\f$ IS BOUNDED ON THE MESH: the continuous operator's \f$v_{xc}(\rho(\mathbf r))\f$ reaches its extremes
+    //! where \f$\rho\f$ does, and the range is taken over the mesh points (atom-centred Becke points sample the nuclear peaks densely; a
+    //! density peak between points widens the true range beyond this one).  The upper side's 0 is the LDA limit \f$v_{xc}\to0\f$ as
+    //! \f$\rho\to0\f$.  LDA / LSDA only (this term); the GGA term answers no range.  Before any refresh: no range, said why.
+    virtual TermRangeAudit AuditRange(const tobs_t<T>* bs, const Spin& s, const mat_t<T>& v, const rvec_t& l) const override
+    {return AuditBlock<T>(bs, s, v, l);}
+    template <class U> TermRangeAudit AuditBlock(const tobs_t<U>* bs, const Spin&, const mat_t<U>& v, const rvec_t& l) const
+    {
+        const Refreshed& R=itsRefreshed;
+        if (R.id.IsNone() || R.v[0].size()==0)
+        { TermRangeAudit r; r.why="density-dependent: no density refreshed yet (the audit at the seed asks after the first Fock build)"; return r; }
+        TermRangeAudit worst; bool any=false;
+        for (const Spin& sp : BlockSpins())
+        {
+            const rvec_t& pot=R.v[sp==Spin::Down ? 1 : 0];
+            double lo=pot[0], hi=0.0;
+            for (size_t g=0;g<pot.size();g++) { lo=std::min(lo,pot[g]); hi=std::max(hi,pot[g]); }
+            const hmat_t<U> M=static_cast<const ChargeDensity::tDynamic_CC<U>&>(*this).GetMatrix(bs, sp, R.id);
+            const TermRangeAudit a=AuditAlong<U>(M, lo, hi, v, l);
+            if (!any || a.Excess()>worst.Excess()) worst=a;
+            any=true;
+        }
+        return worst;
+    }
     //! \name THE VIRIAL AT FIXED D (doc/Records/CellHalf_Design.md §5).  The sampler's quadrature side, the pure dilation
     //! \f$\delta_{ab}(E_{xc}-\sum_\sigma\sum_g w_g v^\sigma_g\rho^\sigma_g)\f$ on the channel rasters the energy integrates (a sampler whose points
     //! do not stay fractional refuses: \c HasDilationVirial), plus every block's orbital side (\c MakeMatrixVirial at the fixed v the refresh

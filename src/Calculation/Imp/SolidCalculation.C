@@ -110,7 +110,8 @@ template <class U> Hamiltonian::WeakDirections<dcmplx> WeakDirectionsOf(const hm
 //! [-14.0, 0.27] Ha), not a model choice.  The table (one row per term, pass or refuse) is ALWAYS reported: the health line.  The WORST
 //! term outside is returned (empty: every term inside); the caller decides, \c BuildRun's setup ladder (v2, user ruling 2026-11-27 "Yes,
 //! at setup"): a term on a raster the run chose is rebuilt finer, anything else is REFUSED before iteration 1 (\c RefuseOutOfRange).
-std::optional<Hamiltonian::TermRangeAudit> AuditTermRanges(const BasisSet::Complex_BS& bs, const Hamiltonian::cHamiltonian& ham, double floor, double eta)
+std::optional<Hamiltonian::TermRangeAudit> AuditTermRanges(const BasisSet::Complex_BS& bs, const Hamiltonian::cHamiltonian& ham, double floor, double eta,
+                                                           const char* section="quotientRange")
 {
     namespace rpt = qchem::report;
     std::vector<Hamiltonian::WeakDirections<dcmplx>> weak;
@@ -120,7 +121,7 @@ std::optional<Hamiltonian::TermRangeAudit> AuditTermRanges(const BasisSet::Compl
     const std::vector<Hamiltonian::TermRangeAudit> audit=ham.MakeTermRangeAudit(&bs, weak);
     const Hamiltonian::TermRangeAudit* worst=nullptr;
     {
-        rpt::Section sec("quotientRange");
+        rpt::Section sec(section);
         rpt::Set("allowanceFactor", eta);
         rpt::Set("floor", floor);
         report::FormatGuard keep(std::cout);
@@ -891,6 +892,25 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
             itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), itsImp->setup->firstIterateFloor, seed.release(), seedRole);   // the iterator consumes the seed in Init
     }
     SeededIterator(seedRole==qchem::SCFIterator::SeedRole::ExactResume);   // the exact-resume Pulay policy's first-stage bit
+
+    // THE QUOTIENT RANGE AUDIT AT THE SEED (v2 §3, user ruling 2026-11-27: "The earlier we detect and warn about problems the better. And
+    // checking individual H terms is much better that looking surprises in E_total").  The iterator's Init built the first Fock from the seed,
+    // so every density term's blocks are built for it: the audit READS them (sizing nothing, rebuilding nothing) and the density terms that
+    // answer a range (XC, LDA/LSDA) are held to it, still before iteration 1.  The static terms answer again (cached: the table is whole).
+    if (!S.planeWave)
+    {
+        std::optional<qchem::Hamiltonian::TermRangeAudit> outside;
+        {
+            qchem::report::Timed timed("setup: quotient range audit at the seed (density terms' blocks)");
+            const bool eigenFloor = opts.ortho==qchem::Eigen || opts.ortho==qchem::SVD;
+            outside=AuditTermRanges(*itsImp->bs, *itsImp->ham, eigenFloor ? opts.orthoTol : 0.0, opts.solid.quotientAllowance, "quotientRangeAtSeed");
+        }
+        if (outside)
+            RefuseOutOfRange(*outside, opts.solid.quotientAllowance, outside->rasterKey.empty()
+                ? "raise the XC mesh (xcMesh nRadial / L), or trim the basis (basis.autoTrim true with an orthoTol > 0): the term's quadrature "
+                  "is wrong along the basis's weakest direction at the seed density"
+                : "raise "+outside->rasterKey+" (the term's raster), or trim the basis");
+    }
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
     // missed stage 0 (hence the constructors' onIteration argument).

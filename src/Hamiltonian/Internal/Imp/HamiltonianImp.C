@@ -374,7 +374,9 @@ template <class T> std::vector<TermRangeAudit> tHamiltonianImp<T>::MakeTermRange
         throw std::logic_error("Hamiltonian::MakeTermRangeAudit: "+std::to_string(weak.size())+" blocks of weak directions for a "
                                +std::to_string(bs->GetNumIBS())+"-block basis");
     std::vector<TermRangeAudit> out;
-    for (const auto& t : itsSHTs)
+    // ONE body for both lists: a static term answers its operator's range, a density term the range of ITS operator at the density it was
+    // last refreshed for (v2 §3, user ruling 2026-11-27: the XC term at the seed), or "no range" with its reason.
+    auto auditTerm=[&](const auto& t, const char* noFace)
     {
         TermRangeAudit worst; worst.label=LabelOf(*t);
         bool any=false;
@@ -390,7 +392,7 @@ template <class T> std::vector<TermRangeAudit> tHamiltonianImp<T>::MakeTermRange
                 if (const tobs_t<double>* rb=bs->GetRealIBS(i))
                 {
                     auto* aud=dynamic_cast<const tHT_RangeAuditor<double>*>(t.get());   // abstract to abstract (internal term face)
-                    if (!aud) { why="no static range: the term answers none"; break; }
+                    if (!aud) { why=noFace; break; }
                     a=aud->AuditRange(rb, Spin::None, RealDirections(w.v), w.lambda);
                     blockLabel=rb->GetSymmetry().GetLabel();
                     asked=true;
@@ -399,23 +401,20 @@ template <class T> std::vector<TermRangeAudit> tHamiltonianImp<T>::MakeTermRange
             {
                 const tobs_t<T>* b=(*bs)[i];
                 auto* aud=dynamic_cast<const tHT_RangeAuditor<T>*>(t.get());   // abstract to abstract (internal term face)
-                if (!aud) { why="no static range: the term answers none"; break; }
+                if (!aud) { why=noFace; break; }
                 a=aud->AuditRange(b, Spin::None, w.v, w.lambda);
                 blockLabel=b->GetSymmetry().GetLabel();
             }
-            if (!a.hasRange) { why=a.why.empty() ? std::string("no static range") : a.why; break; }
+            if (!a.hasRange) { why=a.why.empty() ? std::string("no range") : a.why; break; }
             a.block=i; a.blockLabel=blockLabel; a.label=worst.label;
             if (!any || a.Excess()>worst.Excess()) worst=a;
             any=true;
         }
         if (!why.empty() || !any) { worst=TermRangeAudit{}; worst.label=LabelOf(*t); worst.why=why.empty() ? "no weak directions to probe" : why; }
         out.push_back(worst);
-    }
-    for (const auto& t : itsDHTs)
-    {
-        TermRangeAudit r; r.label=LabelOf(*t); r.why="density-dependent: no static range (Hartree, XC, +U are the iterate's own)";
-        out.push_back(r);
-    }
+    };
+    for (const auto& t : itsSHTs) auditTerm(t, "no static range: the term answers none");
+    for (const auto& t : itsDHTs) auditTerm(t, "density-dependent: the term answers no range (Hartree: the fitter's bound is not yet a face)");
     return out;
 }
 
