@@ -471,6 +471,7 @@ namespace qchem::Hamiltonian {
         double scale=0.0;
         size_t block=0, direction=0;
         std::string blockLabel;
+        std::string rasterKey;
         double Excess() const;
     };
     template <class T> class tHamiltonian;
