@@ -461,6 +461,9 @@ namespace qchem::Hamiltonian {
         mat_t<T> v;
         rvec_t lambda;
     };
+    enum class RasterRole {
+        None, Density, VlocLong, XC
+    };
     struct TermRangeAudit {
         std::string label;
         bool hasRange=false;
@@ -471,7 +474,7 @@ namespace qchem::Hamiltonian {
         double scale=0.0;
         size_t block=0, direction=0;
         std::string blockLabel;
-        std::string rasterKey;
+        RasterRole raster=RasterRole::None;
         double Excess() const;
     };
     template <class T> class tHamiltonian;
