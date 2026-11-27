@@ -388,18 +388,17 @@ Ven_PP_Long::Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* 
 }
 
 // V_long's matrix is a raster gather (GPW_Evaluator::MakeLocalPPLong: the density levels + V_long's own top level), so the audit names
-// the raster a finer one would come from.  (Its ladder also rides the density raster: on beta-MnO2 x 4 raising vlocRasterX alone cured it.)
-constexpr const char* kVlongRasterKey="solid.tolerances.vlocRasterX";
+// the raster a finer one would come from.  (Its ladder also rides the density raster: on beta-MnO2 x 4 raising V_long's alone cured it.)
 TermRangeAudit Ven_PP_Long::AuditRange(const cobs_t* bs, const Spin& s, const mat_t<dcmplx>& v, const rvec_t& l) const
 {
     TermRangeAudit a=AuditOwn<dcmplx>(cStatic_HT_Imp::GetMatrix(bs,s), itsRange.none, itsRange.lower, itsRange.upper, v, l);
-    a.rasterKey=kVlongRasterKey;
+    a.raster=RasterRole::VlocLong;
     return a;
 }
 TermRangeAudit Ven_PP_Long::AuditRange(const robs_t* bs, const Spin& s, const mat_t<double>& v, const rvec_t& l) const
 {
     TermRangeAudit a=AuditOwn<double>(Static_HT_RealBlock_Imp::GetMatrix(bs,s), itsRange.none, itsRange.lower, itsRange.upper, v, l);
-    a.rasterKey=kVlongRasterKey;
+    a.raster=RasterRole::VlocLong;
     return a;
 }
 

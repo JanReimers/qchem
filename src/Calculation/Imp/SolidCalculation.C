@@ -169,9 +169,48 @@ std::optional<Hamiltonian::TermRangeAudit> AuditTermRanges(const BasisSet::Compl
 //! = 0.14 per rebuild).  A POLICY step, not a calibration: it trades rebuilds against overshoot, and the ladder stops at the rigorous
 //! x = ln(1/lambda_min) whatever the step.  (beta-MnO2 dense-d, 2026-11-27: x 4 aliased V_long, x 8 was already clean: two rungs.)
 constexpr double kQuotientRasterRung=2.0;
-//! The ladder's STALL test: a rung must at least halve the excess to earn the next one (a policy choice, like the rung: on beta-MnO2 at
-//! vlocEps 1e-3 the first rung gained 48x, the next 1.03x).
+//! \brief EMPIRICAL: the ladder's STALL test, a named calibration -- a rung must cut the excess by at least this factor to earn the next.
+//! MEASUREMENT RECORD (lane H, 2026-11-27, beta-MnO2 dense-d at the default accuracy, stated vlocEps 1e-3): the first rung (x 4.0 -> 6.0)
+//! cut V_long's excess 48x (2.9e-5 -> 6.1e-7), the next three 1.03x, 1.00x, 1.00x (5.9e-7: the routing tolerance's floor, not the
+//! raster's).  So a rung that is still helping gains tens; one that has stopped gains ~1.  1/2 sits between with a wide margin either way.
 constexpr double kQuotientLadderStall=0.5;
+
+//! THE ROLE -> DECK KEY MAP (user ruling 2026-11-27 "Role enum": the library names a raster's role, only this policy layer names keys).
+const char* RasterKeyOf(Hamiltonian::RasterRole r)
+{
+    switch (r)
+    {
+        case Hamiltonian::RasterRole::Density:  return "solid.tolerances.rasterX";
+        case Hamiltonian::RasterRole::VlocLong: return "solid.tolerances.vlocRasterX";
+        case Hamiltonian::RasterRole::XC:       return "solid.tolerances.xcRasterX";
+        case Hamiltonian::RasterRole::None:     break;
+    }
+    throw std::logic_error("RasterKeyOf: a term on no raster has no key to raise");
+}
+//! ... and to the setup's demand for it, the field a rung raises.
+double& RasterDemandOf(BasisSet::Gaussian::GPWTolerances& t, Hamiltonian::RasterRole r)
+{
+    switch (r)
+    {
+        case Hamiltonian::RasterRole::Density:  return t.rasterX;
+        case Hamiltonian::RasterRole::VlocLong: return t.vlocRasterX;
+        case Hamiltonian::RasterRole::XC:       return t.xcRasterX;
+        case Hamiltonian::RasterRole::None:     break;
+    }
+    throw std::logic_error("RasterDemandOf: a term on no raster has no demand to raise");
+}
+//! ... and to what the ladder delivered for it.
+double DeliveredXOf(const BasisSet::Gaussian::RasterExponents& e, Hamiltonian::RasterRole r)
+{
+    switch (r)
+    {
+        case Hamiltonian::RasterRole::Density:  return e.density;
+        case Hamiltonian::RasterRole::VlocLong: return e.vlocLong;
+        case Hamiltonian::RasterRole::XC:       return e.xcL0;
+        case Hamiltonian::RasterRole::None:     break;
+    }
+    throw std::logic_error("DeliveredXOf: a term on no raster delivers no exponent");
+}
 } // namespace
 
 
@@ -803,9 +842,12 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
             const double xRig=lmin>0.0 ? std::log(1.0/lmin) : 0.0;
             // what the term had: the delivered top level, or the request (strictly rising per rung, so the ladder terminates at xRig even
             // if a request does not move the delivered level)
-            const double had=std::max(itsImp->ladder ? itsImp->ladder->DeliveredRasterExponents().vlocLong : 0.0, S.opts.solid.tolerances.vlocRasterX);
+            const bool onARaster = outside->raster!=qchem::Hamiltonian::RasterRole::None && itsImp->ladder;
+            BasisSet::Gaussian::GPWTolerances stated=S.opts.solid.tolerances;
+            const double had = onARaster ? std::max(DeliveredXOf(itsImp->ladder->DeliveredRasterExponents(), outside->raster),
+                                                    RasterDemandOf(stated, outside->raster)) : 0.0;
+            const std::string key = onARaster ? RasterKeyOf(outside->raster) : "";
             const bool runChoseRasters = S.rasterSource==SolidSetup::RasterSource::Pilot || S.rasterSource==SolidSetup::RasterSource::Conditioning;
-            const bool onARaster = !outside->rasterKey.empty() && itsImp->ladder;
             const bool stalled = itsImp->quotientLadderExcess && outside->Excess() > kQuotientLadderStall*(*itsImp->quotientLadderExcess);
             if (onARaster && runChoseRasters && had<xRig && !stalled)
             {
@@ -813,14 +855,15 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
                 const double x=std::min(xRig, had+kQuotientRasterRung);
                 std::ostringstream why;
                 why<<outside->label<<" is outside its rigorous range at x "<<had<<" (excess "<<outside->Excess()<<" > eta "
-                   <<opts.solid.quotientAllowance<<"): rebuilt one rung finer, "<<outside->rasterKey<<" x "<<x<<" (the rigorous x = ln(1/lambda_min) is "
+                   <<opts.solid.quotientAllowance<<"): rebuilt one rung finer, "<<key<<" x "<<x<<" (the rigorous x = ln(1/lambda_min) is "
                    <<xRig<<", lambda_min "<<lmin<<")";
                 policy::Report("QuotientRangeRaster", "rebuild the term one rung finer at setup", policy::Verdict::Choose, why.str(), std::nullopt,
-                               qchem::report::json{{"term",outside->label},{"key",outside->rasterKey},{"xHad",had},{"xNew",x},{"xRigorous",xRig},
+                               qchem::report::json{{"term",outside->label},{"key",key},{"xHad",had},{"xNew",x},{"xRigorous",xRig},
                                                    {"lambdaMin",lmin},{"excess",outside->Excess()}});
                 { report::FormatGuard keep(std::cout); std::cout<<"["<<Tag()<<" quotient range] "<<why.str()<<std::endl; }
                 auto sized=std::make_shared<SolidSetup>(S);
-                sized->opts.solid.tolerances.vlocRasterX=std::max(sized->opts.solid.tolerances.vlocRasterX, x);
+                double& demand=RasterDemandOf(sized->opts.solid.tolerances, outside->raster);
+                demand=std::max(demand, x);
                 sized->rasterSource=SolidSetup::RasterSource::Conditioning;
                 const Lattice_3D latCopy=*itsImp->lat;
                 const auto mol=itsImp->mol;
@@ -831,7 +874,7 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
             }
             std::ostringstream fix;
             if (onARaster && !runChoseRasters)
-                fix<<"raise "<<outside->rasterKey<<" (stated x "<<had<<"; the rigorous x = ln(1/lambda_min) is "<<xRig<<"), or state an accuracy "
+                fix<<"raise "<<key<<" (stated x "<<had<<"; the rigorous x = ln(1/lambda_min) is "<<xRig<<"), or state an accuracy "
                      "target and let the run choose the rasters";
             else if (onARaster)
                 fix<<(stalled ? "(the last rung did not halve the excess: the raster is no longer the term's error) " : "")<<"tighten the term's routing tolerance (for V_long solid.tolerances.vlocEps, here "<<opts.solid.tolerances.vlocEps
@@ -906,10 +949,10 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
             outside=AuditTermRanges(*itsImp->bs, *itsImp->ham, eigenFloor ? opts.orthoTol : 0.0, opts.solid.quotientAllowance, "quotientRangeAtSeed");
         }
         if (outside)
-            RefuseOutOfRange(*outside, opts.solid.quotientAllowance, outside->rasterKey.empty()
-                ? "raise the XC mesh (xcMesh nRadial / L), or trim the basis (basis.autoTrim true with an orthoTol > 0): the term's quadrature "
-                  "is wrong along the basis's weakest direction at the seed density"
-                : "raise "+outside->rasterKey+" (the term's raster), or trim the basis");
+            RefuseOutOfRange(*outside, opts.solid.quotientAllowance, outside->raster==qchem::Hamiltonian::RasterRole::None
+                ? std::string("raise the XC mesh (xcMesh nRadial / L), or trim the basis (basis.autoTrim true with an orthoTol > 0): the term's "
+                              "quadrature is wrong along the basis's weakest direction at the seed density")
+                : std::string("raise ")+RasterKeyOf(outside->raster)+" (the term's raster), or trim the basis");
     }
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
