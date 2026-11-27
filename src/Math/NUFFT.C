@@ -21,12 +21,9 @@
 // Pure math, no threading: Grid() runs once per coefficient set, Interpolate() is const and per point, so a
 // caller threads the point loop itself (and each point is one thread's gather -- bit-identical at any count).
 module;
-#include <complex>
-#include <cmath>
 #include <cassert>
-#include <vector>
-#include <algorithm>
 export module qchem.NUFFT;
+import std.compat;   // std as a module; std.compat because the code uses ::size_t, ::abs
 import qchem.Types;   // cvec_t, ivec3_t, rvec3_t, dcmplx
 import qchem.FFT;     // FFT3D, Next5Smooth
 

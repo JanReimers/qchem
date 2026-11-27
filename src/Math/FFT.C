@@ -15,11 +15,10 @@
 //   sign=+1  compute  x_j = sum_k X_k e^{+2*pi*i*j.k/N}   (inverse, caller divides by prod(N)).
 // PocketFFT's c2c uses the same sign/normalisation convention (FORWARD=-1, no scaling at fct=1).
 module;
-#include <complex>   // std::complex free operators (* + -) for dcmplx -- not leaked by qchem.Types
-#include <cmath>
 #include <cassert>
 #include "pocketfft_hdronly.h"   // submodules/pocketfft (header-only; include path on qcMath)
 export module qchem.FFT;
+import std.compat;   // std as a module; std.compat because the code uses ::size_t, ::abs
 import qchem.Types;   // cvec_t, ivec3_t
 
 export namespace qchem::FFT

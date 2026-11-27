@@ -5,12 +5,9 @@
 // monomials today; Wigner/Clebsch-Gordan, solid harmonics later) is genuinely foundational and sits below
 // both -- hence the general name "Angular" rather than "Monomial".
 module;
-#include <vector>
-#include <map>
-#include <algorithm>
 #include <cassert>
-#include <ostream>
 export module qchem.Math.Angular;
+import std.compat;   // std as a module; std.compat because the code uses ::size_t, ::abs
 
 export namespace qchem::Math
 {

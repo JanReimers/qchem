@@ -20,7 +20,7 @@ FetchContent_MakeAvailable(nanobind)
 add_library(qchem_bridge STATIC)
 target_sources(qchem_bridge PUBLIC FILE_SET bridge_mod TYPE CXX_MODULES FILES qchem_bridge.cpp)
 set_target_properties(qchem_bridge PROPERTIES
-    CXX_STANDARD 20
+    CXX_STANDARD 23
     POSITION_INDEPENDENT_CODE ON)
 target_compile_options    (qchem_bridge PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qchem_bridge PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
@@ -32,5 +32,5 @@ target_link_libraries(qchem_bridge PUBLIC qchem)
 
 # -- nanobind module: pure POD header, no qchem modules -------------------------
 nanobind_add_module(qchem_py qchem_py.cpp)
-set_target_properties(qchem_py PROPERTIES CXX_STANDARD 20)
+set_target_properties(qchem_py PROPERTIES CXX_STANDARD 23)
 target_link_libraries(qchem_py PRIVATE qchem_bridge)

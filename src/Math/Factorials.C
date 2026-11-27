@@ -1,8 +1,8 @@
 // File: Factorials.C  Compile-time numeric lookup tables (factorials, double factorials, powers of two).
 module;
-#include <array>
 
 export module qchem.Factorials;
+import std.compat;   // std as a module; std.compat because the code uses ::size_t, ::abs
 
 // These are pure integer/double recurrences of fixed size, so they are built at COMPILE time by constexpr
 // functions and exposed as immutable constants -- no runtime "Initializing..." pass, no forced static-init-

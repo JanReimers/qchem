@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.31.6)
-# set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "0e5b6991-d74f-4b3d-a41c-cf096e0b2508")
-# set(CMAKE_CXX_MODULE_STD cxx_std_23)
+# `import std` (user ruling 2026-11-25, with libc++ below): every target is C++23 (a C++20 TU cannot load a C++23 BMI) and may import
+# std / std.compat as modules.  CMake still gates this behind an EXPERIMENTAL UUID that CHANGES with each CMake release: the one below is
+# CMake 4.2's.  On another CMake configure stops here; to upgrade, take the new UUID from that CMake's Help/dev/experimental.rst.
+if(NOT CMAKE_VERSION VERSION_GREATER_EQUAL 4.2 OR CMAKE_VERSION VERSION_GREATER_EQUAL 4.3)
+    message(FATAL_ERROR "import std is gated by a per-release CMake UUID; this tree holds CMake 4.2's and this is CMake ${CMAKE_VERSION}.\n"
+        "-- To fix this, please configure with CMake 4.2.x, or update CMAKE_EXPERIMENTAL_CXX_IMPORT_STD in the root CMakeLists.txt to this "
+        "CMake's UUID (Help/dev/experimental.rst) and widen this check.")
+endif()
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
+set(CMAKE_CXX_MODULE_STD ON)
+set(CMAKE_CXX_STANDARD 23)
 # ONE INPUT: the C++ compiler (user, 2026-11-23: "external users who try and build, just need to provide a compiler path ... and our
 # cmake files handle the rest").  The C and Fortran compilers default to clang and flang BESIDE the stated clang++ (the dependencies
 # build C, and Fortran is enabled below), so a tree never mixes the stated LLVM with the system cc.  A stated CC / FC / CMAKE_*_COMPILER wins.
@@ -330,7 +339,7 @@ include(Blaze_Import)
 
 add_library(qchem)  
 target_sources(qchem PRIVATE )
-set_property(TARGET qchem PROPERTY CXX_STANDARD 20)
+set_property(TARGET qchem PROPERTY CXX_STANDARD 23)
 # set(CMAKE_CXX_STANDARD_REQUIRED YES)
 # set(CMAKE_CXX_EXTENSIONS ON)
 

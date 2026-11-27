@@ -7,7 +7,7 @@ add_executable(UTLASolver ../../Common/tests/gtestmain.C
 )
 
 target_compile_definitions(UTLASolver PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET UTLASolver PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTLASolver PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTLASolver PRIVATE
     ${QCHEM_GTEST_INCLUDE}

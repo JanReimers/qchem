@@ -1,10 +1,8 @@
 module;
 #include <cassert>
-#include <iostream>
-#include <iomanip>
-#include <complex>
 
 export module qchem.Vector2D;
+import std.compat;   // std as a module; std.compat because the code uses ::size_t, ::abs
 export import qchem.CMath;
 
 //------------------------------------------------------------------------

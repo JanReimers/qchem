@@ -13,7 +13,7 @@ target_include_directories(qcPseudopotential PRIVATE
     ${QCHEM_JSON_INCLUDE}
     ${QCHEM_BLAZE_DIR}
 )
-set_property(TARGET qcPseudopotential PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcPseudopotential PROPERTY CXX_STANDARD 23)
 target_compile_definitions(qcPseudopotential PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS} ${PseudoDataPath})
 target_link_libraries(qcPseudopotential PUBLIC qcBasisSet qcMath qcCommon qcStructure)   # qcBasisSet: the Orbital_PP_IBS argument faces this library IMPLEMENTS (V1.2)
 

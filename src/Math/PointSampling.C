@@ -16,12 +16,8 @@
 // The samplers themselves (the NUFFT and the raster's inverse FFT) are in Imp/PointSampling.C: a mesh face needs none of the FFT
 // machinery, and every importer of qchem.Mesh imports this module (D-BUILD-BLAST, lane B 2026-11-18: FFT's blast 514 -> 5 TUs).
 module;
-#include <complex>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
 export module qchem.PointSampling;
+import std.compat;   // std as a module; std.compat because the code uses ::size_t, ::abs
 import qchem.Types;   // rvec3_t, rvec3vec_t, ivec3_t, dcmplx
 
 export namespace qchem

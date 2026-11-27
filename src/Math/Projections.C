@@ -20,14 +20,8 @@
 // It lives in qcMath, below qchem.Mesh.Integrator, because MatrixForward returns it and PairProjection (qcBasisSet)
 // imports that.  ΔG_Map and its field algebra live here with it (qchem.BasisSet.PairProjection re-exports this module).
 module;
-#include <algorithm>   // std::max
-#include <cmath>       // std::abs
-#include <complex>
-#include <map>
-#include <stdexcept>
-#include <string>
-#include <utility>
 export module qchem.Projections;
+import std.compat;   // std as a module; std.compat because the code uses ::size_t, ::abs
 export import qchem.Types;   // ivec3_t, dcmplx
 import qchem.Blaze;          // rvec_t + its arithmetic
 

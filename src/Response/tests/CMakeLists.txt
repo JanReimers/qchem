@@ -8,7 +8,7 @@ add_executable(UTResponse ../../Common/tests/gtestmain.C
 )
 
 target_compile_definitions(UTResponse PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET UTResponse PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTResponse PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTResponse PRIVATE
     ${QCHEM_BLAZE_DIR}

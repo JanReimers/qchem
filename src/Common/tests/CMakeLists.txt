@@ -18,7 +18,7 @@ add_executable(UTCommon gtestmain.C
 )
 
 target_compile_definitions(UTCommon PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET UTCommon PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTCommon PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTCommon PRIVATE
     # ${QCHEM_BLAZE_DIR}

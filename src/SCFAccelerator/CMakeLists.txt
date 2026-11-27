@@ -13,7 +13,7 @@ target_include_directories(qcSCFAccelerator PRIVATE
     ${QCHEM_JSON_INCLUDE}
     )
  
-set_property(TARGET qcSCFAccelerator PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcSCFAccelerator PROPERTY CXX_STANDARD 23)
 target_include_directories(qcSCFAccelerator PRIVATE 
       ${QCHEM_BLAZE_DIR}
 )

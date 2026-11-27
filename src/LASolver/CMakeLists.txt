@@ -9,7 +9,7 @@ target_sources(qcLASolver PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Krylov.C
     Internal/LASolverLapack.C
 )
-set_property(TARGET qcLASolver PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcLASolver PROPERTY CXX_STANDARD 23)
 target_include_directories(qcLASolver PRIVATE
       ${QCHEM_BLAZE_DIR}
 )

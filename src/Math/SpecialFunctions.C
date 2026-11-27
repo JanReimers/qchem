@@ -5,10 +5,9 @@
 // qchem.Vector3D), so Math cannot depend on rvec_t without a cycle.  qchem.SpecialFunctions sits
 // above Types and so returns rvec_t directly -- callers avoid std::vector<->rvec_t conversions.
 module;
-#include <algorithm>   // std::max
-#include <cmath>
 
 export module qchem.SpecialFunctions;
+import std.compat;   // std as a module; std.compat because the code uses ::size_t, ::abs
 import qchem.Types;   // rvec_t
 
 export namespace qchem::SpecialFunctions

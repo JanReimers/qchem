@@ -8,7 +8,7 @@ add_executable(UTElConfig ../../Common/tests/gtestmain.C
 )
 
 target_compile_definitions(UTElConfig PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET UTElConfig PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTElConfig PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTElConfig PRIVATE
     # ${QCHEM_BLAZE_DIR}

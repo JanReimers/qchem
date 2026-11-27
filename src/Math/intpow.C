@@ -1,9 +1,8 @@
 // File: IntPower.H  real**int functions since C doesn't provide them.
 module;
-#include <iostream>
-#include <stdexcept>   // R2.5b: 0^negative THROWS
 
 export module qchem.IntPow;
+import std.compat;   // std as a module; std.compat because the code uses ::size_t, ::abs
 
 export 
 {
@@ -56,7 +55,7 @@ export
         double ret;
         if (n>0) ret=x;
         else ret=1.0/x;
-        int np=abs(n);
+        int np=std::abs(n);   // std::abs: the overload set for int (std.compat also exports ::abs)
 
         return uintpow(ret,np);
     }

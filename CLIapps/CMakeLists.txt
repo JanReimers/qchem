@@ -5,7 +5,7 @@
 # -- no test module imported.
 add_executable(scfrun scfrun.C)
 target_compile_definitions(scfrun PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET scfrun PROPERTY CXX_STANDARD 20)
+set_property(TARGET scfrun PROPERTY CXX_STANDARD 23)
 target_include_directories(scfrun PRIVATE
     ${QCHEM_BSPLINE_INCLUDE}
     ${QCHEM_JSON_INCLUDE}
@@ -18,7 +18,7 @@ target_link_libraries(scfrun PUBLIC qchem qcMath qcCommon blas)
 # qchem.ValenceBasisGen library; dogfoods qchem.Reporting for its console output.
 add_executable(valgen valgen.C)
 target_compile_definitions(valgen PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET valgen PROPERTY CXX_STANDARD 20)
+set_property(TARGET valgen PROPERTY CXX_STANDARD 23)
 target_include_directories(valgen PRIVATE
     ${QCHEM_BSPLINE_INCLUDE}
     ${QCHEM_JSON_INCLUDE}
@@ -33,7 +33,7 @@ target_link_libraries(valgen PUBLIC qchem qcMath qcCommon blas)
 # same cell the same way.
 add_executable(gpwprobe gpwprobe.C)
 target_compile_definitions(gpwprobe PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET gpwprobe PROPERTY CXX_STANDARD 20)
+set_property(TARGET gpwprobe PROPERTY CXX_STANDARD 23)
 target_include_directories(gpwprobe PRIVATE
     ${QCHEM_JSON_INCLUDE}
     ${QCHEM_BLAZE_DIR}
@@ -44,7 +44,7 @@ target_link_libraries(gpwprobe PUBLIC qcGPW_Harness qchem qcMath qcCommon blas)
 # revision written before the run starts.  Thin: all of it is qchem.Deck.
 add_executable(rundeck rundeck.C)
 target_compile_definitions(rundeck PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET rundeck PROPERTY CXX_STANDARD 20)
+set_property(TARGET rundeck PROPERTY CXX_STANDARD 23)
 target_include_directories(rundeck PRIVATE
     ${QCHEM_JSON_INCLUDE}
     ${QCHEM_BLAZE_DIR}
@@ -55,6 +55,6 @@ target_link_libraries(rundeck PUBLIC qchem qcMath qcCommon blas)
 # pw.x/hp.x (the U oracle, DFT+U increment 3) run the same PP and the same `atomic` Hubbard projector.
 add_executable(gth2upf gth2upf.C)
 target_compile_definitions(gth2upf PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET gth2upf PROPERTY CXX_STANDARD 20)
+set_property(TARGET gth2upf PROPERTY CXX_STANDARD 23)
 target_include_directories(gth2upf PRIVATE ${QCHEM_BLAZE_DIR} ${QCHEM_JSON_INCLUDE})
 target_link_libraries(gth2upf PUBLIC qchem qcMath qcCommon blas)

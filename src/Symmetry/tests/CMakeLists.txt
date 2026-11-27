@@ -14,7 +14,7 @@ add_executable(UTSymmetry ../../Common/tests/gtestmain.C
 )
 
 target_compile_definitions(UTSymmetry PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET UTSymmetry PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTSymmetry PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTSymmetry PRIVATE
     # ${QCHEM_BLAZE_DIR}

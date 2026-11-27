@@ -17,7 +17,7 @@ target_sources(qcOptimize PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     L_BFGS.C
     Optimize.C
 )
-set_property(TARGET qcOptimize PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcOptimize PROPERTY CXX_STANDARD 23)
 target_include_directories(qcOptimize PRIVATE ${QCHEM_BLAZE_DIR})
 target_compile_definitions(qcOptimize PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_link_libraries(qcOptimize PUBLIC qcMath qcCommon)
