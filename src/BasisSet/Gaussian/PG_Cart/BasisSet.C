@@ -176,6 +176,7 @@ public:
                                                     double relFieldSharp, const std::vector<size_t>* pairLevels=nullptr) const override;
     virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                       double beta, double lnEps) const override;
+    virtual std::vector<size_t> DensityPairLevels(const std::vector<double>& ecut_L, double relFieldSharp) const override;
     virtual void EmitLatticeSumReport(const UnitCell& A) const override;             // lattice-sum economy readout
     virtual size_t SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops,
                                         const UnitCell& A,

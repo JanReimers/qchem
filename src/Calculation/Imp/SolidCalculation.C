@@ -3,6 +3,7 @@
 // Imports ZERO .Internal. modules -- the same discipline Imp/Calculation.C and Imp/AtomCalculation.C
 // already keep, and the reason Step 4 had to open two public doors before this file could exist.
 module;
+#include <type_traits>
 #include <algorithm>   // std::max (the T2 site-moment scan)
 #include <cmath>       // std::fabs
 #include <complex>     // the response U table (chi0^-1 - chi^-1)
@@ -27,6 +28,7 @@ import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;   // tGPW_IBS<double>: the real 
 import qchem.BasisSet.Fit_Types;                  // BasisSet::Forces: what the A1 family forces in the cell's frame
 import qchem.BasisSet.AoShellSource;           // FunctionName: the audit's largest element, by atom, shell and l
 import qchem.BasisSet.Conditioning;            // ReportConditioning, MinOverlapEigenvalue
+import qchem.BasisSet.G_FieldEvaluator;           // G_RasterTransform: the XC sampler audit evaluates rho[D] at L0's own voxels
 import qchem.RasterPilotXC;                    // UniformXCDemand: the uniform XC term's two-arm demand (L0 / rho)
 import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS / Complex_OIBS (the per-irrep bases to iterate)
 import qchem.Pseudopotential.Set;             // PseudopotentialSet -- the run's chosen pseudopotential, resolved once by SolidSetup::Resolve
@@ -416,7 +418,7 @@ namespace {
 //! \a p so the factory uses (and checks) them.  The ladder is sized for the local PP the Hamiltonian will build: the SAME builder
 //! (MakeMultiSpeciesLocal over the PP set's species), so V_loc long's audit row is a pure function of what the facade holds.
 void ResolveGpwPoint(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol, const Pseudopotential::PseudopotentialSet& pp,
-                     BasisSet::Lattice::GPWParams& p)
+                     BasisSet::Lattice::GPWParams& p, policy::XCRungRoute xcRung, bool xcFitOnRaster)
 {
     namespace L3 = BasisSet::Lattice;
     const std::shared_ptr<const Structure> held=lat.GetStructure();   // held: GetStructure may hand back a fresh object
@@ -429,7 +431,16 @@ void ResolveGpwPoint(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real
             .imposeSymmetry=p.imposeSymmetry, .siteSpins=p.siteSpins, .freeMeshInvariant=p.freeMeshInvariant, .kShift=p.kShift}));
     }
     const double ppSharpness=BasisSet::Gaussian::LocalPPSharpness(st, *Pseudopotential::MakeMultiSpeciesLocal(pp.Species(st), pp.Functional()));
-    p.ladder=L3::MakeRasterLadder(lat, std::move(mol), p, ppSharpness);
+    p.ladder=L3::MakeRasterLadder(lat, mol, p, ppSharpness);
+    // THE XC RUNG FEED (qchem.XCRungPolicy): decided on THIS ladder's rung shape (the same for either route), filed as a policy row, and the
+    // ladder rebuilt when the decision is C -- C's rung raster is the multiple, so the ladder and the XC feed must be built for it.  Only a
+    // run whose XC is the plane-wave fit on the raster has the feed; any other run keeps the plain ladder (B is no work there).
+    if (p.ladder->DensityGrid())
+    {
+        p.tol.xcRungFeed = xcFitOnRaster ? policy::XCRungPolicy(xcRung, p.ladder->DensityRungShape())
+                                         : policy::XCRungNotOnRaster(xcRung);
+        if (!(p.ladder->Inputs().tol==p.tol)) p.ladder=L3::MakeRasterLadder(lat, std::move(mol), p, ppSharpness);
+    }
 }
 } //anon
 
@@ -482,7 +493,7 @@ void SolidCalculation::BuildPoint(std::shared_ptr<const SolidSetup> setup, const
             .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
             .imposeSymmetry = S.imposed, .rasterFields = S.rasterFields, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = tol,
             .hamPreservesReal = S.realTRIMBlocks, .dAwareScreen = S.policy.DAwareScreen(), .streamFold = S.policy.StreamFold()};
-        ResolveGpwPoint(lat, mol, *S.pp, p);
+        ResolveGpwPoint(lat, mol, *S.pp, p, opts.solid.xcRungFeed, S.xcFitOnRaster);
         itsImp->imposition=p.imposition;
         itsImp->ladder    =p.ladder;
         itsImp->meshMaker =MakeMeshMaker(lat.GetUnitCell());
@@ -1971,9 +1982,9 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
              <<(onH ? std::string("per matrix element (max|ΔH_ij|): a geometry run")
                     : "per raster term's energy (eps x "+std::to_string(nAtoms)+" atoms): an energy run")<<std::endl;
     rpt::json rounds=rpt::json::array();
-    UniformXCDemand xcDemand;   // the uniform XC term's two arms, L0 and rho (qchem.RasterPilotXC says why)
+    UniformXCDemand xcDemand;   // the uniform XC term's L0 demand (qchem.RasterPilotXC says why)
     bool xcOver=false;                                  // the XC term was over its target in the last round audited
-    bool xcOverUnanswered=false;                        // ... with no arm left to raise (it blocks SETTLED, honestly)
+    bool xcStalled=false;                               // ... and raising L0 is refuted (UniformXCDemand::Stalled; it blocks SETTLED, honestly)
     bool xcStatedOver=false;                            // a STATED Becke mesh was over its target in the last round (honoured, reported)
     double xcStatedMiss=0.0;                            // ... its worst tail estimate there
     std::optional<std::pair<std::string,double>> ballBefore;    // (ball, its difference) one round back
@@ -2039,35 +2050,24 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             else if (T.entries=="Eee")                              { demand=&dDens; xRun=x.density; which="Hartree"; }
             else if (T.entries=="Exc" && T.maxAbsΔH>0.0 && !xcOnBecke)   // on Becke this row is the angular rung's, read below
             {
-                // WHOSE error is the uniform XC's?  Below the density's rigorous x the collocated rho itself aliases, and v_xc[rho] carries
-                // it: Na k222s at density x 6 read |dE_xc| 1.2e-4 with its XC raster at x 28 AND at x 60, and 5e-8 once the density raster
-                // went to x 16 (C2 step 3).  So below it the XC term raises the DENSITY raster too (the rho arm); above it only the
-                // nonlinearity of v_xc is left, and the XC raster's own power law sizes L0 (Si Gamma, density x 27).  But below it L0 can
-                // be the one that matters (MnO, qchem.RasterPilotXC), so the L0 arm runs there as well.
-                // THE TWO ARMS (qchem.RasterPilotXC): the L0 arm always, the rho arm below the density's rigorous x; a refuted arm is out.
+                // THE ONE XC KNOB (user ruling 2026-11-26): the uniform XC term's QUADRATURE error is L0's, so the pilot raises L0 alone
+                // (qchem.RasterPilotXC).  The density's interpolation onto L0's points is the SAMPLER's to certify (AuditXCSampler), never
+                // a pilot knob: at a fixed L0 the density raster moved E by 34 nHa on MnO, 5 nHa on Si, 1.2 uHa on Na k222s (2026-11-26).
                 const double d=onH ? T.maxAbsΔH : std::fabs(T.ΔE);
-                const bool belowRho=x.density < itsImp->setup->opts.solid.grid.Rigorous(G::kDensityTail);
-                const UniformXCDemand::Verdict v=xcDemand.Round(x.density, x.xcL0, d, target, belowRho);
-                if (!v.refuted.empty())
-                    std::cout<<tag<<"round "<<round<<"  XC: the "<<v.refuted<<" moved alone and the error did not fall (now "<<d
-                             <<"): this XC error is not the "<<v.refuted<<"'s"<<std::endl;
+                const UniformXCDemand::Verdict v=xcDemand.Round(x.xcL0, d, target);
+                if (v.refuted)
+                    std::cout<<tag<<"round "<<round<<"  XC: L0 rose and the error did not fall (now "<<d<<"): raising L0 does not answer it"<<std::endl;
                 xcOver=v.over;
-                xcOverUnanswered=v.unanswered;
-                const double needRho=v.needRho, needL0=v.needL0;
-                dDens=std::max(dDens, needRho);
-                dXC  =std::max(dXC,   needL0);
-                auto line=[&](const char* which, double xRun, double need)
-                {
-                    const double C=d/(std::pow(xRun,3.0)*std::exp(-xRun));   // the measured scale under the rigorous shape (a report column)
-                    std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<which<<std::right<<" delivered "<<d<<" at x "<<std::defaultfloat
-                             <<std::setprecision(4)<<xRun<<std::scientific<<std::setprecision(3)<<"  (C = "<<C<<" Ha)  ";
-                    if (need>0.0)   std::cout<<"OVER: demands x "<<std::defaultfloat<<std::setprecision(4)<<need<<std::scientific<<std::setprecision(3)<<std::endl;
-                    else if (xcOver) std::cout<<"OVER, and this arm is refuted (no demand)"<<std::endl;
-                    else            std::cout<<"meets "<<target<<std::endl;
-                    terms.push_back({{"term",which},{"delivered",d},{"x",xRun},{"C",C},{"demand",need}});
-                };
-                if (belowRho) line(xcDemand.RhoRefuted() ? "XC via rho (refuted)" : "XC via rho (MEASURED)", x.density, needRho);
-                line(xcDemand.L0Refuted() ? "XC on L0 (refuted)" : "XC on L0 (MEASURED)", x.xcL0, needL0);
+                xcStalled=xcDemand.Stalled();
+                dXC=std::max(dXC, v.needL0);
+                const double C=d/(std::pow(x.xcL0,3.0)*std::exp(-x.xcL0));   // the measured scale under the rigorous shape (a report column)
+                const char* which=xcDemand.L0Refuted() ? "XC on L0 (refuted)" : "XC on L0 (MEASURED)";
+                std::cout<<tag<<"round "<<round<<"  "<<std::setw(24)<<std::left<<which<<std::right<<" delivered "<<d<<" at x "<<std::defaultfloat
+                         <<std::setprecision(4)<<x.xcL0<<std::scientific<<std::setprecision(3)<<"  (C = "<<C<<" Ha)  ";
+                if (v.needL0>0.0) std::cout<<"OVER: demands x "<<std::defaultfloat<<std::setprecision(4)<<v.needL0<<std::scientific<<std::setprecision(3)<<std::endl;
+                else if (xcOver)  std::cout<<"OVER, and raising L0 is refuted (no demand)"<<std::endl;
+                else              std::cout<<"meets "<<target<<std::endl;
+                terms.push_back({{"term",which},{"delivered",d},{"x",x.xcL0},{"C",C},{"demand",v.needL0}});
                 continue;
             }
             if (!demand) continue;   // an analytic term: nothing on a raster
@@ -2259,10 +2259,10 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             std::cout<<tag<<"NOT SETTLED after "<<round<<" re-convergence(s): "<<xcLadderEnd<<" -- the run keeps these grids and says so"<<std::endl;
             break;
         }
-        if (t==was && !xcMeshNext && !ballNext && xcOverUnanswered)
-        {   // the uniform XC term is over and both its arms are refuted: no raster the pilot sizes answers it
+        if (t==was && !xcMeshNext && !ballNext && xcStalled)
+        {   // the uniform XC term is over and raising L0 is refuted: no raster the pilot sizes answers it
             std::cout<<tag<<"NOT SETTLED after "<<round<<" re-convergence(s): the uniform XC term is over "<<target<<" Ha on "<<RasterName(t)
-                     <<" and neither the density raster nor the L0 raster moved it -- the run keeps these grids and says so"<<std::endl;
+                     <<" and raising L0 did not move it -- the run keeps these grids and says so"<<std::endl;
             break;
         }
         if (t==was && !xcMeshNext && !ballNext && !ballOtherOver.empty())
@@ -2423,6 +2423,160 @@ Outcome<SolidCalculation::GridAuditResult, ResourceRefusal> SolidCalculation::Eg
     return O::Ok(CompareAtFixedD(S.opts.solid.tolerances, shift, os.str()));
 }
 
+// THE XC SAMPLER'S INTERPOLATION AUDIT: the formulas, the bound and the combining rule are at the declaration.
+Outcome<SolidCalculation::XCSamplerAudit, std::string> SolidCalculation::AuditXCSampler() const
+{
+    using O=Outcome<XCSamplerAudit, std::string>;
+    namespace rpt=qchem::report;
+    const SolidSetup& S=*itsImp->setup;
+    if (ResolvedXCMesh().cellKind!=qcMesh::UnitCellKind::Uniform)
+        return O::Fail("the run's XC quadrature is not the uniform raster (an atom-centred mesh samples rho[D] pointwise: nothing interpolates)");
+    const qchem::Hamiltonian::XCFunctional xc=qchem::Hamiltonian::ModelToXC(*S.opts.model);
+    if (qchem::Hamiltonian::ConsumesDensityGradient(xc))
+        return O::Fail("a GGA has no uniform-raster XC route (it samples on the delta fit)");
+    // Two references are not rho[D] yet, so the audit REFUSES them rather than report a false error (measured 2026-11-26, lane A):
+    //  - an IMPOSED k mesh: the density's pointwise op(r) sums the folded blocks without the star average the raster applies (Al k222
+    //    imposed read |drho| 27% of max rho, the same run free 0.3%);
+    //  - home-cell-only images: op(r) includes the lattice images the collocation leaves out (Si box: charge 3.997 against 4).
+    const ivec3_t K=S.lattice.GetLimits();
+    if (S.imposed && K.x*K.y*K.z>1)
+        return O::Fail("an imposed group over a k mesh: the pointwise reference is not star-averaged over the folded blocks yet");
+    if (S.opts.solid.images==BasisSet::Gaussian::CellImages::HomeCellOnly)
+        return O::Fail("home-cell-only images: the pointwise reference includes the lattice images the collocation leaves out");
+    const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
+    if (!wf) throw std::logic_error("SolidCalculation::AuditXCSampler: no wave function yet (the audit runs on a converged D)");
+    const bool pol=S.Polarized();
+    const SpinGroup g = pol ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+    const SavedState st=SnapshotState(*itsImp->bs, *wf);
+    auto cdo=RestoreDensity(st, *itsImp->bs, g, S.densityMaker);
+    if (!cdo) throw std::logic_error("SolidCalculation::AuditXCSampler: the converged D does not restore onto its own basis");
+    const qchem::ChargeDensity::cDM_CD* d=cdo->get();
+    // The run's own raster and the sampler the XC term builds on it (the plane-wave fit on L0, the raster pair route).
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> fb(itsImp->bs->CreateVxcFitBasisSet(itsImp->st.get(), qchem::Hamiltonian::VxcFit::PlaneWave, nullptr, 1.0));
+    const auto* raster=dynamic_cast<const BasisSet::G_RasterTransform*>(fb.get());   // abstract -> abstract
+    if (!raster) throw std::logic_error("SolidCalculation::AuditXCSampler: the plane-wave XC fit has no raster face");
+    const auto sampler=qchem::ChargeDensity::MakeDensitySampler(fb, {});
+    const size_t n=raster->RasterSize();
+    const double w=raster->Integral(rvec_t(n,1.0))/double(n);   // the uniform rule's one weight, Omega/N
+    rvec_t upI(n), dnI(n), upD(n), dnD(n);
+    if (pol)
+    {
+        upI=sampler->RhoPol(d, Spin::Up);  dnI=sampler->RhoPol(d, Spin::Down);
+        upD=raster->Sample(*qchem::ChargeDensity::ChannelOf<dcmplx>(d, Spin::Up));
+        dnD=raster->Sample(*qchem::ChargeDensity::ChannelOf<dcmplx>(d, Spin::Down));
+    }
+    else
+    {
+        const rvec_t tI=sampler->Rho(d), tD=raster->Sample(*d);
+        for (size_t k=0;k<n;k++) {upI[k]=dnI[k]=0.5*tI[k]; upD[k]=dnD[k]=0.5*tD[k];}
+    }
+    if (upI.size()!=n || upD.size()!=n) throw std::logic_error("SolidCalculation::AuditXCSampler: the sampler's points are not the raster's");
+    rvec_t upC(n), dnC(n);   // the interpolated values in the functional's domain (rho >= 0)
+    for (size_t k=0;k<n;k++) {upC[k]=std::max(upI[k],0.0); dnC[k]=std::max(dnI[k],0.0);}
+    const auto rD=qchem::Hamiltonian::MakeLDAResponse(xc, upD, dnD);
+    const auto rI=qchem::Hamiltonian::MakeLDAResponse(xc, upC, dnC);
+    XCSamplerAudit A; A.points=n;
+    rvec_t δvUp(n), δvDn(n);
+    for (size_t k=0;k<n;k++)
+    {
+        const double du=upI[k]-upD[k], dd=dnI[k]-dnD[k];
+        A.rhoMax  =std::max(A.rhoMax, upD[k]+dnD[k]);
+        A.maxAbsδρ=std::max(A.maxAbsδρ, std::fabs(du+dd));
+        A.l1     +=w*(std::fabs(du)+std::fabs(dd));
+        A.vMax    =std::max(A.vMax, std::max(std::fabs(rD.vUp[k]), std::fabs(rD.vDn[k])));
+        A.δE1    +=w*(rD.vUp[k]*du+rD.vDn[k]*dd);
+        A.δE2    +=0.5*w*(rD.fUU[k]*du*du+2.0*rD.fUD[k]*du*dd+rD.fDD[k]*dd*dd);
+        A.δE     +=w*(rI.e[k]-rD.e[k]);
+        A.chargeInt+=w*(upI[k]+dnI[k]); A.chargeRef+=w*(upD[k]+dnD[k]);
+        δvUp[k]=rD.fUU[k]*du+rD.fUD[k]*dd;
+        δvDn[k]=rD.fUD[k]*du+rD.fDD[k]*dd;
+    }
+    A.bound=A.vMax*A.l1;
+    // δH per block: the pair sampler's adjoint of the first-order δv (unpolarized: the doublet's channel, δv_up = δv_dn).
+    const std::vector<std::pair<Spin,const rvec_t*>> chans = pol ? std::vector<std::pair<Spin,const rvec_t*>>{{Spin::Up,&δvUp},{Spin::Down,&δvDn}}
+                                                                 : std::vector<std::pair<Spin,const rvec_t*>>{{Spin::None,&δvUp}};
+    for (const auto& [s,δv] : chans)
+        for (size_t i=0;i<itsImp->bs->GetNumIBS();++i)
+        {
+            auto maxAbs=[&](const auto& H) {for (size_t r=0;r<H.rows();r++) for (size_t c=r;c<H.columns();c++) A.maxAbsδH=std::max(A.maxAbsδH, double(std::abs(H(r,c))));};
+            if (const auto* rb=itsImp->bs->GetRealIBS(i)) maxAbs(sampler->Matrix(rb, *δv));
+            else                                          maxAbs(sampler->Matrix((*itsImp->bs)[i], *δv));
+        }
+    // THE WHOLE MATRIX: H_ref = sum_g w phi_i^* phi_j v(rho[D]) from each block's own values at L0's points, chunk by chunk (the points are
+    // the raster's own voxels: its Sample of the coordinate functions), against the production gather of the production v.
+    struct Coordinate : public ScalarFunction<double>
+    {
+        int c=0;
+        double         operator()(const rvec3_t& r) const override {return c==0 ? r.x : c==1 ? r.y : r.z;}
+        vec3_t<double> Gradient  (const rvec3_t&)   const override {return vec3_t<double>(c==0?1.0:0.0, c==1?1.0:0.0, c==2?1.0:0.0);}
+    };
+    rvec3vec_t R(n);
+    for (int c=0;c<3;c++)
+    {
+        Coordinate f; f.c=c;
+        const rvec_t x=raster->Sample(f);
+        for (size_t k=0;k<n;k++) (c==0 ? R[k].x : c==1 ? R[k].y : R[k].z)=x[k];
+    }
+    const std::vector<std::pair<const rvec_t*,const rvec_t*>> vs = pol ? std::vector<std::pair<const rvec_t*,const rvec_t*>>{{&rI.vUp,&rD.vUp},{&rI.vDn,&rD.vDn}}
+                                                                       : std::vector<std::pair<const rvec_t*,const rvec_t*>>{{&rI.vUp,&rD.vUp}};
+    constexpr size_t kChunk=4096;   // points per batch evaluation: the table is kChunk x n, never N x n
+    auto reference=[&](const auto& block, const rvec_t& vD)
+    {
+        using T=std::decay_t<decltype(block(rvec3_t(0,0,0))[0])>;
+        const size_t m=block.GetVectorSize();
+        mat_t<T> H(m,m); H=T(0.0);
+        for (size_t k0=0;k0<n;k0+=kChunk)
+        {
+            const size_t k1=std::min(n,k0+kChunk);
+            rvec3vec_t pts(k1-k0);
+            for (size_t q=k0;q<k1;q++) pts[q-k0]=R[q];
+            const mat_t<T> P=block(pts);   // (points x m)
+            for (size_t q=0;q<pts.size();q++)
+            {
+                const double wv=w*vD[k0+q];
+                for (size_t i=0;i<m;i++)
+                {
+                    T pi=P(q,i);
+                    if constexpr (!std::is_same_v<T,double>) pi=std::conj(pi);
+                    const T a=wv*pi;
+                    for (size_t j=0;j<m;j++) H(i,j)+=a*P(q,j);
+                }
+            }
+        }
+        return H;
+    };
+    for (size_t sIdx=0; sIdx<chans.size(); sIdx++)
+        for (size_t i=0;i<itsImp->bs->GetNumIBS();++i)
+        {
+            const rvec_t& vI=*vs[sIdx].first; const rvec_t& vD=*vs[sIdx].second;
+            auto compare=[&](const auto& Hp, const auto& Hr)
+            {
+                for (size_t r=0;r<Hr.rows();r++) for (size_t c=0;c<Hr.columns();c++)
+                {
+                    A.maxAbsHref=std::max(A.maxAbsHref, double(std::abs(Hr(r,c))));
+                    A.maxAbsΔH =std::max(A.maxAbsΔH,  double(std::abs(Hp(r,c)-Hr(r,c))));
+                }
+            };
+            if (const auto* rb=itsImp->bs->GetRealIBS(i))
+            {
+                const auto* ev=dynamic_cast<const BasisSet::Evaluatable_IBS<double>*>(rb);   // abstract -> abstract
+                if (!ev) throw std::logic_error("SolidCalculation::AuditXCSampler: a real orbital block that cannot be evaluated at a point");
+                compare(sampler->Matrix(rb, vI), reference(*ev, vD));
+            }
+            else
+            {
+                const auto* ev=dynamic_cast<const BasisSet::Evaluatable_IBS<dcmplx>*>((*itsImp->bs)[i]);
+                if (!ev) throw std::logic_error("SolidCalculation::AuditXCSampler: a Bloch orbital block that cannot be evaluated at a point");
+                compare(sampler->Matrix((*itsImp->bs)[i], vI), reference(*ev, vD));
+            }
+        }
+    rpt::Set("xcSamplerAudit", { {"points",(long)A.points}, {"rhoMax",A.rhoMax}, {"maxAbsDeltaRho",A.maxAbsδρ}, {"l1",A.l1}, {"vMax",A.vMax},
+                                 {"bound",A.bound}, {"dE1",A.δE1}, {"dE2",A.δE2}, {"dE",A.δE}, {"maxAbsDeltaH",A.maxAbsδH},
+                                 {"maxAbsDeltaHWhole",A.maxAbsΔH}, {"maxAbsHref",A.maxAbsHref},
+                                 {"chargeInt",A.chargeInt}, {"chargeRef",A.chargeRef} });
+    return O::Ok(A);
+}
+
 SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisSet::Gaussian::GPWTolerances& raster, const rvec3_t& shift,
                                                                     const std::string& referenceName, const qcMesh::MeshParams* xcMesh,
                                                                     double ballScale, std::vector<hmat_t<dcmplx>>* xcΔH) const
@@ -2480,7 +2634,7 @@ SolidCalculation::GridAuditResult SolidCalculation::CompareAtFixedD(const BasisS
             .images = opts.solid.images, .kShift = opts.solid.kShift, .ladderFactor = opts.solid.ladderFactor,
             .imposeSymmetry = S.imposed, .rasterFields = S.rasterFields, .siteSpins = S.spins, .freeMeshInvariant = opts.solid.xcMeshSymmetric, .tol = raster,
             .hamPreservesReal = S.realTRIMBlocks, .dAwareScreen = S.policy.DAwareScreen(), .streamFold = S.policy.StreamFold()};
-        ResolveGpwPoint(latRef, molRef, *S.pp, p);   // the reference's own ladder (its rasters / ball differ), sized for the same PP
+        ResolveGpwPoint(latRef, molRef, *S.pp, p, S.opts.solid.xcRungFeed, S.xcFitOnRaster);   // the reference's own ladder (its rasters / ball differ), sized for the same PP
         ladderRef=p.ladder;
         const auto makerRef=MakeMeshMaker(latRef.GetUnitCell());
         bsRef.reset(L3::GPWFactory(latRef, molRef, makerRef, p));

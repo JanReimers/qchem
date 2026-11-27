@@ -132,6 +132,8 @@ using qcMesh::UnitCellKind; using qcMesh::RadialKind; using qcMesh::AngularKind;
 const auto kImages = NAMES(CellImages,   {"Periodic",CellImages::Periodic}, {"HomeCellOnly",CellImages::HomeCellOnly});
 const auto kOrbitalTables = NAMES(policy::XCOrbitalTables, {"auto",policy::XCOrbitalTables::Auto}, {"dense",policy::XCOrbitalTables::Dense},
                                 {"images",policy::XCOrbitalTables::Images});
+const auto kXCRungFeed = NAMES(policy::XCRungRoute, {"auto",policy::XCRungRoute::Auto}, {"pairsOnL0",policy::XCRungRoute::PairsOnL0},
+                                {"rungMultiple",policy::XCRungRoute::RungMultiple});
 const auto kAngularForm = NAMES(BasisSet::Gaussian::Angular, {"cartesian",BasisSet::Gaussian::Angular::Cartesian}, {"spherical",BasisSet::Gaussian::Angular::Spherical});
 const auto kFamily = NAMES(RunOptions::Solid::OrbitalBasis, {"gaussian",RunOptions::Solid::OrbitalBasis::GPW}, {"planeWave",RunOptions::Solid::OrbitalBasis::PlaneWave});
 const auto kCoulFit= NAMES(Hamiltonian::CoulombFit, {"Auto",Hamiltonian::CoulombFit::Auto}, {"Auxiliary",Hamiltonian::CoulombFit::Auxiliary}, {"Delta",Hamiltonian::CoulombFit::Delta}, {"Multipole",Hamiltonian::CoulombFit::Multipole});
@@ -481,6 +483,7 @@ json ToJson(const RunOptions& o)
             {"tolerances",ToJson(o.solid.tolerances)},{"policy",ToJson(o.solid.policy)},{"hubbard",hub},
             {"perKFermiLevels",o.solid.perKFermiLevels},{"xcMeshSymmetric",o.solid.xcMeshSymmetric},
             {"xcOrbitalTables",NameOf(o.solid.xcOrbitalTables,kOrbitalTables)},
+            {"xcRungFeed",NameOf(o.solid.xcRungFeed,kXCRungFeed)},
             {"numBands",o.solid.numBands},
             {"spinsShareFermi",o.solid.spinsShareFermi},{"greyImposition",o.solid.greyImposition},{"momFromSeed",o.solid.momFromSeed},
             {"siteCharges",o.solid.siteCharges}};
@@ -600,6 +603,7 @@ static void SolidBlockFromJson(const json& j, RunOptions& o)
     f.Get("perKFermiLevels",o.solid.perKFermiLevels);
     f.Get("xcMeshSymmetric",o.solid.xcMeshSymmetric);   // false = the plain atom-centred mesh: a displacement path needs it (RunOptions)
     f.GetEnum("xcOrbitalTables",o.solid.xcOrbitalTables,kOrbitalTables);   // dense | images | auto: a memory-vs-speed trade-off (RunOptions)
+    f.GetEnum("xcRungFeed",o.solid.xcRungFeed,kXCRungFeed);   // auto | pairsOnL0 (B) | rungMultiple (C): a cost choice (qchem.XCRungPolicy)
     if (j.contains("forceComplex"))          // RETIRED 2026-11-19 (OpenWork G4, the user: "we can prove rigorously whether it is needed or not")
         throw std::runtime_error("deck: solid.forceComplex is RETIRED -- real vs complex is decided by the setup from k and the planned "
                                  "responses (a postSCF hubbardLinearResponse, linear-response hubbardLoop or hubbardFiniteDifference builds "

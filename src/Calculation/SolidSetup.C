@@ -193,6 +193,8 @@ struct SolidSetup : Setup
     //! bound, no field floor); every other route gathers V_xc through the raster (\c HartreeXC: the V_xc core floor seats every pair on the
     //! reference or finer).  Every \c GPWParams the facade builds reads THIS, so a reference or audit ladder routes as the run does.
     BasisSet::PlaneWave::RasterFields rasterFields = BasisSet::PlaneWave::RasterFields::HartreeXC;
+    //! The XC is the plane-wave fit sampled on the GPW raster (the raw XC feed exists): the one case the XC rung feed policy decides.
+    bool xcFitOnRaster = false;
     std::vector<int> decoration;   //!< \c spins, or all zeros: the per-site spins the run was built with (the +U site groups read it)
     //! \brief THE GROUP A GEOMETRY STEP MUST KEEP, read at \a at: the space group detected there (\c GetSpaceGroup's \f$\{W|\tau\}\f$, or
     //! the Shubnikov group under \c spins) when the setup is \c imposed, P1 (the identity alone) when it is free.  ONE rule for its two

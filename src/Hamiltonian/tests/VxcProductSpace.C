@@ -668,6 +668,60 @@ TEST(VxcProductSpace, EverySamplersPin28CertificateMatchesItsMeasuredDistanceFro
 }
 
 
+//! THE PAIR RASTER'S INTERPOLATION, PUMPED THROUGH V_xc (controller design 2026-11-26, the user: "integral(|rho-rho_interpolated|) is not an
+//! energy, so we can't compare it directly with epsilon.  We still need to pump it through Vxc").  The certificate gate above measures
+//! max|ρ_XC - ρ[D]| pointwise; this translates the same δρ into energy on the raster's OWN points and weights (so the raster quadrature
+//! cancels): \f$\delta E^{(1)}=\sum_g w\,v_{xc}(\rho[D]_g)\,\delta\rho_g\f$, beside its rigorous bound \f$\|v_{xc}\|_\infty\|\delta\rho\|_1\f$
+//! and the direct \f$\delta E=\sum_g w\,[e(\rho^{int}_g)-e(\rho[D]_g)]\f$ (what \c SolidCalculation::AuditXCSampler reports on a run).
+//! Gates: the bound holds at every ball (it is a theorem), and at densityEcut 48 -- where the pointwise certificate is checked -- the
+//! energy is converged to 1e-8 Ha.  Printed at 12 / 24 for the record.
+TEST(VxcProductSpace, ThePairRastersInterpolationPumpedThroughVxcIsBoundedAndConverges)
+{
+    using namespace qchem::ChargeDensity;
+    UnitCell cell(8.0); cell.AddAtom(14, {0.5,0.5,0.5});
+    std::shared_ptr<const Structure> st=cell.Clone();
+    std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(
+        BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    const auto xc=qchem::Hamiltonian::ModelToXC(qchem::Hamiltonian::Model::LDA);
+    double δE48=1.0;
+    for (double ecut : {12.0, 24.0, 48.0})
+    {
+        BasisSet::Gaussian::tGPW_IBS<dcmplx> bs(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell), ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut,
+                                                BasisSet::Gaussian::CellImages::Periodic, 2.0, 4.0, BasisSet::PlaneWave::RasterFields::HartreeXC, {});
+        const size_t n=bs.GetNumFunctions();
+        chmat_t D(n);
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)= i==j ? dcmplx(4.0/double(n),0.0) : dcmplx(0.004*((3*i+5*j)%7)-0.012, 0.0);
+        const Irrep irr=bs.GetIrrep(Spin::None);
+        auto cd=std::make_unique<tComposite_CD<dcmplx>>();
+        cd->Insert(std::unique_ptr<tDM_CD<dcmplx>>(new PeriodicIrrepCD<dcmplx>(D, &bs, irr)), irr);
+        std::shared_ptr<const BasisSet::cFIT_SF_ABS> pw(bs.CreateVxcFitBasisSet(st.get(), nullptr, 1.0));
+        const auto& raster=dynamic_cast<const BasisSet::G_RasterTransform&>(*pw);
+        const rvec_t rhoI=MakeDensitySampler(pw, {})->Rho(cd.get());
+        const rvec_t rhoD=raster.Sample(*cd);
+        const size_t N=raster.RasterSize();
+        ASSERT_EQ(rhoI.size(), N);
+        const double w=raster.Integral(rvec_t(N,1.0))/double(N);
+        rvec_t hD(N), hI(N);
+        for (size_t g=0;g<N;g++) {hD[g]=0.5*rhoD[g]; hI[g]=0.5*std::max(rhoI[g],0.0);}
+        const auto rD=qchem::Hamiltonian::MakeLDAResponse(xc, hD, hD), rI=qchem::Hamiltonian::MakeLDAResponse(xc, hI, hI);
+        double δE1=0.0, δE=0.0, l1=0.0, vMax=0.0;
+        for (size_t g=0;g<N;g++)
+        {
+            const double δρ=rhoI[g]-rhoD[g];
+            δE1+=w*rD.vUp[g]*δρ;   // v_up = v_dn at ζ = 0, and δρ_up + δρ_dn = δρ
+            δE +=w*(rI.e[g]-rD.e[g]);
+            l1 +=w*std::fabs(δρ);
+            vMax=std::max(vMax, std::fabs(rD.vUp[g]));
+        }
+        std::cout<<"[pair raster through Vxc] densityEcut "<<ecut<<" points "<<N<<std::scientific<<std::setprecision(3)<<"  |drho|_1 "<<l1
+                 <<"  dE1 "<<δE1<<"  dE "<<δE<<"  bound "<<vMax*l1<<std::defaultfloat<<std::endl;
+        EXPECT_LE(std::fabs(δE1), vMax*l1*(1.0+1e-12)) << "the first-order term is bounded by ||v||_inf ||drho||_1 (Hölder)";
+        if (ecut==48.0) δE48=δE;
+    }
+    EXPECT_LT(std::fabs(δE48), 1e-8) << "where the pointwise certificate is checked, the energy it carries is converged too";
+}
+
+
 namespace
 {
 //! H = dE/dD for one sampler on one orbital block: E(D) = ∫ ρ[D]² is exactly quadratic in D, so a central difference of any step has

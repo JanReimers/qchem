@@ -17,6 +17,7 @@ import qchem.BasisSet.Orbital_1E_IBS;   // Real_OIBS (the molecular basis's one 
 import qchem.Reporting;                 // the grids facts and audit rows, written cursor-relative
 import qchem.Vector3D;                  // norm (the raster Nyquist radius, |G|)
 import qchem.Math;                      // Pi
+import qchem.FFT;                       // Next5Smooth (the rung multiple's FFT menu)
 
 namespace qchem::BasisSet::Gaussian
 {
@@ -202,11 +203,33 @@ RasterLevels GpwRasterLadder::MakeLevels(std::shared_ptr<const PlaneWave::PW_Gri
         if (efine < RungGateEcut(itsRelCutoffSafety, itsTol.rungGateC, amax)) // the TOP COMPLETION RUNG
         {
             const double e2=itsRelCutoffSafety*efine;
-            L.levels.push_back(MakeLevel(grid->Recip(), e2, PairCap(e2, efine, true), itsTol.rasterX));
+            const RungShape sh=MakeRungShape(*grid);
+            if (itsTol.xcRungFeed==XCRungFeed::RungMultiple)   // C: the rung on an integer multiple of L0's raster (XCRungFeed)
+                L.levels.push_back(std::make_shared<const PlaneWave::PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e2,
+                                       PlaneWave::StatedRaster{sh.MultipleN()}));
+            else
+                L.levels.push_back(MakeLevel(grid->Recip(), e2, PairCap(e2, efine, true), itsTol.rasterX));
         }
     }
     for (const auto& g : L.levels) { L.N.push_back(g->FFTGrid()); L.ecut.push_back(g->Ecut()); }
     return L;
+}
+
+RungShape GpwRasterLadder::MakeRungShape(const PlaneWave::PW_Grid_Evaluator& grid) const
+{
+    const double efine=grid.Ecut();
+    RungShape sh;
+    sh.N0=grid.FFTGrid();
+    if (!itsTol.mgridEcuts.empty() || !(efine < RungGateEcut(itsRelCutoffSafety, itsTol.rungGateC, itsAlphaMax))) return sh;   // no rung
+    const double e2=itsRelCutoffSafety*efine;
+    // The rung's OWN raster, as MakeLevel would build it -- sized on the grid-free evaluator (no raster is allocated for the question).
+    const PlaneWave::PW_Evaluator own(grid.Recip(), rvec3_t(0,0,0), e2, PlaneWave::NyquistRaster{std::sqrt(itsTol.rasterX*PairCap(e2, efine, true))});
+    sh.Nown=own.FFTGrid();
+    // m per axis: the least integer with m N0 >= the rung's own raster (so the multiple meets every demand the own raster met), raised
+    // to 5-smooth so m N0 stays on the FFT menu (N0 is on it).
+    auto mul=[](int Nr, int N0){ return int(qchem::FFT::Next5Smooth(size_t((Nr+N0-1)/N0))); };
+    sh.m=ivec3_t(mul(sh.Nown.x,sh.N0.x), mul(sh.Nown.y,sh.N0.y), mul(sh.Nown.z,sh.N0.z));
+    return sh;
 }
 
 RasterLevels GpwRasterLadder::MakeVlocLongLevels(double beta, double lnE) const

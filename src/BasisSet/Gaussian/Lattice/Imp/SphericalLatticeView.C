@@ -411,6 +411,21 @@ public:
     virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                       double beta, double lnEps) const override
     { return itsLat->StaticFieldPairLevels(ecut_L,beta,lnEps); }
+    //! A view function's level is its Cartesian shell's (\c itsTnz[s] lists one shell's components): the inner assignment read at one
+    //! component of each view function's shell.
+    virtual std::vector<size_t> DensityPairLevels(const std::vector<double>& ecut_L, double relFieldSharp) const override
+    {
+        const std::vector<size_t> inner=itsLat->DensityPairLevels(ecut_L,relFieldSharp);
+        const size_t nc=itsT.rows(), ns=itsT.columns();
+        std::vector<size_t> lv(ns*ns, 0);
+        for (size_t a=0;a<ns;a++)
+            for (size_t b=0;b<ns;b++)
+            {
+                if (itsTnz[a].empty() || itsTnz[b].empty()) throw std::logic_error("SphericalLatticeView: a view function with no Cartesian component");
+                lv[a*ns+b]=inner[itsTnz[a].front().first*nc+itsTnz[b].front().first];
+            }
+        return lv;
+    }
     virtual void EmitLatticeSumReport(const UnitCell& A) const override {itsLat->EmitLatticeSumReport(A);}
     virtual size_t SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops,
                                         const UnitCell& A, const rvec3_t& kFrac=rvec3_t(0,0,0)) const override
