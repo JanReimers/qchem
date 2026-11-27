@@ -100,11 +100,17 @@ TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_LadderStopsWhenARungStopsHelping
 // At the DEFAULT accuracy the first stage starts on the ball's own rasters (x 4: Etot +845 Ha), is refused, and the pilot restarts ONCE on
 // rasters whose alias does not exceed lambda_min(S) (x 14.2, 90^3).  With the density ball judged (2026-11-03) the pilot doubles the ball once
 // (cf 2 -> 4, Eee 3.3e-4 OVER 6e-5) and re-converges: 47 measured = 25 + 22 re-convergence (was 25 with 0); E moves +334 uHa (ball).
+// RE-JUDGED 2026-11-25 (doc/Pins.md pin 10; lane B, D-BECKE-ENERGY-AUDIT fallout): the energy run's pilot now climbs the Becke XC mesh
+// (40,L29) -> (80,L35) and E moves +858.5 uHa, -93.4416050775 -> -93.4407465622.  Two independent routes, same deck, same rasters (x 14.17):
+//   - Becke STATED at (40,L29): -93.44160394, 1.1 uHa from the old anchor, and the pilot names its XC term OVER the 6e-5 target (NOT SETTLED).
+//     So the old anchor was the entry mesh's quadrature error, not the state.
+//   - the UNIFORM XC route (xc.mesh Uniform): -93.44073782, SETTLED, 8.7 uHa from the climbed Becke value.
+// The routes agree well inside the target; the climbed value is re-banked.  Decks and logs: ~/Code/qchem6-runs/MnO2/laneB_pin10/.
 TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_ConvergesThroughARefusedFirstIterate_Panel_Long)
 {
     const auto o=qchem::panel::Run(qchem::panel::LoadDeck("MnO2_dD_Default.json"), 59,
                                    "beta-MnO2 dense-d, default accuracy: refused on the ball rasters, restarted on conditioned ones, one ball doubling (47 measured, 2026-11-03)");
     ASSERT_TRUE(o.run.converged) << o.run.summary;
     ASSERT_TRUE(o.run.energy);
-    EXPECT_NEAR(*o.run.energy, -93.4416050775, 1e-5) << "the dense-d A1AFM U = 0 state (re-measured 2026-11-03 at cf 4; was -93.4419391947 at cf 2)";
+    EXPECT_NEAR(*o.run.energy, -93.4407465622, 1e-5) << "the dense-d A1AFM U = 0 state (re-judged 2026-11-25 on the climbed Becke mesh, uniform route 8.7 uHa away; was -93.4416050775 on (40,L29))";
 }
