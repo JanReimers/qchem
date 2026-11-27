@@ -73,6 +73,9 @@ forces Polarized.  An AFM crystal states `"spin": "Polarized", "multiplicity": 1
   "imposeSymmetry": false, "spins": [1,-1,0,0],   // spins: the stated magnetic ordering, +1/-1/0 per site (was solid.siteSpins)
   "accuracy": 1e-5,                       // THE ONE accuracy target eps (pin 31)
   "xc": { "fit": "Auto", "rho": "exact",  // the Vxc fit basis, the density XC sees
+          "exactExchange": 0.25,          // a MOLECULE's hybrid fraction a in (0,1]: a*K_HF + (1-a)*E_x^LDA + E_c (absent = 0, pure DFT).  LDA
+                                          //   models only for now (a GGA / PBE / PADE hybrid is REFUSED, policy row Hybrid); a solid or an atom
+                                          //   refuses the key.  Needs the four-index tensor (the ERI4 RAM check fires).  V-HAM-COMPOSE step 3, lane S 2026-11-27
           "mesh": { "cellKind": "Auto|Uniform|Becke", "nRadial": 40, "angularDegree": 29, "beckeEps": 1e-6, ... } },   // was solid.xcMesh
   "coulomb": { "route": "Fit",             // Fit (the fit / solver keys below) | Exact (the four-centre J through the ERI4 tensor, the fit keys refused;
                                           //   "exact-J DFT", policy row ExactCoulomb: Direct-only RAM, warned on every use).  HF: an unstated route is
