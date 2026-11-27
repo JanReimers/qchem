@@ -357,6 +357,10 @@ struct TermRangeAudit
     double      scale=0.0;             //!< \f$\|A\|_F/\lambda_j\f$: Ha per unit relative matrix error
     size_t      block=0, direction=0;  //!< where: the block index and the column of its WeakDirections
     std::string blockLabel;            //!< the block's symmetry label
+    //! The deck key of the RASTER that assembles this term's matrix (e.g. \c solid.tolerances.vlocRasterX for V_long), empty when
+    //! none does.  A policy that finds the term outside its range rebuilds on a finer raster only when there is one to raise (the v2
+    //! setup ladder, user ruling 2026-11-27 "Yes, at setup"); an empty key is a refusal a finer raster cannot fix.
+    std::string rasterKey;
     //! The RELATIVE matrix error that would explain the quotient's distance outside the range,
     //! \f$\max(a_{\min}-R,\,R-a_{\max})/\mathrm{scale}\f$: negative inside the range (how far inside, in the same units).
     double Excess() const

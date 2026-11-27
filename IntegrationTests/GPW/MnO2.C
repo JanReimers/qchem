@@ -66,15 +66,35 @@ TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_Saved_eqExactResume_Panel_Long)
 // RE-MEASURED 2026-11-24 (lane A, the absolute pair routing ecut >= 2 p ln(1/eps)): x 8 no longer aliases (first iterate -80.75, converges in
 // 25), so the refusal case states x 4, where the first iterate is still +2080.3 Ha (54.74 per electron; x 2 the same).
 
-// A STATED raster is the deck's choice: never overridden, refused at iteration 1 with the cause named (~3 min, mostly setup).
-TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_RefusesAnAliasedFirstIterate_Long)
+// A STATED raster is the deck's choice: never overridden, refused AT SETUP with the raster to raise named (the quotient range audit v2).
+TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_RefusesAnAliasedVlongAtSetup_Long)
 {
-    const auto o=qchem::panel::Run(qchem::panel::LoadDeck("MnO2_dD_StatedX4.json"), 1,
-                                   "beta-MnO2 dense-d at a stated x 4: the first iterate is refused, not iterated");
+    // The quotient range audit v2 (lane H 2026-11-27): at a STATED x 4 the V_long matrix's Rayleigh quotient along the weakest S direction
+    // is +167.7 Ha against its rigorous range [-26.0, 26.0] (excess 9.8e-7 > eta 1e-7), so the run is REFUSED before iteration 1, naming the
+    // raster to raise -- it used to spend iteration 1 reaching +2080 Ha and be refused there by the +1 Ha/electron scale.
+    const auto o=qchem::panel::Run(qchem::panel::LoadDeck("MnO2_dD_StatedX4.json"), 0,
+                                   "beta-MnO2 dense-d at a stated x 4: refused at setup by the quotient range audit");
     EXPECT_FALSE(o.run.converged);
-    EXPECT_FALSE(o.run.energy) << "a refused run has no converged energy";
-    EXPECT_EQ(o.iterations, 1u) << "refused AT iteration 1";
-    EXPECT_NE(o.run.summary.find("per electron"), std::string::npos) << o.run.summary;
+    EXPECT_EQ(o.iterations, 0u) << "refused BEFORE iteration 1";
+    const std::string& why=o.run.summary;
+    EXPECT_NE(why.find("QuotientRange"), std::string::npos) << "a stated aliasing raster must be refused at setup: " << why;
+    EXPECT_NE(why.find("LONG-range local PP"), std::string::npos) << why;
+    EXPECT_NE(why.find("raise solid.tolerances.vlocRasterX"), std::string::npos) << why;
+}
+
+// The SETUP LADDER (quotient range audit v2, user ruling 2026-11-27 "Yes, at setup"): at the default accuracy the run chose the rasters, so a
+// V_long outside its range is rebuilt one rung finer and audited again; when a rung stops halving the excess (here the loose vlocEps 1e-3 sets the
+// floor: 2.9e-5 -> 6.1e-7 -> 5.9e-7), the ladder stops and the run is refused before iteration 1 with the routing tolerance named.
+TEST(GPW_MnO2, Γ_U_Shub_Pol_Smear_Kerker_Pulay_LadderStopsWhenARungStopsHelping_Long)
+{
+    const auto o=qchem::panel::Run(qchem::panel::LoadDeck("MnO2_dD_LooseVlocEps.json"), 0,
+                                   "beta-MnO2 dense-d, default accuracy, vlocEps 1e-3: the setup ladder stalls and refuses");
+    EXPECT_FALSE(o.run.converged);
+    EXPECT_EQ(o.iterations, 0u) << "refused BEFORE iteration 1";
+    const std::string& why=o.run.summary;
+    EXPECT_NE(why.find("QuotientRange"), std::string::npos) << "a V_long the ladder cannot cure must be refused at setup: " << why;
+    EXPECT_NE(why.find("did not halve the excess"), std::string::npos) << why;
+    EXPECT_NE(why.find("solid.tolerances.vlocEps"), std::string::npos) << why;
 }
 
 // At the DEFAULT accuracy the first stage starts on the ball's own rasters (x 4: Etot +845 Ha), is refused, and the pilot restarts ONCE on

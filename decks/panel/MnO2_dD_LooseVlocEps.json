@@ -1,0 +1,162 @@
+{
+ "_doc": [
+  "beta-MnO2 A1AFM, U = 0, dense-d basis p5f3_dD, DEFAULT accuracy (the run chooses the rasters) with a LOOSE stated vlocEps 1e-3:",
+  "the quotient range audit's setup ladder (v2, lane H 2026-11-27).  At the ball start V_long's quotient is +4244 Ha against its rigorous [-26.0, 26.0]",
+  "(excess 2.9e-5); one rung (vlocRasterX 6.0) gives 6.1e-7, the next 5.9e-7 -- the routing tolerance's floor -- so the ladder STALLS and the run",
+  "is refused before iteration 1 naming solid.tolerances.vlocEps.  (vlocEps 1e-4 is clean at the ball start.)  NMaxIter 1: it never iterates."
+ ],
+ "structure": "MnO2_beta_A1AFM",
+ "schema": 2,
+ "multiplicity": 1,
+ "spin": "Polarized",
+ "seed": "IonicSAD",
+ "ortho": "CholeskyPivoted",
+ "orthoTol": 1e-07,
+ "imposeSymmetry": true,
+ "spins": [
+  1,
+  -1,
+  0,
+  0,
+  0,
+  0
+ ],
+ "kmesh": [
+  1,
+  1,
+  1
+ ],
+ "basis": {
+  "data": "VALENCE_LOWQ_VA",
+  "file": "MnO2_p5f3_dD.bsd",
+  "angular": "spherical",
+  "autoTrim": false
+ },
+ "solid": {
+  "hubbard": [
+   {
+    "site": 0,
+    "l": 2,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 1,
+    "l": 2,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 0,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 1,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 2,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 2,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 3,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 3,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 4,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 4,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 5,
+    "l": 0,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "projector": "pseudoAtomic"
+   },
+   {
+    "site": 5,
+    "l": 1,
+    "U_eV": 0.0,
+    "orthoAtomic": true,
+    "Uirrep_eV": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "projector": "pseudoAtomic"
+   }
+  ],
+  "tolerances": {
+   "vlocEps": 0.001
+  }
+ },
+ "postSCF": [],
+ "schedule": [
+  {
+   "accelerator": "Null",
+   "scf": {
+    "NMaxIter": 1,
+    "minDeltaRhoPerElectron": 3e-05,
+    "pulayDepth": 8,
+    "kerkerG0": 1.0,
+    "startingRelaxRo": 0.45,
+    "useMOM": false,
+    "smearingkT": 0.001,
+    "pulayStart": 5
+   }
+  }
+ ]
+}
