@@ -82,6 +82,14 @@ forces Polarized.  An AFM crystal states `"spin": "Polarized", "multiplicity": 1
   "solid": {                              // the PERIODIC-ONLY options
     "kShift": [0,0,0], "densityEcut": -1, "cutoffFactor": 2,
     "xcMeshSymmetric": true,              // FREE run: XC mesh invariant under the group detected at THIS geometry; false = the plain atom-centred mesh (a displacement path needs false)
+    "xcRungFeed": "auto",                 // EXPERT, uniform XC only: how the XC raster (rho[D] at L0's points) sees the ladder's completion rung -- two
+                                          //   exact routes that differ in COST (user ruling 2026-11-26, qchem.XCRungPolicy):
+                                          //   "pairsOnL0" (B) the rung's pairs collocated a second time onto L0's raster;
+                                          //   "rungMultiple" (C) the rung's raster rounded up to an integer multiple m of L0's, XC reading L0's points off
+                                          //   Hartree's own collocation (Hartree's rung raster rises with it: <= 6e-10 Ha measured);
+                                          //   "auto" (default) the cheaper on the rule prod(m) - prod(x) < 1, x = the rung's own raster / L0's per axis
+                                          //   (C whenever the rung is no finer than L0); B when it cannot be formed.  A stated value wins; the
+                                          //   [policy] XC rung feed line prints x, m, both predicted extras and the choice.  No rung: nothing to choose.
     "tolerances": { "screenEps": 1e-10, "densityEps": 1e-10, "vlocEps": 1e-5, "fieldSharp": 0.667, "relCutoff": 0, "mgridEcuts": [], ... },
     "policy": { "cp2kCompat": false, "streamFold": true, ... },     // the declared CP2K deviations; ONLY stated routes are recorded
     "hubbard": [ { "site":0, "l":2, "U_eV":4.0, "orthoAtomic":true, "Uirrep_eV":[...], "alpha_eV":0 } ],
