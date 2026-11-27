@@ -120,19 +120,24 @@ struct AuditFootprint
 };
 AuditFootprint EstimateAuditFootprint(const AuditReferenceSize&, const AuditFootprintCalibration& = kAuditFootprintCalibration);
 
-//! \brief The memory the run may still grow into, and WHERE that figure came from.
+//! \brief The memory the run may still grow into RIGHT NOW (a LIVE figure), and WHERE it came from.
 //! Under a cgroup v2 limit (scripts/memsafe's scope: MemoryHigh) it is the nearest limit (memory.high, else memory.max) minus that
-//! cgroup's memory.current; with no limit anywhere up the tree it is /proc/meminfo's MemAvailable.
+//! cgroup's NON-RECLAIMABLE usage: memory.current less the reclaimable part memory.stat names (inactive_file + slab_reclaimable, the
+//! cgroup's analogue of MemAvailable's page cache and SReclaimable).  memory.current alone counts the page cache the scope's own logs and
+//! state files left behind, which the kernel drops before it throttles: read as used, it refused runs that fit (OpenWork §3, lane H's
+//! panel 2026-11-26: "0.00 GB is available" in a 9G scope).  With no limit anywhere up the tree it is /proc/meminfo's MemAvailable.
+//! It is still a SHARED figure: the scope's other processes (a ctest -j3 sweep's neighbours) are in it, so it only ever WARNS
+//! (\c ResourceRoom: a refusal reads the deterministic room).
 struct AvailableMemory
 {
     double      bytes  = 0.0;
-    std::string source;   //!< "cgroup memory.high - memory.current (<path>)" | "cgroup memory.max - ..." | "MemAvailable (/proc/meminfo)"
+    std::string source;   //!< "cgroup memory.high - (memory.current - reclaimable) (<path>): ..." | "MemAvailable (/proc/meminfo)" | ...
 };
 AvailableMemory QueryAvailableMemory();
 //! \brief A DETERMINISTIC memory budget: the nearest cgroup v2 limit itself (memory.high, else memory.max), or with no limit anywhere up the
 //! tree /proc/meminfo's MemTotal -- never what happens to be free right now.  CLIENT: a policy whose CHOICE changes the numbers (the δ
 //! fit's orbital tables), which must give the same answer for the same input on the same machine (controller 2026-11-19: a live-headroom
-//! choice moved a GPW anchor by 2.8e-7 Ha between two sweeps).  A refusal on resources still reads \c QueryAvailableMemory.
+//! choice moved a GPW anchor by 2.8e-7 Ha between two sweeps).  A refusal on resources reads it too, less the run's own memory (\c ResourceRoom).
 struct MemoryBudget
 {
     double      bytes  = 0.0;
@@ -145,24 +150,54 @@ std::optional<double> ParseMemTotal(const std::string& meminfo);
 std::optional<double> ParseCgroupLimit(const std::string& text);
 //! MemAvailable from /proc/meminfo text, in bytes; nothing if the line is absent.
 std::optional<double> ParseMemAvailable(const std::string& meminfo);
+//! The reclaimable part of a cgroup's memory.current, from its memory.stat text: inactive_file + slab_reclaimable, in bytes (memory.stat
+//! counts bytes); nothing if neither key is present.  active_file stays counted as used: the kernel reclaims it only after the inactive
+//! list, as MemAvailable counts only part of the page cache.
+std::optional<double> ParseCgroupReclaimable(const std::string& memoryStat);
+//! This process's resident NON-FILE memory from /proc/self/status text: RssAnon + RssShmem, in bytes; nothing if neither line is present.
+//! Its file-backed pages (RssFile: the mapped libraries, the read state files) are page cache, reclaimable as above.
+std::optional<double> ParseOwnResidentNonFile(const std::string& procStatus);
+
+//! \brief THE TWO FIGURES A RESOURCE POLICY JUDGES AGAINST (user ruling 2026-11-27, option B "Fixed limit"; OpenWork §3 "REFUSED ON
+//! RESOURCES reads page cache as used memory").
+//!   - REFUSE against the FIXED room: the deterministic limit (\c QueryMemoryBudget: the nearest cgroup limit, else MemTotal) less this
+//!     process's own resident non-file memory.  The same input on the same machine gets the same refusal, whatever the scope's neighbours
+//!     and its page cache hold at that moment; a sweep can no longer refuse a run its previous sweep ran (lane H's panel refused NaF k222
+//!     relax at 0.40 GB, Si k333 relax and TiO2 k222 that ran the panel before; the next panel refused MnO k222 instead).  A squeeze by
+//!     the neighbours is scripts/memsafe's to handle: it swaps and throttles the scope rather than killing it.
+//!   - WARN on the LIVE figure (\c QueryAvailableMemory, cache-fixed): the run is built, and may swap or be throttled.
+struct ResourceRoom
+{
+    MemoryBudget    limit;              //!< the deterministic limit and its source
+    double          ownBytes = 0.0;     //!< this process's resident non-file memory when the room was read
+    std::string     ownSource;          //!< "RssAnon + RssShmem (/proc/self/status)", or why it is 0
+    AvailableMemory live;               //!< the live, cache-fixed figure: warn only
+    double Fixed() const {return limit.bytes>ownBytes ? limit.bytes-ownBytes : 0.0;}   //!< what a refusal reads
+    //! The tighter of the two: what a warning reads (the live figure is the smaller unless the scope's neighbours are idle).
+    double Warn() const {return live.bytes<Fixed() ? live.bytes : Fixed();}
+};
+ResourceRoom QueryResourceRoom();
+//! One line naming both figures and their sources, for a policy row's reason and a refusal's summary.
+std::string DescribeRoom(const ResourceRoom&);
 
 //! The three outcomes on resources: it fits; it MAY not (only the band's high end is over: warn and run); it CANNOT (even the low end is).
+//! REFUSE when the band's low end exceeds the FIXED room; WARN when its high end exceeds the tighter of the two (\c ResourceRoom::Warn).
 enum class FootprintVerdict { Fits, Warn, Refuse };
-FootprintVerdict Judge(const AuditFootprint&, double availableBytes);
+FootprintVerdict Judge(const AuditFootprint&, const ResourceRoom&);
 
 //! The numbers a policy row and a refusal carry: the reference's sizes, the byte count, the calibration, the band, the estimate, and the
-//! memory available with its source.
-report::json Describe(const AuditFootprint&, const AvailableMemory&);
+//! room with both its figures and their sources.
+report::json Describe(const AuditFootprint&, const ResourceRoom&);
 
 //! \brief A REFUSAL ON RESOURCES: an audit reference that cannot fit.  Carried as a value (an Outcome's failure half): the run, or the
 //! work it had done, is still there; the caller is told what would not fit, why, and how to run without it (\c escape).
 struct ResourceRefusal
 {
     AuditFootprint  footprint;
-    AvailableMemory available;
+    ResourceRoom    room;
     std::string     when;     //!< "before the first SCF", "pilot round N", "Becke climb, pilot round N", "postSCF gridAudit", ...
     std::string     escape;   //!< what to state to run without this reference
-    std::string Summary() const;   //!< one line: the reference, its band, the memory available and its source, the escape
+    std::string Summary() const;   //!< one line: the reference, its band, the room (both figures, their sources), the escape
 };
 
 } // namespace qchem

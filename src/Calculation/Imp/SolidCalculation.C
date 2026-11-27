@@ -1954,8 +1954,8 @@ std::optional<ResourceRefusal> SolidCalculation::AdmitReference(const AuditRefer
                                                                 const std::string& escape) const
 {
     const AuditFootprint  f=EstimateAuditFootprint(size, itsImp->setup->opts.solid.auditFootprint);
-    const AvailableMemory a=QueryAvailableMemory();
-    const FootprintVerdict v=Judge(f, a.bytes);
+    const ResourceRoom    a=QueryResourceRoom();   // refuse on the FIXED room, warn on the live figure (user ruling 2026-11-27, option B)
+    const FootprintVerdict v=Judge(f, a);
     if (v==FootprintVerdict::Fits) return std::nullopt;
     const ResourceRefusal r{f, a, when, escape};
     const bool refuse = v==FootprintVerdict::Refuse;
@@ -1964,9 +1964,10 @@ std::optional<ResourceRefusal> SolidCalculation::AdmitReference(const AuditRefer
     {
         std::cout<<"["<<Tag()<<" audit memory] "<<(refuse ? "REFUSED ON RESOURCES: " : "WARNING (it may not fit): ")<<r.Summary()<<std::endl;
         const std::string reason = refuse
-            ? "even the low end of the calibrated band (x "+std::to_string(f.cal.bandLow)+") exceeds the memory available, so it cannot fit; "+escape
-            : "the high end of the calibrated band (x "+std::to_string(f.cal.bandHigh)+") exceeds the memory available, the low end does not: it is "
-              "built, and may swap or be throttled";
+            ? "even the low end of the calibrated band (x "+std::to_string(f.cal.bandLow)+") exceeds the fixed room (the memory limit less this run's "
+              "own), so it cannot fit; "+DescribeRoom(a)+"; "+escape
+            : "the high end of the calibrated band (x "+std::to_string(f.cal.bandHigh)+") exceeds the memory the scope has now or the fixed room, the "
+              "low end does not: it is built, and may swap or be throttled; "+DescribeRoom(a);
         policy::Report("AuditReferenceMemory", "the "+size.name+" reference "+(refuse ? "is NOT built" : "is built")+" ("+when+")",
                        refuse ? policy::Verdict::Resource : policy::Verdict::Warn, reason, policy::Cost{.memoryBytes=f.estimate}, Describe(f, a));
     }
@@ -2106,7 +2107,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             if (r)
             {
                 std::cout<<tag<<"round "<<round<<"  REFUSED ON RESOURCES: the pilot stops here, NOT SETTLED -- "<<r->Summary()<<std::endl;
-                rounds.push_back({{"round",round},{"rasters",RasterName(itsImp->setup->opts.solid.tolerances)},{"refused",Describe(r->footprint, r->available)}});
+                rounds.push_back({{"round",round},{"rasters",RasterName(itsImp->setup->opts.solid.tolerances)},{"refused",Describe(r->footprint, r->room)}});
                 itsImp->resourceRefusal=std::move(r);
                 break;
             }
@@ -2240,7 +2241,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             catch (ClimbRefused& c)
             {
                 std::cout<<tag<<"round "<<round<<"  REFUSED ON RESOURCES in the Becke climb: the pilot stops here, NOT SETTLED -- "<<c.r.Summary()<<std::endl;
-                rounds.push_back({{"round",round},{"rasters",RasterName(t)},{"terms",terms},{"refused",Describe(c.r.footprint, c.r.available)}});
+                rounds.push_back({{"round",round},{"rasters",RasterName(t)},{"terms",terms},{"refused",Describe(c.r.footprint, c.r.room)}});
                 itsImp->resourceRefusal=std::move(c.r);
             }
             if (itsImp->resourceRefusal) break;
