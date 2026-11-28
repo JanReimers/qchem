@@ -17,7 +17,7 @@ add_executable(UTStructure ../../Common/tests/gtestmain.C
 )
 
 target_compile_definitions(UTStructure PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS} STRUCTURE_TEST_DATA="${CMAKE_CURRENT_SOURCE_DIR}/data")
-set_property(TARGET UTStructure PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTStructure PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTStructure PRIVATE
     # ${QCHEM_BLAZE_DIR}

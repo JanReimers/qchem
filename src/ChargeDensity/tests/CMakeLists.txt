@@ -16,7 +16,7 @@ add_executable(UTChargeDensity ../../Common/tests/gtestmain.C
 
 # The library-wide seed gate reads the seed files and NIST's atomic tables directly (src/Common/Data/nistL{D,S}A.json).
 target_compile_definitions(UTChargeDensity PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS} ${ChargeDensityDataPath} ${CommonDataPath})
-set_property(TARGET UTChargeDensity PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTChargeDensity PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTChargeDensity PRIVATE
     ${QCHEM_BLAZE_DIR}

@@ -16,13 +16,8 @@
 //
 // Second order (a Hessian-vector product) is deferred (§13.1).
 module;
-#include <algorithm>
-#include <cmath>
-#include <cstddef>
-#include <stdexcept>
-#include <string>
-#include <vector>
 export module qchem.PositionJet;
+import std.compat;   // std as a module; std.compat because the code uses ::size_t, ::abs
 export import qchem.Vector3D;
 
 export namespace qchem

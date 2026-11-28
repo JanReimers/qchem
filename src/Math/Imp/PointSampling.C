@@ -1,18 +1,8 @@
 // File: Math/Imp/PointSampling.C  The Fourier samplers a point set makes: the type-2 NUFFT (any point set) and the inverse FFT
 // (the uniform midpoint raster).  The interface (Math/PointSampling.C) declares the faces; nothing outside names these classes.
 module;
-#include <complex>
-#include <cmath>
-#include <memory>
-#include <stdexcept>
-#include <string>
-#include <utility>
-#include <vector>
-#include <map>
-#include <array>
-#include <mutex>
-#include <algorithm>
 module qchem.PointSampling;
+import std.compat;   // std as a module; std.compat because the code uses ::size_t, ::abs
 import qchem.NUFFT;
 import qchem.FFT;
 

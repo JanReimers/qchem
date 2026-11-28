@@ -5,11 +5,8 @@
 // (GPW_Evaluator) and the molecular PP integrals (Gaussian::EOrbital_PP_IBS).  Moved here from
 // GPW_Evaluator.C so the two cannot drift.
 module;
-#include <cmath>
-#include <map>
-#include <stdexcept>
-#include <vector>
 export module qchem.Math.SolidHarmonics;
+import std.compat;   // std as a module; std.compat because the code uses ::size_t, ::abs
 import qchem.Math.Angular;    // SphericalShell, CartTerm, Monomial
 import qchem.Types;           // rvec3_t
 

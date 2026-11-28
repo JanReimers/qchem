@@ -13,11 +13,11 @@
 // the axes through the centre.  #3747's trigger, a callee
 // filling a loop-local array through an inner loop with a data-dependent trip count, is absent here: both loops accumulate a scalar.
 module;
-#include <enzyme/enzyme>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <enzyme/enzyme>   // LAST: enzyme/tuple #undef's libc++'s _NOEXCEPT, which breaks any libc++ header included after it
 module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Gaussian.Evaluators.Internal.Boys.AuxillaryFJ;   // F_j (the nuclear twin)
 import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD.RNLM;          // HermiteCoulomb

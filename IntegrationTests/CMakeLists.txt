@@ -5,7 +5,7 @@
 add_library(qcGPW_Harness)
 target_sources(qcGPW_Harness PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES GPW/Harness.C)
 target_compile_definitions(qcGPW_Harness PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET qcGPW_Harness PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcGPW_Harness PROPERTY CXX_STANDARD 23)
 target_include_directories(qcGPW_Harness PRIVATE
     ${QCHEM_JSON_INCLUDE}
     ${QCHEM_BLAZE_DIR}
@@ -18,7 +18,7 @@ target_link_libraries(qcGPW_Harness PUBLIC qcUmbrella qchem qcMath qcCommon)
 add_library(qcPW_Harness)
 target_sources(qcPW_Harness PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES PW/Harness.C)
 target_compile_definitions(qcPW_Harness PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET qcPW_Harness PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcPW_Harness PROPERTY CXX_STANDARD 23)
 target_include_directories(qcPW_Harness PRIVATE
     ${QCHEM_JSON_INCLUDE}
     ${QCHEM_BLAZE_DIR}
@@ -49,7 +49,7 @@ target_compile_definitions(ITMain PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_compile_definitions(ITMain PRIVATE ${BasisDataPath})
 # THE CONVERGENCE PANEL's deck runner (doc/SCFRobustnessPlan.md §4): a module of ITMain itself (it needs BASISSET_DATA_PATH).
 target_sources(ITMain PRIVATE FILE_SET panel_modules TYPE CXX_MODULES FILES GPW/Panel.C)
-set_property(TARGET ITMain PROPERTY CXX_STANDARD 20)
+set_property(TARGET ITMain PROPERTY CXX_STANDARD 23)
 
 target_include_directories(ITMain PRIVATE
     ${QCHEM_BSPLINE_INCLUDE}
@@ -66,7 +66,7 @@ target_link_libraries(ITMain PRIVATE qcFrontEnd qcGPW_Harness qcPW_Harness qcUmb
 # add_executable(DiracHydrogen DiracHydrogen.C)
 # target_include_directories(DiracHydrogen PRIVATE ${QCHEM_BLAZE_DIR})
 # target_link_libraries(DiracHydrogen PUBLIC qchem lapack blas)
-# set_property(TARGET DiracHydrogen PROPERTY CXX_STANDARD 20)
+# set_property(TARGET DiracHydrogen PROPERTY CXX_STANDARD 23)
 
 # setup testing
 include(GoogleTest)

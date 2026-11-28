@@ -82,6 +82,21 @@ TEST_P(A_HF_U, Energy)
     EXPECT_TRUE(calc->IsConverged());
 }
 
+// A CLOSED-SHELL CATION ON THE FACADE'S DEFAULTS (moved from the GUI suite, user ruling 2026-11-26: "if these are important pins not
+// covered in the library integration tests, they can be moved").  No ITMain gate held a radial HF cation's energy; the GUI's
+// "a cation runs" checked Li+ to 1 mHa.  Li+ 1s^2, UnPolarized HF, every other option the facade's default (what a user gets, and
+// what the GUI's radial atom runs).  Independent route (pin 10): the Clementi-Roetti HF limit -7.2364152 Ha.  Measured 2026-11-26
+// -7.2364150850, 1.2e-7 Ha above it: a variational basis lands ABOVE the limit, so the gate is one-sided at the eps scale.
+TEST(A_HF_U_Cation, LiPlus_DefaultsLandJustAboveTheHFLimit)
+{
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(3, 1, {.spin=SpinGroup::UnPolarized, .model=Model::HF})).TakeValue();
+    ASSERT_TRUE(calc->Converge());
+    const double dE=calc->Energy()-(-7.2364152);      // Clementi-Roetti Li+ HF limit
+    printf("Li+ HF (facade defaults) E = %.10f, E - E_HF(limit) = %+.2e Ha\n", calc->Energy(), dE);
+    EXPECT_GT(dE, -1e-7) << "below the HF limit: the variational bound is broken (the limit is quoted to 1e-7)";
+    EXPECT_LT(dE,  1e-6) << "further above the HF limit than the default basis's measured incompleteness (1.2e-7)";
+}
+
 #ifdef DEBUG
 #define LOW
 #else

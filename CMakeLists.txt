@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.31.6)
-# set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "0e5b6991-d74f-4b3d-a41c-cf096e0b2508")
-# set(CMAKE_CXX_MODULE_STD cxx_std_23)
+# `import std` (user ruling 2026-11-25, with libc++ below): every target is C++23 (a C++20 TU cannot load a C++23 BMI) and may import
+# std / std.compat as modules.  CMake still gates this behind an EXPERIMENTAL UUID that CHANGES with each CMake release: the one below is
+# CMake 4.2's.  On another CMake configure stops here; to upgrade, take the new UUID from that CMake's Help/dev/experimental.rst.
+if(NOT CMAKE_VERSION VERSION_GREATER_EQUAL 4.2 OR CMAKE_VERSION VERSION_GREATER_EQUAL 4.3)
+    message(FATAL_ERROR "import std is gated by a per-release CMake UUID; this tree holds CMake 4.2's and this is CMake ${CMAKE_VERSION}.\n"
+        "-- To fix this, please configure with CMake 4.2.x, or update CMAKE_EXPERIMENTAL_CXX_IMPORT_STD in the root CMakeLists.txt to this "
+        "CMake's UUID (Help/dev/experimental.rst) and widen this check.")
+endif()
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
+set(CMAKE_CXX_MODULE_STD ON)
+set(CMAKE_CXX_STANDARD 23)
 # ONE INPUT: the C++ compiler (user, 2026-11-23: "external users who try and build, just need to provide a compiler path ... and our
 # cmake files handle the rest").  The C and Fortran compilers default to clang and flang BESIDE the stated clang++ (the dependencies
 # build C, and Fortran is enabled below), so a tree never mixes the stated LLVM with the system cc.  A stated CC / FC / CMAKE_*_COMPILER wins.
@@ -16,6 +25,23 @@ if(_qchemCxx MATCHES "clang\\+\\+(-[0-9]+)?$")
     if(NOT DEFINED CMAKE_Fortran_COMPILER AND NOT DEFINED ENV{FC} AND EXISTS "${_qchemLLVMBin}/flang")
         set(CMAKE_Fortran_COMPILER "${_qchemLLVMBin}/flang" CACHE FILEPATH "Fortran compiler: flang beside the stated clang++")
     endif()
+endif()
+# THE C++ STANDARD LIBRARY IS LLVM's libc++ (user ruling 2026-11-25, "Go ahead with libc++"; lane G study laneG-import-std-feasibility.md).
+# It is part of the toolchain, so it is the project's choice and never an input: it goes into the INITIAL CMAKE_CXX_FLAGS (every C++
+# compile AND link, try_compile and the dependencies included).  It is chosen before project() so the compiler checks run with it.  The
+# check after project() refuses a tree whose cached flags predate this (a reconfigured libstdc++ tree): libc++ and libstdc++ objects
+# must never mix in one binary.
+string(APPEND CMAKE_CXX_FLAGS_INIT " -stdlib=libc++")
+# THE WEEKLY THREAD-SANITIZER TREE (user 2026-11-26: "Maybe the TSan run could be weekly if it is much slower" -- lane G's
+# ~/Code/qchem6-runs/tsan-weekly).  No routine sweep runs threaded (landings and the nightlies are serial), so nothing else sees a race
+# in an OpenMP region.  -fsanitize=thread must reach EVERY C++ TU and every link (the runtime lives in the executable), so it is set
+# here, before project(), where the try_run checks below see it too.  At run time point OMP_TOOL_LIBRARIES at this clang's libarcher.so
+# (OpenMP's barriers and reductions made visible to TSan) and TSAN_OPTIONS at scripts/tsan.supp (libomp's own suspend/resume init).
+# A TSan tree is a DIAGNOSTIC tree: its numbers and timings are never anchors.
+option(QCHEM_TSAN "Thread-sanitizer build (the weekly race sweep); never an anchor tree" OFF)
+if(QCHEM_TSAN)
+    string(APPEND CMAKE_CXX_FLAGS_INIT " -fsanitize=thread")   # CMake puts the C++ flags on every C++ link line too; not the
+                                                                # linker-flag variables, which also reach flang's links (it refuses the flag)
 endif()
 project(qchem VERSION 0.1.0 LANGUAGES CXX)
 # Release unless stated: the tests, the anchors and the timings are all Release numbers (RelChecked is Release + QCHEM_RELCHECKED).
@@ -41,6 +67,25 @@ check_cxx_compiler_flag(-fno-modules-reduced-bmi QCHEM_CXX_HAS_NO_REDUCED_BMI)
 if(QCHEM_CXX_HAS_NO_REDUCED_BMI)
     add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-modules-reduced-bmi>)
 endif()
+# libc++: the tree must really be on it, and every binary must LOAD the libc++ of this clang (the /opt tarball keeps it in its per-target
+# runtime dir, which is not on the loader's default search, so its directory joins CMAKE_BUILD_RPATH here, before any target and before
+# the OpenMP runtime check below).
+include(CheckCXXSourceCompiles)
+check_cxx_source_compiles("#include <version>\n#ifndef _LIBCPP_VERSION\n#error not libc++\n#endif\nint main(){}" QCHEM_ON_LIBCXX)
+if(NOT QCHEM_ON_LIBCXX)
+    message(FATAL_ERROR "This project builds on LLVM's libc++ (user ruling 2026-11-25), and this tree compiles against another standard "
+        "library (CMAKE_CXX_FLAGS='${CMAKE_CXX_FLAGS}' has no -stdlib=libc++: the tree was configured before the switch, or the flags were "
+        "stated by hand).\n-- To fix this, please configure a FRESH (wiped) tree, or add -stdlib=libc++ to a stated CMAKE_CXX_FLAGS.")
+endif()
+execute_process(COMMAND ${CMAKE_CXX_COMPILER} -stdlib=libc++ -print-file-name=libc++.so.1 OUTPUT_VARIABLE _qchemLibcxx OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT IS_ABSOLUTE "${_qchemLibcxx}" OR NOT EXISTS "${_qchemLibcxx}")
+    message(FATAL_ERROR "libc++: ${CMAKE_CXX_COMPILER} does not ship libc++.so.1 (-print-file-name answered '${_qchemLibcxx}').\n"
+        "-- To fix this, please state a clang++ whose LLVM install includes libc++ (the /opt/LLVM-23.1.4-Linux-X64 tarball does).")
+endif()
+get_filename_component(_qchemLibcxx "${_qchemLibcxx}" REALPATH)
+get_filename_component(_qchemLibcxxDir "${_qchemLibcxx}" DIRECTORY)
+list(APPEND CMAKE_BUILD_RPATH "${_qchemLibcxxDir}")
+message(STATUS "C++ standard library: libc++ (${_qchemLibcxxDir}, in the build RPATH)")
 # The Python bindings are a shared module, so every object linked into it is position independent: QCHEM_PYBIND implies PIC
 # (without it the thread_local qchem::detail::g_outerDepth takes a local-exec TLS relocation no shared object can use).
 # Declared here, before the first target, because CMAKE_POSITION_INDEPENDENT_CODE is read when a target is created.
@@ -319,7 +364,7 @@ include(Blaze_Import)
 
 add_library(qchem)  
 target_sources(qchem PRIVATE )
-set_property(TARGET qchem PROPERTY CXX_STANDARD 20)
+set_property(TARGET qchem PROPERTY CXX_STANDARD 23)
 # set(CMAKE_CXX_STANDARD_REQUIRED YES)
 # set(CMAKE_CXX_EXTENSIONS ON)
 
@@ -394,9 +439,15 @@ else()
 endif()
 # The smoke test: the plugin must load into this clang and differentiate (a plugin built against another LLVM fails here, not mid-build).
 # Its -O2 is the smoke program's own (Enzyme runs in the optimisation pipeline), not a flag of the tree's TUs.
+# The smoke program RUNS, so it carries the tree's build RPATH (libc++, libomp): try_run does not apply CMAKE_BUILD_RPATH itself.
+set(_qchemEnzymeRpath "")
+foreach(_d IN LISTS CMAKE_BUILD_RPATH)
+    list(APPEND _qchemEnzymeRpath "-Wl,-rpath,${_d}")
+endforeach()
 try_run(_qchemEnzymeRun _qchemEnzymeCompile
         SOURCES "${PROJECT_SOURCE_DIR}/cmake/EnzymeSmoke.cpp"
         COMPILE_DEFINITIONS "-fplugin=${QCHEM_ENZYME_PLUGIN}" -O2
+        LINK_OPTIONS ${_qchemEnzymeRpath}
         CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${QCHEM_ENZYME_INCLUDE}"
         COMPILE_OUTPUT_VARIABLE _qchemEnzymeCompileOut RUN_OUTPUT_VARIABLE _qchemEnzymeRunOut)
 if(NOT _qchemEnzymeCompile OR NOT _qchemEnzymeRun EQUAL 0)
@@ -490,8 +541,17 @@ endif()
 # Step 3 cost attribution possible at all.  Dropped -pg (gprof): inaccurate on optimized code.
 # -DNDEBUG here too (it also reaches the submodules' C++), but NOT under QCHEM_RELCHECKED: an unconditional one silently
 # killed every assert in the "asserts live" tree (found 2026-10-31 setting up the daily RelChecked sweep).
+# RelChecked also HARDENS (user ruling 2026-11-26: "I think it makes sense to turn on _LIBCPP_HARDENING_MODE_EXTENSIVE and
+# -fsanitize=array-bounds for the 2:30am debug runs"):
+#  - libc++'s EXTENSIVE hardening checks std::array / std::vector / std::span / string_view element access (operator[], front, back);
+#  - -fsanitize=array-bounds checks a fixed-size C array INDEXED BY A RUNTIME VALUE, including one INSIDE a class: an overrun that stays
+#    inside the object, which ASan cannot see (the 2026-11-03 Hermite3 LMAX overrun, which corrupted Li q3's local PP by 9-30 mHa);
+#  - -fsanitize-trap=array-bounds makes a failed check a TRAP (SIGILL at the faulting line, readable in a core or gdb): no runtime library.
+# Both are in the GLOBAL flags, like the codegen flags above: a macro and a sanitizer are part of a BMI's configuration, so every TU of a
+# tree must agree.  Release stays unhardened (its numbers and timings are the anchors).
+set(QCHEM_RELCHECKED_HARDENING "-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE -fsanitize=array-bounds -fsanitize-trap=array-bounds")
 if(QCHEM_RELCHECKED)
-    set(CMAKE_CXX_FLAGS_RELEASE "${QCHEM_RELEASE_CODEGEN} -g -fno-omit-frame-pointer")
+    set(CMAKE_CXX_FLAGS_RELEASE "${QCHEM_RELEASE_CODEGEN} -g -fno-omit-frame-pointer ${QCHEM_RELCHECKED_HARDENING}")
 else()
     set(CMAKE_CXX_FLAGS_RELEASE "${QCHEM_RELEASE_CODEGEN} -g -fno-omit-frame-pointer -DNDEBUG")
 endif()
@@ -565,7 +625,7 @@ endif()
 # a call into a library it does not DECLARE (target_link_libraries) fails at ITS OWN link -- by default a .so may leave symbols
 # undefined and the omission surfaces only, if at all, when some executable links.  The targets are walked from the project's own
 # trees (the root, src/, IntegrationTests/, CLIapps/), so a new library is covered with no list to keep; submodules and pybind/ are
-# not touched.  A sanitizer build (its runtime resolves only in the executable) would have to drop it; this tree has none.
+# not touched.  A sanitizer build (its runtime resolves only in the executable) drops it: QCHEM_TSAN.
 function(qchem_shared_libs_under dir out)
     get_property(targets DIRECTORY ${dir} PROPERTY BUILDSYSTEM_TARGETS)
     get_property(subdirs DIRECTORY ${dir} PROPERTY SUBDIRECTORIES)
@@ -594,9 +654,11 @@ foreach(d src IntegrationTests CLIapps)
     qchem_shared_libs_under(${CMAKE_CURRENT_SOURCE_DIR}/${d} libs)
     list(APPEND qchem_defs_libs ${libs})
 endforeach()
-foreach(t IN LISTS qchem_defs_libs)
-    target_link_options(${t} PRIVATE "LINKER:-z,defs")
-endforeach()
+if(NOT QCHEM_TSAN)    # a sanitizer's runtime resolves only in the executable, so a TSan tree's shared libraries cannot link -z defs
+    foreach(t IN LISTS qchem_defs_libs)
+        target_link_options(${t} PRIVATE "LINKER:-z,defs")
+    endforeach()
+endif()
 
 # EVERY PROJECT EXECUTABLE IS BUILT BY allTests (lane B 2026-11-13).  An executable no sweep builds rots silently: MnDBench broke on
 # 2026-11-04 and nobody saw it for nine days, the class the _NOT_BUILT trap belongs to (CLAUDE.md).  So configure walks the project's own

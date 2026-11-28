@@ -6,7 +6,7 @@ module;
 #include <optional>
 #include <stdexcept>
 #include <cmath>
-#include <string>
+#include <string>       // operator+(const char*, std::string): libstdc++ supplied it transitively, libc++ does not
 
 module qchem.Structure;
 

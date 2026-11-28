@@ -45,7 +45,7 @@ target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES F
 
 add_subdirectory(tests)
 
-set_property(TARGET qcChargeDensity PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcChargeDensity PROPERTY CXX_STANDARD 23)
 target_include_directories(qcChargeDensity PRIVATE ${QCHEM_BLAZE_DIR}
     ${PROJECT_SOURCE_DIR}/src                       # forward.H (the unit-test friend declarations)
     ${QCHEM_JSON_INCLUDE})

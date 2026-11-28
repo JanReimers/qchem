@@ -29,7 +29,7 @@ target_include_directories(qcStructure PRIVATE
     ${QCHEM_JSON_INCLUDE}
     ${QCHEM_BLAZE_DIR}
 )
-set_property(TARGET qcStructure PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcStructure PROPERTY CXX_STANDARD 23)
 target_compile_definitions(qcStructure PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_compile_definitions(qcStructure PRIVATE ${StructureDataPath})
 # qcSymmetry (user decision 2026-08-01, doc/SymmetryUpgradePlan.md §6a): qcStructure is where Mesh

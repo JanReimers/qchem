@@ -1,10 +1,8 @@
 // File: Common/Convert.C
 module;
-#include <complex>   // std::conj -- conjs() below (blaze::conj is NOT scalar conjugation)
-#include <utility>
 #include <cassert>     // NarrowExact's exactness assert
-#include <type_traits> // NarrowExact's identity branch
 export module qchem.Blaze;
+import std.compat;   // std::conj (conjs below; blaze::conj is NOT scalar conjugation), <utility>, <type_traits> (NarrowExact)
 export import qchem.Blaze.Core;   // Blaze has ONE owner (BlazeCore.C)
 export import qchem.Types;
 //

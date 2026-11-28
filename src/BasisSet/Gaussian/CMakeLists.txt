@@ -15,7 +15,7 @@ target_sources(qcGaussian_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES BAS
 target_include_directories(qcGaussian_BS PRIVATE 
     ${QCHEM_JSON_INCLUDE}
 )
-set_property(TARGET qcGaussian_BS PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcGaussian_BS PROPERTY CXX_STANDARD 23)
 target_compile_definitions(qcGaussian_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_compile_definitions(qcGaussian_BS PRIVATE ${BasisDataPath})
 

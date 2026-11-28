@@ -8,7 +8,7 @@ target_sources(qcOrbitals PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/TOrbital.C  
     Internal/TOrbitals.C
 )
-set_property(TARGET qcOrbitals PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcOrbitals PROPERTY CXX_STANDARD 23)
 target_include_directories(qcOrbitals PRIVATE 
       ${QCHEM_BLAZE_DIR}
 )

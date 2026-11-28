@@ -25,6 +25,6 @@ target_include_directories(qcElConfig PRIVATE ${PROJECT_SOURCE_DIR}/src ${QCHEM_
 # library and implements it -- V1.11 inc 3, user ruling: invert, never re-point the DAG).  qcMath supplies
 # the coefficient/reference types (vec_t/mat_t via qchem.Types).
 target_link_libraries(qcElConfig PUBLIC qcSymmetry qcMath)
-set_property(TARGET qcElConfig PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcElConfig PROPERTY CXX_STANDARD 23)
 
 add_subdirectory(tests)

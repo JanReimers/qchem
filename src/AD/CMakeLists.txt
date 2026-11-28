@@ -11,7 +11,7 @@ target_sources(qcAD PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     AD.C
     XCKernel.C
 )
-set_property(TARGET qcAD PROPERTY CXX_STANDARD 20)
+set_property(TARGET qcAD PROPERTY CXX_STANDARD 23)
 target_compile_definitions(qcAD PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_include_directories(qcAD PRIVATE ${QCHEM_BLAZE_DIR})
 target_link_libraries(qcAD PUBLIC qcMath qcCommon)

@@ -13,6 +13,7 @@
 module;
 #include <vector>
 #include <memory>
+#include <string>       // operator+(const char*, std::string): libstdc++ supplied it transitively, libc++ does not
 export module qchem.BasisSet.Gaussian.Point.PG_LibCint;
 export import qchem.BasisSet.BasisCache;   // a block's constructor takes its parent's cache (IntegralCacheOwnershipPlan S3a)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Block;

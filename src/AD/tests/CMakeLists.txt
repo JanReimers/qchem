@@ -4,7 +4,7 @@ add_executable(UTAD ../../Common/tests/gtestmain.C
     XCKernelAD.C
 )
 target_compile_definitions(UTAD PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET UTAD PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTAD PROPERTY CXX_STANDARD 23)
 target_include_directories(UTAD PRIVATE
     ${QCHEM_BLAZE_DIR}
     ${QCHEM_GTEST_INCLUDE}

@@ -10,7 +10,7 @@ add_executable(UTMesh ../../Common/tests/gtestmain.C
 )
 
 target_compile_definitions(UTMesh PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET UTMesh PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTMesh PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTMesh PRIVATE
     ${QCHEM_BLAZE_DIR}

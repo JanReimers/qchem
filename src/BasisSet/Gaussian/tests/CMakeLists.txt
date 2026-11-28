@@ -33,7 +33,7 @@ add_executable(UTGaussian_BS ../../Radial/tests/gtestmain.C
 target_compile_definitions(UTGaussian_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_compile_definitions(UTGaussian_BS PRIVATE ${BasisDataPath})
 target_compile_definitions(UTGaussian_BS PRIVATE ORACLE_DATA_PATH="${PROJECT_SOURCE_DIR}/tools/oracle")
-set_property(TARGET UTGaussian_BS PROPERTY CXX_STANDARD 20)
+set_property(TARGET UTGaussian_BS PROPERTY CXX_STANDARD 23)
 
 target_include_directories(UTGaussian_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/src   # forward.H (PointJetsTests)

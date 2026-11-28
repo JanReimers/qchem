@@ -1,9 +1,9 @@
 // File: Types.C  Some common types used everywhere in the code
 module;
-#include <complex>
-#include <ranges>
-#include <type_traits>
 export module qchem.Types;
+// std as a MODULE, RE-EXPORTED: every importer of Types sees std's operators on dcmplx (operator*, std::conj).  A plain import would leave
+// them reachable but not VISIBLE to an importer (lane G import-std study, 2026-11-25).  std.compat, not std: the code uses ::size_t, ::abs.
+export import std.compat;
 import qchem.Blaze.Core;   // Blaze has ONE owner (BlazeCore.C); the aliases below name its exported types
 export import qchem.Vector3D;
 export import qchem.Matrix3D;   // fixed 3x3 (brings Vector3D too)
