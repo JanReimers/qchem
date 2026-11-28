@@ -167,8 +167,16 @@ public:
     //!@}
 };
 
-//! \brief The Dunlap fit on a Gaussian (non-orthogonal, Coulomb-metric) fit basis \a fbs.  THROWS when \a fbs has no Coulomb metric.
-std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs);
+//! \brief THE CONSTRAINT AXIS of a Gaussian density fit (V-FIT-AXES, user 2026-11-25: "{constrained, unconstrained} and {overlap,coulomb/dunlap}
+//! should be orthogonal axes in code"; design note lane-s-V-FIT-AXES-design.md).  \c Charge: \f$\sum_kc_k\int f_k=N\f$ exactly, by one
+//! Lagrange step (Dunlap); \c None: the plain least-squares fit in the metric.  In the COULOMB metric neither changes the Fock
+//! (\f$\sum_kc_k(ij|f_k)\f$, the fit is stationary either way), and with \c None the robust energy equals the plain \f$\tfrac12(\rho|\tilde\rho)\f$.
+enum class DensityFitConstraint {Charge, None};
+
+//! \brief The Dunlap fit on a Gaussian (non-orthogonal, Coulomb-metric) fit basis \a fbs, charge-constrained or not (\a constraint).
+//! THROWS when \a fbs has no Coulomb metric.  (The METRIC axis, overlap, is V-FIT-AXES step 2: not built.)
+std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs,
+                                                                  DensityFitConstraint constraint=DensityFitConstraint::Charge);
 
 //! \brief A density fit on \a deltaBasis (an orthogonal, \f$\delta\f$-like fit basis that answers its own Coulomb integrals,
 //! \c BasisSet::PointCoulombIntegrals: a \c CoulombDeltaFit_IBS or a \c MultipoleFit_IBS).  THROWS when the basis is not orthogonal or
@@ -178,6 +186,13 @@ std::unique_ptr<DunlapDensityFit<double>> MakeDunlapDensityFitter(std::shared_pt
 //! site action, which turns the representatives' contributions into the full mesh's gradient (the A1 projection).
 std::unique_ptr<FirstOrderDensityFit<double>>
 MakeDeltaDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, const BasisSet::FitQuadrature& quad);
+
+//! \brief The δ-PROJECTION density fit on \a deltaBasis (lane S 2026-11-25): the same δ fit and overlap projection, with the Coulomb side the
+//! orbital blocks' analytic point-charge integrals \f$(ij|\delta_g)\f$ at \a mesh's points (\c BasisSet::PointCoulomb) instead of an
+//! operator, \f$E_H=\tfrac12(\rho|\tilde\rho)\f$ (the derivation at \c DeltaProjectionDensityFitter).  \a deltaBasis needs no Coulomb
+//! operator (a bare δ basis will do); \a mesh is its own point set.  THROWS when the basis is not orthogonal or the mesh is not its points.
+std::unique_ptr<FirstOrderDensityFit<double>>
+MakeDeltaProjectionDensityFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS> deltaBasis, std::shared_ptr<const qcMesh::Mesh> mesh);
 
 //! \brief A density fit on a PLANE-WAVE fit basis \a pw (orthonormal {G}): the fit is \f$\tilde\rho(G)\f$ itself, held privately;
 //! the physics is the basis's Coulomb integrals.  THROWS when \a pw is not orthonormal or lacks the G-space faces.

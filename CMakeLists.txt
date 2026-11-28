@@ -528,7 +528,7 @@ add_subdirectory(./CLIapps)
 add_custom_target(allApps
     COMMENT "Build all CLI apps"
 )
-add_dependencies(allApps scfrun valgen gpwprobe rundeck gth2upf)   # add_dependencies, not DEPENDS: the executable audit below reads it
+add_dependencies(allApps scfrun valgen gpwprobe rundeck gth2upf q2probe)   # add_dependencies, not DEPENDS: the executable audit below reads it
 # Benchmarks and profiling drivers: not tests, but they must COMPILE on every landing (lane B 2026-11-13: MnDBench had been broken since
 # c926486ca, 2026-11-04, because nothing in allTests built it -- the _NOT_BUILT trap's silent-rot class).
 add_custom_target(allBenches

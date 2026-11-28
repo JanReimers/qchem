@@ -219,6 +219,7 @@ RunOptions SolidOptions(const RunOptions& asked)
     if (!(asked.molecule==def.molecule)) refuse("the `molecule` block", "a periodic run's basis is its recipe (deck `basis`) -- drop it");
     if (!(asked.atom==def.atom))         refuse("the `atom` block", "it holds the radial atom's options -- drop it");
     if (asked.xalpha!=def.xalpha)        refuse("xalpha", "a periodic run is LDA or PADE; Xalpha is the molecular facade's");
+    if (asked.exactExchange)             refuse("xc.exactExchange", "a hybrid's exact exchange is a molecule's (no periodic exact exchange)");
     if (!(asked.coulomb==def.coulomb))   refuse("coulomb", "a periodic run's Hartree route is its density ball, not a stated route");
     if (asked.symmetryTol!=def.symmetryTol) refuse("symmetryTol", "a periodic run detects its space group at the lattice's own tolerance");
     if (asked.solid.grid.eps!=def.solid.grid.eps)

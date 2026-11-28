@@ -301,6 +301,28 @@ TEST(M_DFT, WaterLDA_AuxiliaryFit)
     EXPECT_NEAR(calc->Energy(), -75.87944736, 2e-5) << "ORACLE: PySCF A1_coul J-fit route, exact XC; the gap is the A1 fit of v in H (second order)";
 }
 
+// V-FIT-AXES step 1 (lane S 2026-11-25): the deck's charge-constraint axis reaches the run's Hartree fit.  Unconstrained, the Coulomb
+// least-squares fit has (ρ|ρ̃) = (ρ̃|ρ̃) at EVERY density, so the run's diagnostics EeeFit and EeeFitFit agree to roundoff; under the
+// default (Dunlap's charge constraint) they part.  Neither run pins an energy: this gate is that the stated axis is the one that ran.
+TEST(M_DFT, WaterLDA_AuxiliaryFit_TheChargeConstraintAxisReachesTheRun)
+{
+    auto run=[](Hamiltonian::ChargeConstraint con)
+    {
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
+                      {.model=Model::LDA, .coulomb={.fit=Hamiltonian::CoulombFit::Auxiliary, .auxBasis="A1_coul", .constraint=con},
+                       .molecule={.basis="dzvp"}})).TakeValue();
+        (void)calc->Converge();
+        EXPECT_TRUE(calc->IsConverged());
+        const auto E=calc->EnergyTerms();
+        return std::pair{E.Diagnostic("EeeFit"), E.Diagnostic("EeeFitFit")};
+    };
+    const auto [uFit, uFitFit]=run(Hamiltonian::ChargeConstraint::None);
+    const auto [cFit, cFitFit]=run(Hamiltonian::ChargeConstraint::Auto);
+    ASSERT_GT(uFit, 1.0) << "the diagnostics are filed";
+    EXPECT_NEAR(uFit, uFitFit, 1e-10*uFit) << "unconstrained: the robust and plain energies are one";
+    EXPECT_GT(std::fabs(cFit-cFitFit), 1e-8) << "the default (constrained) fit is not the unconstrained one";
+}
+
 TEST(M_DFT, OxygenTripletLDA_AuxiliaryFit)
 {
     auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(MakeO2(), {.multiplicity=3, .model=Model::LDA, .vxcFit=Hamiltonian::VxcFit::Auxiliary, .coulomb={.auxBasis="A1_coul"}, .scf=kTight80, .molecule={.basis="dzvp"}})).TakeValue();
@@ -371,6 +393,71 @@ TEST(M_DFT, WaterLDA_DeltaCoulomb_Poisson)
     ASSERT_TRUE(calc->Result());
     EXPECT_NEAR(calc->Energy(), -75.8773086479, 1e-6);   // anchor (re-judged 2026-11-08, above)
     EXPECT_NEAR(calc->Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC; the gap (-9 μHa) is the mesh's, inside eps x N";
+}
+
+// ...and with the ANALYTIC potential (lane S 2026-11-25, the Q2 arm; coulomb.solver Analytic): ṽ_g = Σ D_kl (kl|δ_g) at the same points,
+// E = ½(ρ|ρ̃), so the operator's error is gone and one leg of the mesh's is left, in the charges.  Same oracle as the Poisson twin.
+// A SAD seed has no D, so the term RequiresDensityMatrix and the SCF's matrix-free-seed bootstrap (the HF path) hands it D0.
+TEST(M_DFT, WaterLDA_DeltaCoulomb_Analytic_Long)   // 90 s alone: every iteration builds (kl|delta_g) on all mesh points (the Q2 cost)
+{
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit = Hamiltonian::CoulombFit::Delta, .solver = Hamiltonian::CoulombSolver::Analytic}, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    EXPECT_NEAR(calc->Energy(), -75.8772909692, 1e-6);   // anchor (lane S 2026-11-25; the SAD seed reaches it through the D0 bootstrap)
+    EXPECT_NEAR(calc->Energy(), -75.87729931, 5e-5) << "ORACLE: PySCF, exact J and XC: +8.3 μHa (the Poisson twin -9.3), the mesh's charges";
+}
+
+// THE EXACT FOUR-CENTRE J in the density model (coulomb.route Exact; lane S 2026-11-25, the Q2 accuracy oracle): HF's Vee in the LDA
+// Hamiltonian, no fit and no Hartree mesh, so the only gap to PySCF's exact-J LDA is the XC mesh's.  A SAD seed has no D: the term is a
+// whole-system one, so the SCF bootstraps D0 as an HF run does.  The policy row ExactCoulomb warns on every use.
+TEST(M_DFT, WaterLDA_ExactCoulomb)
+{
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.route = Hamiltonian::HartreeRoute::Exact}, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    EXPECT_NEAR(calc->Energy(), -75.8772997308, 1e-6);   // anchor (lane S 2026-11-25)
+    EXPECT_NEAR(calc->Energy(), -75.87729931, 2e-6) << "ORACLE: PySCF, exact J and XC on (200, 590): -0.43 μHa, the XC mesh's alone";
+}
+
+// THE LDA HYBRID (xc.exactExchange; V-HAM-COMPOSE step 3, the mixer term): a K_HF + (1-a) E_x^Slater + E_c^VWN5.  On the exact J, so the
+// Hartree route's own error is out of the comparison and what is left is the XC mesh's (-0.43 uHa for pure LDA above).  ORACLE: PySCF RKS,
+// xc "a*HF + (1-a)*LDA, VWN", the same DZVP file, Cartesian, XC grid (200, 590) (~/Code/qchem6-runs/Q2/xcheck/hybrid.py, 2026-11-26).
+TEST(M_DFT, WaterLDAHybrid_ExactCoulomb)
+{
+    for (const auto& [a, oracle] : {std::pair{0.25, -76.0785074238}, std::pair{1.0, -76.6866235640}})
+    {
+        auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
+            {.model=Model::LDA, .exactExchange=a, .coulomb={.route = Hamiltonian::HartreeRoute::Exact}, .molecule={.basis="dzvp"}})).TakeValue();
+        (void)calc->Converge();
+        ASSERT_TRUE(calc->Result()) << "a=" << a;
+        std::printf("  [hybrid] a=%.2f E=%.10f PySCF %.10f diff %.3e\n", a, calc->Energy(), oracle, calc->Energy()-oracle);
+        EXPECT_NEAR(calc->Energy(), oracle, 2e-6) << "ORACLE: PySCF, a=" << a << " (the XC mesh's error alone, as pure LDA's -0.43 uHa)";
+    }
+}
+
+// The hybrid on the molecular DEFAULT Hartree route (delta, radial Poisson): the same functional, its J the fitted one, so it sits within
+// the Poisson route's own J error of the exact-J hybrid above (the audit gate below bounds that at 3e-5 on water).
+TEST(M_DFT, WaterLDAHybrid_DeltaCoulomb)
+{
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"),
+        {.model=Model::LDA, .exactExchange=0.25, .molecule={.basis="dzvp"}})).TakeValue();
+    (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    EXPECT_NEAR(calc->Energy(), -76.0785074238, 3e-5) << "ORACLE: PySCF's exact-J hybrid, within the Poisson route's J error";
+}
+
+// THE COULOMB AUDIT (MoleculeCalculation::CoulombAudit; the Q2 fixed-D column): at the converged D of a Poisson run, the run against itself
+// is zero to the bit (the reference is the same Hamiltonian rebuilt), and against the exact J it is the Poisson route's own J error.
+TEST(M_DFT, WaterLDA_DeltaCoulomb_CoulombAuditAgainstExactJ)
+{
+    auto calc=MoleculeCalculation::Prepare(MoleculeSetup::Resolve(qchem::StructureData::GetMolecule("H2O"), {.model=Model::LDA, .coulomb={.fit = Hamiltonian::CoulombFit::Delta}, .molecule={.basis="dzvp"}})).TakeValue(); (void)calc->Converge();
+    ASSERT_TRUE(calc->Result());
+    const auto self=calc->CoulombAudit(calc->SizedSetup()->opts.coulomb);
+    EXPECT_EQ(self.ΔE_H, 0.0) << "the run against its own route";
+    EXPECT_EQ(self.maxAbsΔJ, 0.0);
+    const auto exact=calc->CoulombAudit({.route = Hamiltonian::HartreeRoute::Exact});
+    EXPECT_NE(exact.ΔE_H, 0.0);
+    EXPECT_LT(std::fabs(exact.ΔE_H), 3e-5) << "the Poisson route's J error at its own D, inside eps x N";
+    EXPECT_LT(exact.maxAbsΔJ, 1e-3);
+    EXPECT_THROW(calc->CoulombAudit({.fit = Hamiltonian::CoulombFit::Auxiliary}), std::invalid_argument) << "a Gaussian-fit reference states its file";
 }
 
 // The multipole fit has δ x Poisson's potential, so its SCF is the same one; only the energy's second leg differs.  Re-judged with the

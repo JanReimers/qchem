@@ -176,6 +176,15 @@ TEST(MoleculeSetup, AnUnstatedCoulombFitIsNamedByTheSetup)
     const auto delta=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .coulomb={.fit=CF::Delta}, .molecule={.basis="dzvp"}});
     EXPECT_EQ(delta->opts.coulomb.fit, CF::Delta);
     EXPECT_TRUE(delta->opts.coulomb.auxBasis.empty());
+    // V-FIT-AXES: an unstated axis on the Auxiliary route is Dunlap's (Coulomb metric, charge-constrained); a stated axis implies that route
+    EXPECT_EQ(aux->opts.coulomb.metric, Hamiltonian::CoulombMetric::Coulomb);
+    EXPECT_EQ(aux->opts.coulomb.constraint, Hamiltonian::ChargeConstraint::Charge);
+    const auto plain=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::LDA, .coulomb={.constraint=Hamiltonian::ChargeConstraint::None}, .molecule={.basis="dzvp"}});
+    EXPECT_EQ(plain->opts.coulomb.fit, CF::Auxiliary) << "a stated fit axis implies the Gaussian route, as a stated file does";
+    EXPECT_EQ(plain->opts.coulomb.auxBasis, "A2_coul");
+    EXPECT_EQ(plain->opts.coulomb.metric, Hamiltonian::CoulombMetric::Coulomb);
+    EXPECT_EQ(plain->opts.coulomb.constraint, Hamiltonian::ChargeConstraint::None);
+    EXPECT_EQ(delta->opts.coulomb.constraint, Hamiltonian::ChargeConstraint::Auto) << "the δ route has no constraint axis: left unresolved";
 }
 
 TEST(MoleculeSetup, ACoulombFitFileTheRunCannotUseIsRefusedByName)
@@ -185,15 +194,57 @@ TEST(MoleculeSetup, ACoulombFitFileTheRunCannotUseIsRefusedByName)
     const std::vector<Case> cases={
         {{.model=Model::LDA, .coulomb={.fit=CF::Delta, .auxBasis="A1_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnused", 8},
         {{.model=Model::LDA, .coulomb={.fit=CF::Multipole, .auxBasis="A1_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnused", 8},
-        {{.model=Model::HF, .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnused", 8},
+        {{.model=Model::HF, .coulomb={.fit=CF::Delta}, .molecule={.basis="dzvp"}}, "CoulombRouteForHF", 8},      // RI-J HF is the Gaussian fit's
+        {{.model=Model::HF, .coulomb={.fit=CF::Multipole}, .molecule={.basis="dzvp"}}, "CoulombRouteForHF", 8},
         {{.model=Model::LDA, .coulomb={.auxBasis="no_such_fit"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisUnknown", 8},
         {{.model=Model::LDA, .coulomb={.auxBasis="A2_coul"}, .molecule={.basis="dzvp"}}, "CoulombAuxBasisCoverage", 52},   // A2 stops at Zn
+        // V-FIT-AXES: the δ fit refuses the axes (user ruling 2026-11-25), the overlap metric is not built yet, HF fits nothing
+        {{.model=Model::LDA, .coulomb={.fit=CF::Delta, .constraint=Hamiltonian::ChargeConstraint::Charge}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        {{.model=Model::LDA, .coulomb={.fit=CF::Multipole, .constraint=Hamiltonian::ChargeConstraint::Charge}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        {{.model=Model::LDA, .coulomb={.fit=CF::Delta, .metric=Hamiltonian::CoulombMetric::Coulomb}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        {{.model=Model::LDA, .coulomb={.fit=CF::Auxiliary, .metric=Hamiltonian::CoulombMetric::Overlap}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        // The analytic (ij|δ) solver: the δ fit's only (lane S 2026-11-25)
+        {{.model=Model::HF, .coulomb={.solver=Hamiltonian::CoulombSolver::Analytic}, .molecule={.basis="dzvp"}}, "CoulombSolverUnused", 8},
+        {{.model=Model::LDA, .coulomb={.fit=CF::Auxiliary, .solver=Hamiltonian::CoulombSolver::Analytic}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        {{.model=Model::LDA, .coulomb={.fit=CF::Multipole, .solver=Hamiltonian::CoulombSolver::Analytic}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        // The exact four-centre J (coulomb.route Exact): every fit key beside it is refused by name; HF states nothing (its J is exact)
+        {{.model=Model::LDA, .coulomb={.route=Hamiltonian::HartreeRoute::Exact, .fit=CF::Delta}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        {{.model=Model::LDA, .coulomb={.route=Hamiltonian::HartreeRoute::Exact, .auxBasis="A2_coul"}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        {{.model=Model::LDA, .coulomb={.route=Hamiltonian::HartreeRoute::Exact, .constraint=Hamiltonian::ChargeConstraint::None}, .molecule={.basis="dzvp"}}, "AdmitCoulomb", 8},
+        {{.model=Model::HF, .coulomb={.route=Hamiltonian::HartreeRoute::Exact}, .molecule={.basis="dzvp"}}, "CoulombRouteUnused", 8},
+        // The hybrid (xc.exactExchange, policy Hybrid; V-HAM-COMPOSE step 3): a in (0,1], a DFT model with a separable exchange part, an LDA
+        {{.model=Model::LDA,  .exactExchange=0.0,  .molecule={.basis="dzvp"}}, "Hybrid", 8},
+        {{.model=Model::LDA,  .exactExchange=1.5,  .molecule={.basis="dzvp"}}, "Hybrid", 8},
+        {{.model=Model::HF,   .exactExchange=0.25, .molecule={.basis="dzvp"}}, "Hybrid", 8},
+        {{.model=Model::PADE, .exactExchange=0.25, .molecule={.basis="dzvp"}}, "Hybrid", 8},
+        {{.model=Model::PBE,  .exactExchange=0.25, .molecule={.basis="dzvp"}}, "Hybrid", 8},
     };
     for (const Case& c : cases)
     {
         const auto r=MoleculeSetup::Admit(OneAtom(c.Z), c.o);
         ASSERT_FALSE(r) << c.policy;
         EXPECT_EQ(r.Error().policy, c.policy);
+    }
+}
+
+// RI-J HF (V-HAM-COMPOSE step 2): HF's J is the exact four-centre one unless a Gaussian fit is stated (the fit, a file or a fit axis); then
+// it resolves as a density model's Auxiliary fit, and its row names it.
+TEST(MoleculeSetup, HartreeFockTakesTheExactJUnlessAGaussianFitIsStated)
+{
+    using CF=Hamiltonian::CoulombFit;
+    const auto exact=MoleculeSetup::Resolve(OneAtom(8), {.model=Model::HF, .molecule={.basis="dzvp"}});
+    EXPECT_EQ(exact->opts.coulomb.route, Hamiltonian::HartreeRoute::Exact);
+    EXPECT_FALSE(Hamiltonian::UsesCoulombFitBasis(exact->opts.coulomb)) << "the exact J reads no fit basis";
+    for (const RunOptions& o : {RunOptions{.model=Model::HF, .coulomb={.fit=CF::Auxiliary}, .molecule={.basis="dzvp"}},
+                                RunOptions{.model=Model::HF, .coulomb={.auxBasis="A1_coul"}, .molecule={.basis="dzvp"}},
+                                RunOptions{.model=Model::HF, .coulomb={.constraint=Hamiltonian::ChargeConstraint::None}, .molecule={.basis="dzvp"}}})
+    {
+        const auto rij=MoleculeSetup::Resolve(OneAtom(8), o);
+        EXPECT_EQ(rij->opts.coulomb.route, Hamiltonian::HartreeRoute::Fit);
+        EXPECT_EQ(rij->opts.coulomb.fit, CF::Auxiliary);
+        EXPECT_FALSE(rij->opts.coulomb.auxBasis.empty()) << "a fit file resolved";
+        EXPECT_EQ(rij->opts.coulomb.metric, Hamiltonian::CoulombMetric::Coulomb);
+        EXPECT_TRUE(Hamiltonian::UsesCoulombFitBasis(rij->opts.coulomb));
     }
 }
 

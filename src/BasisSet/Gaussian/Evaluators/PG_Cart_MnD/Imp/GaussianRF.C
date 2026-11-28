@@ -750,6 +750,34 @@ void GaussianRF::Repulsion3CGroupBlock(const GaussianRF* const* ra, size_t ma, c
             }
         }
 }
+void GaussianRF::PointCoulombGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
+                                        const Polarization* pa, size_t na, const Polarization* pb, size_t nb,
+                                        const PrimitivePairTable& abT, const rvec3_t& r, RNLM& R, std::vector<double>& t, double* out)
+{
+    const GaussianRF &A=*ra[0], &B=*rb[0];
+    const size_t ni=A.itsPrims.size(), nj=B.itsPrims.size();
+    if (abT.itsΩ.size()!=ni*nj)
+        throw std::invalid_argument("GaussianRF::PointCoulombGroupBlock: the PrimitivePairTable is not slots a and b's primitive pairs");
+    const size_t n=na*nb, M=ma*mb;
+    for (size_t q=0;q<M*n;q++) out[q]=0.0;
+    t.resize(n);
+    for (size_t i=0;i<ni;++i)
+        for (size_t j=0;j<nj;++j)
+        {
+            const Ω& ab=*abT.itsΩ[i*nj+j];
+            R.Build(ab.Ltotal, ab.αₚ, ab.P-r);   // ONCE per primitive pair and point: Nuclear's table for one unit charge at r
+            const std::vector<Polarization>& NLMs=Ω::GetNMLs(ab.Ltotal);
+            size_t q=0;
+            for (size_t a=0;a<na;a++) for (size_t b=0;b<nb;b++,q++)
+                t[q]=PairNuclear(ab.αₚ, ab.Eij, ab.H2, pa[a], pb[b], NLMs, [&R](const Polarization& nlm){return R(nlm);});
+            double* o=out;
+            for (size_t ia=0;ia<ma;ia++) for (size_t ib=0;ib<mb;ib++, o+=n)
+            {
+                const double pref=ra[ia]->itsCoeff[i]*rb[ib]->itsCoeff[j];   // Nuclear's product, its order
+                for (size_t q2=0;q2<n;q2++) o[q2] += pref * t[q2];
+            }
+        }
+}
 void GaussianRF::Overlap3CGroupBlock(const GaussianRF* const* ra, size_t ma, const GaussianRF* const* rb, size_t mb,
                                      const GaussianRF* const* rc, size_t mc,
                                      const Polarization* pa, size_t na, const Polarization* pb, size_t nb,

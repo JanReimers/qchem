@@ -76,7 +76,8 @@ template <class T> class ConstrainedFF
 public:
     typedef std::shared_ptr<const BasisSet::FIT_CD_NonOrtho> fbs_t;
 
-    ConstrainedFF(fbs_t&, const vec_t<T>& g);
+    //! \a constrained: apply the charge constraint \f$g\cdot c=N\f$ after the Coulomb solve (\c DensityFitConstraint::Charge), or not.
+    ConstrainedFF(fbs_t&, const vec_t<T>& g, bool constrained=true);
 
     // --- PairProjector<double>: the projections are COULOMB ones, ⟨f_a|1/r₁₂|ρ⟩
     virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>&) const override;
@@ -90,7 +91,7 @@ public:
     virtual Projections ProjectField(const ScalarFunction<double>&) const override;
 
     // --- DunlapDensityFit
-    virtual void      DoFit        (const Projections& rho, double charge) override;   //!< \f$c=G^{-1}p\f$, then the constraint
+    virtual void      DoFit        (const Projections& rho, double charge) override;   //!< \f$c=G^{-1}p\f$, then the constraint if it is on
     virtual hmat_t<T> Repulsion    (const BasisSet::Orbital_DFT_IBS<T,T>&) const override;
     virtual double    SelfRepulsion() const override;   //!< \f$\tfrac12 c^TGc\f$
     virtual double    Integral     () const override;   //!< \f$\sum_a c_a\int f_a\f$
@@ -100,7 +101,20 @@ public:
     virtual bool CanPullbackSelfRepulsion() const override;
     virtual Outcome<rvec3vec_t,AD::NoGradient> MakeSelfRepulsionPullback(const Structure* st) const override;
 private:
-    //! Dunlap's charge constraint on the unconstrained fit: \f$g\cdot c=N\f$ exactly, by one Lagrange correction.
+    //! \brief THE CONSTRAINT AXIS (V-FIT-AXES): \f$g\cdot c=N\f$ exactly, by one Lagrange correction of the unconstrained fit.
+    //!
+    //! GENERIC IN THE METRIC \f$M\f$ (here \f$M=G=(f_k|f_l)\f$; the overlap metric \f$S\f$ is step 2 and uses the same step).  The fit
+    //! minimizes \f$\tfrac12 c^TMc-c^Tp_M\f$ (\f$p_M\f$ the projections in that metric), i.e. \f$\|\rho-\tilde\rho\|_M^2\f$ up to a constant,
+    //! subject to \f$g^Tc=N\f$ with \f$g_k=\int f_k\f$.  Stationarity of \f$\tfrac12c^TMc-c^Tp_M+\lambda(g^Tc-N)\f$:
+    //! \f[ Mc=p_M-\lambda g\ \Rightarrow\ c=c_0-\lambda M^{-1}g,\qquad c_0=M^{-1}p_M, \f]
+    //! and the constraint fixes \f$\lambda\f$:
+    //! \f[ g^Tc_0-\lambda\,g^TM^{-1}g=N\ \Rightarrow\ \lambda=\frac{g^Tc_0-N}{g^TM^{-1}g}. \f]
+    //! Here \c gS \f$=g^TM^{-1}\f$ and \c gSg \f$=g^TM^{-1}g\f$ are cached at construction (geometry-only).  \f$c\f$ is AFFINE in the
+    //! density, \f$c=Ap_M+b\f$, \f$A=(I-M^{-1}gg^T/g^TM^{-1}g)M^{-1}\f$, \f$b=M^{-1}gN/g^TM^{-1}g\f$, so the robust energy
+    //! \f$E=c^Tp_C-\tfrac12c^TGc\f$ has \f$\partial E/\partial D=\sum_kc_k(ij|f_k)+u^T\partial p_M/\partial D\f$ with \f$u=A^T(p_C-Gc)\f$.
+    //! In the Coulomb metric \f$p_M=p_C\f$ and \f$p_C-Gc=\lambda g\f$, while \f$g^TA=0\f$: so \f$u=0\f$ constrained or not, and the Fock
+    //! is \f$\sum_kc_k(ij|f_k)\f$ either way (Dunlap's variational result).  In the overlap metric \f$u\neq0\f$: that leg is step 2's.
+    //! (Design note lane-s-V-FIT-AXES-design.md §0.)
     void Constrain(T N);
     //! The (forward, adjoint) VIEW for one orbital block, built on first use over the basis's cached
     //! tensor and keyed by the block's spatial symmetry -- the same idiom as \c DeltaScalarFitter::Integrator.
@@ -112,6 +126,7 @@ private:
     vec_t<T> g;
     row_t<T> gS;
     T        gSg;
+    bool     itsConstrained;   //!< the constraint axis (V-FIT-AXES): on for Dunlap's fit, off for the plain least-squares one
 };
 
 template <class T> class IntegralConstrainedFF
@@ -120,7 +135,7 @@ template <class T> class IntegralConstrainedFF
 public:
     typedef typename ConstrainedFF<T>::fbs_t   fbs_t;
 
-    IntegralConstrainedFF(fbs_t&);
+    IntegralConstrainedFF(fbs_t&, bool constrained=true);
 };
 
 } //namespace

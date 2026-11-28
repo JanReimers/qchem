@@ -9,6 +9,7 @@ export module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the DFT ctor's functional list)
 import qchem.Hamiltonian.Internal.GGAFunctional;  // GGAFunctional (the GGA ctor's functional, GGA stage 2)
 import qchem.Hamiltonian.Internal.Hamiltonian;
+import qchem.Hamiltonian.Internal.TermFactories;   // MolecularTermContext + XCChoice: what the molecular ctors take (V-HAM-COMPOSE step 2)
 import qchem.Hamiltonian.Types;
 import qchem.Hamiltonian.Factory;                  // HubbardManifold (the +U input vocabulary)
 import qchem.BasisSet.Orbital_1E_IBS;              // the periodic A1 Vxc fit's real Gamma set (Ham_PW_DFT)
@@ -37,12 +38,13 @@ public:
 };
 
 //
-//  Hartree-Fock: exact Coulomb + same-spin exchange (RHF on a folded doublet, UHF on Up/Down blocks).
+//  Hartree-Fock: Coulomb + same-spin exchange (RHF on a folded doublet, UHF on Up/Down blocks).  The Coulomb term is the factory's
+//  choice (MakeCoulombTerm): the exact four-centre J (coulomb.route Exact, HF's default), or a fitted J (RI-J HF: the exchange stays exact).
 //
 class Ham_HF : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
-    Ham_HF(const st_t& st, SpinGroup g);
+    Ham_HF(MolecularTermContext& ctx, const CoulombRoute& coulomb, const CoulombFitSlot<double>& coulombFit, SpinGroup g);
 };
 
 //
@@ -53,21 +55,11 @@ public:
 class Ham_DFT : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
-    //! Slater-Dirac exchange alone, scaled by \a alpha_ex (X\f$\alpha\f$).
-    //! \a meshMaker + \a symmetry (every ctor): build the XC quadrature (and the Hartree grid's own) at a recipe, when a route asks: the mesh
-    //! over the run's point, made what the source asks (V-MESH-FACTORY §4.1 as built).
-    Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit,
-            SpinGroup g, XCRoute fit={}, const CoulombRoute& coulomb={});
-    //! The general form: any list of functionals (owned), summed into one XC term.  \a fit: the Vxc fit basis the ONE
-    //! XC term consumes through the fit face (δ on the mesh, or the Gaussian auxiliary basis for Auto).
-    Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> parts,
-            const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
-            const CoulombRoute& coulomb={});
-    //! A GGA (GGA stage 2, the molecular point route): ONE XC term, \c tVxc_DFT_GGA, on the density-gradient quadrature of the δ Vxc fit.
-    //! Only the δ fit samples \f$\nabla\rho\f$; any other \a fit THROWS \c invalid_argument (the setup refuses it first, policy GGARoute).
-    Ham_DFT(const st_t& st, std::shared_ptr<const GGAFunctional> gga,
-            const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
-            const CoulombRoute& coulomb={});
+    //! \a ctx: the structure, orbital basis and XC mesh every term factory reads (built by \c Factory); \a xc: the functional (LDA parts
+    //! summed into one term, X\f$\alpha\f$ included, or a GGA); \a fit: the Vxc fit route; \a coulomb: the Hartree route (a fit, or the
+    //! exact four-centre J: "exact-J DFT").
+    Ham_DFT(MolecularTermContext& ctx, const XCChoice& xc, XCRoute fit, const CoulombRoute& coulomb, const CoulombFitSlot<double>& coulombFit,
+            SpinGroup g);
 };
 
 //! Spin-native LSDA PSEUDO-atom/molecule: kinetic + V_loc(r) (the pseudized replacement for the bare
@@ -81,19 +73,11 @@ public:
 class Ham_PP : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
-    //! \a xc: the functional's parts (\c Hamiltonian::Factory's MakeXCParts); EMPTY = Dirac + VWN5, the default LDA.
-    //! \a meshMaker: builds the PP terms' quadrature (at the recipe) over \a st's geometry point, when a block needs one (V-MESH-FACTORY §4.3);
-    //! \a symmetry: the XC quadrature's source, as Ham_DFT's (the same maker builds both).
-    Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
-           std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-           const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
-           const CoulombRoute& coulomb={}, std::vector<std::shared_ptr<ExFunctional>> xc={});
-    Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs,
-           const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={}, const CoulombRoute& coulomb={},
-           std::vector<std::shared_ptr<ExFunctional>> xc={});
-    Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species, const std::string& functional,
-           const qcMesh::MeshParams&, const qcMesh::MeshMaker& meshMaker, const qcMesh::SymmetrySource& symmetry, const rbs_t* bs, const CoulombFitSlot<double>& coulombFit, SpinGroup g, XCRoute fit={},
-           const CoulombRoute& coulomb={}, std::vector<std::shared_ptr<ExFunctional>> xc={});
+    //! \a vloc / \a sep: the PP model (the factory looks it up: one element, or a per-species router); \a sep null = local-only.
+    //! The rest as \c Ham_DFT's.
+    Ham_PP(MolecularTermContext& ctx, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
+           std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep, const XCChoice& xc, XCRoute fit, const CoulombRoute& coulomb,
+           const CoulombFitSlot<double>& coulombFit, SpinGroup g);
 };
 
 //

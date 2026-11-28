@@ -32,6 +32,7 @@ RunOptions AtomOptions(const RunOptions& asked)
     if (asked.imposeSymmetry || asked.symmetryTol!=def.symmetryTol || !asked.spins.empty())
         refuse("imposeSymmetry / symmetryTol / spins", "an atom's symmetry is spherical by construction");
     if (asked.orthoTol!=def.orthoTol) refuse("orthoTol", "the atom's solver takes no truncation floor");
+    if (asked.exactExchange) refuse("xc.exactExchange", "a hybrid is a molecule's for now (the radial atom's XC factory builds no mixer)");
     if (asked.label!=def.label) refuse("label", "an atom names itself by its element in its own output");
     if (!asked.coulomb.auxBasis.empty())
         refuse("coulomb.auxBasis", "the radial atom's Coulomb fit is its own exponent pool's (the fit-rung ladder), not a Gaussian fit file");

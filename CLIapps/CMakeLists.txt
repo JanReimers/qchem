@@ -66,3 +66,10 @@ target_compile_definitions(gth2upf PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET gth2upf PROPERTY CXX_STANDARD 20)
 target_include_directories(gth2upf PRIVATE ${QCHEM_BLAZE_DIR} ${QCHEM_JSON_INCLUDE})
 target_link_libraries(gth2upf PUBLIC qchem qcMath qcCommon blas)
+
+# q2probe: the Q2 molecular Hartree-route table's driver (lane S 2026-11-25): a molecule deck converged, its wall split setup / SCF.
+add_executable(q2probe q2probe.C)
+target_compile_definitions(q2probe PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
+set_property(TARGET q2probe PROPERTY CXX_STANDARD 20)
+target_include_directories(q2probe PRIVATE ${QCHEM_JSON_INCLUDE} ${QCHEM_BLAZE_DIR})
+target_link_libraries(q2probe PUBLIC qchem qcMath qcCommon blas)

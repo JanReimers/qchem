@@ -11,6 +11,7 @@ module;
 #include <type_traits>   // is_same_v (MakeTermMatrices real-block twin)
 #include <complex>       // std::imag (RealDirections)
 module qchem.Hamiltonian.Internal.Hamiltonian;
+import qchem.Hamiltonian.Internal.Term;     // DensityMatrixRequirement (folded at Add)
 import qchem.Hamiltonian.Internal.ACBN0;    // ACBN0 + HubbardProjection (MakeACBN0Estimator)
 import qchem.Energy;
 import qchem.ChargeDensity;
@@ -141,6 +142,8 @@ template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
     itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
     itsPreservesReal  = itsPreservesReal  && p->PreservesReal();   // AND: one SOC/A-field term flips all blocks complex
+    // OR: one term that needs D (the analytic (ij|δ) Hartree) makes the whole Hamiltonian need it.  Abstract -> abstract.
+    if (auto* r=dynamic_cast<const DensityMatrixRequirement*>(p)) itsTermNeedsDensityMatrix = itsTermNeedsDensityMatrix || r->RequiresDensityMatrix();
 }
 template <class T> void tHamiltonianImp<T>::HoldNonlinearMesh(mesh_t m)
 {
@@ -209,6 +212,19 @@ template <class T> void tHamiltonianImp<T>::Add(tDynamic_HF_HT<T>* p)
     itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
     itsPreservesReal  = itsPreservesReal  && p->PreservesReal();   // AND: one SOC/A-field term flips all blocks complex
+    // A whole-system J/K term contracts D itself, so it needs D unless it says otherwise (DensityMatrixRequirement).  Abstract -> abstract.
+    const auto* r=dynamic_cast<const DensityMatrixRequirement*>(p);
+    itsTermNeedsDensityMatrix = itsTermNeedsDensityMatrix || (r ? r->RequiresDensityMatrix() : true);
+}
+
+template <class T> void tHamiltonianImp<T>::Add(tTerm<T>&& t)
+{
+    const int filled=int(bool(t.statik))+int(bool(t.dynamic))+int(bool(t.hf));
+    if (filled!=1) throw std::logic_error("tHamiltonianImp::Add(Term): a term record holds "+std::to_string(filled)+" terms (exactly one expected)");
+    if (t.mesh) HoldNonlinearMesh(std::move(t.mesh));   // the mesh BEFORE its first client term
+    if (t.statik)  Add(t.statik.release());
+    if (t.dynamic) Add(t.dynamic.release());
+    if (t.hf)      Add(t.hf.release());
 }
 
 template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,const Spin& S,const tChargeDensity<T>* cd,const tbs_t<T>* wholeBasis) const
@@ -309,7 +325,9 @@ template <class HT, class CD> TermEnergy EnergyOfTerm(const HT& t, const CD* cd)
 template <class T> std::vector<TermEnergy> tHamiltonianImp<T>::MakeTermEnergies(const tDM_CD<T>* cd) const
 {
     assert(cd && cd->isActive());
-    if (!itsHF_HTs.empty()) throw std::logic_error("Hamiltonian::MakeTermEnergies: whole-system HF terms are not audited (no raster in them)");
+    // A whole-system HF term (HF, DHF, or a density model's exact J, coulomb.route Exact) has no raster in it, so a mesh audit has nothing
+    // of it to compare: it is LEFT OUT, as the hub's MakeTermForces note says (its forces follow the energies' terms).  MakeTermMatrices
+    // leaves it out too, so the two lists stay index for index.
     std::vector<TermEnergy> out;
     for (auto& t:itsSHTs) out.push_back(EnergyOfTerm(*t,cd));
     for (auto& t:itsDHTs) out.push_back(EnergyOfTerm(*t,cd));
@@ -319,8 +337,7 @@ template <class T> std::vector<TermEnergy> tHamiltonianImp<T>::MakeTermEnergies(
 template <class T> std::vector<hmat_t<T>> tHamiltonianImp<T>::MakeTermMatrices(const tobs_t<T>* bs,const Spin& S,const tChargeDensity<T>* cd) const
 {
     assert(cd && cd->isActive());
-    if (!itsHF_HTs.empty()) throw std::logic_error("Hamiltonian::MakeTermMatrices: whole-system HF terms are not audited (no raster in them)");
-    std::vector<hmat_t<T>> out;
+    std::vector<hmat_t<T>> out;   // the whole-system HF terms left out, as MakeTermEnergies does
     for (auto& t:itsSHTs) out.push_back(t->GetMatrix(bs,S));
     for (auto& t:itsDHTs) out.push_back(t->GetMatrix(bs,S,DensityID(cd)));
     return out;

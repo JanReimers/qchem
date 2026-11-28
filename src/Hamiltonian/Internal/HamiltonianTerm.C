@@ -26,6 +26,17 @@ import qchem.SlotMap;      // every block cache below (doc/IntegralCacheOwnershi
 export namespace qchem::Hamiltonian
 {
 
+//! \brief A TERM that cannot take a matrix-free density (the SAD seed): it says so, and the Hamiltonian folds the answer into its own
+//! \c RequiresDensityMatrix, which sends a matrix-free seed through the SCF's existing bootstrap (one iteration-0 step through an LDA
+//! sibling manufactures D0; SCFIterator).  The HF terms need D by their type (\c tDynamic_HF_HT); this face is for a term whose need
+//! depends on what it was built with (\c Vee_Fit on the analytic (ij|δ) fitter).  Folded at \c tHamiltonianImp::Add, abstract to abstract.
+class DensityMatrixRequirement
+{
+public:
+    virtual ~DensityMatrixRequirement() = default;
+    virtual bool RequiresDensityMatrix() const=0;
+};
+
 //! \brief WHICH quantum numbers a term's matrix actually DEPENDS ON -- and therefore how many times the
 //! term is EVALUATED, which is the point of it.
 //!

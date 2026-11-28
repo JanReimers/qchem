@@ -409,6 +409,7 @@ template <class T> class Vee_Fit
     , public virtual tStrainGradient_HT<T>              // its virial (CellHalf_Design §5; lane H 2026-11-10): Imp/Vee_Fit_Virials.C
     , public virtual tStatic_VC<T>                      // the per-block virial client DM_Virial walks
     , public         RealVirialBase<T,Vee_Fit<T>>       // ... and on <dcmplx> the real TRIM block's
+    , public virtual DensityMatrixRequirement           // the analytic (ij|δ) fitter needs D (a SAD seed goes through the bootstrap)
     , public virtual tHT_RangeAuditor<T>                // the quotient range audit at the refreshed density (v2 §3, user ruling 2026-11-27)
     , public         RealRangeAuditorBase<T,Vee_Fit<T>> // ... and on <dcmplx> the real TRIM block's
 {
@@ -451,6 +452,8 @@ public:
     //! \a responseFit: the CD fit basis the periodic response half projects δρ on (unused, and may be null, on a molecule).
     Vee_Fit(FitPtr fit, double numElectrons, std::shared_ptr<const BasisSet::FIT_CD_ABS<T>> responseFit=nullptr);
     ~Vee_Fit();
+    //! A fitter that cannot project a field (the analytic (ij|δ) one) needs a D from the first Fock on.
+    virtual bool RequiresDensityMatrix() const override {return !itsFit->CanProjectField();}
     using tDynamic_HT<T>::RefreshForDensity;
     //! \copydoc tDynamic_HT::RefreshForDensity
     virtual void RefreshForDensity(const tChargeDensity<T>* cd) const override;

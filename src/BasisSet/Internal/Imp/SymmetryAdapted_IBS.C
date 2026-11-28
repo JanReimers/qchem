@@ -222,6 +222,23 @@ SymmetryAdapted_IBS::MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c
         return Outcome<PointSetPullback<double>::Result,AD::NoGradient>::Fail({"the raw basis under the SALC block "+Name()+" gives no point-set pullback"});
     return f->MakePointSetPullback(pts, c, FoldUp(D), st);
 }
+bool SymmetryAdapted_IBS::CanPointCoulomb() const
+{
+    const auto* f=dynamic_cast<const PointCoulomb<double>*>(itsRaw);   // abstract -> abstract cross-cast
+    return f && f->CanPointCoulomb();
+}
+PairProjection<double> SymmetryAdapted_IBS::MakePointCoulomb(const rvec3vec_t& pts) const
+{
+    const auto* f=dynamic_cast<const PointCoulomb<double>*>(itsRaw);
+    if (!f || !f->CanPointCoulomb())
+        throw std::logic_error("SymmetryAdapted_IBS: the raw basis under the SALC block "+Name()+" gives no point-charge Coulomb integrals "
+                               "(ask CanPointCoulomb first)");
+    auto raw=std::make_shared<const PairProjection<double>>(f->MakePointCoulomb(pts));
+    PairProjection<double> out;
+    out.applyRaw       =[this,raw](const hmat_t<double>& D){return raw->applyRaw(FoldUp(D));};
+    out.applyRawAdjoint=[this,raw](const rvec_t& q){return Transform(raw->applyRawAdjoint(q));};
+    return out;
+}
 bool SymmetryAdapted_IBS::CanVirialOverlap() const {return itsRaw->CanVirialOverlap();}
 bool SymmetryAdapted_IBS::CanVirialKinetic() const {return itsRaw->CanVirialKinetic();}
 Outcome<rmat3d_t,AD::NoGradient> SymmetryAdapted_IBS::MakeOverlapVirial(const hmat_t<double>& D, const Structure* st) const

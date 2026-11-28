@@ -1419,4 +1419,26 @@ TEST(Deck, AMoleculesCoulombBlockReadsAndRoundTrips)
     deck::RunSpec bad;
     EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"fit","Gaussian"}}}}, bad), std::runtime_error) << "an unknown route name";
     EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"auxbasis","A1_coul"}}}}, bad), std::runtime_error) << "typo guard";
+    // V-FIT-AXES: the fit's metric and charge constraint are deck keys too, and round-trip
+    deck::RunSpec ax; deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"fit","Auxiliary"},{"metric","Coulomb"},{"constraint","None"}}}}, ax);
+    EXPECT_EQ(ax.opts.coulomb.metric, Hamiltonian::CoulombMetric::Coulomb);
+    EXPECT_EQ(ax.opts.coulomb.constraint, Hamiltonian::ChargeConstraint::None);
+    const json ja=deck::ToJson(ax);
+    EXPECT_EQ(ja.at("coulomb").at("constraint"), "None");
+    deck::RunSpec axBack; deck::FromJson(ja, axBack); EXPECT_EQ(deck::ToJson(axBack), ja);
+    EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"constraint","Yes"}}}}, bad), std::runtime_error) << "an unknown constraint name";
+    // The δ fit's solver is a deck key (the analytic (ij|δ) route, lane S 2026-11-25), and round-trips
+    deck::RunSpec an; deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"fit","Delta"},{"solver","Analytic"}}}}, an);
+    EXPECT_EQ(an.opts.coulomb.solver, Hamiltonian::CoulombSolver::Analytic);
+    const json jn=deck::ToJson(an);
+    EXPECT_EQ(jn.at("coulomb").at("solver"), "Analytic");
+    deck::RunSpec anBack; deck::FromJson(jn, anBack); EXPECT_EQ(deck::ToJson(anBack), jn);
+    EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"solver","Exact"}}}}, bad), std::runtime_error) << "an unknown solver name";
+    // The exact four-centre J is a Hartree ROUTE, not a fit (controller ruling 2026-11-25), and round-trips
+    deck::RunSpec ex; deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"route","Exact"}}}}, ex);
+    EXPECT_EQ(ex.opts.coulomb.route, Hamiltonian::HartreeRoute::Exact);
+    const json je=deck::ToJson(ex);
+    EXPECT_EQ(je.at("coulomb").at("route"), "Exact");
+    deck::RunSpec exBack; deck::FromJson(je, exBack); EXPECT_EQ(deck::ToJson(exBack), je);
+    EXPECT_THROW(deck::FromJson(json{{"structure","H2O"},{"coulomb",{{"route","FourCentre"}}}}, bad), std::runtime_error) << "an unknown route name";
 }

@@ -10,6 +10,8 @@ add_executable(UTChargeDensity ../../Common/tests/gtestmain.C
    AtomicDensity.C
    SinglesSampler.C
    BlockInstanceKeys.C
+   DeltaProjectionHartree.C   # the δ-projection Hartree fitter at fixed D: V = dE/dD (both legs), Tr(DV)=2E (lane S 2026-11-25)
+   DensityFitAxes.C           # V-FIT-AXES step 1: the Gaussian Coulomb fit constrained or not; robust = plain unconstrained, V = dE/dD
 )
 
 # The library-wide seed gate reads the seed files and NIST's atomic tables directly (src/Common/Data/nistL{D,S}A.json).

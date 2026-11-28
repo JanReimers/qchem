@@ -32,6 +32,7 @@ export import qchem.BasisSet.Orbital_PP_IBS;         // species fields, forwarde
 export import qchem.BasisSet.Orbital_DFT_IBS;        // DFT 3-centre mixin (fitted Coulomb / Vxc)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 export import qchem.BasisSet.PointSetPullback;   // the δ quadrature derivative face the decorator forwards
+export import qchem.BasisSet.PointCoulomb;       // (ij|δ_g), the δ-projection Hartree's face the decorator forwards
 import qchem.BasisSet.Internal.CachedIntegrals;   // the Cached* mixins the family lists beside its Make* (D-BASISCACHE-FANIN)
 import qchem.Structure;
 import qchem.Types;
@@ -59,6 +60,7 @@ class SymmetryAdapted_IBS
     , public Symmetry::IdentityRepresentation<double>   // a 1-D irrep block: M_g = χ(g)·1, |χ|² = 1, so its bilinear images are
                                                          // identities -- for the ops of the group it was adapted under (S3)
     , public virtual PointSetPullback<double>   // the δ quadrature's derivative: the raw basis's, on the AO-folded D (lane B 2026-11-22)
+    , public virtual PointCoulomb<double>       // (ij|δ_g): the raw basis's, forward on the AO-folded D, adjoint transformed (lane S 2026-11-25)
 {
 public:
     // raw: the whole-molecule AO basis (not owned).  Oblock: this irrep's SALC columns
@@ -96,6 +98,11 @@ public:
     virtual bool CanPointSetPullback() const override;
     virtual Outcome<PointSetPullback<double>::Result,AD::NoGradient>
             MakePointSetPullback(const rvec3vec_t& pts, const rvec_t& c, const hmat_t<double>& D, const Structure* st) const override;
+    //! The point-charge Coulomb integrals (PointCoulomb), the raw basis's through the SALC columns: (Γ_iΓ_j|δ_g) = (Oᵀ A_raw(g) O)_ij, so the
+    //! forward is the raw forward on the folded-up D (Σ_ij D_ij (Oᵀ A O)_ij = Tr(O D Oᵀ A)) and the adjoint the raw adjoint transformed.  The
+    //! raw pass runs per block, so k irreps pay k raw passes (a whole-system pass, built once and sliced, is the later lever).
+    virtual bool CanPointCoulomb() const override;
+    virtual PairProjection<double> MakePointCoulomb(const rvec3vec_t& pts) const override;
     // Species fields (O^T M_raw O), when the raw basis can assemble them.
     virtual bool    CanAssembleField     (const SpeciesRadialField&)  const override;
     virtual bool    CanAssembleProjectors(const SpeciesProjectorSet&) const override;
