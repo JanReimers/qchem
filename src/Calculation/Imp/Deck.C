@@ -1884,7 +1884,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
             if (!O)
             {   // REFUSED ON RESOURCES (the audit RSS policy): nothing was built; the record carries the numbers and the escape
                 const ResourceRefusal& r=O.Error();
-                rj["refused"]=Describe(r.footprint, r.available); rj["escape"]=r.escape;
+                rj["refused"]=Describe(r.footprint, r.room); rj["escape"]=r.escape;
                 pr.ok=false; pr.summary="REFUSED ON RESOURCES: "+r.Summary(); break;
             }
             const auto& R=O.Value();
@@ -1919,7 +1919,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     {   // fold the results into the record (the revision written before the run keeps the deck; `results` is what the run produced)
         std::ifstream in(out.revision); json rec=json::parse(in); in.close();
         rec["results"]={{"converged",out.converged},{"postSCF",results}};
-        if (refused) rec["results"]["refusedOnResources"]=Describe(refused->footprint, refused->available);
+        if (refused) rec["results"]["refusedOnResources"]=Describe(refused->footprint, refused->room);
         if (out.energy) rec["results"]["energy"]=*out.energy;
         if (out.stopped) rec["results"]["stopped"]=out.summary;   // run control: resumable, and where the state went
         std::ofstream os(out.revision,std::ios::trunc); os<<rec.dump(2)<<"\n";

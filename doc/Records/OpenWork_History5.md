@@ -4203,3 +4203,35 @@ The row as it stood:
   the XC-mesh Φ tables (x112 calls, 7-18 s on SF₆ depending on load).  Neither is logged as a row: the check also guards member points
   (a wrong edge op), and the Φ tables are per Hamiltonian by design.
 
+## ✅ `REFUSED ON RESOURCES` reads page cache as used memory (closed 2026-11-27, lane B, 0ed6e0df0)
+
+**Ruling (user, 2026-11-27, via the controller; option B, "Fixed limit"):** refuse against the deterministic limit (`QueryMemoryBudget`:
+the nearest cgroup memory.high / memory.max, else MemTotal) less this process's own resident non-file memory, and WARN on the live,
+cache-fixed figure.  Both go under the run report's `policy` scope.  Rejected: (A), the whole scope live (the verdict depends on which
+tests ctest schedules beside the run), and (C), the run's share (limit / processes, depends on -j and refuses a small run beside idle
+neighbours).  A neighbour squeeze is memsafe's job (it swaps and throttles); the cost is that a run that cannot fit beside its
+neighbours crawls instead of being refused.
+
+**What changed** (`src/Calculation/{AuditFootprint,ERI4MemoryPolicy}.C`, `Imp/AuditFootprint.C`):
+- The cache half: `QueryAvailableMemory` reads the scope's `memory.stat` and counts `inactive_file + slab_reclaimable` as reclaimable
+  (active_file stays used, MemAvailable's conservative half): live = limit - max(0, current - reclaimable).  Without memory.stat it keeps
+  the old figure and its source says "no memory.stat: page cache counted as used".  Every live reader gets this (PhiTables,
+  CheckCoulombFit, the A1 cost line); those three still only warn.
+- The neighbour half: `ResourceRoom` = { limit, own (RssAnon + RssShmem from /proc/self/status), live }.  `Fixed()` = limit - own,
+  clamped at 0; `Warn()` = min(fixed, live).  REFUSE when the band's low end exceeds `Fixed()`; WARN when its high end exceeds `Warn()`.
+  The audit reference (pilot, gridAudit, xcMeshAudit) and the ERI4 door use it.  The message and the report print both figures with their
+  sources.  Report keys `availableBytes` / `availableSource` became `fixedRoomBytes, limitBytes, limitSource, ownBytes, ownSource,
+  liveBytes, liveSource` (no reader in the GUI, pybind, scripts or CLIapps).
+
+**Measured:**
+- `GPW_MnO.Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long` under `memsafe -H 3G` (lane S: refused at 0.66-1.27 GB with "0.00 GB available"): runs,
+  no warning, ends at its anchor -61.3031871333 to the digit, peak RSS 1.82 GB.
+- `GPW_MnO.k222_Shub_Pol_Smear_CP2K_Long` under `-H 9G` (refused on the last panel at 2.78-5.36 GB with 1.88 GB available): WARNS (the
+  reference needs 3.95-7.60 GB; fixed room 6.76 GB = 9.66 less own 2.90; live 6.74 GB, reclaimable 0.00 at that moment), settles on
+  (80, L35) and passes, peak RSS 6.29 GB.
+- Landing sweep (short + long, QCHEM_OPENMP_THREADS=4): the refusals and warnings are the same as main's sweep (the four deliberate
+  PB-scale / stated-zero refusals, one warning), so no run changed route.
+
+Original row:
+
+| **`REFUSED ON RESOURCES` reads page cache as used memory** (controller, 2026-11-27, at the lane H range-check landing 902b1b8c) | `AuditFootprint.C` sizes what a run has as cgroup `memory.high − memory.current` (else MemAvailable).  `memory.current` includes the scope's page cache, which the kernel reclaims on demand, and under `scripts/memsafe ctest -j3` the three tests share ONE scope, so a refusal depends on what the neighbours and the cache hold at that instant.  The panel then refused three runs that fit (`GPW_NaF.k222_RelaxesToCP2KsCell_Long` 0.40 GB 'and 0.00 GB is available', `GPW_Si.k333_RelaxesToCP2KsCell_Long` 2.5-4.9 GB at 0.00, `GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` 5.5-10.5 GB at 3.02); the previous panel (88c52967) ran all three.  A refusal must be deterministic for the run, not for the box's moment (priority 1) | count reclaimable memory as available (subtract `memory.stat` file / inactive_file from `memory.current`, as MemAvailable does for the host), and state in the refusal which figure it used; decide with the user whether the budget is the scope's or the run's own share of it · `src/Calculation/Imp/AuditFootprint.C` (lane B, author of the resource refusal d54bec926 / cf9d7cfdb) |

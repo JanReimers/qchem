@@ -696,8 +696,9 @@ private:
     AuditReferenceSize SizeReference(const std::string& name, const BasisSet::Gaussian::GPWTolerances& raster, double ballScale,
                                      const qcMesh::MeshParams* xcMesh) const;
     //! \brief THE AUDIT RSS POLICY (OpenWork (e), ruled 2026-11-07): may a reference of \a size be built now?  Its calibrated estimate
-    //! (\c EstimateAuditFootprint) against \c QueryAvailableMemory: REFUSE (returned, with a `resource` policy row) when even the band's low
-    //! end will not fit, WARN AND RUN (a `warn` row) when only its high end will not, silent when it fits.  \a when and \a escape go
+    //! (\c EstimateAuditFootprint) against \c QueryResourceRoom: REFUSE (returned, with a `resource` policy row) when even the band's low
+    //! end will not fit in the FIXED room (the limit less the run's own memory: deterministic, user ruling 2026-11-27), WARN AND RUN (a
+    //! `warn` row) when only its high end will not, or will not beside what the scope holds now, silent when it fits.  \a when and \a escape go
     //! into the row and the refusal.
     std::optional<ResourceRefusal> AdmitReference(const AuditReferenceSize& size, const std::string& when, const std::string& escape) const;
     //! The pilot's round-0 references (x + 8 and the density ball x 2, each with its Becke rung on a geometry run), admitted BEFORE the
