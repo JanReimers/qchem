@@ -5,9 +5,10 @@
 // mid-run, silently, and the next iteration rebuilt them.  Since S3a the ERI4 tensors live in the basis set's own cache (they die with
 // it), so the collector guarded an empty map and is deleted.  The question it answered badly ("will the ERI4 tensors fit?") is answered
 // HERE instead, once, before the first SCF, from what setup already knows: the block sizes.  The prediction is a rigorous count of the
-// stored doubles (no fudge to keep apart: CLAUDE.md, rigorous vs empirical), and the available memory is the same reader the audit
-// footprint uses (QueryAvailableMemory: the nearest cgroup limit minus its usage, else MemAvailable).  The prediction is a RANGE (low =
-// the count, high = with the overhead allowance) and the verdict reads its ends as the audit's does.
+// stored doubles (no fudge to keep apart: CLAUDE.md, rigorous vs empirical), and the memory is the same room the audit footprint reads
+// (QueryResourceRoom, user ruling 2026-11-27 option B: REFUSE on the fixed room -- the nearest cgroup limit, else MemTotal, less the run's
+// own resident memory -- and WARN on the live, cache-fixed figure).  The prediction is a RANGE (low = the count, high = with the overhead
+// allowance) and the verdict reads its ends as the audit's does.
 module;
 #include <cstddef>
 #include <format>
@@ -16,7 +17,7 @@ module;
 #include <string>
 #include <vector>
 export module qchem.ERI4MemoryPolicy;
-import qchem.AuditFootprint;    // QueryAvailableMemory / AvailableMemory
+import qchem.AuditFootprint;    // QueryResourceRoom / ResourceRoom
 import qchem.Policy;            // policy::Report: the decision files itself
 import qchem.Reporting;
 
@@ -66,44 +67,47 @@ inline ERI4Bytes PredictERI4Bytes(const std::vector<size_t>& blockSizes)
 inline constexpr double kERI4WarnFraction=0.5;
 
 enum class ERI4Verdict { Fits, Warn, Refuse };
-//! Refuse when even the LOW end cannot fit; warn when the HIGH end takes more than kERI4WarnFraction of what is available.
-inline ERI4Verdict JudgeERI4(const ERI4Bytes& b, double availableBytes)
+//! Refuse when even the LOW end cannot fit in the FIXED room; warn when the HIGH end takes more than kERI4WarnFraction of the tighter of
+//! the fixed room and the live figure (\c ResourceRoom::Warn).
+inline ERI4Verdict JudgeERI4(const ERI4Bytes& b, const ResourceRoom& room)
 {
-    if (b.low  > availableBytes)                    return ERI4Verdict::Refuse;
-    if (b.high > kERI4WarnFraction*availableBytes)  return ERI4Verdict::Warn;
+    if (b.low  > room.Fixed())                    return ERI4Verdict::Refuse;
+    if (b.high > kERI4WarnFraction*room.Warn())   return ERI4Verdict::Warn;
     return ERI4Verdict::Fits;
 }
 
 //! \brief The policy door, called by a facade's setup when its model builds ERI4 (HF, DHF): files a row under the caller's \c policy when it
 //! fires (WARN AND RUN, or REFUSE ON RESOURCES, which then throws) and says nothing when the tensors fit comfortably.  Both the warning and the
-//! refusal print the predicted range and the memory available with its source.
-inline void ERI4Memory(const std::vector<size_t>& blockSizes, const std::string& basisName, const AvailableMemory& available)
+//! refusal print the predicted range and the room, both figures with their sources.
+inline void ERI4Memory(const std::vector<size_t>& blockSizes, const std::string& basisName, const ResourceRoom& room)
 {
     const ERI4Bytes b=PredictERI4Bytes(blockSizes);
-    const ERI4Verdict v=JudgeERI4(b, available.bytes);
+    const ERI4Verdict v=JudgeERI4(b, room);
     if (v==ERI4Verdict::Fits) return;
     const double GB=1024.0*1024.0*1024.0;
-    report::json detail={{"lowBytes", b.low}, {"estimateBytes", b.estimate}, {"highBytes", b.high}, {"availableBytes", available.bytes},
-                         {"availableSource", available.source}, {"blocks", blockSizes.size()}, {"warnFraction", kERI4WarnFraction},
-                         {"overheadFactor", kERI4OverheadFactor}};
-    const std::string what=std::format("the ERI4 (Coulomb + exchange) tensors of basis '{}' need {:.2f} GB to {:.2f} GB (estimate {:.2f} GB), "
-                                       "and {:.2f} GB is available [{}]", basisName, b.low/GB, b.high/GB, b.estimate/GB, available.bytes/GB, available.source);
+    report::json detail={{"lowBytes", b.low}, {"estimateBytes", b.estimate}, {"highBytes", b.high}, {"fixedRoomBytes", room.Fixed()},
+                         {"limitBytes", room.limit.bytes}, {"limitSource", room.limit.source}, {"ownBytes", room.ownBytes},
+                         {"ownSource", room.ownSource}, {"liveBytes", room.live.bytes}, {"liveSource", room.live.source},
+                         {"blocks", blockSizes.size()}, {"warnFraction", kERI4WarnFraction}, {"overheadFactor", kERI4OverheadFactor}};
+    const std::string what=std::format("the ERI4 (Coulomb + exchange) tensors of basis '{}' need {:.2f} GB to {:.2f} GB (estimate {:.2f} GB); {}",
+                                       basisName, b.low/GB, b.high/GB, b.estimate/GB, DescribeRoom(room));
     if (v==ERI4Verdict::Warn)
     {
         std::cout << "[ERI4 memory] WARNING (it may not leave the run room): " << what << std::endl;
         Report("ERI4Memory", "the run proceeds, holding its ERI4 tensors in RAM", Verdict::Warn,
-               what+": more than kERI4WarnFraction="+std::format("{:.2f}", kERI4WarnFraction)+" of it", Cost{.memoryBytes=b.estimate}, detail);
+               what+": the high end is more than kERI4WarnFraction="+std::format("{:.2f}", kERI4WarnFraction)+" of the tighter figure", Cost{.memoryBytes=b.estimate}, detail);
         return;
     }
     std::cout << "[ERI4 memory] REFUSED ON RESOURCES: " << what << std::endl;
     Report("ERI4Memory", "refused: the ERI4 tensors cannot be held in RAM", Verdict::Resource,
-           what+" -- use a smaller basis, impose more symmetry (smaller blocks), or run on a machine with more memory", Cost{.memoryBytes=b.low}, detail);
+           what+" -- even the low end exceeds the fixed room; use a smaller basis, impose more symmetry (smaller blocks), or run on a machine "
+           "with more memory", Cost{.memoryBytes=b.low}, detail);
     throw std::runtime_error("REFUSED ON RESOURCES: "+what);
 }
 //! The same, on this machine's memory.
 inline void ERI4Memory(const std::vector<size_t>& blockSizes, const std::string& basisName)
 {
-    ERI4Memory(blockSizes, basisName, QueryAvailableMemory());
+    ERI4Memory(blockSizes, basisName, QueryResourceRoom());
 }
 
 } // namespace qchem::policy

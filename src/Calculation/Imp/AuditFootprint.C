@@ -66,8 +66,41 @@ std::optional<double> ParseMemAvailable(const std::string& meminfo)
     return std::nullopt;
 }
 
+std::optional<double> ParseCgroupReclaimable(const std::string& memoryStat)
+{
+    std::istringstream is(memoryStat);
+    std::string key;
+    double v=0.0, sum=0.0;
+    bool found=false;
+    while (is>>key>>v)
+        if (key=="inactive_file" || key=="slab_reclaimable") { sum+=v; found=true; }
+    if (found) return sum;
+    return std::nullopt;
+}
+
+std::optional<double> ParseOwnResidentNonFile(const std::string& procStatus)
+{
+    std::istringstream is(procStatus);
+    std::string line;
+    double kB=0.0;
+    bool found=false;
+    while (std::getline(is, line))
+        for (const char* key : {"RssAnon:", "RssShmem:"})
+            if (line.rfind(key, 0)==0)
+            {
+                std::istringstream ls(line.substr(std::string(key).size()));
+                double v=0.0; ls>>v;
+                if (!ls) throw std::runtime_error("ParseOwnResidentNonFile: unreadable line '"+line+"'");
+                kB+=v; found=true;
+            }
+    if (found) return kB*1024.0;
+    return std::nullopt;
+}
+
 namespace
 {
+std::string GB(double b) {std::ostringstream os; os<<std::fixed<<std::setprecision(2)<<b/1.0e9<<" GB"; return os.str();}
+
 std::optional<std::string> ReadFile(const std::string& path)
 {
     std::ifstream f(path);
@@ -94,7 +127,20 @@ AvailableMemory QueryAvailableMemory()
                     if (const auto limit=ParseCgroupLimit(*t))
                         if (const auto cur=ReadFile(dir+"/memory.current"))
                             if (const auto used=ParseCgroupLimit(*cur))
-                                return {std::max(0.0, *limit-*used), "cgroup "+std::string(file)+" - memory.current ("+path+")"};
+                            {
+                                // The page cache and reclaimable slab the scope holds are not commitments (the kernel drops them before it
+                                // throttles): count only the rest as used.  Without a readable memory.stat the whole of memory.current is
+                                // counted, and the source says so.
+                                const auto st =ReadFile(dir+"/memory.stat");
+                                const auto rec=st ? ParseCgroupReclaimable(*st) : std::nullopt;
+                                const std::string head="cgroup "+std::string(file);
+                                if (!rec)
+                                    return {std::max(0.0, *limit-*used), head+" - memory.current ("+path+"; no memory.stat: page cache counted as used)"};
+                                const double nonReclaimable=std::max(0.0, *used-*rec);
+                                return {std::max(0.0, *limit-nonReclaimable),
+                                        head+" - (memory.current - reclaimable) ("+path+"): current "+GB(*used)+", reclaimable "+GB(*rec)
+                                        +" (inactive_file + slab_reclaimable)"};
+                            }
             if (path=="/") break;
             const auto slash=path.find_last_of('/');
             path = slash==0 ? "/" : path.substr(0, slash);
@@ -145,14 +191,32 @@ MemoryBudget QueryMemoryBudget()
     throw std::runtime_error("QueryMemoryBudget: neither a cgroup v2 limit nor /proc/meminfo's MemTotal could be read");
 }
 
-FootprintVerdict Judge(const AuditFootprint& f, double availableBytes)
+ResourceRoom QueryResourceRoom()
 {
-    if (f.Low ()>availableBytes) return FootprintVerdict::Refuse;   // even the smallest it was ever measured at will not fit
-    if (f.High()>availableBytes) return FootprintVerdict::Warn;     // it may not
+    ResourceRoom r;
+    r.limit=QueryMemoryBudget();
+    r.live =QueryAvailableMemory();
+    const auto st=ReadFile("/proc/self/status");
+    const auto own=st ? ParseOwnResidentNonFile(*st) : std::nullopt;
+    r.ownBytes =own ? *own : 0.0;
+    r.ownSource=own ? "RssAnon + RssShmem (/proc/self/status)" : "/proc/self/status unreadable: 0 counted";
+    return r;
+}
+
+std::string DescribeRoom(const ResourceRoom& r)
+{
+    return "fixed room "+GB(r.Fixed())+" ["+r.limit.source+" "+GB(r.limit.bytes)+" less this run's own "+GB(r.ownBytes)+", "+r.ownSource
+           +"]; live "+GB(r.live.bytes)+" ["+r.live.source+"]";
+}
+
+FootprintVerdict Judge(const AuditFootprint& f, const ResourceRoom& r)
+{
+    if (f.Low ()>r.Fixed()) return FootprintVerdict::Refuse;   // even the smallest it was ever measured at will not fit in the fixed room
+    if (f.High()>r.Warn ()) return FootprintVerdict::Warn;     // it may not, in the fixed room or beside what the scope holds now
     return FootprintVerdict::Fits;
 }
 
-report::json Describe(const AuditFootprint& f, const AvailableMemory& a)
+report::json Describe(const AuditFootprint& f, const ResourceRoom& r)
 {
     const AuditReferenceSize& s=f.size;
     std::size_t nReal=0; for (const auto& b : s.blocks) if (b.real) ++nReal;
@@ -164,14 +228,15 @@ report::json Describe(const AuditFootprint& f, const AvailableMemory& a)
         {"calibration", {{"eta", f.cal.eta}, {"kappaBytesPerPoint", f.cal.kappa}, {"record", "kAuditFootprintRecord (20 audits, 4 runs)"}}},
         {"band", {{"low", f.cal.bandLow}, {"high", f.cal.bandHigh}}},
         {"estimateBytes", f.estimate}, {"lowBytes", f.Low()}, {"highBytes", f.High()},
-        {"availableBytes", a.bytes}, {"availableSource", a.source}};
+        {"fixedRoomBytes", r.Fixed()}, {"limitBytes", r.limit.bytes}, {"limitSource", r.limit.source},
+        {"ownBytes", r.ownBytes}, {"ownSource", r.ownSource},
+        {"liveBytes", r.live.bytes}, {"liveSource", r.live.source}};
 }
 
 std::string ResourceRefusal::Summary() const
 {
-    auto GB=[](double b) {std::ostringstream os; os<<std::fixed<<std::setprecision(2)<<b/1.0e9<<" GB"; return os.str();};
     return "audit reference '"+footprint.reference+"' ("+when+") needs "+GB(footprint.Low())+" to "+GB(footprint.High())+" (estimate "
-           +GB(footprint.estimate)+"), and "+GB(available.bytes)+" is available ["+available.source+"] -- "+escape;
+           +GB(footprint.estimate)+"); "+DescribeRoom(room)+" -- "+escape;
 }
 
 } // namespace qchem
