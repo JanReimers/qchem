@@ -27,6 +27,12 @@ Brief notes about module/library conventions, naming, and includes.
     - **Three outcomes**: REFUSE (Outcome with a reason) when the answer would be wrong or meaningless; WARN AND RUN, with a cost
       estimate from what setup already knows (points, functions, predicted RAM), when the answer is right but the cost is silly;
       REFUSE ON RESOURCES when it cannot finish on this machine at all.
+    - **A problem-dependent choice is a HEURISTIC, not a fixed default** (user, 2026-11-27, on the molecular Coulomb route: "it is very
+      problem dependent, which means emphasizing fixed defaults is folly.  However if we can make a heuristic guess at the fasted route,
+      that is very useful.  It would be good to have all of our heuristics easy to locate and fine tune, in the code.").  So an unstated
+      route is picked by a policy that predicts each eligible route's cost from what setup knows and takes the cheapest that meets ε; its
+      constants are named calibrations with their measurement records, in one findable place (`CoulombRoutePolicy` is the first), and a
+      stated choice always wins.
 - I used to work on frustrated magnets so one of my biases is that I don't like the "closed shell only, polarized is a special case" mind set. Ultimately I want everything available Pol and UnPol ... and for me UnPol is the special case for efficiency.
 
 ## Build & test
@@ -53,8 +59,10 @@ Brief notes about module/library conventions, naming, and includes.
     crawl, not a corpse.  Context: the box now has a 32G swapfile (`/swap2.img`); the Aug-13 `ITMain`
     OOM kills happened because the old 4G swap sat chronically full, leaving the kernel nothing but the
     kill.  The `-j` discipline above remains the first-line defense; memsafe is the safety net.
+    ⚠ memsafe does NOT cap a ROOTLESS PODMAN container: the container runs in its own libpod scope, outside memsafe's.  Cap it with
+    `podman run --memory=… --memory-swap=…` (2026-11-27: an uncapped container run swapped 27 GB and was OOM-killed).
 - **The compiler is clang 23.1.4, and configure needs ONE input** (switched 2026-11-24, ModuleToolchainPlan Step 0, lane G; user 2026-11-23: "external users who try and build, just need to provide a compiler path ... and our cmake files handle the rest"): `cmake -G Ninja -DCMAKE_CXX_COMPILER=/opt/LLVM-23.1.4-Linux-X64/bin/clang++ <src>`.  The root CMakeLists derives the rest: CC/FC, Release by default, `-fno-modules-reduced-bmi` (full BMIs: reduced ones do not merge the duplicate Blaze specializations of qchem.Types/qchem.Blaze), PIC, the libomp build RPATH with a configure-time LOAD check that refuses a mismatched libomp, and the Enzyme hint.  /opt + RPATH is deliberate: never /usr/local or ldconfig (system-wide, versions collide).  A compiler change needs a FRESH build dir (CMake cannot switch compilers in place, and an old cache carries the clang-21 OpenMP overrides).  Check: `ldd build/Release/CLIapps/rundeck | grep omp` names /opt/LLVM-23.1.4-Linux-X64/lib, and the run banner's `OpenMP regions=N`.
-- **Enzyme is REQUIRED: configure STOPS without it** (user ruling 2026-11-09: "Yes I think we make it required. Seems like a small burden for a lot of functionality.").  The AD derivatives (`src/AD`, the per-file `qchem_enzyme_sources` registrations) need the clang plugin built against THIS LLVM.  The pin is **cdd0d1c2** (`QCHEM_ENZYME_PIN`), checked out at `~/Code/Enzyme-cdd0d1c2` with one build dir per LLVM major: `build-llvm23/Enzyme/ClangEnzyme-23.so` (recipe: `doc/Records/EnzymeSpike.md` §1, lld shim included).  Configure FINDS it there by default; a pin move builds a new `~/Code/Enzyme-<pin>`, and `-UQCHEM_ENZYME_PLUGIN -UQCHEM_ENZYME_INCLUDE` on the reconfigure finds it.  Configure checks three things:
+- **Enzyme is REQUIRED: configure STOPS without it** (user ruling 2026-11-09: "Yes I think we make it required. Seems like a small burden for a lot of functionality.").  The AD derivatives (`src/AD`, the per-file `qchem_enzyme_sources` registrations) need the clang plugin built against THIS LLVM.  The pin is **cdd0d1c2** (`QCHEM_ENZYME_PIN`), checked out at `~/Code/Enzyme-cdd0d1c2` (a STANDALONE clone; it was a git worktree of a deleted `~/Code/Enzyme` until 2026-11-27, which broke the pin check) with one build dir per LLVM major: `build-llvm23/Enzyme/ClangEnzyme-23.so` (recipe: `doc/Records/EnzymeSpike.md` §1, lld shim included).  Configure FINDS it there by default; a pin move builds a new `~/Code/Enzyme-<pin>`, and `-UQCHEM_ENZYME_PLUGIN -UQCHEM_ENZYME_INCLUDE` on the reconfigure finds it.  Configure checks three things:
       - the plugin and headers EXIST, else `Enzyme is REQUIRED (user ruling 2026-11-09) and was not found:` with the paths and the build recipe;
       - the headers' git checkout HOLDS the pin (an old checkout silently gave a wrong gradient once);
       - a smoke derivative through the plugin under THIS clang gives 6 (`cmake/EnzymeSmoke.cpp`), else `does not differentiate under this clang`.
@@ -346,6 +354,8 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
 - I intend to document this project with Doxygen (if you think a different tool is better, let me know). If you
     can document interfaces as you go, that should result in better docs, since you have full context while
     writing the code.
+
+**Reprints** of papers a lane needs live in `~/Code/reprints/<topic>/` (e.g. `AutoAux`), outside the repo (copyrighted): cite the path, never copy a PDF into the repo.
 
 ## Oracle codes — all four are BUILT and ready in `~/Code`
 
