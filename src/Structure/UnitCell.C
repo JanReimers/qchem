@@ -120,6 +120,8 @@ public:
     double G0Background(const std::function<double(int Z)>& f) const override;
     //! Every lattice image too, shell by shell (see the base).
     double SumAroundSite(size_t a, const std::function<double(int Z, double d)>& g) const override;
+    //! Every G of the reciprocal lattice but G = 0, shell by shell (see the base).
+    std::optional<double> SumOverReciprocalLattice(const std::function<double(const rvec3_t& G)>& g) const override;
 
     //! The space group \c SpaceGroup::Detect finds, every coset translation included (a centred cell's centring joins the lattice).
     Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const override;

@@ -461,6 +461,9 @@ namespace qchem::Hamiltonian {
         mat_t<T> v;
         rvec_t lambda;
     };
+    enum class RasterRole {
+        None, Density, VlocLong, XC
+    };
     struct TermRangeAudit {
         std::string label;
         bool hasRange=false;
@@ -471,6 +474,7 @@ namespace qchem::Hamiltonian {
         double scale=0.0;
         size_t block=0, direction=0;
         std::string blockLabel;
+        RasterRole raster=RasterRole::None;
         double Excess() const;
     };
     template <class T> class tHamiltonian;
@@ -730,6 +734,7 @@ namespace qchem {
         virtual rmat3d_t IonIonVirial (const std::function<double(int Z)>& zionOf) const;
         virtual double G0Background (const std::function<double(int Z)>& f) const;
         virtual double SumAroundSite (size_t a, const std::function<double(int Z, double d)>& g) const;
+        virtual std::optional<double> SumOverReciprocalLattice(const std::function<double(const rvec3_t& G)>& g) const;
         virtual Symmetry::GroupPtr MakeSymmetry(const Symmetry::GroupTolerance& tol) const=0;
         SiteRange Sites() const;
         void ForEachSite(const std::function<void(int Z, const rvec3_t& R, bool spinFlip)>& f) const;

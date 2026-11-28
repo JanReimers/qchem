@@ -9,6 +9,7 @@
 // route that forms v at points is floored by the final contraction, 4.7e-4 per element at 80/29.  Analytic (ij|a) has no
 // such floor.  The direct sum sits well above it (about 1e-2, flat in the radial count).
 module;
+#include <optional>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -44,6 +45,12 @@ public:
     virtual hmat_t<double> Repulsion(const BasisSet::Orbital_DFT_IBS<double,double>&) const=0; //!< \f$\sum_f c_f\langle ab|1/r|f\rangle\f$
     virtual double HartreeEnergy(const std::function<double()>& trDV) const=0;             //!< the first-order \f$E_H\f$ of the last fit
     virtual double Integral() const=0;                                                     //!< the fit's charge \f$\int\tilde\rho\f$
+    //! \brief A BOUND ON THE COULOMB FIELD this fit represents, for the quotient range audit (v2 §3; the user's 2026-11-27 framing ruling:
+    //! the bound belongs to the face whose operator it bounds, and \c Repulsion is Coulomb, so the kernel is this face's own):
+    //! \f[ \sup_{\mathbf r}|v(\mathbf r)|,\qquad v(\mathbf r)=\int\frac{\rho_{\rm fit}(\mathbf r')}{|\mathbf r-\mathbf r'|}d\mathbf r', \f]
+    //! the field whose matrix \c Repulsion returns, at the last \c DoFit (built there: the block query stays a pure read).  EMPTY where the
+    //! realization cannot bound it (a delta fit's point weights).
+    virtual std::optional<double> RepulsionBound() const {return std::nullopt;}
     //! \name THE DERIVATIVE of \c Repulsion beside it, at the FIXED fit (GeometryOptimizationPlan §13.2, lane B 2026-11-09; the user's
     //! 2026-11-08 pre-approval): \f$F_A=\partial_{R_A}\mathrm{Re}\,\mathrm{Tr}(D\,\mathrm{Repulsion}(orb))\f$, the block's centres moving.
     //! On an orthonormal fit basis whose functions do not move that is the first-order Hartree term's whole fixed-D force: \f$E_H\f$ is
@@ -75,6 +82,12 @@ public:
     virtual hmat_t<dcmplx> Repulsion(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const=0;   //!< a Bloch block
     virtual double HartreeEnergy(const std::function<double()>& trDV) const=0;
     virtual double Integral() const=0;
+    //! \brief A BOUND ON THE COULOMB FIELD this fit represents, for the quotient range audit (v2 §3; the user's 2026-11-27 framing ruling:
+    //! the bound belongs to the face whose operator it bounds, and \c Repulsion is Coulomb, so the kernel is this face's own):
+    //! \f[ \sup_{\mathbf r}|v(\mathbf r)|,\qquad v(\mathbf r)=\int\frac{\rho_{\rm fit}(\mathbf r')}{|\mathbf r-\mathbf r'|}d\mathbf r', \f]
+    //! the field whose matrix \c Repulsion returns, at the last \c DoFit (built there: the block query stays a pure read).  EMPTY where the
+    //! realization cannot bound it (a delta fit's point weights).
+    virtual std::optional<double> RepulsionBound() const {return std::nullopt;}
     //! \name The derivative of \c Repulsion beside it, as on \c FirstOrderDensityFit<double>: a real TRIM block and a Bloch block.
     //!@{
     virtual bool CanPullbackRepulsion(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const=0;

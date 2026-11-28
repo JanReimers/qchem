@@ -11,6 +11,7 @@ module;
 #include <string>
 #include <vector>
 #include <functional>
+#include <optional>
 #include <exception> // std::exception_ptr (the threaded weight response)
 #include <memory>    // the scoped-but-early-stopped Timed on the site-adapted angular build (1.1(b))
 
@@ -254,6 +255,29 @@ double UnitCell::G0Background(const std::function<double(int)>& f) const
     double s=0;
     for (const Site& a : Sites()) s+=f(a.Z);
     return s/GetCellVolume();
+}
+
+// The shell-by-shell reciprocal sum (Structure::SumOverReciprocalLattice's contract): shell n holds the G = n1 b1 + n2 b2 + n3 b3 with
+// max|n_i| == n, n >= 1 (G = 0 excluded).  The same stop and the same throw as SumAroundSite below.
+std::optional<double> UnitCell::SumOverReciprocalLattice(const std::function<double(const rvec3_t& G)>& g) const
+{
+    constexpr int kMaxShells=200;
+    const CellGeometry B=MakeReciprocal();
+    double total=0.0;
+    for (int n=1;n<=kMaxShells;n++)
+    {
+        double shell=0.0;
+        for (int i=-n;i<=n;i++) for (int j=-n;j<=n;j++) for (int k=-n;k<=n;k++)
+        {
+            if (std::max(std::abs(i),std::max(std::abs(j),std::abs(k)))!=n) continue;
+            shell+=g(B.ToCartesian(rvec3_t(i,j,k)));
+        }
+        total+=shell;
+        if (std::abs(shell)<=1e-16*std::abs(total)) return total/GetCellVolume();
+        if (n>=2 && total==0.0) return 0.0;
+    }
+    throw std::runtime_error("UnitCell::SumOverReciprocalLattice: the sum has not converged after "+std::to_string(kMaxShells)
+                             +" shells -- the summand does not decay");
 }
 
 // The shell-by-shell image sum (Structure::SumAroundSite's contract): shell n holds the translations with max|n_i| == n.  A Gaussian

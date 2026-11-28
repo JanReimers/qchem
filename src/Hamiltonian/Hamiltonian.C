@@ -346,6 +346,9 @@ template <class T> struct WeakDirections { mat_t<T> v; rvec_t lambda; };
 //!
 //! \c hasRange false: the term has no density-independent range (Hartree, XC, +U) or none is derived yet (V_loc long, v2); \c why says
 //! which.  Otherwise the fields describe the direction (over every block) whose \c Excess is largest.
+//! \brief Which raster assembles a term's matrix, for the quotient range audit's setup ladder (user ruling 2026-11-27 "Role enum").
+enum class RasterRole { None, Density, VlocLong, XC };
+
 struct TermRangeAudit
 {
     std::string label;                 //!< the term's own description (as TermEnergy's)
@@ -357,6 +360,11 @@ struct TermRangeAudit
     double      scale=0.0;             //!< \f$\|A\|_F/\lambda_j\f$: Ha per unit relative matrix error
     size_t      block=0, direction=0;  //!< where: the block index and the column of its WeakDirections
     std::string blockLabel;            //!< the block's symmetry label
+    //! The ROLE of the raster that assembles this term's matrix (V_long's own top level, the density levels, the XC L0 raster), or
+    //! \c RasterRole::None.  A policy that finds the term outside its range rebuilds on a finer raster only when there is one to raise
+    //! (the v2 setup ladder, user ruling 2026-11-27 "Yes, at setup"); None is a refusal a finer raster cannot fix.  A ROLE, never a
+    //! deck key (user ruling 2026-11-27 "Role enum"; V-JSON-AT-THE-EDGE): the policy layer maps it to the key it raises and names.
+    RasterRole  raster=RasterRole::None;
     //! The RELATIVE matrix error that would explain the quotient's distance outside the range,
     //! \f$\max(a_{\min}-R,\,R-a_{\max})/\mathrm{scale}\f$: negative inside the range (how far inside, in the same units).
     double Excess() const
