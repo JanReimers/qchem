@@ -4235,3 +4235,24 @@ neighbours crawls instead of being refused.
 Original row:
 
 | **`REFUSED ON RESOURCES` reads page cache as used memory** (controller, 2026-11-27, at the lane H range-check landing 902b1b8c) | `AuditFootprint.C` sizes what a run has as cgroup `memory.high − memory.current` (else MemAvailable).  `memory.current` includes the scope's page cache, which the kernel reclaims on demand, and under `scripts/memsafe ctest -j3` the three tests share ONE scope, so a refusal depends on what the neighbours and the cache hold at that instant.  The panel then refused three runs that fit (`GPW_NaF.k222_RelaxesToCP2KsCell_Long` 0.40 GB 'and 0.00 GB is available', `GPW_Si.k333_RelaxesToCP2KsCell_Long` 2.5-4.9 GB at 0.00, `GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` 5.5-10.5 GB at 3.02); the previous panel (88c52967) ran all three.  A refusal must be deterministic for the run, not for the box's moment (priority 1) | count reclaimable memory as available (subtract `memory.stat` file / inactive_file from `memory.current`, as MemAvailable does for the host), and state in the refusal which figure it used; decide with the user whether the budget is the scope's or the run's own share of it · `src/Calculation/Imp/AuditFootprint.C` (lane B, author of the resource refusal d54bec926 / cf9d7cfdb) |
+
+## ✅ A panel case's resource check reads a SHARED scope (closed 2026-11-27, lane B, 0ed6e0df0)
+
+Closed by the same change as "`REFUSED ON RESOURCES` reads page cache as used memory" (above; user ruling 2026-11-27, option B).  Of the
+row's three remedies it is the third: the audit's admission reads its OWN process against a deterministic budget.  The REFUSAL compares
+the band's low end with the fixed room, `QueryMemoryBudget` (the scope's memory.high / memory.max) less this process's RssAnon + RssShmem.
+So a neighbour in the same memsafe scope, at its setup peak or not, no longer decides it, and neither does page cache.  A per-test scope
+and a -j1 panel are not needed.
+
+What is left is by design, not a defect:
+- The WARNING still reads the live figure (limit less the scope's non-reclaimable usage), so whether a run warns can depend on its
+  neighbours.  It only warns; the run goes ahead.
+- A run that fits its fixed room but not beside its neighbours now crawls under memsafe (swap, throttle) instead of being refused.  The
+  ruling accepts that cost.
+- The THIRD occurrence (TiO₂ ALONE under `-H 6G`, 2.38 GB headroom at pilot round 1 against 2.88-5.54 GB) was never a scheduling effect:
+  the run's own footprint plus its reference exceed the cap.  Under option B it is still REFUSED (fixed room 6 GB less its own ~3.6 GB,
+  below the 2.88 GB low end), which is the right answer.  It passes under -H 8G.
+
+Original row:
+
+| **A panel case's resource check reads a SHARED scope** (controller 2026-11-14, S3a landing) | The audit's admission headroom is `memory.high − memory.current` of the WHOLE memsafe scope, which holds both `ctest -j2` panel cases.  `GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` was REFUSED ON RESOURCES at pilot round 1 (2.28 GB available, needs 2.88-5.54) because the MnO2 neighbour was at its setup peak; alone it has 5.2 GB and passes, and S3a costs +30-50 MB (lane H's solo A/B).  So a panel verdict can depend on test scheduling.  SECOND occurrence 2026-11-14 (S4 landing): `GPW_MnO2…ConvergesThroughARefusedFirstIterate_Panel_Long` refused at 0.58 GB headroom, finished NOT SETTLED at −3.5e-4 Ha off; alone it passes with 0 moved.  THIRD 2026-11-15 (lane B, ion seed library): TiO₂ refused in the -j2 panel (2.57 GB) and AGAIN ALONE under `memsafe -H 6G` (2.38 GB headroom at pilot round 1: the run's own footprint is in the same scope), and passed alone under `-H 8G` with energy and iterations identical to main-a7da749a, so -H 6G no longer fits this case even solo | Decide what the panel should measure: a per-test scope (memsafe per ctest test), a panel at -j1, or the audit's admission reading its OWN process (RSS) against a stated budget · this row |
