@@ -268,10 +268,10 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(std::shared
         // Replay a density this evaluator has ALREADY collocated on this ladder (the sibling tensor's call,
         // or the other spin channel's).  Exact equality or recompute -- see CollocMemo::Lookup.
         std::vector<rvec_t> rho;
-        if (!memo->Lookup(D, ecut_L, rho))
+        if (!memo->Lookup(D, ecut_L, N_L, rho))
         {
             rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L, *screen, relFS);
-            memo->Store(D, rho, ecut_L);
+            memo->Store(D, rho, ecut_L, N_L);
         }
         else { qchem::report::Timed t("scf: rho memo replay (D seen before)"); }
         ΔG_Map out;
@@ -527,6 +527,13 @@ size_t GPW_Evaluator::CollocMemo::Depth()
     return d;
 }
 namespace {
+//! The ladder's rasters, exactly: a level's raster can change without its cutoff (XCRungFeed's C rung), so the key carries both.
+bool SameRasters(const std::vector<ivec3_t>& a, const std::vector<ivec3_t>& b)
+{
+    if (a.size()!=b.size()) return false;
+    for (size_t l=0;l<a.size();l++) if (a[l].x!=b[l].x || a[l].y!=b[l].y || a[l].z!=b[l].z) return false;
+    return true;
+}
 //! EXACT equality on the upper triangle -- never a relaxed compare.  A replay must be bit-identical to the
 //! collocation it stands in for, or the memo becomes a silent accuracy knob.
 bool SameDensity(const chmat_t& a, const chmat_t& b)
@@ -537,19 +544,19 @@ bool SameDensity(const chmat_t& a, const chmat_t& b)
     return true;
 }
 } // anon
-bool GPW_Evaluator::CollocMemo::Lookup(const chmat_t& d, const std::vector<double>& ec,
+bool GPW_Evaluator::CollocMemo::Lookup(const chmat_t& d, const std::vector<double>& ec, const std::vector<ivec3_t>& n,
                                        std::vector<rvec_t>& rhoOut)
 {
     // The ladder is part of the key: the SAME D on a DIFFERENT ladder has a different rho (the cross-block
     // seed hands one density to two grids), and replaying the wrong grid is the one way this can be wrong.
-    if (valid && ecut==ec && SameDensity(D,d)) { rhoOut=rho; return true; }
+    if (valid && ecut==ec && SameRasters(N,n) && SameDensity(D,d)) { rhoOut=rho; return true; }
     for (size_t k=0;k<past.size();k++)
-        if (past[k].ecut==ec && SameDensity(past[k].D,d))
+        if (past[k].ecut==ec && SameRasters(past[k].N,n) && SameDensity(past[k].D,d))
         {
             Entry hit=std::move(past[k]);                  // PROMOTE: `D` must stay "the most recent"
             past.erase(past.begin()+long(k));
-            if (valid) past.insert(past.begin(), Entry{D, rho, ecut});
-            D=hit.D; rho=hit.rho; ecut=hit.ecut; valid=true;
+            if (valid) past.insert(past.begin(), Entry{D, rho, ecut, N});
+            D=hit.D; rho=hit.rho; ecut=hit.ecut; N=hit.N; valid=true;
             if (past.size()>Depth()) past.resize(Depth());
             rhoOut=rho;
             return true;
@@ -557,31 +564,31 @@ bool GPW_Evaluator::CollocMemo::Lookup(const chmat_t& d, const std::vector<doubl
     return false;
 }
 void GPW_Evaluator::CollocMemo::Store(const chmat_t& d, const std::vector<rvec_t>& r,
-                                      const std::vector<double>& ec)
+                                      const std::vector<double>& ec, const std::vector<ivec3_t>& n)
 {
     // Dscr = the UNION screen: reset on a new ladder/shape, else WIDEN to cover this channel's active set
     // too (a polarized run collocates D_up then D_dn through the same memo).  Widen-only is a PIN -- see
     // the CollocMemo interface note; an epoch reset was tried and rejected.
-    const bool reset = !valid || Dscr.rows()!=d.rows() || ecut!=ec;
+    const bool reset = !valid || Dscr.rows()!=d.rows() || ecut!=ec || !SameRasters(N,n);
     if (reset) Dscr=chmat_t(d.rows());
     for (size_t i=0;i<d.rows();i++)
         for (size_t j=i;j<d.columns();j++)
             Dscr(i,j) = reset ? std::abs(dcmplx(d(i,j)))
                               : std::max(std::real(dcmplx(Dscr(i,j))), std::abs(dcmplx(d(i,j))));
-    if (valid) past.insert(past.begin(), Entry{D, rho, ecut});   // retire the previous most-recent
+    if (valid) past.insert(past.begin(), Entry{D, rho, ecut, N});   // retire the previous most-recent
     if (past.size()>Depth()) past.resize(Depth());
-    D=d; rho=r; ecut=ec; valid=true;
+    D=d; rho=r; ecut=ec; N=n; valid=true;
 }
 
 // THE k-FOLD (lane A 2026-11-22): MakeCollocator's / MakeRawCollocator's post-processing over ONE collocation of the summed blocks.  The
 // blocks' own phases come from their projections (foldPhase); each must be in MY fold domain, or the box walk would run their D on the
 // wrong basis -- a THROW.  The level densities go through MY fold memo, which the ball and raw closures share.
-bool GPW_Evaluator::FoldMemo::Lookup(const FoldTerms& terms, const std::vector<double>& ecut, std::vector<rvec_t>& rhoOut)
+bool GPW_Evaluator::FoldMemo::Lookup(const FoldTerms& terms, const std::vector<double>& ecut, const std::vector<ivec3_t>& N, std::vector<rvec_t>& rhoOut)
 {
     for (size_t e=0;e<entries.size();e++)
     {
         const Entry& x=entries[e];
-        if (x.ecut!=ecut || x.D.size()!=terms.size()) continue;
+        if (x.ecut!=ecut || !SameRasters(x.N,N) || x.D.size()!=terms.size()) continue;
         bool same=true;
         for (size_t t=0;t<terms.size() && same;t++) same=SameDensity(x.D[t], *terms[t].first);
         if (!same) continue;
@@ -591,9 +598,9 @@ bool GPW_Evaluator::FoldMemo::Lookup(const FoldTerms& terms, const std::vector<d
     }
     return false;
 }
-void GPW_Evaluator::FoldMemo::Store(const FoldTerms& terms, const std::vector<double>& ecut, const std::vector<rvec_t>& rho)
+void GPW_Evaluator::FoldMemo::Store(const FoldTerms& terms, const std::vector<double>& ecut, const std::vector<ivec3_t>& N, const std::vector<rvec_t>& rho)
 {
-    Entry x; x.ecut=ecut; x.rho=rho;
+    Entry x; x.ecut=ecut; x.N=N; x.rho=rho;
     for (const auto& t : terms) x.D.push_back(*t.first);
     entries.insert(entries.begin(), std::move(x));
     if (entries.size()>CollocMemo::Depth()) entries.resize(CollocMemo::Depth());
@@ -616,9 +623,9 @@ std::vector<rvec_t> GPW_Evaluator::FoldedLevels(const FoldTerms& terms, const st
                                                 const Gaussian::LatticeScreener& screen, double relFS, FoldMemo& memo)
 {
     std::vector<rvec_t> rho;
-    if (memo.Lookup(terms, ecut_L, rho)) { qchem::report::Timed t("scf: rho memo replay (D seen before)"); return rho; }
+    if (memo.Lookup(terms, ecut_L, N_L, rho)) { qchem::report::Timed t("scf: rho memo replay (D seen before)"); return rho; }
     rho=lat->CollocateDensityFolded(PhasedTerms(terms, domain), A, N_L, ecut_L, screen, relFS);
-    memo.Store(terms, ecut_L, rho);
+    memo.Store(terms, ecut_L, N_L, rho);
     return rho;
 }
 std::function<ΔG_Map(const FoldTerms&)> GPW_Evaluator::MakeFoldedCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
@@ -647,29 +654,224 @@ std::function<ΔG_Map(const FoldTerms&)> GPW_Evaluator::MakeFoldedCollocator(std
         return out;
     };
 }
+// THE XC FEED (user rulings 2026-11-26: "(a) Real-space fix", then "Auto, with B as the fallback"; lane A).  The raw XC raster is rho[D]
+// AT L0's POINTS, exactly: every pair collocated in real space, L0's own kept raw (exact point values), the coarser levels brought up by an
+// exact zero-pad of their interpolant (the routing bound certifies them).  The completion RUNG is the exception: band-truncating it DOWN to
+// L0 was the O2-box 9e-4 Ha XC error (SolidCalculation::AuditXCSampler).  So the rung's pairs reach L0's points by one of two exact routes
+// (GPWTolerances XCRungFeed; the facade's Auto chooses between them on cost):
+//  - PairsOnL0 (B): Hartree's collocation is shared for every OTHER level, and the rung's pairs are collocated a second time onto L0's
+//    raster (D masked to them by LatticeCollocation::DensityPairLevels -- the collocation's own routing, so the mask and the scatter agree).
+//  - RungMultiple (C): the ladder built the rung on an integer multiple m of L0's raster, so L0's points are its stride-m subset and the
+//    XC feed READS Hartree's own rung collocation there.  One collocation per iteration.
+// Both are rho[D] at L0's points to the collocation floor; the gather (LevelFields) is the EXACT transpose of Assemble in each, so H = dE/dD
+// (GPW_XC.RawConsistencyFD).  One struct, used by all five raw closures AND the transition raw raster (its complex Assemble/LevelFields:
+// the response kernel must be the derivative of the same XC density, GPW.TransitionPair_B2_ExactAdjointsAndQ0Reduction).
+struct GPW_Evaluator::XCFeed
+{
+    std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>> levels;   //!< Hartree's ladder (C: its rung already at m N0)
+    std::vector<ivec3_t> N;       //!< Hartree's rasters: the SHARED collocation's (the memo key with ecut)
+    std::vector<ivec3_t> NX;      //!< the XC route's rasters: B moves the rung's pairs to L0's raster, else == N
+    std::vector<double>  ecut;
+    size_t     nBase=0;           //!< levels before the rung; the rung (when present) is level nBase, the last
+    bool       rung=false;
+    XCRungFeed mode=XCRungFeed::PairsOnL0;
+    ivec3_t    m{1,1,1};          //!< C: the rung's raster over L0's, per axis
+    size_t     n=0;               //!< B: the basis size the mask reads
+    std::vector<char> onRung;     //!< B: [i*n+j] routes to the rung
+    bool B() const {return rung && mode==XCRungFeed::PairsOnL0;}
+    bool C() const {return rung && mode==XCRungFeed::RungMultiple;}
+
+    //! B: \a D masked to the rung's pairs (the scatter skips a zero pair; the fold's orbits keep exponents, hence levels, so it is fold-safe).
+    chmat_t RungPairs(const chmat_t& D) const
+    {
+        if (D.rows()!=n) throw std::logic_error("GPW XC feed (B): a density of "+std::to_string(D.rows())+" functions on a mask of "+std::to_string(n));
+        chmat_t M(n);
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) if (onRung[i*n+j]) M(i,j)=D(i,j);
+        return M;
+    }
+    //! B: a transition \a dD (bra x ket, not Hermitian) masked to the rung's pairs -- both triangles, as the mask is.
+    mat_t<dcmplx> RungPairs(const mat_t<dcmplx>& dD) const
+    {
+        if (dD.rows()!=n || dD.columns()!=n)
+            throw std::logic_error("GPW XC feed (B): a transition density of "+std::to_string(dD.rows())+" functions on a mask of "+std::to_string(n));
+        mat_t<dcmplx> M(n, n, dcmplx(0.0));
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) if (onRung[i*n+j]) M(i,j)=dD(i,j);
+        return M;
+    }
+    //! The transition raster (complex: the periodic part of e^{-iq.r} drho), the same assembly as the real \c Assemble.
+    cvec_t Assemble(const std::vector<cvec_t>& uH, const std::vector<cvec_t>* uRung) const
+    {
+        if (uH.size()!=levels.size())
+            throw std::logic_error("GPW transition raw feed: the collocation holds "+std::to_string(uH.size())+" levels, the feed's ladder "
+                                   +std::to_string(levels.size()));
+        const ivec3_t NT=N[0];
+        const size_t nT=size_t(NT.x)*NT.y*NT.z;
+        cvec_t acc(nT, dcmplx(0.0));
+        for (size_t l=1; l<nBase; l++) TransferBand(levels[l]->ForwardFFT(uH[l]), N[l], acc, NT);
+        cvec_t out=levels[0]->ComplexBackwardFFT(acc);
+        out+=uH[0];
+        if (B())
+        {
+            if (!uRung || uRung->size()!=levels.size() || (*uRung)[nBase].size()!=nT)
+                throw std::logic_error("GPW transition raw feed (B): the rung pairs' collocation is not on L0's raster");
+            out+=(*uRung)[nBase];
+        }
+        if (C())
+        {
+            const ivec3_t Nr=N[nBase];
+            const cvec_t& r=uH[nBase];
+            for (int a=0;a<NT.x;a++) for (int b=0;b<NT.y;b++) for (int c=0;c<NT.z;c++)
+                out[(size_t(a)*NT.y+b)*NT.z+c] += r[(size_t(a*m.x)*Nr.y+size_t(b*m.y))*Nr.z+size_t(c*m.z)];
+        }
+        return out;
+    }
+    //! The exact transpose of the complex \c Assemble (the same weights as the real \c LevelFields).
+    std::vector<cvec_t> LevelFields(const cvec_t& v) const
+    {
+        const ivec3_t NT=N[0];
+        const size_t nT=size_t(NT.x)*NT.y*NT.z;
+        if (v.size()!=nT) throw std::invalid_argument("GPW transition raw gather: the field is not on the raster");
+        std::vector<cvec_t> V_L(levels.size());
+        V_L[0]=v;
+        const cvec_t vt=levels[0]->ForwardFFT(v);
+        for (size_t l=1; l<nBase; l++)
+        {
+            cvec_t ctL(size_t(N[l].x)*N[l].y*N[l].z, dcmplx(0.0));
+            TransferBand(vt, NT, ctL, N[l]);
+            V_L[l]=levels[l]->ComplexBackwardFFT(ctL);
+        }
+        if (B()) V_L[nBase]=v;
+        if (C())
+        {
+            const ivec3_t Nr=N[nBase];
+            const size_t nR=size_t(Nr.x)*Nr.y*Nr.z;
+            const double w=double(nR)/double(nT);
+            cvec_t vr(nR, dcmplx(0.0));
+            for (int a=0;a<NT.x;a++) for (int b=0;b<NT.y;b++) for (int c=0;c<NT.z;c++)
+                vr[(size_t(a*m.x)*Nr.y+size_t(b*m.y))*Nr.z+size_t(c*m.z)] = w*v[(size_t(a)*NT.y+b)*NT.z+c];
+            V_L[nBase]=std::move(vr);
+        }
+        return V_L;
+    }
+    //! rho[D] at L0's points from Hartree's level densities \a rhoH (and, under B, the rung pairs' own collocation \a rhoRung on NX).
+    rvec_t Assemble(const std::vector<rvec_t>& rhoH, const std::vector<rvec_t>* rhoRung) const
+    {
+        if (rhoH.size()!=levels.size())
+            throw std::logic_error("GPW raw XC feed: the collocation holds "+std::to_string(rhoH.size())+" levels, the feed's ladder "
+                                   +std::to_string(levels.size()));
+        const ivec3_t NT=N[0];
+        const size_t nT=size_t(NT.x)*NT.y*NT.z;
+        cvec_t acc(nT, dcmplx(0.0));
+        for (size_t l=1; l<nBase; l++) TransferBand(levels[l]->ForwardFFT(rhoH[l]), N[l], acc, NT);   // coarse levels up
+        rvec_t out=levels[0]->BackwardFFT(acc);
+        out+=rhoH[0];                                      // L0 RAW: no FFT round trip at all
+        if (B())
+        {
+            if (!rhoRung || rhoRung->size()!=levels.size() || (*rhoRung)[nBase].size()!=nT)
+                throw std::logic_error("GPW raw XC feed (B): the rung pairs' collocation is not on L0's raster");
+            out+=(*rhoRung)[nBase];                        // the rung's pairs, collocated AT L0's points
+        }
+        if (C())                                           // the rung's raster CONTAINS L0's points: read them (stride m)
+        {
+            const ivec3_t Nr=N[nBase];
+            const rvec_t& r=rhoH[nBase];
+            for (int a=0;a<NT.x;a++) for (int b=0;b<NT.y;b++) for (int c=0;c<NT.z;c++)
+                out[(size_t(a)*NT.y+b)*NT.z+c] += r[(size_t(a*m.x)*Nr.y+size_t(b*m.y))*Nr.z+size_t(c*m.z)];
+        }
+        return out;
+    }
+    //! The exact transpose of \c Assemble: \a v on L0's raster -> the level fields on \c NX (IntegratePotential weights level L by
+    //! Omega/Npts(L), against Omega/Npts(0) for L0: C's injected samples carry Npts(rung)/Npts(0) to undo it).
+    std::vector<rvec_t> LevelFields(const rvec_t& v) const
+    {
+        const ivec3_t NT=N[0];
+        const size_t nT=size_t(NT.x)*NT.y*NT.z;
+        if (v.size()!=nT) throw std::invalid_argument("GPW raw gather: the field is not on the integration raster");
+        std::vector<rvec_t> V_L(levels.size());
+        V_L[0]=v;
+        const cvec_t vt=levels[0]->ForwardFFT(v);
+        for (size_t l=1; l<nBase; l++)
+        {
+            cvec_t ctL(size_t(N[l].x)*N[l].y*N[l].z, dcmplx(0.0));
+            TransferBand(vt, NT, ctL, N[l]);
+            V_L[l]=levels[l]->BackwardFFT(ctL);
+        }
+        if (B()) V_L[nBase]=v;                             // the rung's pairs integrate on L0's raster itself
+        if (C())
+        {
+            const ivec3_t Nr=N[nBase];
+            const size_t nR=size_t(Nr.x)*Nr.y*Nr.z;
+            const double w=double(nR)/double(nT);
+            rvec_t vr(nR, 0.0);
+            for (int a=0;a<NT.x;a++) for (int b=0;b<NT.y;b++) for (int c=0;c<NT.z;c++)
+                vr[(size_t(a*m.x)*Nr.y+size_t(b*m.y))*Nr.z+size_t(c*m.z)] = w*v[(size_t(a)*NT.y+b)*NT.z+c];
+            V_L[nBase]=std::move(vr);
+        }
+        return V_L;
+    }
+};
+
+//! The feed over \a lad (Hartree's ladder for this grid).  THROWS if a base level is finer than L0, if a rung is not the single last level,
+//! or if C's rung is not an integer multiple of L0's raster (a ladder built for B handed to a C feed).
+std::shared_ptr<const GPW_Evaluator::XCFeed> GPW_Evaluator::MakeXCFeed(RasterLevels lad, XCRungFeed mode, const Gaussian::Periodic_Gaussian_IBS* lat,
+                                                                       double relFS)
+{
+    auto f=std::make_shared<XCFeed>();
+    f->nBase = lad.nBase>0 ? lad.nBase : lad.levels.size();
+    f->rung  = lad.levels.size()>f->nBase;
+    if (f->rung && lad.levels.size()!=f->nBase+1)
+        throw std::logic_error("GPW raw XC feed: "+std::to_string(lad.levels.size()-f->nBase)+" levels above the base ladder (one rung expected)");
+    for (size_t l=1;l<f->nBase;l++)
+        if (lad.ecut[l]>lad.ecut[0])
+            throw std::logic_error("GPW raw XC feed: base level "+std::to_string(l)+" (ecut "+std::to_string(lad.ecut[l])+") is finer than L0 (ecut "
+                                   +std::to_string(lad.ecut[0])+") -- XC would see a band-truncated rho[D]");
+    f->mode=mode;
+    f->levels=std::move(lad.levels); f->N=std::move(lad.N); f->ecut=std::move(lad.ecut);
+    f->NX=f->N;
+    if (f->C())
+    {
+        const ivec3_t N0=f->N[0], Nr=f->N[f->nBase];
+        if (Nr.x%N0.x || Nr.y%N0.y || Nr.z%N0.z)
+            throw std::logic_error("GPW raw XC feed (C): the rung raster "+std::to_string(Nr.x)+" is not a multiple of L0's "+std::to_string(N0.x)
+                                   +" (the ladder was not built for XCRungFeed::RungMultiple)");
+        f->m=ivec3_t(Nr.x/N0.x, Nr.y/N0.y, Nr.z/N0.z);
+    }
+    if (f->B())
+    {
+        f->NX[f->nBase]=f->N[0];
+        const std::vector<size_t> lv=lat->DensityPairLevels(f->ecut, relFS);
+        f->n=size_t(std::llround(std::sqrt(double(lv.size()))));
+        if (f->n*f->n!=lv.size()) throw std::logic_error("GPW raw XC feed (B): DensityPairLevels is not n x n");
+        f->onRung.resize(lv.size());
+        for (size_t k=0;k<lv.size();k++) f->onRung[k]=(lv[k]==f->nBase);
+    }
+    return f;
+}
+
 std::function<rvec_t(const FoldTerms&)> GPW_Evaluator::MakeFoldedRawCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
-    RasterLevels lad=itsLadder->MakeLevels(grid);
-    auto levels=std::move(lad.levels);
-    auto N_L=std::move(lad.N);
-    auto ecut_L=std::move(lad.ecut);
+    auto feed=MakeXCFeed(itsLadder->MakeLevels(grid), itsLadder->Inputs().tol.xcRungFeed, itsLat, itsRelFieldSharp);   // THE XC FEED (above)
     const UnitCell A = itsCell;
     auto mol    = itsMol;
     const Gaussian::Periodic_Gaussian_IBS* lat = itsLat;
     auto screen = itsScreener;
     if (!itsFoldMemo) itsFoldMemo=std::make_shared<FoldMemo>();
-    auto memo   = itsFoldMemo;
+    if (!itsRungFoldMemo) itsRungFoldMemo=std::make_shared<FoldMemo>();
+    auto memo   = itsFoldMemo;                          // Hartree's own: the ball closure collocates the same summed density
+    auto rmemo  = itsRungFoldMemo;                      // B's rung pairs on L0 (its own memo: it holds a different collocation)
     const std::array<uint64_t,2> domain=FoldDomain();
-    return [A,levels,N_L,ecut_L,mol,lat,screen,memo,domain,relFS=itsRelFieldSharp](const FoldTerms& terms) -> rvec_t
+    return [A,feed,mol,lat,screen,memo,rmemo,domain,relFS=itsRelFieldSharp](const FoldTerms& terms) -> rvec_t
     {
         qchem::report::Timed timer("scf: rho raw closure (spectral transfer)");
-        const std::vector<rvec_t> rho=FoldedLevels(terms, domain, lat, A, N_L, ecut_L, *screen, relFS, *memo);
-        const ivec3_t NT=N_L[0];                            // the integration raster (level 0 == grid), as MakeRawCollocator
-        cvec_t acc(size_t(NT.x)*NT.y*NT.z, dcmplx(0.0));
-        for (size_t l=1; l<levels.size(); l++) TransferBand(levels[l]->ForwardFFT(rho[l]), N_L[l], acc, NT);
-        rvec_t out=levels[0]->BackwardFFT(acc);
-        out+=rho[0];
-        return out;
+        const std::vector<rvec_t> rhoH=FoldedLevels(terms, domain, lat, A, feed->N, feed->ecut, *screen, relFS, *memo);
+        if (!feed->B()) return feed->Assemble(rhoH, nullptr);
+        std::vector<chmat_t> masked; masked.reserve(terms.size());
+        for (const auto& t : terms) masked.push_back(feed->RungPairs(*t.first));
+        FoldTerms mterms;
+        for (size_t t=0;t<terms.size();t++) mterms.push_back({&masked[t], terms[t].second});
+        const std::vector<rvec_t> rhoR=[&]{ qchem::report::Timed t("scf: XC rung pairs onto L0 (B)");
+                                            return FoldedLevels(mterms, domain, lat, A, feed->NX, feed->ecut, *screen, relFS, *rmemo); }();
+        return feed->Assemble(rhoH, &rhoR);
     };
 }
 
@@ -708,87 +910,59 @@ void GPW_Evaluator::GatherMemo::Store(const std::vector<rvec_t>& V_L, const chma
     if (entries.size()>CollocMemo::Depth()) entries.resize(CollocMemo::Depth());
 }
 
-// D -> rho_DM(r) on grid's raster: level 0 (== grid) RAW, every other level spectrally transferred in.
+// D -> rho_DM(r) on grid's raster: level 0 (== grid) RAW, every other level spectrally transferred in, the rung's pairs per the XC feed.
 std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
-    RasterLevels lad=itsLadder->MakeLevels(grid);   // the fit grid's ladder: the ladder's rule over a different reference
-    auto levels=std::move(lad.levels);
-    auto N_L=std::move(lad.N);
-    auto ecut_L=std::move(lad.ecut);
+    auto feed=MakeXCFeed(itsLadder->MakeLevels(grid), itsLadder->Inputs().tol.xcRungFeed, itsLat, itsRelFieldSharp);   // THE XC FEED (above)
     const UnitCell A = itsCell;
     auto mol   = itsMol;
     const Gaussian::Periodic_Gaussian_IBS* lat = itsLat;
     auto phase = CellPhase();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
-    if (!itsGatherMemo) itsGatherMemo=std::make_shared<GatherMemo>();
-    auto memo  = itsCollocMemo;
-    auto gmemo = itsGatherMemo;
+    if (!itsRungMemo) itsRungMemo=std::make_shared<CollocMemo>();
+    auto memo  = itsCollocMemo;                         // Hartree's: the ball closure collocates the same (D, ecut, N)
+    auto rmemo = itsRungMemo;                           // B's rung pairs on L0 (never in Hartree's memo: its D is the seam's screen)
     auto screen= itsScreener;
-    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,screen,relFS=itsRelFieldSharp](const chmat_t& D) -> rvec_t
+    return [A,feed,mol,lat,phase,memo,rmemo,screen,relFS=itsRelFieldSharp](const chmat_t& D) -> rvec_t
     {
         qchem::report::Timed timer("scf: rho raw closure (spectral transfer)");
-        std::vector<rvec_t> rho;                            // ONE memo, ONE definition (see CollocMemo::Lookup)
-        if (!memo->Lookup(D, ecut_L, rho))
+        std::vector<rvec_t> rhoH;                           // ONE memo, ONE definition (see CollocMemo::Lookup): Hartree's collocation, shared
+        if (!memo->Lookup(D, feed->ecut, feed->N, rhoH))
         {
-            rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L, *screen, relFS);
-            memo->Store(D, rho, ecut_L);
+            rhoH = lat->CollocateDensity(D, phase, A, feed->N, feed->ecut, *screen, relFS);
+            memo->Store(D, rhoH, feed->ecut, feed->N);
         }
         else { qchem::report::Timed t("scf: rho memo replay (D seen before)"); }
-        const ivec3_t NT=N_L[0];                            // the integration raster (level 0 == grid)
-        cvec_t acc(size_t(NT.x)*NT.y*NT.z, dcmplx(0.0));
-        for (size_t l=1; l<levels.size(); l++)              // coarse levels up, top rung band-dropped down
-            TransferBand(levels[l]->ForwardFFT(rho[l]), N_L[l], acc, NT);
-        rvec_t out=levels[0]->BackwardFFT(acc);
-        out+=rho[0];                                        // the finest level RAW: no FFT round trip at all
-        return out;
+        if (!feed->B()) return feed->Assemble(rhoH, nullptr);
+        std::vector<rvec_t> rhoR;
+        if (!rmemo->Lookup(D, feed->ecut, feed->NX, rhoR))
+        {
+            qchem::report::Timed t("scf: XC rung pairs onto L0 (B)");
+            rhoR = lat->CollocateDensity(feed->RungPairs(D), phase, A, feed->NX, feed->ecut, *screen, relFS);
+            rmemo->Store(D, rhoR, feed->ecut, feed->NX);    // keyed on the FULL D: the mask is a function of it and the ladder
+        }
+        return feed->Assemble(rhoH, &rhoR);
     };
 }
 
-namespace
-{
-//! The raw route's level fields: V_0 = v (the finest level, raw), V_L = BackwardFFT_L(TransferBand(ForwardFFT_0(v))) -- the transpose of
-//! MakeRawCollocator's zero-pad.  ONE helper, so the gather and its derivatives integrate the same fields.
-std::vector<rvec_t> RawLevelFields(const std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>>& levels, const std::vector<ivec3_t>& N_L,
-                                   const rvec_t& v)
-{
-    const size_t K=levels.size();
-    const ivec3_t NT=N_L[0];
-    if (v.size()!=size_t(NT.x)*NT.y*NT.z) throw std::invalid_argument("GPW raw gather: the field is not on the integration raster");
-    cvec_t vt=levels[0]->ForwardFFT(v);
-    std::vector<rvec_t> V_L(K);
-    V_L[0]=v;
-    for (size_t l=1; l<K; l++)
-    {
-        cvec_t ctL(size_t(N_L[l].x)*N_L[l].y*N_L[l].z, dcmplx(0.0));
-        TransferBand(vt, NT, ctL, N_L[l]);
-        V_L[l]=levels[l]->BackwardFFT(ctL);
-    }
-    return V_L;
-}
-} //anon
 
 // The exact transpose: v(r) on grid's raster -> <i|v|j>.  V_0 = v identity (adjoint of the raw keep);
 // V_L = BackwardFFT_L(TransferBand(ForwardFFT_T(v))) -- the ForwardFFT 1/Npts against IntegratePotential's
 // internal Omega/Npts(L) weight leaves NO stray factors (derivation in the interface doc).
 std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
-    RasterLevels lad=itsLadder->MakeLevels(grid);   // the fit grid's ladder: the ladder's rule over a different reference
-    auto levels=std::move(lad.levels);
-    auto N_L=std::move(lad.N);
-    auto ecut_L=std::move(lad.ecut);
+    auto feed=MakeXCFeed(itsLadder->MakeLevels(grid), itsLadder->Inputs().tol.xcRungFeed, itsLat, itsRelFieldSharp);   // THE XC FEED (above)
     const UnitCell A = itsCell;
     auto mol   = itsMol;
     const Gaussian::Periodic_Gaussian_IBS* lat = itsLat;
     auto phase = CellPhase();
-    if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
     if (!itsGatherMemo) itsGatherMemo=std::make_shared<GatherMemo>();
-    auto memo  = itsCollocMemo;
     auto gmemo = itsGatherMemo;
     auto screen= itsScreener;
-    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,gmemo,screen,relFS=itsRelFieldSharp](const rvec_t& v) -> chmat_t
+    return [A,feed,mol,lat,phase,gmemo,screen,relFS=itsRelFieldSharp](const rvec_t& v) -> chmat_t
     {
         qchem::report::Timed timer("scf: h raw closure (spectral transfer)");
-        const std::vector<rvec_t> V_L=RawLevelFields(levels, N_L, v);
+        const std::vector<rvec_t> V_L=feed->LevelFields(v);   // the exact transpose of the feed's Assemble
         // ⛔ THE GATHER IS NO LONGER D-SCREENED (2026-09-04).  Passing the density here was a qchem-only
         // acceleration with three costs and no owner:
         //   1. THE DIAGONAL-SEED DEFECT.  h_ij = <chi_i|V|chi_j> is NOT weighted by D_ij; dropping a term
@@ -810,7 +984,7 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
         const chmat_t* screenD = nullptr;
         chmat_t h;
         if (gmemo->Lookup(V_L, screenD, h)) { qchem::report::Timed t("scf: h memo replay (V+screen seen)"); return h; }
-        h = lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, *screen, 0.0, screenD, 0.0, relFS);
+        h = lat->IntegratePotential(V_L, phase, A, feed->NX, feed->ecut, *screen, 0.0, screenD, 0.0, relFS);
         gmemo->Store(V_L, screenD, h);
         return h;
     };
@@ -819,35 +993,29 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
 std::function<rvec3vec_t(const rvec_t&, const chmat_t&, const Structure*)>
 GPW_Evaluator::MakeRawIntegratorPullback(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
-    RasterLevels lad=itsLadder->MakeLevels(grid);
-    auto levels=std::move(lad.levels);
-    auto N_L=std::move(lad.N);
-    auto ecut_L=std::move(lad.ecut);
+    auto feed=MakeXCFeed(itsLadder->MakeLevels(grid), itsLadder->Inputs().tol.xcRungFeed, itsLat, itsRelFieldSharp);   // THE XC FEED (above)
     const UnitCell A = itsCell;
     auto mol   = itsMol;                                    // keep the molecular basis (lat) alive in the closure
     const Gaussian::Periodic_Gaussian_IBS* lat = itsLat;
     auto phase = CellPhase();
     auto screen= itsScreener;
-    return [A,levels,N_L,ecut_L,mol,lat,phase,screen,relFS=itsRelFieldSharp](const rvec_t& v, const chmat_t& D, const Structure* st) -> rvec3vec_t
+    return [A,feed,mol,lat,phase,screen,relFS=itsRelFieldSharp](const rvec_t& v, const chmat_t& D, const Structure* st) -> rvec3vec_t
     {
-        return lat->IntegratePotentialPullback(RawLevelFields(levels, N_L, v), D, phase, A, N_L, ecut_L, *screen, relFS, st);
+        return lat->IntegratePotentialPullback(feed->LevelFields(v), D, phase, A, feed->NX, feed->ecut, *screen, relFS, st);
     };
 }
 std::function<rmat3d_t(const rvec_t&, const chmat_t&, const Structure*)>
 GPW_Evaluator::MakeRawIntegratorVirial(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
-    RasterLevels lad=itsLadder->MakeLevels(grid);
-    auto levels=std::move(lad.levels);
-    auto N_L=std::move(lad.N);
-    auto ecut_L=std::move(lad.ecut);
+    auto feed=MakeXCFeed(itsLadder->MakeLevels(grid), itsLadder->Inputs().tol.xcRungFeed, itsLat, itsRelFieldSharp);   // THE XC FEED (above)
     const UnitCell A = itsCell;
     auto mol   = itsMol;
     const Gaussian::Periodic_Gaussian_IBS* lat = itsLat;
     auto phase = CellPhase();
     auto screen= itsScreener;
-    return [A,levels,N_L,ecut_L,mol,lat,phase,screen,relFS=itsRelFieldSharp](const rvec_t& v, const chmat_t& D, const Structure*) -> rmat3d_t
+    return [A,feed,mol,lat,phase,screen,relFS=itsRelFieldSharp](const rvec_t& v, const chmat_t& D, const Structure*) -> rmat3d_t
     {
-        return lat->IntegratePotentialVirial(RawLevelFields(levels, N_L, v), D, phase, A, N_L, ecut_L, *screen, relFS);
+        return lat->IntegratePotentialVirial(feed->LevelFields(v), D, phase, A, feed->NX, feed->ecut, *screen, relFS);
     };
 }
 
@@ -881,6 +1049,7 @@ const GPW_Evaluator::TransitionLadder& GPW_Evaluator::Ladder(const std::string& 
     TransitionLadder L;
     {
         RasterLevels lad=itsLadder->MakeLevels(std::make_shared<const PlaneWave::PW_Grid_Evaluator>(grid));
+        L.feed=MakeXCFeed(lad, itsLadder->Inputs().tol.xcRungFeed, itsLat, itsRelFieldSharp);   // the ground state's own XC feed
         L.levels=std::move(lad.levels); L.N=std::move(lad.N); L.ecut=std::move(lad.ecut);
     }
     return itsTransitionLadders.emplace(key, std::move(L)).first->second;
@@ -929,14 +1098,11 @@ cvec_t GPW_Evaluator::TransitionRawField(const std::string& key, const PlaneWave
 {
     qchem::report::Timed timer("response: transition raw raster (collocate + spectral transfer)");
     const TransitionLadder& L=Ladder(key, grid);
-    const std::vector<cvec_t> u=Transition().CollocateTransition(dD, CellPhase(), q, itsCell, L.N, L.ecut, itsRelFieldSharp);
-    const ivec3_t NT=L.N[0];                                       // the integration raster (level 0 == grid)
-    cvec_t acc(size_t(NT.x)*NT.y*NT.z, dcmplx(0.0));
-    for (size_t l=1; l<L.levels.size(); l++)
-        TransferBand(L.levels[l]->ForwardFFT(u[l]), L.N[l], acc, NT);
-    cvec_t out=L.levels[0]->ComplexBackwardFFT(acc);
-    out+=u[0];                                                     // the finest level RAW
-    return out;
+    const XCFeed& f=*L.feed;                                       // THE XC FEED: the ground state's raw raster, re-spoken for (k+q, k)
+    const std::vector<cvec_t> u=Transition().CollocateTransition(dD, CellPhase(), q, itsCell, f.N, f.ecut, itsRelFieldSharp);
+    if (!f.B()) return f.Assemble(u, nullptr);
+    const std::vector<cvec_t> uR=Transition().CollocateTransition(f.RungPairs(dD), CellPhase(), q, itsCell, f.NX, f.ecut, itsRelFieldSharp);
+    return f.Assemble(u, &uR);
 }
 
 mat_t<dcmplx> GPW_Evaluator::TransitionRawAdjoint(const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid,
@@ -944,19 +1110,8 @@ mat_t<dcmplx> GPW_Evaluator::TransitionRawAdjoint(const std::string& key, const 
 {
     qchem::report::Timed timer("response: transition raw raster gather (spectral transfer + gather)");
     const TransitionLadder& L=Ladder(key, grid);
-    const size_t K=L.levels.size();
-    const ivec3_t NT=L.N[0];
-    if (v.size()!=size_t(NT.x)*NT.y*NT.z) throw std::invalid_argument("GPW_Evaluator::TransitionRawAdjoint: the field is not on the raster");
-    const cvec_t vt=L.levels[0]->ForwardFFT(v);
-    std::vector<cvec_t> V_L(K);
-    V_L[0]=v;
-    for (size_t l=1; l<K; l++)
-    {
-        cvec_t ctL(size_t(L.N[l].x)*L.N[l].y*L.N[l].z, dcmplx(0.0));
-        TransferBand(vt, NT, ctL, L.N[l]);
-        V_L[l]=L.levels[l]->ComplexBackwardFFT(ctL);
-    }
-    return Transition().IntegrateTransition(V_L, CellPhase(), q, itsCell, L.N, L.ecut, itsRelFieldSharp);
+    const XCFeed& f=*L.feed;                                      // the exact transpose of TransitionRawField's feed
+    return Transition().IntegrateTransition(f.LevelFields(v), CellPhase(), q, itsCell, f.NX, f.ecut, itsRelFieldSharp);
 }
 
 PairProjection<dcmplx> GPW_Evaluator::Repulsion3CTensor() const {return Repulsion3CTensor(itsFFT_R_G_Grids);}

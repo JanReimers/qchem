@@ -263,27 +263,30 @@ Virial               V/K  :    -2.00407537645  Eee/Exc:      -6.150743646
 )G";
 // RE-JUDGED 2026-11-10 (lane B, the 1E lattice-sum screen on each kernel's own bound): E_KS -7.115054455314 -> -7.115054417 (+38 nHa,
 // the Si Γ anchors' move).  Pin 10's independent route, only the S / T / <chi|g> series at screenEps x 1e-6: -7.115054416154.
+// RE-JUDGED 2026-11-27 (lane A, the XC feed): E_KS -7.115057060936 -> -7.11504698718 (+10.1 uHa, Exc +1.1e-5): the completion rung's
+// pairs are now sampled EXACTLY at L0's points instead of band-dropped onto it.  Pin 10's independent route: GPW_XC.RawRungFeedsAgree
+// (this Si cell: both feeds against rho[D] evaluated pointwise from the orbitals at L0's points, 1e-10) and the RungFeedsAgree gates.
 const char* const kSolidGolden = R"G(  #               Etotal      [F,D]       ΔE/E        Δρ   ρ_lost/N    XC ρ    samp/τ  ρ_mix         accel   svMin    cfg       gap  
                                        (1e-06)   (1e-03)
 ----------------------------------------------------------------------------------------------------
-  1      -7.116183252226   2.70e-01  -1.00e+00  5.12e-02   1.79e-09      DM      ----  PulD 0.45     ----    ----          6.69e-02  
-  2      -7.115353353866   1.23e-02   1.17e-04  2.60e-02   4.00e-10      DM      ----  PulD 0.45     ----    ----          6.83e-02  
-  3      -7.115144035063   6.46e-03   2.94e-05  1.34e-02  -3.41e-11      DM      ----  PulD 0.45     ----    ----          6.90e-02  
-  4      -7.115091360556   3.97e-03   7.40e-06  7.18e-03  -3.66e-10      DM      ----  PulD 0.45     ----    ----          6.93e-02  
-[energy] final E_KS[D_out] = -7.115057060936  (the trace's first-order E_T: |E_T - E_KS| = 3.43e-05 Ha, second order)
+  1      -7.116173205922   2.70e-01  -1.00e+00  5.12e-02   2.88e-09      DM      ----  PulD 0.45     ----    ----          6.69e-02  
+  2      -7.115343263254   1.23e-02   1.17e-04  2.60e-02   1.27e-09      DM      ----  PulD 0.45     ----    ----          6.83e-02  
+  3      -7.115133940491   6.46e-03   2.94e-05  1.34e-02   7.20e-10      DM      ----  PulD 0.45     ----    ----          6.90e-02  
+  4      -7.115081266243   3.97e-03   7.40e-06  7.18e-03   3.27e-10      DM      ----  PulD 0.45     ----    ----          6.93e-02  
+[energy] final E_KS[D_out] = -7.11504698718  (the trace's first-order E_T: |E_T - E_KS| = 3.43e-05 Ha, second order)
 ----------------------------------------------------------------------------------------------------------
-Energy    Breakdown  Total:  -7.11505706094  Kinetic:   4.36166334024  Potential: -11.47672040117
-Potential Breakdown  Een  :  -1.13823774772  Eee    :   0.90115127698  Eex      :  -2.54427637844
-Een       Breakdown  Eloc :  -2.86262545848  EenNL  :   1.72438771075
-Virial               V/K  :  -2.63127149115  Eee/Exc:  -0.35418765218  
+Energy    Breakdown  Total:  -7.11504698718  Kinetic:   4.36164535670  Potential: -11.47669234388
+Potential Breakdown  Een  :  -1.13821173459  Eee    :   0.90114192016  Eex      :  -2.54426497747
+Een       Breakdown  Eloc :  -2.86253805094  EenNL  :   1.72432631636
+Virial               V/K  :  -2.63127590744  Eee/Exc:  -0.35418556170  
 +-----------+-------------+----------+
 | Occ/Degen |      ϵ (au) | Symmetry |
 +-----------+-------------+----------+
-|    2/2    | -0.11636574 | 2(0,0,0) |
-|    6/6    |  0.32414579 | 3(0,0,0) |
+|    2/2    | -0.11636238 | 2(0,0,0) |
+|    6/6    |  0.32414676 | 3(0,0,0) |
 +-----------+-------------+----------+
-[gpw] NOT converged iters=4 charge=8.00000000000 Eelec=1.58030049105 Etot=-7.1150570609  (Ekin=4.36166334024 Een=-1.13823774772 Eee=0.90115127698 Exc=-2.54427637844 Enn=-8.40046478619 E_alphaZ=-0.29489276580)
-[gpw] Hartree mesh charge error=-4.868e-09 energy=-1.097e-09
+[gpw] NOT converged iters=4 charge=8.00000000000 Eelec=1.58031056481 Etot=-7.1150469872  (Ekin=4.36164535670 Een=-1.13821173459 Eee=0.90114192016 Exc=-2.54426497747 Enn=-8.40046478619 E_alphaZ=-0.29489276580)
+[gpw] Hartree mesh charge error=-4.834e-09 energy=-1.089e-09
 [gpw raster pilot] SKIPPED: the SCF did not converge, so there is no D to audit -- the rasters stay the ball's own
 )G";
 }

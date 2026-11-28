@@ -43,6 +43,13 @@ PW_Evaluator::PW_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, dou
     itsNyquistG=raster.G;
 }
 
+PW_Evaluator::PW_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut, StatedRaster raster)
+    : PW_Evaluator(recip, k, Ecut, RasterPolicy::BallOnly)
+{
+    if (raster.N.x<1 || raster.N.y<1 || raster.N.z<1) throw std::invalid_argument("PW_Evaluator: a stated raster needs N >= 1 on every axis");
+    itsStatedN=raster.N;
+}
+
 rvec3_t PW_Evaluator::GetGCartesian(const ivec3_t& m) const
 {
     return itsRecip.GetCell().ToCartesian(rvec3_t(m)); // B m
@@ -63,6 +70,14 @@ ivec3_t PW_Evaluator::AutoGrid() const
         // alone, product fold-back accepted as Ecut-controlled discretization error (doc/GPWPlan 0.5(a)).
         int nn = itsRaster==RasterPolicy::AliasFree ? 4*m+1 : 2*m+1;
         itsAutoGrid=ivec3_t(nn,nn,nn);
+        if (itsStatedN.x>0)    // a STATED raster: exactly N, which must hold the ball's own raster
+        {
+            if (itsStatedN.x<nn || itsStatedN.y<nn || itsStatedN.z<nn)
+                throw std::invalid_argument("PW_Evaluator: the stated raster "+std::to_string(itsStatedN.x)+"x"+std::to_string(itsStatedN.y)+"x"
+                                            +std::to_string(itsStatedN.z)+" cannot hold the ball's own raster "+std::to_string(nn));
+            itsAutoGrid=itsStatedN;
+            return itsAutoGrid;
+        }
         if (itsNyquistG>0.0)   // a STATED raster: raise N until pi N/|a_i| >= G_N on every axis (the direct cell: the reciprocal's reciprocal)
         {
             // ISOTROPIC, as the policy rasters are: an imposed run star-averages the raster under the crystal ops, which needs a grid every
@@ -88,6 +103,8 @@ ivec3_t PW_Evaluator::FFTGrid() const
     {
         ivec3_t a=AutoGrid();
         itsFFTGrid=ivec3_t(int(qchem::FFT::Next5Smooth(a.x)), int(qchem::FFT::Next5Smooth(a.y)), int(qchem::FFT::Next5Smooth(a.z)));
+        if (itsStatedN.x>0 && !(itsFFTGrid.x==itsStatedN.x && itsFFTGrid.y==itsStatedN.y && itsFFTGrid.z==itsStatedN.z))
+            throw std::invalid_argument("PW_Evaluator: a stated raster must be 5-smooth (the FFT menu); "+std::to_string(itsStatedN.x)+" is not");
     }
     return itsFFTGrid;
 }

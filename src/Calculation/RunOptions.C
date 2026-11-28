@@ -18,6 +18,7 @@ export import qchem.BasisSet.Lattice.BasisSet;  // CellImages, GPWTolerances, Gr
 export import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSet::Gaussian::Angular
 export import qchem.RunPolicy;                  // RunPolicySpec
 export import qchem.AuditFootprint;             // AuditFootprintCalibration
+export import qchem.XCRungPolicy;               // policy::XCRungRoute (the uniform XC feed's view of the rung)
 export import qchem.PhiTablesPolicy;            // policy::XCOrbitalTables (the δ fit's orbital tables)
 export import qchem.ChargeDensity.Seed;         // SeedStrategy
 export import qchem.LASolver;                   // qchem::Ortho
@@ -398,6 +399,14 @@ struct RunOptions
         //! A stated value wins; one the policy finds peculiar (dense near the memory budget, images where they are larger) runs with a
         //! warning naming what \c auto would pick.  The [policy] line prints both realizations' peak, average and wall either way.
         policy::XCOrbitalTables xcOrbitalTables = policy::XCOrbitalTables::Auto;
+        //! \brief HOW THE UNIFORM XC FEED SEES THE COMPLETION RUNG -- a COST choice between two exact routes (user ruling 2026-11-26, "Auto,
+        //! with B as the fallback"; qchem.XCRungPolicy has the model):
+        //!   \c pairsOnL0    (B) the rung's pairs are collocated a second time, onto L0's raster.
+        //!   \c rungMultiple (C) the rung's raster is rounded up to an integer multiple of L0's; XC reads L0's points off it (Hartree's rung
+        //!                   raster rises with it).
+        //!   \c auto         (default) the cheaper on the structural rule prod m - prod x < 1; B when it cannot be formed.
+        //! Both are rho[D] at L0's points to the collocation floor.  A stated value wins; the [policy] line prints both predictions.
+        policy::XCRungRoute xcRungFeed = policy::XCRungRoute::Auto;
         //! THE CELL'S STRAIN ALLOWANCE s (linear, a fraction; the cell half's frozen rule, doc/Records/CellHalf_Design.md §3, ruled
         //! 2026-11-10).  0 (default): the cell is fixed -- a geometry session refuses a moved cell (\c PESFailure::CellChange) and every size
         //! is decided on the cell itself, as always.  > 0: every discrete size (G sets, raster and FFT counts, uniform-mesh divisions) is

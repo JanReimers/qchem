@@ -74,6 +74,18 @@ struct CollocationRoute
     bool operator==(const CollocationRoute&) const = default;
 };
 
+//! \brief HOW the uniform XC raster sees the completion rung's pairs (user ruling 2026-11-26: "I think B and C can each be valid in
+//! certain circumstances ... Auto, with B as the fallback"; lane A).  The XC feed is \f$\rho[D]\f$ AT L0's POINTS, exactly: the rung is
+//! finer than L0 (or a different raster), and band-truncating it down to L0 was the O2-box 9e-4 Ha XC error.  Two exact realizations,
+//! both rho[D] at L0's points to the collocation floor, which differ only in COST (\c XCRungCost, the policy layer's \c Auto):
+//!  - \c PairsOnL0 ("B"): Hartree keeps its rung; the XC feed collocates the rung's pairs a second time, directly onto L0's raster
+//!    (a D masked to them, \c LatticeCollocation::DensityPairLevels), and shares Hartree's collocation of every other level.
+//!  - \c RungMultiple ("C"): the rung's raster is rounded up to an integer multiple m of L0's, so L0's points are a stride-m subset of it,
+//!    and XC subsamples Hartree's OWN collocation: one collocation per iteration, Hartree's rung raster raised.
+//! A ladder with no rung ignores it.  The deck states \c Auto, \c PairsOnL0 or \c RungMultiple (`solid.xcRungFeed`); the facade
+//! resolves Auto to one of these two before the ladder is built.
+enum class XCRungFeed { PairsOnL0, RungMultiple };
+
 //! \brief The GPW evaluator's tolerances.  Every default is today's behaviour; none of them is a convenience knob.
 struct GPWTolerances
 {
@@ -133,6 +145,8 @@ struct GPWTolerances
     double rasterX     = 0.0;   //!< the density ladder (collocation + integrate-back: Hartree, and the uniform XC's input)
     double vlocRasterX = 0.0;   //!< V_loc long's own ladder (its static integrate-back; the term forces see first, M2c verdict 3)
     double xcRasterX   = 0.0;   //!< the reference level L0 again, for the UNIFORM XC raster (v_xc[rho] sampled there; MEASURED, no bound)
+    //! How the uniform XC feed sees the completion rung (\c XCRungFeed; resolved by the facade, which owns the Auto policy).
+    XCRungFeed xcRungFeed = XCRungFeed::PairsOnL0;
 
     //! One line naming every value that differs from the default (empty when none) -- what a run banner prints.
     std::string Describe() const;

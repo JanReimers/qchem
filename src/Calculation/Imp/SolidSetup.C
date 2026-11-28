@@ -601,6 +601,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
             using BasisSet::PlaneWave::RasterFields;
             const bool hartreeOnly = becke && fit==VxcFit::Delta;
             s->rasterFields = hartreeOnly ? RasterFields::HartreeOnly : RasterFields::HartreeXC;
+            s->xcFitOnRaster = fit==VxcFit::PlaneWave;
             if (hartreeOnly)
                 policy::Report("RasterRouting", "the GPW raster serves V_H only: every pair routes on its own bound, 2 p ln(1/eps)",
                                policy::Verdict::Choose, "V_xc is sampled on the Becke points through the delta fit, so no field on the raster "

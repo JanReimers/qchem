@@ -729,6 +729,102 @@ TEST(GPW_Si, Γ_Uni_DeltaFit_Imp_eqPWFit)
 }
 
 
+// THE XC RUNG FEED (user ruling 2026-11-26, "Auto, with B as the fallback"; lane A; qchem.XCRungPolicy).  The uniform XC raster is rho[D] at
+// L0's points; the ladder's completion rung reaches them by B (its pairs collocated again onto L0) or C (the rung on a multiple of L0's
+// raster, subsampled).  Two stated-raster arms, one where Auto picks each: x 16/16 puts the rung (which serves the 2 alpha_max pairs) finer
+// than L0 by ~sqrt 2 per axis, so B; x 16 under XC L0 40 puts it COARSER than L0, so C (m = 1).  On each arm:
+//   - B and C converge to the same energy, well under any eps (C raises Hartree's rung raster, which moves E by the Hartree residual only);
+//   - each run's XC sampler audit against the direct pointwise rho[D] (SolidCalculation::AuditXCSampler) is the SAME on both routes, and
+//     inside half the default eps;
+//   - Auto files its XCRungFeed policy row and runs the route it names, to the bit.
+namespace
+{
+//! The XCRungFeed policy row of the last run filed under \a prefix (each ladder build files one; the run's own is the first).
+qchem::report::json XCRungRow(const std::string& prefix)
+{
+    const auto& G=qchem::report::GlobalReport();
+    const qchem::report::json* last=nullptr;
+    for (auto it=G.begin(); it!=G.end(); ++it) if (it.key().rfind(prefix,0)==0) last=&it.value();
+    if (!last) throw std::logic_error("no filed run "+prefix);
+    std::optional<qchem::report::json> row;
+    std::function<void(const qchem::report::json&)> walk=[&](const qchem::report::json& x)
+    {
+        if (row) return;
+        if (x.is_object())
+            for (auto it=x.begin(); it!=x.end() && !row; ++it)
+            {
+                if (it.key()=="policy" && it.value().is_array())
+                    for (const auto& r : it.value()) if (!row && r.contains("name") && r["name"]=="XCRungFeed") row=r;
+                walk(it.value());
+            }
+        else if (x.is_array()) for (const auto& y : x) walk(y);
+    };
+    walk(*last);
+    if (!row) throw std::logic_error("run "+prefix+" filed no XCRungFeed policy row");
+    return *row;
+}
+//! The two arms on \a lat (\a imposed: the imposed group; a k mesh runs free, the audit's pointwise reference is not star-averaged yet).
+void RungFeedArms(const Lattice_3D& lat, const std::string& where, bool imposed)
+{
+    using R=qchem::policy::XCRungRoute;
+    const Material si=qchem::Materials::Get("Si_diamond");
+    struct Arm { double rasterX, xcRasterX; const char* autoPick; };
+    for (const Arm arm : {Arm{16.0,16.0,"pairsOnL0 (B)"}, Arm{16.0,40.0,"rungMultiple (C)"}})
+    {
+        struct Out { double E=0.0, auditE=0.0; std::string chosen; };
+        auto run=[&](R route, const std::string& tag)
+        {
+            RunOptions o=OptionsFor(si, "Si "+where+" rung feed "+tag);
+            o.solid.densityEcut=20.0; o.imposeSymmetry=imposed;
+            SolidXCMesh(o).cellKind=qcMesh::UnitCellKind::Uniform;
+            o.accuracy.eps=0.0; o.solid.tolerances.rasterX=arm.rasterX; o.solid.tolerances.xcRasterX=arm.xcRasterX;   // STATED rasters: both routes on one ladder
+            o.solid.xcRungFeed=route;
+            o.scf=ProductionGates();
+            Out out;
+            {
+                GpwReport report(o.label, false);
+                auto calc=qchem::SolidCalculation::Prepare(SolidSetup::Resolve(lat, MakeBasisSR(*si.cell), o)).TakeValue(); (void)calc->Converge();
+                auto r=calc->Result();
+                EXPECT_TRUE(r) << Why(r);
+                if (r) out.E=r->Energy();
+                auto A=calc->AuditXCSampler();
+                EXPECT_TRUE(A) << (A ? std::string() : A.Error());
+                if (A) out.auditE=A->δE;
+            }
+            out.chosen=XCRungRow(o.label)["detail"]["chosen"].get<std::string>();
+            return out;
+        };
+        const std::string x=std::to_string(int(arm.rasterX))+"/"+std::to_string(int(arm.xcRasterX));
+        const Out b=run(R::PairsOnL0, "B x"+x), c=run(R::RungMultiple, "C x"+x), a=run(R::Auto, "auto x"+x);
+        std::cout<<std::setprecision(12)<<"[rung feeds] "<<where<<" x "<<x<<": E_B "<<b.E<<"  E_C "<<c.E<<"  E_auto "<<a.E<<" ("<<a.chosen
+                 <<")  audit dE B "<<std::scientific<<std::setprecision(3)<<b.auditE<<" C "<<c.auditE<<std::defaultfloat<<std::endl;
+        EXPECT_EQ(b.chosen, "pairsOnL0 (B)");
+        EXPECT_EQ(c.chosen, "rungMultiple (C)");
+        EXPECT_EQ(a.chosen, arm.autoPick) << "Auto's pick on x "<<x;
+        EXPECT_NEAR(b.E, c.E, 1e-8) << "B and C are rho[D] at L0's points: they differ only by Hartree's raised rung under C";
+        // The audit measures the WHOLE sampler (the coarse levels' interpolants too: 1.5e-6 on the imposed Γ x 16/16 arm, the same before B/C
+        // existed), so the routes' claim is that they agree on it; each must also meet a share of the default eps (half: the XC sampler's).
+        EXPECT_NEAR(b.auditE, c.auditE, 1e-10) << "B and C put the same rho[D] at L0's points";
+        const double share=0.5*AccuracyTarget{}.eps;
+        EXPECT_LT(std::fabs(b.auditE), share) << "B's XC feed against the direct pointwise rho[D]";
+        EXPECT_LT(std::fabs(c.auditE), share) << "C's XC feed against the direct pointwise rho[D]";
+        EXPECT_EQ(a.E, std::string(arm.autoPick)==b.chosen ? b.E : c.E) << "Auto runs the route its row names";
+    }
+}
+} //anon
+TEST(GPW_Si, Γ_Uni_Imp_RungFeedsAgree)
+{
+    RungFeedArms(LatticeOf(qchem::Materials::Get("Si_diamond")), "Gamma", true);
+}
+// The same on a mesh that MIXES block realness (the controller, 2026-11-26): Γ-centred k411 holds Γ and the TRIM (1/2,0,0), both real, and
+// (±1/4,0,0), complex.  The scatter has one kernel for every block (realness enters only through the block's phase table, c = Re[D phase]),
+// so B's masked collocation takes each block's own path, exactly as Hartree's does.
+TEST(GPW_Si, k411_Uni_RungFeedsAgree)
+{
+    RungFeedArms(LatticeOf(qchem::Materials::Get("Si_diamond"), ivec3_t(4,1,1)), "k411", false);
+}
+
+
 // THE V2.3 GATE (doc/CleanupCandidates.md V2.3, run 2026-09-14): the POLARIZED PLANE-WAVE fit route.  The row
 // said a polarized Ham_PW_DFT THROWS under VxcFit::PlaneWave because the raster route had no per-spin rho
 // cache; the raster route grew RhoPol/RefreshPol on 2026-08-28 and since V1.37 step 3 the one XC term asks it
@@ -1517,7 +1613,12 @@ TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
 //   (3) U_SC is a FIXED POINT: a second deck, started from the SEED at U_in = U_SC, answers U_out = U_SC.
 TEST(GPW_Si, Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint_Panel)   // PANEL case 5 (regime 5, the +U loop)
 {
-    qchem::IterationBudget budget(45, "Si +U linear-response loop + fixed-point arm (regime 5; 36 measured, 2026-10-29 panel baseline)");
+    // RE-BASELINED 2026-11-27 (lane A pilotxc, controller ruling): 36 -> 47 measured under the EXACT rung sampling of the XC feed
+    // (XCRungPolicy; B and C give the same trace to 1e-12).  ONE stage takes it all: the first carried stage after U 0 -> U_0 opens at
+    // [F,D] 2.1e-6 vs 2.1e-7 before and runs 13 iterations vs 3.  Not a stale cache: the memos are exact content keys and a flushed memo
+    // (GPW_COLLOC_MEMO=0) opens identically.  U_SC moved 2.5e-5 eV, the fixed point still holds to 1.7e-7.  Cause OPEN: OpenWork §3
+    // "Uniform XC: first carried stage after a U step opens at [F,D] 10x main's" (record: lane A's pilotxc overlap note).  Budget 47 + ~10%.
+    qchem::IterationBudget budget(52, "Si +U linear-response loop + fixed-point arm (regime 5; 47 measured, 2026-11-27 exact-rung re-baseline)");
     namespace fs=std::filesystem;
     // The SCF recipes, MEASURED 2026-10-04 on free Si Γ with U on site 0's p: the loop arm restarts from a converged state, where
     // Kerker/Pulay converges in 2-3 iterations (linear relax 1.0 diverges on a restart, LinearResponsePlan §3e finding 5); the fixed-point

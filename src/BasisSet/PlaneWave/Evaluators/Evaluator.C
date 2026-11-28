@@ -48,6 +48,11 @@ enum class RasterPolicy { AliasFree, BallOnly };
 //! row 1: \f$G_N^2\ge x\,p\f$ for the tightest pair \f$p\f$ a level serves); \f$G_N=0\f$ is the ball's own raster.  The plane-wave
 //! orbital path keeps \c RasterPolicy (its products of two ball waves are what \c AliasFree resolves exactly).
 struct NyquistRaster { double G=0.0; };
+//! \brief A raster STATED by its FFT divisions \a N, exactly: \f$N\f$ must hold the ball's own raster (\f$2m+1\f$ per axis) and be
+//! 5-smooth (the FFT menu), else the constructor's first \c FFTGrid() THROWS -- never a silent round-up.  CLIENT: the GPW completion rung
+//! on an integer multiple of L0's raster (\c XCRungFeed::RungMultiple), whose points must CONTAIN L0's, so its N is the multiple and
+//! nothing else (lane A 2026-11-26).
+struct StatedRaster { ivec3_t N; };
 
 //! \brief WHICH terms the density raster serves -- the field-sharpness ROUTING policy (doc/GPWPlan1.md
 //! "Becke XC grid").  \c HartreeXC (default): the raster feeds both Hartree and the pointwise XC, so the
@@ -76,6 +81,8 @@ public:
                  RasterPolicy raster = RasterPolicy::AliasFree);
     //! The same cutoff set on a raster stated by its Nyquist radius (\c NyquistRaster).
     PW_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut, NyquistRaster raster);
+    //! The same cutoff set on a raster stated by its divisions (\c StatedRaster).
+    PW_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut, StatedRaster raster);
     virtual ~PW_Evaluator() = default;
 
     // --- grid data + accessors (the shared state; the IBS G-space methods read through these) ---
@@ -150,6 +157,7 @@ private:
     double               itsVolume; //!< direct cell volume \f$V\f$ (for the \f$1/\sqrt V\f$ norm)
     RasterPolicy         itsRaster=RasterPolicy::AliasFree;   //!< the FFT-raster policy (0.5(a))
     double               itsNyquistG=-1.0;  //!< a STATED raster's G_N (>= 0), or -1: the RasterPolicy decides
+    ivec3_t              itsStatedN=ivec3_t(0,0,0);  //!< a STATED raster's divisions (\c StatedRaster), or 0: the rules above decide
     std::vector<ivec3_t> itsG;      //!< surviving reciprocal index triples \f$m\f$ (\f$G=B\,m\f$)
     // AutoGrid()/FFTGrid() derive the FFT resolution N from itsG (an O(nG) scan called O(n^2) times in matrix
     // assembly), so cache them lazily.  Sentinels: {0,0,0} == not yet computed.
@@ -177,6 +185,9 @@ public:
         : PW_Evaluator(recip, k, Ecut, raster)
         , itsGrid(std::make_shared<const PeriodicGridEvaluator>(recip, Volume(), FFTGrid())) {}
     PW_Grid_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut, NyquistRaster raster)
+        : PW_Evaluator(recip, k, Ecut, raster)
+        , itsGrid(std::make_shared<const PeriodicGridEvaluator>(recip, Volume(), FFTGrid())) {}
+    PW_Grid_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut, StatedRaster raster)
         : PW_Evaluator(recip, k, Ecut, raster)
         , itsGrid(std::make_shared<const PeriodicGridEvaluator>(recip, Volume(), FFTGrid())) {}
 

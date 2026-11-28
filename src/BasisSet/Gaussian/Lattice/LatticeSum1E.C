@@ -455,6 +455,14 @@ public:
     //! \a pairLevels.  (doc/GPWPlan1.md 0i increment 3 -- the custom V_loc G-ball.)
     virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                       double beta, double lnEps) const = 0;
+    //! \brief The DENSITY route's per-pair level assignment: the level \c CollocateDensity and the KS \c IntegratePotential (the relative
+    //! rule, no \a absRelCutoff, no \a pairLevels) send function pair \f$(i,j)\f$ to at \a ecut_L and \a relFieldSharp, row-major
+    //! \f$[i\cdot n+j]\f$, BOTH triangles filled.  A query, never a write: the collocation's own rule, answered.
+    //! WHY ON THE FACE (lane A 2026-11-26; controller approval of the user's ruling "Auto, with B as the fallback"): the uniform XC's
+    //! \c XCRungFeed::PairsOnL0 route collocates ONLY the completion rung's pairs a second time, onto L0's raster, by masking \f$D\f$ to
+    //! them -- and which pairs those are is this rule, kept inside the implementer until now.  A per-level memo cannot stand in for it:
+    //! the collocation cannot be asked for some levels only.  CLIENT: \c GPW_Evaluator's raw XC closures.
+    virtual std::vector<size_t> DensityPairLevels(const std::vector<double>& ecut_L, double relFieldSharp) const = 0;
 };
 
 

@@ -682,6 +682,8 @@ mat_t<dcmplx> Orbital_IBS::IntegrateTransition(const std::vector<cvec_t>& v_L, c
 std::vector<size_t> Orbital_IBS::StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                        double beta, double lnEps) const
 {   return NR_Evaluator::StaticFieldPairLevels(ecut_L,beta,lnEps); }
+std::vector<size_t> Orbital_IBS::DensityPairLevels(const std::vector<double>& ecut_L, double relFieldSharp) const
+{   return NR_Evaluator::DensityPairLevels(ecut_L,relFieldSharp); }
 void Orbital_IBS::EmitLatticeSumReport(const UnitCell& A) const
 {   NR_Evaluator::EmitLatticeSumReport(A); }
 size_t Orbital_IBS::SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops,

@@ -1298,6 +1298,14 @@ public:
         }
         return lv;
     }
+    //! The density route's assignment (LatticeSum1E face): \c PairLevel at the relative rule, both triangles.
+    std::vector<size_t> DensityPairLevels(const std::vector<double>& ecut_L, double relFieldSharp) const
+    {
+        const size_t n=size();
+        std::vector<size_t> lv(n*n, 0);
+        for (auto i:indices()) for (auto j:indices(i)) lv[i*n+j]=lv[j*n+i]=PairLevel(i,j,ecut_L,0.0,0.0,relFieldSharp);
+        return lv;
+    }
     // Iterate the (i, j@Roff) product's compact exp-tail box on the N-division grid of cell A, visiting each
     // screened-in, MODULO-WRAPPED grid point of chi_i(r) chi_j(r-R_j-Roff).  Shared by
     // collocation (scatter) and integrate-back (gather) -> exact adjoints (same box, chi eval, wrap).

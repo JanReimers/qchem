@@ -320,6 +320,27 @@ namespace qchem::Hamiltonian
         return CompositeExFunctional(MakeXCParts(xc)).ConsumesDensityGradient();
     }
 
+    LDAResponse MakeLDAResponse(const XCFunctional& xc, const rvec_t& up, const rvec_t& dn)
+    {
+        if (xc.kind==XC::LibXCGGA)
+            throw std::invalid_argument("Hamiltonian::MakeLDAResponse: "+Describe(xc)+" is a GGA -- its response needs grad rho");
+        if (up.size()!=dn.size()) throw std::invalid_argument("Hamiltonian::MakeLDAResponse: the two spin channels differ in length");
+        const CompositeExFunctional f(MakeXCParts(xc));
+        const size_t n=up.size();
+        LDAResponse r{rvec_t(n),rvec_t(n),rvec_t(n),rvec_t(n),rvec_t(n),rvec_t(n)};
+        for (size_t g=0;g<n;g++)
+        {
+            const double u=up[g], d=dn[g];
+            r.e  [g]=f.GetExcDensity(u,d);
+            r.vUp[g]=f.GetVxc(u,d,Spin::Up);
+            r.vDn[g]=f.GetVxc(u,d,Spin::Down);
+            r.fUU[g]=f.GetFxc(u,d,Spin::Up,  Spin::Up);
+            r.fUD[g]=f.GetFxc(u,d,Spin::Up,  Spin::Down);
+            r.fDD[g]=f.GetFxc(u,d,Spin::Down,Spin::Down);
+        }
+        return r;
+    }
+
     // THE single DFT build site: an XCFunctional choice -> the concrete polymorphic Hamiltonian, building
     // the Internal ExFunctional where one is needed.  Every other DFT entry point (the Model resolver, the
     // alpha convenience) funnels through here, so the functional->Hamiltonian mapping lives in ONE place.

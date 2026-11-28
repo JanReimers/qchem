@@ -81,6 +81,17 @@ export namespace qchem::Hamiltonian
     //! refuses (policy GGARoute, an Outcome) every route with no density-gradient sampler, which in GGA stage 1 is all of them; from
     //! stage 2 it picks the GGA term, whose constructor demands the GGA functional and a gradient sampler.
     bool ConsumesDensityGradient(const XCFunctional& xc);
+    //! \brief An LDA's energy density and its first and second derivatives at a batch of points, spin-native: what an AUDIT of a
+    //! density's sampling translates into energy (\c SolidCalculation::AuditXCSampler).  Per point \f$g\f$: \f$e_g\f$ (per unit volume,
+    //! \f$E_{xc}=\sum_g w_g e_g\f$), \f$v^\sigma_g=\partial e/\partial\rho_\sigma\f$ and \f$f^{\sigma\sigma'}_g=\partial^2 e/\partial\rho_\sigma
+    //! \partial\rho_{\sigma'}\f$ (each functional's analytic kernel).  The functional is built here, so its Internal type never leaks.
+    struct LDAResponse
+    {
+        rvec_t e, vUp, vDn, fUU, fUD, fDD;
+    };
+    //! The response of \a xc at \f$(\rho_\uparrow,\rho_\downarrow)\f$ = (\a up, \a dn) (equal lengths; an unpolarized density passes
+    //! \f$\rho/2\f$ in each).  THROWS std::invalid_argument for a GGA: its response needs \f$\nabla\rho\f$, and no audit asks for one yet.
+    LDAResponse MakeLDAResponse(const XCFunctional& xc, const rvec_t& up, const rvec_t& dn);
     //! The model's NAME, as decks, the facades' reports, saved states and a GUI spell it ("LDA", "PADE", "Xalpha", "HF", ...).
     std::string Name(Model);
     //! The inverse of \c Name (exact spelling); empty for a name no model has -- the caller refuses it, naming the choices.
