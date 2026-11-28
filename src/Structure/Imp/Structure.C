@@ -3,7 +3,10 @@ module;
 #include <vector>
 #include <memory>
 #include <functional>
+#include <optional>
 #include <stdexcept>
+#include <cmath>
+#include <string>
 
 module qchem.Structure;
 
@@ -125,6 +128,20 @@ SiteRange::iterator SiteRange::end  () const {return iterator(itsS,size());}
 SiteRange::SiteRange(const Structure& s) : itsS(&s) {}
 Structure::~Structure() {}
 double Structure::G0Background(const std::function<double(int Z)>&) const {return 0.0;}
+std::optional<double> Structure::SumOverReciprocalLattice(const std::function<double(const rvec3_t&)>&) const {return std::nullopt;}
+double Structure::SumAroundSite(size_t a, const std::function<double(int Z, double d)>& g) const
+{
+    if (a>=GetNumAtoms()) throw std::logic_error("Structure::SumAroundSite: no site "+std::to_string(a));
+    const rvec3_t& ra=GetSite(a).R;
+    double s=0.0;
+    for (size_t b=0;b<GetNumAtoms();b++)
+        if (b!=a)
+        {
+            const rvec3_t d=GetSite(b).R-ra;
+            s+=g(GetSite(b).Z, std::sqrt(d.x*d.x+d.y*d.y+d.z*d.z));
+        }
+    return s;
+}
 SiteRange Structure::Sites() const {return SiteRange(*this);}
 const Site& SiteRange::At(const Structure* s, size_t i) {return s->GetSite(i);}
 const Site& SiteRange::iterator::operator*() const      {return At(itsS,itsI);}

@@ -147,6 +147,14 @@ struct ScopedWorkerThreads
 private:
     int itsOld, itsOldBlasOverride, itsOldBlasPool;
 };
+//! \brief CHANGE a run's thread counts mid-run (qchem.RunControl's SetThreads, applied at an SCF iteration boundary): \a c.openmp for
+//! \c WorkerThreads() and \a c.blas for the BLAS pool, each when > 0 (0 keeps that pool as it is).  It writes the same overrides a
+//! \c ScopedWorkerThreads owns, so the ENCLOSING scope (a deck run's) still restores the counts it found when the run ends; with no
+//! scope open (a test binary) the change lasts for the process.  Call it on the SCF's own thread, outside any parallel region.
+//! A partitioned-by-output loop stays bit-identical at the new count; a threaded REDUCTION may move by round-off.
+void SetRunThreads(const ThreadCounts& c);
+//! The counts the next parallel region will use: \c WorkerThreads() and the BLAS pool's live size.
+ThreadCounts CurrentThreads();
 //! \brief A mutex for a LAZY cache that an outer-loop worker may fill (\c std::lock_guard on \c m).  Copying the owner
 //! gives the copy a FRESH lock -- a copied cache is a different cache, so it never shares the original's mutex.
 struct LazyLock

@@ -52,6 +52,7 @@ public:
     virtual std::vector<TermEnergy>     MakeTermEnergies(const tDM_CD<T>*) const override;
     virtual std::vector<hmat_t<T>>      MakeTermMatrices(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const override;
     virtual std::vector<hmat_t<double>> MakeTermMatrices(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const override;
+    virtual std::vector<TermRangeAudit> MakeTermRangeAudit(const tbs_t<T>*, const std::vector<WeakDirections<T>>&) const override;
     virtual SpinGroup       GetSpinGroup() const override {return itsSpinGroup;}
     virtual bool            IsRelativistic() const override {return itsIsRelativistic;}
     //! CONJUNCTIVE over the terms -- see the base declaration.  One non-Coulombic term (a PP) invalidates

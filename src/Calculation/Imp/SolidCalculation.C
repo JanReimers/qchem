@@ -71,6 +71,149 @@ qchem::OccupationConfig OccupationOf(const SCFParams& params)
                         ? qchem::OccupationConfig::DegenerateLevels::Shared : qchem::OccupationConfig::DegenerateLevels::OrbitalByOrbital,
             .levelTol=params.MergeTol};
 }
+
+//! \brief One block's WEAKEST directions for the quotient range audit: S's lowest eigenpairs above \a floor, at least \c min(4, n), plus
+//! every one below \f$10^{-4}\lambda_{\max}\f$, up to 8.  \a floor is the run's own eigenvalue drop floor (an Eigen / SVD ortho at
+//! orthoTol), else 0: a PIVOTED Cholesky keeps directions far below its pivot tolerance (Li bcc q3, tol 1e-7: the defect sat at
+//! \f$\lambda\sim10^{-9}\f$), so its floor is no eigenvalue floor.  Every \f$\lambda_j\f$ handed on is \f$v_j^\dagger Sv_j\f$ itself (the
+//! quotient's own denominator), and a direction below \f$10^{-14}\lambda_{\max}\f$ is roundoff, not a direction.  Full \c eigen(S), the
+//! same work the conditioning report already does per block.
+template <class U> Hamiltonian::WeakDirections<dcmplx> WeakDirectionsOf(const hmat_t<U>& S, double floor)
+{
+    Hamiltonian::WeakDirections<dcmplx> w;
+    const size_t n=S.rows();
+    if (n==0) return w;
+    rvec_t lam; mat_t<U> V;
+    blazem::eigen(S, lam, V);   // ascending; eigenvectors are the COLUMNS, unit norm
+    const double lmax=lam[n-1];
+    std::vector<size_t> keep;
+    for (size_t j=0;j<n && keep.size()<8;j++)
+    {
+        if (!(lam[j]>floor) || !(lam[j]>1e-14*lmax)) continue;
+        if (keep.size()<std::min<size_t>(4,n) || lam[j]<1e-4*lmax) keep.push_back(j);
+        else break;
+    }
+    w.v.resize(n, keep.size()); w.lambda.resize(keep.size());
+    for (size_t c=0;c<keep.size();c++)
+    {
+        for (size_t i=0;i<n;i++) w.v(i,c)=dcmplx(V(i,keep[c]));
+        dcmplx vSv=0.0;   // the quotient's own denominator, not the solver's eigenvalue
+        for (size_t i=0;i<n;i++) for (size_t k=0;k<n;k++) vSv+=std::conj(w.v(i,c))*dcmplx(S(i,k))*w.v(k,c);
+        w.lambda[c]=std::real(vSv);
+    }
+    return w;
+}
+
+//! \brief THE QUOTIENT RANGE AUDIT, the POLICY half (user rulings 2026-11-25: the Hamiltonian answers it by asking each term; the
+//! policy decides).  Every static term's Rayleigh quotient along each block's weakest directions against its operator's RIGOROUS range
+//! (\c Hamiltonian::TermRangeAudit), with the allowance \f$\eta\cdot\|A\|_F/\lambda\f$ (\f$\eta\f$ = \a eta, the named calibration
+//! \c kQuotientAllowance) combined HERE, in one place:
+//! \f[ \text{refuse}\iff R<a_{\min}-\eta\,\frac{\|A\|_F}{\lambda}\ \text{ or }\ R>a_{\max}+\eta\,\frac{\|A\|_F}{\lambda}. \f]
+//! A term outside its rigorous range is a DEFECT in its matrix (the Hermite3 overrun put V_short at R = -1105 Ha on Li bcc q3 k12, its range
+//! [-14.0, 0.27] Ha), not a model choice.  The table (one row per term, pass or refuse) is ALWAYS reported: the health line.  The WORST
+//! term outside is returned (empty: every term inside); the caller decides, \c BuildRun's setup ladder (v2, user ruling 2026-11-27 "Yes,
+//! at setup"): a term on a raster the run chose is rebuilt finer, anything else is REFUSED before iteration 1 (\c RefuseOutOfRange).
+std::optional<Hamiltonian::TermRangeAudit> AuditTermRanges(const BasisSet::Complex_BS& bs, const Hamiltonian::cHamiltonian& ham, double floor, double eta,
+                                                           const char* section="quotientRange")
+{
+    namespace rpt = qchem::report;
+    std::vector<Hamiltonian::WeakDirections<dcmplx>> weak;
+    for (size_t i=0;i<bs.GetNumIBS();i++)
+        if (const auto* r=bs.GetRealIBS(i)) weak.push_back(WeakDirectionsOf<double>(r->Overlap(), floor));
+        else                                weak.push_back(WeakDirectionsOf<dcmplx>(bs[i]->Overlap(), floor));
+    const std::vector<Hamiltonian::TermRangeAudit> audit=ham.MakeTermRangeAudit(&bs, weak);
+    const Hamiltonian::TermRangeAudit* worst=nullptr;
+    {
+        rpt::Section sec(section);
+        rpt::Set("allowanceFactor", eta);
+        rpt::Set("floor", floor);
+        report::FormatGuard keep(std::cout);
+        for (const auto& a : audit)
+        {
+            rpt::Row row("terms");
+            rpt::Set("label", a.label);
+            rpt::Set("hasRange", a.hasRange);
+            std::cout<<"[quotient range] "<<a.label<<": ";
+            if (!a.hasRange) { rpt::Set("why", a.why); std::cout<<a.why<<std::endl; continue; }
+            const double allowance=eta*a.scale, excess=a.Excess();
+            const bool outside=excess>eta;
+            rpt::Set("lower", a.lower); rpt::Set("upper", a.upper); rpt::Set("quotient", a.quotient); rpt::Set("lambda", a.lambda);
+            rpt::Set("scale", a.scale); rpt::Set("allowance", allowance); rpt::Set("excess", excess); rpt::Set("block", a.blockLabel);
+            rpt::Set("outside", outside);
+            std::cout<<std::setprecision(4)<<"R "<<a.quotient<<" Ha in ["<<a.lower<<", "<<a.upper<<"] at lambda "<<a.lambda<<" ("
+                     <<a.blockLabel<<"), allowance "<<allowance<<" Ha (eta "<<eta<<" x |A|_F/lambda "<<a.scale<<"), excess "<<excess
+                     <<(outside ? "  ** OUTSIDE **" : "")<<std::endl;
+            if (outside && (!worst || excess>worst->Excess())) worst=&a;
+        }
+    }
+    if (!worst) return std::nullopt;
+    return *worst;
+}
+
+//! \brief REFUSE a term outside its rigorous range, before iteration 1: the \c QuotientRange policy row and the throw, with \a fix the
+//! "-- To fix this" the caller chose (a stated raster to raise, or the basis / the term).
+[[noreturn]] void RefuseOutOfRange(const Hamiltonian::TermRangeAudit& w, double eta, const std::string& fix)
+{
+    const Hamiltonian::TermRangeAudit* worst=&w;
+    {
+        std::ostringstream os;
+        os<<std::setprecision(6)<<worst->label<<": its matrix gives a Rayleigh quotient of "<<worst->quotient<<" Ha along the basis's "
+          "weakest direction (lambda "<<worst->lambda<<", block "<<worst->blockLabel<<"), outside its operator's rigorous range ["
+          <<worst->lower<<", "<<worst->upper<<"] Ha by more than the allowance "<<eta*worst->scale<<" Ha (eta "<<eta<<" x |A|_F/lambda): "
+          "the matrix is WRONG along that direction, and the orthonormal frame carries the error into the SCF amplified by 1/lambda";
+        qchem::report::json detail={{"term",worst->label},{"quotient",worst->quotient},{"lower",worst->lower},{"upper",worst->upper},
+                                    {"lambda",worst->lambda},{"allowance",eta*worst->scale},{"block",worst->blockLabel}};
+        policy::Report("QuotientRange", "refused before iteration 1", policy::Verdict::Refuse, os.str(), std::nullopt, detail);
+        throw policy::Refused("QuotientRange", os.str()+" -- To fix this, please "+fix);
+    }
+}
+
+//! \brief THE SETUP LADDER's step (v2, user ruling 2026-11-27): one RUNG = 2 in the raster exponent x (the alias e^{-x} drops by e^{-2}
+//! = 0.14 per rebuild).  A POLICY step, not a calibration: it trades rebuilds against overshoot, and the ladder stops at the rigorous
+//! x = ln(1/lambda_min) whatever the step.  (beta-MnO2 dense-d, 2026-11-27: x 4 aliased V_long, x 8 was already clean: two rungs.)
+constexpr double kQuotientRasterRung=2.0;
+//! \brief EMPIRICAL: the ladder's STALL test, a named calibration -- a rung must cut the excess by at least this factor to earn the next.
+//! MEASUREMENT RECORD (lane H, 2026-11-27, beta-MnO2 dense-d at the default accuracy, stated vlocEps 1e-3): the first rung (x 4.0 -> 6.0)
+//! cut V_long's excess 48x (2.9e-5 -> 6.1e-7), the next three 1.03x, 1.00x, 1.00x (5.9e-7: the routing tolerance's floor, not the
+//! raster's).  So a rung that is still helping gains tens; one that has stopped gains ~1.  1/2 sits between with a wide margin either way.
+constexpr double kQuotientLadderStall=0.5;
+
+//! THE ROLE -> DECK KEY MAP (user ruling 2026-11-27 "Role enum": the library names a raster's role, only this policy layer names keys).
+const char* RasterKeyOf(Hamiltonian::RasterRole r)
+{
+    switch (r)
+    {
+        case Hamiltonian::RasterRole::Density:  return "solid.tolerances.rasterX";
+        case Hamiltonian::RasterRole::VlocLong: return "solid.tolerances.vlocRasterX";
+        case Hamiltonian::RasterRole::XC:       return "solid.tolerances.xcRasterX";
+        case Hamiltonian::RasterRole::None:     break;
+    }
+    throw std::logic_error("RasterKeyOf: a term on no raster has no key to raise");
+}
+//! ... and to the setup's demand for it, the field a rung raises.
+double& RasterDemandOf(BasisSet::Gaussian::GPWTolerances& t, Hamiltonian::RasterRole r)
+{
+    switch (r)
+    {
+        case Hamiltonian::RasterRole::Density:  return t.rasterX;
+        case Hamiltonian::RasterRole::VlocLong: return t.vlocRasterX;
+        case Hamiltonian::RasterRole::XC:       return t.xcRasterX;
+        case Hamiltonian::RasterRole::None:     break;
+    }
+    throw std::logic_error("RasterDemandOf: a term on no raster has no demand to raise");
+}
+//! ... and to what the ladder delivered for it.
+double DeliveredXOf(const BasisSet::Gaussian::RasterExponents& e, Hamiltonian::RasterRole r)
+{
+    switch (r)
+    {
+        case Hamiltonian::RasterRole::Density:  return e.density;
+        case Hamiltonian::RasterRole::VlocLong: return e.vlocLong;
+        case Hamiltonian::RasterRole::XC:       return e.xcL0;
+        case Hamiltonian::RasterRole::None:     break;
+    }
+    throw std::logic_error("DeliveredXOf: a term on no raster delivers no exponent");
+}
 } // namespace
 
 
@@ -173,6 +316,10 @@ struct SolidCalculation::Imp
     size_t pilotLastAuditGeneration = 0;
     //! The pilot's start rasters were already raised once for the overlap's conditioning (\c Converge): never a second time.
     bool startRaisedForConditioning = false;
+    //! The setup ladder's last excess (v2 quotient range audit, BuildRun): a rung that does not at least HALVE it has stopped helping --
+    //! the term's error is no longer the raster's (beta-MnO2 at vlocEps 1e-3: 2.9e-5 -> 6.1e-7 -> 5.9e-7, the routing floor) -- so the
+    //! ladder stops and refuses with the routing tolerance named.  Empty outside a ladder.
+    std::optional<double> quotientLadderExcess;
     //! \brief THE AUDIT RSS POLICY's refusal (\c AdmitReference), once one fired: before the first SCF (nothing ran) or mid-pilot (the
     //! converged run and the pilot's record are kept).  \c MakeFailure then answers it, whatever the SCF did.
     std::optional<ResourceRefusal> resourceRefusal;
@@ -686,6 +833,73 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
     assert((!S.realTRIMBlocks || itsImp->ham->PreservesReal()) &&
            "SolidCalculation: the term stack no longer preserves realness -- update the forecast above");
 
+    // THE QUOTIENT RANGE AUDIT (user rulings 2026-11-25): the CAUSE trap in front of the first-iterate floor.  Static blocks only, so it
+    // runs before the seed; a Gaussian basis only (plane waves are orthonormal: every lambda is 1).
+    if (!S.planeWave)
+    {
+        std::optional<qchem::Hamiltonian::TermRangeAudit> outside;
+        {
+            qchem::report::Timed timed("setup: quotient range audit (S eigenpairs + static term quotients)");
+            const bool eigenFloor = opts.ortho==qchem::Eigen || opts.ortho==qchem::SVD;   // a pivoted Cholesky's tolerance is no eigenvalue floor
+            outside=AuditTermRanges(*itsImp->bs, *itsImp->ham, eigenFloor ? opts.orthoTol : 0.0, opts.solid.quotientAllowance);
+        }
+        if (outside)
+        {
+            // THE SETUP LADDER (v2, user ruling 2026-11-27 "Yes, at setup"; the v2 design note §4).  A term assembled on a raster the RUN
+            // chose (the pilot's start, or an earlier rung of this ladder) is rebuilt one rung finer and audited again, up to the rigorous
+            // x = ln(1/lambda_min) (the alias e^-x then does not exceed the frame's amplification); a STATED raster is the user's and is
+            // refused with the key to raise; a term no raster assembles is refused as v1 did.  The iteration-1 UnphysicalStop rebuild
+            // stays behind it as the backstop.  Every step writes a policy row.
+            const double lmin=BasisSet::MinOverlapEigenvalue(*itsImp->bs);
+            const double xRig=lmin>0.0 ? std::log(1.0/lmin) : 0.0;
+            // what the term had: the delivered top level, or the request (strictly rising per rung, so the ladder terminates at xRig even
+            // if a request does not move the delivered level)
+            const bool onARaster = outside->raster!=qchem::Hamiltonian::RasterRole::None && itsImp->ladder;
+            BasisSet::Gaussian::GPWTolerances stated=S.opts.solid.tolerances;
+            const double had = onARaster ? std::max(DeliveredXOf(itsImp->ladder->DeliveredRasterExponents(), outside->raster),
+                                                    RasterDemandOf(stated, outside->raster)) : 0.0;
+            const std::string key = onARaster ? RasterKeyOf(outside->raster) : "";
+            const bool runChoseRasters = S.rasterSource==SolidSetup::RasterSource::Pilot || S.rasterSource==SolidSetup::RasterSource::Conditioning;
+            const bool stalled = itsImp->quotientLadderExcess && outside->Excess() > kQuotientLadderStall*(*itsImp->quotientLadderExcess);
+            if (onARaster && runChoseRasters && had<xRig && !stalled)
+            {
+                itsImp->quotientLadderExcess=outside->Excess();
+                const double x=std::min(xRig, had+kQuotientRasterRung);
+                std::ostringstream why;
+                why<<outside->label<<" is outside its rigorous range at x "<<had<<" (excess "<<outside->Excess()<<" > eta "
+                   <<opts.solid.quotientAllowance<<"): rebuilt one rung finer, "<<key<<" x "<<x<<" (the rigorous x = ln(1/lambda_min) is "
+                   <<xRig<<", lambda_min "<<lmin<<")";
+                policy::Report("QuotientRangeRaster", "rebuild the term one rung finer at setup", policy::Verdict::Choose, why.str(), std::nullopt,
+                               qchem::report::json{{"term",outside->label},{"key",key},{"xHad",had},{"xNew",x},{"xRigorous",xRig},
+                                                   {"lambdaMin",lmin},{"excess",outside->Excess()}});
+                { report::FormatGuard keep(std::cout); std::cout<<"["<<Tag()<<" quotient range] "<<why.str()<<std::endl; }
+                auto sized=std::make_shared<SolidSetup>(S);
+                double& demand=RasterDemandOf(sized->opts.solid.tolerances, outside->raster);
+                demand=std::max(demand, x);
+                sized->rasterSource=SolidSetup::RasterSource::Conditioning;
+                const Lattice_3D latCopy=*itsImp->lat;
+                const auto mol=itsImp->mol;
+                itsImp->spin.reset(); itsImp->scf.reset(); itsImp->accel.reset(); itsImp->cd.reset(); itsImp->ham.reset(); itsImp->ec.reset();
+                itsImp->bs.reset();
+                BuildPoint(std::move(sized), latCopy, mol);
+                return BuildRun(std::move(seed), params, accel, recipe, restored, exactResume, adopt);
+            }
+            std::ostringstream fix;
+            if (onARaster && !runChoseRasters)
+                fix<<"raise "<<key<<" (stated x "<<had<<"; the rigorous x = ln(1/lambda_min) is "<<xRig<<"), or state an accuracy "
+                     "target and let the run choose the rasters";
+            else if (onARaster)
+                fix<<(stalled ? "(the last rung did not halve the excess: the raster is no longer the term's error) " : "")<<"tighten the term's routing tolerance (for V_long solid.tolerances.vlocEps, here "<<opts.solid.tolerances.vlocEps
+                   <<"), or trim the basis (basis.autoTrim true with an orthoTol > 0): the term is still outside at the rigorous x = "
+                     "ln(1/lambda_min) = "<<xRig<<", so a finer raster does not cure it";
+            else
+                fix<<"trim the basis (basis.autoTrim true with an orthoTol > 0), or report the term: its matrix is wrong along the basis's "
+                     "weakest direction";
+            RefuseOutOfRange(*outside, opts.solid.quotientAllowance, fix.str());
+        }
+        itsImp->quotientLadderExcess.reset();   // every term inside: no ladder in progress
+    }
+
     // DECISION 3 -- the accelerator, by policy (Auto pairs it with the mixer), through the public typed door.
     MakeAccelerator(accel, recipe, params, restored ? SCFStageKind::Restored : seed ? SCFStageKind::Carried : SCFStageKind::Cold);
 
@@ -730,9 +944,28 @@ void SolidCalculation::BuildRun(std::unique_ptr<qchem::ChargeDensity::cChargeDen
         itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
             itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
             std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>>(qchem::WaveFunction::Factory(itsImp->ham.get(), itsImp->bs.get(), itsImp->ec.get(), itsImp->accel.get(), itsImp->setup->densityMaker, *opts.ortho, opts.SolverTruncation(), opts.solid.numBands)),   // the WF on the setup's density maker (group E)
-            itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), seed.release(), seedRole);   // the iterator consumes the seed in Init
+            itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), itsImp->setup->firstIterateFloor, seed.release(), seedRole);   // the iterator consumes the seed in Init
     }
     SeededIterator(seedRole==qchem::SCFIterator::SeedRole::ExactResume);   // the exact-resume Pulay policy's first-stage bit
+
+    // THE QUOTIENT RANGE AUDIT AT THE SEED (v2 §3, user ruling 2026-11-27: "The earlier we detect and warn about problems the better. And
+    // checking individual H terms is much better that looking surprises in E_total").  The iterator's Init built the first Fock from the seed,
+    // so every density term's blocks are built for it: the audit READS them (sizing nothing, rebuilding nothing) and the density terms that
+    // answer a range (XC, LDA/LSDA) are held to it, still before iteration 1.  The static terms answer again (cached: the table is whole).
+    if (!S.planeWave)
+    {
+        std::optional<qchem::Hamiltonian::TermRangeAudit> outside;
+        {
+            qchem::report::Timed timed("setup: quotient range audit at the seed (density terms' blocks)");
+            const bool eigenFloor = opts.ortho==qchem::Eigen || opts.ortho==qchem::SVD;
+            outside=AuditTermRanges(*itsImp->bs, *itsImp->ham, eigenFloor ? opts.orthoTol : 0.0, opts.solid.quotientAllowance, "quotientRangeAtSeed");
+        }
+        if (outside)
+            RefuseOutOfRange(*outside, opts.solid.quotientAllowance, outside->raster==qchem::Hamiltonian::RasterRole::None
+                ? std::string("raise the XC mesh (xcMesh nRadial / L), or trim the basis (basis.autoTrim true with an orthoTol > 0): the term's "
+                              "quadrature is wrong along the basis's weakest direction at the seed density")
+                : std::string("raise ")+RasterKeyOf(outside->raster)+" (the term's raster), or trim the basis");
+    }
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
     // missed stage 0 (hence the constructors' onIteration argument).
@@ -1035,11 +1268,11 @@ void SolidCalculation::BuildStage(const std::string& why, SCFAccelerators::Type 
         ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
               std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>>(qchem::WaveFunction::Factory(itsImp->ham.get(), itsImp->bs.get(), itsImp->ec.get(), itsImp->accel.get(), itsImp->setup->densityMaker, *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.solid.numBands)),
-              itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), carried.release(), qchem::SCFIterator::SeedRole::WorkingDensity)
+              itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), itsImp->setup->firstIterateFloor, carried.release(), qchem::SCFIterator::SeedRole::WorkingDensity)
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
               itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
               std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>>(qchem::WaveFunction::Factory(itsImp->ham.get(), itsImp->bs.get(), itsImp->ec.get(), itsImp->accel.get(), itsImp->setup->densityMaker, *itsImp->setup->opts.ortho, itsImp->setup->opts.SolverTruncation(), itsImp->setup->opts.solid.numBands)), itsImp->setup->densityMaker,
-              itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), itsImp->setup->opts.seed);
+              itsImp->lat->GetUnitCell(), itsImp->setup->policy.MixRhoM(), itsImp->setup->firstIterateFloor, itsImp->setup->opts.seed);
     SeededIterator(false);   // a fresh stage is never an exact resume
     // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
     // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on
@@ -1082,6 +1315,7 @@ void SolidCalculation::AttachProbes()
         }
         if (userObs) userObs(row);
     });
+    itsImp->scf->SetBoundaryHook(RunControlHook());   // run control (qchem.RunControl): stop / save / threads at each iteration's end
 }
 
 void SolidCalculation::EnterStage(const SCFStage& stage, size_t index)
@@ -1869,8 +2103,8 @@ std::optional<ResourceRefusal> SolidCalculation::AdmitReference(const AuditRefer
                                                                 const std::string& escape) const
 {
     const AuditFootprint  f=EstimateAuditFootprint(size, itsImp->setup->opts.solid.auditFootprint);
-    const AvailableMemory a=QueryAvailableMemory();
-    const FootprintVerdict v=Judge(f, a.bytes);
+    const ResourceRoom    a=QueryResourceRoom();   // refuse on the FIXED room, warn on the live figure (user ruling 2026-11-27, option B)
+    const FootprintVerdict v=Judge(f, a);
     if (v==FootprintVerdict::Fits) return std::nullopt;
     const ResourceRefusal r{f, a, when, escape};
     const bool refuse = v==FootprintVerdict::Refuse;
@@ -1879,9 +2113,10 @@ std::optional<ResourceRefusal> SolidCalculation::AdmitReference(const AuditRefer
     {
         std::cout<<"["<<Tag()<<" audit memory] "<<(refuse ? "REFUSED ON RESOURCES: " : "WARNING (it may not fit): ")<<r.Summary()<<std::endl;
         const std::string reason = refuse
-            ? "even the low end of the calibrated band (x "+std::to_string(f.cal.bandLow)+") exceeds the memory available, so it cannot fit; "+escape
-            : "the high end of the calibrated band (x "+std::to_string(f.cal.bandHigh)+") exceeds the memory available, the low end does not: it is "
-              "built, and may swap or be throttled";
+            ? "even the low end of the calibrated band (x "+std::to_string(f.cal.bandLow)+") exceeds the fixed room (the memory limit less this run's "
+              "own), so it cannot fit; "+DescribeRoom(a)+"; "+escape
+            : "the high end of the calibrated band (x "+std::to_string(f.cal.bandHigh)+") exceeds the memory the scope has now or the fixed room, the "
+              "low end does not: it is built, and may swap or be throttled; "+DescribeRoom(a);
         policy::Report("AuditReferenceMemory", "the "+size.name+" reference "+(refuse ? "is NOT built" : "is built")+" ("+when+")",
                        refuse ? policy::Verdict::Resource : policy::Verdict::Warn, reason, policy::Cost{.memoryBytes=f.estimate}, Describe(f, a));
     }
@@ -2022,7 +2257,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             if (r)
             {
                 std::cout<<tag<<"round "<<round<<"  REFUSED ON RESOURCES: the pilot stops here, NOT SETTLED -- "<<r->Summary()<<std::endl;
-                rounds.push_back({{"round",round},{"rasters",RasterName(itsImp->setup->opts.solid.tolerances)},{"refused",Describe(r->footprint, r->available)}});
+                rounds.push_back({{"round",round},{"rasters",RasterName(itsImp->setup->opts.solid.tolerances)},{"refused",Describe(r->footprint, r->room)}});
                 itsImp->resourceRefusal=std::move(r);
                 break;
             }
@@ -2160,7 +2395,7 @@ void SolidCalculation::CalibrateRasters(const SCFParams& params)
             catch (ClimbRefused& c)
             {
                 std::cout<<tag<<"round "<<round<<"  REFUSED ON RESOURCES in the Becke climb: the pilot stops here, NOT SETTLED -- "<<c.r.Summary()<<std::endl;
-                rounds.push_back({{"round",round},{"rasters",RasterName(t)},{"terms",terms},{"refused",Describe(c.r.footprint, c.r.available)}});
+                rounds.push_back({{"round",round},{"rasters",RasterName(t)},{"terms",terms},{"refused",Describe(c.r.footprint, c.r.room)}});
                 itsImp->resourceRefusal=std::move(c.r);
             }
             if (itsImp->resourceRefusal) break;

@@ -18,6 +18,7 @@ module;
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <limits>   // the kinetic range's open upper side
 export module qchem.Hamiltonian.Internal.Kinetic;
 import qchem.Hamiltonian.Internal.Term;   // tStatic_HT<T> / tStatic_HT_Imp<T> (+ Energy/Types via re-export)
 // Needed for blaze's scalar*matrix below.  A module that DEFINES a template using blaze operators must
@@ -47,6 +48,8 @@ template <class T> class Kinetic
     , public virtual tStrainGradient_HT<T>               // its virial (CellHalf_Design §5; user ruling §6.2, 2026-11-10)
     , public virtual tStatic_VC<T>                       // the per-block virial client DM_Virial walks
     , public         RealVirialBase<T,Kinetic<T>>        // ... and on <dcmplx> the real TRIM block's
+    , public virtual tHT_RangeAuditor<T>                 // the quotient range audit (user rulings 2026-11-25), after the private base
+    , public         RealRangeAuditorBase<T,Kinetic<T>>  // ... and on <dcmplx> the real TRIM block's
 {
 public:
     //! \copydoc HT_BlockOwner::BuildBlocks
@@ -110,6 +113,15 @@ public:
         const rmat3d_t v=D->DM_Virial(this, st);
         for (size_t a=1;a<=3;a++) for (size_t b=1;b<=3;b++) V(a,b)+=0.5*v(a,b);
     }
+
+    //! \brief THE QUOTIENT RANGE AUDIT: \f$\hat T=\tfrac12 p^2\ge0\f$, so every Rayleigh quotient of the kinetic operator is
+    //! \f$\ge0\f$ and the range is \f$[0,\infty)\f$: a SIGN check, exact for any basis.  (The upper side is unbounded: a tight function
+    //! has any kinetic energy.)
+    virtual TermRangeAudit AuditRange(const tobs_t<T>* bs, const Spin& s, const mat_t<T>& v, const rvec_t& l) const override
+    {return AuditBlock<T>(bs, s, v, l);}
+    //! ONE body for both block scalars (the real TRIM block routes here through \c tHT_RangeAuditor_RealBlock_Of).
+    template <class U> TermRangeAudit AuditBlock(const tobs_t<U>* bs, const Spin& s, const mat_t<U>& v, const rvec_t& l) const
+    {return AuditAlong<U>(static_cast<const tStatic_CC<U>&>(*this).GetMatrix(bs, s), 0.0, std::numeric_limits<double>::infinity(), v, l);}
 
 private:
     virtual hmat_t<T> MakeMatrix(const tobs_t<T>* bs, const Spin& s) const override {return MakeBlock<T>(bs,s);}

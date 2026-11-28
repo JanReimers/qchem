@@ -1,0 +1,64 @@
+#!/bin/bash
+# runctl -- send a command to a RUNNING rundeck or ITMain, applied at its next SCF iteration's end (OpenWork "Run control", user 2026-11-25).
+#
+#   runctl list                              every live controllable process: pid, what it is, what it is on, polls, last heartbeat
+#   runctl <pid|DIR> status                  that process's heartbeat
+#   runctl <pid|DIR> threads N [blas M]      from the next iteration on: N OpenMP threads (and M BLAS threads)
+#   runctl <pid|DIR> save-and-stop [PATH]    finish this iteration, save the state (PATH, else the run's state.save, else the default), stop
+#   runctl <pid|DIR> checkpoint [PATH]       save the state now and carry on
+#   runctl <pid|DIR> stop                    finish this iteration and stop (no extra save)
+#
+# DIR is a rundeck --out directory: resolved to its pid through the heartbeats.  A stopped rundeck exits 75 (EX_TEMPFAIL: resumable); a
+# stopped ITMain test FAILS, naming where its state went.  Plain signals work too: kill -TERM / -USR1 <pid> = save-and-stop.
+# The control directory is ~/Code/qchem6-runs/control (override: RUNCTL_DIR, matching rundeck's --control-dir).
+set -u
+DIR=${RUNCTL_DIR:-$HOME/Code/qchem6-runs/control}
+
+field() { sed -n "s/.*\"$2\": *\"\{0,1\}\([^\",}]*\).*/\1/p" "$1"; }   # one scalar field of a heartbeat (no jq dependency)
+
+prune() {   # heartbeats of dead processes (a SIGKILLed test) are removed, with their control files
+    for p in "$DIR"/*.progress; do
+        [ -e "$p" ] || continue
+        pid=$(basename "$p" .progress)
+        kill -0 "$pid" 2>/dev/null || rm -f "$p" "$DIR/$pid.control"
+    done
+}
+
+resolve() {   # a pid, or a rundeck --out directory -> its pid
+    if [[ "$1" =~ ^[0-9]+$ ]]; then echo "$1"; return; fi
+    local want; want=$(cd "$1" 2>/dev/null && pwd) || { echo "runctl: '$1' is neither a pid nor a directory" >&2; exit 2; }
+    for p in "$DIR"/*.progress; do
+        [ -e "$p" ] || continue
+        if grep -q -- "-> $want\"" "$p"; then basename "$p" .progress; return; fi
+    done
+    echo "runctl: no live rundeck writes to $want (runctl list shows what is running)" >&2; exit 2
+}
+
+[ $# -ge 1 ] || { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+prune
+if [ "$1" = list ]; then
+    now=$(date +%s); n=0
+    for p in "$DIR"/*.progress; do
+        [ -e "$p" ] || continue
+        n=$((n+1))
+        printf "%-8s %-50s %-55s polls %-5s last %4ss ago  threads %s/%s%s\n" "$(field "$p" pid)" "$(field "$p" who)" "$(field "$p" current)" \
+            "$(field "$p" polls)" "$((now-$(field "$p" updated)))" "$(field "$p" openmp)" "$(field "$p" blas)" \
+            "$( [ "$(field "$p" stopped)" = true ] && echo '  STOPPED')"
+    done
+    [ $n -gt 0 ] || echo "(no controllable process is running)"
+    exit 0
+fi
+[ $# -ge 2 ] || { echo "runctl: say what to send: threads N [blas M] | save-and-stop [PATH] | checkpoint [PATH] | stop | status" >&2; exit 2; }
+pid=$(resolve "$1"); shift
+[ -e "$DIR/$pid.progress" ] || { echo "runctl: pid $pid is not a live controllable process (runctl list)" >&2; exit 2; }
+case "$1" in
+    status)  cat "$DIR/$pid.progress"; now=$(date +%s); echo "last heartbeat $((now-$(field "$DIR/$pid.progress" updated))) s ago"; exit 0 ;;
+    threads)
+        [[ "${2:-}" =~ ^[1-9][0-9]*$ ]] || { echo "runctl: threads N [blas M], N >= 1" >&2; exit 2; }
+        if [ $# -ge 3 ]; then [ "$3" = blas ] && [[ "${4:-}" =~ ^[1-9][0-9]*$ ]] || { echo "runctl: threads N blas M, M >= 1" >&2; exit 2; }; fi ;;
+    save-and-stop|checkpoint) [ $# -le 2 ] || { echo "runctl: $1 [PATH]" >&2; exit 2; } ;;
+    stop) [ $# -eq 1 ] || { echo "runctl: stop takes no argument" >&2; exit 2; } ;;
+    *) echo "runctl: unknown command '$1' (threads | save-and-stop | checkpoint | stop | status)" >&2; exit 2 ;;
+esac
+echo "$*" >> "$DIR/$pid.control"
+echo "runctl: '$*' queued for pid $pid; it applies at the end of its current SCF iteration (see $DIR/$pid.control.done)"

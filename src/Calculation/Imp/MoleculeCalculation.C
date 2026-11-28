@@ -684,6 +684,7 @@ void MoleculeCalculation::AttachObserver()
 {
     ForgetLastRow();   // the base keeps the last row (a failure states its gates); the caller's observer is read at each row
     itsScf->SetObserver(KeepingLastRow([this](const qchem::SCFIterator::IterationRow& row){ if (itsObserver) itsObserver(row); }));
+    itsScf->SetBoundaryHook(RunControlHook());   // run control (qchem.RunControl): stop / save / threads at each iteration's end
 }
 
 namespace

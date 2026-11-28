@@ -133,90 +133,112 @@ SiteMultipoles::SiteMultipoles(const Mesh& mesh, const rvec3vec_t& centres, cons
                 throw std::logic_error("SiteMultipoles: a mesh point at r="+std::to_string(r)+" from its centre is on no shell of the radial rule");
             itsShell[a*itsR.size()+i].push_back(g);
         }
-    itsOnShell.assign(itsPoints.size(),0);
-    for (const auto& shell : itsShell) for (size_t g : shell) itsOnShell[g]=1;
+    itsItem.assign(itsPoints.size(),theNoShell);
+    for (size_t item=0; item<itsShell.size(); item++) for (size_t g : itsShell[item]) itsItem[g]=item;
     itsOwner.assign(itsPoints.size(),centres.size());   // NumSites() = no owner
     for (size_t a=0; a<centres.size(); a++)
         for (size_t g=mesh.SiteBegin(a); g<mesh.SiteEnd(a); g++) itsOwner[g]=a;
 }
 
-SiteMultipoles::channels_t SiteMultipoles::Moments(const rvec_t& q) const
+std::vector<size_t> SiteMultipoles::All() const
 {
+    std::vector<size_t> idx(itsPoints.size());
+    for (size_t g=0; g<idx.size(); g++) idx[g]=g;
+    return idx;
+}
+
+SiteMultipoles::channels_t SiteMultipoles::Moments          (const rvec_t& q) const {return MomentsAt(All(),q);}
+rvec_t                     SiteMultipoles::Synthesize       (const channels_t& V) const {return SynthesizeAt(V,All());}
+rvec_t                     SiteMultipoles::MomentsAdjoint   (const channels_t& G) const {return MomentsAdjointAt(G,All());}
+SiteMultipoles::channels_t SiteMultipoles::SynthesizeAdjoint(const rvec_t& w) const
+{
+    if (w.size()!=itsPoints.size()) throw std::logic_error("SiteMultipoles::SynthesizeAdjoint: the field is not on this mesh");
+    return SynthesizeAdjointAt(All(),w);
+}
+
+SiteMultipoles::channels_t SiteMultipoles::MomentsAt(const std::vector<size_t>& idx, const rvec_t& q) const
+{
+    if (q.size()!=idx.size()) throw std::logic_error("SiteMultipoles::MomentsAt: one charge per listed point");
     const size_t nA=NumSites(), nR=itsR.size();
+    // The listed points per (site, shell) item, in idx order: on the full list that is each shell's own (ascending) order.
+    std::vector<std::vector<size_t>> onItem(nA*nR);
+    for (size_t k=0; k<idx.size(); k++)
+        if (itsItem[idx[k]]!=theNoShell) onItem[itsItem[idx[k]]].push_back(k);
     channels_t Q(nA,std::vector<double>(nR*itsNLM,0.0));
     OuterFor(nA*nR, [&](size_t item)
     {
         const size_t a=item/nR, i=item%nR;
         std::vector<double> y(itsNLM);
         double* out=&Q[a][i*itsNLM];
-        for (size_t g : itsShell[item])
+        for (size_t k : onItem[item])
         {
-            const rvec3_t d=itsPoints[g]-itsCentres[a];
+            const rvec3_t d=itsPoints[idx[k]]-itsCentres[a];
             Ylm(d/norm(d),y.data());
-            for (size_t c=0; c<itsNLM; c++) out[c]+=q[g]*y[c];
+            for (size_t c=0; c<itsNLM; c++) out[c]+=q[k]*y[c];
         }
     });
     return Q;
 }
 
-rvec_t SiteMultipoles::Synthesize(const channels_t& V) const
+rvec_t SiteMultipoles::SynthesizeAt(const channels_t& V, const std::vector<size_t>& idx) const
 {
     const size_t nA=NumSites();
     const ColumnSplines logR(itsLogR);
     channels_t M(nA);
     OuterFor(nA, [&](size_t a) {M[a]=logR.SecondDerivatives(V[a],itsNLM);});
-    const size_t n=itsPoints.size(), nBlock=(n+theBlock-1)/theBlock;
+    const size_t n=idx.size(), nBlock=(n+theBlock-1)/theBlock;
     rvec_t v(n);
     OuterFor(nBlock, [&](size_t b)
     {
         std::vector<double> y(itsNLM);
-        for (size_t g=b*theBlock; g<std::min(n,(b+1)*theBlock); g++)
+        for (size_t k=b*theBlock; k<std::min(n,(b+1)*theBlock); k++)
         {
             double s=0.0;
-            for (size_t a=0; a<nA; a++) s+=AtPoint(logR,V[a],M[a],itsPoints[g]-itsCentres[a],y.data());
-            v[g]=s;
+            for (size_t a=0; a<nA; a++) s+=AtPoint(logR,V[a],M[a],itsPoints[idx[k]]-itsCentres[a],y.data());
+            v[k]=s;
         }
     });
     return v;
 }
 
-rvec_t SiteMultipoles::MomentsAdjoint(const channels_t& G) const
+rvec_t SiteMultipoles::MomentsAdjointAt(const channels_t& G, const std::vector<size_t>& idx) const
 {
-    const size_t nA=NumSites(), nR=itsR.size();
-    rvec_t w(itsPoints.size());
-    for (size_t g=0; g<w.size(); g++) w[g]=0.0;
-    OuterFor(nA*nR, [&](size_t item)   // each point is on one shell: every item writes only its own points
+    const size_t nR=itsR.size(), n=idx.size(), nBlock=(n+theBlock-1)/theBlock;
+    rvec_t w(n);
+    OuterFor(nBlock, [&](size_t b)   // each listed point reads only its own shell's channels
     {
-        const size_t a=item/nR, i=item%nR;
         std::vector<double> y(itsNLM);
-        const double* in=&G[a][i*itsNLM];
-        for (size_t g : itsShell[item])
+        for (size_t k=b*theBlock; k<std::min(n,(b+1)*theBlock); k++)
         {
+            const size_t g=idx[k], item=itsItem[g];
+            if (item==theNoShell) {w[k]=0.0; continue;}
+            const size_t a=item/nR, i=item%nR;
             const rvec3_t d=itsPoints[g]-itsCentres[a];
             Ylm(d/norm(d),y.data());
+            const double* in=&G[a][i*itsNLM];
             double s=0.0;
             for (size_t c=0; c<itsNLM; c++) s+=in[c]*y[c];
-            w[g]=s;
+            w[k]=s;
         }
     });
     return w;
 }
 
-SiteMultipoles::channels_t SiteMultipoles::SynthesizeAdjoint(const rvec_t& w) const
+SiteMultipoles::channels_t SiteMultipoles::SynthesizeAdjointAt(const std::vector<size_t>& idx, const rvec_t& w) const
 {
-    const size_t nA=NumSites(), nR=itsR.size(), n=itsPoints.size(), nCh=nR*itsNLM;
-    if (w.size()!=n) throw std::logic_error("SiteMultipoles::SynthesizeAdjoint: the field is not on this mesh");
+    const size_t nA=NumSites(), nR=itsR.size(), n=idx.size(), nCh=nR*itsNLM;
+    if (w.size()!=n) throw std::logic_error("SiteMultipoles::SynthesizeAdjointAt: one weight per listed point");
     const ColumnSplines logR(itsLogR);
     const size_t nChunk=std::max<size_t>(1,(theChunks+nA-1)/nA), chunk=(n+nChunk-1)/nChunk;
     std::vector<std::vector<double>> GV(nA*nChunk), GM(nA*nChunk);
     OuterFor(nA*nChunk, [&](size_t item)
     {
-        const size_t a=item/nChunk, k=item%nChunk;
+        const size_t a=item/nChunk, c=item%nChunk;
         std::vector<double>& gv=GV[item]; std::vector<double>& gm=GM[item];
         gv.assign(nCh,0.0); gm.assign(nCh,0.0);
         std::vector<double> y(itsNLM);
-        for (size_t g=k*chunk; g<std::min(n,(k+1)*chunk); g++)
-            if (w[g]!=0.0) AtPointAdjoint(logR,w[g],itsPoints[g]-itsCentres[a],y.data(),gv.data(),gm.data());
+        for (size_t k=c*chunk; k<std::min(n,(c+1)*chunk); k++)
+            if (w[k]!=0.0) AtPointAdjoint(logR,w[k],itsPoints[idx[k]]-itsCentres[a],y.data(),gv.data(),gm.data());
     });
     channels_t W(nA);
     OuterFor(nA, [&](size_t a)
@@ -229,6 +251,133 @@ SiteMultipoles::channels_t SiteMultipoles::SynthesizeAdjoint(const rvec_t& w) co
         W[a]=std::move(gv);
     });
     return W;
+}
+
+namespace
+{
+//! Solve the symmetric positive definite \a A (n x n, row-major) X = B for the n x m \a B in place, by Cholesky.  THROWS on a non-positive pivot.
+void CholeskySolve(std::vector<double> A, std::vector<double>& B, size_t n, size_t m)
+{
+    for (size_t j=0; j<n; j++)
+    {
+        double d=A[j*n+j];
+        for (size_t k=0; k<j; k++) d-=A[j*n+k]*A[j*n+k];
+        if (!(d>0.0)) throw std::logic_error("SiteMultipoles::MakeChannelAction: the directions do not fix D^l (a singular normal matrix)");
+        A[j*n+j]=std::sqrt(d);
+        for (size_t i=j+1; i<n; i++)
+        {
+            double s=A[i*n+j];
+            for (size_t k=0; k<j; k++) s-=A[i*n+k]*A[j*n+k];
+            A[i*n+j]=s/A[j*n+j];
+        }
+    }
+    for (size_t c=0; c<m; c++)
+    {
+        for (size_t i=0; i<n; i++)
+        {
+            double s=B[i*m+c];
+            for (size_t k=0; k<i; k++) s-=A[i*n+k]*B[k*m+c];
+            B[i*m+c]=s/A[i*n+i];
+        }
+        for (size_t i=n; i-- >0;)
+        {
+            double s=B[i*m+c];
+            for (size_t k=i+1; k<n; k++) s-=A[k*n+i]*B[k*m+c];
+            B[i*m+c]=s/A[i*n+i];
+        }
+    }
+}
+} //anonymous namespace
+
+SiteMultipoles::ChannelAction SiteMultipoles::MakeChannelAction(const std::vector<Matrix3D<double>>& W,
+                                                                const std::vector<std::vector<size_t>>& image) const
+{
+    if (W.size()!=image.size() || W.empty())
+        throw std::invalid_argument("SiteMultipoles::MakeChannelAction: one site permutation per op, and at least one op");
+    for (const auto& perm : image)
+    {
+        if (perm.size()!=NumSites()) throw std::invalid_argument("SiteMultipoles::MakeChannelAction: a site permutation of the wrong length");
+        for (size_t b : perm) if (b>=NumSites()) throw std::invalid_argument("SiteMultipoles::MakeChannelAction: a site index out of range");
+    }
+    // Generic directions (a Fibonacci sphere), NOT the angular rule's: a low-degree rule is too small, and its own symmetry makes the high-l
+    // harmonics linearly dependent on it (H₂O at the test rung: a singular normal matrix).  2(lMax+1)^2 of them over-determine every block.
+    const size_t nD=2*itsNLM;
+    rvec3vec_t dirs(nD);
+    std::vector<double> yU(nD*itsNLM), yW(nD*itsNLM);
+    for (size_t d=0; d<nD; d++)
+    {
+        const double z=1.0-(2.0*d+1.0)/double(nD), rho=std::sqrt(1.0-z*z), phi=d*std::numbers::pi*(3.0-std::sqrt(5.0));
+        dirs[d]=rvec3_t(rho*std::cos(phi),rho*std::sin(phi),z);
+        Ylm(dirs[d],&yU[d*itsNLM]);
+    }
+    ChannelAction act{image,std::vector<std::vector<std::vector<double>>>(W.size(),std::vector<std::vector<double>>(itsLMax+1))};
+    for (size_t k=0; k<W.size(); k++)
+    {
+        for (size_t d=0; d<nD; d++) Ylm(W[k]*dirs[d],&yW[d*itsNLM]);
+        for (int l=0; l<=itsLMax; l++)
+        {
+            const size_t n=2*l+1, o=size_t(l)*l;
+            // Rows d: A_d = Y_l(u_d), B_d = Y_l(W u_d) = A_d D^T.  Normal equations (A^T A) D^T = A^T B.
+            std::vector<double> AtA(n*n,0.0), AtB(n*n,0.0);
+            for (size_t d=0; d<nD; d++)
+            {
+                const double* a=&yU[d*itsNLM+o];
+                const double* b=&yW[d*itsNLM+o];
+                for (size_t i=0; i<n; i++)
+                    for (size_t j=0; j<n; j++) {AtA[i*n+j]+=a[i]*a[j]; AtB[i*n+j]+=a[i]*b[j];}
+            }
+            CholeskySolve(AtA,AtB,n,n);   // AtB now holds D^T
+            std::vector<double>& D=act.D[k][l];
+            D.assign(n*n,0.0);
+            for (size_t i=0; i<n; i++) for (size_t j=0; j<n; j++) D[i*n+j]=AtB[j*n+i];
+            double res=0.0;
+            for (size_t d=0; d<nD; d++)
+            {
+                const double* a=&yU[d*itsNLM+o];
+                const double* b=&yW[d*itsNLM+o];
+                for (size_t i=0; i<n; i++)
+                {
+                    double s=0.0;
+                    for (size_t j=0; j<n; j++) s+=D[i*n+j]*a[j];
+                    res=std::max(res,std::fabs(s-b[i]));
+                }
+            }
+            if (!(res<1e-9))
+                throw std::logic_error("SiteMultipoles::MakeChannelAction: Y_l(W u) is not D^l Y_l(u) (residual "+std::to_string(res)
+                                       +" at l="+std::to_string(l)+"): W is not a rotation, or the rule's directions do not fix D^l");
+        }
+    }
+    return act;
+}
+
+void SiteMultipoles::SymmetrizeChannels(channels_t& G, const ChannelAction& act) const
+{
+    const size_t nA=NumSites(), nR=itsR.size();
+    if (G.size()!=nA || act.image.empty() || act.image.front().size()!=nA)
+        throw std::invalid_argument("SiteMultipoles::SymmetrizeChannels: the channels or the action do not match this mesh's sites");
+    const double inv=1.0/double(act.image.size());
+    channels_t out(nA,std::vector<double>(nR*itsNLM,0.0));
+    OuterFor(nA, [&](size_t a)   // each site writes only its own channels
+    {
+        for (size_t k=0; k<act.image.size(); k++)
+        {
+            const std::vector<double>& src=G[act.image[k][a]];
+            for (int l=0; l<=itsLMax; l++)
+            {
+                const size_t n=2*l+1, o=size_t(l)*l;
+                const std::vector<double>& D=act.D[k][l];
+                for (size_t i=0; i<nR; i++)
+                {
+                    const double* in=&src[i*itsNLM+o];
+                    double* to=&out[a][i*itsNLM+o];
+                    for (size_t m=0; m<n; m++)
+                        for (size_t mp=0; mp<n; mp++) to[mp]+=D[m*n+mp]*in[m];   // D^T in
+                }
+            }
+        }
+        for (double& x : out[a]) x*=inv;
+    });
+    G=std::move(out);
 }
 
 rvec3vec_t SiteMultipoles::CrossSitePullback(const channels_t& V, const rvec_t& q) const

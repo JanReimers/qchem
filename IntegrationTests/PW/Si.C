@@ -271,7 +271,7 @@ TEST(PW_Si, Γ_Anchor)
         auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{.Nproj=8, .EngageBelowFD=0.5, .SVTol=1e-9});
         std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
         qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>>(qchem::WaveFunction::Factory(ham, bs.get(), &ec, acc, qchem::ChargeDensity::DensityMaker(qchem::ChargeDensity::RhoRoute::PivotedCholesky))), qchem::ChargeDensity::DensityMaker(qchem::ChargeDensity::RhoRoute::PivotedCholesky),
-                                                 lat.GetUnitCell(), /*mixRhoM*/true, seed);
+                                                 lat.GetUnitCell(), /*mixRhoM*/true, qchem::FirstIterateFloor{}, seed);   // a raw iterator: no setup, no floor
 
         SCFParams par;
         par.NMaxIter      =80;
@@ -410,7 +410,7 @@ TEST(PW_Si, k222_Anchor)
     // every block's first Hartree/XC needs (a single block suffices since rho is constant).  Built
     // centrally by MakeSeedDensity (Uniform); also the plane-wave Default.
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, std::unique_ptr<qchem::WaveFunction::tSCFWaveFunction<dcmplx>>(qchem::WaveFunction::Factory(ham, bs.get(), &ec, acc, qchem::ChargeDensity::DensityMaker(qchem::ChargeDensity::RhoRoute::PivotedCholesky))), qchem::ChargeDensity::DensityMaker(qchem::ChargeDensity::RhoRoute::PivotedCholesky),
-                                         lat.GetUnitCell(), /*mixRhoM*/true,
+                                         lat.GetUnitCell(), /*mixRhoM*/true, qchem::FirstIterateFloor{},   // a raw iterator: no setup, no floor
                                          qchem::ChargeDensity::SeedStrategy::Uniform);
 
     SCFParams par;

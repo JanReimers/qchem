@@ -57,6 +57,11 @@ public:
     virtual bool       CanPullbackSelfRepulsion() const {return false;}
     virtual rvec3vec_t MakeSelfRepulsionPullback(const rvec_t& q) const;
     //!@}
+    //! \brief A faster \c Potential on the REPRESENTATIVES of \a folded (whose mesh this operator runs over), for an INVARIANT charge: one
+    //! charge per orbit in, \f$Q_o=\sum_{g\in o}q_g\f$, the potential at each representative out.  Null (the default) when this operator has
+    //! no route cheaper than scattering the charge, solving on every point and reading the representatives back, which is what
+    //! \c MakeFoldedCoulomb then does.  CLIENT: \c MakeFoldedCoulomb (lane H 2026-11-25, phase B of the δ-fit Hartree fold).
+    virtual std::unique_ptr<CoulombOperator> MakeOnRepresentatives(const FoldedMesh& /*folded*/) const {return nullptr;}
 };
 
 //! \brief The direct sum over \a mesh's points: \f$v(r_g)=\sum_{h\ne g}q_h/|r_g-r_h|\f$ plus a self term.  \f$O(N^2)\f$,

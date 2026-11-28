@@ -374,6 +374,7 @@ void AtomCalculation::AttachObserver()
 {
     ForgetLastRow();
     itsScf->SetObserver(KeepingLastRow([this](const qchem::SCFIterator::IterationRow& row){ if (itsObserver) itsObserver(row); }));
+    itsScf->SetBoundaryHook(RunControlHook());   // run control (qchem.RunControl): stop / save / threads at each iteration's end (the pilot's too)
 }
 
 EnergyBreakdown AtomCalculation::ProofEnergyTerms() const {return itsScf->GetEnergy();}
