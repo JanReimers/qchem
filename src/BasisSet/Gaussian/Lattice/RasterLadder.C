@@ -55,6 +55,16 @@ struct RasterLevels
     std::size_t          nBase = 0;  //!< levels before the top rung (the local-PP sub-ladder)
 };
 
+//! \brief The completion rung's raster against L0's (the uniform XC's \c XCRungFeed choice reads it; lane A 2026-11-26).
+struct RungShape
+{
+    ivec3_t N0  {0,0,0};   //!< L0's raster
+    ivec3_t Nown{0,0,0};   //!< the rung's OWN raster (its demand alone; 0: the ladder has no rung)
+    ivec3_t m   {0,0,0};   //!< per axis, the least 5-smooth integer with m N0 >= Nown (C's multiple)
+    bool    HasRung()   const {return Nown.x>0;}
+    ivec3_t MultipleN() const {return ivec3_t(m.x*N0.x, m.y*N0.y, m.z*N0.z);}   //!< C's rung raster
+};
+
 //! \brief The LOCAL pseudopotential's sharpness \f$\beta\f$ over the atoms of \a cl: V_loc long's effective Gaussian exponent, the
 //! SHARPEST species' \f$1/(2 r_{loc}^2)\f$ (V_long sums over atoms) -- the field side of V_long's harmonic routing rule.  0 when \a loc
 //! has no closed Gaussian form (V_long then takes the kappa-sweep path and has no private ladder).  ONE home: \c MakeLocalPPLong and the
@@ -98,6 +108,12 @@ public:
     //! pair's harmonic requirement \f$2 L\,p\beta/(p+\beta)\f$ (\f$p=2\alpha_{\max}\f$, \a lnE \f$=L=\ln(1/\epsilon)\f$) when no level
     //! reaches it, every level re-sampled at V_long's own raster demand when it exceeds the density's.  \pre \c DensityGrid() is set.
     RasterLevels MakeVlocLongLevels(double beta, double lnE) const;
+
+    //! \brief The completion rung's shape over the reference \a grid (\c RungShape; no rung: \c HasRung() false).  The same for either
+    //! \c XCRungFeed: \c Nown is the rung's own demand, \c m the multiple C would put it on -- what the facade's Auto policy weighs.
+    RungShape MakeRungShape(const PlaneWave::PW_Grid_Evaluator& grid) const;
+    //! The density ladder's rung shape (\c MakeRungShape over \c DensityGrid()).  \pre \c DensityGrid() is set.
+    RungShape DensityRungShape() const {return MakeRungShape(*DensityGrid());}
 
     //! The local PP sharpness the ladder was sized with (0: none) -- a block's V_long checks its own field against it.
     double PPSharpness() const {return itsPPSharpness;}

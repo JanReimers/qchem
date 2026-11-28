@@ -30,18 +30,31 @@ TEST(ERI4MemoryPolicy, ThePredictionIsARangeAroundTheCount)
     EXPECT_DOUBLE_EQ(b.high, b.estimate*policy::kERI4OverheadFactor);
 }
 
+namespace
+{
+//! A room whose fixed figure is \a fixed and whose live figure is \a live (no own memory).
+ResourceRoom Room(double fixed, double live)
+{
+    ResourceRoom r;
+    r.limit={fixed, "stated"}; r.ownSource="stated"; r.live={live, "stated"};
+    return r;
+}
+}
+
 TEST(ERI4MemoryPolicy, TheVerdictReadsTheRangesEnds)
 {
     const policy::ERI4Bytes b{.low=40.0, .estimate=45.0, .high=50.0};
-    EXPECT_EQ(policy::JudgeERI4(b, 200.0), policy::ERI4Verdict::Fits);     // high 50 <= half of 200
-    EXPECT_EQ(policy::JudgeERI4(b,  90.0), policy::ERI4Verdict::Warn);     // high 50 >  half of 90, low 40 fits
-    EXPECT_EQ(policy::JudgeERI4(b,  30.0), policy::ERI4Verdict::Refuse);   // even the low end 40 > 30
+    EXPECT_EQ(policy::JudgeERI4(b, Room(200.0, 200.0)), policy::ERI4Verdict::Fits);     // high 50 <= half of 200
+    EXPECT_EQ(policy::JudgeERI4(b, Room( 90.0,  90.0)), policy::ERI4Verdict::Warn);     // high 50 >  half of 90, low 40 fits
+    EXPECT_EQ(policy::JudgeERI4(b, Room( 30.0,  30.0)), policy::ERI4Verdict::Refuse);   // even the low end 40 > 30
+    EXPECT_EQ(policy::JudgeERI4(b, Room(200.0,   0.0)), policy::ERI4Verdict::Warn)      // user ruling 2026-11-27: a full scope only warns
+        << "the refusal reads the fixed room, never the live figure";
 }
 
 namespace
 {
 //! The ERI4Memory rows of the current run report.
-std::vector<report::json> ERI4Rows()
+std::vector<report::json> ERI4Rows(const std::string& name="ERI4Memory")
 {
     std::vector<report::json> rows;
     std::function<void(const report::json&)> walk=[&](const report::json& j)
@@ -50,7 +63,7 @@ std::vector<report::json> ERI4Rows()
             for (auto it=j.begin(); it!=j.end(); ++it)
             {
                 if (it.key()=="policy" && it.value().is_array())
-                    for (const auto& r : it.value()) if (r.value("name",std::string())=="ERI4Memory") rows.push_back(r);
+                    for (const auto& r : it.value()) if (r.value("name",std::string())==name) rows.push_back(r);
                 walk(it.value());
             }
         else if (j.is_array()) for (const auto& e : j) walk(e);
@@ -65,17 +78,39 @@ TEST(ERI4MemoryPolicy, TheDoorIsSilentWarnsOrRefuses)
     const std::vector<size_t> blocks{10,10};
     const auto b=policy::PredictERI4Bytes(blocks);
     report::Run run("ERI4MemoryPolicy");
-    policy::ERI4Memory(blocks, "test", AvailableMemory{.bytes=4.0*b.high, .source="stated"});
+    policy::ERI4Memory(blocks, "test", Room(4.0*b.high, 4.0*b.high));
     EXPECT_TRUE(ERI4Rows().empty()) << "a comfortable fit files nothing";
-    policy::ERI4Memory(blocks, "test", AvailableMemory{.bytes=1.5*b.high, .source="stated"});
+    policy::ERI4Memory(blocks, "test", Room(1.5*b.high, 1.5*b.high));
     auto rows=ERI4Rows();
     ASSERT_EQ(rows.size(), 1u);
     EXPECT_EQ(rows[0]["verdict"], "warn");
     EXPECT_EQ(rows[0]["detail"]["lowBytes"].get<double>(), b.low);
-    EXPECT_EQ(rows[0]["detail"]["availableBytes"].get<double>(), 1.5*b.high);
-    EXPECT_THROW(policy::ERI4Memory(blocks, "test", AvailableMemory{.bytes=0.5*b.low, .source="stated"}), std::runtime_error);
+    EXPECT_EQ(rows[0]["detail"]["fixedRoomBytes"].get<double>(), 1.5*b.high);
+    EXPECT_EQ(rows[0]["detail"]["liveBytes"].get<double>(), 1.5*b.high);
+    EXPECT_THROW(policy::ERI4Memory(blocks, "test", Room(0.5*b.low, 0.5*b.low)), std::runtime_error);
     rows=ERI4Rows();
     ASSERT_EQ(rows.size(), 2u);
     EXPECT_EQ(rows[1]["verdict"], "resource");
-    EXPECT_NE(rows[1]["reason"].get<std::string>().find("available"), std::string::npos) << "the refusal prints the memory available";
+    EXPECT_NE(rows[1]["reason"].get<std::string>().find("fixed room"), std::string::npos) << "the refusal prints the room it read";
+}
+
+// THE EXACT-J DOOR (policy ExactCoulomb, lane S 2026-11-25): a density model's four-centre J holds the Direct tensor alone, half HF's count,
+// and files a row on EVERY use -- a warn even when it fits comfortably (it is an oracle, never a default) -- or refuses on resources.
+TEST(ERI4MemoryPolicy, ExactJHoldsTheDirectTensorAndWarnsOnEveryUse)
+{
+    const std::vector<size_t> blocks{10,10};
+    EXPECT_EQ(policy::CountERI4Bytes(blocks, policy::ERI4Tensors::DirectOnly), 0.5*policy::CountERI4Bytes(blocks)) << "J alone: Direct, no Exchange";
+    const auto b=policy::PredictERI4Bytes(blocks, policy::ERI4Tensors::DirectOnly);
+    report::Run run("ExactCoulomb");
+    policy::ExactCoulomb(blocks, "test", Room(1e6*b.high, 1e6*b.high));
+    auto rows=ERI4Rows("ExactCoulomb");
+    ASSERT_EQ(rows.size(), 1u) << "a comfortable fit still files its row";
+    EXPECT_EQ(rows[0]["verdict"], "warn");
+    EXPECT_EQ(rows[0]["detail"]["lowBytes"].get<double>(), b.low);
+    EXPECT_THROW(policy::ExactCoulomb(blocks, "test", Room(0.5*b.low, 0.5*b.low)), std::runtime_error);
+    rows=ERI4Rows("ExactCoulomb");
+    ASSERT_EQ(rows.size(), 2u);
+    EXPECT_EQ(rows[1]["verdict"], "resource");
+    EXPECT_NE(rows[1]["reason"].get<std::string>().find("fixed room"), std::string::npos) << "the refusal prints the room it read";
+    EXPECT_EQ(rows[1]["detail"]["fixedRoomBytes"].get<double>(), 0.5*b.low);
 }

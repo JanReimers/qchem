@@ -26,6 +26,7 @@ add_executable(UTGaussian_BS ../../Radial/tests/gtestmain.C
    M_BareCoulomb.C      # the BareCoulombSource face vs the d-shell Slater averages (ACBN0, +U increment 3; 2026-09-21)
    M_LibCint.C
    M_GeometryDerivatives.C   # the derivative methods on the integral faces: PointJets, the PG_Cart pullbacks, the refusals (§13.2)
+   M_PointCoulomb.C          # the point-charge Coulomb integrals (ij|δ_g): the nuclear matrix at charges, forward = adjointᵀ, SALC (lane S 2026-11-25)
    DenseIntegratorUT.C
 )
 

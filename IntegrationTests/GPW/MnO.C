@@ -839,8 +839,16 @@ TEST(GPW_MnO, Γ_Uni_Shub_Pol_Smear_CP2K_Long)
 
 // PANEL case 14 (regime 2, FREE): the banked free MnO AFM-II recipe, `decks/MnO_AFM2_free.json` (Kerker + Pulay 8/5, Null
 // accelerator, kT 5e-3, no MOM; CLAUDE.md).  Converged means the order SURVIVED (an OrderLost run hands back no energy), and the
-// fixed point is the imposed arm's (`Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long`, re-banked 2026-11-02 with the density ball judged: -61.3031131432;
-// this free run lands 1.2e-9 from it, was -61.3032807795 on the unjudged cf-2 ball).  19 measured 2026-11-03 (was 15: one ball re-convergence).  33 iterations
+// fixed point is the imposed arm's (`Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long`; re-banked 2026-11-02 with the density ball judged: -61.3031131432,
+// this free run 1.2e-9 from it, was -61.3032807795 on the unjudged cf-2 ball; re-banked again 2026-11-25 with D-BECKE-ENERGY-AUDIT's climb
+// (40,L29) -> (80,L35): -61.3031842856, 3e-10 from the imposed arm's -61.3031842859, so the twin claim holds; the imposed arm carries the pin-10
+// judgement, see its comment).  RE-JUDGED 2026-11-26 (main d47000ac4's panel, OpenWork §3 "Six SCF-panel anchors moved by grid
+// landings"): -61.3031131432 on main read -61.3031871331 (-74.0 uHa), which is the two judged moves of the imposed arm and nothing else:
+// D-BECKE-ENERGY-AUDIT's (40,L29) -> (80,L35) climb (-70.3 uHa, pin 10 on the UNIFORM XC route: 0.42 uHa) plus lane A's absolute pair
+// routing (-2.85 uHa, pin 10 at eps 1e-12 and on the finest level: 4 nHa).  The free run shows both: it converges on (40,L29) to
+// -61.3031168551 (lane A's routing anchor -61.3031168554, 15 iterations) and its pilot's (80,L35) re-convergence lands on -61.3031871331
+// (5 iterations), 2e-10 from the imposed arm's -61.3031871333, so the twin claim holds.  ~/Code/qchem6-runs/anchors/main-88c52967_panel4t.log.
+// 19 measured 2026-11-03 (was 15: one ball re-convergence).  33 iterations
 // at CP2K_COMPAT (doc/Benchmark.md CP2K-LOOP rows); the budget is re-set by the first panel baseline.
 TEST(GPW_MnO, Γ_Pol_Smear_Kerker_Pulay_Converges_Panel_Long)
 {
@@ -850,5 +858,5 @@ TEST(GPW_MnO, Γ_Pol_Smear_Kerker_Pulay_Converges_Panel_Long)
     const auto o=qchem::panel::Run(deck, 19, "MnO AFM-II FREE, the banked Kerker+Pulay recipe (regime 2; 15 measured, 2026-10-29 panel baseline)");
     ASSERT_TRUE(o.run.converged) << o.run.summary;
     ASSERT_TRUE(o.run.energy);
-    EXPECT_NEAR(*o.run.energy, -61.3031131432, 1e-5) << "the AFM-II fixed point of the imposed arm";
+    EXPECT_NEAR(*o.run.energy, -61.3031871331, 1e-5) << "the AFM-II fixed point of the imposed arm (re-banked 2026-11-25, re-judged 2026-11-26)";
 }

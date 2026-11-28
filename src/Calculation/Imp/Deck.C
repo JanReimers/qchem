@@ -132,9 +132,15 @@ using qcMesh::UnitCellKind; using qcMesh::RadialKind; using qcMesh::AngularKind;
 const auto kImages = NAMES(CellImages,   {"Periodic",CellImages::Periodic}, {"HomeCellOnly",CellImages::HomeCellOnly});
 const auto kOrbitalTables = NAMES(policy::XCOrbitalTables, {"auto",policy::XCOrbitalTables::Auto}, {"dense",policy::XCOrbitalTables::Dense},
                                 {"images",policy::XCOrbitalTables::Images});
+const auto kXCRungFeed = NAMES(policy::XCRungRoute, {"auto",policy::XCRungRoute::Auto}, {"pairsOnL0",policy::XCRungRoute::PairsOnL0},
+                                {"rungMultiple",policy::XCRungRoute::RungMultiple});
 const auto kAngularForm = NAMES(BasisSet::Gaussian::Angular, {"cartesian",BasisSet::Gaussian::Angular::Cartesian}, {"spherical",BasisSet::Gaussian::Angular::Spherical});
 const auto kFamily = NAMES(RunOptions::Solid::OrbitalBasis, {"gaussian",RunOptions::Solid::OrbitalBasis::GPW}, {"planeWave",RunOptions::Solid::OrbitalBasis::PlaneWave});
 const auto kCoulFit= NAMES(Hamiltonian::CoulombFit, {"Auto",Hamiltonian::CoulombFit::Auto}, {"Auxiliary",Hamiltonian::CoulombFit::Auxiliary}, {"Delta",Hamiltonian::CoulombFit::Delta}, {"Multipole",Hamiltonian::CoulombFit::Multipole});
+const auto kHartreeRoute= NAMES(Hamiltonian::HartreeRoute, {"Fit",Hamiltonian::HartreeRoute::Fit}, {"Exact",Hamiltonian::HartreeRoute::Exact});
+const auto kCoulSolver= NAMES(Hamiltonian::CoulombSolver, {"Auto",Hamiltonian::CoulombSolver::Auto}, {"RadialPoisson",Hamiltonian::CoulombSolver::RadialPoisson}, {"DirectSum",Hamiltonian::CoulombSolver::DirectSum}, {"Analytic",Hamiltonian::CoulombSolver::Analytic});
+const auto kCoulMetric= NAMES(Hamiltonian::CoulombMetric, {"Auto",Hamiltonian::CoulombMetric::Auto}, {"Coulomb",Hamiltonian::CoulombMetric::Coulomb}, {"Overlap",Hamiltonian::CoulombMetric::Overlap});
+const auto kCoulConstraint= NAMES(Hamiltonian::ChargeConstraint, {"Auto",Hamiltonian::ChargeConstraint::Auto}, {"Charge",Hamiltonian::ChargeConstraint::Charge}, {"None",Hamiltonian::ChargeConstraint::None});
 const auto kVxc    = NAMES(Hamiltonian::VxcFit, {"Auto",Hamiltonian::VxcFit::Auto}, {"PlaneWave",Hamiltonian::VxcFit::PlaneWave}, {"Delta",Hamiltonian::VxcFit::Delta}, {"Auxiliary",Hamiltonian::VxcFit::Auxiliary});
 const auto kRho    = NAMES(Hamiltonian::XCρ, {"exact",Hamiltonian::XCρ::Exact}, {"fit",Hamiltonian::XCρ::Fit});
 const auto kAcc    = NAMES(AccType, {"DIIS",AccType::DIIS}, {"GDM",AccType::GDM}, {"Ladder",AccType::Ladder}, {"Null",AccType::Null},
@@ -481,6 +487,7 @@ json ToJson(const RunOptions& o)
             {"tolerances",ToJson(o.solid.tolerances)},{"policy",ToJson(o.solid.policy)},{"hubbard",hub},
             {"perKFermiLevels",o.solid.perKFermiLevels},{"xcMeshSymmetric",o.solid.xcMeshSymmetric},
             {"xcOrbitalTables",NameOf(o.solid.xcOrbitalTables,kOrbitalTables)},
+            {"xcRungFeed",NameOf(o.solid.xcRungFeed,kXCRungFeed)},
             {"numBands",o.solid.numBands},
             {"spinsShareFermi",o.solid.spinsShareFermi},{"greyImposition",o.solid.greyImposition},{"momFromSeed",o.solid.momFromSeed},
             {"siteCharges",o.solid.siteCharges}};
@@ -491,6 +498,8 @@ json ToJson(const RunOptions& o)
     if (o.solid.grid.samplerEta!=BasisSet::Gaussian::GridAccuracy{}.samplerEta) solid["accuracyCalibration"]["samplerEta"]=o.solid.grid.samplerEta;
     if (o.solid.grid.samplerResidualMargin!=BasisSet::Gaussian::GridAccuracy{}.samplerResidualMargin)
         solid["accuracyCalibration"]["samplerResidualMargin"]=o.solid.grid.samplerResidualMargin;
+    if (o.solid.firstIterateMargin!=kFirstIterateMargin) solid["firstIterateMargin"]=o.solid.firstIterateMargin;
+    if (o.solid.quotientAllowance!=kQuotientAllowance) solid["quotientAllowance"]=o.solid.quotientAllowance;
     if (o.solid.auditFootprint!=kAuditFootprintCalibration)
         solid["auditFootprint"]={{"eta",o.solid.auditFootprint.eta},{"kappa",o.solid.auditFootprint.kappa},{"bandLow",o.solid.auditFootprint.bandLow},
                                  {"bandHigh",o.solid.auditFootprint.bandHigh}};
@@ -540,6 +549,12 @@ static void SolidBlockFromJson(const json& j, RunOptions& o)
         if (!(b.angularFactor>0.0 && b.angularFactor<1.0 && b.radialFactor>0.0 && b.radialFactor<1.0 && b.radialShare>0.0 && b.radialShare<=1.0))
             throw std::runtime_error("deck: 'solid.beckeLadder' factors are falls per rung, in (0, 1), and radialShare is in (0, 1]");
     }
+    f.Get("firstIterateMargin",o.solid.firstIterateMargin);   // STATED (expert): the first-iterate floor's margin, Ha per atom
+    if (!(o.solid.firstIterateMargin>=0.0))
+        throw std::runtime_error("deck: 'solid.firstIterateMargin' is Ha per atom below the free-atom reference, >= 0");
+    f.Get("quotientAllowance",o.solid.quotientAllowance);   // STATED (expert): the quotient range audit's allowance factor
+    if (!(o.solid.quotientAllowance>=0.0))
+        throw std::runtime_error("deck: 'solid.quotientAllowance' is a relative matrix error, >= 0");
     if (j.contains("auditFootprint"))   // STATED (expert): the audit RSS policy's calibration (absent = its measured record)
     {
         Fields c(f.At("auditFootprint"),"solid.auditFootprint");
@@ -600,6 +615,7 @@ static void SolidBlockFromJson(const json& j, RunOptions& o)
     f.Get("perKFermiLevels",o.solid.perKFermiLevels);
     f.Get("xcMeshSymmetric",o.solid.xcMeshSymmetric);   // false = the plain atom-centred mesh: a displacement path needs it (RunOptions)
     f.GetEnum("xcOrbitalTables",o.solid.xcOrbitalTables,kOrbitalTables);   // dense | images | auto: a memory-vs-speed trade-off (RunOptions)
+    f.GetEnum("xcRungFeed",o.solid.xcRungFeed,kXCRungFeed);   // auto | pairsOnL0 (B) | rungMultiple (C): a cost choice (qchem.XCRungPolicy)
     if (j.contains("forceComplex"))          // RETIRED 2026-11-19 (OpenWork G4, the user: "we can prove rigorously whether it is needed or not")
         throw std::runtime_error("deck: solid.forceComplex is RETIRED -- real vs complex is decided by the setup from k and the planned "
                                  "responses (a postSCF hubbardLinearResponse, linear-response hubbardLoop or hubbardFiniteDifference builds "
@@ -717,7 +733,8 @@ void ReadRunOptions(Fields& f, const json& j, RunOptions& o)
     f.Get("xalpha",o.xalpha); f.Get("symmetryTol",o.symmetryTol);   // a molecule's (and the atom's xalpha); a solid refuses them (ForeignOption)
     if (j.contains("coulomb"))   // the Hartree route (a molecule's; an atom refuses auxBasis, a solid any of it -- ForeignOption)
     {
-        Fields cf(f.At("coulomb"),"coulomb"); cf.GetEnum("fit",o.coulomb.fit,kCoulFit); cf.Get("auxBasis",o.coulomb.auxBasis); cf.Done();
+        Fields cf(f.At("coulomb"),"coulomb"); cf.GetEnum("route",o.coulomb.route,kHartreeRoute); cf.GetEnum("fit",o.coulomb.fit,kCoulFit); cf.Get("auxBasis",o.coulomb.auxBasis); cf.GetEnum("solver",o.coulomb.solver,kCoulSolver);
+        cf.GetEnum("metric",o.coulomb.metric,kCoulMetric); cf.GetEnum("constraint",o.coulomb.constraint,kCoulConstraint); cf.Done();   // V-FIT-AXES
     }
     else f.At("coulomb");
     if (j.contains("atom")) AtomBlockFromJson(f.At("atom"),o.atom); else f.At("atom");
@@ -748,6 +765,7 @@ void ReadRunOptions(Fields& f, const json& j, RunOptions& o)
     if (j.contains("xc"))
     {
         Fields xf(f.At("xc"),"xc"); xf.GetEnum("fit",o.vxcFit,kVxc); xf.GetEnum("rho",o.xcRho,kRho);
+        GetOpt(xf,j.at("xc"),"exactExchange",o.exactExchange);   // the hybrid's exact-exchange fraction (a molecule's; policy Hybrid)
         if (j.at("xc").contains("mesh")) { qcMesh::MeshParams m=o.xcMesh.value_or(qcMesh::XCMeshDefault()); FromJson(xf.At("mesh"),m); o.xcMesh=m; } else xf.At("mesh");
         xf.Done();
     }
@@ -966,6 +984,7 @@ static json NonPeriodicJson(const RunOptions& o, RunKind kind)
             {"seed",NameOf(o.seed,kSeed)},{"accuracy",o.accuracy.eps},{"accelerator",NameOf(o.accelerator,kAcc)},
             {"xc",{{"fit",NameOf(o.vxcFit,kVxc)},{"rho",NameOf(o.xcRho,kRho)},
                    {"mesh",ToJson(o.xcMesh.value_or(atom ? kAtomMeshDefault : kMolecularMeshDefault))}}}};
+    if (o.exactExchange) j["xc"]["exactExchange"]=*o.exactExchange;   // the hybrid, only when stated (unstated = pure DFT)
     if (atom)
     {
         j["ortho"]=NameOf(o.ortho.value_or(qchem::Auto),kOrtho);
@@ -975,7 +994,8 @@ static json NonPeriodicJson(const RunOptions& o, RunKind kind)
     {
         json species=json::array();
         for (const auto& s : o.species) species.push_back({s.first,s.second});
-        j["coulomb"]={{"fit",NameOf(o.coulomb.fit,kCoulFit)},{"auxBasis",o.coulomb.auxBasis}};
+        j["coulomb"]={{"route",NameOf(o.coulomb.route,kHartreeRoute)},{"fit",NameOf(o.coulomb.fit,kCoulFit)},{"auxBasis",o.coulomb.auxBasis},{"solver",NameOf(o.coulomb.solver,kCoulSolver)},
+                     {"metric",NameOf(o.coulomb.metric,kCoulMetric)},{"constraint",NameOf(o.coulomb.constraint,kCoulConstraint)}};
         j.update({{"multiplicity",o.multiplicity},{"pp",o.pp.value_or(std::string())},{"species",species},
                   {"imposeSymmetry",o.imposeSymmetry},{"symmetryTol",o.symmetryTol},{"label",o.label},{"saveStateTo",o.saveStateTo}});
     }
@@ -1603,7 +1623,7 @@ static DisplaceResult Displace(const RunSpec& specIn, const std::vector<RunSpec:
     return out;
 }
 
-RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDir)
+RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDir, std::shared_ptr<RunControl> control)
 {
     namespace fs=std::filesystem;
     struct Close { ~Close() { qchem::report::ClearConsole(); qchem::report::End(); } };
@@ -1668,6 +1688,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         return out;
     }
     std::unique_ptr<SolidCalculation> calc=prepared.TakeValue();   // not const: the split replaces run #1 by run #2
+    calc->Control(control);   // the front end's commands (rundeck: runctl, signals); a run never relies on the process's default
     (void)calc->Converge(stages);
     if (auto R=calc->Result())
     {
@@ -1676,7 +1697,9 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     }
     else out.summary=(R.Error().why==SCFFailure::Why::ResourceRefused ? "REFUSED ON RESOURCES: "
                     : R.Error().why==SCFFailure::Why::StageRefused    ? "REFUSED: "
-                    : R.Error().why==SCFFailure::Why::StateNotSaved   ? "converged, STATE NOT SAVED: " : "NOT converged: ")+R.Error().details;
+                    : R.Error().why==SCFFailure::Why::StateNotSaved   ? "converged, STATE NOT SAVED: "
+                    : R.Error().why==SCFFailure::Why::StoppedByUser   ? "STOPPED (resumable): " : "NOT converged: ")+R.Error().details;
+    out.stopped=calc->Stopped();
     // A run REFUSED ON RESOURCES (the audit RSS policy) did not reach the state its postSCF actions read: before the first SCF there is no D
     // at all, and mid-pilot the rasters are not settled.  Each action is recorded as skipped, and the record carries the refusal's numbers.
     std::optional<ResourceRefusal> refused;
@@ -1690,9 +1713,9 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     {
         RunOutcome::PostResult pr; pr.action=PostName(a.kind);
         json rj={{"action",pr.action}};
-        if (refused)
+        if (refused || out.stopped)
         {
-            pr.ok=false; pr.summary="SKIPPED: the run was refused on resources ("+refused->when+")";
+            pr.ok=false; pr.summary=out.stopped ? "SKIPPED: the run was stopped by run control" : "SKIPPED: the run was refused on resources ("+refused->when+")";
             std::cout<<"["<<stem<<"] postSCF: "<<pr.action<<"  "<<pr.summary<<std::endl;
             rj["ok"]=pr.ok; rj["summary"]=pr.summary; results.push_back(rj);
             out.postSCF.push_back(pr);
@@ -1865,7 +1888,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
             if (!O)
             {   // REFUSED ON RESOURCES (the audit RSS policy): nothing was built; the record carries the numbers and the escape
                 const ResourceRefusal& r=O.Error();
-                rj["refused"]=Describe(r.footprint, r.available); rj["escape"]=r.escape;
+                rj["refused"]=Describe(r.footprint, r.room); rj["escape"]=r.escape;
                 pr.ok=false; pr.summary="REFUSED ON RESOURCES: "+r.Summary(); break;
             }
             const auto& R=O.Value();
@@ -1900,8 +1923,9 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     {   // fold the results into the record (the revision written before the run keeps the deck; `results` is what the run produced)
         std::ifstream in(out.revision); json rec=json::parse(in); in.close();
         rec["results"]={{"converged",out.converged},{"postSCF",results}};
-        if (refused) rec["results"]["refusedOnResources"]=Describe(refused->footprint, refused->available);
+        if (refused) rec["results"]["refusedOnResources"]=Describe(refused->footprint, refused->room);
         if (out.energy) rec["results"]["energy"]=*out.energy;
+        if (out.stopped) rec["results"]["stopped"]=out.summary;   // run control: resumable, and where the state went
         std::ofstream os(out.revision,std::ios::trunc); os<<rec.dump(2)<<"\n";
     }
     return out;

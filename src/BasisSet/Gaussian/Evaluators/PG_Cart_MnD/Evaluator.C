@@ -57,6 +57,7 @@ import qchem.Blaze;                                                // rsmat_t (t
 import qchem.Reporting;                                            // fold the task-list geometry into grids.boxTasks
 import qchem.LatticePoints;   // LatticePointsInSphere (V-STRUCTURE-ISP F2: images off the cell)
 import qchem.BasisSet.Internal.PrimitiveStore;   // S5: the store the kernels take (an Internal module: imported directly, never re-exported)
+import qchem.BasisSet.Gaussian.Evaluators.Internal.MnD;   // RNLM: PointCoulombPass's per-worker scratch (same family; never re-exported)
 
 export namespace qchem::BasisSet::Gaussian::Evaluators::PG_Cart_MnD
 {
@@ -1295,6 +1296,14 @@ public:
                 if (ecut_L[l]>=req && (!sat || ecut_L[l]<ecut_L[L])) { L=l; sat=true; }
             lv[i*n+j]=L;
         }
+        return lv;
+    }
+    //! The density route's assignment (LatticeSum1E face): \c PairLevel at the relative rule, both triangles.
+    std::vector<size_t> DensityPairLevels(const std::vector<double>& ecut_L, double relFieldSharp) const
+    {
+        const size_t n=size();
+        std::vector<size_t> lv(n*n, 0);
+        for (auto i:indices()) for (auto j:indices(i)) lv[i*n+j]=lv[j*n+i]=PairLevel(i,j,ecut_L,0.0,0.0,relFieldSharp);
         return lv;
     }
     // Iterate the (i, j@Roff) product's compact exp-tail box on the N-division grid of cell A, visiting each
@@ -4191,6 +4200,36 @@ public:
         const GroupSlot A(*this,gA), B(*this,gB), C(eC,gC);
         GaussianRF::Repulsion3CGroupBlock(A.r.data(),A.m, B.r.data(),B.m, C.r.data(),C.m, A.p,A.n, B.p,B.n, C.p,C.n, t.at(gB*(gB+1)/2+gA), out);
         NormThreeC(A, *this, B, eC, C, out);
+    }
+    //! \brief THE POINT-CHARGE COULOMB INTEGRALS of this block at the points \a pts[p0, p1) (lane S 2026-11-25, the δ-projection Hartree):
+    //! for each point g and each function pair fa <= fb, \a sink(g, fa, fb, value) with value \f$(\chi_{fa}\chi_{fb}|\delta_g)=\int\chi_{fa}
+    //! \chi_{fb}(r)/|r-r_g|\,dr\f$, normalized as \c Nuclear (whose single-unit-charge value it is, sign +).  \a t = \c MakeGroupPairΩ(),
+    //! built serially by the caller: no store is touched here, so each worker runs its own point range.  Every (point, group pair) is one
+    //! \c GaussianRF::PointCoulombGroupBlock.  No screening yet: every pair at every point.
+    template <class Sink> void PointCoulombPass(const GroupPairΩ& t, const rvec3vec_t& pts, size_t p0, size_t p1, Sink&& sink) const
+    {
+        const auto& G=ShellGroups();
+        if (t.size()!=G.size()*(G.size()+1)/2) throw std::invalid_argument("NR_Evaluator::PointCoulombPass: the Ω table is not this block's group pairs");
+        std::vector<GroupSlot> slot; slot.reserve(G.size());
+        for (size_t g=0;g<G.size();g++) slot.emplace_back(*this,g);
+        ::qchem::BasisSet::Gaussian::Evaluators::Internal::MnD::RNLM R;   // fully qualified: GaussianRF's alias of it is not exported
+        std::vector<double> scratch, blk;
+        for (size_t p=p0;p<p1;p++)
+            for (size_t gb=0;gb<G.size();gb++) for (size_t ga=0;ga<=gb;ga++)
+            {
+                const GroupSlot &A=slot[ga], &B=slot[gb];
+                const size_t n=A.n*B.n;
+                blk.resize(A.m*B.m*n);
+                GaussianRF::PointCoulombGroupBlock(A.r.data(),A.m, B.r.data(),B.m, A.p,A.n, B.p,B.n, t[gb*(gb+1)/2+ga], pts[p], R, scratch, blk.data());
+                const double* o=blk.data();
+                for (size_t ia=0;ia<A.m;ia++) for (size_t ib=0;ib<B.m;ib++, o+=n)
+                    for (size_t a=0;a<A.n;a++) for (size_t b=0;b<B.n;b++)
+                    {
+                        const size_t fa=A.f0[ia]+a, fb=B.f0[ib]+b;
+                        if (fb<fa) continue;   // the other orientation of a same-group pair: its (fb, fa) is visited too
+                        sink(p, fa, fb, o[a*B.n+b]*ns[fa]*ns[fb]);
+                    }
+            }
     }
     //! Worker-safe as it stands (its kernel builds each Hermite3 locally).
     void OverlapThreeCGroupBlock(size_t gA, const NR_Evaluator& eB, size_t gB, const NR_Evaluator& eC, size_t gC, double* out) const

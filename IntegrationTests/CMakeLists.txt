@@ -35,6 +35,7 @@ add_executable(ITMain gtestmain.C
     M_Calculation.C
     M_Response.C
     M_Umbrella.C
+    RunControlFrontEnd.C   # the run-control front end ITMain installs: the control-file grammar, the file channel, the sticky stop (user 2026-11-25)
     )
 # The QchemTester/TestAtom/TestDiracAtom/TestMolecule scaffold is RETIRED: every molecular test drives
 # qchem::Calculation and every atom/Dirac/PP test (and scfrun) drives qchem::AtomCalculation.  The shared
@@ -58,7 +59,7 @@ target_include_directories(ITMain PRIVATE
     ${QCHEM_GTEST_INCLUDE}
     ${QCHEM_LIBXC_BUILD}
 )
-target_link_libraries(ITMain PRIVATE qcGPW_Harness qcPW_Harness qcUmbrella qchem qcMath qcCommon xc blas gtest)
+target_link_libraries(ITMain PRIVATE qcFrontEnd qcGPW_Harness qcPW_Harness qcUmbrella qchem qcMath qcCommon xc blas gtest)
 
 
 

@@ -11,6 +11,7 @@ module;
 #include <sstream>   // the MeshSymmetry row's numbers
 #include <iomanip>
 #include <cmath>
+#include <format>   // the Hybrid row
 module qchem.MoleculeSetup;
 
 import qchem.PeriodicTable;   // thePeriodicTable (Z -> element symbol, for the PP lookup)
@@ -28,6 +29,35 @@ import qchem.Symmetry.Molecule.AbelianGroup;   // BuildAbelianGroup: its D2h-typ
 namespace qchem
 {
 
+// THE HYBRID (policy Hybrid; V-HAM-COMPOSE step 3, lane S 2026-11-26): xc.exactExchange a builds a*K_HF + (1-a)*E_x^DFT + E_c^DFT -- the DFT
+// term with its exchange part scaled inside the one composite, and a*K beside it (the mixer term).  REFUSED where the combination has no meaning
+// or is not wired: a outside (0,1]; a model whose exchange is already exact or absent; a model with no SEPARATE exchange part to scale (PADE,
+// one exchange-correlation formula); a GGA (PBE0 needs a scaled GGA exchange: not wired yet, OpenWork).  The ERI4 RAM row is the HF one
+// (MoleculeCalculation: policy ERI4Memory), which counts both tensors although a hybrid with a fitted J reads only K's -- conservative.
+static void ResolveHybrid(const RunOptions& o)
+{
+    if (!o.exactExchange) return;
+    const double a=*o.exactExchange;
+    const Hamiltonian::Model m=*o.model;
+    const std::string name=Hamiltonian::Name(m);
+    if (!(a>0.0 && a<=1.0))
+        policy::Refuse("Hybrid", std::format("xc.exactExchange {} is outside (0, 1]", a),
+                       "a is the fraction of exact exchange: 0 is pure DFT (drop the key), 1 all exact exchange");
+    if (!Hamiltonian::IsDFT(m))
+        policy::Refuse("Hybrid", "xc.exactExchange stated on the "+name+" model",
+                       "a hybrid mixes exact exchange into a DENSITY model's exchange; "+name+" has no DFT exchange to mix -- drop the key, or state a DFT model");
+    if (Hamiltonian::ConsumesDensityGradient(Hamiltonian::ModelToXC(m)))
+        policy::Refuse("Hybrid", "xc.exactExchange stated on the GGA "+name,
+                       "a hybrid GGA (PBE0 style) needs its GGA exchange part scaled by 1-a, which is not wired yet (OpenWork V-HAM-COMPOSE) -- an LDA "
+                       "hybrid (model LDA or Xalpha) runs");
+    if (m==Hamiltonian::Model::PADE)
+        policy::Refuse("Hybrid", "xc.exactExchange stated on PADE",
+                       "PADE (Teter 93) is ONE exchange-correlation formula with no separate exchange part to scale by 1-a -- state model LDA");
+    policy::Report("Hybrid", std::format("hybrid exchange: {} K_HF + {} E_x^{} + E_c", a, 1.0-a, name), policy::Verdict::Choose,
+                   "xc.exactExchange stated: the DFT term's exchange part scaled by 1-a inside its one composite, the exact exchange a*K beside it; "
+                   "K builds the HF ERI4 tensors (policy ERI4Memory)");
+}
+
 // THE MOLECULE'S VIEW OF THE ONE OPTIONS TREE: its per-kind defaults (each a `policy` row) and its refusals of what it does not consume.
 RunOptions MoleculeOptions(const RunOptions& asked)
 {
@@ -43,6 +73,7 @@ RunOptions MoleculeOptions(const RunOptions& asked)
     if (asked.ortho || asked.orthoTol!=0.0) refuse("ortho / orthoTol", "the molecular solver picks its own orthogonalisation (Auto)");
     if (!asked.spins.empty()) refuse("spins", "a per-site magnetic decoration is a periodic imposition's");
     if (!o.model) { o.model=Hamiltonian::Model::HF; policy::Report("DefaultModel", "model unstated: a molecule's default", policy::Verdict::Choose, "HF"); }
+    ResolveHybrid(o);
     if (!o.pp)     o.pp=std::string();                      // all-electron
     if (!o.xcMesh) o.xcMesh=kMolecularMeshDefault;          // climbed to eps from its entry rung
     return o;
@@ -67,11 +98,28 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
 {
     using CF=Hamiltonian::CoulombFit;
     const std::string stated=c.auxBasis;
+    // HARTREE-FOCK (V-HAM-COMPOSE step 2, controller ruling 2026-11-25): its J is the exact four-centre one unless a Gaussian fit is stated,
+    // which makes the run RI-J HF (a fitted J, the exchange exact) and resolves as a density model's Auxiliary fit does below.
+    const bool gaussianFitStated=c.fit==CF::Auxiliary || !stated.empty()
+                              || c.metric!=Hamiltonian::CoulombMetric::Auto || c.constraint!=Hamiltonian::ChargeConstraint::Auto;
     if (!densityModel)
     {
-        if (!stated.empty())
-            policy::Refuse("CoulombAuxBasisUnused", "coulomb.auxBasis \""+stated+"\" on a Hartree-Fock run",
-                           "HF builds J from the exact 4-centre integrals and reads no Coulomb fit basis -- drop coulomb.auxBasis");
+        if (c.solver!=Hamiltonian::CoulombSolver::Auto)
+            policy::Refuse("CoulombSolverUnused", "coulomb.solver stated on a Hartree-Fock run",
+                           "the solvers are the δ route's, which an HF run does not take -- drop coulomb.solver (state coulomb.fit Auxiliary for RI-J HF)");
+        if (c.route!=Hamiltonian::HartreeRoute::Fit)
+            policy::Refuse("CoulombRouteUnused", "coulomb.route stated on a Hartree-Fock run",
+                           "HF's J is already the exact four-centre one; the key chooses a density model's Hartree -- drop coulomb.route");
+        if (c.fit==CF::Delta || c.fit==CF::Multipole)
+            policy::Refuse("CoulombRouteForHF", std::string("coulomb.fit ")+(c.fit==CF::Delta ? "Delta" : "Multipole")+" on a Hartree-Fock run",
+                           "that route puts rho on the XC mesh, and an HF run sizes no mesh -- state coulomb.fit Auxiliary for RI-J HF, or drop coulomb.fit "
+                           "for the exact J");
+        if (!gaussianFitStated) { c.route=Hamiltonian::HartreeRoute::Exact; return; }   // the model's own J: no choice was made, nothing to report
+    }
+    if (c.route==Hamiltonian::HartreeRoute::Exact)   // AdmitCoulomb refused every fit key beside it; the cost row is MoleculeCalculation's (ExactCoulomb)
+    {
+        policy::Report("CoulombFit", "the Hartree term: exact-J DFT (the four-centre J), as stated", policy::Verdict::Choose,
+                       "coulomb.route Exact: HF's J in the density model, no fit, the accuracy oracle of the fitted routes (Q2)");
         return;
     }
     if (c.fit==CF::Delta || c.fit==CF::Multipole)
@@ -81,16 +129,25 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
                            "that route puts rho on the XC mesh and has no fit basis -- drop coulomb.auxBasis, or state coulomb.fit Auxiliary");
         return;
     }
-    if (c.fit==CF::Auto && stated.empty())
+    // A stated fit axis (V-FIT-AXES) implies the Gaussian route, as a stated fit file does: only that fit has the axes to choose.
+    const bool axesStated=c.metric!=Hamiltonian::CoulombMetric::Auto || c.constraint!=Hamiltonian::ChargeConstraint::Auto;
+    if (c.fit==CF::Auto && stated.empty() && !axesStated)
     {
         c.fit=CF::Delta;
-        policy::Report("CoulombFit", "the Hartree term: delta (rho on the XC mesh, radial Poisson)", policy::Verdict::Choose,
+        const bool analytic=c.solver==Hamiltonian::CoulombSolver::Analytic;
+        policy::Report("CoulombFit", std::string("the Hartree term: delta (rho on the XC mesh, ")+(analytic ? "analytic (ij|delta), as stated)" : "radial Poisson)"),
+                       policy::Verdict::Choose,
                        "no Hartree route stated: the molecular default (user ruling 2026-11-22), the one route that meets eps -- the DGauss "
                        "fits are mHa low on every molecule measured; state coulomb.fit Auxiliary (A2) or coulomb.auxBasis for the faster fit");
         return;
     }
     const bool fitStated=c.fit==CF::Auxiliary;
     c.fit=CF::Auxiliary;
+    // THE FIT AXES (V-FIT-AXES): unstated, Dunlap's fit -- the Coulomb metric, charge-constrained (AdmitCoulomb refused what is not built).
+    if (c.metric==Hamiltonian::CoulombMetric::Auto)        c.metric=Hamiltonian::CoulombMetric::Coulomb;
+    if (c.constraint==Hamiltonian::ChargeConstraint::Auto) c.constraint=Hamiltonian::ChargeConstraint::Charge;
+    const std::string axes=std::string(" (Coulomb metric, ")+(c.constraint==Hamiltonian::ChargeConstraint::Charge ? "charge-constrained" : "unconstrained")
+                           +(axesStated ? ", as stated)" : ": the Dunlap default; state coulomb.constraint None for the plain fit)");
     auto uncovered=[&](const std::string& file)
     {
         std::string missing;
@@ -120,12 +177,15 @@ static void ResolveCoulombFit(Hamiltonian::CoulombRoute& c, const Structure& poi
         policy::Refuse("CoulombAuxBasisCoverage", "Coulomb fit basis "+c.auxBasis+" has no block for "+missing,
                        std::string(stated.empty() ? "neither A2 nor A1 (H-Te) covers this structure" : "the stated fit does not cover this structure")
                        +" -- state coulomb.fit Delta (rho on the XC mesh, every element), or a fit file that covers it");
-    if (!stated.empty() && fitStated) return;   // fully stated: as asked, nothing decided
-    policy::Report("CoulombFit", "the Hartree term: a Dunlap fit on "+c.auxBasis, policy::Verdict::Choose,
-                   stated.empty()
-                     ? "coulomb.fit Auxiliary stated without coulomb.auxBasis: the fastest-good fit, DGauss A2 (user ruling 2026-11-22)"
+    // RI-J HF always reports its row, so the literature name is on every such run (controller ruling 2026-11-25).
+    const std::string hfName=densityModel ? "" : "RI-J HF (a fitted J, the exchange exact): ";
+    if (!stated.empty() && fitStated && densityModel) return;   // fit and file stated: as asked, nothing decided (unstated axes are the long-standing Dunlap default)
+    const std::string route = fitStated ? "" : (stated.empty() ? "a stated fit axis implies the Auxiliary route; " : "coulomb.auxBasis stated: its route is the Auxiliary fit; ");
+    policy::Report("CoulombFit", hfName+"the Hartree term: a Gaussian density fit on "+c.auxBasis+axes, policy::Verdict::Choose,
+                   route+(stated.empty()
+                     ? "no fit file stated: the fastest-good fit, DGauss A2 (user ruling 2026-11-22)"
                        +(fallbackWhy.empty() ? std::string() : " -- "+fallbackWhy)+"; its residual is checked against eps (CoulombFitResidual)"
-                     : "coulomb.auxBasis stated: its route is the Auxiliary (Dunlap) fit");
+                     : "the stated file "+c.auxBasis));
 }
 
 // THE DOORS (as SolidSetup's): Admit for user input, Resolve its throwing twin for code that states its own options.

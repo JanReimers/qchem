@@ -165,11 +165,18 @@ void MoleculeCalculation::BuildGraph()
     CheckPPFunctional(*itsStructure);
     // THE ERI4 RAM CAP (S6, user ruling 6): a model that builds the 4-centre tensors (HF, DHF) is judged ONCE here, from the block sizes,
     // against the memory available -- warn and run, or refuse on resources -- instead of a collector evicting them mid-run.
-    if (*opts.model==qchem::Hamiltonian::Model::HF || *opts.model==qchem::Hamiltonian::Model::DHF)
+    // A hybrid's exact exchange builds the same tensors (policy Hybrid: judged as HF's, conservative when J is fitted).
+    if (*opts.model==qchem::Hamiltonian::Model::HF || *opts.model==qchem::Hamiltonian::Model::DHF || opts.exactExchange)
     {
         std::vector<size_t> blocks;
         for (auto b : itsBasis->Iterate<BasisSet::Real_IBS>()) blocks.push_back(b->GetNumFunctions());
         policy::ERI4Memory(blocks, opts.molecule.basis);
+    }
+    else if (opts.coulomb.route==qchem::Hamiltonian::HartreeRoute::Exact)   // a density model's exact J: its Direct tensor, a row on every use
+    {
+        std::vector<size_t> blocks;
+        for (auto b : itsBasis->Iterate<BasisSet::Real_IBS>()) blocks.push_back(b->GetNumFunctions());
+        policy::ExactCoulomb(blocks, opts.molecule.basis);
     }
     // THE COULOMB FIT, built HERE from the setup's choice (policy CoulombFit, MoleculeSetup::Resolve), never by an orbital family: the
     // run's slot is filled before the first Hamiltonian asks, so every Hamiltonian of this point reads the fit the policy named.  The
@@ -303,7 +310,7 @@ std::optional<SCFFailure> MoleculeCalculation::MakeFailure() const
     f.iterations = itsIterations;
     f.lastEnergy = itsScf->GetEnergy().GetTotalEnergy();
     f.details    = refused ? itsScf->UnphysicalStop() : "the SCF did not converge in "+std::to_string(f.iterations)+" iterations";
-    if (!refused && itsLastRow) f.details += "; the last iterate: "+itsLastRow->GatesText();
+    if (!refused) f.details += LastIterateGates();
     return f;
 }
 
@@ -566,6 +573,78 @@ GridAuditResult MoleculeCalculation::AuditAgainst(const qcMesh::MeshParams& refe
     return R;
 }
 
+namespace
+{
+std::string RouteName(const qchem::Hamiltonian::CoulombRoute& c)
+{
+    namespace H=qchem::Hamiltonian;
+    if (c.route==H::HartreeRoute::Exact) return "Exact";
+    std::string s = c.fit==H::CoulombFit::Delta ? "Delta" : c.fit==H::CoulombFit::Multipole ? "Multipole" : c.fit==H::CoulombFit::Auxiliary ? "Auxiliary" : "Auto";
+    if (c.solver==H::CoulombSolver::Analytic)  s+="/Analytic";
+    if (c.solver==H::CoulombSolver::DirectSum) s+="/DirectSum";
+    if (!c.auxBasis.empty()) s+=" "+c.auxBasis;
+    if (c.constraint==H::ChargeConstraint::None) s+=" unconstrained";
+    return s;
+}
+} //anon
+
+MoleculeCalculation::CoulombAuditResult MoleculeCalculation::CoulombAudit(const qchem::Hamiltonian::CoulombRoute& reference) const
+{
+    namespace rpt=qchem::report;
+    namespace H=qchem::Hamiltonian;
+    const auto* wf = itsScf ? itsScf->GetWaveFunction() : nullptr;
+    if (!wf || !itsDensity) throw std::logic_error("qchem::MoleculeCalculation::CoulombAudit before a converged density (the audit runs at a fixed D)");
+    // An HF run sizes no mesh, so its references are the mesh-free routes: the exact J, or a Gaussian fit (RI-J HF).
+    const bool referenceOnMesh=reference.route==H::HartreeRoute::Fit && !H::UsesCoulombFitBasis(reference);
+    if (!HasXCMesh() && referenceOnMesh)
+        throw std::invalid_argument("qchem::MoleculeCalculation::CoulombAudit: a Hartree-Fock run sizes no mesh, so its reference is the exact J "
+                                    "(coulomb.route Exact) or a Gaussian fit (coulomb.fit Auxiliary + auxBasis)");
+    if (const auto a=H::AdmitCoulomb(*itsStructure, reference, itsSetup->xcMesh, itsSetup->opts.vxcFit); !a)
+        throw std::invalid_argument("qchem::MoleculeCalculation::CoulombAudit: the reference route is refused -- "+a.Error());
+    if (H::UsesCoulombFitBasis(reference) && reference.auxBasis.empty())
+        throw std::invalid_argument("qchem::MoleculeCalculation::CoulombAudit: a Gaussian-fit reference must state its auxBasis (no policy names it here)");
+    const qchem::ChargeDensity::rDM_CD* d=itsDensity.get();
+    CoulombAuditResult R;
+    R.reference=RouteName(reference);
+    const auto t0=std::chrono::steady_clock::now();
+    {
+        // FENCED, as MeshAudit's reference: its mesh, fit and policy rows go to a nested run.  RAII: an exception must not leave the report nested.
+        struct Fence { explicit Fence(const std::string& n) {rpt::Begin(n);} ~Fence() {rpt::End();} } fence("coulomb audit reference ("+R.reference+")");
+        H::CoulombFitSlot<double> slot;   // the reference's own fit, if it has one; never the run's
+        if (H::UsesCoulombFitBasis(reference))
+            (void)slot.GetOrFill([&]
+            {
+                namespace G=BasisSet::Gaussian;
+                const auto& m=itsSetup->opts.molecule;
+                return std::shared_ptr<const BasisSet::rFIT_CD_ABS>(G::CoulombFitFromFile(reference.auxBasis+".bsd", reference.auxBasis, itsStructure.get(),
+                    G::Engine::MnD, m.angular==Angular::Spherical ? G::Angular::Spherical : G::Angular::Cartesian));
+            });
+        const std::unique_ptr<H::rHamiltonian> ref(MakeHamiltonianOn(itsSetup->xcMesh, reference, slot, itsMeshSymmetry.get()));
+        itsHam->RefreshForDensity(itsBasis, d);
+        ref->RefreshForDensity(itsBasis, d);
+        const EnergyBreakdown eRun=itsHam->GetTotalEnergy(d), eRef=ref->GetTotalEnergy(d);
+        // Only the Hartree may differ: the reference is the run's Hamiltonian with one route changed.  A difference anywhere else is a wiring defect.
+        for (const auto& [name,term] : eRun.Terms()) if (name!="Eee" && std::fabs(eRun[name]-eRef[name])>1e-10)
+            throw std::logic_error("CoulombAudit: the reference's "+name+" differs from the run's by "+std::to_string(eRun[name]-eRef[name])
+                                   +" Ha at the same D -- only the Hartree term may change");
+        R.EH_run=eRun["Eee"]; R.EH_ref=eRef["Eee"]; R.ΔE_H=R.EH_run-R.EH_ref;
+        for (Spin s : SpinIrreps(StateSpin()))
+            for (auto ibs : itsBasis->Iterate<BasisSet::Real_OIBS>())
+            {
+                const hmat_t<double> Fr=itsHam->GetMatrix(ibs,s,d,itsBasis), Ff=ref->GetMatrix(ibs,s,d,itsBasis);
+                for (size_t r=0;r<Fr.rows();r++) for (size_t c=r;c<Fr.columns();c++) R.maxAbsΔJ=std::max(R.maxAbsΔJ, std::fabs(Fr(r,c)-Ff(r,c)));
+            }
+    }
+    R.wallSeconds=std::chrono::duration<double>(std::chrono::steady_clock::now()-t0).count();
+    report::FormatGuard keep(std::cout);
+    std::cout<<"[coulomb audit] run ("<<RouteName(itsSetup->opts.coulomb)<<") vs "<<R.reference<<" at the converged D: E_H "<<std::setprecision(12)
+             <<R.EH_run<<" vs "<<R.EH_ref<<"  dE_H "<<std::scientific<<std::setprecision(3)<<R.ΔE_H<<"  max|dJ_ij| "<<R.maxAbsΔJ
+             <<"  ("<<std::fixed<<std::setprecision(2)<<R.wallSeconds<<" s)"<<std::endl;
+    rpt::Set("run", RouteName(itsSetup->opts.coulomb)); rpt::Set("reference", R.reference);
+    rpt::Set("EH_run", R.EH_run); rpt::Set("EH_ref", R.EH_ref); rpt::Set("dE_H", R.ΔE_H); rpt::Set("maxAbsdJ", R.maxAbsΔJ); rpt::Set("wallSeconds", R.wallSeconds);
+    return R;
+}
+
 qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const qcMesh::MeshParams& mesh) const
 {
     // Every Hamiltonian of this point shares ONE Coulomb fit (S2b): BuildGraph fills the slot from the setup's choice (policy CoulombFit).
@@ -581,11 +660,21 @@ qchem::Hamiltonian::rHamiltonian* MoleculeCalculation::MakeHamiltonianOn(const q
 {
     const RunOptions& opts=itsSetup->opts;
     const qcMesh::SymmetrySource& sym = symmetry ? *symmetry : *itsMeshSymmetry;
-    return itsSetup->pp
-        ? qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, *itsMeshMaker, sym, itsBasis, fit, {opts.vxcFit, opts.xcRho},
-                                      coulomb, qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha))
-        : qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, *itsMeshMaker, sym, itsBasis, fit, opts.xalpha,
-                                      {opts.vxcFit, opts.xcRho}, coulomb);
+    if (itsSetup->pp)
+    {
+        qchem::Hamiltonian::XCFunctional xc=qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha);
+        xc.exactExchange=opts.exactExchange.value_or(0.0);   // the hybrid (policy Hybrid admitted it)
+        return qchem::Hamiltonian::Factory(opts.spin, itsStructure, *itsSetup->pp, mesh, *itsMeshMaker, sym, itsBasis, fit, {opts.vxcFit, opts.xcRho},
+                                           coulomb, xc);
+    }
+    if (opts.exactExchange)   // a hybrid: the DFT model's functional with its exact-exchange fraction (policy Hybrid admitted only DFT models)
+    {
+        qchem::Hamiltonian::XCFunctional xc=qchem::Hamiltonian::ModelToXC(*opts.model, opts.xalpha);
+        xc.exactExchange=*opts.exactExchange;
+        return qchem::Hamiltonian::Factory(opts.spin, itsStructure, xc, mesh, *itsMeshMaker, sym, itsBasis, fit, {opts.vxcFit, opts.xcRho}, coulomb);
+    }
+    return qchem::Hamiltonian::Factory(*opts.model, opts.spin, itsStructure, mesh, *itsMeshMaker, sym, itsBasis, fit, opts.xalpha,
+                                       {opts.vxcFit, opts.xcRho}, coulomb);
 }
 
 // THE COULOMB-FIT CHECK (policy CoulombFitResidual; OpenWork "The Coulomb-fit default is a hidden policy", lane S 2026-11-21; the
@@ -649,6 +738,7 @@ void MoleculeCalculation::CheckCoulombFit(const qchem::ChargeDensity::rDM_CD* d,
             return E;
         };
         H::CoulombRoute deltaRoute=opts.coulomb; deltaRoute.fit=H::CoulombFit::Delta; deltaRoute.auxBasis.clear();
+        deltaRoute.metric=H::CoulombMetric::Auto; deltaRoute.constraint=H::ChargeConstraint::Auto;   // the Gaussian fit's axes (V-FIT-AXES) are not the δ route's
         const H::CoulombFitSlot<double> none;   // the delta route reads no fit basis
         const std::unique_ptr<H::rHamiltonian> ref(MakeHamiltonianOn(itsSetup->xcMesh, deltaRoute, none));
         ref->RefreshForDensity(itsBasis, d);
@@ -682,12 +772,9 @@ ClientConsumes MoleculeCalculation::Consumes() const {return itsGeometryPoint ? 
 
 void MoleculeCalculation::AttachObserver()
 {
-    itsLastRow.reset();
-    itsScf->SetObserver([this](const qchem::SCFIterator::IterationRow& row)   // keep the last row: a failure states its gates
-    {
-        itsLastRow = row;
-        if (itsObserver) itsObserver(row);
-    });
+    ForgetLastRow();   // the base keeps the last row (a failure states its gates); the caller's observer is read at each row
+    itsScf->SetObserver(KeepingLastRow([this](const qchem::SCFIterator::IterationRow& row){ if (itsObserver) itsObserver(row); }));
+    itsScf->SetBoundaryHook(RunControlHook());   // run control (qchem.RunControl): stop / save / threads at each iteration's end
 }
 
 namespace
@@ -905,11 +992,7 @@ StateSummary MoleculeCalculation::MakeStateSummary() const
     StateSummary s{.label=Tag(), .converged=itsScf->Converged(), .iterations=itsIterations,
                    .energy=itsScf->GetEnergy().GetTotalEnergy(), .charge=itsDensity ? itsDensity->GetTotalCharge() : 0.0};
     s.recipe="model "+MoleculeModelName(*itsSetup)+", basis "+itsSetup->opts.molecule.basis+", accelerator "+std::string(NameOf(itsSetup->accelerator));
-    if (itsLastRow)
-    {
-        s.commutator   =itsLastRow->ValueOf("[F,D]");
-        s.densityChange=itsLastRow->ValueOf(itsHam ? itsHam->DeltaRhoLabel() : std::string("Δρ"));
-    }
+    RecordResidual(s, itsHam ? itsHam->DeltaRhoLabel() : std::string("Δρ"));
     return s;
 }
 

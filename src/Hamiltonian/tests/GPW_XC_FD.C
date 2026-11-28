@@ -26,6 +26,7 @@
 #include <chrono>
 #include <cstdlib>   // getenv/atof (the ill-conditioned charge probe's Ecut knob)
 #include <iostream>
+#include <tuple>
 
 import qchem.Structure;                         // Molecule, Atom
 import qchem.UnitCell;                          // UnitCell
@@ -301,4 +302,89 @@ TEST(GPW_XC, RawConsistencyFD)
                   << "  rel=" << rel << std::endl;
     }
     EXPECT_LT(rel1, 1e-5) << "raw H_xc must be the exact derivative of the raw discrete E_xc";
+}
+
+// THE XC FEED'S TWO RUNG ROUTES (user ruling 2026-11-26, "Auto, with B as the fallback"; lane A).  The raw XC feed is rho[D] at L0's points;
+// the completion rung's pairs reach them by B (collocated a second time onto L0) or C (the rung on a multiple of L0's raster, subsampled).
+// Three teeth, on the RawConsistencyFD cell and rasters (a rung is present: SIPP alpha_max 2 puts the rung gate at 32 Ha over Ecut 6):
+//   (1) B == C at L0's points to roundoff: the same pairs at the same points, on the same coarse levels;
+//   (2) each == the DIRECT reference (rho[D] from the Bloch orbitals evaluated at L0's own points, as SolidCalculation::AuditXCSampler) to
+//       the routing bound (the coarse levels' zero-padded interpolants: kPairRoutingEps, relative);
+//   (3) each route's gather is the FD-exact derivative of its own discrete E_xc (the transpose: B's rung field on L0, C's injected samples).
+TEST(GPW_XC, RawRungFeedsAgree)
+{
+    namespace G=BasisSet::Gaussian;
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14,{0,0,0});
+    cell.AddAtom(14,{0.25,0.25,0.25});
+    std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
+    auto make=[&](G::GPWTolerances t){ return std::make_unique<GPW_IBS>(std::make_shared<::qchem::BasisSet::BasisCache>(), cell, MakeMeshMaker(cell),
+                   ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, G::CellImages::Periodic, 2.0, 4.0,
+                   BasisSet::PlaneWave::RasterFields::HartreeXC, t); };
+    G::GPWTolerances tB=DifferenceSetRasters(), tC=tB;
+    tB.xcRungFeed=G::XCRungFeed::PairsOnL0;
+    tC.xcRungFeed=G::XCRungFeed::RungMultiple;
+    const auto gB=make(tB), gC=make(tC);
+    const GPW_Evaluator& eB=*gB; const GPW_Evaluator& eC=*gC;
+    // The rung's shape, off a ladder built from the blocks' own inputs (the public face; the evaluator's levels are private).
+    auto shapeOf=[&](const G::GPWTolerances& t){ return G::MakeRasterLadder(cell, *mol, G::RasterLadderInputs{.densityEcut=6.0, .cutoffFactor=2.0,
+                       .ladderFactor=4.0, .rasterFields=BasisSet::PlaneWave::RasterFields::HartreeXC, .tol=t})->DensityRungShape(); };
+    const auto sh=shapeOf(tB);
+    ASSERT_TRUE(sh.HasRung()) << "the gate needs a completion rung";
+    std::cout<<"[rung feeds] L0 N="<<sh.N0.x<<"  rung own N="<<sh.Nown.x<<"  m "<<sh.m.x<<"  (C's rung raster "<<sh.MultipleN().x<<")"<<std::endl;
+    const size_t n=static_cast<const Complex_OIBS&>(*gB).GetNumFunctions();
+    chmat_t D1(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D1(i,j)=(i==j)?dcmplx(1.0):dcmplx(0.3*std::cos(0.7*double(i+2*j)));
+    PairProjection<dcmplx> oB=eB.Overlap3CTensor(), oC=eC.Overlap3CTensor();
+    const rvec_t rB=oB.applyRaw(D1), rC=oC.applyRaw(D1);
+    // The direct reference: rho = sum_ij D_ij phi_i conj(phi_j) from the Bloch block's own point values at L0's points.
+    const rvec3vec_t& pts=eB.DensityGrid().GridPoints();
+    const mat_t<dcmplx> Phi=static_cast<const Complex_OIBS&>(*gB)(pts);   // (points x n)
+    rvec_t rD(pts.size(), 0.0);
+    for (size_t q=0;q<pts.size();q++)
+    {
+        dcmplx acc(0.0);
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) acc+=dcmplx(D1(i,j))*Phi(q,i)*std::conj(Phi(q,j));
+        rD[q]=std::real(acc);
+    }
+    ASSERT_EQ(rB.size(), rD.size()); ASSERT_EQ(rC.size(), rD.size());
+    double dBC=0.0, dBD=0.0, dCD=0.0, rmax=0.0;
+    for (size_t q=0;q<rD.size();q++)
+    {
+        dBC=std::max(dBC,std::fabs(rB[q]-rC[q])); dBD=std::max(dBD,std::fabs(rB[q]-rD[q])); dCD=std::max(dCD,std::fabs(rC[q]-rD[q]));
+        rmax=std::max(rmax,std::fabs(rD[q]));
+    }
+    std::cout<<"[rung feeds] max|rho_B - rho_C| "<<dBC<<"  max|rho_B - rho_direct| "<<dBD<<"  max|rho_C - rho_direct| "<<dCD
+             <<"  (max rho "<<rmax<<")"<<std::endl;
+    EXPECT_LT(dBC, 1e-12*rmax) << "B and C are the same pairs at the same points";
+    EXPECT_LT(dBD, G::kPairRoutingEps*rmax) << "B == rho[D] at L0's points to the routing bound";
+    EXPECT_LT(dCD, G::kPairRoutingEps*rmax) << "C == rho[D] at L0's points to the routing bound";
+
+    // (3) FD: each route's gather is the derivative of its own discrete E_xc.
+    qchem::Hamiltonian::SlaterExchange  exch(2.0/3.0);
+    qchem::Hamiltonian::VWN_Correlation corr;
+    const qchem::Hamiltonian::ExFunctional* xcs[2]={&exch,&corr};
+    chmat_t dD(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) dD(i,j)=dcmplx(0.1*std::sin(1.0+double(i)+2.0*double(j)),0.0);
+    chmat_t P(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) P(i,j)=(i==j)?dcmplx(1.0):dcmplx(0.3);
+    for (auto [name,ov,grid] : {std::tuple{"B",&oB,&eB.DensityGrid()}, std::tuple{"C",&oC,&eC.DensityGrid()}})
+    {
+        auto Exc=[&](const rvec_t& rho){ rvec_t e(rho.size());
+            for (size_t q=0;q<rho.size();q++) { double s=0.0; for (auto xc : xcs) s+=xc->GetEpsXc(rho[q]); e[q]=s*rho[q]; }
+            return grid->Integral(e); };
+        auto at=[&](double h){ chmat_t Dh(P); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) Dh(i,j)=dcmplx(P(i,j))+h*dcmplx(dD(i,j)); return Dh; };
+        const double h=1e-3;
+        const double fd=(Exc(ov->applyRaw(at(+h)))-Exc(ov->applyRaw(at(-h))))/(2.0*h);
+        const rvec_t rho=ov->applyRaw(P);
+        rvec_t v(rho.size());
+        for (size_t q=0;q<rho.size();q++) { double s=0.0; for (auto xc : xcs) s+=xc->GetVxc(rho[q]); v[q]=s; }
+        const chmat_t H=ov->applyRawAdjoint(v);
+        dcmplx tr(0.0);
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) tr+=dcmplx(H(i,j))*dcmplx(dD(j,i));
+        const double rel=std::fabs(fd-std::real(tr))/std::max(std::fabs(std::real(tr)),1e-30);
+        std::cout<<"[rung feeds] "<<name<<": dE_fd "<<fd<<"  Tr(Hxc dD) "<<std::real(tr)<<"  rel "<<rel<<std::endl;
+        EXPECT_LT(rel, 1e-5) << name << ": the raw gather must be the exact derivative of the raw discrete E_xc";
+    }
 }

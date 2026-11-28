@@ -219,6 +219,7 @@ RunOptions SolidOptions(const RunOptions& asked)
     if (!(asked.molecule==def.molecule)) refuse("the `molecule` block", "a periodic run's basis is its recipe (deck `basis`) -- drop it");
     if (!(asked.atom==def.atom))         refuse("the `atom` block", "it holds the radial atom's options -- drop it");
     if (asked.xalpha!=def.xalpha)        refuse("xalpha", "a periodic run is LDA or PADE; Xalpha is the molecular facade's");
+    if (asked.exactExchange)             refuse("xc.exactExchange", "a hybrid's exact exchange is a molecule's (no periodic exact exchange)");
     if (!(asked.coulomb==def.coulomb))   refuse("coulomb", "a periodic run's Hartree route is its density ball, not a stated route");
     if (asked.symmetryTol!=def.symmetryTol) refuse("symmetryTol", "a periodic run detects its space group at the lattice's own tolerance");
     if (asked.solid.grid.eps!=def.solid.grid.eps)
@@ -360,6 +361,48 @@ static void ReportKSampling(const Lattice_3D& lat)
     std::cout << "[policy] WARNING " << decided << " -- " << reason << std::endl;
 }
 
+// THE FIRST ITERATE'S LOWER BOUND (policy FirstIterateFloor; OpenWork "The periodic first-iterate refusal is a SCALE": it was ONE-SIDED).
+// The RIGOROUS part is the REFERENCE: the sum of the cell's free pseudo-atom energies, read from the seed library's neutral entry for each
+// site at the run's own q (the entry's Etot, the converged atom run that made its density, judged on CP2K ATOM).  The EMPIRICAL part is
+// the MARGIN per atom (kFirstIterateMargin, its measurement record at its declaration): how far below the free atoms a healthy first
+// iterate sits.  They combine HERE and nowhere else: floor = reference - margin x atoms, and the row prints all three.  A site with no
+// library energy leaves the run without a floor, said in the row: a missing reference is not a reason to refuse a run.
+static FirstIterateFloor ResolveFirstIterateFloor(const Structure& st, const ChargeDensity::SeedKey& key, double marginPerAtom)
+{
+    double reference=0.0;
+    size_t atoms=0;
+    std::string missing;
+    st.ForEachSite([&](int Z, const rvec3_t&, bool)
+    {
+        atoms++;
+        const int q=key.Q(Z);
+        const std::optional<double> E=ChargeDensity::GetAtomicEnergy(Z, key.functional, ChargeDensity::SeedLibrary(key, Z), q, q);
+        if (E) reference+=*E;
+        else if (missing.find(" "+thePeriodicTable().GetSymbol(Z)+" ")==std::string::npos)
+            missing+=" "+thePeriodicTable().GetSymbol(Z)+" ";
+    });
+    FirstIterateFloor floor;
+    if (!missing.empty())
+    {
+        floor.basis="no first-iterate floor: the seed library has no free-atom energy for"+missing;
+        policy::Report("FirstIterateFloor", "no floor", policy::Verdict::Choose, floor.basis);
+        return floor;
+    }
+    floor.energy=reference-marginPerAtom*double(atoms);
+    std::ostringstream os;
+    os << std::setprecision(8) << "the free pseudo-atoms' " << reference << " Ha (" << key.functional << " seed library) less the "
+       << marginPerAtom << " Ha per atom margin x " << atoms;
+    floor.basis=os.str();
+    qchem::report::json detail=qchem::report::json::object();
+    detail["referenceHa"]=reference;
+    detail["marginHaPerAtom"]=marginPerAtom;
+    detail["atoms"]=atoms;
+    detail["floorHa"]=*floor.energy;
+    policy::Report("FirstIterateFloor", "first iterate refused below "+std::to_string(*floor.energy)+" Ha", policy::Verdict::Choose,
+                   floor.basis, std::nullopt, detail);
+    return floor;
+}
+
 std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                                                const RunOptions& opts,
                                                const AcceleratorOptions& acc)
@@ -431,6 +474,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
         s->opts.seed=seed.seed;
         s->seedKey  =seed.key;
     }
+    s->firstIterateFloor=ResolveFirstIterateFloor(*st, s->seedKey, opts.solid.firstIterateMargin);
     ReportKSampling(lat);   // the k mesh against the calibrated spacing: a WARN names the mesh that meets it
 
     // THE RESOLVED IMPOSITION (doc/OpenWork.md N5, user 2026-08-26).  The caller's flag AND the policy's
@@ -557,6 +601,7 @@ std::shared_ptr<SolidSetup> SolidSetup::Decide(const Lattice_3D& lat, std::share
             using BasisSet::PlaneWave::RasterFields;
             const bool hartreeOnly = becke && fit==VxcFit::Delta;
             s->rasterFields = hartreeOnly ? RasterFields::HartreeOnly : RasterFields::HartreeXC;
+            s->xcFitOnRaster = fit==VxcFit::PlaneWave;
             if (hartreeOnly)
                 policy::Report("RasterRouting", "the GPW raster serves V_H only: every pair routes on its own bound, 2 p ln(1/eps)",
                                policy::Verdict::Choose, "V_xc is sampled on the Becke points through the delta fit, so no field on the raster "

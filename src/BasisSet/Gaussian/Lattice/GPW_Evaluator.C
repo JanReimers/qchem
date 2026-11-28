@@ -374,14 +374,16 @@ private:
         chmat_t D, Dscr;                         //!<   collocation -- \c D is also the seam's density screen
         std::vector<rvec_t> rho;                 //!<   (ApplyAdjoint reads it), so "most recent" is load-bearing
         std::vector<double> ecut;
-        struct Entry { chmat_t D; std::vector<rvec_t> rho; std::vector<double> ecut; };
+        std::vector<ivec3_t> N;                  //!<   the ladder's rasters: part of the key with \c ecut (a level's raster can change
+                                                 //!<   without its cutoff -- XCRungFeed's rung -- and a replay must say what it holds)
+        struct Entry { chmat_t D; std::vector<rvec_t> rho; std::vector<double> ecut; std::vector<ivec3_t> N; };
         std::vector<Entry> past;                 //!< older pairs, most-recent-first, bounded by \c Depth()
         //! Exact (D, ladder) lookup.  A hit is PROMOTED to the most-recent slot, so \c D keeps meaning
         //! "the density this evaluator last collocated" for every other consumer.  \c rho is filled on a hit.
-        bool Lookup(const chmat_t& d, const std::vector<double>& ec, std::vector<rvec_t>& rhoOut);
+        bool Lookup(const chmat_t& d, const std::vector<double>& ec, const std::vector<ivec3_t>& n, std::vector<rvec_t>& rhoOut);
         //! Record a fresh collocation, retire the previous most-recent into \c past, and WIDEN \c Dscr
         //! (the union screen: reset on a new ladder/shape, else max -- see the pin above).
-        void Store(const chmat_t& d, const std::vector<rvec_t>& r, const std::vector<double>& ec);
+        void Store(const chmat_t& d, const std::vector<rvec_t>& r, const std::vector<double>& ec, const std::vector<ivec3_t>& n);
         static size_t Depth();                   //!< GPW_COLLOC_MEMO extra entries (default 4)
     };
     mutable std::shared_ptr<CollocMemo> itsCollocMemo;    //!< shared so both framework-cached closures see it
@@ -390,14 +392,18 @@ private:
     //! the summed density ONCE between them (as \c CollocMemo dedups the per-block calls).  Keyed on every term's D and the ladder.
     struct FoldMemo
     {
-        struct Entry { std::vector<chmat_t> D; std::vector<double> ecut; std::vector<rvec_t> rho; };
+        struct Entry { std::vector<chmat_t> D; std::vector<double> ecut; std::vector<ivec3_t> N; std::vector<rvec_t> rho; };
         std::vector<Entry> entries;   //!< most recent first, at most CollocMemo::Depth()
         bool Lookup(const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>& terms, const std::vector<double>& ecut,
-                    std::vector<rvec_t>& rhoOut);
+                    const std::vector<ivec3_t>& N, std::vector<rvec_t>& rhoOut);
         void Store (const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>& terms, const std::vector<double>& ecut,
-                    const std::vector<rvec_t>& rho);
+                    const std::vector<ivec3_t>& N, const std::vector<rvec_t>& rho);
     };
     mutable std::shared_ptr<FoldMemo> itsFoldMemo;
+    //! The XC feed's B route (\c XCRungFeed::PairsOnL0): the rung's pairs collocated onto L0, memoised APART from Hartree's collocation
+    //! (whose memo's D is also the seam's density screen), keyed on the full D and the feed's rasters.
+    mutable std::shared_ptr<CollocMemo> itsRungMemo;
+    mutable std::shared_ptr<FoldMemo>   itsRungFoldMemo;
     //! The summed blocks' level densities: \a memo's replay, or ONE \c CollocateDensityFolded on \a lat (every term in \a domain).
     static std::vector<rvec_t> FoldedLevels(const std::vector<std::pair<const chmat_t*, const PairProjection<dcmplx>*>>& terms,
                                             const std::array<uint64_t,2>& domain, const Gaussian::Periodic_Gaussian_IBS* lat, const UnitCell& A,
@@ -434,11 +440,17 @@ private:
     mutable std::shared_ptr<GatherMemo> itsGatherMemo;    //!< shared by the ball and raw integrator closures
     //! The REL_CUTOFF ladder of a fit grid, as the transition pair needs it -- geometry-fixed, so built once per
     //! fit basis (keyed by its content ID, never a pointer) instead of once per kernel application.
+    //! THE XC FEED (defined in the Imp): rho[D] at L0's points, the completion rung's pairs by the ladder's \c XCRungFeed.  ONE
+    //! definition for the ground-state raw closures and the transition raw raster, so the response kernel stays dE/dD's derivative.
+    struct XCFeed;
+    //! \a lad's feed under \a mode.  THROWS on a ladder the feed cannot read (see the Imp).
+    static std::shared_ptr<const XCFeed> MakeXCFeed(RasterLevels lad, XCRungFeed mode, const Gaussian::Periodic_Gaussian_IBS* lat, double relFS);
     struct TransitionLadder
     {
         std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>> levels;
         std::vector<ivec3_t> N;
         std::vector<double>  ecut;
+        std::shared_ptr<const XCFeed> feed;   //!< the raw raster's XC feed over this ladder (the ground state's own)
     };
     const TransitionLadder& Ladder(const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid) const;
     mutable std::map<std::string,TransitionLadder> itsTransitionLadders;

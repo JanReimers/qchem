@@ -7,6 +7,7 @@
 // The atom's loose (Z, charge, opts, acc) constructor arguments are this setup now.
 module;
 #include <memory>
+#include <optional>
 export module qchem.AtomSetup;
 
 export import qchem.Setup;   // Setup: what every run setup holds
@@ -61,6 +62,18 @@ struct AtomSetup : Setup
     //! The pseudo-atom's valence (Zion): \c opts.atom.valence when stated, else \c Ne (a neutral pseudo-atom).  Meaningful only under
     //! \c opts.atom.pseudopotential.
     int PseudoValence() const {return opts.atom.valence>0 ? opts.atom.valence : Ne;}
+
+    //! \brief GRIDS A PILOT ALREADY SIZED for this setup's eps (V-FACADE-HOIST (b), 2026-11-25): set only by a restart or a view of a
+    //! state that was made at the same eps (\c AtomCalculation's \c SizedBySavedState, the molecule's and the solid's twin).  The run
+    //! adopts them for its UNSTATED axes and runs no pilot: an exact resume stays exact instead of re-entering at 50 radial points and
+    //! climbing again.  A stated axis stays as stated.
+    struct SizedGrids
+    {
+        int xcRadial      = 0;   //!< the XC radial count
+        int hartreeRadial = 0;   //!< the Multipole route's radial-Poisson count (0: another route)
+        int fitRung       = 0;   //!< the Dunlap fit's rung (0 when the route is not Auxiliary)
+    };
+    std::optional<SizedGrids> sizedGrids;
 };
 
 } // namespace qchem

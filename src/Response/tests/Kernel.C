@@ -401,6 +401,11 @@ std::vector<GroundBlock<dcmplx>> GroundDensity(const WaveFunction::cWaveFunction
 
 void PeriodicAnalyticEqualsFD(SpinGroup g)
 {
+    // The FD step: h*amp must sit in the oracle's LINEAR range.  Since the XC feed samples the completion rung's sharp pairs EXACTLY at
+    // L0's points (lane A 2026-11-27) the polarized FD at h = 1e-3 (h*amp 5e-5) went nonlinear (rel 5e-2); at h = 1e-4 the gap is
+    // 9.8e-6 / 7.4e-6, the same as at h = 1e-3 with amp 0.005, so it is the kernel's floor and not the oracle's.  UnPol stays at 1e-3:
+    // at 1e-4 or amp 0.005 it meets FD roundoff (9.5e-6).  An ORACLE setting; the gate below is unchanged.
+    const double h = g==SpinGroup::Polarized ? 1e-4 : 1e-3;
     auto calc=ConvergedSi(g);
     const auto& wf=ResponseFacadeTests::WF(*calc);
     auto& H=ResponseFacadeTests::Ham(*calc);
@@ -417,7 +422,7 @@ void PeriodicAnalyticEqualsFD(SpinGroup g)
     }
     const auto D0cd=wf.GetChargeDensity();
     auto analytic=H.MakeResponseKernel(&calc->Basis(), D0cd.get());
-    FD_ResponseKernel<dcmplx> fd(H, &calc->Basis(), D0, 1e-3);   // 4-point stencil: h=1e-3 is its sweet spot (measured)
+    FD_ResponseKernel<dcmplx> fd(H, &calc->Basis(), D0, h);      // 4-point stencil (h: see above)
     auto delta=ChargeDensity::AO_TransitionDensity_Factory<dcmplx>(AsTransition(dD), std::make_shared<Symmetry::Invariant>());
     auto A=analytic->InducedFock(*delta);
     auto F=fd.InducedFock(*delta);

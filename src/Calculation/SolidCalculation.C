@@ -419,6 +419,53 @@ public:
     static constexpr double kReferenceMargin=8.0;   //!< EMPIRICAL: the audit's default x_ref - x_run, chosen for the tail ratio \c GridAudit derives
     static constexpr int    kPilotRounds=4;         //!< the pilot's cap on audit + re-convergence rounds (\c CalibrateRasters)
     Outcome<GridAuditResult, ResourceRefusal> GridAudit(double referenceMargin = kReferenceMargin) const;
+    //! \brief THE XC SAMPLER'S INTERPOLATION AUDIT (controller design 2026-11-26, from the user: "we need somehow independently measure
+    //! that interpolation on its own merits ... We still need to pump it through Vxc to get an epsilon comparison"; pins 28 + 31).
+    //!
+    //! On the uniform XC route the term evaluates \f$E_{xc}=\sum_g w_g\,e(\rho_g)\f$ on L0's voxels, and \f$\rho_g\f$ is what the pair
+    //! sampler hands it: every pair collocated on its routed level and the levels brought onto L0 spectrally (\c MakeRawCollocator) --
+    //! an INTERPOLATION \f$\rho^{\rm int}\f$ of \f$\rho[D]\f$.  This audit measures that interpolation alone: at the converged D, on L0's
+    //! OWN points and weights, against \f$\rho[D]\f$ evaluated DIRECTLY at the same points (the density's own pointwise evaluation,
+    //! \c G_RasterTransform::Sample).  Same points, same weights, so L0's quadrature error cancels out of it completely.  With
+    //! \f$\delta\rho_{\sigma g}=\rho^{\rm int}_{\sigma g}-\rho_\sigma[D](r_g)\f$:
+    //!   - first order (the exact derivative):      \f$\delta E^{(1)}=\sum_g w_g\sum_\sigma v^\sigma_g\,\delta\rho_{\sigma g}\f$, \f$v\f$ at \f$\rho[D]\f$;
+    //!   - its second-order check:                  \f$\delta E^{(2)}=\tfrac12\sum_g w_g\sum_{\sigma\sigma'} f^{\sigma\sigma'}_g\,\delta\rho_{\sigma g}\delta\rho_{\sigma' g}\f$;
+    //!   - the RIGOROUS first-order bound:          \f$|\delta E^{(1)}|\le\|v\|_\infty\,\|\delta\rho\|_1\f$, \f$\|\delta\rho\|_1=\sum_g w_g\sum_\sigma|\delta\rho_{\sigma g}|\f$;
+    //!   - the direct difference:                   \f$\delta E=\sum_g w_g\,[e(\rho^{\rm int}_g)-e(\rho[D](r_g))]\f$ (a negative interpolated
+    //!     value is evaluated as 0, the functional's own domain);
+    //!   - the matrix:                              \f$\delta H^\sigma_{ij}=\sum_g w_g\,\phi_i\phi_j\sum_{\sigma'}f^{\sigma\sigma'}_g\delta\rho_{\sigma' g}\f$,
+    //!     the pair sampler's own adjoint for \f$\phi_i\phi_j\f$ (it differs from the point product only at second order); max over blocks.
+    //!   - THE WHOLE MATRIX (the user, 2026-11-26: "Do we also need to interpolate phi_i(r) phi_j(r) in the integrand?" -- yes, the gather
+    //!     does): \f$H^{\rm ref}_{ij}=\sum_g w_g\,\phi_i^*(r_g)\phi_j(r_g)\,v(\rho[D]_g)\f$ with BOTH \f$\rho[D]\f$ and every \f$\phi_i\f$
+    //!     evaluated directly at L0's points (each block's own values), against the production collocate + gather
+    //!     \f$H^{\rm prod}=P^\dagger v(\rho^{\rm int})\f$; \c maxAbsΔH is \f$\max|H^{\rm prod}-H^{\rm ref}|\f$.  The gather \f$P^\dagger\f$ is the
+    //!     EXACT transpose of the collocation \f$P\f$ (\c MakeRawIntegrator: \f$v\f$ kept on L0, band-truncated to each coarser level -- the
+    //!     adjoint of the zero-pad -- and, for the completion rung's pairs, kept on L0 (\c XCRungFeed B) or injected at L0's points of the rung's
+    //!     multiple raster (C), then integrated against \f$\phi_i\phi_j\f$ on the pair's routed level), so
+    //!     \f$H^{\rm prod}=\partial E^{\rm prod}/\partial D\f$ (gate \c GPW_XC.RawConsistencyFD).  PARSEVAL: on a level of band \f$B\f$,
+    //!     \f$\sum_g w\,\phi_i\phi_j\,v=\Omega\sum_{G}\widetilde{\phi_i\phi_j}^*(G)\,\tilde v(G)\f$; when \f$\phi_i\phi_j\f$ has no content
+    //!     outside \f$B\f$ (to the routing bound's \f$\varepsilon\f$: \f$|\widetilde{\phi_i\phi_j}(G)|\le\varepsilon\f$ for \f$G\notin B\f$), truncating
+    //!     \f$\tilde v\f$ to \f$B\f$ changes the sum by at most \f$\varepsilon\,\Omega\sum_{G\notin B}|\tilde v(G)|\f$, so the SAME bound that
+    //!     certifies the collocation certifies the gather; what it does not cover (each level's sampling alias, the finest-level fallback,
+    //!     ) is what \c maxAbsΔH measures.
+    //! The COMBINING RULE: the sampler's certificate is \f$\max(|\delta E|,\ |\delta E^{(1)}|+|\delta E^{(2)}|)\f$ against its share of \f$\varepsilon\f$;
+    //! the bound stands beside it as the worst case.  A miss is the SAMPLER's (raise its rasters, or refuse), never a pilot knob.
+    //! REFUSED (the reason) when the run's XC is not the plane-wave fit on the uniform raster -- the only route that interpolates.
+    struct XCSamplerAudit
+    {
+        size_t points=0;                 //!< L0's voxels
+        double rhoMax=0.0;               //!< max rho[D] on them
+        double maxAbsδρ=0.0;             //!< max |δρ| (summed over spin)
+        double l1=0.0;                   //!< \f$\|\delta\rho\|_1\f$
+        double vMax=0.0;                 //!< \f$\|v\|_\infty\f$ at rho[D]
+        double bound=0.0;                //!< vMax x l1
+        double δE1=0.0, δE2=0.0, δE=0.0; //!< first order, second order, direct
+        double maxAbsδH=0.0;             //!< max over blocks and spins of |δH_ij| from δρ alone (\f$P^T f\,\delta\rho\f$)
+        double maxAbsΔH=0.0;             //!< max |H^{prod}_{ij}-H^{ref}_{ij}|: BOTH interpolations (rho inside v, and phi_i phi_j in the gather)
+        double maxAbsHref=0.0;           //!< max |H^{ref}_{ij}|, the scale it is read against
+        double chargeInt=0.0, chargeRef=0.0;   //!< \f$\sum_g w\rho\f$ of each side: a reference that is not rho[D] shows here first
+    };
+    Outcome<XCSamplerAudit, std::string> AuditXCSampler() const;
     //! \brief WHAT THIS RUN'S CLIENT CONSUMES (user ruling 2026-10-31, doc/GridEpsilonPlan.md §1): the measure the one accuracy target
     //! is judged on.  A calculation built on its own answers an \c Energy; one a \c SolidSession builds for a geometry point (a
     //! surface, forces, a relaxation) answers \c MatrixElements.  The run answers it from who built it -- the user never picks a metric.
@@ -696,8 +743,9 @@ private:
     AuditReferenceSize SizeReference(const std::string& name, const BasisSet::Gaussian::GPWTolerances& raster, double ballScale,
                                      const qcMesh::MeshParams* xcMesh) const;
     //! \brief THE AUDIT RSS POLICY (OpenWork (e), ruled 2026-11-07): may a reference of \a size be built now?  Its calibrated estimate
-    //! (\c EstimateAuditFootprint) against \c QueryAvailableMemory: REFUSE (returned, with a `resource` policy row) when even the band's low
-    //! end will not fit, WARN AND RUN (a `warn` row) when only its high end will not, silent when it fits.  \a when and \a escape go
+    //! (\c EstimateAuditFootprint) against \c QueryResourceRoom: REFUSE (returned, with a `resource` policy row) when even the band's low
+    //! end will not fit in the FIXED room (the limit less the run's own memory: deterministic, user ruling 2026-11-27), WARN AND RUN (a
+    //! `warn` row) when only its high end will not, or will not beside what the scope holds now, silent when it fits.  \a when and \a escape go
     //! into the row and the refusal.
     std::optional<ResourceRefusal> AdmitReference(const AuditReferenceSize& size, const std::string& when, const std::string& escape) const;
     //! The pilot's round-0 references (x + 8 and the density ball x 2, each with its Becke rung on a geometry run), admitted BEFORE the

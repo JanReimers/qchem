@@ -18,6 +18,18 @@ export using Gate = std::optional<double>;
 //! Does \a value pass \a gate?  An off gate passes everything.
 export inline bool Meets(const Gate& gate, double value) {return !gate || value<*gate;}
 
+//! \brief THE LOWER SIDE OF A PERIODIC RUN'S FIRST-ITERATE REFUSAL (OpenWork "The periodic first-iterate refusal is a SCALE", lane H
+//! 2026-11-25): a first iterate whose energy lies below \c energy is refused as a COLLAPSE.  The iterator only compares; how the floor
+//! was derived is the policy layer's (\c SolidSetup: the free-atom reference and the cohesive allowance, kept apart), and \c basis says
+//! it in the words the refusal quotes.  An EMPTY \c energy is a run with no floor (a species without a free-atom energy), \c basis then
+//! saying why.  Measured motivation: a near-singular overlap (Li bcc q3, a diffuse s 0.04 kept, lambda_min 1.3e-7) put ONE Li atom's
+//! first iterate at -1418 Ha against the free atom's -7.4, and the run iterated for 24 h without complaint.
+export struct FirstIterateFloor
+{
+    std::optional<double> energy;   //!< Ha: the lowest first-iterate total energy that is physical; empty = no floor
+    std::string           basis;    //!< how \c energy was derived (quoted by the refusal), or why there is none
+};
+
 export struct SCFParams
 {
     //! Max allowed iterations -- a SAFETY NET, never the recipe: a run that ends here is reported (qchem.SCFCap) and fails a

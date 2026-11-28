@@ -32,6 +32,23 @@ struct NoHamiltonianImp_RealBlock {};
 template <class T, class Imp> using HamiltonianImpRealBlockBase =
     std::conditional_t<std::is_same_v<T,dcmplx>, HamiltonianImp_RealBlock<Imp>, NoHamiltonianImp_RealBlock>;
 
+//! \brief ONE TERM, whichever family it belongs to (V-HAM-COMPOSE step 2, lane S 2026-11-25; the V-ONE-OF-N shape): exactly one of the
+//! three term pointers is filled, plus the nonlinear integration mesh an XC term brings with it (null otherwise).  A term FACTORY returns
+//! one (\c MakeCoulombTerm can answer a fitted \c Vee_Fit, a dynamic term, or the four-centre \c Vee_HF, a whole-system HF term), and
+//! \c tHamiltonianImp::Add(tTerm) is the one dispatcher: no constructor asks which member is filled.
+template <class T> struct tTerm
+{
+    std::unique_ptr<   tStatic_HT<T>> statik;
+    std::unique_ptr<  tDynamic_HT<T>> dynamic;
+    std::unique_ptr<tDynamic_HF_HT<T>> hf;
+    std::shared_ptr<const ChargeDensity::tDensitySampler<T>> mesh;   //!< the nonlinear mesh the term is a client of (held BEFORE the term)
+
+    static tTerm Of(   tStatic_HT<T>* p) {tTerm t; t.statik.reset(p);  return t;}
+    static tTerm Of(  tDynamic_HT<T>* p) {tTerm t; t.dynamic.reset(p); return t;}
+    static tTerm Of(tDynamic_HF_HT<T>* p) {tTerm t; t.hf.reset(p);      return t;}
+};
+using rTerm=tTerm<double>;
+
 // Templated on T (rX/cX convention): the bare rHamiltonianImp is the <double> alias the existing concrete
 // Hamiltonians derive from; cHamiltonianImp is the dcmplx (plane-wave) instantiation.
 template <class T> class tHamiltonianImp
@@ -52,6 +69,7 @@ public:
     virtual std::vector<TermEnergy>     MakeTermEnergies(const tDM_CD<T>*) const override;
     virtual std::vector<hmat_t<T>>      MakeTermMatrices(const tobs_t<T>*, const Spin&, const tChargeDensity<T>*) const override;
     virtual std::vector<hmat_t<double>> MakeTermMatrices(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const override;
+    virtual std::vector<TermRangeAudit> MakeTermRangeAudit(const tbs_t<T>*, const std::vector<WeakDirections<T>>&) const override;
     virtual SpinGroup       GetSpinGroup() const override {return itsSpinGroup;}
     virtual bool            IsRelativistic() const override {return itsIsRelativistic;}
     //! CONJUNCTIVE over the terms -- see the base declaration.  One non-Coulombic term (a PP) invalidates
@@ -60,10 +78,11 @@ public:
     //! CONJUNCTIVE like IsVirialValid: one SOC / vector-potential term flips every block complex
     //! (doc/RealComplexPlan.md); AND-ed in Add().
     virtual bool            PreservesReal () const override {return itsPreservesReal;}
-    //! A density MATRIX (not a matrix-free fit) is required to seed the SCF iff this Hamiltonian either holds
-    //! an exact-exchange HF term (K needs D) or is relativistic (the non-rel LDA-sibling SAD bootstrap does
-    //! not apply -- see SCFIterator).  Derived from the term lists, so no concrete Hamiltonian need declare it.
-    virtual bool            RequiresDensityMatrix() const override {return !itsHF_HTs.empty() || itsIsRelativistic;}
+    //! A density MATRIX (not a matrix-free fit) is required to seed the SCF iff a TERM says so (folded at \c Add: a whole-system HF
+    //! term, J or K, needs D by its family unless it answers \c DensityMatrixRequirement otherwise; a dynamic term only when it answers
+    //! it, the analytic (ij|δ) Hartree) or the Hamiltonian is relativistic (the non-rel LDA-sibling SAD bootstrap does not apply -- see
+    //! SCFIterator).  Asked of the terms, so no concrete Hamiltonian need declare it.
+    virtual bool            RequiresDensityMatrix() const override {return itsIsRelativistic || itsTermNeedsDensityMatrix;}
     //! \copydoc tHamiltonian::SiteMoments
     //! Asked of the Hamiltonian's NONLINEAR INTEGRATION MESH (V-NONLINEAR-MESH): its atom-centred partition integrates
     //! \f$\rho_\uparrow-\rho_\downarrow\f$.  Empty with no mesh, on a mesh with no site blocks, or on a run that resolves no spin.
@@ -130,6 +149,11 @@ protected:
     //! client term is added.  THROWS on a second mesh: one Hamiltonian, one nonlinear mesh (a broken factory, not a case to average).
     using mesh_t=std::shared_ptr<const ChargeDensity::tDensitySampler<T>>;
     void HoldNonlinearMesh(mesh_t m);
+    //! Add a factory's term: its mesh first (if it brings one), then the term through the overload for its family.  THROWS on a record
+    //! with no term or more than one (a broken factory).
+    void Add(tTerm<T>&& t);
+    //! A factory's term LIST (the XC axis: one term, or two for a hybrid), each through \c Add(tTerm), in order.
+    void Add(std::vector<tTerm<T>>&& ts) {for (auto& t : ts) Add(std::move(t));}
 
     shtv_t   itsSHTs;
     dhtv_t   itsDHTs;
@@ -140,6 +164,7 @@ protected:
     bool   itsIsRelativistic;
     bool   itsIsVirialValid=true;   //!< AND of the terms' IsVirialValid() (see Add); true for an empty H
     bool   itsPreservesReal=true;   //!< AND of the terms' PreservesReal() (see Add); true for an empty H
+    bool   itsTermNeedsDensityMatrix=false;   //!< OR of the terms' density-matrix need (see Add)
 };
 
 // NO InsertStandardTerms.  There is no "standard" term set to insert (R2.8; user 2026-08-07: the whole

@@ -182,6 +182,10 @@ struct SolidSetup : Setup
     //! \brief THE RUN'S POLICY, resolved ONCE from \c opts.solid.policy (D-MUTABLE-STATICS-RUNPOLICY group A): every decision the setup and
     //! its facade make from a CP2K deviation reads THIS (there is no process-wide policy), so a run states the policy it holds.
     RunPolicy policy;
+    //! \brief THE FIRST ITERATE'S LOWER BOUND (policy \c FirstIterateFloor): the sum of the cell's free pseudo-atom energies (the seed
+    //! library's neutral entries at the run's q) less \c opts.solid.firstIterateMargin per atom; EMPTY energy when a species has no
+    //! library energy (its \c basis says which).  The iterator refuses a first iterate below it as a collapse.
+    FirstIterateFloor firstIterateFloor;
     bool ggaChoseBecke = false;   //!< a GGA with the XC mesh unstated: the setup chose the Becke delta route (policy GGARoute, GGA stage 3)
     //! \brief THE ANSATZ, decided ONCE from k and q (user ruling 2026-11-18): a TRIM block may run REAL (\c GPWParams::hamPreservesReal;
     //! a non-TRIM block is complex regardless).  False exactly when \c opts.solid.responseQMeshes plans a response.  The run's ONE source
@@ -193,6 +197,8 @@ struct SolidSetup : Setup
     //! bound, no field floor); every other route gathers V_xc through the raster (\c HartreeXC: the V_xc core floor seats every pair on the
     //! reference or finer).  Every \c GPWParams the facade builds reads THIS, so a reference or audit ladder routes as the run does.
     BasisSet::PlaneWave::RasterFields rasterFields = BasisSet::PlaneWave::RasterFields::HartreeXC;
+    //! The XC is the plane-wave fit sampled on the GPW raster (the raw XC feed exists): the one case the XC rung feed policy decides.
+    bool xcFitOnRaster = false;
     std::vector<int> decoration;   //!< \c spins, or all zeros: the per-site spins the run was built with (the +U site groups read it)
     //! \brief THE GROUP A GEOMETRY STEP MUST KEEP, read at \a at: the space group detected there (\c GetSpaceGroup's \f$\{W|\tau\}\f$, or
     //! the Shubnikov group under \c spins) when the setup is \c imposed, P1 (the identity alone) when it is free.  ONE rule for its two

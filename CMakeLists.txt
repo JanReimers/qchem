@@ -300,35 +300,49 @@ set(_qchemPanelRedLong ${QCHEM_PANEL_RED})
 list(FILTER _qchemPanelRedLong INCLUDE REGEX "_Panel_Long$")
 list(JOIN _qchemPanelRedFast ":" _qchemPanelRedFast)
 list(JOIN _qchemPanelRedLong ":" _qchemPanelRedLong)
+# RUN CONTROL AT A ctest TIMEOUT (ITMain only; user 2026-11-25: "for ctest runs it would be useful to be able to control ITMain ... we don't
+# need it for the UT* tests").  By default ctest KILLS a timed-out case (SIGKILL: nothing can save); with these properties it sends SIGTERM,
+# waits the grace, then kills.  ITMain's main maps SIGTERM to save-and-stop at the next SCF iteration's end (qchem.FrontEnd.RunControl):
+# the case still FAILS as a Timeout, but its state is saved and the failure names where.  THE GRACE must cover one iteration plus the
+# save, but ctest REFUSES a grace of 60 s or more (measured, ctest 4.2.3: "TIMEOUT_SIGNAL_GRACE_PERIOD "300" is not less than the maximum
+# of "60" seconds" -- and the case is then Not Run), so 59 s, ctest's ceiling.  The slowest per-iteration walls in the banked logs are up
+# to ~193 s (an upper bound, setup included: test time / SCF iterations; GPW_MnO.Γ_U_Shub_Pol_Smear_Saved_CP2K_Long, MnO eqSAD 177 s in
+# main-5cbd0f67_long.log), so on THOSE gates the kill can land before the iteration ends and nothing is saved: the case fails as a plain
+# Timeout, exactly as before.  The fix for them is a watchdog that signals at (TIMEOUT - one iteration) -- an OpenWork row, not this one.
+set(QCHEM_ITMAIN_TIMEOUT_GRACE 59)
 function(qchem_discover_tests target)
+    set(_sig "")
+    if (target STREQUAL "ITMain")
+        set(_sig TIMEOUT_SIGNAL_NAME SIGTERM TIMEOUT_SIGNAL_GRACE_PERIOD ${QCHEM_ITMAIN_TIMEOUT_GRACE})
+    endif()
     gtest_discover_tests(${target}
         TEST_FILTER -*_Long:*_Panel:${_qchemKnownRed}
         DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run")
+        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" ${_sig})
     gtest_discover_tests(${target}
         TEST_FILTER *_Long-*_Panel_Long:${_qchemPeriodic}:${_qchemKnownRed}
         DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS long TIMEOUT 3600)
+        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS long TIMEOUT 3600 ${_sig})
     gtest_discover_tests(${target}
         TEST_FILTER ${_qchemPeriodic}
         DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS "long\;periodic" TIMEOUT 14400)
+        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS "long\;periodic" TIMEOUT 14400 ${_sig})
     gtest_discover_tests(${target}
         TEST_FILTER *_Panel-${_qchemPanelRed}
         DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS panel)
+        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS panel ${_sig})
     gtest_discover_tests(${target}
         TEST_FILTER *_Panel_Long-${_qchemPanelRed}
         DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS "long\;panel" TIMEOUT 14400)
+        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS "long\;panel" TIMEOUT 14400 ${_sig})
     gtest_discover_tests(${target}
         TEST_FILTER ${_qchemPanelRedFast}
         DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" FAIL_REGULAR_EXPRESSION "C\\+\\+ exception with description" LABELS "panel\;panelRed")
+        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" FAIL_REGULAR_EXPRESSION "C\\+\\+ exception with description" LABELS "panel\;panelRed" ${_sig})
     gtest_discover_tests(${target}
         TEST_FILTER ${_qchemPanelRedLong}
         DISCOVERY_EXTRA_ARGS --gtest_output=
-        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" FAIL_REGULAR_EXPRESSION "C\\+\\+ exception with description" LABELS "long\;panel\;panelRed" TIMEOUT 14400)
+        PROPERTIES PASS_REGULAR_EXPRESSION "\\[  FAILED  \\] 1 test" FAIL_REGULAR_EXPRESSION "C\\+\\+ exception with description" LABELS "long\;panel\;panelRed" TIMEOUT 14400 ${_sig})
     if(NOT "${_qchemKnownRedFast}" STREQUAL "")   # an EMPTY filter would discover every test as known-red
         gtest_discover_tests(${target}
             TEST_FILTER ${_qchemKnownRedFast}
@@ -574,7 +588,7 @@ add_subdirectory(./CLIapps)
 add_custom_target(allApps
     COMMENT "Build all CLI apps"
 )
-add_dependencies(allApps scfrun valgen gpwprobe rundeck gth2upf)   # add_dependencies, not DEPENDS: the executable audit below reads it
+add_dependencies(allApps scfrun valgen gpwprobe rundeck gth2upf q2probe)   # add_dependencies, not DEPENDS: the executable audit below reads it
 # Benchmarks and profiling drivers: not tests, but they must COMPILE on every landing (lane B 2026-11-13: MnDBench had been broken since
 # c926486ca, 2026-11-04, because nothing in allTests built it -- the _NOT_BUILT trap's silent-rot class).
 add_custom_target(allBenches

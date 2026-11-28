@@ -188,4 +188,36 @@ private:
     std::vector<std::shared_ptr<ExFunctional>> itsParts;
 };
 
+//! \brief \f$w\,f\f$: one functional at a FIXED weight, so a weighted sum of DFT parts on ONE mesh stays inside ONE composite (one gather)
+//! -- the hybrid's \f$(1-a)E_x^{DFT}\f$ (V-HAM-COMPOSE step 3, lane S 2026-11-26).  A cross-FAMILY sum (\f$a\,K_{HF}\f$) is the mixer term's
+//! (qchem.Hamiltonian.Internal.Mixed), never this.  Every face is \a w times the part's, the kernel included: \f$E_{xc}\f$ is linear in the
+//! weight, so are its derivatives.
+class ScaledExFunctional
+    : public virtual ExFunctional
+{
+public:
+    ScaledExFunctional(double w, std::shared_ptr<ExFunctional> part) : itsW(w), itsPart(std::move(part))
+    {
+        assert(itsPart && "ScaledExFunctional: no functional to scale");
+    }
+    virtual double GetVxc  (double rho) const {return itsW*itsPart->GetVxc  (rho);}
+    virtual double GetEpsXc(double rho) const {return itsW*itsPart->GetEpsXc(rho);}
+    virtual double GetVxc  (double up, double dn, const Spin& s) const {return itsW*itsPart->GetVxc  (up,dn,s);}
+    virtual double GetEpsXc(double up, double dn, const Spin& s) const {return itsW*itsPart->GetEpsXc(up,dn,s);}
+    virtual double GetFxc(double up, double dn, const Spin& s, const Spin& t) const {return itsW*itsPart->GetFxc(up,dn,s,t);}
+    //! The part's batch into a zeroed scratch record, then \a w times it into \a out (an Evaluate ACCUMULATES, so the part cannot write
+    //! \a out directly: \a out may already hold the other parts of a composite).
+    virtual void Evaluate(const LDAInput& in, LDAOutput& out) const
+    {
+        LDAOutput mine(in);
+        itsPart->Evaluate(in, mine);
+        for (size_t g=0; g<in.size(); g++) {out.e[g]+=itsW*mine.e[g]; out.vUp[g]+=itsW*mine.vUp[g]; out.vDn[g]+=itsW*mine.vDn[g];}
+    }
+    virtual double GridCutoffFactor() const {return itsPart->GridCutoffFactor();}   //!< a weight adds no bandwidth
+    std::ostream& Write(std::ostream& os) const {os << itsW << " x "; return itsPart->Write(os);}
+private:
+    double                        itsW;
+    std::shared_ptr<ExFunctional> itsPart;
+};
+
 } //namespace

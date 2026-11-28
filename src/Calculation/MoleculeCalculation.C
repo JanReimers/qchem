@@ -176,6 +176,22 @@ public:
     //! THROWS (invalid_argument) on a free run (its density is not invariant: the folded mesh is a different answer) or a run with no
     //! point group on its mesh; THROWS before a Converge.
     GridAuditResult FoldAudit() const;
+    //! \brief One Hartree route against another at ONE density (\c CoulombAudit).  \c ΔE_H = E_H(run) - E_H(reference); \c maxAbsΔJ =
+    //! max over every block, spin and element of |F(run) - F(reference)|, which is |J(run) - J(reference)| because nothing else differs.
+    struct CoulombAuditResult
+    {
+        std::string reference;           //!< the reference route, spelled as the deck states it
+        double      EH_run=0.0, EH_ref=0.0, ΔE_H=0.0, maxAbsΔJ=0.0;
+        double      wallSeconds=0.0;     //!< the reference's build and one Fock, at this D
+    };
+    //! \brief THE COULOMB AUDIT (lane S 2026-11-25, the Q2 fixed-D column; controller ruling the same day): the run's Hartree against
+    //! \a reference, at the converged D, no SCF.  The reference Hamiltonian is built on the run's own mesh and mesh symmetry with only the
+    //! Coulomb route changed, so every other term is the same term and the Fock difference is the J difference; the audit CHECKS that
+    //! (every non-Hartree energy equal to 1e-10, else logic_error).  \a reference = \c HartreeRoute::Exact is the accuracy oracle (the
+    //! four-centre J).  An \c Auxiliary reference must state its \c auxBasis (no policy runs here).  Writes its fields AT THE REPORT CURSOR
+    //! (the caller opens the scope); the reference's own reports go to a nested run.  THROWS before a Converge, and (invalid_argument) on a
+    //! route \c AdmitCoulomb refuses.
+    CoulombAuditResult CoulombAudit(const qchem::Hamiltonian::CoulombRoute& reference) const;
     //! \brief WHAT THIS RUN'S CLIENT CONSUMES (pin 31; the solid's rule): a run built on its own answers an \c Energy, judged on |ΔE| against
     //! eps x N_atoms; a point a \c MoleculeSession builds (a surface, forces, an optimization) answers \c MatrixElements, max|ΔH_ij| against eps.
     ClientConsumes Consumes() const override;
@@ -337,9 +353,7 @@ private:
     std::unique_ptr<const sf_t>          itsSpinDensity;       //!< owned converged m(r), the zero field when unpolarized
     std::vector<Level>                   itsLevels;            //!< every MO, ascending; phi into the wave function
     std::vector<occ_t>                   itsOccupied;          //!< non-owning, into the wave function
-    Observer                             itsObserver;          //!< optional live-progress sink
-    //! The last iterate's row, kept whether or not a caller observes: a run that misses its gates says by how much.
-    std::optional<qchem::SCFIterator::IterationRow> itsLastRow;
+    Observer                             itsObserver;          //!< optional live-progress sink (the last iterate's row is the base's: KeepingLastRow)
 };
 
 //! \brief THE MOLECULAR POTENTIAL ENERGY SURFACE (doc/CalcNetworkReview.md §3.1, §7; step 8): one fixed \c MoleculeSetup,

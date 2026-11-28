@@ -73,15 +73,38 @@ forces Polarized.  An AFM crystal states `"spin": "Polarized", "multiplicity": 1
   "imposeSymmetry": false, "spins": [1,-1,0,0],   // spins: the stated magnetic ordering, +1/-1/0 per site (was solid.siteSpins)
   "accuracy": 1e-5,                       // THE ONE accuracy target eps (pin 31)
   "xc": { "fit": "Auto", "rho": "exact",  // the Vxc fit basis, the density XC sees
+          "exactExchange": 0.25,          // a MOLECULE's hybrid fraction a in (0,1]: a*K_HF + (1-a)*E_x^LDA + E_c (absent = 0, pure DFT).  LDA
+                                          //   models only for now (a GGA / PBE / PADE hybrid is REFUSED, policy row Hybrid); a solid or an atom
+                                          //   refuses the key.  Needs the four-index tensor (the ERI4 RAM check fires).  V-HAM-COMPOSE step 3, lane S 2026-11-27
           "mesh": { "cellKind": "Auto|Uniform|Becke", "nRadial": 40, "angularDegree": 29, "beckeEps": 1e-6, ... } },   // was solid.xcMesh
-  "coulomb": { "fit": "Auto",              // a MOLECULE's Hartree route: Auto (the policy picks: Delta, user ruling 2026-11-22) | Auxiliary (a Dunlap fit) | Delta (rho on the XC mesh,
+  "coulomb": { "route": "Fit",             // Fit (the fit / solver keys below) | Exact (the four-centre J through the ERI4 tensor, the fit keys refused;
+                                          //   "exact-J DFT", policy row ExactCoulomb: Direct-only RAM, warned on every use).  HF: an unstated route is
+                                          //   Exact (plain HF); a stated Gaussian fit (fit Auxiliary, auxBasis, metric or constraint) is "RI-J HF" (fitted J,
+                                          //   exact K; policy row CoulombFit); Delta / Multipole on HF are refused (CoulombRouteForHF).  V-HAM-COMPOSE, lane S 2026-11-25
+               "fit": "Auto",             // a MOLECULE's Hartree route: Auto (the policy picks: Delta, user ruling 2026-11-22) | Auxiliary (a Dunlap fit) | Delta (rho on the XC mesh,
                                           //   radial Poisson) | Multipole; a solid refuses the block (its Hartree is its density ball)
+               "solver": "Auto",          // how the Delta route finds v at its points: Auto (= RadialPoisson) | RadialPoisson | DirectSum |
+                                          //   Analytic (v_g = sum D_kl (kl|delta_g), the COSX / sn-K kernel; Delta fit, finite structures only;
+                                          //   lane S 2026-11-25).  HF refuses a stated solver; Auxiliary / Multipole refuse DirectSum and Analytic
+               "metric": "Auto", "constraint": "Auto",   // the Auxiliary fit's two axes (V-FIT-AXES): metric Coulomb (Dunlap) | Overlap
+                                          //   (not built yet, refused); constraint Charge | None.  Auto = Coulomb x Charge.  Delta / Multipole
+                                          //   refuse a stated metric and the Charge constraint
                "auxBasis": "A2_coul" },   // the Auxiliary route's fit file stem (A1_coul, A2_coul); empty = A2 (A1 where A2 misses an element).  An atom
-                                          //   refuses it; so do HF and the Delta / Multipole routes.  Every Auxiliary run reports the fit's J error,
+                                          //   refuses it; so do the Delta / Multipole routes (on HF it selects RI-J HF).  Every Auxiliary run reports the fit's J error,
                                           //   one delta J at the seed and at the converged density (policy CoulombFitResidual), WARNING over eps x N
   "solid": {                              // the PERIODIC-ONLY options
     "kShift": [0,0,0], "densityEcut": -1, "cutoffFactor": 2,
+    "firstIterateMargin": 1.0,            // EXPERT, Ha per atom: iterate 1 below (sum of the free pseudo-atoms' energies) - margin x N_atoms is REFUSED as a collapse (kFirstIterateMargin, its record at the declaration); >= 0
+    "quotientAllowance": 1e-7,            // EXPERT: the quotient range audit's allowance factor eta (kQuotientAllowance, its record at the declaration): a static term whose Rayleigh quotient along the basis's weakest directions leaves its rigorous range by more than eta x |A|_F/lambda is REFUSED before iteration 1; >= 0
     "xcMeshSymmetric": true,              // FREE run: XC mesh invariant under the group detected at THIS geometry; false = the plain atom-centred mesh (a displacement path needs false)
+    "xcRungFeed": "auto",                 // EXPERT, uniform XC only: how the XC raster (rho[D] at L0's points) sees the ladder's completion rung -- two
+                                          //   exact routes that differ in COST (user ruling 2026-11-26, qchem.XCRungPolicy):
+                                          //   "pairsOnL0" (B) the rung's pairs collocated a second time onto L0's raster;
+                                          //   "rungMultiple" (C) the rung's raster rounded up to an integer multiple m of L0's, XC reading L0's points off
+                                          //   Hartree's own collocation (Hartree's rung raster rises with it: <= 6e-10 Ha measured);
+                                          //   "auto" (default) the cheaper on the rule prod(m) - prod(x) < 1, x = the rung's own raster / L0's per axis
+                                          //   (C whenever the rung is no finer than L0); B when it cannot be formed.  A stated value wins; the
+                                          //   [policy] XC rung feed line prints x, m, both predicted extras and the choice.  No rung: nothing to choose.
     "tolerances": { "screenEps": 1e-10, "densityEps": 1e-10, "vlocEps": 1e-5, "fieldSharp": 0.667, "relCutoff": 0, "mgridEcuts": [], ... },
     "policy": { "cp2kCompat": false, "streamFold": true, ... },     // the declared CP2K deviations; ONLY stated routes are recorded
     "hubbard": [ { "site":0, "l":2, "U_eV":4.0, "orthoAtomic":true, "Uirrep_eV":[...], "alpha_eV":0 } ],

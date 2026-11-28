@@ -4173,6 +4173,19 @@ algebraically the same, and the memory is unchanged.  NaF PW falls geometrically
 
 **Steps 2/3 (the setup bound, the health column): CLOSED by the user, 2026-11-25, verbatim: "Yes, neither".**  With the residual held, the floor is
 set by forming R itself, ~u ||D||_F (Δρ ~1e-16).  A setup refusal of a gate below it, or a report column watching for it, could never trip.
+
+## ✅ Grid-pilot beta-test findings on Li -- (c)'s remainder (closed 2026-11-25, lane H)
+
+Measured on main f32563c04 (+ lane H's first-iterate floor, which does not touch the XC route), box load ~22.
+- `GPW_LiF.Γ_Becke_XCMeshAuditReadsTheCurvatureError_Long` (Li q1, Γ, the mesh STATED as `cellKind Becke` = (nR 40, Lebedev 29)): the
+  pilot judges both axes of the energy run's Becke mesh.  Angular L29 vs L35: |dE_xc| 5.1e-6 / 4.8e-6 (meets 2e-5).  RADIAL nR 40 vs 60:
+  7.2e-5 / 6.6e-5 (OVER).  The mesh is stated, so it is honoured and the pilot says NOT SETTLED (a WARN, pin 31: a stated choice is
+  warned, never substituted).  postSCF xcMeshAudit vs (80, 48 GL): dE_xc -6.7e-5, max|dH_xc| 2.4e-4.  The gate passes (it records ok=false).
+- The same dx = 0 deck with `xc.mesh.cellKind Auto` (`~/Code/qchem6-runs/LiF/xcauto/`): round 0 climbs (40, 29) -> (60, 35) in 2 raises
+  (radial 60 vs 80: 2.8e-6; angular 35 vs 41 GL: 2.0e-6), round 1 confirms both axes (2.0e-6 / 2.3e-6), SETTLED.
+- So the default (an unstated mesh) meets eps; nothing is left for the energy run's angular axis.
+
+Original row: | **Grid-pilot beta-test findings on Li (lane H, 2026-11-03)** | (a)-(d) FIXED (2026-11-05, 2026-11-07 b1f150ac8), (e) FIXED 2026-11-08 (lane A d54bec926); `doc/Records/OpenWork_History5.md`. RE-MEASURED 2026-11-07 (main 09eb3caa, bcc q3 aug, 4 threads, `~/Code/qchem6-runs/Li/mu/pilot2/Li_bcc_q3_aug_pilot.log`): 6,056 s wall against the old 22,010 s (3.6x; the old run's PP predates the Hermite3 fix, so not like for like), peak RSS 4.7 GB, Etot -7.366083108 Ha.  By phase: setup 753 s; SCF 406 s (11 iterations); audit round 1 1,284 s (x+8 reference 742, density ball x2 542); re-convergence at x 5.753 (rebuild 600 s + SCF 708 s, 6 iterations); audit round 2 2,054 s (1,072 + 982); the postSCF gridAudit REUSED the pilot's last round (5 s, was 2,460 s); xcMeshAudit 60/35 245 s.  The audits are 55% of the run, and the largest bucket is the reference bases' short-range local PP lattice sum (2,610 s over 432 calls, 6 s each). Left: (c)'s remainder, the q1 solids' auto-chosen 512-point Uniform XC mesh the pilot calls converged while Becke 60/35 differs by 26-35 μHa (the ε row's known miss 1) -- ok now means ≤ the run's target, so `GPW_LiF.Γ_Becke_XCMeshAuditReadsTheCurvatureError_Long` records ok=false (|dE| 7.4e-5 / 6.7e-5 vs 2e-5: the energy run's Becke angular mesh is not piloted) | (c): pilot the energy run's Becke angular mesh, or record the miss · `src/Calculation/Imp/SolidCalculation.C` |
 ## ✅ Folded molecular runs: the mesh pilot folds every candidate mesh (closed 2026-11-25, lane H, 6c9fe9d68 · 7f441e356)
 The row as it stood:
 
@@ -4190,3 +4203,56 @@ The row as it stood:
   the XC-mesh Φ tables (x112 calls, 7-18 s on SF₆ depending on load).  Neither is logged as a row: the check also guards member points
   (a wrong edge op), and the Φ tables are per Hamiltonian by design.
 
+## ✅ `REFUSED ON RESOURCES` reads page cache as used memory (closed 2026-11-27, lane B, 0ed6e0df0)
+
+**Ruling (user, 2026-11-27, via the controller; option B, "Fixed limit"):** refuse against the deterministic limit (`QueryMemoryBudget`:
+the nearest cgroup memory.high / memory.max, else MemTotal) less this process's own resident non-file memory, and WARN on the live,
+cache-fixed figure.  Both go under the run report's `policy` scope.  Rejected: (A), the whole scope live (the verdict depends on which
+tests ctest schedules beside the run), and (C), the run's share (limit / processes, depends on -j and refuses a small run beside idle
+neighbours).  A neighbour squeeze is memsafe's job (it swaps and throttles); the cost is that a run that cannot fit beside its
+neighbours crawls instead of being refused.
+
+**What changed** (`src/Calculation/{AuditFootprint,ERI4MemoryPolicy}.C`, `Imp/AuditFootprint.C`):
+- The cache half: `QueryAvailableMemory` reads the scope's `memory.stat` and counts `inactive_file + slab_reclaimable` as reclaimable
+  (active_file stays used, MemAvailable's conservative half): live = limit - max(0, current - reclaimable).  Without memory.stat it keeps
+  the old figure and its source says "no memory.stat: page cache counted as used".  Every live reader gets this (PhiTables,
+  CheckCoulombFit, the A1 cost line); those three still only warn.
+- The neighbour half: `ResourceRoom` = { limit, own (RssAnon + RssShmem from /proc/self/status), live }.  `Fixed()` = limit - own,
+  clamped at 0; `Warn()` = min(fixed, live).  REFUSE when the band's low end exceeds `Fixed()`; WARN when its high end exceeds `Warn()`.
+  The audit reference (pilot, gridAudit, xcMeshAudit) and the ERI4 door use it.  The message and the report print both figures with their
+  sources.  Report keys `availableBytes` / `availableSource` became `fixedRoomBytes, limitBytes, limitSource, ownBytes, ownSource,
+  liveBytes, liveSource` (no reader in the GUI, pybind, scripts or CLIapps).
+
+**Measured:**
+- `GPW_MnO.Γ_Shub_Pol_Smear_IonicSAD_eqSAD_Long` under `memsafe -H 3G` (lane S: refused at 0.66-1.27 GB with "0.00 GB available"): runs,
+  no warning, ends at its anchor -61.3031871333 to the digit, peak RSS 1.82 GB.
+- `GPW_MnO.k222_Shub_Pol_Smear_CP2K_Long` under `-H 9G` (refused on the last panel at 2.78-5.36 GB with 1.88 GB available): WARNS (the
+  reference needs 3.95-7.60 GB; fixed room 6.76 GB = 9.66 less own 2.90; live 6.74 GB, reclaimable 0.00 at that moment), settles on
+  (80, L35) and passes, peak RSS 6.29 GB.
+- Landing sweep (short + long, QCHEM_OPENMP_THREADS=4): the refusals and warnings are the same as main's sweep (the four deliberate
+  PB-scale / stated-zero refusals, one warning), so no run changed route.
+
+Original row:
+
+| **`REFUSED ON RESOURCES` reads page cache as used memory** (controller, 2026-11-27, at the lane H range-check landing 902b1b8c) | `AuditFootprint.C` sizes what a run has as cgroup `memory.high − memory.current` (else MemAvailable).  `memory.current` includes the scope's page cache, which the kernel reclaims on demand, and under `scripts/memsafe ctest -j3` the three tests share ONE scope, so a refusal depends on what the neighbours and the cache hold at that instant.  The panel then refused three runs that fit (`GPW_NaF.k222_RelaxesToCP2KsCell_Long` 0.40 GB 'and 0.00 GB is available', `GPW_Si.k333_RelaxesToCP2KsCell_Long` 2.5-4.9 GB at 0.00, `GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` 5.5-10.5 GB at 3.02); the previous panel (88c52967) ran all three.  A refusal must be deterministic for the run, not for the box's moment (priority 1) | count reclaimable memory as available (subtract `memory.stat` file / inactive_file from `memory.current`, as MemAvailable does for the host), and state in the refusal which figure it used; decide with the user whether the budget is the scope's or the run's own share of it · `src/Calculation/Imp/AuditFootprint.C` (lane B, author of the resource refusal d54bec926 / cf9d7cfdb) |
+
+## ✅ A panel case's resource check reads a SHARED scope (closed 2026-11-27, lane B, 0ed6e0df0)
+
+Closed by the same change as "`REFUSED ON RESOURCES` reads page cache as used memory" (above; user ruling 2026-11-27, option B).  Of the
+row's three remedies it is the third: the audit's admission reads its OWN process against a deterministic budget.  The REFUSAL compares
+the band's low end with the fixed room, `QueryMemoryBudget` (the scope's memory.high / memory.max) less this process's RssAnon + RssShmem.
+So a neighbour in the same memsafe scope, at its setup peak or not, no longer decides it, and neither does page cache.  A per-test scope
+and a -j1 panel are not needed.
+
+What is left is by design, not a defect:
+- The WARNING still reads the live figure (limit less the scope's non-reclaimable usage), so whether a run warns can depend on its
+  neighbours.  It only warns; the run goes ahead.
+- A run that fits its fixed room but not beside its neighbours now crawls under memsafe (swap, throttle) instead of being refused.  The
+  ruling accepts that cost.
+- The THIRD occurrence (TiO₂ ALONE under `-H 6G`, 2.38 GB headroom at pilot round 1 against 2.88-5.54 GB) was never a scheduling effect:
+  the run's own footprint plus its reference exceed the cap.  Under option B it is still REFUSED (fixed room 6 GB less its own ~3.6 GB,
+  below the 2.88 GB low end), which is the right answer.  It passes under -H 8G.
+
+Original row:
+
+| **A panel case's resource check reads a SHARED scope** (controller 2026-11-14, S3a landing) | The audit's admission headroom is `memory.high − memory.current` of the WHOLE memsafe scope, which holds both `ctest -j2` panel cases.  `GPW_TiO2.k222_Pol_Smear_Kerker_Pulay_Converges_Panel_Long` was REFUSED ON RESOURCES at pilot round 1 (2.28 GB available, needs 2.88-5.54) because the MnO2 neighbour was at its setup peak; alone it has 5.2 GB and passes, and S3a costs +30-50 MB (lane H's solo A/B).  So a panel verdict can depend on test scheduling.  SECOND occurrence 2026-11-14 (S4 landing): `GPW_MnO2…ConvergesThroughARefusedFirstIterate_Panel_Long` refused at 0.58 GB headroom, finished NOT SETTLED at −3.5e-4 Ha off; alone it passes with 0 moved.  THIRD 2026-11-15 (lane B, ion seed library): TiO₂ refused in the -j2 panel (2.57 GB) and AGAIN ALONE under `memsafe -H 6G` (2.38 GB headroom at pilot round 1: the run's own footprint is in the same scope), and passed alone under `-H 8G` with energy and iterations identical to main-a7da749a, so -H 6G no longer fits this case even solo | Decide what the panel should measure: a per-test scope (memsafe per ctest test), a panel at -j1, or the audit's admission reading its OWN process (RSS) against a stated budget · this row |

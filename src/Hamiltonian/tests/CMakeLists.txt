@@ -15,6 +15,8 @@ add_executable(UTHamiltonian ../../Common/tests/gtestmain.C
    Hubbard.C            # DFT+U: the LowdinProjector forward/adjoint pair (2026-09-19)
    VxcProductSpace.C    # V-XC-ONE-TERM: every {structure} x {fit} x {points} cell vs its table row (2026-10-31)
    DeltaFitHartree.C    # the δ-fit Hartree route: the direct Coulomb sum against a closed form (2026-11-06)
+   Mixed.C              # the linear mixer term: 1*T+0*T' = T bit for bit, a*T+(1-a)*T = T (V-HAM-COMPOSE step 3, 2026-11-26)
+   RangeAudit.C         # the quotient range audit's term body on a toy near-singular block (2026-11-26)
 )
 
 target_compile_definitions(UTHamiltonian PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

@@ -2,7 +2,7 @@
 #   clang++-20 -std=c++23 -stdlib=libc++     -Wno-reserved-identifier -Wno-reserved-module-identifier     --precompile -o std.pcm /usr/lib/llvm-20/share/libc++/v1/std.cppm
 # qcCommon: the non-math residue (pure utility/data).  All math lives in qcMath now (../Math).
 add_library(qcCommon)
-target_sources(qcCommon PRIVATE  Imp/PeriodicTable.C Imp/Reporting.C Imp/Parallel.C Imp/Diagnostics.C Imp/Environment.C Imp/RunPolicy.C Imp/HDF5.C Imp/SCFCap.C)
+target_sources(qcCommon PRIVATE  Imp/PeriodicTable.C Imp/Reporting.C Imp/Parallel.C Imp/Diagnostics.C Imp/Environment.C Imp/RunPolicy.C Imp/HDF5.C Imp/SCFCap.C Imp/RunControl.C)
 target_sources(qcCommon PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     PeriodicTable.C
     Iterators.C
@@ -17,6 +17,7 @@ target_sources(qcCommon PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     RunPolicy.C
     HDF5.C
     SCFCap.C
+    RunControl.C                          # commands to a running calculation: stop, save-and-stop, checkpoint, threads
     Accuracy.C
     HandOff.C
     SlotMap.C

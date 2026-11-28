@@ -11,6 +11,7 @@ module;
 #include <memory>
 #include <utility>
 #include <map>
+#include <optional>
 export module qchem.ChargeDensity.AtomicDensity;
 import qchem.ScalarFunction;   // ScalarFunction<double>, rvec3_t
 import qchem.Mesh.Quadrature;  // qcMesh::RadialMesh, MakeRadial, Integrate (radial quadrature)
@@ -105,6 +106,11 @@ std::pair<RadialDensity,RadialDensity>
 //! Does the (Z, functional[, Nelec==Nval]) entry exist AND carry a spin-resolved pair?
 bool          HasAtomicSpinPair(int Z, const std::string& functional="LDA",
                                 const std::string& dbfile="atomic_valence_densities.json", int Nval=-1, int q=-1);
+//! The entry's own TOTAL ENERGY (Ha, its \c Etot: the converged atom run that produced the density), or empty when the entry
+//! predates energies or is absent.  Entry selection is identical to \c GetAtomicDensity.  A neutral pseudo-atom's energy is the
+//! free-atom reference a periodic run's first iterate is judged against (\c SolidCalculation's first-iterate floor).
+std::optional<double> GetAtomicEnergy(int Z, const std::string& functional="LDA",
+                                      const std::string& dbfile="atomic_valence_densities.json", int Nval=-1, int q=-1);
 
 //! A RadialDensity recentred at a nucleus \a R: a 3-D ScalarFunction rho(|r-R|) for the function-fitter.
 class RecentredAtomicDensity : public virtual ScalarFunction<double>

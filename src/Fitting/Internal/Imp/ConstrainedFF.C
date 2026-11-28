@@ -19,12 +19,13 @@ namespace qchem::Fitting
 //  the initial guess carries the correct total charge (coeff[0] = 1/<f_0|1>).
 //
 template <class T> ConstrainedFF<T>::
-ConstrainedFF(fbs_t& fbs, const vec_t<T>& theg)
+ConstrainedFF(fbs_t& fbs, const vec_t<T>& theg, bool constrained)
     : itsBasisSet(fbs)
     , itsFitCoeff(fbs->GetNumFunctions(),0.0)
     , g  (theg)
     , gS (blazem::trans(g)*fbs->InvRepulsion())
     , gSg(gS*g)
+    , itsConstrained(constrained)
 {
     itsFitCoeff[0]=1.0/itsBasisSet->Charge()[0]; // wild guess with the correct total charge
 }
@@ -60,7 +61,7 @@ template <class T> void ConstrainedFF<T>::Constrain(T N)
 template <class T> void ConstrainedFF<T>::DoFit(const Projections& rho, double charge)
 {
     itsFitCoeff = itsBasisSet->InvRepulsion() * rho.Vector();   // c0 = G^-1 <f|1/r12|rho>
-    Constrain(charge);
+    if (itsConstrained) Constrain(charge);   // the constraint axis (V-FIT-AXES); off: the plain Coulomb least-squares fit
 }
 
 template <class T> hmat_t<T> ConstrainedFF<T>::Repulsion(const BasisSet::Orbital_DFT_IBS<T,T>& orb) const

@@ -2,7 +2,7 @@ add_library(qcFitting)
 target_sources(qcFitting PRIVATE
     Imp/FunctionFitter.C  Imp/CoulombOperator.C
     Internal/Imp/ConstrainedFF.C  Internal/Imp/FunctionFitterImp.C  Internal/Imp/IntegralConstrainedFF.C
-    Internal/Imp/DeltaDensityFitter.C)
+    Internal/Imp/DeltaDensityFitter.C  Internal/Imp/DeltaProjectionDensityFitter.C)
 target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     FunctionFitter.C
     CoulombOperator.C
@@ -11,6 +11,7 @@ target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/OrthoNormalFunctionFitter.C
     Internal/DeltaFunctionFitter.C
     Internal/DeltaDensityFitter.C
+    Internal/DeltaProjectionDensityFitter.C
     Internal/GSpaceDensityFitter.C
     Types.C
 )

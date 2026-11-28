@@ -12,12 +12,14 @@
 #include <stdexcept>
 #include <filesystem>
 #include <fstream>
+#include <unistd.h>    // getpid: a per-process state file (ctest runs cases in parallel)
 import qchem.MoleculeCalculation;
 import qchem.AtomCalculation;   // AtomCalculation::Prepare (the atom's Build -> Run)
 import qchem.Structure;         // Atom (the atom's report ID)
 import qchem.StructureData;
 import qchem.SCFParams;
 import qchem.SCFIterator;
+import qchem.SCFState;   // ReadState (a saved state's fingerprint)
 import qchem.Types;
 import qchem.SCFCap;   // BoundedSCF: the failure arm runs a deliberately bounded SCF
 import qchem.BasisSet.Gaussian.Point.BasisFiles;   // BasisFile / BasisFileChecksum (a stated basis file)
@@ -649,4 +651,53 @@ TEST(AtomPilot, TheIterationCountIsTheRunsTotalAndThePilotsShareIsFiled)
     EXPECT_LT(pilot, seen) << "the entry SCF ran too";
     EXPECT_EQ(calc->IterationCount(), seen) << "every iteration the observer saw, the entry SCF's and the pilot's";
     EXPECT_EQ((*result)["iterations"].get<long>(), (long)seen);
+}
+
+// AN EXACT RESUME KEEPS THE GRIDS THE PILOT SIZED (V-FACADE-HOIST (b), controller's facade survey 2026-11-25): the molecule and the solid
+// adopt a saved state's sized grids (their SizedBySavedState) and fingerprint the grids they RAN on.  The atom fingerprinted the ENTRY
+// mesh (opts.xcMesh) and adopted nothing, so its own state read as an exact resume and then re-piloted from 50 radial points.  The same Mn
+// q7 pseudo-atom as above (its pilot raises xcRadial 50 -> 75): saved, restarted on the same setup, it must resume on the raised grids
+// with no pilot, at the saved energy, in at most 3 iterations, and the state must name the grids it was converged on.
+TEST(AtomPilot, AnExactResumeAdoptsTheGridsThePilotSized)
+{
+    RunOptions o{.atom={.type=AtomType::Gaussian, .pseudopotential=true}};
+    o.atom.valence=7;
+    o.vxcFit=Hamiltonian::VxcFit::Auxiliary;
+    std::vector<double> pool;
+    for (int i=0;i<16;i++) pool.push_back(0.05*std::pow(200.0/0.05, i/15.0));
+    for (int l=0;l<=2;l++) o.atom.exponentsByL.push_back({l, pool});
+    o.scf.MinVirial=std::nullopt; o.scf.NMaxIter=120;
+    const std::string path=(std::filesystem::path(testing::TempDir())/("atom_resume_grids_"+std::to_string(::getpid())+".h5")).string();
+    auto calc=AtomCalculation::Prepare(AtomSetup::Resolve(25, 25-7, o)).TakeValue();
+    ASSERT_TRUE(calc->Converge());
+    calc->SaveState(path);
+    auto saved=ReadState(path);
+    ASSERT_TRUE(saved) << saved.Error().details;
+    const auto& w=saved->fingerprint.warmNum;
+    ASSERT_TRUE(w.count("grids.xcMesh")) << "the atom fingerprints its XC mesh";
+    EXPECT_EQ(w.at("grids.xcMesh").at(0), 75.0) << "the state names the XC radial count it CONVERGED on (the pilot's 75), not the entry 50";
+
+    std::optional<Outcome<std::unique_ptr<AtomCalculation>, RestartRefusal>> R;
+    {
+        qchem::report::Run run("atom resume on sized grids");
+        R.emplace(AtomCalculation::Restart(path, AtomSetup::Resolve(25, 25-7, o)));
+    }
+    std::filesystem::remove(path);
+    ASSERT_TRUE(*R) << (*R).Error().details;
+    const AtomCalculation& again=*R->Value();
+    ASSERT_TRUE(again.RestartedFrom());
+    EXPECT_TRUE(again.RestartedFrom()->exact) << "an exact resume of its own state";
+    EXPECT_TRUE(again.IsConverged());
+    EXPECT_NEAR(again.Energy(), calc->Energy(), 1e-8) << "the saved energy: the resume runs on the grids the state was converged on";
+    EXPECT_LE(again.IterationCount(), 3u) << "an exact resume, not a re-pilot (the run counts the pilot's re-convergences)";
+    const auto* filed=FiledRun("atom resume on sized grids@");
+    ASSERT_TRUE(filed);
+    bool piloted=false;
+    std::function<void(const qchem::report::json&)> find=[&](const qchem::report::json& x)
+    {
+        if (!x.is_object()) return;
+        for (auto it=x.begin(); it!=x.end(); ++it) { if (it.key()=="atomPilot") piloted=true; find(it.value()); }
+    };
+    find(*filed);
+    EXPECT_FALSE(piloted) << "the resume re-ran the atom pilot: " << filed->dump(1).substr(0, 2000);
 }

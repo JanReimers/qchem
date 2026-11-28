@@ -31,6 +31,7 @@ std::string GPWTolerances::Describe() const
     if (rasterX          != d.rasterX)          os << " rasterX="          << rasterX;
     if (vlocRasterX      != d.vlocRasterX)      os << " vlocRasterX="      << vlocRasterX;
     if (xcRasterX        != d.xcRasterX)        os << " xcRasterX="        << xcRasterX;
+    if (xcRungFeed       != d.xcRungFeed)       os << " xcRungFeed="       << (xcRungFeed==XCRungFeed::RungMultiple ? "RungMultiple" : "PairsOnL0");
     if (!mgridEcuts.empty()) { os << " mgridEcuts="; for (size_t i=0;i<mgridEcuts.size();++i) os << (i?",":"") << mgridEcuts[i]; }
     return os.str();
 }
@@ -41,7 +42,7 @@ std::string GPWTolerances::KeyFragment() const
                  +",gateC="+KeyString(rungGateC)+",rcSafety="+KeyString(relCutoffSafety)+",pairEps="+KeyString(pairRoutingEps)+",ppRel="+KeyString(localPPRelCutoff)
                  +",relSharp="+KeyString(relFieldSharp)+",screen="+KeyString(screenEps)+",sharp="+KeyString(fieldSharp)
                  +",relCut="+KeyString(relCutoff)+",dens="+KeyString(densityEps)+",rX="+KeyString(rasterX)
-                 +",vX="+KeyString(vlocRasterX)+",xX="+KeyString(xcRasterX)+",mgrid=";
+                 +",vX="+KeyString(vlocRasterX)+",xX="+KeyString(xcRasterX)+",xcRung="+(xcRungFeed==XCRungFeed::RungMultiple ? "C" : "B")+",mgrid=";
     for (double e : mgridEcuts) k+=KeyString(e)+";";
     return k;
 }

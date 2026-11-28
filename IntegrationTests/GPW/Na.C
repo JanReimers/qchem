@@ -94,5 +94,10 @@ TEST(GPW_Na, k222s_Imp_Smear_GlobalMu_Anchor)
     // RE-JUDGED 2026-11-24 (lane A, the absolute pair routing ecut >= 2 p ln(1/eps)): 0.0473906 -> 0.0473793 (-11.3 uHa).  Pin 10's
     // independent route: the same run at eps 1e-12 and with EVERY pair on the finest level (no routing at all) gives 0.04737928161 both
     // times, identical to the new value; the old relative pair rule left the diffuse Na 3s pairs on coarse levels (~/Code/qchem6-runs/anchors/lane-a-pin10).
-    EXPECT_NEAR(R->Energy(), 0.0473793, 1e-5);
+    // RE-JUDGED 2026-11-27 (lane A, the XC feed: the completion rung's pairs sampled EXACTLY at L0's points, no longer band-dropped onto
+    // it): 0.0473793 -> 0.0473955 (+16.2 uHa, all in Exc).  Pin 10's independent route: the same run at STATED rasters, density x 32 and
+    // XC L0 x 40, gives 0.0473955344; x 24/24 gives 0.0473954385; the pilot now SETTLES (it never did before) at x 6.42 / 11.31 on
+    // 0.0473961645, both feeds (pairsOnL0 and rungMultiple) agreeing to 1e-8.  The old value carried the band-dropped rung's Exc error.
+    EXPECT_NEAR(R->Energy(), 0.0473955, 1e-5);
 }
+

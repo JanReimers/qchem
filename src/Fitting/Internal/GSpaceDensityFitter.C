@@ -12,6 +12,7 @@
 //   - It replaces the hand-written V_H field the PW Hartree term used to hold (Vee_Hartree), and the kernel the density used to
 //     bake into its own answer.
 module;
+#include <optional>
 #include <cassert>
 #include <complex>
 #include <functional>
@@ -64,7 +65,18 @@ public:
         {itsProjector->StarAverage(p,group);}
 
     // --- the first-order fitted Hartree face
-    void DoFit(const Projections& rho) override {itsRho=rho.GMap(); itsFitted=true;}
+    //! The fit, and its field's bound (built HERE, the refresh: \c RepulsionBound is then a pure read).
+    void DoFit(const Projections& rho) override
+    {
+        itsRho=rho.GMap(); itsFitted=true;
+        // \f$v(\mathbf r)=\sum_{\mathbf G\ne0}k(\mathbf G)\tilde\rho(\mathbf G)e^{i\mathbf G\cdot\mathbf r}\f$ (\f$\rho=\sum\tilde\rho e^{iG\cdot r}\f$, the
+        // normalization HartreeEnergy uses), so \f$|v|\le\sum_{\mathbf G\ne0}k(\mathbf G)|\tilde\rho(\mathbf G)|\f$: a FINITE sum over the fit's own {G},
+        // exact for the fitted field (the fit has no other G: no cut, pin 1).  k = 4 pi / G^2, the basis's Poisson kernel; k(0) = 0.
+        double B=0.0;
+        for (const auto& [dm,r] : itsRho) if (const double k=itsPK->CoulombKernel(dm); k>0.0) B+=k*std::abs(r);
+        itsRepulsionBound=B;
+    }
+    std::optional<double> RepulsionBound() const override {RequireFit("a field bound"); return itsRepulsionBound;}
     hmat_t<double> Repulsion(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override {return RepulsionT<double>(orb);}
     hmat_t<dcmplx> Repulsion(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override {return RepulsionT<dcmplx>(orb);}
     //! \f$E_H=\tfrac12\Omega\sum_G k(G)|\tilde\rho(G)|^2\f$: first order is exact on an orthonormal basis, so \a trDV is not asked.
@@ -253,6 +265,7 @@ private:
     double itsVolume=0.0;                           //!< Ω
     ΔG_Map itsRho;                                  //!< the fit = ρ̃(G), private
     bool   itsFitted=false;
+    double itsRepulsionBound=0.0;   //!< sum_{G!=0} k(G)|rho~(G)| of the last fit (DoFit)
     projector_t itsProjector;                       //!< the projection half (ρ̃ on the same basis's overlap face)
 };
 
